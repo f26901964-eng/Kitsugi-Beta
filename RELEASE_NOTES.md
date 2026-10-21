@@ -21,7 +21,31 @@
   - Bangumi'nin infobox kurumları (`动画制作`, `製作`, `播放电视台`, `出版社`, `连载杂志`) MAL/AniList/TMDB kurumlarıyla **birlikte** korunuyor.
 - **TR/EN dil dosyası uyumu:** 114 yeni `taxonomy_tag_*` kaynağı iki dilde üretildi; çeviri ekibi kodu değiştirmeden düzeltebilir (çalışma zamanında dil dosyası sözlükten öncelikli).
 - **Yan bulgu — veri kaybettiren betik düzeltildi:** `sync_bangumi_tag_strings.py` işaretçiden sonraki tüm dosyayı silip yeniden yazıyordu (~8.800 satır: kurum kaynakları, wiki, stream). Artık bloğu **yerinde** yeniden yazar. Bu sayede daha önce hiç dil dosyasına yazılmamış **494 Bangumi etiketi** eklendi ve sözlükte olmayan artık kaynak (`bangumi_tag_chinese_speaking`) temizlendi.
-- **Doğrulama:** yeni `scripts/check_taxonomy_master.py` (K1–K9 denetimi) + `diag/taxonomy_master/worklist.tsv` + `TaxonomyLabelsTest` (23 birim test). Dil dosyası eşitliği (`17.795 string`) ve iki üretecin idempotentliği bu turda yeşil.
+- **Kurum adındaki çöp temizlendi (`sanitizeOrgName`):** Bangumi infobox'ından gelen `"""アフタヌーン`, `芳文社; B6版` gibi artıklar ve `っ´Д`)っゼロ式の家` gibi kaomoji “yayıncı” çipleri artık gösterilmiyor. Gerçek kısa adlar (`CR`, `MX`, `B站`) korunuyor; stüdyo/yapımcı/kanal kartı boşalan kayıtları hiç çizmiyor.
+- **Sözlük yazım hatası düzeltildi:** `area_chinese_speaking` → “Çince Konuşulan Bölge” (`Çinçe` yazımı dil dosyasına da yansımıştı); MASTER doğrulaması yeniden yeşil.
+- **Üreteç güvenlik freni:** `gen_bangumi_master.py` yazma modu, kurum sözlüğünü `orgs.tsv`'den (365 satır) yeniden kurarken commit'li 11.693 satırı 1.125 satıra düşürebiliyordu. Artık sözlük %50'den fazla küçülecekse **yazılmıyor** (uyarı basılıyor, `--force` ile aşılabiliyor).
+- **Doğrulama:** yeni `scripts/check_taxonomy_master.py` (K1–K9 denetimi) + `diag/taxonomy_master/worklist.tsv` + `TaxonomyLabelsTest` (24 birim test) + `.github/workflows/taxonomy-master.yml`. Dil dosyası eşitliği (17.794 string / 17.637 benzersiz kayıt), Bangumi MASTER doğrulaması ve iki üretecin idempotentliği yeşil; değişen Kotlin dosyaları `tree-sitter-kotlin` ile sözdizimi denetiminden geçti.
+
+---
+
+## 🇬🇧 English
+
+### 🧩 Unified Genres / Tags / Studios–Producers–Publishers Across All Sources
+- **No more "use one, drop the other" — real merging (`KitsugiTaxonomyMerge`):**
+  - Regardless of which source opens the detail page (AniList, MAL/Jikan, Bangumi, Shikimori, Kitsu, Simkl, TMDB), genres, tags and organisations are now **collected from every source and merged**. Previously a non-empty primary field completely replaced the secondary source's data, so many titles silently lost genres, tags and studio info.
+  - Merging deduplicates via a **language-independent canonical key**: `Action` · `Экшен` · `アクション` · `动作` · `Aksiyon` collapse into a **single chip**.
+- **Russian (Shikimori) genre & tag dictionary (`RussianTaxonomyDictionary`, 114 groups):**
+  - Covers **all 79 official Shikimori genres** plus common Russian tags with TR/EN labels; MAL genre IDs are stored as a fallback resolution path.
+  - Unknown Cyrillic labels are **transliterated to Latin automatically** — Russian text never reaches the screen.
+- **Chinese/Japanese leakage closed:** labels that cannot be resolved are no longer rendered as chips (kept in the model so search still works).
+- **Cross-source collector (`KitsugiTaxonomySources`):** AniList's lightweight query now also requests `genres` and `studios`; MAL/Jikan supplies `genres`, `themes`, `demographics`, `studios`, `producers`, `licensors`. Everything runs **in parallel** with a hard time budget (4.5 s per source, 6 s total).
+- **Complete studio / producer / publisher / network collection:** role-aware deduplication by Latin name, preferring the entry **with an ID** (clickable studio page); a company no longer appears under both Studios and Producers.
+- **TR/EN parity:** 114 new `taxonomy_tag_*` resources in both locales, editable without code changes.
+- **Bonus fix — data-loss bug:** `sync_bangumi_tag_strings.py` used to truncate everything after its marker (~8,800 lines). It now rewrites the block in place, which also landed **494 previously unwritten Bangumi tags** and removed a stale orphan resource.
+- **Organisation-name junk removed (`sanitizeOrgName`):** infobox artefacts (`"""アフタヌーン`, `芳文社; B6版`) and kaomoji “publishers” such as `っ´Д`)っゼロ式の家` no longer render; genuine short names (`CR`, `MX`, `B站`) are preserved and the studios card skips entries that sanitise to empty.
+- **Dictionary typo fixed:** `area_chinese_speaking` → “Çince Konuşulan Bölge”.
+- **Generator safety brake:** `gen_bangumi_master.py` write mode could shrink the organisation dictionary from 11,693 rows to 1,125 by rebuilding it from a 365-row `orgs.tsv`. It now refuses to write when the new dictionary would be less than half the existing one (`--force` overrides).
+- **Verification:** new `scripts/check_taxonomy_master.py` (K1–K9), `diag/taxonomy_master/worklist.tsv`, `TaxonomyLabelsTest` (24 unit tests) and `.github/workflows/taxonomy-master.yml`; locale parity (17,794 strings / 17,637 unique keys), Bangumi MASTER verification and generator idempotency are green, and every changed Kotlin file parses cleanly with `tree-sitter-kotlin`.
 
 ---
 

@@ -3097,6 +3097,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="player_decoder_priority_software">📁 Yazılım Öncelikli (SW preferred)</string>
 
     <!-- Kitsugi Ortak Taksonomi (Rusça Shikimori + İngilizce kaynak etiketleri) -->
+    <!-- Ortak Taksonomi Etiketleri (Rusça kaynak değerler) -->
     <!-- OTOMATİK ÜRETİLDİ: scripts/sync_taxonomy_tag_strings.py -->
     <string name="taxonomy_tag_action">Aksiyon</string>
     <string name="taxonomy_tag_adventure">Macera</string>
@@ -3212,6 +3213,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="taxonomy_tag_ova">OVA</string>
     <string name="taxonomy_tag_movie">Film</string>
     <string name="taxonomy_tag_tv">TV</string>
+
     <!-- Bangumi Etiketleri (Çince/Japonca kaynak değerler) -->
     <!-- OTOMATİK ÜRETİLDİ: scripts/sync_bangumi_tag_strings.py -->
     <string name="bangumi_tag_tv">TV</string>
@@ -4043,7 +4045,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_tag_folk_music">Folk</string>
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Enstrümantal</string>
-    <string name="bangumi_tag_area_chinese_speaking">Çinçe Konuşulan Bölge</string>
+    <string name="bangumi_tag_area_chinese_speaking">Çince Konuşulan Bölge</string>
     <string name="bangumi_tag_area_canada">Kanada</string>
     <string name="bangumi_tag_area_czech">Çekya</string>
     <string name="bangumi_tag_area_malaysia">Malezya</string>

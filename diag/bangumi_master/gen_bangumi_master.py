@@ -416,8 +416,39 @@ internal object BangumiOrgDictionary {
 }
 '''
 
-ORG_DICT.write_text(ORG_TEMPLATE.replace("%RAW_CHUNKS%", render_kotlin_raw_chunks(org_lines)),
-                    encoding="utf-8") if not CHECK_ONLY else None
+def _current_org_rows() -> int:
+    """Mevcut sözlükteki eşleme satırı sayısı (güvenlik freni için)."""
+    try:
+        text = ORG_DICT.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return 0
+    return sum(1 for line in text.splitlines() if "|bangumi_" in line)
+
+
+# ⚠ GÜVENLİK FRENİ — 2026-10-21'de yaşanan veri kaybından sonra eklendi.
+# `orgs.tsv` (369 satır) ile üretilmiş sözlük (11.693 eşleme satırı) arasında büyük fark
+# varsa yazma işlemi **durdurulur**: aksi hâlde yazma modu binlerce takma adı siliyor.
+_existing_org_rows = _current_org_rows()
+_org_write_blocked = (
+    not CHECK_ONLY
+    and _existing_org_rows
+    and len(org_lines) * 2 < _existing_org_rows
+    and "--force" not in sys.argv
+)
+if _org_write_blocked:
+    # Sözlük yazımı atlanır ama dil dosyası/etiket senkronu devam eder: aksi hâlde
+    # `orgs.tsv` güncellenene kadar hiçbir üretim çalıştırılamaz hâle gelirdi.
+    print(
+        "⚠ GÜVENLİK: BangumiOrgDictionary {0} satırdan {1} satıra düşecekti — sözlük YAZILMADI.\n"
+        "  orgs.tsv mevcut sözlükle eşitlenmeli; bilinçli küçültme için `--force`.".format(
+            _existing_org_rows, len(org_lines)
+        ),
+        file=sys.stderr,
+    )
+
+if not CHECK_ONLY and not _org_write_blocked:
+    ORG_DICT.write_text(ORG_TEMPLATE.replace("%RAW_CHUNKS%", render_kotlin_raw_chunks(org_lines)),
+                        encoding="utf-8")
 
 
 # ── 5) Dil dosyaları ─────────────────────────────────────────────────────────

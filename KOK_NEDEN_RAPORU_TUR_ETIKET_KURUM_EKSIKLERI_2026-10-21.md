@@ -120,6 +120,44 @@ edemediği için sözlükteki **494 etiket** dil dosyalarına hiç yazılmamış
 
 ---
 
+### KN-7 — Kurum alanında **veri olmayan değerler** çip olarak çiziliyordu
+
+Bangumi infobox'ı ve kullanıcı katkıları zaman zaman kurum alanına ad değil çöp yazıyor:
+
+| Değer | Kaynak | Sonuç |
+|---|---|---|
+| `っ´Д`)っゼロ式の家` | infobox | “Yayıncı” olarak kaomoji çipi (dil dosyasında `bangumi_publisher_cjk_8007fa`) |
+| `"""アフタヌーン` | sözlük üretimi | Baştaki üç tırnak ekranda kalıyordu |
+| `芳文社; B6版` | infobox `出版社` alanı | Baskı notu kurum adının parçası sanılıyordu |
+
+Gösterim katmanı (`toLocalizedOrgName`) yalnızca çeviri yapıyor, **temizlik yapmıyordu**.
+
+### KN-8 — Sözlük değeri ile dil dosyası arasında sessiz kayma
+
+`BangumiTagDictionary` içinde `area_chinese_speaking` girdisinin Türkçesi `Çinçe Konuşulan Bölge`
+(yazım hatası) iken `diag/bangumi_master/tags.tsv` doğru değeri (`Çince`) taşıyordu.
+`verify_bangumi_master.py` bunu **1 UYUŞMAZLIK** olarak yakaladı; MASTER hattı daha önce
+yeşil olduğu için hata sonradan girmişti.
+
+### KN-9 — Üreteç, kurum sözlüğünü **binlerce satır** kırpabiliyordu
+
+`diag/bangumi_master/gen_bangumi_master.py` yazma modunda `BangumiOrgDictionary.kt` dosyasını
+`diag/bangumi_master/orgs.tsv`'den yeniden kuruyor. Ölçüm:
+
+| Kaynak | Satır |
+|---|---|
+| `orgs.tsv` | 365 satır |
+| `BangumiOrgDictionary.kt` (commit'li) | **11.693 eşleme satırı** |
+
+Yani TSV, sözlüğün yalnızca küçük bir bölümünü taşıyor. Bu turda doğrulama amacıyla yazma modu
+çalıştırıldı ve dosya **1.125 satıra düştü** (≈10.800 satır kayıp). Dosya `git checkout` ile
+geri alındı; kaynak kod kaybı **oluşmadı**, ancak tuzak gerçekti.
+
+Kalıcı çözüm: üretece **güvenlik freni** eklendi. Yeni satır sayısı mevcut satır sayısının
+yarısından azsa sözlük **yazılmaz** (uyarı basılır, diğer üretimler devam eder); bilinçli
+küçültme için `--force` gerekir. `orgs.tsv` mevcut sözlükten yeniden türetilene kadar bu fren
+açık kalmalı.
+
 ## 3) Çözüm özeti
 
 | Kök neden | Çözüm | Dosya |
@@ -132,6 +170,9 @@ edemediği için sözlükteki **494 etiket** dil dosyalarına hiç yazılmamış
 | KN-4 | Sözlükte olmayan Çince/Japonca etiket **gösterimden çıkarılır** (modelde korunur) | `KitsugiTranslations.localizedDistinctTags` |
 | KN-5 | `toLocalizedOrgName()` Kiril adı Latin harfine çevirir; `mergeOrgs` + `dropProducersThatAreStudios` tekrarı kaldırır | `KitsugiTranslations.kt`, `KitsugiTaxonomyMerge.kt` |
 | KN-6 | Betik artık bloğu **yerinde** yeniden yazar; blok tek parça hâline getirildi, artık kaynak silindi, 494 eksik etiket dil dosyalarına yazıldı | `scripts/sync_bangumi_tag_strings.py` |
+| KN-7 | `sanitizeOrgName()`: tırnak artefaktı, `;` sonrası baskı notu ve kaomoji ayıklanır; boşalan kayıtlar hem modelde hem `KitsugiStudiosCard` içinde çizilmez | `KitsugiTranslations.kt`, `KitsugiDetailComponents.kt` |
+| KN-8 | Sözlük değeri `Çince` olarak düzeltildi, dil dosyası eşitlendi | `BangumiTagDictionary.kt`, `values/strings.xml` |
+| KN-9 | Üreteç güvenlik freni: sözlük %50'den fazla küçülecekse yazılmaz (`--force` ile aşılır) | `diag/bangumi_master/gen_bangumi_master.py` |
 
 ---
 
@@ -147,7 +188,12 @@ $ python3 scripts/check_localization_resource_parity.py     → exit 0 (17.795 s
 $ python3 scripts/check_taxonomy_master.py --worklist       → diag/taxonomy_master/worklist.tsv
 ```
 
-**Koşulamayanlar (dürüst boşluk):** Bu sandbox'ta JDK/kotlinc yok (`java: command not found`),
-`./gradlew test` ve APK derlemesi çalıştırılamadı. Kotlin tarafı bu yüzden **derleme değil**;
-sözlük/veri tutarlılığı, parantez dengesi ve kaynak adı kuralları ile doğrulandı. Cihaz/CI
-koşumu ve `TaxonomyLabelsTest` (23 test) CI'ya bırakıldı.
+**Ek doğrulama — gerçek Kotlin ayrıştırıcısı:** sandbox'ta JDK olmadığı için derleme yapılamıyor;
+bunun yerine `tree-sitter-kotlin` ile **sözdizimi ağacı** kuruldu. Değiştirilen 12 dosya
+`ERROR`/`MISSING` düğümü içermiyor. Depoda ayrıştırıcının hata verdiği 6 dosya var; bunların
+tamamı **HEAD'de de aynı** (dil bilgisi kısıtı, bizim değişikliğimiz değil).
+
+**Koşulamayanlar (dürüst boşluk):** `./gradlew test`, `kotlinc` derlemesi ve APK üretimi bu
+sandbox'ta çalıştırılamadı (JDK yok). Cihaz/CI koşumu ve `TaxonomyLabelsTest` (24 test) CI'ya
+bırakıldı; testlerin **beklediği değerler** sözlükten Python ile yeniden üretilerek tek tek
+doğrulandı (79 resmî tür, `Экшен`→`Aksiyon`, `«СЁДЗЁ»`→`Shōjo`, MAL kimlikleri).

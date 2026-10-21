@@ -1,24 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Rusça (Shikimori) taksonomi sözlüğünü dil dosyalarıyla eşitler.
+"""Ortak taksonomi (Rusça/Shikimori) etiketlerini dil dosyalarıyla eşitler.
 
 `RussianTaxonomyDictionary.kt` içindeki HER giriş için
 `res/values/strings.xml` (Türkçe) ve `res/values-en/strings.xml` (İngilizce)
 dosyalarına `taxonomy_tag_<key>` kaynağı yazar.
 
-Neden dil dosyası?
-  Çeviri ekibi sözlüğü **kod değiştirmeden** düzeltebilsin diye. Çalışma zamanında dil
-  dosyası sözlük tablosundan önceliklidir (bkz. `taxonomyStringOverride` ve
-  `toLocalizedTaxonomyLabel`).
-
-Blok yerleşimi:
-  Bu blok, Bangumi bloğunun (`bangumi_tag_*`) **hemen önüne** yazılır. Sebep:
-  `sync_bangumi_tag_strings.py` kendi işaretçisinden sonraki her şeyi silip yeniden
-  yazdığı için Bangumi bloğu daima dosyanın son bloğu olmalıdır.
+Neden kaynak dosya:
+  • Çeviri ekibi sözlüğü (Kotlin) değiştirmeden metni düzeltebilir; çalışma zamanında
+    dil dosyası sözlük tablosundan önceliklidir (`taxonomyStringOverride`).
+  • `--check` modu CI'da "sözlük değişti ama dil dosyaları güncellenmedi" hatasını yakalar.
 
 Kullanım:
     python3 scripts/sync_taxonomy_tag_strings.py          # dosyaları günceller
-    python3 scripts/sync_taxonomy_tag_strings.py --check   # fark varsa 1 döner (CI)
+    python3 scripts/sync_taxonomy_tag_strings.py --check  # fark varsa 1 döner (CI)
 """
 
 from __future__ import annotations
@@ -34,39 +29,41 @@ DICTIONARY = ROOT / "app/src/main/java/com/kitsugi/animelist/utils/RussianTaxono
 TR_STRINGS = ROOT / "app/src/main/res/values/strings.xml"
 EN_STRINGS = ROOT / "app/src/main/res/values-en/strings.xml"
 
-TR_MARKER = "    <!-- Kitsugi Ortak Taksonomi (Rusça Shikimori + İngilizce kaynak etiketleri) -->"
-EN_MARKER = "    <!-- Kitsugi Shared Taxonomy (Russian Shikimori + English source tags) -->"
+TR_MARKER = "    <!-- Ortak Taksonomi Etiketleri (Rusça kaynak değerler) -->"
+EN_MARKER = "    <!-- Shared Taxonomy Tags (Russian source values) -->"
+# Blok, Bangumi etiket bloğunun **önüne** yazılır (sabit çapa, dil dosyasına göre değişir).
+TR_ANCHOR = "    <!-- Bangumi Etiketleri (Çince/Japonca kaynak değerler) -->"
+EN_ANCHOR = "    <!-- Bangumi Tags (Chinese/Japanese source values) -->"
 
-# Bangumi bloğunun başlangıcı — taksonomi bloğu bundan ÖNCE gelir.
-TR_BANGUMI_MARKER = "    <!-- Bangumi Etiketleri (Çince/Japonca kaynak değerler) -->"
-EN_BANGUMI_MARKER = "    <!-- Bangumi Tags (Chinese/Japanese source values) -->"
-
-ENTRY_RE = re.compile(
-    r'g\(\s*(null|\d+)\s*,\s*"([a-z0-9_]+)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"'
-)
+ENTRY_RE = re.compile(r"g\(\s*(?:\d+|null)\s*,\s*(\"(?:[^\"\\\\]|\\\\.)*\"(?:\s*,\s*\"(?:[^\"\\\\]|\\\\.)*\")*)\s*\)")
+STRING_RE = re.compile(r'"((?:[^"\\]|\\.)*)"')
 KEY_RE = re.compile(r"[a-z0-9][a-z0-9_]*")
+
+TAXONOMY_TAG_PREFIX = '<string name="taxonomy_tag_'
+AUTO_COMMENT_PREFIXES = ("<!-- OTOMATİK ÜRETİLDİ", "<!-- AUTO-GENERATED")
 
 
 def read_entries() -> list[tuple[str, str, str]]:
     """Sözlükten (key, turkish, english) üçlülerini sırayla okur."""
     source = DICTIONARY.read_text(encoding="utf-8")
-    if "private val groups: List<Group> = listOf(" not in source:
-        raise SystemExit("Sözlük gövdesi bulunamadı: private val groups ... listOf(")
     body = source.split("private val groups: List<Group> = listOf(", 1)[1]
+    body = body.split("\n    // ── İndeksler", 1)[0]
 
     entries: list[tuple[str, str, str]] = []
-    for match in ENTRY_RE.finditer(body):
-        key, turkish, english = match.group(2), match.group(3), match.group(4)
+    for raw in ENTRY_RE.findall(body):
+        values = STRING_RE.findall(raw)
+        if len(values) < 3:
+            raise SystemExit(f"Eksik sözlük girişi: {values}")
+        key, turkish, english = values[0], values[1], values[2]
         if not KEY_RE.fullmatch(key):
             raise SystemExit(f"Geçersiz kaynak anahtarı (yalnızca a-z0-9_): {key}")
         entries.append((key, turkish, english))
 
-    if not entries:
-        raise SystemExit("Sözlükten hiç giriş okunamadı — dosya biçimi değişmiş olabilir.")
-
     duplicates = [k for k, c in Counter(k for k, _, _ in entries).items() if c > 1]
     if duplicates:
         raise SystemExit(f"Yinelenen sözlük anahtarı: {duplicates}")
+    if not entries:
+        raise SystemExit("Sözlükten hiç giriş okunamadı — ayrıştırma deseni eskimiş olabilir.")
     return entries
 
 
@@ -89,14 +86,8 @@ def render(entries: list[tuple[str, str, str]], marker: str, turkish: bool) -> s
         else "    <!-- AUTO-GENERATED: scripts/sync_taxonomy_tag_strings.py -->"
     )
     for key, tr, en in entries:
-        value = escape(tr if turkish else en)
-        lines.append(f'    <string name="taxonomy_tag_{key}">{value}</string>')
+        lines.append(f'    <string name="taxonomy_tag_{key}">{escape(tr if turkish else en)}</string>')
     return "\n".join(lines)
-
-
-AUTO_COMMENT_PREFIXES = ("<!-- OTOMATİK ÜRETİLDİ", "<!-- AUTO-GENERATED")
-
-TAXONOMY_TAG_PREFIX = '<string name="taxonomy_tag_'
 
 
 def _collapse_blank_runs(lines: list[str], max_blank: int = 2) -> list[str]:
@@ -113,31 +104,37 @@ def _collapse_blank_runs(lines: list[str], max_blank: int = 2) -> list[str]:
     return out
 
 
-def patch(path: Path, marker: str, block: str, fallback_marker: str, check: bool) -> bool:
-    """Bloğu **yerinde** değiştirir; dosyanın geri kalanına dokunmaz.
+def patch(path: Path, marker: str, block: str, check: bool, anchor: str = TR_ANCHOR) -> bool:
+    """Üretilen bloğu **yerinde** yazar; dosyanın geri kalanına dokunmaz.
 
-    `sync_bangumi_tag_strings.py` ile aynı yaklaşım: dosyadaki tüm `taxonomy_tag_*`
-    kaynakları ve otomatik üretim yorumları toplanır, bulundukları yerden çıkarılır ve
-    işaretçi satırının yerine tek parça halinde yeniden yazılır. Böylece iki üreteç
-    birbirinin çıktısını bozmadan art arda çalışabilir (idempotent).
+    1. Dosyadaki tüm `taxonomy_tag_*` kaynakları ve bu betiğin otomatik yorumu toplanır,
+    2. bulundukları yerden çıkarılır,
+    3. işaretçi satırı yerine tek parça hâlinde yeniden yazılır.
+
+    İşaretçi yoksa blok, Bangumi etiket bloğunun **önüne** yerleştirilir (sabit çapa),
+    böylece dosya sonundaki başka bloklar (kurum kaynakları, wiki, stream) etkilenmez.
     """
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
 
-    if marker in text:
-        marker_idx = next(i for i, line in enumerate(lines) if line == marker)
-    else:
-        if fallback_marker not in text:
-            raise SystemExit(f"{path} içinde çapa işaretçi bulunamadı: {fallback_marker}")
-        marker_idx = next(i for i, line in enumerate(lines) if line == fallback_marker)
-        lines = lines[:marker_idx] + block.splitlines() + [""] + lines[marker_idx:]
-        marker_idx = next(i for i, line in enumerate(lines) if line == marker)
+    if marker not in text:
+        if anchor not in lines:
+            raise SystemExit(f"{path} içinde çapa satırı bulunamadı: {anchor}")
+        anchor_idx = lines.index(anchor)
+        rebuilt = lines[:anchor_idx] + block.splitlines() + [""] + lines[anchor_idx:]
+        updated = "\n".join(_collapse_blank_runs(rebuilt))
+        if text.endswith("\n"):
+            updated += "\n"
+        if updated == text:
+            return False
+        if not check:
+            path.write_text(updated, encoding="utf-8")
+        return True
 
+    marker_idx = lines.index(marker)
     rebuilt: list[str] = []
     for index, line in enumerate(lines):
         stripped = line.strip()
-        # Yalnızca BU betiğin otomatik yorumu + kendi kaynakları kaldırılır; Bangumi
-        # üretecinin yorumuna dokunulmaz (iki betik art arda çalışabilir).
         if index != marker_idx and (
             stripped.startswith(TAXONOMY_TAG_PREFIX)
             or ("sync_taxonomy_tag_strings.py" in stripped and stripped.startswith(AUTO_COMMENT_PREFIXES))
@@ -148,8 +145,7 @@ def patch(path: Path, marker: str, block: str, fallback_marker: str, check: bool
             continue
         rebuilt.append(line)
 
-    rebuilt = _collapse_blank_runs(rebuilt)
-    updated = "\n".join(rebuilt)
+    updated = "\n".join(_collapse_blank_runs(rebuilt))
     if text.endswith("\n"):
         updated += "\n"
     if updated == text:
@@ -166,8 +162,10 @@ def main() -> int:
 
     entries = read_entries()
     changed = False
-    changed |= patch(TR_STRINGS, TR_MARKER, render(entries, TR_MARKER, True), TR_BANGUMI_MARKER, args.check)
-    changed |= patch(EN_STRINGS, EN_MARKER, render(entries, EN_MARKER, False), EN_BANGUMI_MARKER, args.check)
+    changed |= patch(TR_STRINGS, TR_MARKER, render(entries, TR_MARKER, True), args.check)
+    changed |= patch(
+        EN_STRINGS, EN_MARKER, render(entries, EN_MARKER, False), args.check, anchor=EN_ANCHOR
+    )
 
     print(f"{len(entries)} taksonomi etiketi işlendi.")
     if args.check and changed:

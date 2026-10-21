@@ -938,7 +938,7 @@ internal object BangumiTagDictionary {
         g("instrumental", "Enstrümantal", "Instrumental", "器乐", "純音樂", "纯音乐"),
 
         // ── Bangumi MASTER 2026-10-11: yeni meta/öneri etiketleri ──
-        g("area_chinese_speaking", "Çinçe Konuşulan Bölge", "Chinese-speaking", "华语", "華語"),
+        g("area_chinese_speaking", "Çince Konuşulan Bölge", "Chinese-speaking", "华语", "華語"),
         g("area_canada", "Kanada", "Canada", "加拿大"),
         g("area_czech", "Çekya", "Czechia", "捷克"),
         g("area_malaysia", "Malezya", "Malaysia", "马来西亚", "馬來西亞"),

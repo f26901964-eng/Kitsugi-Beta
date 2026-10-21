@@ -30,6 +30,8 @@
 | A6 | Aynı kurum stüdyo+yapımcı olarak iki kez görünmez | `dropProducersThatAreStudios` |
 | A7 | `bangumi_tag_*` + `taxonomy_tag_*` kaynakları tr/en dosyalarında eşit | `check_taxonomy_master.py` K6, `check_localization_resource_parity.py` |
 | A8 | İki üreteç betiği art arda çalıştırılabilir (idempotent) | `sync_*_tag_strings.py --check` |
+| A9 | Kurum alanındaki çöp (kaomoji, `;` notları, tırnak artığı) ekranda görünmez | `sanitizeOrgName` + `KitsugiStudiosCard` filtresi |
+| A10 | Değiştirilen Kotlin dosyaları sözdizimsel olarak geçerli | `tree-sitter-kotlin` ayrıştırması |
 
 ---
 
@@ -77,13 +79,15 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 | `app/src/test/java/com/kitsugi/animelist/utils/TaxonomyLabelsTest.kt` | 23 birim test (TR/EN, kanonik anahtar, transliterasyon, birleştirme) |
 | `scripts/sync_taxonomy_tag_strings.py` | `taxonomy_tag_*` kaynaklarını üretir (idempotent, `--check`) |
 | `scripts/check_taxonomy_master.py` | K1–K9 denetimleri + `diag/taxonomy_master/worklist.tsv` |
+| `.github/workflows/taxonomy-master.yml` | CI: sözlük denetimi, üreteç `--check`, TR/EN paritesi, `TaxonomyLabelsTest` |
 | `diag/taxonomy_master/README.md` | Sözlük çalışma akışı (Drive'a yükleme dahil) |
 
 ### Değişen
 
 | Dosya | Değişiklik |
 |---|---|
-| `KitsugiTranslations.kt` | `toTurkishGenre` / `toLocalizedTagLabel` tek çözümleyiciye bağlandı; `taxonomyStringOverride`, `englishTaxonomyName`, `englishTaxonomyToTurkish`; `localizedDistinctTags` CJK'yı gizler; kurum adı Kiril transliterasyonu |
+| `KitsugiTranslations.kt` | `toTurkishGenre` / `toLocalizedTagLabel` tek çözümleyiciye bağlandı; `taxonomyStringOverride`, `englishTaxonomyName`, `englishTaxonomyToTurkish`; `localizedDistinctTags` CJK'yı gizler; kurum adı Kiril transliterasyonu + `sanitizeOrgName()` |
+| `KitsugiDetailComponents.kt` | Stüdyo/yapımcı/kanal kartı: adı temizlenince boşalan kayıtlar çizilmez; başlıklar görünür listeye göre seçilir |
 | `KitsugiTaxonomyLabels` ile birlikte `KitsugiSpoilerRules.canonicalTagKey` | Rusça anahtar önceliği (`Экшен` ≡ `Action`) |
 | `KitsugiAniListDetailClient.kt` | `AniListTagsAndAiring` + `genres` + `studios`; GraphQL sorgusu genişletildi |
 | `KitsugiDetailClient.kt` | Tür/kurum zenginleştirmesi birleştirmeye çevrildi; çapraz kimlik çözümü AniList kapısından çıkarıldı; taksonomi toplama + normalleştirme eklendi |
@@ -110,7 +114,11 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 - [x] T11 — Birim testleri
 - [x] T12 — Rapor + plan + sürüm notu + sürüm artırımı
 - [x] T13 — Değişen dosyaların zip'i ve iş listesinin Drive'a yüklenmesi
-- [ ] T14 — CI'da `./gradlew test` + cihazda TR/EN/RU arayüzlü duman testi (bu sandbox'ta JDK yok)
+- [x] T14 — Kurum adı temizliği (`sanitizeOrgName`) + `KitsugiStudiosCard` filtresi
+- [x] T15 — `area_chinese_speaking` yazım hatası ve dil dosyası eşitlemesi
+- [x] T16 — `taxonomy-master` CI iş akışı + tree-sitter sözdizimi doğrulaması
+- [x] T18 — `gen_bangumi_master.py` güvenlik freni (orgs.tsv 365 satır ↔ sözlük 11.693 satır)
+- [ ] T17 — CI'da `./gradlew test` + cihazda TR/EN/RU arayüzlü duman testi (bu sandbox'ta JDK yok)
 
 ---
 

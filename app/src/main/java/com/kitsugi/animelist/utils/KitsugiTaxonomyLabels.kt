@@ -35,8 +35,10 @@ data class TaxonomyLabelEntry(
 
 /**
  * Etiketin kanonik sözlük girişi (Türkçe + İngilizce + anahtar). Bilinmiyorsa null.
- * `englishFallback`: İngilizce yerleşik tabloda karşılığı olan ama ayrı sözlük girişi
- * bulunmayan değerler için `key` üretilir (ör. `Super Power` → `super_power`).
+ *
+ * Ayrı sözlük girişi olmayan ama İngilizce yerleşik tabloda karşılığı bulunan değerler için
+ * anahtar İngilizce addan üretilir (`Super Power` → `super_power`), böylece bu değerler de
+ * diller arası tekilleştirmeye katılır.
  */
 fun String.taxonomyEntryOrNull(): TaxonomyLabelEntry? {
     val cleaned = this.trim()

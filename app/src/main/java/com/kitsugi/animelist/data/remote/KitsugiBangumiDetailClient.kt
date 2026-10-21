@@ -554,14 +554,24 @@ object KitsugiBangumiDetailClient {
         // Bangumi'nin kendi türleri ve infobox kurumları (动画制作 / 製作 / 播放电视台 /
         // 出版社 / 连载杂志) korunur; MAL/AniList/TMDB'nin eklediği türler ve kurumlar
         // ÜZERİNE eklenir. Böylece iki kaynakta da olan bir stüdyo tek çipte kalır.
+        // Kurum adları modele yazılmadan önce temizlenir: infobox artıkları (tırnak,
+        // `; B6版` notları, kaomoji) gösterimde stüdyo/yayıncı olarak görünmez.
         val mergedGenres = KitsugiTaxonomyMerge.mergeGenres(base.genres, other.genres)
-        val mergedStudios = KitsugiTaxonomyMerge.mergeOrgs(base.studios, other.studios)
+        val mergedStudios = KitsugiTaxonomyMerge.normalizeOrgNames(
+            KitsugiTaxonomyMerge.mergeOrgs(base.studios, other.studios)
+        )
         val mergedProducers = KitsugiTaxonomyMerge.dropProducersThatAreStudios(
-            KitsugiTaxonomyMerge.mergeOrgs(base.producers, other.producers),
+            KitsugiTaxonomyMerge.normalizeOrgNames(
+                KitsugiTaxonomyMerge.mergeOrgs(base.producers, other.producers)
+            ),
             mergedStudios
         )
-        val mergedNetworks = KitsugiTaxonomyMerge.mergeOrgs(base.networks, other.networks)
-        val mergedSerializations = KitsugiTaxonomyMerge.mergeOrgs(base.serializations, other.serializations)
+        val mergedNetworks = KitsugiTaxonomyMerge.normalizeOrgNames(
+            KitsugiTaxonomyMerge.mergeOrgs(base.networks, other.networks)
+        )
+        val mergedSerializations = KitsugiTaxonomyMerge.normalizeOrgNames(
+            KitsugiTaxonomyMerge.mergeOrgs(base.serializations, other.serializations)
+        )
         return base.copy(
             // Özet tercihi: Bangumi açıklaması Çince/Japonca geldiyse ve eşleşen kayıtta Latin
             // (İngilizce) açıklama varsa O kullanılır — otomatik çeviri İngilizce kaynaktan
@@ -602,8 +612,8 @@ object KitsugiBangumiDetailClient {
             nextAiringEpisode = other.nextAiringEpisode ?: base.nextAiringEpisode,
             favorites = other.favorites ?: base.favorites,
             popularityRank = other.popularityRank ?: base.popularityRank,
-            themes = other.themes.ifEmpty { base.themes },
-            demographics = other.demographics.ifEmpty { base.demographics },
+            themes = KitsugiTaxonomyMerge.mergeGenres(base.themes, other.themes, limit = 12),
+            demographics = KitsugiTaxonomyMerge.mergeGenres(base.demographics, other.demographics, limit = 8),
             serializations = mergedSerializations,
             networks = mergedNetworks,
             authors = other.authors.ifEmpty { base.authors },

@@ -62,27 +62,32 @@ fun KitsugiStudiosCard(
     networks: List<KitsugiStudio> = emptyList(),
     onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick
 ) {
-    if (studios.isEmpty() && producers.isEmpty() && networks.isEmpty()) return
+    // Gösterimde adı temizlenince boşalan kayıtlar (kaomoji/infobox artığı) çizilmez:
+    // `sanitizeOrgName()` böyle adlar için boş döner — bkz. toLocalizedOrgName().
+    val visibleStudios = studios.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleProducers = producers.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleNetworks = networks.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    if (visibleStudios.isEmpty() && visibleProducers.isEmpty() && visibleNetworks.isEmpty()) return
     val accentColor = LocalKitsugiAccent.current
 
     // Manga ayrıntılarında yazar/dergi/yayıncı kayıtları bu kartın listelerini kullanır;
     // başlıklar role göre doğru etiketi gösterir (örn. "Stüdyolar" yerine "Yazarlar").
     val studiosLabel = when {
-        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
+        visibleStudios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
             stringResource(R.string.detail_section_authors)
-        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+        visibleStudios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_studios)
     }
     val producersLabel = when {
-        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+        visibleProducers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
-        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+        visibleProducers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_producers)
     }
     val networksLabel = when {
-        networks.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+        visibleNetworks.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
         else -> stringResource(R.string.detail_section_networks)
     }
@@ -95,13 +100,13 @@ fun KitsugiStudiosCard(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (studios.isNotEmpty()) {
+        if (visibleStudios.isNotEmpty()) {
             SectionLabel(studiosLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                studios.forEach { studio ->
+                visibleStudios.forEach { studio ->
                     KitsugiChip(
                         // Ad TR/EN dil dosyasından gelir (bangumi_studio_*); eşleşmeyen
                         // ad (komite vb.) Latin/orijinal hâliyle kalır — bkz. MASTER 2026-10-11.
@@ -117,13 +122,13 @@ fun KitsugiStudiosCard(
                 }
             }
         }
-        if (producers.isNotEmpty()) {
+        if (visibleProducers.isNotEmpty()) {
             SectionLabel(producersLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                producers.forEach { producer ->
+                visibleProducers.forEach { producer ->
                     KitsugiChip(
                         text = producer.name.toLocalizedOrgName(),
                         color = accentColor,
@@ -135,13 +140,13 @@ fun KitsugiStudiosCard(
                 }
             }
         }
-        if (networks.isNotEmpty()) {
+        if (visibleNetworks.isNotEmpty()) {
             SectionLabel(networksLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                networks.forEach { network ->
+                visibleNetworks.forEach { network ->
                     KitsugiChip(
                         text = network.name.toLocalizedOrgName(),
                         color = accentColor,

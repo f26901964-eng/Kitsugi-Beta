@@ -1495,8 +1495,44 @@ private val studioLatinNameMap = mapOf(
  * Not: Arama/dedup daima Latin adla çalışır (`KitsugiStudio.name`), bu fonksiyon yalnızca
  * **gösterim** içindir.
  */
+/**
+ * Kurum adını **gösterimden önce** temizler.
+ *
+ * Bangumi infobox'ı ve kullanıcı katkıları zaman zaman kurum alanına ad değil çöp yazıyor:
+ *  • tırnak artefaktları — `"""アフタヌーン`, `I\\'ve`
+ *  • noktalı virgülle eklenmiş baskı notları — `芳文社; B6版`
+ *  • kaomoji — `っ´Д\`)っゼロ式の家`
+ *
+ * Bu adlar ekranda stüdyo/yayıncı olarak görünmemeli. Harf/rakam oranı yarıdan az olan
+ * değerler (kaomoji, salt sembol) **boş** döner; çağıran taraf bunları listeden düşürür.
+ * Gerçek adlar (kısa kısaltmalar dahil: `CR`, `MX`, `B站`) korunur.
+ */
+/** Ad değil, ifade/kaomoji göstergesi olan karakterler. */
+private val KAOMOJI_MARKERS = charArrayOf(
+    '\u00B4', '`', '\uFF40', '\u02CA', '\u02CB', '\uFF9F', '\u309C',
+    '\u03C9', '\u2200', '\uFF3E', '^', '\uFF5E', '~', '\u2267', '\u2266', '\uFF57'
+)
+
+fun String.sanitizeOrgName(): String {
+    var value = this.trim()
+    if (value.isEmpty()) return value
+    value = value.replace(Regex("^[\"'\u2018\u2019\u201C\u201D]+"), "")
+        .replace(Regex("[\"'\u2018\u2019\u201C\u201D]+$"), "")
+        .trim()
+    if (value.contains(';') || value.contains('；')) {
+        value = value.substringBefore(';').substringBefore('；').trim()
+    }
+    if (value.isEmpty()) return value
+    // Kaomoji işaretleri: gerçek stüdyo/yayıncı adlarında asla geçmez, infobox çöpünde geçer.
+    if (value.any { it in KAOMOJI_MARKERS }) return ""
+    val alphanumeric = value.count { it.isLetterOrDigit() }
+    if (alphanumeric == 0) return ""
+    if (alphanumeric * 2 < value.length) return ""
+    return value.replace(Regex("\\s+"), " ").trim()
+}
+
 fun String.toLocalizedOrgName(): String {
-    val cleaned = this.trim()
+    val cleaned = this.sanitizeOrgName()
     if (cleaned.isEmpty()) return cleaned
     val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
         ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
@@ -1514,7 +1550,7 @@ fun String.toLocalizedOrgName(): String {
  * göstermek isteyebilir (ör. çip tıklamasında ham adı korumak için).
  */
 fun String.toLocalizedOrgNameOrNull(): String? {
-    val cleaned = this.trim()
+    val cleaned = this.sanitizeOrgName()
     if (cleaned.isEmpty()) return null
     val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
         ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())

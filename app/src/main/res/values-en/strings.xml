@@ -3095,6 +3095,7 @@
     <string name="player_decoder_priority_software">📁 Software priority (SW preferred)</string>
 
     <!-- Kitsugi Shared Taxonomy (Russian Shikimori + English source tags) -->
+    <!-- Shared Taxonomy Tags (Russian source values) -->
     <!-- AUTO-GENERATED: scripts/sync_taxonomy_tag_strings.py -->
     <string name="taxonomy_tag_action">Action</string>
     <string name="taxonomy_tag_adventure">Adventure</string>
@@ -3210,6 +3211,7 @@
     <string name="taxonomy_tag_ova">OVA</string>
     <string name="taxonomy_tag_movie">Movie</string>
     <string name="taxonomy_tag_tv">TV</string>
+
     <!-- Bangumi Tags (Chinese/Japanese source values) -->
     <!-- AUTO-GENERATED: scripts/sync_bangumi_tag_strings.py -->
     <string name="bangumi_tag_tv">TV</string>
