@@ -80,10 +80,6 @@ object KitsugiBangumiDetailClient {
     /** MAL/AniList/TMDB eşlik detayı için süre tavanı. */
     private const val COMPANION_TIMEOUT_MS = 7_000L
 
-    /** İlişki/öneri başlık zenginleştirmesi için kayıt ve toplam süre tavanları. */
-    private const val RELATION_TITLE_TIMEOUT_MS = 8_000L
-    private const val RELATION_TITLE_BATCH_TIMEOUT_MS = 9_000L
-
     /** İlişki listeleri 100'e kadar çıkar; başlık varyantlarını listenin büyük bölümünde doldur. */
     private const val RELATION_TITLE_ENRICH_LIMIT = 64
 
@@ -1090,11 +1086,69 @@ object KitsugiBangumiDetailClient {
         val cacheKey: String get() = "$kind:$id"
     }
 
-    /** AniList kapsamı dışındaki ya da CJK adı kalmış Bangumi karakterlerini infobox'tan tamamlar. */
-    suspend fun enrichCharacterNamesFromBangumi(characters: List<KitsugiCharacter>): List<KitsugiCharacter> {
+    /** AniList kapsamı dışındaki ya da CJK adı kalmış Bangumi karakterlerini tamamlar. */
+    suspend fun enrichCharacterNamesFromBangumi(
+        characters: List<KitsugiCharacter>,
+        background: Boolean = false,
+        cacheOnly: Boolean = false
+    ): List<KitsugiCharacter> {
         if (characters.isEmpty()) return characters
+        // 1) AniList birebir ad eşleşmesi (kalıcı önbellekli) — infobox'ta romaji çok seyrek.
+        val resolved = BangumiEntityNameResolver.resolve(
+            buildList {
+                characters.forEach { character ->
+                    if (needsLatinName(character.name, character.romanizedName, character.englishName)) {
+                        add(
+                            BangumiEntityNameResolver.Request(
+                                BangumiEntityNameResolver.Kind.CHARACTER,
+                                character.id,
+                                character.nativeName,
+                                character.name
+                            )
+                        )
+                    }
+                    character.voiceActors.forEach { actor ->
+                        if (needsLatinName(actor.name, actor.romanizedName, actor.englishName)) {
+                            add(
+                                BangumiEntityNameResolver.Request(
+                                    BangumiEntityNameResolver.Kind.PERSON,
+                                    actor.id,
+                                    actor.nativeName,
+                                    actor.name
+                                )
+                            )
+                        }
+                    }
+                }
+            },
+            background,
+            cacheOnly
+        )
+        val preEnriched = characters.map { character ->
+            val cv = resolved[
+                BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.CHARACTER, character.id)
+            ]
+            character.copy(
+                name = latinDisplayName(character.name, cv),
+                romanizedName = usableLatinName(character.romanizedName) ?: cv?.romaji,
+                nativeName = character.nativeName ?: cv?.native,
+                englishName = usableLatinName(character.englishName) ?: cv?.english,
+                voiceActors = character.voiceActors.map { actor ->
+                    val vv = resolved[
+                        BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.PERSON, actor.id)
+                    ] ?: return@map actor
+                    actor.copy(
+                        name = latinDisplayName(actor.name, vv),
+                        romanizedName = usableLatinName(actor.romanizedName) ?: vv.romaji,
+                        nativeName = actor.nativeName ?: vv.native,
+                        englishName = usableLatinName(actor.englishName) ?: vv.english
+                    )
+                }
+            )
+        }
+        // 2) AniList'te olmayan kayıtlar için Bangumi infobox yedeği.
         val lookups = buildList {
-            characters.forEach { character ->
+            preEnriched.forEach { character ->
                 if (needsLatinName(character.name, character.romanizedName, character.englishName)) {
                     add(EntityNameLookup("characters", character.id))
                 }
@@ -1106,7 +1160,7 @@ object KitsugiBangumiDetailClient {
             }
         }
         val names = fetchEntityLocalizedNames(lookups)
-        return characters.map { character ->
+        return preEnriched.map { character ->
             val characterName = names[EntityNameLookup("characters", character.id).cacheKey]
             character.copy(
                 name = localizedDisplay(character.name, characterName),
@@ -1126,14 +1180,43 @@ object KitsugiBangumiDetailClient {
         }
     }
 
-    /** Karakter profillerindeki seiyuu/oyuncu adları için doğrudan kişi infobox yedeği. */
-    suspend fun enrichVoiceActorNamesFromBangumi(actors: List<KitsugiVoiceActor>): List<KitsugiVoiceActor> {
+    /** Karakter profillerindeki seiyuu/oyuncu adları için AniList + kişi infobox yedeği. */
+    suspend fun enrichVoiceActorNamesFromBangumi(
+        actors: List<KitsugiVoiceActor>,
+        background: Boolean = false,
+        cacheOnly: Boolean = false
+    ): List<KitsugiVoiceActor> {
         if (actors.isEmpty()) return actors
-        val lookups = actors
+        val resolved = BangumiEntityNameResolver.resolve(
+            actors
+                .filter { needsLatinName(it.name, it.romanizedName, it.englishName) }
+                .map {
+                    BangumiEntityNameResolver.Request(
+                        BangumiEntityNameResolver.Kind.PERSON,
+                        it.id,
+                        it.nativeName,
+                        it.name
+                    )
+                },
+            background,
+            cacheOnly
+        )
+        val preEnriched = actors.map { actor ->
+            val variant = resolved[
+                BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.PERSON, actor.id)
+            ] ?: return@map actor
+            actor.copy(
+                name = latinDisplayName(actor.name, variant),
+                romanizedName = usableLatinName(actor.romanizedName) ?: variant.romaji,
+                nativeName = actor.nativeName ?: variant.native,
+                englishName = usableLatinName(actor.englishName) ?: variant.english
+            )
+        }
+        val lookups = preEnriched
             .filter { needsLatinName(it.name, it.romanizedName, it.englishName) }
             .map { EntityNameLookup("persons", it.id) }
         val names = fetchEntityLocalizedNames(lookups)
-        return actors.map { actor ->
+        return preEnriched.map { actor ->
             val localized = names[EntityNameLookup("persons", actor.id).cacheKey]
             actor.copy(
                 name = localizedDisplay(actor.name, localized),
@@ -1144,14 +1227,43 @@ object KitsugiBangumiDetailClient {
         }
     }
 
-    /** Ekip adlarında da p1 listesinde bulunmayan İngilizce/romaji infobox alanlarını kullanır. */
-    suspend fun enrichStaffNamesFromBangumi(staff: List<KitsugiStaff>): List<KitsugiStaff> {
+    /** Ekip adlarında AniList birebir eşleşmesi + p1 infobox'taki İngilizce/romaji alanları. */
+    suspend fun enrichStaffNamesFromBangumi(
+        staff: List<KitsugiStaff>,
+        background: Boolean = false,
+        cacheOnly: Boolean = false
+    ): List<KitsugiStaff> {
         if (staff.isEmpty()) return staff
-        val lookups = staff
+        val resolved = BangumiEntityNameResolver.resolve(
+            staff
+                .filter { needsLatinName(it.name, it.romanizedName, it.englishName) }
+                .map {
+                    BangumiEntityNameResolver.Request(
+                        BangumiEntityNameResolver.Kind.PERSON,
+                        it.id,
+                        it.nativeName,
+                        it.name
+                    )
+                },
+            background,
+            cacheOnly
+        )
+        val preEnriched = staff.map { member ->
+            val variant = resolved[
+                BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.PERSON, member.id)
+            ] ?: return@map member
+            member.copy(
+                name = latinDisplayName(member.name, variant),
+                romanizedName = usableLatinName(member.romanizedName) ?: variant.romaji,
+                nativeName = member.nativeName ?: variant.native,
+                englishName = usableLatinName(member.englishName) ?: variant.english
+            )
+        }
+        val lookups = preEnriched
             .filter { needsLatinName(it.name, it.romanizedName, it.englishName) }
             .map { EntityNameLookup("persons", it.id) }
         val names = fetchEntityLocalizedNames(lookups)
-        return staff.map { member ->
+        return preEnriched.map { member ->
             val localized = names[EntityNameLookup("persons", member.id).cacheKey]
             member.copy(
                 name = localizedDisplay(member.name, localized),
@@ -1181,9 +1293,55 @@ object KitsugiBangumiDetailClient {
     ): KitsugiStaffDetail {
         if (detail.characterRoles.isEmpty() && detail.mediaWorks.isEmpty()) return detail
 
-        // 1) Karakter adları için infobox'tan romaji/İngilizce çek (sınırlı sayıda)
-        val characterLookups = detail.characterRoles
+        // 1a) Karakter ve kişi adları için AniList birebir ad eşleşmesi (kalıcı önbellekli).
+        // Bangumi karakter/kişi infobox'ında romaji çok seyrek olduğundan asıl çözüm burasıdır.
+        val nameRequests = buildList {
+            if (needsLatinName(detail.name, detail.romanizedName, detail.englishName)) {
+                add(
+                    BangumiEntityNameResolver.Request(
+                        BangumiEntityNameResolver.Kind.PERSON,
+                        detail.id,
+                        detail.nativeName,
+                        detail.name
+                    )
+                )
+            }
+            detail.characterRoles
+                .filter { needsLatinName(it.characterName, it.characterRomanizedName, it.characterEnglishName) }
+                .forEach {
+                    add(
+                        BangumiEntityNameResolver.Request(
+                            BangumiEntityNameResolver.Kind.CHARACTER,
+                            it.characterId,
+                            it.characterNativeName,
+                            it.characterName
+                        )
+                    )
+                }
+        }
+        val resolvedNames = BangumiEntityNameResolver.resolve(nameRequests, background, cacheOnly)
+        val heroVariant = resolvedNames[
+            BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.PERSON, detail.id)
+        ]
+        val namedDetail = if (
+            heroVariant != null && needsLatinName(detail.name, detail.romanizedName, detail.englishName)
+        ) {
+            detail.copy(
+                name = latinDisplayName(detail.name, heroVariant),
+                romanizedName = usableLatinName(detail.romanizedName) ?: heroVariant.romaji,
+                englishName = usableLatinName(detail.englishName) ?: heroVariant.english,
+                nativeName = detail.nativeName ?: heroVariant.native
+            )
+        } else detail
+
+        // 1b) AniList'te olmayan kayıtlar için infobox'tan romaji/İngilizce çek (sınırlı sayıda)
+        val characterLookups = namedDetail.characterRoles
             .filter { needsLatinName(it.characterName, it.characterRomanizedName, it.characterEnglishName) }
+            .filter {
+                resolvedNames[
+                    BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.CHARACTER, it.characterId)
+                ]?.hasLatin != true
+            }
             .map { EntityNameLookup("characters", it.characterId) }
         val characterNames = if (characterLookups.isNotEmpty()) {
             fetchEntityLocalizedNames(characterLookups)
@@ -1191,26 +1349,31 @@ object KitsugiBangumiDetailClient {
 
         // 2) Yapım başlıkları için ortak çözümleyici: önbellek → v0 infobox → AniList.
         val titleRequests = buildList {
-            detail.characterRoles.forEach { role ->
+            namedDetail.characterRoles.forEach { role ->
                 BangumiSubjectTitleResolver.Request.fromRow(role.mediaId, role.mediaTitle, role.mediaType)?.let(::add)
             }
-            detail.mediaWorks.forEach { work ->
+            namedDetail.mediaWorks.forEach { work ->
                 BangumiSubjectTitleResolver.Request.fromRow(work.mediaId, work.mediaTitle, work.mediaType)?.let(::add)
             }
         }
         val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
 
         // 3) Karakter rollerini zenginleştir
-        val enrichedRoles = detail.characterRoles.map { role ->
+        val enrichedRoles = namedDetail.characterRoles.map { role ->
             val localized = characterNames[EntityNameLookup("characters", role.characterId).cacheKey]
+            val nameVariant = resolvedNames[
+                BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.CHARACTER, role.characterId)
+            ]
             val rawSubjectId = BangumiIdNamespace.rawIdOrNull(role.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] }
             val subjectLatin = latin?.let { usableLatinName(it.romaji) ?: usableLatinName(it.english) }
             role.copy(
-                characterName = localizedDisplay(role.characterName, localized),
-                characterRomanizedName = usableLatinName(role.characterRomanizedName) ?: localized?.romaji,
-                characterNativeName = role.characterNativeName ?: localized?.native,
-                characterEnglishName = usableLatinName(role.characterEnglishName) ?: localized?.english,
+                characterName = localizedDisplay(latinDisplayName(role.characterName, nameVariant), localized),
+                characterRomanizedName = usableLatinName(role.characterRomanizedName)
+                    ?: nameVariant?.romaji ?: localized?.romaji,
+                characterNativeName = role.characterNativeName ?: nameVariant?.native ?: localized?.native,
+                characterEnglishName = usableLatinName(role.characterEnglishName)
+                    ?: nameVariant?.english ?: localized?.english,
                 // Önbellekten/istekten gelen Latin başlık varsa onu kullan
                 mediaTitle = subjectLatin ?: role.mediaTitle,
                 mediaTitleRomaji = role.mediaTitleRomaji ?: latin?.romaji,
@@ -1219,7 +1382,7 @@ object KitsugiBangumiDetailClient {
         }
 
         // 4) Yapım listesini zenginleştir
-        val enrichedWorks = detail.mediaWorks.map { work ->
+        val enrichedWorks = namedDetail.mediaWorks.map { work ->
             val rawSubjectId = BangumiIdNamespace.rawIdOrNull(work.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] }
             if (latin != null && (latin.romaji != null || latin.english != null)) {
@@ -1232,7 +1395,7 @@ object KitsugiBangumiDetailClient {
             } else work
         }
 
-        return detail.copy(
+        return namedDetail.copy(
             characterRoles = enrichedRoles,
             mediaWorks = enrichedWorks
         )
@@ -1252,12 +1415,66 @@ object KitsugiBangumiDetailClient {
         background: Boolean = false,
         cacheOnly: Boolean = false
     ): KitsugiCharacterDetail {
-        if (detail.mediaAppearances.isEmpty()) return detail
-        val titleRequests = detail.mediaAppearances.mapNotNull { appearance ->
+        // 1) Karakterin kendi adı ve seslendirmen adları: AniList birebir ad eşleşmesi
+        //    (kalıcı önbellekli). Bangumi karakter infobox'ında romaji çok seyrektir.
+        val nameRequests = buildList {
+            if (needsLatinName(detail.name, detail.romanizedName, detail.englishName)) {
+                add(
+                    BangumiEntityNameResolver.Request(
+                        BangumiEntityNameResolver.Kind.CHARACTER,
+                        detail.id,
+                        detail.nativeName,
+                        detail.name
+                    )
+                )
+            }
+            detail.voiceActors
+                .filter { needsLatinName(it.name, it.romanizedName, it.englishName) }
+                .forEach {
+                    add(
+                        BangumiEntityNameResolver.Request(
+                            BangumiEntityNameResolver.Kind.PERSON,
+                            it.id,
+                            it.nativeName,
+                            it.name
+                        )
+                    )
+                }
+        }
+        val resolvedNames = BangumiEntityNameResolver.resolve(nameRequests, background, cacheOnly)
+        val heroVariant = resolvedNames[
+            BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.CHARACTER, detail.id)
+        ]
+        val namedDetail = if (
+            heroVariant != null && needsLatinName(detail.name, detail.romanizedName, detail.englishName)
+        ) {
+            detail.copy(
+                name = latinDisplayName(detail.name, heroVariant),
+                romanizedName = usableLatinName(detail.romanizedName) ?: heroVariant.romaji,
+                englishName = usableLatinName(detail.englishName) ?: heroVariant.english,
+                nativeName = detail.nativeName ?: heroVariant.native
+            )
+        } else detail
+        val namedVoices = namedDetail.voiceActors.map { actor ->
+            val variant = resolvedNames[
+                BangumiEntityNameResolver.cacheKey(BangumiEntityNameResolver.Kind.PERSON, actor.id)
+            ] ?: return@map actor
+            actor.copy(
+                name = latinDisplayName(actor.name, variant),
+                romanizedName = usableLatinName(actor.romanizedName) ?: variant.romaji,
+                englishName = usableLatinName(actor.englishName) ?: variant.english,
+                nativeName = actor.nativeName ?: variant.native
+            )
+        }
+        val withNames = namedDetail.copy(voiceActors = namedVoices)
+        if (withNames.mediaAppearances.isEmpty()) return withNames
+
+        // 2) "Yapımlar" başlıkları için ortak subject çözümleyici.
+        val titleRequests = withNames.mediaAppearances.mapNotNull { appearance ->
             BangumiSubjectTitleResolver.Request.fromRow(appearance.mediaId, appearance.title, appearance.mediaType)
         }
         val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
-        val enriched = detail.mediaAppearances.map { appearance ->
+        val enriched = withNames.mediaAppearances.map { appearance ->
             val rawSubjectId = BangumiIdNamespace.rawIdOrNull(appearance.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] } ?: return@map appearance
             val latinDisplay = usableLatinName(latin.romaji) ?: usableLatinName(latin.english)
@@ -1267,7 +1484,7 @@ object KitsugiBangumiDetailClient {
                 titleEnglish = appearance.titleEnglish ?: latin.english
             )
         }
-        return detail.copy(mediaAppearances = enriched)
+        return withNames.copy(mediaAppearances = enriched)
     }
 
     private fun needsLatinName(name: String, romanized: String?, english: String?): Boolean =
@@ -1280,6 +1497,10 @@ object KitsugiBangumiDetailClient {
 
     private fun localizedDisplay(original: String, localized: BangumiLocalizedName?): String =
         localized?.display?.takeIf { usableLatinName(it) != null } ?: original
+
+    /** AniList birebir eşleşmesinden gelen ad varyantıyla Latin gösterim adı üretir. */
+    private fun latinDisplayName(original: String, variants: BangumiEntityNameResolver.NameVariants?): String =
+        usableLatinName(variants?.romaji) ?: usableLatinName(variants?.english) ?: original
 
     private suspend fun fetchEntityLocalizedNames(
         requested: List<EntityNameLookup>
@@ -1370,57 +1591,55 @@ object KitsugiBangumiDetailClient {
      * ve İngilizce adı mevcut olan kayıtlar ekranda Çince kalıyordu. Tek bir kayıt isteği
      * başarısızsa ya da gecikirse ilgili kayıt orijinal haliyle döner.
      */
-    private suspend fun enrichRelationTitles(relations: List<KitsugiRelation>): List<KitsugiRelation> {
+    internal suspend fun enrichRelationTitles(
+        relations: List<KitsugiRelation>,
+        background: Boolean = false,
+        cacheOnly: Boolean = false
+    ): List<KitsugiRelation> {
         if (relations.isEmpty()) return relations
 
         val cached = relations.map { relation -> withCachedLatinTitle(relation) }
         val pending = cached.filter { needsLatinTitle(it) }.take(RELATION_TITLE_ENRICH_LIMIT)
-        if (pending.isEmpty()) return cached
+        if (pending.isEmpty() || cacheOnly) return cached
 
-        val enriched = ConcurrentHashMap<Int, KitsugiRelation>()
-        withTimeoutOrNull(RELATION_TITLE_BATCH_TIMEOUT_MS) {
-            coroutineScope {
-                pending.map { relation ->
-                    async(Dispatchers.IO) {
-                        val localizedRelation = try {
-                            enrichmentRequestSemaphore.withPermit {
-                                withTimeoutOrNull(RELATION_TITLE_TIMEOUT_MS) {
-                                    val raw = BangumiIdNamespace.rawIdFromStable(relation.malId)
-                                        ?: return@withTimeoutOrNull relation
-                                    val subject = loadSubject(raw) ?: return@withTimeoutOrNull relation
-                                    val localized = BangumiNameLocalizer.subject(
-                                        subject.name,
-                                        subject.nameCn,
-                                        subject.infobox
-                                    )
-                                    BangumiTitleCache.put(
-                                        rawId = raw,
-                                        romaji = localized.romaji,
-                                        english = localized.english,
-                                        native = localized.native
-                                    )
-                                    if (localized.romaji == null && localized.english == null) {
-                                        return@withTimeoutOrNull relation
-                                    }
-                                    relation.copy(
-                                        title = localized.display.ifBlank { relation.title },
-                                        titleEnglish = localized.english ?: relation.titleEnglish,
-                                        titleJapanese = localized.native ?: relation.titleJapanese,
-                                        titleRomaji = localized.romaji ?: relation.titleRomaji
-                                    )
-                                } ?: relation
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            relation
-                        }
-                        enriched[relation.malId] = localizedRelation
-                    }
-                }.awaitAll()
-            }
+        // p1 liste uçları slim subject döndürür (infobox yok); bu yüzden başlıklar ortak
+        // çözümleyiciyle çözülür: önbellek → AniList toplu araması → subject infobox → TMDB.
+        // Eski kod yalnızca infobox'u denediği için İngilizce/romaji adı infobox'ta olmayan
+        // kayıtlar (ilişkiler/öneriler sekmesi) kalıcı olarak CJK kalıyordu.
+        val requests = pending.mapNotNull { relation ->
+            BangumiSubjectTitleResolver.Request.fromRow(
+                mediaId = relation.malId,
+                currentTitle = relation.title,
+                mediaTypeKey = relation.mediaType.name,
+                subjectType = relation.bangumiSubjectType
+            )
         }
-        return cached.map { relation -> enriched[relation.malId] ?: relation }
+        val resolved = BangumiSubjectTitleResolver.resolve(requests, background = background)
+        return cached.map { relation ->
+            val raw = BangumiIdNamespace.rawIdFromStable(relation.malId) ?: return@map relation
+            val latin = resolved[raw] ?: BangumiTitleCache.get(raw) ?: return@map relation
+            applyResolvedLatinTitle(relation, latin)
+        }
+    }
+
+    /**
+     * Çözülen Latin başlık varyantlarını ilişki kaydına işler. Gösterim katmanı seçimi
+     * `getDisplayTitle(titleLanguage)` yaptığı için burada yalnızca varyantlar doldurulur;
+     * `title` alanı Romaji zincirinin Latin yedeği olarak güncellenir.
+     */
+    internal fun applyResolvedLatinTitle(
+        relation: KitsugiRelation,
+        latin: BangumiTitleCache.LatinTitles
+    ): KitsugiRelation {
+        val romaji = usableLatinName(latin.romaji)
+        val english = usableLatinName(latin.english)
+        if (romaji == null && english == null) return relation
+        return relation.copy(
+            title = romaji ?: english ?: relation.title,
+            titleRomaji = relation.titleRomaji ?: romaji,
+            titleEnglish = relation.titleEnglish ?: english,
+            titleJapanese = relation.titleJapanese ?: latin.native
+        )
     }
 
     /** Başlıkta Latin bir karşılık biliniyorsa ilişki kaydına işler. */
