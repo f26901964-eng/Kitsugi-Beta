@@ -133,7 +133,9 @@ def main(decisions_path: Path) -> int:
             continue
         p = raw.split("\t")
         cur = canon_by_rc[(p[1], p[0])]
-        out_lines.append("\t".join(cur))
+        # ÖNEMLİ: orijinal sütun sayısını koru (7 veya 8) — boş 8. sütun ekleme,
+        # HEAD'deki sondaki-sekme biçimini de birebir sürdür (kozmetik diff üretme)
+        out_lines.append("\t".join(cur[: len(p)]))
     (DEC / "canon.tsv").write_text("\n".join(out_lines) + "\n", encoding="utf-8")
 
     report = WORK / f"{decisions_path.stem}_report.tsv"
@@ -205,7 +207,7 @@ def mirror_repair() -> int:
             continue
         p = raw.split("\t")
         cur = canon_by_rc[(p[1], p[0])]
-        out_lines.append("\t".join(cur))
+        out_lines.append("\t".join(cur[: len(p)]))  # orijinal sütun sayısını koru
     (DEC / "canon.tsv").write_text("\n".join(out_lines) + "\n", encoding="utf-8")
     print(f"cross-role ayna senkronu: {synced}")
     if skipped:
