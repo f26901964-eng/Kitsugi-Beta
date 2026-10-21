@@ -8840,4 +8840,34 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_tag_tms">TMS Entertainment</string>
     <string name="bangumi_tag_tvb">TVB</string>
     <string name="bangumi_tag_ubisoft_entertainment">Ubisoft Entertainment</string>
-    <string name="bangumi_tag_xebec">XEBEC</string></resources>
+    <string name="bangumi_tag_xebec">XEBEC</string>
+
+    <string name="stream_all_sources">Tüm kaynaklar</string>
+    <string name="stream_choose_source">Kaynak seç</string>
+    <string name="stream_search_addons">Eklentilerde ara</string>
+    <string name="stream_source_summary">%1$d/%2$d eklenti sonuç buldu · %3$d video</string>
+    <string name="stream_video_count">%1$d video</string>
+    <string name="stream_source_loading">Kaynaklar aranıyor…</string>
+    <string name="stream_source_verify">Doğrulama gerekiyor</string>
+    <string name="stream_source_error">Kaynak hatası · ayrıntılar için seç</string>
+    <string name="stream_no_addon_match">Bu isimde eklenti bulunamadı.</string>
+    <string name="stream_details">Ayrıntılar</string>
+    <string name="stream_lang_dub">Dublaj</string>
+    <string name="stream_lang_sub">Altyazılı</string>
+    <string name="stream_lang_dual">Çift dil</string>
+    <string name="stream_cached">Önbellekte</string>
+    <string name="stream_sort_quality">Kalite: yüksekten düşüğe</string>
+    <string name="stream_sort_default">Sıralama: kaynak sırası</string>
+    <string name="stream_action_downloads">İndirmeler</string>
+    <string name="stream_action_history">İzleme geçmişi</string>
+    <string name="stream_action_manual_search">Manuel arama</string>
+    <string name="stream_tag_sub">Altyazı</string>
+    <string name="stream_tag_dub">Dublaj</string>
+    <string name="stream_results_summary">%1$d video · %2$d kaynak</string>
+    <string name="stream_filter_clear">Filtreleri temizle</string>
+    <string name="stream_filter_empty_title">Sonuç bulunamadı</string>
+    <string name="stream_filter_empty_desc">kriterlerine uygun video akışı yok.</string>
+    <string name="stream_play_failed_title">Oynatıcı açılamadı</string>
+    <string name="stream_play_failed_generic">Oynatıcı açılamadı. Başka bir kaynak deneyin veya tekrar deneyin.</string>
+    <string name="stream_play_failed_body">Video başlatılamadı: %1$s</string>
+</resources>

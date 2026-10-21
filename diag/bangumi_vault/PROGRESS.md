@@ -451,10 +451,15 @@ Chunk 003 için durumu (2026-10-21) → her satır **✅ tamam**:
 - Kalıcı düzeltme: RAW, 50.000 modified-UTF-8 baytı aşmayan parçalara bölünür ve çalışma
   anında birleştirilir. MASTER üreteci ve VAULT RAW yazıcısı aynı biçimi üretir; iki doğrulayıcı
   ve `vault_to_strings.py` yeni biçimi okuyup yazar. VAULT verileri/kararları değişmedi.
-- Yerel doğrulama (Drive JSON'ları yeniden damgalandıktan sonra): `apply_map.py --check`,
+- RAW düzeltmesi commit'i `4cbd2e0` push edilince yeni run `39564791092`'de `verify` ve
+  `Sözlükleri derle (kotlinc)` geçti; Gradle/JUnit adımı tam uygulamayı derlerken 28 eski
+  `stream_*` string anahtarının TR/EN kaynaklarından eksik olduğunu buldu. Anahtarlar base
+  `13349e1`'de mevcuttu; önceki kaynak dosyası değişikliğinde düşmüşler. İki dil dosyasına
+  base değerleriyle geri eklendiler; `Android Derleme Doğrulama` da aynı eksikleri bildirmişti.
+- Geri yükleme sonrası yerel doğrulama: XML parse + TR/EN simetrisi, `apply_map.py --check`,
   `vault_to_strings.py --check`, `verify_vault.py`, `verify_bangumi_master.py`,
   `gen_bangumi_master.py --check` ve JDK 17 + Kotlin 2.4.21 ile `compile_check.sh` geçti.
-  Düzeltme push edildikten sonra GitHub Actions sonucu güncellenecek.
+  String kaynakları düzeltmesi push edildikten sonra GitHub Actions yeniden kontrol edilecek.
 
 Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 

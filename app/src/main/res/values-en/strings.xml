@@ -8835,4 +8835,34 @@
     <string name="bangumi_tag_tms">TMS Entertainment</string>
     <string name="bangumi_tag_tvb">TVB</string>
     <string name="bangumi_tag_ubisoft_entertainment">Ubisoft Entertainment</string>
-    <string name="bangumi_tag_xebec">XEBEC</string></resources>
+    <string name="bangumi_tag_xebec">XEBEC</string>
+
+    <string name="stream_all_sources">All sources</string>
+    <string name="stream_choose_source">Choose a source</string>
+    <string name="stream_search_addons">Search add-ons</string>
+    <string name="stream_source_summary">%1$d/%2$d add-ons found results · %3$d videos</string>
+    <string name="stream_video_count">%1$d videos</string>
+    <string name="stream_source_loading">Searching for streams…</string>
+    <string name="stream_source_verify">Verification required</string>
+    <string name="stream_source_error">Source error · select for details</string>
+    <string name="stream_no_addon_match">No matching add-ons.</string>
+    <string name="stream_details">Details</string>
+    <string name="stream_lang_dub">Dubbed</string>
+    <string name="stream_lang_sub">Subtitled</string>
+    <string name="stream_lang_dual">Dual audio</string>
+    <string name="stream_cached">Cached</string>
+    <string name="stream_sort_quality">Quality: highest first</string>
+    <string name="stream_sort_default">Sort: source order</string>
+    <string name="stream_action_downloads">Downloads</string>
+    <string name="stream_action_history">Watch history</string>
+    <string name="stream_action_manual_search">Manual search</string>
+    <string name="stream_tag_sub">Subtitled</string>
+    <string name="stream_tag_dub">Dubbed</string>
+    <string name="stream_results_summary">%1$d videos · %2$d sources</string>
+    <string name="stream_filter_clear">Clear filters</string>
+    <string name="stream_filter_empty_title">No results</string>
+    <string name="stream_filter_empty_desc">criteria returned no video streams.</string>
+    <string name="stream_play_failed_title">Player could not start</string>
+    <string name="stream_play_failed_generic">The player could not start. Try another source or retry.</string>
+    <string name="stream_play_failed_body">Playback could not start: %1$s</string>
+</resources>
