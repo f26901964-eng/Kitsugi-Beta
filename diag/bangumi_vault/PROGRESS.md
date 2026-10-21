@@ -130,11 +130,13 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > kararlarını damgalar, kayıpsız). Sonra `verify_vault.py` ✅ olmalı:
 > **`5132 bangumi_* anahtar, 3795 vault kaydı, 4743 map satırı, 121284 damga`**.
 >
-> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğu = **Chunk 005 — kurum count 1–19 kuyruğu + etiket count 20–99 (4.027)**.
-> Kurum için: `python3 diag/bangumi_vault/scripts/draft_org_map.py --chunk 005a --max-count 19`
+> **(2) İş:** Bölüm 5'teki **ilk ☐** kutucuğu = **Chunk 005a — kurum count 10–19 (2.897 kayıt)**.
+> Sıra: `python3 diag/bangumi_vault/scripts/draft_org_map.py --chunk 005a --min-count 10 --max-count 19`
+> (`--min-count` ZORUNLU; varsayılan 100'dür, verilmezse bant boş döner)
 > → taslağı gözden geçir, `org_global_names.tsv`'ye **yalnız resmî Latin adı bilinen** kurum/kişileri
 > ekle → `apply_map.py --check && apply_map.py` → `vault_to_strings.py` → `verify_vault.py`.
-> Etiket için `scripts/worklist.py --min-count 20 --max-count 99` + elle karar (Bölüm 4).
+> Sıradaki bantlar Bölüm 5'te: 005b (5–9 · 4.311), 005c (1–4 · 45.420), 006 (etiket 20–99 · 4.027),
+> 007 (etiket <20 · 59.510 + committees). Etiket işleri `scripts/worklist.py` + elle karar (Bölüm 4).
 > Karar kalıpları için "Chunk 002 karar şablonu"nu (6 adım) ve Bölüm 2e/2f/2g'yi (kurum chunk örnekleri) kullan.
 > Not: `committee` rolü `draft_org_map.py` ORG_FILES'ta yok; kayıtlar `producers.json` ile aynı key'i
 > taşıyorsa taslak yine kapsar (004c'de böyle oldu), aksi hâlde satır elle eklenir.
@@ -519,9 +521,17 @@ işler, `translations_done.tsv` yazar, `translations_pending.tsv`'i düşer,
       `producers.json` ile aynı key'de olduğu için kapsandı) → uygulamaya işlendi ✅
       (2026-10-21; ayrıntı Bölüm 2g). Taslak: `python3 scripts/draft_org_map.py --chunk 004c
       --min-count 20 --max-count 34`. Bu aralıkta **0** kayıt kaldı.
-- [ ] **Chunk 005+** — kurum count **1–19** kuyruğu (`--chunk 005a --max-count 19`);
-      etiket count 20–99 (**4.027**), sonra kuyruk (<20 → **59.510**);
-      committees (1.229) + üretici kişileri (`as_is`/bilinen romanizasyonlar).
+- [ ] **Chunk 005a — kurum count 10–19** (**2.897** kayıt). Komut:
+      `python3 scripts/draft_org_map.py --chunk 005a --min-count 10 --max-count 19`
+      (`--min-count` ZORUNLU; varsayılan 100'dür ve bant boş döner.)
+- [ ] **Chunk 005b — kurum count 5–9** (**4.311** kayıt):
+      `--chunk 005b --min-count 5 --max-count 9`
+- [ ] **Chunk 005c — kurum count 1–4** (**45.420** kayıt — çok büyük; alt bantlara böl:
+      `--min-count 3 --max-count 4`, `--min-count 2 --max-count 2`, `--min-count 1 --max-count 1`)
+- [ ] **Chunk 006 — etiket count 20–99** (**4.027**): `scripts/worklist.py --min-count 20 --max-count 99`
+      + elle karar (Bölüm 4)
+- [ ] **Chunk 007 — etiket kuyruğu <20** (**59.510**); committees (1.229) + üretici kişileri
+      (`as_is`/bilinen romanizasyonlar).
 - [ ] **Final** — kalan `translations_pending.tsv` tükendi mi? `verify_vault.py` ✅?
       PROGRESS.md + Drive + PR güncelle.
 
