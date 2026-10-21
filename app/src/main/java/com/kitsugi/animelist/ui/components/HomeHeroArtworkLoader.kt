@@ -34,7 +34,9 @@ internal class HomeHeroArtworkLoader(context: Context) {
         if (!isHomeHeroMedia(item)) return null
         val key = "${KitsugiHeroArtworkResolver.cacheKey(item)}:${item.imageUrl}:${item.backdropUrl}"
         resolvedBackdrops[key]?.let { cached ->
-            return cached.takeIf { it.isNotBlank() }?.let { item.copy(backdropUrl = it) }
+            return cached.takeIf { it.isNotBlank() }?.let { backdrop ->
+                item.withHeroArtwork(backdrop, KitsugiHeroArtworkResolver.getCached(item))
+            }
         }
         val tried = mutableSetOf<String>()
         suspend fun firstUsable(urls: List<String?>): String? {
@@ -46,12 +48,14 @@ internal class HomeHeroArtworkLoader(context: Context) {
             return null
         }
 
+        var artwork: KitsugiHeroArtworkResolver.HeroArtwork? = null
         val url = try {
             withTimeoutOrNull(18_000L) {
                 val cached = KitsugiHeroArtworkResolver.getCached(item)
+                artwork = cached
                 firstUsable(listOf(item.backdropUrl, cached?.bestBackdropUrl) + cached?.backdropCandidates.orEmpty())
-                    ?: KitsugiHeroArtworkResolver.resolveArtwork(item).let { artwork ->
-                        firstUsable(listOf(artwork.bestBackdropUrl) + artwork.backdropCandidates)
+                    ?: KitsugiHeroArtworkResolver.resolveArtwork(item).also { artwork = it }.let { resolved ->
+                        firstUsable(listOf(resolved.bestBackdropUrl) + resolved.backdropCandidates)
                     }
             }
         } catch (cancelled: CancellationException) {
@@ -60,8 +64,31 @@ internal class HomeHeroArtworkLoader(context: Context) {
             null
         }
         resolvedBackdrops[key] = url.orEmpty()
-        // Do not replace provider IDs or the library poster: only the verified backdrop changes.
-        return url?.let { item.copy(backdropUrl = it) }
+        // Do not replace provider IDs: only the verified backdrop and the best poster change.
+        return url?.let { item.withHeroArtwork(it, artwork) }
+    }
+
+    /**
+     * Doğrulanmış backdrop'a ek olarak dikey vitrin bandı için en kaliteli posteri de
+     * taşır: önce resolver'ın puanlanmış poster adayları (TMDB/Fanart `original`),
+     * yoksa kaynağın kendi posterinin en yüksek çözünürlüklü varyantı. Backdrop ile
+     * aynı görsel kimliğine sahip bir URL asla poster sayılmaz.
+     */
+    private fun JikanSearchResult.withHeroArtwork(
+        backdrop: String,
+        artwork: KitsugiHeroArtworkResolver.HeroArtwork?
+    ): JikanSearchResult {
+        val backdropIdentity = KitsugiHeroArtworkResolver.normalizeImageIdentity(backdrop)
+        val poster = buildList {
+            artwork?.bestPosterUrl?.let { add(it) }
+            addAll(artwork?.posterCandidates.orEmpty())
+            KitsugiHeroArtworkResolver.upgradeNativePosterUrl(imageUrl, source)?.let { add(it) }
+        }.firstOrNull { candidate ->
+            candidate.isNotBlank() &&
+                (candidate.startsWith("https://", true) || candidate.startsWith("http://", true)) &&
+                KitsugiHeroArtworkResolver.normalizeImageIdentity(candidate) != backdropIdentity
+        }
+        return copy(backdropUrl = backdrop, imageUrl = poster ?: imageUrl)
     }
 
     private suspend fun verifyBackdrop(url: String): Boolean {
