@@ -123,20 +123,17 @@ private val genreMap = mapOf(
     "Mythology" to "Mitoloji",
 )
 
-/** API'dan gelen tür adını Türkçeye çevirir. Eşleme yoksa orijinali döner. */
+/**
+ * API'dan gelen tür adını arayüz diline çevirir. Eşleme yoksa orijinali döner.
+ *
+ * **Tek giriş noktası** [toLocalizedTaxonomyLabel]'dir: Bangumi (Çince/Japonca), Shikimori
+ * (Rusça) ve İngilizce kaynaklar aynı çözümleyiciden geçer; çözülemeyen Kiril metni Latin
+ * harflerine çevrilir, böylece ekranda Rusça tür adı görünmez.
+ */
 fun String.toTurkishGenre(): String {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
-    // Bangumi meta etiketleri Çince/Japonca gelir (恋爱, 日常, 游戏改 ...): önce bunlara bak.
-    cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
-    if (!isTurkish()) return this
-    val mapped = genreMap[cleaned]
-        ?: genreMap[cleaned.lowercase()]
-        ?: genreMap[cleaned.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }]
-        // Try case-insensitive lookup in keys
-        ?: genreMap.entries.find { it.key.equals(cleaned, ignoreCase = true) }?.value
-    if (mapped != null) return mapped
-    return com.kitsugi.animelist.ui.screens.search.SearchTranslation.displayLabel(cleaned)
+    return cleaned.toLocalizedTaxonomyLabel()
 }
 
 /** Tür listesini Türkçeye çevirir. */
@@ -213,67 +210,103 @@ fun bangumiTagEnglishOrNull(label: String): String? = BangumiTagDictionary.entry
 fun String.toEnglishBangumiTag(): String = bangumiTagEnglishOrNull(this) ?: this
 
 /**
+ * `taxonomy_tag_<key>` dil dosyası override'ı (tr/en arayüzünde).
+ *
+ * Sözlük tablosu koddadır; dil dosyaları çeviri ekibinin **kod değiştirmeden** düzeltme
+ * yapabilmesi için üretilir (`scripts/sync_taxonomy_tag_strings.py`). Diğer arayüz
+ * dillerinde varsayılan kaynak Türkçe olduğu için yanlış sonuç verirdi — okunmaz.
+ */
+internal fun taxonomyStringOverride(key: String): String? {
+    if (!isTurkish() && !isEnglish()) return null
+    return getStringResourceByName("taxonomy_tag_$key")?.takeIf { it.isNotBlank() }
+}
+
+/**
+ * Etiketin **kanonik İngilizce** adı; bilinmiyorsa null.
+ *
+ * Türkçe girdi (`Aksiyon`) da İngilizceye çevrilir (`Action`), böylece kanonik anahtar
+ * dilden bağımsız üretilebilir. Bilinmeyen değerde null döner — `translateToEnglishForSearch`
+ * bilinmeyen değerde girdiyi aynen döndürdüğü için bu ayrım burada yapılır.
+ */
+internal fun englishTaxonomyName(label: String?): String? {
+    val cleaned = label?.trim().orEmpty()
+    if (cleaned.isEmpty()) return null
+    genreMap[cleaned]?.let { return cleaned }
+    genreMap.keys.firstOrNull { it.equals(cleaned, ignoreCase = true) }?.let { return it }
+    com.kitsugi.animelist.ui.screens.search.SearchTranslation.englishToTurkish.keys
+        .firstOrNull { it.equals(cleaned, ignoreCase = true) }
+        ?.let { return it }
+    val english = com.kitsugi.animelist.ui.screens.search.SearchTranslation
+        .translateToEnglishForSearch(cleaned)
+    if (!english.equals(cleaned, ignoreCase = true)) return english
+    return null
+}
+
+/**
+ * Etiketin arayüz dili Türkçe iken gösterilecek karşılığı; bilinmiyorsa null.
+ *
+ * `SearchTranslation.translateToTurkishForDisplay` dil dosyası kaynaklarını, AniList/MAL/
+ * Kitsu ortak tablosunu ve Bangumi sözlüğünü birlikte kullanır. Bilinmeyen değeri
+ * değiştirmeden döndürdüğü için "çeviri var mı" ayrımı burada yapılır.
+ */
+internal fun englishTaxonomyToTurkish(label: String?): String? {
+    val cleaned = label?.trim().orEmpty()
+    if (cleaned.isEmpty()) return null
+    val display = com.kitsugi.animelist.ui.screens.search.SearchTranslation
+        .translateToTurkishForDisplay(cleaned)
+    if (!display.equals(cleaned, ignoreCase = true)) return display
+    return null
+}
+
+/**
  * Tür/etiket çiplerinde gösterilen metni arayüz diline çevirir.
  *
- * Bangumi sözlüğü önceliklidir; bilinmeyen Çince/Japonca değerler olduğu gibi kalır
- * (uydurma çeviri üretilmez). İngilizce kaynaklı türler yalnızca Türkçe arayüzde çevrilir.
+ * Tek çözümleyici: [String.toLocalizedTaxonomyLabel] — Bangumi (Çince/Japonca) ve
+ * Shikimori (Rusça) sözlükleri + İngilizce yerleşik tablolar. Çözülemeyen Kiril metni
+ * Latin harflerine çevrilir (**ekranda Rusça görünmez**); uydurma çeviri üretilmez.
  */
-fun String.toLocalizedTagLabel(): String {
-    val cleaned = this.trim()
-    if (cleaned.isEmpty()) return cleaned
-    cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
-    if (!isTurkish()) return cleaned
-    val mapped = genreMap[cleaned]
-        ?: genreMap[cleaned.lowercase()]
-        ?: genreMap.entries.firstOrNull { it.key.equals(cleaned, ignoreCase = true) }?.value
-    if (mapped != null) return mapped
-    return com.kitsugi.animelist.ui.screens.search.SearchTranslation.translateToTurkishForDisplay(cleaned)
-}
+fun String.toLocalizedTagLabel(): String = toLocalizedTaxonomyLabel()
 
-/** Metin Çince/Japonca karakter içeriyor mu? (CJK ideogram, hiragana, katakana) */
-private fun String.hasCjkCharacters(): Boolean = any { ch ->
-    val code = ch.code
-    code in 0x3040..0x30FF ||   // hiragana + katakana
-        code in 0x3400..0x4DBF || // CJK ext. A
-        code in 0x4E00..0x9FFF || // CJK ideogram
-        code in 0xF900..0xFAFF    // uyumluluk ideogramları
-}
 
 /**
- * Etiket sözlükte yok ve hâlâ Çince/Japonca mı? Böyle etiketler çevrilemediği için
- * (uydurma çeviri üretilmez) çip listesinin sonuna atılır — liste yarım yamalak görünmesin.
+ * Etiket sözlükte karşılık bulamadı ve hâlâ çözülememiş Çince/Japonca mı?
+ * Böyle etiketler gösterimden **çıkarılır** (modelde korunur) — uydurma çeviri üretilmez
+ * ve ekranda Çince/Japonca metin görünmez.
  */
-fun isUntranslatedCjkTag(value: String): Boolean {
-    val cleaned = value.trim()
-    if (cleaned.isEmpty() || !cleaned.hasCjkCharacters()) return false
-    if (bangumiTagEntryOrNull(cleaned) != null) return false
-    return cleaned.toLocalizedTagLabel().trim() == cleaned
-}
+fun isUntranslatedCjkTag(value: String): Boolean = isUnresolvedForeignLabel(value)
 
 /**
- * Etiket/tür listesini gösterime hazırlar: çeviri yapılır ve çeviriden sonra aynı anlama
- * gelen yazımlar tekilleştirilir (例: `催泪` + `催涙` + `Duygusal` → tek çip).
- * Modelde orijinal değer kalır; arama çipi orijinaliyle çalışmaya devam eder.
+ * Etiket/tür listesini gösterime hazırlar.
  *
- * Sözlükte karşılığı olmayan Çince/Japonca etiketler listenin **sonuna** alınır; önce
- * okunabilir (çevrilmiş) etiketler görünür.
+ *  • Çeviri tek çözümleyiciden geçer ([String.toLocalizedTaxonomyLabel]): Bangumi
+ *    (Çince/Japonca) + Shikimori (Rusça) sözlükleri + İngilizce tablolar.
+ *  • Çeviriden sonra aynı anlama gelen yazımlar tekilleştirilir
+ *    (`催泪` + `催涙` + `Duygusal` + `Tearjerker` → tek çip).
+ *  • Kanonik anahtar karşılaştırması diller arası çalışır
+ *    (`Экшен` ≡ `Action` ≡ `动作` ≡ `Aksiyon`).
+ *  • Çözülemeyen Çince/Japonca etiketler listeye **alınmaz**; çözülemeyen Kiril metni
+ *    Latin harflerine çevrilerek eklenir.
+ *
+ * Modelde orijinal değer kalır; çipe tıklanınca arama o değerle yapılır.
  */
 fun List<String>.localizedDistinctTags(limit: Int = 48): List<String> {
     if (isEmpty()) return emptyList()
-    val translated = ArrayList<String>(minOf(size, limit))
-    val untranslated = ArrayList<String>()
+    val result = ArrayList<String>(minOf(size, limit))
     val seen = HashSet<String>()
     for (raw in this) {
         val value = raw.trim()
         if (value.isEmpty()) continue
+        // Sözlükte olmayan Çince/Japonca etiket gösterilmez.
+        if (isUnresolvedForeignLabel(value)) continue
         val label = value.toLocalizedTagLabel().trim()
         if (label.isEmpty()) continue
-        if (!seen.add(label.lowercase(java.util.Locale.ROOT))) continue
-        if (isUntranslatedCjkTag(value)) untranslated += value else translated += value
-        if (translated.size >= limit) break
+        val dedupKey = value.taxonomyCanonicalKey()
+            .ifEmpty { label.lowercase(java.util.Locale.ROOT) }
+        if (!seen.add(dedupKey)) continue
+        result.add(value)
+        if (result.size >= limit) break
     }
-    if (translated.size >= limit) return translated
-    return (translated + untranslated).take(limit)
+    return result
 }
 
 // Tersine dönüşüm: Türkçe → İngilizce (arama API'ları için)
@@ -1470,7 +1503,10 @@ fun String.toLocalizedOrgName(): String {
     if (key != null && (isTurkish() || isEnglish())) {
         getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
     }
-    return BangumiOrgDictionary.latinNameFor(cleaned) ?: toLatinStudioName()
+    // Son çare: sözlükte olmayan Rusça kurum adı Latin harflerine çevrilir — ekranda
+    // Kiril alfabesi (Rusça) görünmez. Ad, arama/tekilleştirme için modelde korunur.
+    val fallback = BangumiOrgDictionary.latinNameFor(cleaned) ?: toLatinStudioName()
+    return if (fallback.hasCyrillicCharacters()) fallback.transliterateCyrillic() else fallback
 }
 
 /**
@@ -1486,7 +1522,11 @@ fun String.toLocalizedOrgNameOrNull(): String? {
     if (isTurkish() || isEnglish()) {
         getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
     }
-    return BangumiOrgDictionary.latinNameFor(cleaned)
+    val fallback = BangumiOrgDictionary.latinNameFor(cleaned)
+    if (fallback != null) {
+        return if (fallback.hasCyrillicCharacters()) fallback.transliterateCyrillic() else fallback
+    }
+    return null
 }
 
 /**

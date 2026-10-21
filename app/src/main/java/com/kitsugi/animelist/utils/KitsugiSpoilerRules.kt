@@ -152,6 +152,9 @@ object KitsugiSpoilerRules {
         // 1) BangumiTagDictionary kanonik anahtarı (CJK + EN + TR destekler)
         BangumiTagDictionary.entryFor(trimmed)?.let { return it.key }
 
+        // 1b) Rusça (Shikimori) sözlük anahtarı — `Экшен` ≡ `Action` ≡ `Aksiyon`
+        RussianTaxonomyDictionary.entryFor(trimmed)?.let { return it.key }
+
         // 2) SearchTranslation üzerinden İngilizce karşılığı
         val en = SearchTranslation.translateToEnglishForSearch(trimmed).trim()
         if (en.isNotEmpty() && !en.equals(trimmed, ignoreCase = true)) {

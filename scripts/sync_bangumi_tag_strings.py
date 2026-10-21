@@ -80,12 +80,66 @@ def render(entries: list[tuple[str, str, str]], marker: str, turkish: bool) -> s
     return "\n".join(lines)
 
 
+AUTO_COMMENT_PREFIXES = ("<!-- OTOMATİK ÜRETİLDİ", "<!-- AUTO-GENERATED")
+
+BANGUMI_TAG_PREFIX = '<string name="bangumi_tag_'
+
+
+def _collapse_blank_runs(lines: list[str], max_blank: int = 2) -> list[str]:
+    out: list[str] = []
+    blanks = 0
+    for line in lines:
+        if line.strip():
+            blanks = 0
+            out.append(line)
+        else:
+            blanks += 1
+            if blanks <= max_blank:
+                out.append(line)
+    return out
+
+
 def patch(path: Path, marker: str, block: str, check: bool) -> bool:
+    """Üretilen bloğu **yerinde** değiştirir; dosyanın geri kalanına dokunmaz.
+
+    Eski sürüm, işaretçiden sonraki HER ŞEYİ silip yerine `</resources>` yazıyordu.
+    Bangumi etiket blokları artık dosyanın sonu değil (araya kurum bloğu ve başka
+    bölümler girmiş durumda) — bu davranış binlerce satırı siliyordu.
+
+    Yeni sürüm:
+      1. Dosyadaki TÜM `bangumi_tag_*` kaynaklarını ve otomatik üretim yorumlarını toplar,
+      2. bunları bulundukları yerden çıkarır,
+      3. işaretçi satırının yerine **tek parça** halinde yeniden yazar.
+
+    Böylece blok araya giren kurum kaynaklarını (`bangumi_studio_*` vb.) ezmeden
+    yeniden birleştirilir ve `--check` idempotent kalır.
+    """
     text = path.read_text(encoding="utf-8")
     if marker not in text:
         raise SystemExit(f"{path} içinde işaret satırı bulunamadı: {marker}")
-    head = text.split(marker, 1)[0]
-    updated = f"{head}{block}\n\n</resources>\n"
+
+    lines = text.splitlines()
+    marker_idx = next(i for i, line in enumerate(lines) if line == marker)
+
+    rebuilt: list[str] = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        # Yalnızca BU betiğin otomatik yorumu + kendi kaynakları kaldırılır; taksonomi
+        # üretecinin yorumuna dokunulmaz (iki betik art arda çalışabilir).
+        if index != marker_idx and (
+            stripped.startswith(BANGUMI_TAG_PREFIX)
+            or ("sync_bangumi_tag_strings.py" in stripped and stripped.startswith(AUTO_COMMENT_PREFIXES))
+        ):
+            continue
+        if index == marker_idx:
+            rebuilt.extend(block.splitlines())
+            continue
+        rebuilt.append(line)
+
+    rebuilt = _collapse_blank_runs(rebuilt)
+    updated = "\n".join(rebuilt)
+    if text.endswith("\n"):
+        updated += "\n"
     if updated == text:
         return False
     if not check:

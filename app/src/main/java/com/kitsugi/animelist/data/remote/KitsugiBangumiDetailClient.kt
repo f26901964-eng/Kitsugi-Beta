@@ -550,18 +550,30 @@ object KitsugiBangumiDetailClient {
             secondary = other.tags,
             limit = 48
         )
+        // ── Tür / kurum birleşimi (yerine koyma DEĞİL) ──────────────────────────
+        // Bangumi'nin kendi türleri ve infobox kurumları (动画制作 / 製作 / 播放电视台 /
+        // 出版社 / 连载杂志) korunur; MAL/AniList/TMDB'nin eklediği türler ve kurumlar
+        // ÜZERİNE eklenir. Böylece iki kaynakta da olan bir stüdyo tek çipte kalır.
+        val mergedGenres = KitsugiTaxonomyMerge.mergeGenres(base.genres, other.genres)
+        val mergedStudios = KitsugiTaxonomyMerge.mergeOrgs(base.studios, other.studios)
+        val mergedProducers = KitsugiTaxonomyMerge.dropProducersThatAreStudios(
+            KitsugiTaxonomyMerge.mergeOrgs(base.producers, other.producers),
+            mergedStudios
+        )
+        val mergedNetworks = KitsugiTaxonomyMerge.mergeOrgs(base.networks, other.networks)
+        val mergedSerializations = KitsugiTaxonomyMerge.mergeOrgs(base.serializations, other.serializations)
         return base.copy(
             // Özet tercihi: Bangumi açıklaması Çince/Japonca geldiyse ve eşleşen kayıtta Latin
             // (İngilizce) açıklama varsa O kullanılır — otomatik çeviri İngilizce kaynaktan
             // belirgin şekilde daha iyi sonuç verir. Bangumi özgün dili Latinse Bangumi korunur.
             synopsis = pickSynopsis(base.synopsis, other.synopsis),
-            // Türler diğer platformdan (çevrilebilir, tıklanınca arama yapar); yoksa Bangumi meta etiketleri.
-            genres = other.genres.ifEmpty { base.genres },
+            // Türler: Bangumi meta etiketleri + diğer platformun türleri BİRLEŞİR.
+            genres = mergedGenres,
             status = base.status ?: other.status,
             season = base.season ?: other.season,
             sourceMaterial = other.sourceMaterial ?: base.sourceMaterial,
-            studios = other.studios.ifEmpty { base.studios },
-            producers = other.producers.ifEmpty { base.producers },
+            studios = mergedStudios,
+            producers = mergedProducers,
             rating = other.rating ?: base.rating,
             broadcast = base.broadcast ?: other.broadcast,
             episodeDuration = base.episodeDuration ?: other.episodeDuration,
@@ -592,8 +604,8 @@ object KitsugiBangumiDetailClient {
             popularityRank = other.popularityRank ?: base.popularityRank,
             themes = other.themes.ifEmpty { base.themes },
             demographics = other.demographics.ifEmpty { base.demographics },
-            serializations = other.serializations.ifEmpty { base.serializations },
-            networks = base.networks.ifEmpty { other.networks },
+            serializations = mergedSerializations,
+            networks = mergedNetworks,
             authors = other.authors.ifEmpty { base.authors },
             rankings = other.rankings.ifEmpty { base.rankings },
             countryOfOrigin = other.countryOfOrigin ?: base.countryOfOrigin,
