@@ -18,9 +18,9 @@ Yeni bir dalda işe başlayan ajan SIFIRDAN araştırma yapmaz; şu sırayı izl
 
 ### a) Dal kurulumu (KRİTİK)
 - **Güncel durum (2026-10-21):** chunk 001 + 002 + 003 + **004a**'nın tamamı dal
-  `arena/6131dd54-kitsugi-beta` · **PR #20**'de (son commit `067b368`); hiçbiri `main`'de YOK.
-  **Yeni dal bu commit'ten açılır** ve `origin/main` üzerine merge edilir (bu dal `main`'in
-  2.4.321–324 sürümünü zaten içerir).
+  `arena/6131dd54-kitsugi-beta` · **PR #20**'de (HEAD `4a2dedb`; `origin/main` 9ea3b46 merge
+  edilmiş). Hiçbiri `main`'de YOK. Yeni oturum dalı `main`'den açıldıysa dosyalar gelmez →
+  Bölüm 0e'deki **iki komutla** (explicit refspec + `git reset --hard`) kendi dalına çek.
 - Eski kaynaklar: Chunk 001 işi commit `5c13f8e` dal `arena/a3fae7fe-kitsugi-beta` üzerinde ve **PR #15**'te
   (2026-10-21 itibarıyla PR #15 **merge edilmemiş**, `main`'de YOK).
 - Chunk 002 işi dal `arena/2419075a-kitsugi-beta` üzerinde; o dal chunk 001'i de **taşır**
@@ -97,12 +97,23 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > `diag/bangumi_vault/PROGRESS.md` dosyasını oku — Bangumi VAULT kurum/etiket çeviri işinin
 > devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
-> **(0) Dal (KRİTİK):** Chunk 001 + 002 + 003 + **004a** çalışması **PR #20**'de, dal
-> `arena/6131dd54-kitsugi-beta` (son commit `067b368`); bu iş henüz `main`'de YOK.
-> Yeni dalı **`main`'den DEĞİL, bu dalın HEAD'inden** aç (`git reset --hard 067b368` ya da
-> o commit'ten yeni dal) ve `origin/main`'i üzerine merge et — aksi hâlde chunk 001–004a
-> (strings + sözlükler + kararlar) yeni dala girmez ve iş tekrarlanır. Ayrıntı: Bölüm 0a.
-> Hiçbir chunk'ı yeniden araştırma/üretme.
+> **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + **004a**
+> çalışmasının tamamı **PR #20**'de, dal `arena/6131dd54-kitsugi-beta`, **HEAD `4a2dedb`**
+> (`origin/main` 9ea3b46 üzerine merge edilmiş hâlde); bu iş henüz `main`'de YOK.
+> Yeni oturumun dalı sabittir (ör. `arena/1b45adfd-kitsugi-beta`) ve `main`'den açıldıysa
+> `diag/bangumi_vault/` **boş gelir**. O zaman **kendi oturum dalında** şu iki komutu çalıştır
+> (fetch refspec kısıtlı olabilir, bu yüzden açık `src:dst` biçimi şart):
+>
+> ```bash
+> git fetch --no-tags origin \
+>   refs/heads/arena/6131dd54-kitsugi-beta:refs/remotes/origin/arena/6131dd54-kitsugi-beta
+> git reset --hard refs/remotes/origin/arena/6131dd54-kitsugi-beta   # → 4a2dedb
+> ```
+>
+> Bu dal `main`'in 2.4.321–325 sürümünü (MAL URL düzeltmeleri dâhil) zaten içerir; ayrıca
+> `git merge origin/main` gerekmez. Dalı **değiştirme**; yalnız kendi dalının içeriğini bu
+> commit'e eşitle. Doğrulama: `ls diag/bangumi_vault/PROGRESS.md` görünmeli ve
+> `git log --oneline -1` → `4a2dedb`. Hiçbir chunk'ı yeniden araştırma/üretme.
 >
 > **(1) Kurulum:** Bölüm 0b tablosuyla veri dosyalarını Drive klasöründen indir
 > (`1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`, ~74 MB; `download_file` paralel çağrılarla,
