@@ -726,15 +726,29 @@ object ExternalListSyncManager {
         entry: MediaEntry,
         ids: CrossProviderIds
     ) = withContext(Dispatchers.IO) {
-        val malId = CrossProviderIds.realMalIdOf(ids.malId) ?: return@withContext
-        if (entry.malId == null && entry.id > 0) {
+        // YEREL SATIR = kullanıcının kalıcı kaydı; uzak bulut kayıtlarının TUTAMAZLARI
+        // (kimlikler) buraya, yalnız alan BOŞKEN, ezmeden yazılır. Her kaynak kendi
+        // tutamaç alanını kullanır: malId (gerçek), aniListEntryId (senkron dönüşü ayrıca
+        // yazar), simklId, tmdbId + kaynak-özel önbellekler (Kitsu kütüphane girdisi,
+        // Shikimori rateId, Bangumi eşleme).
+        val malId = CrossProviderIds.realMalIdOf(ids.malId)
+        val newSimklId = ids.simklId?.takeIf { it > 0 && entry.simklId == null }
+        val newTmdbId = ids.tmdbId?.takeIf { it > 0 && entry.tmdbId == null }
+        val needsRowWrite = (malId != null && entry.malId == null) || newSimklId != null || newTmdbId != null
+        if (needsRowWrite && entry.id > 0) {
             runSyncCatching {
                 val dao = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context).mediaEntryDao()
                 val current = dao.getById(entry.id)?.toDomain() ?: entry
-                dao.update(current.copy(malId = malId).toEntity())
+                dao.update(
+                    current.copy(
+                        malId = if (current.malId == null) malId else current.malId,
+                        simklId = current.simklId ?: newSimklId,
+                        tmdbId = current.tmdbId ?: newTmdbId
+                    ).toEntity()
+                )
             }
         }
-        if (ids.bangumiSubjectId != null && entry.type != MediaType.Movie && entry.type != MediaType.TvShow) {
+        if (malId != null && ids.bangumiSubjectId != null && entry.type != MediaType.Movie && entry.type != MediaType.TvShow) {
             runSyncCatching {
                 BangumiLocalMappingCache.put(
                     context,

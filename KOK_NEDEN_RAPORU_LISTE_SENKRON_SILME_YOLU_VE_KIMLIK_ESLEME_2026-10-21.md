@@ -203,7 +203,7 @@ Kanıtlanmamış sınır için spekülatif clamp eklenmedi.
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `data/auth/ExternalListSyncManager.kt` | Silme kimliği `allowNetwork=true` + `connected`; Simkl/Kitsu/Shikimori/AniList silme 3'lü sınıflandırma (sync/del Simkl, sync Kitsu/Bangumi zaten öyleydi); `knownKitsuMediaId`/`knownMalId` geçişi; Shikimori hedef kapısı + `account_sync_shikimori_id_not_found` gerekçesi; Bangumi silme `unresolvedSubject` ayrımı; sınıf KDoc'u |
+| `data/auth/ExternalListSyncManager.kt` | Silme kimliği `allowNetwork=true` + `connected`; Simkl/Kitsu/Shikimori/AniList silme 3'lü sınıflandırma (sync/del Simkl, sync Kitsu/Bangumi zaten öyleydi); `knownKitsuMediaId`/`knownMalId` geçişi; Shikimori hedef kapısı + `account_sync_shikimori_id_not_found` gerekçesi; Bangumi silme `unresolvedSubject` ayrımı; sınıf KDoc'u; **çözülen `simklId`/`tmdbId` tutamaçları yerel satıra geri yazılır (yalnız null ise; video satırları early-return'ten kurtarıldı)** |
 | `data/auth/SimklSyncManager.kt` | `realMalIdOf(entry, knownMalId)`, `rawKitsuIdOf()`; sync adım 3 → `addToListBatchDetailed` makbuz ayrıştırımı; kimlik yoksa/bulunamadıysa `unresolvedMedia`; silme id-miss → `unresolvedMedia`; batch kuralı belge yorumu |
 | `data/auth/KitsuSyncManager.kt` | `deleteEntryFromKitsu(…, knownKitsuMediaId)` — eklemeyle aynı çözüm zinciri; null → `unresolvedMedia`; kütüphanede olmayan → idempotent başarı |
 | `data/auth/ShikimoriSyncManager.kt` | `shikimoriTargetIdOf(entry, knownMalId)`; sync/sil `knownMalId`; silme: rate önbelleği yoksa `fetchAllUserRates` ile hedefe göre bulma; okuma hatası ≠ bulunamadı; bulunamayan kayıt = idempotent başarı; hedefsiz → `unresolvedMedia` |
