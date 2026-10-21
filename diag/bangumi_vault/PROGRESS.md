@@ -2,7 +2,7 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b + 004c** tamamlandı, uygulamaya işlendi.
-> Chunk 004c PR'ı: PR_NUM_PLACEHOLDER (**dal `arena/c54b58d5-kitsugi-beta`; chunk 001+002+003+004a+004b'yi de taşır, `main` v2.4.326 ile birleşik**)
+> Chunk 004c PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/22 (**dal `arena/c54b58d5-kitsugi-beta`; chunk 001+002+003+004a+004b'yi de taşır, `main` v2.4.326 ile birleşik**)
 > Chunk 004b PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/21 (dal `arena/fbf31f34-kitsugi-beta`; chunk 001+002+003+004a'yı da taşır, `main` v2.4.326 ile birleşik)
 > Chunk 004a PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/20 (**dal `arena/6131dd54-kitsugi-beta`; chunk 001+002+003'ü de taşır**)
 > Chunk 003 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/18 (dal `arena/6cb51a64-kitsugi-beta`)
@@ -20,7 +20,7 @@ Yeni bir dalda işe başlayan ajan SIFIRDAN araştırma yapmaz; şu sırayı izl
 
 ### a) Dal kurulumu (KRİTİK)
 - **Güncel durum (2026-10-21, chunk 004c sonrası):** chunk 001 + 002 + 003 + 004a + 004b + **004c**'nin
-  tamamı dal `arena/c54b58d5-kitsugi-beta` · **PR `PR_NUM_PLACEHOLDER`** üzerinde (`origin/main` 4ef8714/v2.4.326
+  tamamı dal `arena/c54b58d5-kitsugi-beta` · **PR #22** üzerinde (`origin/main` 4ef8714/v2.4.326
   merge edilmiş). Hiçbiri `main`'de YOK. Yeni oturum dalı `main`'den açıldıysa dosyalar gelmez →
   Bölüm 0e'deki **iki komutla** (explicit refspec + `git reset --hard`) kendi dalına çek.
 - Önceki kaynak: chunk 001–004a işi dal `arena/6131dd54-kitsugi-beta` · **PR #20**'de
@@ -102,7 +102,7 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > devir teslim dosyasıdır; hiçbir şeyi sıfırdan araştırma, her şey orada yazılı.
 >
 > **(0) Dal (KRİTİK — yeni checkout'ta dosyalar YOKSA önce bunu yap):** Chunk 001 + 002 + 003 + 004a + 004b + **004c**
-> çalışmasının tamamı **PR `PR_NUM_PLACEHOLDER`**'de, dal `arena/c54b58d5-kitsugi-beta` üzerinde
+> çalışmasının tamamı **PR #22**'de, dal `arena/c54b58d5-kitsugi-beta` üzerinde
 > (**dal ucunu al**, sabit SHA'ya bağlanma).
 > Dal, `origin/main` 4ef8714 (v2.4.326) üzerine merge edilmiş hâldedir; bu iş henüz `main`'de YOK.
 > Yeni oturumun dalı sabittir (ör. `arena/xxxxxxx-kitsugi-beta`) ve `main`'den açıldıysa
@@ -118,7 +118,7 @@ Yeni Arena oturumunda, yeni dal açıldığında **birebir şu metni** yapışt�
 > Bu dal `main`'in 2.4.326 sürümünü (MAL URL düzeltmeleri dâhil) zaten içerir; ayrıca
 > `git merge origin/main` gerekmez. Dal **adını değiştirme**; yalnız kendi dalının içeriğini
 > bu uca eşitle. Doğrulama: `ls diag/bangumi_vault/PROGRESS.md` görünmeli,
-> `git log --oneline -1` PR `PR_NUM_PLACEHOLDER` ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
+> `git log --oneline -1` PR #22 ucunu göstermeli. Hiçbir chunk'ı yeniden araştırma/üretme.
 > `git reset --hard` kullanmak istemiyorsan alternatif: `git merge --ff-only` çalışmazsa
 > `git checkout refs/remotes/origin/arena/c54b58d5-kitsugi-beta -- .` + `git commit`.
 >
@@ -699,7 +699,8 @@ Chunk 004c için durumu (2026-10-21) → her satır **✅ tamam**:
 - [x] Drive'a yüklendi: PROGRESS.md, progress.json, decisions/canon.tsv,
       decisions/map_chunk_004c_orgs.tsv, decisions/org_global_names.tsv,
       translations_done.tsv, translations_pending.tsv
-- [x] Git commit + push (dal `arena/c54b58d5-kitsugi-beta`) + PR `PR_NUM_PLACEHOLDER` açıldı
+- [x] Git commit + push (dal `arena/c54b58d5-kitsugi-beta`) + PR #22 açıldı
+      (https://github.com/f26901964-eng/Kitsugi-Beta/pull/22)
 - [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; `compile_check.sh`
       çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
       RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
