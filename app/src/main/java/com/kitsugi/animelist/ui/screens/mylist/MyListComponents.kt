@@ -864,7 +864,7 @@ fun MyListContentPage(
     val screenWidthDp = configuration.screenWidthDp
     val gridColumns = when {
         isLandscape -> if (screenWidthDp >= 900) 6 else 5
-        else -> if (screenWidthDp >= 600) 4 else 3
+        else -> if (screenWidthDp >= 600) 4 else 2
     }
 
     PullToRefreshBox(

@@ -507,6 +507,7 @@ fun ReviewsTabContent(
             apiClient = apiClient,
             tmdbId = tmdbId,
             realMalId = realMalId,
+            initialReviews = reviewsList,
             onUserProfileClick = handleUserProfileClick,
             onDismiss = { showAllReviewsSheet = false }
         )

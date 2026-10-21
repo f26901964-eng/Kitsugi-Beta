@@ -30,7 +30,7 @@ internal object HeroArtworkLayoutRules {
      * 9:19.5 (~0.46) ile 9:21 (~0.43) arasındadır; 0.55 üstü tablet/kare cihaz
      * kabul edilir ve yatay arka plan tercih edilir.
      */
-    const val PORTRAIT_TALL_RATIO: Float = 0.55f
+    const val PORTRAIT_TALL_RATIO: Float = 0.75f
 
     /**
      * Yatay modda "dikey poster için yeterince kısa modül" eşiği. Genelde tüm

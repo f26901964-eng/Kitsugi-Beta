@@ -48,6 +48,29 @@ fun main() {
     // politika: komite adları
     eq("光坂高校演劇部 → null", null, BangumiOrgDictionary.resourceKeyFor("光坂高校演劇部"))
     eq("PROJECT-XXX → null", null, BangumiOrgDictionary.resourceKeyFor("PROJECT-XXX"))
-    eq("boyut >= 900", true, BangumiOrgDictionary.size >= 900)
-    println(if (fail == 0) "✅ TÜM KONTROLLER GEÇTİ (0 hata)" else "❌ $fail hata")
+    // VAULT 001–009 & Batch 008 kapsam kontrolü
+    eq("默片 → Sessiz Film", "Sessiz Film", BangumiTagDictionary.entryFor("默片")?.turkish)
+    eq("默片 → Silent Film", "Silent Film", BangumiTagDictionary.entryFor("默片")?.english)
+    eq("哥特萝莉 → Gotik Lolita", "Gotik Lolita", BangumiTagDictionary.entryFor("哥特萝莉")?.turkish)
+    eq("哥特萝莉 → Gothic Lolita", "Gothic Lolita", BangumiTagDictionary.entryFor("哥特萝莉")?.english)
+    eq("自然纪录片 → Doğa Belgeseli", "Doğa Belgeseli", BangumiTagDictionary.entryFor("自然纪录片")?.turkish)
+    eq("自然纪录片 → Nature Documentary", "Nature Documentary", BangumiTagDictionary.entryFor("自然纪录片")?.english)
+    eq("Tactical_shooter → Taktiksel Nişancı", "Taktiksel Nişancı", BangumiTagDictionary.entryFor("Tactical_shooter")?.turkish)
+    eq("Tactical_shooter → Tactical Shooter", "Tactical Shooter", BangumiTagDictionary.entryFor("Tactical_shooter")?.english)
+    eq("Souls-like → Souls Benzeri", "Souls Benzeri", BangumiTagDictionary.entryFor("Souls-like")?.turkish)
+    eq("Souls-like → Souls-like", "Souls-like", BangumiTagDictionary.entryFor("Souls-like")?.english)
+    eq("青柳昌行 → Masayuki Aoyagi", "Masayuki Aoyagi", BangumiOrgDictionary.latinNameFor("青柳昌行"))
+    eq("落越友則 → Tomonori Ochikoshi", "Tomonori Ochikoshi", BangumiOrgDictionary.latinNameFor("落越友則"))
+    eq("オーバーラップ文庫 → Overlap Bunko", "Overlap Bunko", BangumiOrgDictionary.latinNameFor("オーバーラップ文庫"))
+    eq("月刊ウィングス → Monthly Wings", "Monthly Wings", BangumiOrgDictionary.latinNameFor("月刊ウィングス"))
+    eq("CoMix Wave Films → CoMix Wave Films", "CoMix Wave Films", BangumiOrgDictionary.latinNameFor("CoMix Wave Films"))
+    eq("森下勝司 → as_is", "森下勝司", BangumiOrgDictionary.latinNameFor("森下勝司"))
+    eq("tag boyut == 58338", 58338, BangumiTagDictionary.size)
+    eq("org boyut == 52626", 52626, BangumiOrgDictionary.size)
+    if (fail == 0) {
+        println("✅ TÜM KONTROLLER GEÇTİ (0 hata · tag=${BangumiTagDictionary.size} · org=${BangumiOrgDictionary.size})")
+    } else {
+        println("❌ $fail hata")
+        kotlin.system.exitProcess(1)
+    }
 }

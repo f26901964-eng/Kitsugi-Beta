@@ -179,10 +179,51 @@ class BangumiMasterDictionaryTest {
 
     @Test
     fun `sozluk boyutu beklendigi gibi`() {
-        assertTrue("org sözlüğü en az 900 eşleme içermeli", BangumiOrgDictionary.size >= 900)
+        assertEquals("tag sözlüğü 58338 grup içermeli", 58338, BangumiTagDictionary.size)
+        assertEquals("org sözlüğü 52626 eşleme içermeli", 52626, BangumiOrgDictionary.size)
         // sözlük girişlerinin Latin adı boş olamaz
         for (key in listOf("bangumi_studio_kyoto_animation", "bangumi_network_muse")) {
             assertTrue("$key için Latin ad olmalı", !BangumiOrgDictionary.canonicalName(key).isNullOrBlank())
+        }
+    }
+
+    @Test
+    fun `vault 001_009 kavram etiketleri ve kuresel kurum adlari TR ve EN arayuzde dogru cozulur`() {
+        val prev = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr"))
+            assertEquals("Sessiz Film", "默片".toLocalizedTagLabel())
+            assertEquals("Gotik Lolita", "哥特萝莉".toLocalizedTagLabel())
+            assertEquals("Doğa Belgeseli", "自然纪录片".toLocalizedTagLabel())
+            assertEquals("Taktiksel Nişancı", "Tactical_shooter".toLocalizedTagLabel())
+            assertEquals("Souls Benzeri", "Souls-like".toLocalizedTagLabel())
+            assertEquals("Hafif Roman", "轻小说".toLocalizedTagLabel())
+            assertEquals("Kyoto Animation", "京アニ".toLocalizedOrgName())
+            assertEquals("Masayuki Aoyagi", "青柳昌行".toLocalizedOrgName())
+            assertEquals("Tomonori Ochikoshi", "落越友則".toLocalizedOrgName())
+            assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
+            assertEquals("Monthly Wings", "月刊ウィングス".toLocalizedOrgName())
+            assertEquals("CoMix Wave Films", "コミックス・ウェーブ・フィルム".toLocalizedOrgName())
+            assertEquals("森下勝司", "森下勝司".toLocalizedOrgName())
+            assertEquals("Clannad製作委員会", "Clannad製作委員会".toLocalizedOrgName())
+
+            java.util.Locale.setDefault(java.util.Locale.ENGLISH)
+            assertEquals("Silent Film", "默片".toLocalizedTagLabel())
+            assertEquals("Gothic Lolita", "哥特萝莉".toLocalizedTagLabel())
+            assertEquals("Nature Documentary", "自然纪录片".toLocalizedTagLabel())
+            assertEquals("Tactical Shooter", "Tactical_shooter".toLocalizedTagLabel())
+            assertEquals("Souls-like", "Souls-like".toLocalizedTagLabel())
+            assertEquals("Light Novel", "轻小说".toLocalizedTagLabel())
+            assertEquals("Kyoto Animation", "京アニ".toLocalizedOrgName())
+            assertEquals("Masayuki Aoyagi", "青柳昌行".toLocalizedOrgName())
+            assertEquals("Tomonori Ochikoshi", "落越友則".toLocalizedOrgName())
+            assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
+            assertEquals("Monthly Wings", "月刊ウィングス".toLocalizedOrgName())
+            assertEquals("CoMix Wave Films", "コミックス・ウェーブ・フィルム".toLocalizedOrgName())
+            assertEquals("森下勝司", "森下勝司".toLocalizedOrgName())
+            assertEquals("Clannad製作委員会", "Clannad製作委員会".toLocalizedOrgName())
+        } finally {
+            java.util.Locale.setDefault(prev)
         }
     }
 }

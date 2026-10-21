@@ -1,27 +1,10 @@
 #!/usr/bin/env bash
-# Bangumi MASTER sözlükleri — derleme + çalıştırma doğrulaması.
-#
-# Ne yapar:
-#   1. BangumiTagDictionary.kt + BangumiOrgDictionary.kt dosyalarının PRISTINE kopyasını alır
-#      (yalnızca `package` satırı kaldırılır — kotlinc paket/dizin uyuşmazlığına izin verir,
-#      ama bağımlılıksız tek-main derlemesi paketsiz daha basit).
-#   2. harness/Main.kt (JUnit testinin aynısı, bağımlılıksız) ile birlikte derler.
-#   3. Çalıştırır; tüm kontroller geçerse "✅ TÜM KONTROLLER GEÇTİ (0 hata)" yazar, exit 0.
-#
-# Gereksinimler:
-#   - kotlinc 2.x  (PATH'te ya da KOTLINC=/yol/kotlinc ile)
-#   - JDK 17+      (PATH'te java ya da JAVA_HOME tanımlı)
-#
-# Kullanım:
-#   bash diag/bangumi_master/harness/compile_check.sh
-#
-# Not (2026-10-11): Bu harness ilk kez çalıştırıldığında `instrumental` satırından sonra
-# virgül eksikliğini yakaladı (yeni blok listSon elemanın hemen ardına eklenmişti).
-# Üretici (gen_bangumi_master.py) artık ekleme öncesi virgülü otomatik tamamlıyor.
+# Bangumi MASTER sözlükleri — derleme + çalıştırma doğrulaması (TSV kaynaklarıyla).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 UTILS="$ROOT/app/src/main/java/com/kitsugi/animelist/utils"
+RES_DIR="$ROOT/app/src/main/resources"
 BUILD_DIR="$(mktemp -d)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
@@ -48,6 +31,18 @@ PY
 echo "• derleniyor: $BUILD_DIR"
 "$KOTLINC" "$BUILD_DIR"/*.kt -include-runtime -d "$BUILD_DIR/check.jar" 2>&1 | grep -v "^warning:" || true
 [[ -f "$BUILD_DIR/check.jar" ]] || { echo "HATA: derleme başarısız (check.jar üretilmedi)." >&2; exit 1; }
+
+# Classpath veri depolarını (`bangumi/tags.tsv`, `bangumi/orgs.tsv`) JAR içine göm
+python3 - "$BUILD_DIR/check.jar" "$RES_DIR" <<'PY'
+import sys, zipfile
+from pathlib import Path
+jar_path, res_dir = Path(sys.argv[1]), Path(sys.argv[2])
+if res_dir.is_dir():
+    with zipfile.ZipFile(jar_path, "a", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(res_dir.rglob("*")):
+            if file_path.is_file():
+                zf.write(file_path, file_path.relative_to(res_dir).as_posix())
+PY
 
 echo "• çalıştırılıyor"
 java -jar "$BUILD_DIR/check.jar"

@@ -58,6 +58,7 @@ fun KitsugiAllReviewsBottomSheet(
     apiClient: JikanApiClient,
     tmdbId: Int? = null,
     realMalId: Int? = null,
+    initialReviews: List<KitsugiReview> = emptyList(),
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -71,8 +72,14 @@ fun KitsugiAllReviewsBottomSheet(
     }
     val cachedFeed = remember(socialFeedKey) { SocialFeedCache.allReviews(socialFeedKey) }
 
-    var reviewsList by remember { mutableStateOf<List<KitsugiReview>>(cachedFeed?.items ?: emptyList()) }
-    var isLoading by remember { mutableStateOf(cachedFeed == null) }
+    // Seed the sheet from the reviews already rendered in the detail tab. This avoids
+    // showing an empty sheet when the full-feed request uses a different ID/source alias.
+    var reviewsList by remember(socialFeedKey, initialReviews) {
+        mutableStateOf(cachedFeed?.items?.takeIf { it.isNotEmpty() } ?: initialReviews)
+    }
+    var isLoading by remember(socialFeedKey, initialReviews) {
+        mutableStateOf(cachedFeed?.items.isNullOrEmpty() && initialReviews.isEmpty())
+    }
     var isLoadingMore by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf(cachedFeed?.page ?: 1) }
     var hasMore by remember { mutableStateOf(cachedFeed?.hasMore ?: true) }

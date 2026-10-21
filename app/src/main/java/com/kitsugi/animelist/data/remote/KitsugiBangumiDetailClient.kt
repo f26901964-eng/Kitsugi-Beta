@@ -10,6 +10,7 @@ import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.KitsugiSpoilerRules
 import com.kitsugi.animelist.utils.toLatinStudioName
+import com.kitsugi.animelist.utils.toLocalizedOrgName
 import com.kitsugi.animelist.utils.localizedDistinctTags
 import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.utils.toTurkishBroadcast
@@ -429,32 +430,34 @@ object KitsugiBangumiDetailClient {
         // ── Stüdyo / yapımcı / kanal ─────────────────────────────────────────
         // Stüdyo/şirket adları infobox'ta Japonca/Çince gelir — Latin ada çevrilir
         // (örn. 京都アニメーション → Kyoto Animation); bilinmeyenler olduğu gibi kalır.
-        val studioNames = splitCompanies(values("动画制作", "動畫製作", "动画制作公司", "アニメーション制作", "制作", "制作公司"))
+        val studioNames = splitCompanies(values("动画制作", "動畫製作", "动画制作公司", "アニメーション制作", "制作", "制作公司", "开发", "開發"))
             .map { it.toLatinStudioName() }
         val studios = studioNames
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.STUDIO) }
         val producers = if (mediaType == MediaType.Manga) {
-            splitCompanies(values("出版社", "出版"))
+            splitCompanies(valuesAll("出版社", "出版", "发行", "發行"))
                 .map { it.toLatinStudioName() }
+                .distinct()
                 .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.PUBLISHER) }
         } else {
-            splitCompanies(values("製作", "出品", "发行", "製作委员会", "制作委员会"))
+            splitCompanies(valuesAll("製作", "出品", "发行", "發行", "製作委员会", "制作委员会", "製作委員会"))
                 .map { it.toLatinStudioName() }
                 .filter { name -> studioNames.none { it.equals(name, ignoreCase = true) } }
+                .distinct()
                 .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.PRODUCER) }
         }
         val networks = splitNetworks(valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台"))
             .map { it.toLatinStudioName() }
             .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.NETWORK) }
-        val serializations = splitCompanies(values("连载杂志", "連載雜誌", "杂志"))
+        val serializations = splitCompanies(valuesAll("连载杂志", "連載雜誌", "連載雑誌", "杂志", "雜誌", "雑誌"))
             .map { it.toLatinStudioName() }
             .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.MAGAZINE) }
 
         // ── Yayın bilgisi ────────────────────────────────────────────────────
         val weekday = first("放送星期")?.let { weekdayEnglish(it) }
-        val station = infobox["播放电视台"]?.firstOrNull()?.takeIf { it.isNotBlank() }
+        val station = first("播放电视台", "播放電視台")?.toLocalizedOrgName()
         val broadcast = weekday?.let { day -> if (station != null) "$day ($station)" else day }
             ?.toTurkishBroadcast()
         val episodeDuration = first("片长", "片長", "时长")?.let { durationText(it, isMovie) }
@@ -2083,9 +2086,9 @@ object KitsugiBangumiDetailClient {
      * kimlikler zenginleştirme turunda eklenir. Eşleşmeyen adlar `0` olarak önbelleğe alınır.
      */
     private suspend fun withStudioPersonIds(detail: KitsugiMediaDetail): KitsugiMediaDetail {
-        // Networks (yayıncı ağlar) da dahil — TBS, MBS gibi kanallar da Bangumi'de
-        // şirket (type=2) kaydı olarak tutulur ve aynı kişi detay şablonuyla açılır.
-        val candidates = (detail.studios + detail.producers + detail.networks)
+        // Networks ve serializations (yayıncı ağlar + dergiler) da dahil — Bangumi'de
+        // şirket (type=2) kaydı olarak tutulur ve aynı kişi/kurum detay şablonuyla açılır.
+        val candidates = (detail.studios + detail.producers + detail.networks + detail.serializations)
             .filter { it.id <= 0 && it.source.equals(SOURCE, ignoreCase = true) && it.name.isNotBlank() }
             .map { it.name }
         if (candidates.isEmpty()) return detail
@@ -2105,7 +2108,8 @@ object KitsugiBangumiDetailClient {
         return detail.copy(
             studios = detail.studios.map(::apply),
             producers = detail.producers.map(::apply),
-            networks = detail.networks.map(::apply)
+            networks = detail.networks.map(::apply),
+            serializations = detail.serializations.map(::apply)
         )
     }
 

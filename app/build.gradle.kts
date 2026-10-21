@@ -37,7 +37,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.337"
+    val appVersionName = "2.4.338"
 
     compileSdk = 36
 
@@ -243,6 +243,10 @@ configurations.all {
 }
 
 dependencies {
+    // Resource-only libraries keep each non-transitive R$string below JVM limits.
+    implementation(project(":bangumi-vault-resources-1"))
+    implementation(project(":bangumi-vault-resources-2"))
+    implementation(project(":bangumi-vault-resources-3"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

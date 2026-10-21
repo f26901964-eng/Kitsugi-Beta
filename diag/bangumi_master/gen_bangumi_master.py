@@ -1,27 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-BANGUMI MASTER üreteci — orgs.tsv + tags.tsv → kod / dil dosyaları / master.json
+BANGUMI MASTER üreteci — `diag/bangumi_master/orgs.tsv` + `tags.tsv` → veri depoları / dil dosyaları / master.json
 
-Girdi:
-  diag/bangumi_master/orgs.tsv   (stüdyo · yapımcı · yayıncı ağ · yayımcı · dergi)
-  diag/bangumi_master/tags.tsv   (§7.2 meta etiketler · §7.3 öneriler · §7.4 boşluklar)
-
-Çıktı:
-  app/src/main/java/com/kitsugi/animelist/utils/BangumiOrgDictionary.kt  (ÜRETİLMİŞ)
-  app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt  (yama: yeni grup + eksik etiket)
-  app/src/main/res/values/strings.xml        (TR kayıtları)
-  app/src/main/res/values-en/strings.xml     (EN kayıtları)
-  diag/bangumi_master/master.json            (makine-okur döküm)
-
-Kurallar:
-  • Uydurma çeviri yok: karşılığı olmayan özel ad olduğu gibi kalır.
-  • values/ ve values-en/ anahtar kümeleri BİREBİR simetrik kalır.
-  • Idempotent: var olan anahtar/grup/etiket ikinci kez eklenmez.
-  • `pending` (⚠ doğrulanacak) satırlar dil dosyasına ve sözlüğe ALINMAZ.
+S3 sonrasında sözlük verileri `app/src/main/resources/bangumi/tags.tsv` ve `orgs.tsv`
+içinde tutulur; bu üreteç VAULT satırlarını SİLMEDEN MASTER kayıtlarını idempotent olarak
+senkronlar.
 
 Kullanım:  python3 diag/bangumi_master/gen_bangumi_master.py [--check]
-           --check: hiçbir şey yazmaz, yalnızca rapor verir (CI/doğrulama).
 """
 from __future__ import annotations
 
@@ -31,83 +17,23 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "diag/bangumi_vault/scripts"))
+import build_org_store
+import build_tag_store
+
 DIAG = ROOT / "diag" / "bangumi_master"
-UTILS = ROOT / "app/src/main/java/com/kitsugi/animelist/utils"
-TAG_DICT = UTILS / "BangumiTagDictionary.kt"
-ORG_DICT = UTILS / "BangumiOrgDictionary.kt"
+TAG_STORE = ROOT / "app/src/main/resources/bangumi/tags.tsv"
+ORG_STORE = ROOT / "app/src/main/resources/bangumi/orgs.tsv"
 RES_TR = ROOT / "app/src/main/res/values/strings.xml"
 RES_EN = ROOT / "app/src/main/res/values-en/strings.xml"
 
 CHECK_ONLY = "--check" in sys.argv
+MASTER_COMMENT = "<!-- Bangumi MASTER 2026-10-11 (diag/bangumi_master) -->"
 
-ORG_PREFIXES = {
-    "studio": "bangumi_studio_",
-    "producer": "bangumi_producer_",
-    "network": "bangumi_network_",
-    "publisher": "bangumi_publisher_",
-    "magazine": "bangumi_magazine_",
-}
-
-
-# ── Yardımcılar ──────────────────────────────────────────────────────────────
 
 def xml_escape(value: str) -> str:
-    """Android string kaynağı kaçışları (apostrof `\\'` biçiminde — dosya kuralı)."""
     out = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    out = out.replace("'", "\\'").replace('"', '\\"')
-    return out
-
-
-def kotlin_escape(value: str) -> str:
-    """Kotlin üç-tırnaklı metin bloğu içi güvenli yazım."""
-    return value.replace("$", "${'$'}")
-
-
-# JVM class-file CONSTANT_Utf8 entries are limited to 65,535 modified-UTF-8 bytes.
-# Keep generated raw-string chunks comfortably below that ceiling so the dictionary
-# keeps compiling as orgs.tsv grows.
-MAX_KOTLIN_CONSTANT_MUTF8_BYTES = 50_000
-
-
-def kotlin_mutf8_length(value: str) -> int:
-    """Return the class-file modified-UTF-8 size of a Kotlin/JVM string constant."""
-    size = 0
-    for char in value:
-        codepoint = ord(char)
-        if codepoint == 0:
-            size += 2
-        elif codepoint <= 0x7F:
-            size += 1
-        elif codepoint <= 0x7FF:
-            size += 2
-        elif codepoint <= 0xFFFF:
-            size += 3
-        else:
-            # JVM strings store supplementary Unicode code points as a surrogate pair.
-            size += 6
-    return size
-
-
-def render_kotlin_raw_chunks(lines: list[str]) -> str:
-    """Render raw dictionary lines as safe, adjacent Kotlin triple-quoted literals."""
-    chunks: list[list[str]] = []
-    current: list[str] = []
-    current_size = 0
-    for line in lines:
-        if '"""' in line:
-            raise SystemExit("org etiketi Kotlin üç-tırnaklı ham metin sınırlayıcısını içeriyor")
-        line_size = kotlin_mutf8_length(line + "\n")
-        if line_size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
-            raise SystemExit("tek bir org satırı Kotlin sabit dizgesi sınırını aşıyor")
-        if current and current_size + line_size > MAX_KOTLIN_CONSTANT_MUTF8_BYTES:
-            chunks.append(current)
-            current = []
-            current_size = 0
-        current.append(line)
-        current_size += line_size
-    if current:
-        chunks.append(current)
-    return ",\n".join('        """' + "\n".join(chunk) + "\n" + '"""' for chunk in chunks)
+    return out.replace("'", "\\'").replace('"', '\\"')
 
 
 def read_rows(path: Path, width: int):
@@ -122,24 +48,11 @@ def read_rows(path: Path, width: int):
     return rows
 
 
-def dict_keys(source: str) -> set[str]:
-    return set(re.findall(r'\bg\("([a-z0-9_]+)"', source))
-
-
 def strings_keys(source: str) -> set[str]:
     return set(re.findall(r'<string name="([^"]+)"', source))
 
 
-MASTER_COMMENT = "<!-- Bangumi MASTER 2026-10-11 (diag/bangumi_master) -->"
-
-
 def sync_values(source: str, entries: list[tuple[str, str]]) -> tuple[str, int]:
-    """MASTER bloğundaki mevcut kayıtların değerini TSV ile eşitler (idempotent).
-
-    Yalnızca işaretçi yorumundan SONRAKİ kayıtlara dokunur; üreticinin yazmadığı hiçbir
-    satır değiştirilmez. Böylece TSV'de bir çeviri düzeltildiğinde (ör. `Çinçe` → `Çince`)
-    değer dil dosyalarına da yayılır.
-    """
     marker = source.find(MASTER_COMMENT)
     if marker == -1:
         return source, 0
@@ -156,10 +69,6 @@ def sync_values(source: str, entries: list[tuple[str, str]]) -> tuple[str, int]:
 
 
 def insert_strings(source: str, entries: list[tuple[str, str]], anchor_prefix: str) -> tuple[str, int, int]:
-    """`entries` (ad, değer) kayıtlarını son `anchor_prefix` satırından sonra ekler (idempotent).
-
-    Dönen: (yeni kaynak, eklenen kayıt, değeri güncellenen kayıt).
-    """
     source, updated = sync_values(source, entries)
     present = strings_keys(source)
     lines = [f'    <string name="{name}">{xml_escape(value)}</string>'
@@ -170,9 +79,9 @@ def insert_strings(source: str, entries: list[tuple[str, str]], anchor_prefix: s
     for i, line in enumerate(out):
         if f'name="{anchor_prefix}' in line:
             idx = i
-    block = [] if idx is None else ["", "    <!-- Bangumi MASTER 2026-10-11 (diag/bangumi_master) -->"] + lines
     if idx is None:
         raise SystemExit(f"çapa bulunamadı: {anchor_prefix}")
+    block = ["", f"    {MASTER_COMMENT}"] + lines
     out[idx + 1:idx + 1] = block
     return "\n".join(out) + ("\n" if source.endswith("\n") else ""), len(lines), updated
 
@@ -187,13 +96,11 @@ for key, role, tr, en, status, labels in read_rows(DIAG / "orgs.tsv", 6):
     })
 
 TAG_PREFIX = "bangumi_tag_"
-
 tags = []
 for key, tr, en, status, labels in read_rows(DIAG / "tags.tsv", 5):
     if not key.startswith(TAG_PREFIX):
         raise SystemExit(f"tags.tsv anahtarı {TAG_PREFIX} ile başlamalı: {key}")
     tags.append({
-        # g() birinci argümanı KISA anahtardır; dil dosyası adı = TAG_PREFIX + short
         "key": key, "short": key[len(TAG_PREFIX):], "tr": tr, "en": en, "status": status,
         "labels": [l for l in labels.split(";") if l],
     })
@@ -204,15 +111,14 @@ new_tags = [t for t in tags if t["status"] == "new"]
 label_add = [t for t in tags if t["status"].startswith("existing:")]
 existing_targets = [t["status"].split(":", 1)[1] for t in label_add]
 
-
 # ── 2) Doğrulama ─────────────────────────────────────────────────────────────
 
-tag_src = TAG_DICT.read_text(encoding="utf-8")
-known = dict_keys(tag_src)
-missing_targets = [t for t in existing_targets if t not in known]
+tag_store_rows = build_tag_store.parse_store(TAG_STORE.read_text(encoding="utf-8"))
+by_tag_id = {r[0]: r for r in tag_store_rows}
+missing_targets = [t for t in existing_targets if t not in by_tag_id]
 errors = []
 if missing_targets:
-    errors.append(f"BangumiTagDictionary'de olmayan hedef anahtar: {sorted(set(missing_targets))}")
+    errors.append(f"tags.tsv deposunda olmayan hedef anahtar: {sorted(set(missing_targets))}")
 
 dup_org_keys = {k for k in (o["key"] for o in orgs) if [o["key"] for o in orgs].count(k) > 1}
 if dup_org_keys:
@@ -222,78 +128,47 @@ dup_tag_keys = {k for k in (t["key"] for t in tags) if [t["key"] for t in tags].
 if dup_tag_keys:
     errors.append(f"tags.tsv içinde yinelenen anahtar: {sorted(dup_tag_keys)}")
 
-# Yeni etiket anahtarı zaten sözlükte olmamalı (aksi hâlde etiketler mevcut gruba gitmeliydi).
-# Üretici daha önce çalıştıysa blok zaten eklenmiştir: bu bir çakışma değil, yinelenen çalıştırmadır.
-MARKER = "Bangumi MASTER 2026-10-11: yeni meta/öneri etiketleri"
-already_applied = MARKER in tag_src
-clash = [t["short"] for t in new_tags if t["short"] in known]
+already_applied = all(t["short"] in by_tag_id for t in new_tags) if new_tags else True
 if already_applied:
-    not_yet = [t["short"] for t in new_tags if t["short"] not in known]
-    if not_yet:
-        errors.append(f"MASTER bloğu var ama şu anahtarlar eksik (elle müdahale gerekir): {not_yet}")
-    new_tags = []  # yeniden eklenmesin
-elif clash:
-    errors.append(f"yeni denilen etiket anahtarı sözlükte zaten var: {clash}")
+    new_tags_to_add = []
+else:
+    new_tags_to_add = [t for t in new_tags if t["short"] not in by_tag_id]
 
 if errors:
     raise SystemExit("HATA:\n  - " + "\n  - ".join(errors))
 
+# ── 3) tags.tsv yaması ───────────────────────────────────────────────────────
 
-# ── 3) BangumiTagDictionary.kt yaması ────────────────────────────────────────
-
-def patch_tag_dictionary(source: str) -> tuple[str, int, int]:
-    """(yeni_kaynak, eklenen_grup, eklenen_etiket)"""
-    added_labels = 0
-    for entry in label_add:
-        target = entry["status"].split(":", 1)[1]
-        pattern = re.compile(r'^(?P<indent>\s*)g\("%s",(?P<body>.*)\)\s*,?\s*$' % re.escape(target), re.M)
-        match = pattern.search(source)
-        if not match:
-            raise SystemExit(f"grup satırı bulunamadı: {target}")
-        body = match.group("body")
-        have = set(re.findall(r'"([^"]*)"', body))
-        extra = [l for l in entry["labels"] if l not in have]
-        if not extra:
-            continue
-        appended = "".join(', "%s"' % kotlin_escape(l) for l in extra)
-        source = source[:match.end("body")].rstrip() + appended + source[match.end("body"):]
+added_labels = 0
+for entry in label_add:
+    target = entry["status"].split(":", 1)[1]
+    row = by_tag_id[target]
+    have = set(row[1:])
+    extra = [l for l in entry["labels"] if l not in have]
+    if extra:
+        row.extend(extra)
         added_labels += len(extra)
 
-    added_groups = 0
-    if new_tags:
-        lines = ["", "        // ── Bangumi MASTER 2026-10-11: yeni meta/öneri etiketleri ──"]
-        for entry in new_tags:
-            seen, uniq = set(), []
-            for l in entry["labels"]:
-                if l not in seen:
-                    seen.add(l)
-                    uniq.append(l)
-            if not uniq:
-                uniq = [entry["en"]]
-            lines.append('        g("%s", "%s", "%s"%s),' % (
-                entry["short"], kotlin_escape(entry["tr"]), kotlin_escape(entry["en"]),
-                "".join(', "%s"' % kotlin_escape(l) for l in uniq)))
-            added_groups += 1
-        lines[-1] = lines[-1].rstrip(",")  # liste son elemanı virgülsüz
-        match = re.search(r'^\s{4}\)\s*$', source, re.M)
-        if not match:
-            raise SystemExit("groups listesinin kapanışı bulunamadı")
-        head = source[:match.start()]
-        # Listeye SON elemandan sonra ekleniyoruz: önceki elemanın sonunda virgül yoksa ekle,
-        # aksi hâlde `g(...) g(...)` sözdizimi bozulur (derleyici hatası).
-        stripped = head.rstrip()
-        if not stripped.endswith(","):
-            head = stripped + ",\n"
-        source = head + "\n".join(lines) + "\n" + source[match.start():]
-    return source, added_groups, added_labels
+added_groups = 0
+for entry in new_tags_to_add:
+    seen, uniq = set(), []
+    for l in entry["labels"]:
+        if l not in seen:
+            seen.add(l)
+            uniq.append(l)
+    if not uniq:
+        uniq = [entry["en"]]
+    new_row = [entry["short"], entry["tr"], entry["en"], *uniq]
+    tag_store_rows.append(new_row)
+    by_tag_id[entry["short"]] = new_row
+    added_groups += 1
 
+# ── 4) orgs.tsv senkronu (VAULT satırlarını koruyarak) ───────────────────────
 
-tag_src_new, added_groups, added_labels = patch_tag_dictionary(tag_src)
-
-
-# ── 4) BangumiOrgDictionary.kt üretimi ───────────────────────────────────────
-
-org_lines = []
+org_store_rows = build_org_store.parse_store(ORG_STORE.read_text(encoding="utf-8"))
+have_org_labels = {r[0] for r in org_store_rows}
+master_org_lines = 0
+added_org_rows = 0
 for org in sorted(active_orgs, key=lambda o: (o["key"], o["en"])):
     seen, uniq = set(), []
     for label in org["labels"] + [org["en"], org["tr"]]:
@@ -301,133 +176,19 @@ for org in sorted(active_orgs, key=lambda o: (o["key"], o["en"])):
             seen.add(label)
             uniq.append(label)
     for label in uniq:
-        org_lines.append(f"{kotlin_escape(label)}|{org['key']}|{kotlin_escape(org['en'])}")
-
-ORG_TEMPLATE = '''package com.kitsugi.animelist.utils
-
-import java.util.Locale
-
-/**
- * Bangumi şirket adları sözlüğü — **stüdyo / yapımcı / yayıncı ağ / yayımcı / dergi**.
- *
- * ⚠ **ÜRETİLMİŞ DOSYA — elle düzenlemeyin.**
- * Kaynak: `diag/bangumi_master/orgs.tsv` → `python3 diag/bangumi_master/gen_bangumi_master.py`
- *
- * Bangumi infobox'ında şirket adları CJK (Japonca/Çince) ya da Latin gelir
- * (`京都アニメーション`, `BONES`, `木棉花` ...). Bu sözlük, gelen adı bir `bangumi_*` dil
- * dosyası anahtarına ve **resmî Latin/İngilizce adına** eşler:
- *
- *  • [resourceKeyFor] → `bangumi_studio_*` / `bangumi_producer_*` / `bangumi_network_*` /
- *    `bangumi_publisher_*` / `bangumi_magazine_*` anahtarı (TR/EN değer dil dosyasından gelir),
- *  • [latinNameFor]   → eşleşen kaydın küresel İngilizce adı (arama/dedup için).
- *
- * Eşleşme normalize edilerek yapılır: büyük/küçük harf, boşluk, tam genişlik noktalama ve
- * `「」（）` sarımları yok sayılır; ikinci turda yalnızca harf/rakam bırakan sıkı anahtar
- * denenir (`Production.IG` ≡ `Production I.G`). **Uydurma çeviri yoktur**: eşleşmeyen ad
- * olduğu gibi kalır — komite adları (`PROJECT-XXX`, `光坂高校演劇部`) bilinçli olarak dışarıda.
- *
- * Doğrulanmamış (⚠) nadir adlar bu dosyaya, `orgs.tsv`'de `pending` işaretli oldukları için
- * alınmaz; kaynakta görüldüklerinde işaret kaldırılıp üretici yeniden çalıştırılır.
- */
-internal object BangumiOrgDictionary {
-
-    // JVM CONSTANT_Utf8 strings cap at 65,535 modified-UTF-8 bytes; chunks stay below 50,000.
-    private val RAW = listOf(
-%RAW_CHUNKS%
-    ).joinToString("")
-
-    /** `etiket|anahtar|küresel ad` satırları, tembel olarak ayrıştırılır. */
-    private val rows: List<Triple<String, String, String>> by lazy {
-        RAW.trim().lines().mapNotNull { line ->
-            val parts = line.split('|')
-            if (parts.size != 3) null else Triple(parts[0], parts[1], parts[2])
-        }
-    }
-
-    private val byLabel: Map<String, Triple<String, String, String>> by lazy {
-        val map = HashMap<String, Triple<String, String, String>>(rows.size * 2)
-        for (row in rows) {
-            val key = normalize(row.first)
-            if (key.isNotEmpty() && !map.containsKey(key)) map[key] = row
-        }
-        map
-    }
-
-    private val byCompact: Map<String, Triple<String, String, String>> by lazy {
-        val map = HashMap<String, Triple<String, String, String>>(rows.size * 2)
-        for (row in rows) {
-            val key = compact(row.first)
-            if (key.length >= 3 && !map.containsKey(key)) map[key] = row
-        }
-        map
-    }
-
-    private val byKey: Map<String, String> by lazy {
-        val map = HashMap<String, String>(rows.size * 2)
-        for (row in rows) if (!map.containsKey(row.second)) map[row.second] = row.third
-        map
-    }
-
-    /** Gelen şirket adı için `bangumi_*` dil dosyası anahtarı; bilinmiyorsa `null`. */
-    fun resourceKeyFor(raw: String?): String? = rowFor(raw)?.second
-
-    /** Gelen adın küresel İngilizce yazımı (`京阿尼` → `Kyoto Animation`); bilinmiyorsa `null`. */
-    fun latinNameFor(raw: String?): String? = rowFor(raw)?.third
-
-    /** Anahtarın küresel İngilizce adı; yoksa `null`. */
-    fun canonicalName(key: String): String? = byKey[key]
-
-    /** Eşleşen satır (etiket, anahtar, küresel ad); bilinmiyorsa `null`. */
-    private fun rowFor(raw: String?): Triple<String, String, String>? {
-        val cleaned = raw?.trim().orEmpty()
-        if (cleaned.isEmpty()) return null
-        byLabel[normalize(cleaned)]?.let { return it }
-        val compact = compact(cleaned)
-        if (compact.length >= 3) byCompact[compact]?.let { return it }
-        return null
-    }
-
-    /** Girdi sayısı (test/telemetri için). */
-    val size: Int get() = rows.size
-
-    /** Boşluk, büyük/küçük harf, tam genişlik noktalama ve sarımları yok sayan anahtar. */
-    private fun normalize(value: String): String {
-        if (value.isBlank()) return ""
-        val sb = StringBuilder(value.length)
-        for (ch in value) {
-            when (ch) {
-                '　' -> sb.append(' ')
-                '（', '(', '[', '【', '《', '「', '『' -> Unit
-                '）', ')', ']', '】', '》', '」', '』' -> Unit
-                '：', ':', '・', '·', '。', '、', '，', ',' -> sb.append(' ')
-                else -> sb.append(ch)
-            }
-        }
-        return sb.toString().trim().replace(Regex("\\\\s+"), " ").lowercase(Locale.ROOT)
-    }
-
-    /** Yalnızca harf/rakam bırakan sıkı anahtar: `Production.IG` → `productionig`. */
-    private fun compact(value: String): String {
-        if (value.isBlank()) return ""
-        val sb = StringBuilder(value.length)
-        for (ch in value) if (ch.isLetterOrDigit()) sb.append(ch)
-        return sb.toString().lowercase(Locale.ROOT)
-    }
-}
-'''
-
-ORG_DICT.write_text(ORG_TEMPLATE.replace("%RAW_CHUNKS%", render_kotlin_raw_chunks(org_lines)),
-                    encoding="utf-8") if not CHECK_ONLY else None
-
+        master_org_lines += 1
+        if label not in have_org_labels:
+            have_org_labels.add(label)
+            org_store_rows.append(
+                [label, org["key"], org["en"], org["tr"]] if org["tr"] != org["en"]
+                else [label, org["key"], org["en"]]
+            )
+            added_org_rows += 1
 
 # ── 5) Dil dosyaları ─────────────────────────────────────────────────────────
 
-# Değer senkronu TÜM `new` satırlarını görür: blok daha önce eklendiyse `new_tags` boşaltılmıştır
-# (yeniden eklenmesin diye), ama değer düzeltmeleri yine de dil dosyalarına yayılmalıdır.
 sync_tag_tr = [(f"{TAG_PREFIX}{t['short']}", t["tr"]) for t in tags if t["status"] == "new"]
 sync_tag_en = [(f"{TAG_PREFIX}{t['short']}", t["en"]) for t in tags if t["status"] == "new"]
-# Ekleme için TR karşılığı; EN dosyasına da EN karşılığı yazılır (konvansiyon: values/=TR, values-en/=EN).
-tag_entries = [(f"{TAG_PREFIX}{t['short']}", t["tr"]) for t in new_tags]
 org_entries_tr = [(o["key"], o["tr"]) for o in sorted(active_orgs, key=lambda o: o["key"])]
 org_entries_en = [(o["key"], o["en"]) for o in sorted(active_orgs, key=lambda o: o["key"])]
 
@@ -443,10 +204,8 @@ updated_tr, updated_en = u1 + u3, u2 + u4
 if not CHECK_ONLY:
     RES_TR.write_text(new_tr, encoding="utf-8")
     RES_EN.write_text(new_en, encoding="utf-8")
-    TAG_DICT.write_text(tag_src_new, encoding="utf-8")
-
-
-# ── 6) master.json + rapor ───────────────────────────────────────────────────
+    TAG_STORE.write_text(build_tag_store.render(tag_store_rows), encoding="utf-8")
+    ORG_STORE.write_text(build_org_store.render(org_store_rows), encoding="utf-8")
 
 master = {
     "meta": {
@@ -464,7 +223,7 @@ bucket = {"studio": "studios", "producer": "producers", "network": "networks",
 for org in sorted(active_orgs, key=lambda o: o["key"]):
     master["orgs"][bucket[org["role"]]].append(
         {"key": org["key"], "tr": org["tr"], "en": org["en"], "labels": org["labels"]})
-for tag in new_tags:
+for tag in new_tags_to_add:
     master["tags"]["new"].append({"key": tag["key"], "tr": tag["tr"], "en": tag["en"], "labels": tag["labels"]})
 for tag in label_add:
     master["tags"]["label_additions"].append(
@@ -473,8 +232,9 @@ if not CHECK_ONLY:
     (DIAG / "master.json").write_text(json.dumps(master, ensure_ascii=False, indent=1), encoding="utf-8")
 
 print(f"orgs.tsv          : {len(orgs)} satır ({len(active_orgs)} etkin, {len(pending_orgs)} ⚠ beklemede)")
-print(f"tags.tsv          : {len(tags)} satır ({len(new_tags)} yeni anahtar, {len(label_add)} mevcut gruba etiket)")
+print(f"tags.tsv          : {len(tags)} satır ({len(new_tags_to_add)} yeni anahtar, {len(label_add)} mevcut gruba etiket)")
 print(f"BangumiTagDictionary: +{added_groups} grup, +{added_labels} etiket")
 print(f"strings.xml       : TR +{n1 + n3} kayıt, EN +{n2 + n4} kayıt, "
       f"{updated_tr}/{updated_en} değer güncellendi" + (" (--check: yazılmadı)" if CHECK_ONLY else ""))
-print(f"BangumiOrgDictionary: {len(org_lines)} eşleme satırı" + (" (--check: yazılmadı)" if CHECK_ONLY else ""))
+print(f"BangumiOrgDictionary: {master_org_lines} MASTER eşleme satırı (+{added_org_rows} yeni, toplam {len(org_store_rows)})"
+      + (" (--check: yazılmadı)" if CHECK_ONLY else ""))
