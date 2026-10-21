@@ -226,4 +226,9 @@ Latin adı işle; kalan özel adlar/fandom jargonu as_is.
 - Sağlık zinciri yeşil: 106580 anahtar / 106335 vault / 121284 map / 121284 damga; MASTER **52626**
   org eşleme, gerçek çakışma 0, TR/EN 112812 simetrik; `gen_bangumi_master.py --check` temiz;
   meta-tag coverage 158/158. Canlı 007_b–007_i CJK `as_is` aday havuzu: **43.022** (kota değil).
+- **Uygulama Entegrasyon Planı ve Görev Listesi:** Tüm rollerde ve etiketlerde net kavram/resmî
+  global ad taraması tamamlanmış olup uygulamaya entegrasyon mimarisi ve adım adım görev planı
+  (`TASK-1`..`TASK-5`) **`HANDOFF_011_APP_INTEGRATION_PLAN_AND_TASKS.md`** dosyasında (hem repo
+  içinde `diag/bangumi_vault/` altında hem Google Drive `1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp`
+  klasöründe) kayıtlıdır.
 
