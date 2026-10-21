@@ -23,6 +23,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -47,6 +48,9 @@ import kotlinx.coroutines.flow.first
 /** Sekme verisi için üst süre sınırı — süre dolarsa sekme hata durumuna düşer, asılı kalmaz. */
 private const val TAB_FETCH_TIMEOUT_MS = 25_000L
 
+/** Bangumi sekmesi ad/başlık zenginleştirmesinin arka plan bütçesi (ilk boyamayı etkilemez). */
+private const val BANGUMI_TAB_ENRICH_TIMEOUT_MS = 20_000L
+
 /** Bölüm listesi (çok kaynaklı: Shikimori/TMDB/Jikan) daha uzun sürebilir. */
 private const val TAB_EPISODES_FETCH_TIMEOUT_MS = 45_000L
 
@@ -67,6 +71,12 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
     /** Sekme işlerinin hangi parametrelerle (dış kimlik + MAL kimliği) çalıştığı. */
     private val tabRequestKeys = mutableMapOf<Int, String>()
+
+    /**
+     * Aynı sekme için arka plan zenginleştirmesinin birden çok kez başlatılmasını önler
+     * (anahtar: `sekme|istek`). `loadTab` kimlik kesinleşince yeniden çağrılabiliyor.
+     */
+    private val bangumiTabEnriching = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     // --- StateFlows ---
 
@@ -1262,9 +1272,40 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         )
     }
 
+    /** Bangumi kaynağı mı? (kayıtlar `source = "bangumi"`; eski satırlarda `"bgm"`). */
+    private fun isBangumiDetailSource(source: String): Boolean =
+        source.equals("bangumi", ignoreCase = true) || source.equals("bgm", ignoreCase = true)
+
     /**
-     * Lazy-loads tabs data when a specific tab index is selected.
+     * Aşamalı boyama: ham sekme verisi hemen gösterildikten sonra Latin adlar/başlıklar
+     * arka planda çözülür ve sekme hâlâ aynı isteğe aitse içerik güncellenir.
      */
+    private fun enrichBangumiTabInBackground(
+        label: String,
+        tabIndex: Int,
+        requestKey: String,
+        stillNeeded: () -> Boolean,
+        block: suspend () -> Unit
+    ) {
+        if (!stillNeeded()) return
+        val enrichKey = "$tabIndex|$requestKey"
+        if (!bangumiTabEnriching.add(enrichKey)) return
+        viewModelScope.launch {
+            try {
+                withTimeoutOrNull(BANGUMI_TAB_ENRICH_TIMEOUT_MS) { block() }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "$label zenginleştirmesi başarısız: ${error.message}")
+            } finally {
+                bangumiTabEnriching.remove(enrichKey)
+            }
+        }
+    }
+
+    private fun tabStillCurrent(tabIndex: Int, requestKey: String): Boolean =
+        tabRequestKeys[tabIndex] == requestKey
+
     /**
      * Sekme verisini yükler.
      *
@@ -1317,17 +1358,44 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     mediaType = entry.type,
                                     realMalId = effectiveRealMalId,
                                     tmdbId = tmdbId,
-                                    title = resolvedTitle
+                                    title = resolvedTitle,
+                                    enrichNames = !isBangumiDetailSource(entry.source)
                                 )
                             } ?: run {
                                 _charactersState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
-                            val result = fetched.value
-                            if (result.isNotEmpty()) {
-                                DetailCache.putMediaCharacters(entry.source, malId, result)
+                            val data = fetched.value
+                            if (data.isNotEmpty()) {
+                                DetailCache.putMediaCharacters(entry.source, malId, data)
                             }
-                            _charactersState.value = DetailTabState.Success(result)
+                            _charactersState.value = DetailTabState.Success(data)
+                        }
+                        // Aşamalı boyama: zenginleştirme önbellekten gelen ham listede de çalışır.
+                        if (isBangumiDetailSource(entry.source)) {
+                            val shown = (_charactersState.value as? DetailTabState.Success)?.data.orEmpty()
+                            enrichBangumiTabInBackground(
+                                label = "Karakter adları",
+                                tabIndex = 2,
+                                requestKey = requestKey,
+                                stillNeeded = {
+                                    shown.any { PreferenceHelpers.hasCjkCharacters(it.name) } ||
+                                        shown.any { character ->
+                                            character.voiceActors.any { PreferenceHelpers.hasCjkCharacters(it.name) }
+                                        }
+                                }
+                            ) {
+                                val enriched = apiClient.enrichBangumiCharacters(
+                                    shown,
+                                    entry.type,
+                                    effectiveRealMalId,
+                                    effectiveExternalId
+                                )
+                                if (enriched != shown && tabStillCurrent(2, requestKey)) {
+                                    DetailCache.putMediaCharacters(entry.source, malId, enriched)
+                                    _charactersState.value = DetailTabState.Success(enriched)
+                                }
+                            }
                         }
                     }
                     3 -> {
@@ -1342,17 +1410,38 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     effectiveExternalId,
                                     entry.type,
                                     tmdbId = tmdbId,
-                                    realMalId = effectiveRealMalId
+                                    realMalId = effectiveRealMalId,
+                                    enrichNames = !isBangumiDetailSource(entry.source)
                                 )
                             } ?: run {
                                 _staffState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
-                            val result = fetched.value
-                            if (result.isNotEmpty()) {
-                                DetailCache.putMediaStaff(entry.source, malId, result)
+                            val data = fetched.value
+                            if (data.isNotEmpty()) {
+                                DetailCache.putMediaStaff(entry.source, malId, data)
                             }
-                            _staffState.value = DetailTabState.Success(result)
+                            _staffState.value = DetailTabState.Success(data)
+                        }
+                        if (isBangumiDetailSource(entry.source)) {
+                            val shown = (_staffState.value as? DetailTabState.Success)?.data.orEmpty()
+                            enrichBangumiTabInBackground(
+                                label = "Ekip adları",
+                                tabIndex = 3,
+                                requestKey = requestKey,
+                                stillNeeded = { shown.any { PreferenceHelpers.hasCjkCharacters(it.name) } }
+                            ) {
+                                val enriched = apiClient.enrichBangumiStaff(
+                                    shown,
+                                    entry.type,
+                                    effectiveRealMalId,
+                                    effectiveExternalId
+                                )
+                                if (enriched != shown && tabStillCurrent(3, requestKey)) {
+                                    DetailCache.putMediaStaff(entry.source, malId, enriched)
+                                    _staffState.value = DetailTabState.Success(enriched)
+                                }
+                            }
                         }
                     }
                     4 -> {
@@ -1368,17 +1457,33 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     entry.type,
                                     tmdbId = tmdbId,
                                     realMalId = effectiveRealMalId,
-                                    title = entry.title
+                                    title = entry.title,
+                                    enrichTitles = !isBangumiDetailSource(entry.source)
                                 )
                             } ?: run {
                                 _recommendationsState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
-                            val result = fetched.value
-                            if (result.isNotEmpty()) {
-                                DetailCache.putMediaRecommendations(entry.source, malId, result)
+                            val data = fetched.value
+                            if (data.isNotEmpty()) {
+                                DetailCache.putMediaRecommendations(entry.source, malId, data)
                             }
-                            _recommendationsState.value = DetailTabState.Success(result)
+                            _recommendationsState.value = DetailTabState.Success(data)
+                        }
+                        if (isBangumiDetailSource(entry.source)) {
+                            val shown = (_recommendationsState.value as? DetailTabState.Success)?.data.orEmpty()
+                            enrichBangumiTabInBackground(
+                                label = "Öneri başlıkları",
+                                tabIndex = 4,
+                                requestKey = requestKey,
+                                stillNeeded = { shown.any { PreferenceHelpers.hasCjkCharacters(it.title) } }
+                            ) {
+                                val enriched = KitsugiBangumiDetailClient.enrichRelationListTitles(shown)
+                                if (enriched != shown && tabStillCurrent(4, requestKey)) {
+                                    DetailCache.putMediaRecommendations(entry.source, malId, enriched)
+                                    _recommendationsState.value = DetailTabState.Success(enriched)
+                                }
+                            }
                         }
                     }
                     5 -> {
@@ -1394,17 +1499,33 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     entry.type,
                                     tmdbId = tmdbId,
                                     realMalId = effectiveRealMalId,
-                                    title = entry.title
+                                    title = entry.title,
+                                    enrichTitles = !isBangumiDetailSource(entry.source)
                                 )
                             } ?: run {
                                 _relationsState.value = DetailTabState.Error(tabFailureCode(entry.source))
                                 return@launch
                             }
-                            val result = fetched.value
-                            if (result.isNotEmpty()) {
-                                DetailCache.putMediaRelations(entry.source, malId, result)
+                            val data = fetched.value
+                            if (data.isNotEmpty()) {
+                                DetailCache.putMediaRelations(entry.source, malId, data)
                             }
-                            _relationsState.value = DetailTabState.Success(result)
+                            _relationsState.value = DetailTabState.Success(data)
+                        }
+                        if (isBangumiDetailSource(entry.source)) {
+                            val shown = (_relationsState.value as? DetailTabState.Success)?.data.orEmpty()
+                            enrichBangumiTabInBackground(
+                                label = "İlişki başlıkları",
+                                tabIndex = 5,
+                                requestKey = requestKey,
+                                stillNeeded = { shown.any { PreferenceHelpers.hasCjkCharacters(it.title) } }
+                            ) {
+                                val enriched = KitsugiBangumiDetailClient.enrichRelationListTitles(shown)
+                                if (enriched != shown && tabStillCurrent(5, requestKey)) {
+                                    DetailCache.putMediaRelations(entry.source, malId, enriched)
+                                    _relationsState.value = DetailTabState.Success(enriched)
+                                }
+                            }
                         }
                     }
                     6 -> {

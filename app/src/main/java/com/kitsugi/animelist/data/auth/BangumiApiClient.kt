@@ -4,6 +4,9 @@ import android.util.Log
 import com.kitsugi.animelist.BuildConfig
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -144,26 +147,76 @@ object BangumiApiClient {
      */
     const val IMAGE_REFERER = "$SITE_BASE/"
 
-    private val httpClient get() = KitsugiHttpClient.metadataClient
+    /**
+     * Bangumi istekleri **fail-fast** istemcisini kullanır (bkz. [KitsugiHttpClient.bangumiClient]):
+     * 14 sn toplam çağrı tavanı, yeniden deneme yok. Eski `metadataClient` 20 sn × 3 deneme
+     * yapıyordu; yavaş bir `next.bgm.tv` yanıtı tek sekme açılışını dakikalara taşıyordu.
+     */
+    private val httpClient get() = KitsugiHttpClient.bangumiClient
 
     /**
-     * `api.bgm.tv` Cloudflare DDoS korumasına karşı minimum istek aralığı.
-     * Bangumi resmi bir rate limit yayımlamıyor; hızlı ardışık istekler 503'e
-     * düşebiliyor (bangumi/api#50). Topluluk pratiği 200ms–1.1s; 450ms seçildi
-     * (KitsugiApiBase'teki Shikimori bütçesiyle hizalı). 429 dönerse
-     * BangumiSyncManager ayırımını ayrıca yapar ve raporlar.
+     * `api.bgm.tv` için **jeton kovalı** hız sınırlayıcı.
+     *
+     * Eski uygulama her isteğe 450 ms'lik bir "yer ayırma" (reservation) yazıyordu ve bekleme
+     * `Thread.sleep` ile IO thread'ini kilitliyordu. Rezervasyon, iptal edilen / zaman aşımına
+     * uğrayan isteklerde de ilerlediği için Keşfet gibi 14 Bangumi şeridini aynı anda açan
+     * ekranlarda saat **dakikalarca** ileri taşınıyor; ardından gelen her Bangumi isteği
+     * (detay, arama, kütüphane) kuyrukta bekliyordu. Kullanıcı raporu: "veri 5 dakika
+     * gelmiyor". Ayrıca yüzlerce istek IO thread'lerini bloke edip diğer kaynakları da
+     * yavaşlatıyordu.
+     *
+     * Yeni davranış: saniyede 5 istek (Bangumi'nin resmî tavanı 3000 istek / 10 dk = 5/sn)
+     * ve 5 isteklik ani patlama (burst). Bekleyen istek `delay` kullanır → iptal edilirse
+     * kredi harcanmaz ve kuyruk asla dakikalarca ileri gitmez.
      */
-    private val bangumiThrottleLock = Any()
-    private var lastBangumiRequestAt = 0L
-    private fun awaitBangumiThrottle() {
-        val waitMs = synchronized(bangumiThrottleLock) {
-            val now = android.os.SystemClock.elapsedRealtime()
-            val earliest = lastBangumiRequestAt + 450L
-            lastBangumiRequestAt = if (earliest > now) earliest else now
-            earliest - now
-        }
-        if (waitMs > 0) {
-            runCatching { Thread.sleep(waitMs) }
+    private const val THROTTLE_REQUESTS_PER_SECOND = 5.0
+    private const val THROTTLE_BURST = 5.0
+
+    /**
+     * Toplu/arka plan Bangumi işleri (kütüphane başlığı tazeleme, içe aktarma) için bağlam
+     * işareti. Bu işaretle çalışan istekler jeton kovasından **en az 2 jeton varken** pay
+     * alır; böylece kullanıcı bir detay sayfası/sekme açtığında arka plan taraması kalan
+     * jetonları tüketmiş olmaz. İşaret yoksa istek etkileşimli sayılır.
+     */
+    object BackgroundTraffic : kotlin.coroutines.CoroutineContext.Element {
+        override val key: kotlin.coroutines.CoroutineContext.Key<*> = Key
+        object Key : kotlin.coroutines.CoroutineContext.Key<BackgroundTraffic>
+    }
+
+    /** [block] bloğunu arka plan önceliğinde çalıştırır (bkz. [BackgroundTraffic]). */
+    suspend fun <T> runAsBackground(block: suspend () -> T): T =
+        withContext(BackgroundTraffic) { block() }
+
+    private val throttleMutex = Mutex()
+    private var throttleTokens = THROTTLE_BURST
+    private var throttleRefilledAt = android.os.SystemClock.elapsedRealtime()
+
+    private suspend fun awaitBangumiThrottle() {
+        val background = kotlin.coroutines.coroutineContext[BackgroundTraffic] != null
+        while (true) {
+            val waitMs = throttleMutex.withLock {
+                val now = android.os.SystemClock.elapsedRealtime()
+                val elapsed = (now - throttleRefilledAt).coerceAtLeast(0L)
+                if (elapsed > 0L) {
+                    throttleTokens = (throttleTokens + elapsed * THROTTLE_REQUESTS_PER_SECOND / 1000.0)
+                        .coerceAtMost(THROTTLE_BURST)
+                    throttleRefilledAt = now
+                }
+                // Arka plan trafiği kovanın son jetonlarını almaz: etkileşimli istekler için
+                // her zaman en az 1 jeton kalır. Yoksa Keşfet/Listem arka plan taraması
+                // sürerken detay sekmeleri saniyelerce bekliyordu.
+                val required = if (background) 2.0 else 1.0
+                if (throttleTokens >= required) {
+                    throttleTokens -= 1.0
+                    0L
+                } else {
+                    (((required - throttleTokens) * 1000.0) / THROTTLE_REQUESTS_PER_SECOND)
+                        .toLong()
+                        .coerceAtLeast(16L)
+                }
+            }
+            if (waitMs <= 0L) return
+            delay(waitMs)
         }
     }
 
@@ -478,15 +531,17 @@ object BangumiApiClient {
      * İsteği çalıştırır ve gövdeyi döndürür. 2xx dışında [BangumiApiException] fırlatır.
      * 204 (gövdesiz başarı) ve boş gövde `null` olarak döner.
      */
-    private fun execute(request: Request): String? {
+    private suspend fun execute(request: Request): String? {
         awaitBangumiThrottle()
-        httpClient.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (response.isSuccessful) {
-                if (response.code == 204 || body.isBlank()) return null
-                return body
+        return withContext(Dispatchers.IO) {
+            httpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (response.isSuccessful) {
+                    if (response.code == 204 || body.isBlank()) return@use null
+                    return@use body
+                }
+                throw parseError(response.code, body)
             }
-            throw parseError(response.code, body)
         }
     }
 
@@ -506,7 +561,7 @@ object BangumiApiClient {
         return BangumiApiException(code, title, description, message)
     }
 
-    private fun get(path: String, query: Map<String, String?> = emptyMap(), token: String? = null): String? {
+    private suspend fun get(path: String, query: Map<String, String?> = emptyMap(), token: String? = null): String? {
         val url = buildUrl(path, query)
         val request = Request.Builder().url(url).get().bangumiHeaders(token).build()
         return execute(request)
@@ -544,7 +599,7 @@ object BangumiApiClient {
         return bytes.toRequestBody(JSON_MEDIA_TYPE)
     }
 
-    private fun send(
+    private suspend fun send(
         method: String,
         path: String,
         jsonBody: JSONObject?,
@@ -738,7 +793,7 @@ object BangumiApiClient {
             fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/persons", token)
         }
 
-    private fun fetchFavoriteList(path: String, token: String?): List<BangumiFavoriteItem> {
+    private suspend fun fetchFavoriteList(path: String, token: String?): List<BangumiFavoriteItem> {
         val body = get(path, token = token) ?: return emptyList()
         val array = JSONObject(body).optJSONArray("data") ?: return emptyList()
         return (0 until array.length()).mapNotNull { index ->
@@ -1941,33 +1996,61 @@ object BangumiApiClient {
     }
 
     /**
-     * `infobox` wiki alanları `[{ "key": "别名", "value": [...] | "v": "..." }]` biçimindedir.
+     * `infobox` wiki alanları `[{ "key": "别名", "value": [{k,v}] | "v": "..." }]` biçimindedir.
      * Türkçe/İngilizce başlık eşleştirmesi ve "diğer adlar" için kullanışlıdır.
+     *
+     * Bangumi infobox'unu `alan adı → değerler` haritasına çevirir.
+     *
+     * ÖNEMLİ: `value` öğeleri `{k, v}` biçimindedir; `k` alt alan adıdır. Örneğin bir
+     * karakterin infobox'ında üst anahtar `别名` olur, altında ise `英文名`, `罗马字`,
+     * `日文名`, `纯假名` gibi **gerçek** alanlar bulunur. Eski kod yalnızca `v` değerini
+     * `别名` altına yığıyor, `英文名`/`罗马字` alanlarını hiç görmüyordu; bu yüzden
+     * İngilizce/romaji ad çoğu kayıtta "bulunamıyordu". Alt anahtarlar da üst anahtar gibi
+     * haritaya yazılır (üst anahtar tüm değerleri korumaya devam eder).
      */
     fun parseInfobox(array: JSONArray?): Map<String, List<String>> {
         if (array == null) return emptyMap()
         val result = linkedMapOf<String, MutableList<String>>()
+
+        fun add(key: String?, value: String?) {
+            val cleanKey = key?.trim().orEmpty()
+            val cleanValue = value?.trim().orEmpty()
+            if (cleanKey.isEmpty() || cleanValue.isEmpty()) return
+            val bucket = result.getOrPut(cleanKey) { mutableListOf() }
+            if (!bucket.contains(cleanValue)) bucket += cleanValue
+        }
+
         for (i in 0 until array.length()) {
             val entry = array.optJSONObject(i) ?: continue
             val key = entry.optString("key")
             if (key.isBlank()) continue
-            val values = mutableListOf<String>()
+            var addedAny = false
             entry.optJSONArray("value")?.let { valueArray ->
                 for (j in 0 until valueArray.length()) {
                     val item = valueArray.optJSONObject(j)
-                    val text = if (item != null) {
-                        item.optString("v").ifBlank { item.optString("value") }
+                    if (item != null) {
+                        val text = item.optString("v").ifBlank { item.optString("value") }
+                        if (text.isNotBlank()) {
+                            add(key, text)
+                            val subKey = item.optString("k")
+                            if (subKey.isNotBlank() && !subKey.equals(key, ignoreCase = true)) {
+                                add(subKey, text)
+                            }
+                            addedAny = true
+                        }
                     } else {
-                        valueArray.optString(j)
+                        val text = valueArray.optString(j)
+                        if (text.isNotBlank()) {
+                            add(key, text)
+                            addedAny = true
+                        }
                     }
-                    if (text.isNotBlank()) values += text
                 }
             }
-            if (values.isEmpty()) {
+            if (!addedAny) {
                 val single = entry.optString("value")
-                if (single.isNotBlank()) values += single
+                if (single.isNotBlank()) add(key, single)
             }
-            if (values.isNotEmpty()) result[key] = values
         }
         return result
     }

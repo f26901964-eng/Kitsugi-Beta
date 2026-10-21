@@ -64,7 +64,13 @@ class KitsugiCharacterClient {
         mediaType: MediaType,
         realMalId: Int? = null,
         tmdbId: Int? = null,
-        title: String? = null
+        title: String? = null,
+        /**
+         * `false` → Bangumi listesi **ham** döner (kanji adlar); adlar daha sonra
+         * [enrichBangumiCharacters] ile arka planda doldurulur. Detay sekmeleri ilk
+         * boyamayı bu modda yapar, böylece sekme ağ zenginleştirmesini beklemez.
+         */
+        enrichNames: Boolean = true
     ): List<KitsugiCharacter> {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) {
@@ -84,13 +90,11 @@ class KitsugiCharacterClient {
                             runCatching { KitsugiBangumiCreditsClient.fetchSubjectCharacters(externalId) }.getOrNull().orEmpty()
                         }
                     if (native.isNotEmpty()) {
+                        if (!enrichNames) return@withContext native
                         // Bangumi liste uçları infobox döndürmez → adlar kanji kalır. AniList
                         // köprüsüyle (özgün ada birebir eşleme) romaji/İngilizce adlar doldurulur;
                         // başlık dili ROMAJI/ENGLISH olduğunda arayüz bunları gösterir.
-                        val malIdForNames = KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
-                            ?: runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }
-                                .getOrNull()?.malId
-                        return@withContext enrichBangumiCharacterNames(native, mediaType, malIdForNames)
+                        return@withContext enrichBangumiCharacters(native, mediaType, realMalId, externalId)
                     }
 
                     // 2) Yedek: AniList araması → MAL kimliği çözülüp MAL/AniList karakterleri.
@@ -440,6 +444,25 @@ class KitsugiCharacterClient {
     }
 
     /**
+     * Bangumi karakter listesini ad zenginleştirmesiyle döndürür (detay sekmesinin arka plan
+     * geçişi). İlk boyama ham liste ile yapılır; bu çağrı tamamlanınca sekme Latin adlara
+     * kendiliğinden geçer.
+     */
+    suspend fun enrichBangumiCharacters(
+        characters: List<KitsugiCharacter>,
+        mediaType: MediaType,
+        realMalId: Int? = null,
+        externalId: Int? = null
+    ): List<KitsugiCharacter> {
+        if (characters.isEmpty()) return characters
+        val malIdForNames = KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+            ?: externalId?.let { id ->
+                runCatching { KitsugiBangumiDetailClient.resolveCrossIds(id, mediaType) }.getOrNull()?.malId
+            }
+        return enrichBangumiCharacterNames(characters, mediaType, malIdForNames)
+    }
+
+    /**
      * Bangumi karakter/seslendirmen listesindeki CJK adlara AniList köprüsüyle romaji ve
      * İngilizce karşılık ekler. Eşleme özgün (native) ada göredir; eşleşmeyen adlar olduğu
      * gibi kalır. Tek önbellekli AniList sorgusu kullanılır; süre tavanı/başarısızlıkta
@@ -493,7 +516,7 @@ class KitsugiCharacterClient {
 
         // p1 person/character detail includes localized infobox aliases and also works when
         // AniList has no matching record or its page-one result set omitted the name.
-        return try {
+        val enriched = try {
             withTimeoutOrNull(BANGUMI_INFOBOX_NAME_BRIDGE_TIMEOUT_MS) {
                 KitsugiBangumiDetailClient.enrichCharacterNamesFromBangumi(anilistEnriched)
             } ?: anilistEnriched
@@ -502,6 +525,18 @@ class KitsugiCharacterClient {
         } catch (_: Exception) {
             anilistEnriched
         }
+        // Süre dolduğunda AniList turu tek başına kalmış olabilir: `name` alanı hâlâ kanji
+        // ise romaji/İngilizce karşılığı oraya da yaz (liste/çip/arama yolları `name` kullanır).
+        return enriched.map { it.withLatinDisplayName() }
+    }
+
+    /** `name` CJK kaldıysa romaji (yoksa İngilizce) karşılığını ana ada yazar. */
+    private fun KitsugiCharacter.withLatinDisplayName(): KitsugiCharacter {
+        if (!PreferenceHelpers.hasCjkCharacters(name)) return this
+        val latin = listOfNotNull(romanizedName, englishName).firstOrNull {
+            it.isNotBlank() && PreferenceHelpers.isLatinText(it)
+        } ?: return this
+        return copy(name = latin, nativeName = nativeName ?: name)
     }
 
     /**
@@ -545,9 +580,15 @@ class KitsugiCharacterClient {
                 "bangumi", "bgm" -> {
                     val raw = KitsugiBangumiCreditsClient.fetchCharacterDetail(characterId, name, fallbackImageUrl)
                         ?: KitsugiBangumiDetailClient.fetchCharacterDetail(characterId)
-                    // "Yapımlar" listesindeki CJK başlıklar romaji/İngilizce'ye çözülsün;
-                    // süre bütçesi içeride korunur, başarısızlıkta ham veri döner.
-                    raw?.let { KitsugiBangumiDetailClient.enrichCharacterDetailNames(it, cacheOnly = true) }
+                    // "Yapımlar" listesindeki başlıklar ÖNCE yalnızca kalıcı önbellekten
+                    // uygulanır (anında). Ağ çözümlemesi ViewModel'in arka plan geçişinde
+                    // (`tabMode`) yapılır ve sayfa Latin başlıklarla kendiliğinden güncellenir;
+                    // böylece karakter sayfası ağ zincirini beklemez.
+                    raw?.let {
+                        withTimeoutOrNull(1_500L) {
+                            KitsugiBangumiDetailClient.enrichCharacterDetailNames(it, cacheOnly = true)
+                        } ?: it
+                    }
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchCharacterDetail(characterId)

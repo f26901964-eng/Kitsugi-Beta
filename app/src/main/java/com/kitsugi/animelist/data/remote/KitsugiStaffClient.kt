@@ -29,7 +29,12 @@ class KitsugiStaffClient {
         externalId: Int?,
         mediaType: MediaType,
         tmdbId: Int? = null,
-        realMalId: Int? = null
+        realMalId: Int? = null,
+        /**
+         * `false` → Bangumi ekibi **ham** döner (kanji adlar); adlar arka planda
+         * [enrichBangumiStaff] ile doldurulur. Detay sekmesi ilk boyamayı beklemez.
+         */
+        enrichNames: Boolean = true
     ): List<KitsugiStaff> {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) {
@@ -45,13 +50,11 @@ class KitsugiStaffClient {
                             runCatching { KitsugiBangumiCreditsClient.fetchSubjectStaff(externalId) }.getOrNull().orEmpty()
                         }
                     if (native.isNotEmpty()) {
+                        if (!enrichNames) return@withContext native
                         // Bangumi liste uçları infobox döndürmez → ekip adları kanji kalır.
                         // AniList köprüsüyle (özgün ada birebir eşleme) romaji/İngilizce
                         // adlar doldurulur; başlık dili ROMAJI/ENGLISH olduğunda gösterilir.
-                        val malIdForNames = KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
-                            ?: runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }
-                                .getOrNull()?.malId
-                        return@withContext enrichBangumiStaffNames(native, mediaType, malIdForNames)
+                        return@withContext enrichBangumiStaff(native, mediaType, realMalId, externalId)
                     }
 
                     // 2) Yedek: Çözülen MAL kimliğiyle MAL/Jikan ekibi (stableId MAL ID değildir).
@@ -353,6 +356,21 @@ class KitsugiStaffClient {
         }
     }
 
+    /** Detay sekmesinin arka plan geçişi: ham ekip listesine Latin adları ekler. */
+    suspend fun enrichBangumiStaff(
+        staff: List<KitsugiStaff>,
+        mediaType: MediaType,
+        realMalId: Int? = null,
+        externalId: Int? = null
+    ): List<KitsugiStaff> {
+        if (staff.isEmpty()) return staff
+        val malIdForNames = KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+            ?: externalId?.let { id ->
+                runCatching { KitsugiBangumiDetailClient.resolveCrossIds(id, mediaType) }.getOrNull()?.malId
+            }
+        return enrichBangumiStaffNames(staff, mediaType, malIdForNames)
+    }
+
     /**
      * Bangumi ekip listesindeki CJK adlara AniList köprüsüyle (özgün ada birebir eşleme)
      * romaji/İngilizce karşılık ekler. Eşleşme bulunamazsa liste olduğu gibi döner.
@@ -389,7 +407,7 @@ class KitsugiStaffClient {
         }
 
         // Unlike AniList's media relationship, Bangumi's own person page exposes each infobox.
-        return try {
+        val enriched = try {
             withTimeoutOrNull(BANGUMI_INFOBOX_NAME_BRIDGE_TIMEOUT_MS) {
                 KitsugiBangumiDetailClient.enrichStaffNamesFromBangumi(anilistEnriched)
             } ?: anilistEnriched
@@ -398,6 +416,16 @@ class KitsugiStaffClient {
         } catch (_: Exception) {
             anilistEnriched
         }
+        return enriched.map { it.withLatinDisplayName() }
+    }
+
+    /** `name` CJK kaldıysa romaji (yoksa İngilizce) karşılığını ana ada yazar. */
+    private fun KitsugiStaff.withLatinDisplayName(): KitsugiStaff {
+        if (!PreferenceHelpers.hasCjkCharacters(name)) return this
+        val latin = listOfNotNull(romanizedName, englishName).firstOrNull {
+            it.isNotBlank() && PreferenceHelpers.isLatinText(it)
+        } ?: return this
+        return copy(name = latin, nativeName = nativeName ?: name)
     }
 
     suspend fun fetchStaffDetail(
@@ -422,9 +450,13 @@ class KitsugiStaffClient {
                 "bangumi", "bgm" -> {
                     val raw = KitsugiBangumiCreditsClient.fetchPersonDetail(personId, name)
                         ?: KitsugiBangumiDetailClient.fetchStaffDetail(personId)
-                    // Karakter/yapım adları CJK kalmasın diye infobox + önbellekle zenginleştir.
-                    // Ağ isteği sınırı ve zaman aşımı içeride korunur; başarısız olursa ham veri döner.
-                    raw?.let { KitsugiBangumiDetailClient.enrichStaffDetailNames(it, cacheOnly = true) }
+                    // Sayfa önce yalnızca kalıcı önbellekten gelen Latin adlarla açılır; ağ
+                    // çözümlemesi StaffDetailViewModel'in arka plan geçişinde (`tabMode`) yapılır.
+                    raw?.let {
+                        withTimeoutOrNull(1_500L) {
+                            KitsugiBangumiDetailClient.enrichStaffDetailNames(it, cacheOnly = true)
+                        } ?: it
+                    }
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(personId)

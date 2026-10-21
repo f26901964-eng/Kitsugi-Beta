@@ -562,7 +562,9 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private fun warmBangumiCharacterTitles(detail: KitsugiCharacterDetail) {
         viewModelScope.launch {
             val updated = withContext(Dispatchers.IO) {
-                runCatching { KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, background = true) }
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, tabMode = true)
+                }
                     .getOrNull()
             } ?: return@launch
             if (updated == detail) return@launch

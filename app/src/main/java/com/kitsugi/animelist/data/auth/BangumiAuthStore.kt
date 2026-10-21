@@ -66,6 +66,19 @@ object BangumiAuthStore {
     /** Eş zamanlı yenileme isteklerini teke indirir. */
     private val refreshMutex = Mutex()
 
+    /**
+     * Başarısız token yenilemeden sonra kısa bekleme (ms).
+     *
+     * Token süresi dolmuş ve yenileme sunucusu erişilemezse [getValidToken] her Bangumi
+     * isteğinde yeniden POST atıyordu. Keşfet aynı anda 14 şerit açtığında bu, mutex
+     * arkasında sıraya giren onlarca yenileme denemesi (her biri 20 sn'ye kadar) demekti —
+     * "Bangumi verisi 5 dakika gelmiyor" raporunun bir diğer kaynağı. 60 sn'lik kısa devre
+     * sonrasında istekler token'sız (anonim) devam eder, yenileme bir sonraki turda denenir.
+     */
+    private const val REFRESH_FAILURE_COOLDOWN_MS = 60_000L
+    @Volatile
+    private var refreshBlockedUntil: Long = 0L
+
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -286,6 +299,8 @@ object BangumiAuthStore {
 
     /** Refresh token ile zorla yeni access token alır. */
     suspend fun forceRefresh(context: Context): String? = refreshMutex.withLock {
+        // Kısa devre: az önce başarısız olduysa bu turda hiç ağ isteği atılmaz.
+        if (System.currentTimeMillis() < refreshBlockedUntil) return@withLock null
         if (isManualToken(context)) {
             // 401 alan bir PAT çağrısından sonra yenileme yolu YOKTUR: oturumu düşürüp
             // kullanıcıdan yeni bir anahtar yapıştırmasını isteyen çağıran tarafa null döneriz.
@@ -311,9 +326,11 @@ object BangumiAuthStore {
                 redirectUri = pendingRedirect
             )
             saveAuth(context, newToken, notify = false)
+            refreshBlockedUntil = 0L
             newToken.accessToken
         }.getOrElse { error ->
             Log.e(TAG, "Bangumi token yenileme başarısız: ${error.message}")
+            refreshBlockedUntil = System.currentTimeMillis() + REFRESH_FAILURE_COOLDOWN_MS
             if (error is BangumiApiClient.BangumiApiException && (error.isUnauthorized || error.isForbidden)) {
                 dropSession(context)
             }
