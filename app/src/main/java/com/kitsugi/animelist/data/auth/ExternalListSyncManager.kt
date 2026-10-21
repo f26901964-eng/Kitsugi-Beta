@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.local.NetworkMonitor
 import com.kitsugi.animelist.data.local.toDomain
 import com.kitsugi.animelist.data.local.toEntity
 
@@ -114,6 +115,12 @@ object ExternalListSyncManager {
             val allowFanOut = CrossSyncPolicy.allowFanOut(isBangumiRow, identity)
             if (isBangumiRow && !allowFanOut) {
                 skipped.add(context.getString(R.string.account_sync_fanout_blocked_bangumi))
+                // Çevrimdışı kimlik eksiği KALICI değildir: hataya yazılıp bekleyen-senkron
+                // kuyruğuna girmezse Bangumi satırı bir daha hiç yayılmaz (kuyruk yalnızca
+                // `errors` üzerinden çalışır). Ağ varken çözülemiyorsa ise gerçek atlamadır.
+                if (!runCatching { NetworkMonitor(context).isCurrentlyOnline() }.getOrDefault(true)) {
+                    errors.add(context.getString(R.string.account_sync_offline_identity_pending))
+                }
             }
 
             // Uzak çağrılar çözülen gerçek MAL kimliğiyle yapılır; YEREL satır kendi kaynak
@@ -474,6 +481,11 @@ object ExternalListSyncManager {
             val allowFanOut = CrossSyncPolicy.allowFanOut(isBangumiRow, identity)
             if (isBangumiRow && !allowFanOut) {
                 skipped.add(context.getString(R.string.account_sync_fanout_blocked_bangumi))
+                // Eşitlemedeki aynı kural: çevrimdışı kimlik eksişi geçicidir — hataya
+                // yazılıp kuyruğa girmezse hayalet kayıtlar diğer kaynaklarda kalır.
+                if (!runCatching { NetworkMonitor(context).isCurrentlyOnline() }.getOrDefault(true)) {
+                    errors.add(context.getString(R.string.account_sync_offline_identity_pending))
+                }
             }
             val remoteEntry = withResolvedIds(entry, identity)
 

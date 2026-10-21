@@ -6040,6 +6040,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="account_sync_source_failure">%1$s: %2$s</string>
     <string name="account_sync_sources_skipped">Atlanan: %1$s</string>
     <string name="account_sync_fanout_blocked_bangumi">Bangumi kaydı için doğrulanmış MAL/AniList kimliği çözülemedi; diğer kaynaklara yazılmadı</string>
+    <string name="account_sync_offline_identity_pending">Çevrimdışı: kimlik doğrulanamadı, bağlantıda yeniden denenecek</string>
     <string name="simkl_sync_untitled">(başlıksız)</string>
     <string name="simkl_sync_unsupported_warning">%1$d öğe gönderilemedi (desteklenmeyen tür veya eksik kimlik/başlık): %2$s</string>
     <string name="simkl_sync_unsafe_identity_warning">%1$d anime, güvenli Simkl/MAL kimliği olmadığı için gönderilmedi. Yanlış eşleşmeyi önlemek için başlıkla arama yapılmadı: %2$s</string>

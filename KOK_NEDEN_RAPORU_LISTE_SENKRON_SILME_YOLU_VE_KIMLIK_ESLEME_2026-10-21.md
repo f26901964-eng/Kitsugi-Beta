@@ -42,6 +42,8 @@ offset'leri) dikkate almıyordu.
 | 6 | AniList silmede `account_sync_anilist_media_id_unresolved` her zaman **FAILED** | Kimlik eksiği bile "hata" → kuyruk | Atlama (skip); `identity_mismatch` yeniden denenebilir kalır |
 | 7 | MAL PATCH parsriyel tarih (`"2016"`, `"2016-05"`) ile 400 dönüyordu | Tüm güncelleme tek eksik tarihte "hata" sayılıp kuyruğa düşüyordu | `sendableDate()`: yalnız `yyyy-MM-dd` gönderilir; uymayan alan göndermez (uzak değer korunur) |
 | 8 | Bangumi silmede **tüm** hatalar "atlandı" sayılıyordu | Gerçek yazım hataları (ağ/HTTP) kuyruğa hiç girmiyordu | `unresolvedSubject` ayrımı: kimlik eksiği = atlandı, yazım hatası = hata |
+| 9 | Çevrimdışı kimlik denemesi **olumsuz önbellek** yazıyordu | Ağ adımı düşse bile `resolveUncached` normal dönüyor, eksik kayıt yazılıp **6 saatlik soğuma** başlıyordu → bağlantı gelince kuyruktaki yeniden deneme bile kimliksiz kalıyor, yayılım kalıcı kayboluyordu | `resolve()`: çevrimdışıysa ağ denemesi yok, önbellek yazımı yok (bağlantıda ilk denemede çözülür) |
+| 10 | Çevrimdışı eklenen **Bangumi satırında** hiçbir yazar çalışmıyor ama hata da üretilmiyor | `allowFanOut` kapalıyken altı kaynak da "atlanır" → `errors` boş → kuyruk boş → Bangumi satırı bir daha **hiç** yayılmaz | Çevrimdışı + fanout kapalıyken `errors`'a `account_sync_offline_identity_pending` → "Çevrimdışı kaydedildi" + kuyruk → `isOnlineFlow` bağlantıyla otomatik drain |
 
 ---
 
@@ -126,6 +128,49 @@ dosya içi yorumla belgelendi.
 
 ---
 
+## Uçtan uca doğrulama — "Bangumi'den Mushoku Tensei ekledim/güncelledim" senaryosu
+
+Kullanıcı sorusu: bu değişikliklerle Bangumi'den eklenen/güncellenen bir kayıt **tüm** sağlayıcılarla
+eksiksiz ve hatasız eşitlenecek mi? Kod üzerinden uçtan uca izlenmiş akış (çevrimiçi, altı kaynak
+bağlı ve açık):
+
+1. **Kapı:** `MediaEntryRepository.insert/update(syncExternal=true)` → `syncEntryIfPossible`
+   (yalnızca hiçbir kimliği/başlığı olmayan satırları atlar; Bangumi satırı geçer) →
+   `ExternalListSyncManager.syncEntry`. Ekle/güncelle/sil üç çağrı noktası da bu hatta
+   (AppRoot, AppViewModel, MyListViewModel).
+2. **Kimlik (Bangumi satırı):** `decode` → `bangumiSubjectId` (500M stableId) →
+   **ARM kavşağı** (`bangumiId` girdisi → MAL+AniList+Kitsu+TMDB tek adımda) → olmazsa
+   **Jikan sıkı başlık** (İngilizce → Japonca → görünen ad + yıl eşleşmesi, tek net sonuç) →
+   doğrulanınca `allowFanOut` açılır. Ardından Kitsu resmi `mappings` (MAL→Kitsu) ve Simkl
+   canlı arama (MAL kimliğiyle). Mushoku Tensei bu zincirin her adımında mevcut bir yapım.
+3. **Alan yayılımı (kanıt: manager fonksiyonlarının gönderdiği parametreler):**
+
+| Alan | Bangumi (kaynak) | AniList | MAL | Kitsu | Shikimori | Simkl |
+|------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Durum | ✓ `upsertCollection` | ✓ | ✓ PATCH | ✓ | ✓ | ✓ `to` |
+| Bölüm ilerleme | ✓ `setProgress` | ✓ `progress` | ✓ `progress` | ✓ + uzunluk koruması | ✓ `episodes` | ✓ 1..N geçmiş |
+| Puan | ✓ `rate` | ✓ `scoreRaw` (×10) | ✓ `score` | ✓ /20 | ✓ /10 | ✓ `ratings` |
+| Tarih (başlangıç/bitiş) | — (Bangumi'de alan yok) | ✓ `FuzzyDates` | ✓ `yyyy-MM-dd` | ✓ `started/finished` | — (API'de alan yok¹) | — (alan yok) |
+| Not | ✓ `comment` | ✓ | ✓ `comments` | ✓ `notes` | ✓ `text` | — (alan yok) |
+| Etiket | ✓ `tags` | — | ✓ | — | — | — |
+
+¹ Shikimori resmi dokümanı `POST /api/v2/user_rates` parametreleri: `user_id, target_id,
+target_type, status, score, chapters, episodes, volumes, rewatches, text` — tarih alanı
+**yok** (platformun liste kaydında start/finish tarihi desteklenmiyor). Simkl ve Bangumi de
+kullanıcı ayarlı tarih tutmaz. Yani "tarihler" destekleyen üç platforma (AniList/MAL/Kitsu)
+eksiksiz gider; diğerleri teknik olarak alamaz.
+
+4. **Sonuç sınıfı:** kimlik eksiği → "kimlik çözülemedi/atlandı" (kuyruk yok, çevrimdışı
+   bildirimi yok); ağ/HTTP/429 hatası → "hata" → kuyruk → bağlantı gelince `isOnlineFlow`
+   ile otomatik gönderim. Altı kaynak bağlıysa ve kimlik çözüldüyse hata HATA üretilmez,
+   özet yalnız "eşitlendi" + gerekirse "atlanan" satırı taşır.
+
+Kalan dürüst istisnalar: (a) kaynak bağlı değil/kapalı → "hesaba bağlı değil/kapalı" (hata
+değil); (b) başlık/yıl eşleşmesi gerçekten bulunamayan nadir yapım → atlandı (yanlış yapıma
+yazmamak için); (c) ağ/429/5xx → geçici hata + otomatik yeniden deneme (kuyruk düzgün çalışır).
+
+---
+
 ## Değişen dosyalar
 
 | Dosya | Değişiklik |
@@ -135,10 +180,12 @@ dosya içi yorumla belgelendi.
 | `data/auth/KitsuSyncManager.kt` | `deleteEntryFromKitsu(…, knownKitsuMediaId)` — eklemeyle aynı çözüm zinciri; null → `unresolvedMedia`; kütüphanede olmayan → idempotent başarı |
 | `data/auth/ShikimoriSyncManager.kt` | `shikimoriTargetIdOf(entry, knownMalId)`; sync/sil `knownMalId`; silme: rate önbelleği yoksa `fetchAllUserRates` ile hedefe göre bulma; okuma hatası ≠ bulunamadı; bulunamayan kayıt = idempotent başarı; hedefsiz → `unresolvedMedia` |
 | `data/auth/MalSyncManager.kt` | `sendableDate()` — yalnız tam `yyyy-MM-dd` tarih PATCH'e girer |
+| `data/auth/CrossProviderIdentity.kt` | `resolve()`: çevrimdışı ağ denemesi/olumsuz önbellek yazımı yok (6 saatlik soğuma zehirlenmesi kalktı) |
 | `ui/app/AuthViewModel.kt` | Toplu Shikimori çağrılarına `knownMalId = realMalId` |
+| `res/values/strings.xml` | `account_sync_offline_identity_pending` |
 
-Dokunulmayan (bilerek): `CrossProviderIdentity.kt` (decode/cacheKey sözleşmesi v2.4.312'de oturdu),
-`CrossSyncIdentityGuard`, `CrossSyncReportFormatter`, `PendingSyncDrainer`, `MediaEntryRepository`.
+Dokunulmayan (bilerek): `CrossSyncIdentityGuard` (decode/cacheKey sözleşmesi v2.4.312'de oturdu),
+`CrossSyncReportFormatter`, `PendingSyncDrainer`, `MediaEntryRepository`.
 
 ---
 

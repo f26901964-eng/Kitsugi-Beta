@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.auth
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.data.local.NetworkMonitor
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiLocalMappingCache
 import com.kitsugi.animelist.data.remote.KitsuIdNamespace
@@ -390,6 +391,15 @@ object CrossProviderIdentityResolver {
         val ids = decoded.mergedWith(cached?.ids)
 
         if (!allowNetwork || isCompleteFor(entry, ids, connected) || CrossProviderIdentityCache.inRetryCooldown(cached)) {
+            return@withContext ids
+        }
+
+        // Çevrimdışı: ağ denemesi YAPMA ve eksik (olumsuz) kayıt YAZMA. Bugün ağ adımı
+        // başarısız olsa bile `resolveUncached` normal dönüşle bittiği için eksik kayıt
+        // yazılıyor ve 6 saatlik soğuma başlıyordu; bağlantı gelince kuyruktaki yeniden
+        // denemeler bile bu soğuma yüzünden kimliksiz kalıyor, yayılım kalıcı olarak
+        // kayboluyordu (bkz. MediaEntryRepository.syncEntryIfPossible kuyruğu).
+        if (!runCatching { NetworkMonitor(context).isCurrentlyOnline() }.getOrDefault(true)) {
             return@withContext ids
         }
 
