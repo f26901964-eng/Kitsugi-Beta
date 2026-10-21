@@ -666,7 +666,7 @@ internal object MalNotificationsClient {
         return jsonItems + extraDom
     }
 
-    private data class SidebarMetadata(
+    internal data class SidebarMetadata(
         val counts: Map<MalNotificationCategory, Int> = emptyMap(),
         val urls: Map<MalNotificationCategory, String> = emptyMap()
     )
