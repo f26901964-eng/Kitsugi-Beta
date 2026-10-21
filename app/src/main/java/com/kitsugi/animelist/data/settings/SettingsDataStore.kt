@@ -171,6 +171,9 @@ class SettingsDataStore(
         val AniSkipDisableOnChapters = booleanPreferencesKey("aniskip_disable_on_chapters")
         val AnimeSkipClientId = stringPreferencesKey("animeskip_client_id")
         // Açıklama Otomatik Çevirisi
+        val WikiPageTheme = stringPreferencesKey("wiki_page_theme")
+        val WikiTextZoom = intPreferencesKey("wiki_text_zoom")
+        val WikiAdBlockDisabledHosts = stringSetPreferencesKey("wiki_adblock_disabled_hosts")
         val AutoTranslateEnabled = booleanPreferencesKey("auto_translate_enabled")
         val PreferredTranslator = stringPreferencesKey("preferred_translator")
         val TranslateSourceLanguage = stringPreferencesKey("translate_source_language")
@@ -658,6 +661,9 @@ class SettingsDataStore(
                     mdbListShowTrakt = preferences[Keys.MdbListShowTrakt] ?: false,
                     fanartTvApiKey = preferences[Keys.FanartTvApiKey] ?: "",
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
+                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "SITE",
+                    wikiTextZoom = preferences[Keys.WikiTextZoom] ?: 100,
+                    wikiAdBlockDisabledHosts = preferences[Keys.WikiAdBlockDisabledHosts] ?: emptySet(),
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
                     translateSourceLanguage = preferences[Keys.TranslateSourceLanguage] ?: "auto",
@@ -1274,6 +1280,25 @@ class SettingsDataStore(
 
     suspend fun setAnimeSkipClientId(clientId: String) {
         context.settingsDataStore.edit { it[Keys.AnimeSkipClientId] = clientId }
+    }
+
+    suspend fun setWikiReadingAppearance(theme: String, textZoom: Int) {
+        val mode = theme.takeIf { it in setOf("SITE", "APP", "LIGHT", "DARK") } ?: "SITE"
+        context.settingsDataStore.edit {
+            it[Keys.WikiPageTheme] = mode
+            it[Keys.WikiTextZoom] = textZoom.coerceIn(80, 180)
+        }
+    }
+
+    /** Local per-wiki exception; never changes filtering in other application WebViews. */
+    suspend fun setWikiAdBlockEnabled(host: String, enabled: Boolean) {
+        val normalized = host.lowercase(java.util.Locale.ROOT)
+        if (!Regex("[a-z0-9.-]{1,253}").matches(normalized)) return
+        context.settingsDataStore.edit {
+            val disabled = it[Keys.WikiAdBlockDisabledHosts].orEmpty()
+            it[Keys.WikiAdBlockDisabledHosts] = if (enabled) disabled - normalized
+                else (disabled + normalized).toList().takeLast(128).toSet()
+        }
     }
 
     suspend fun setAutoTranslateEnabled(enabled: Boolean) {

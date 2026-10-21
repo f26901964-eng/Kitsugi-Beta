@@ -801,6 +801,8 @@ fun CharacterDetailPage(
                         onOpenLink = wikiViewModel::openReaderLink,
                         // Sayfa geneli Orijinal/Çeviri: tüm yüzeyler tek dokunuşla gidip gelir.
                         onSetReaderOriginal = wikiViewModel::setReaderOriginal,
+                        onSetWebMode = wikiViewModel::setReaderWebMode,
+                        onWebLocationChanged = wikiViewModel::updateReaderWebLocation,
                         onOpenInBrowser = {
                             val location = wikiReaderBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
                             val openUrl: (String) -> Unit = { url ->

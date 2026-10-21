@@ -196,6 +196,8 @@ internal fun CharacterWikiTabSlot(
                 onOpenLink = viewModel::openReaderLink,
                 // Sayfa geneli Orijinal/Çeviri: tüm yüzeyler tek dokunuşla gidip gelir.
                 onSetReaderOriginal = viewModel::setReaderOriginal,
+                onSetWebMode = viewModel::setReaderWebMode,
+                onWebLocationChanged = viewModel::updateReaderWebLocation,
                 onOpenInBrowser = {
                     val location = readerBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
                     val openUrl: (String) -> Unit = { url ->

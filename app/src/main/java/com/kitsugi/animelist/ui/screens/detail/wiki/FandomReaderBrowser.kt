@@ -88,6 +88,16 @@ internal class FandomReaderBrowserController {
         replaceTab(current.copy(location = location))
     }
 
+    /** WebView owns document/fragment history; only synchronize the tab address here.
+     * A finishing request from a disposed/background tab must never rename the active tab.
+     */
+    fun updateWebLocation(tabId: Long, location: FandomReaderLocation): Boolean {
+        val current = snapshot.activeTab ?: return false
+        if (current.id != tabId || current.location == location) return false
+        replaceTab(current.copy(location = location))
+        return true
+    }
+
     fun back(): FandomReaderLocation? {
         val current = snapshot.activeTab ?: return null
         val previous = current.backStack.lastOrNull() ?: return null

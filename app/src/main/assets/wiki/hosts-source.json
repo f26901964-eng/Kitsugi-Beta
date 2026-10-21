@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/StevenBlack/hosts",
+  "path": "data/StevenBlack/hosts",
+  "commit": "7df0d762c34cb964c46f115e17cd9a7bd11aae59",
+  "license": "MIT",
+  "sha256": {
+    "stevenblack-hosts.txt": "7292b5c7a3fa892eef4407806e7cb31ecc6f5d730f116eb81287f94243c320be",
+    "STEVENBLACK-LICENSE.txt": "8fea4b3d2ea66f1186ab6a029231441d6f3a9b4a36648d63711eb25f9eb72aa5"
+  }
+}

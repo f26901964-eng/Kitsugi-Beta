@@ -124,7 +124,8 @@ internal fun MediaWikiTabSlot(
     val lastRejected by viewModel.lastRejected.collectAsState()
     val readerRender = (readerState as? FandomMediaWikiViewModel.ReaderState.Ready)?.let { r ->
         FandomReaderRenderState(
-            wikiId = (uiState as? FandomMediaWikiViewModel.UiState.Ready)?.ref?.wikiId ?: "",
+            wikiId = readerBrowser.activeTab?.location?.wikiId
+                ?: (uiState as? FandomMediaWikiViewModel.UiState.Ready)?.ref?.wikiId ?: "",
             page = r.page,
             sections = r.sections,
             related = r.related,
@@ -215,6 +216,8 @@ internal fun MediaWikiTabSlot(
             onOpenLink = viewModel::openReaderLink,
             // Sayfa geneli Orijinal/Çeviri: tüm yüzeyler tek dokunuşla gidip gelir.
             onSetReaderOriginal = viewModel::setReaderOriginal,
+            onSetWebMode = viewModel::setReaderWebMode,
+            onWebLocationChanged = viewModel::updateReaderWebLocation,
             onOpenInBrowser = {
                 val location = readerBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
                 openExternal(context, FandomUrls.pageUrl(location.wikiId, location.title))

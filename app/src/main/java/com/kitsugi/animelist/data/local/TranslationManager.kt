@@ -200,6 +200,46 @@ class TranslationManager(context: Context) {
         return@withContext if (translated.isBlank()) trimmed else translated
     }
 
+    /** DOM translation needs an explicit failure signal, and must not run BBCode cleanup
+     * on literal web text. Uses the same Google transport, request gate and Room cache.
+     * External translator-app preferences are intents, not background service providers.
+     */
+    suspend fun translateWebPageText(text: String, sourceLang: String, targetLang: String): String? =
+        withContext(Dispatchers.IO) {
+            val original = text.trim()
+            if (original.isEmpty()) return@withContext original
+            val source = sourceLang.trim().ifBlank { "auto" }
+            val target = targetLang.trim().ifBlank { "tr" }
+            if (source.equals(target, true) || isTechnicalTranslationValue(original)) return@withContext original
+            val hash = md5("webdom-v1_${source}_${target}_$original")
+            val cached = try {
+                dao.getTranslation(hash)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (!cached.isNullOrBlank()) return@withContext cached
+            // Mask within each chunk: token integrity must not require a URL token
+            // belonging to another chunk of a long DOM text node.
+            val parts = ArrayList<String>()
+            for (chunk in splitIntoChunks(original, MAX_CHUNK_CHARS)) {
+                val result = fetchFromGoogle(chunk, source, target, null)
+                if (!result.fullyTranslated || result.text.isBlank()) return@withContext null
+                parts.add(result.text)
+            }
+            val translated = parts.joinToString("\n\n")
+            if (translated.length > minOf(40_000, original.length * 6 + 256)) return@withContext null
+            try {
+                dao.insertTranslation(TranslationCacheEntity(hash, translated))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Cache failure must not discard a valid translation.
+            }
+            translated
+        }
+
     suspend fun translateTo(text: String?, targetLang: String): String = translateTo(text, "auto", targetLang)
 
     /**

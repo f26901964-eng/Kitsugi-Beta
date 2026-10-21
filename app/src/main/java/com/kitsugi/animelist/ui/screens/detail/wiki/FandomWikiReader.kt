@@ -1,6 +1,13 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.key
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -124,8 +132,9 @@ data class FandomReaderRenderState(
 )
 
 /**
- * Tam ekran uygulama içi wiki okuyucu. Tarayıcıya ATLAMAZ; aynı wiki sekmesindeki
- * kartlarla aynı görsel dili kullanır. İçindekiler satırları içeriği kendi altında açar;
+ * Tam ekran uygulama içi wiki: varsayılan özgün WebView, isteğe bağlı sade okuyucu.
+ * Özgün görünüm kaynak sitenin HTML/CSS/JS düzenini korur. Sade görünümde İçindekiler
+ * satırları içeriği kendi altında açar;
  * çeviri/orijinal geçişleri, galeri, sekmeler ve ileri-geri sayfa geçmişi desteklenir.
  *
  * KRİTİK (çökme düzeltmesi): Okuyucu KENDİ penceresinde (tam ekran Dialog) çizilir.
@@ -167,12 +176,66 @@ internal fun FandomWikiReaderSheet(
      * geri gelir ve okuma konumu korunur.
      */
     onSetReaderOriginal: (Boolean) -> Unit = {},
+    onSetWebMode: (Boolean) -> Unit,
+    onWebLocationChanged: (Long, FandomReaderLocation) -> Unit,
     modifier: Modifier = Modifier,
     /** Yüklenemeyen sayfanın başlığı; doluysa sonsuz yükleme yerine hata kartı gösterilir. */
     failedTitle: String? = null,
     onRetryFailed: (() -> Unit)? = null
 ) {
-    val hasBackStack = navigation.canGoBack
+    var originalLayout by rememberSaveable { mutableStateOf(true) }
+    val webSessions = remember { HashMap<Long, WikiOriginalSession>() }
+    // A fresh tab copies the exact document URL (including fragment/query), not just
+    // its article title. Do not copy the source tab's WebView or back/forward history.
+    val pendingWebDuplicate = remember { arrayOfNulls<WikiOriginalSession>(1) }
+    val tab = navigation.activeTab
+    val webSession = tab?.let {
+        val existing = webSessions[it.id]
+        if (existing == null || (originalLayout && existing.readerLocation != it.location)) {
+            (pendingWebDuplicate[0]?.takeIf { copy -> existing == null && copy.readerLocation == it.location }
+                ?: WikiOriginalSession(FandomUrls.pageUrl(it.location.wikiId, it.location.title), it.location))
+                .also { session -> webSessions[it.id] = session }
+        } else existing
+    }
+    val context = LocalContext.current
+    var externalUrl by remember { mutableStateOf<String?>(null) }
+    val useReader: () -> Unit = {
+        if (tab != null && webSession != null &&
+            FandomUrls.parseArticleUrl(webSession.url, tab.location.wikiId) == null
+        ) {
+            android.widget.Toast.makeText(context, R.string.wiki_original_reader_unavailable,
+                android.widget.Toast.LENGTH_SHORT).show()
+        } else {
+            originalLayout = false
+            onSetWebMode(false)
+        }
+    }
+    LaunchedEffect(originalLayout) { onSetWebMode(originalLayout) }
+    SideEffect {
+        val ids = navigation.tabs.map { it.id }.toSet()
+        webSessions.keys.retainAll(ids)
+        pendingWebDuplicate[0] = null
+    }
+    val webBack = originalLayout && webSession?.canGoBack == true
+    val webForward = originalLayout && webSession?.canGoForward == true
+    val hasBackStack = webBack || navigation.canGoBack
+    val goBack: () -> Unit = {
+        if (webBack) webSession?.view?.goBack() else onBack()
+    }
+    val goForward: () -> Unit = {
+        if (webForward) webSession?.view?.goForward() else onForward()
+    }
+    val openWebUrl: (String) -> Unit = { url ->
+        if (WikiOriginalPagePolicy.destination(url) != WikiOriginalPagePolicy.Destination.BLOCKED) {
+            try {
+                context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(url)))
+            } catch (_: Exception) {
+                android.widget.Toast.makeText(context, R.string.fandom_open_failed,
+                    android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     var localGalleryItems by remember { mutableStateOf(emptyList<GalleryItem>()) }
     var localGalleryIndex by remember { mutableStateOf(0) }
     // Kaydırma konumları BİLEŞİM (snapshot) state'i DEĞİLDİR: `snapshotFlow` konumu her
@@ -184,12 +247,16 @@ internal fun FandomWikiReaderSheet(
     val activeScrollKey = state?.let { page ->
         navigation.activeTabId?.let { tabId -> "$tabId:${page.wikiId}:${page.page.displayTitle}" }
     }
-    val displayTitle = state?.page?.displayTitle
+    val displayTitle = (if (originalLayout) webSession?.title ?: tab?.location?.title else null)
+        ?: state?.page?.displayTitle
         ?: failedTitle
         ?: navigation.activeTab?.location?.title
 
     Dialog(
-        onDismissRequest = { if (hasBackStack) onBack() else onClose() },
+        onDismissRequest = {
+            if (originalLayout && webSession?.findOpen == true) webSession.closeFind()
+            else if (hasBackStack) goBack() else onClose()
+        },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnBackPress = true,
@@ -208,25 +275,122 @@ internal fun FandomWikiReaderSheet(
                     .fillMaxSize()
                     .statusBarsPadding()
                     .windowInsetsPadding(WindowInsets.navigationBars)
+                    .imePadding()
             ) {
                 ReaderTopBar(
                     title = displayTitle,
                     accentColor = accentColor,
                     navigation = navigation,
-                    onBack = onBack,
-                    onForward = onForward,
-                    onNewTab = onNewTab,
+                    onBack = goBack,
+                    onForward = goForward,
+                    canGoBack = hasBackStack,
+                    canGoForward = webForward || navigation.canGoForward,
+                    onNewTab = {
+                        if (originalLayout && webSession != null) {
+                            pendingWebDuplicate[0] = WikiOriginalSession(webSession.url, webSession.readerLocation).also {
+                                it.desktop = webSession.desktop
+                                it.title = webSession.title
+                                it.translationOverride = webSession.translationOverride
+                                it.lastTranslationPreferenceKey = webSession.lastTranslationPreferenceKey
+                                it.translationDocumentUrl = webSession.translationDocumentUrl
+                            }
+                        }
+                        onNewTab()
+                    },
                     onClose = onClose,
-                    onOpenInBrowser = onOpenInBrowser
+                    onOpenInBrowser = {
+                        if (originalLayout && webSession != null) openWebUrl(webSession.url)
+                        else onOpenInBrowser()
+                    }
                 )
                 ReaderTabStrip(
-                    navigation = navigation,
+                    navigation = if (originalLayout) navigation.copy(tabs = navigation.tabs.map { item ->
+                        webSessions[item.id]?.title?.takeIf { it.isNotBlank() }?.let { title ->
+                            item.copy(location = item.location.copy(title = title))
+                        } ?: item
+                    }) else navigation,
                     accentColor = accentColor,
                     onSwitchTab = onSwitchTab,
                     onCloseTab = onCloseTab,
                     onCloseOtherTabs = onCloseOtherTabs
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = originalLayout,
+                        onClick = {
+                            // The native reader may have navigated in the same tab since
+                            // this WebView was saved. Do not restore an unrelated document.
+                            if (!originalLayout && tab != null && webSession != null) {
+                                val saved = FandomUrls.parseArticleUrl(webSession.url, tab.location.wikiId)
+                                if (saved != (tab.location.wikiId to tab.location.title)) {
+                                    webSession.history = null
+                                    webSession.url = FandomUrls.pageUrl(tab.location.wikiId, tab.location.title)
+                                    webSession.title = null
+                                    webSession.scrollX = 0
+                                    webSession.scrollY = 0
+                                    webSession.canGoBack = false
+                                    webSession.canGoForward = false
+                                }
+                            }
+                            if (tab != null) webSession?.readerLocation = tab.location
+                            originalLayout = true
+                            onSetWebMode(true)
+                        },
+                        label = { Text(stringResource(R.string.wiki_original_page)) }
+                    )
+                    FilterChip(
+                        selected = !originalLayout,
+                        onClick = useReader,
+                        label = { Text(stringResource(R.string.wiki_simple_reader)) }
+                    )
+                    if (originalLayout && webSession != null) {
+                        FilterChip(
+                            selected = webSession.desktop,
+                            onClick = { webSession.setDesktopMode(!webSession.desktop) },
+                            label = { Text(stringResource(if (webSession.desktop)
+                                R.string.wiki_desktop_layout else R.string.wiki_mobile_layout)) }
+                        )
+                        TextButton(onClick = webSession::reload) { Text(stringResource(R.string.yenile)) }
+                    }
+                }
+                if (originalLayout && webSession != null) {
+                    Text(
+                        text = stringResource(R.string.wiki_original_hint,
+                            android.net.Uri.parse(webSession.url).host.orEmpty()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KitsugiColors.TextSecondary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
                 when {
+                    originalLayout && webSession != null && tab != null -> key(tab.id) {
+                        WikiOriginalPage(
+                            session = webSession,
+                            accentColor = accentColor,
+                            onLocationChanged = { url ->
+                                // For absolute URLs, use the destination language rather than
+                                // inheriting the source wiki language when returning to its root.
+                                val destinationWiki = FandomUrls.wikiIdFromUrl(url) ?: tab.location.wikiId
+                                FandomUrls.parseArticleUrl(url, destinationWiki)?.let { (wikiId, title) ->
+                                    val location = FandomReaderLocation(wikiId, title)
+                                    webSession.readerLocation = location
+                                    onWebLocationChanged(tab.id, location)
+                                }
+                            },
+                            onExternalLink = { externalUrl = it },
+                            onBlockedLink = {
+                                android.widget.Toast.makeText(context, R.string.wiki_original_link_blocked,
+                                    android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            onUseReader = useReader,
+                            modifier = Modifier.weight(1f).fillMaxWidth()
+                        )
+                    }
                     state == null && failedTitle != null -> ReaderFailed(
                         title = failedTitle,
                         accentColor = accentColor,
@@ -263,6 +427,22 @@ internal fun FandomWikiReaderSheet(
         }
     }
 
+    externalUrl?.let { url ->
+        AlertDialog(
+            onDismissRequest = { externalUrl = null },
+            title = { Text(stringResource(R.string.wiki_external_title)) },
+            text = { Text(url) },
+            confirmButton = {
+                TextButton(onClick = { externalUrl = null; openWebUrl(url) }) {
+                    Text(stringResource(R.string.fandom_reader_open_browser))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { externalUrl = null }) { Text(stringResource(R.string.kapat)) }
+            }
+        )
+    }
+
     // Wiki sekmelerinin hepsinde galeri açma callback'i olmayabilir (ör. TV / eklenti
     // detayları). Böyle durumlarda okuyucunun kendi galeri penceresi devreye girer.
     if (localGalleryItems.isNotEmpty()) {
@@ -284,7 +464,9 @@ private fun ReaderTopBar(
     onForward: () -> Unit,
     onNewTab: () -> Unit,
     onClose: () -> Unit,
-    onOpenInBrowser: () -> Unit
+    onOpenInBrowser: () -> Unit,
+    canGoBack: Boolean = navigation.canGoBack,
+    canGoForward: Boolean = navigation.canGoForward
 ) {
     Row(
         modifier = Modifier
@@ -293,18 +475,18 @@ private fun ReaderTopBar(
             .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack, enabled = navigation.canGoBack) {
+        IconButton(onClick = onBack, enabled = canGoBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(R.string.fandom_reader_back),
-                tint = if (navigation.canGoBack) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
+                tint = if (canGoBack) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
             )
         }
-        IconButton(onClick = onForward, enabled = navigation.canGoForward) {
+        IconButton(onClick = onForward, enabled = canGoForward) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                 contentDescription = stringResource(R.string.fandom_reader_forward),
-                tint = if (navigation.canGoForward) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
+                tint = if (canGoForward) accentColor else KitsugiColors.TextMuted.copy(alpha = 0.45f)
             )
         }
         Text(

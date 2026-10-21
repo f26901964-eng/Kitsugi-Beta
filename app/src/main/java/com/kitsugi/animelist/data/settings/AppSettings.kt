@@ -239,6 +239,9 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
+    val wikiPageTheme: String = "SITE",
+    val wikiTextZoom: Int = 100,
+    val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
     val autoTranslateEnabled: Boolean = false,
     val preferredTranslator: String = "DEFAULT",
     val translateSourceLanguage: String = "auto",
@@ -384,6 +387,9 @@ data class AppSettings(
     val aniSkipAutoSkip: Boolean get() = gestures.aniSkipAutoSkip
     val aniSkipDisableOnChapters: Boolean get() = gestures.aniSkipDisableOnChapters
     val animeSkipClientId: String get() = gestures.animeSkipClientId
+    val wikiPageTheme: String get() = integrations.wikiPageTheme
+    val wikiTextZoom: Int get() = integrations.wikiTextZoom
+    val wikiAdBlockDisabledHosts: Set<String> get() = integrations.wikiAdBlockDisabledHosts
     val autoTranslateEnabled: Boolean get() = integrations.autoTranslateEnabled
     val preferredTranslator: String get() = integrations.preferredTranslator
     val translateSourceLanguage: String get() = integrations.translateSourceLanguage

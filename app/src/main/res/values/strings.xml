@@ -17686,4 +17686,53 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_magazine_zebel_2">コミックブレイドZEBEL</string>
     <string name="bangumi_magazine_zero_3">マンガZERO</string>
     <string name="bangumi_magazine_zero_sum_2">月刊《コミックZERO-SUM》</string>
-    <string name="bangumi_magazine_zero_sum_comics">ZERO-SUM COMICS</string></resources>
+    <string name="bangumi_magazine_zero_sum_comics">ZERO-SUM COMICS</string>
+    <!-- Original wiki layout / native reader choice -->
+    <string name="wiki_original_page">Özgün sayfa</string>
+    <string name="wiki_simple_reader">Sade okuyucu</string>
+    <string name="wiki_desktop_layout">Masaüstü düzeni</string>
+    <string name="wiki_mobile_layout">Mobil düzen</string>
+    <string name="wiki_original_hint">%1$s · Özgün tema; çeviri ve reklam engeli sayfa araçlarından yönetilir.</string>
+    <string name="wiki_original_load_failed">Sayfa yüklenemedi veya site erişimi kısıtladı. Yenileyebilir, mobil düzeni deneyebilir ya da sade okuyucuya geçebilirsiniz.</string>
+    <string name="wiki_original_link_blocked">Güvenlik için bu yönlendirme veya indirme açılmadı. İsterseniz üstteki tarayıcı düğmesiyle devam edin.</string>
+    <string name="wiki_original_reader_unavailable">Bu özel sayfa sade okuyucuya uygun değil. Özgün görünümde devam edebilirsiniz.</string>
+    <string name="wiki_external_title">Wiki dışındaki bağlantı tarayıcıda açılsın mı?</string>
+
+    <!-- In-place wiki translation and per-site ad blocking -->
+    <string name="wiki_show_original">Orijinali göster</string>
+    <string name="wiki_translate_page">Sayfayı çevir</string>
+    <string name="wiki_follow_auto_translate">Otomatik ayarı izle</string>
+    <string name="wiki_ads_on">Reklam engeli: açık (%1$d)</string>
+    <string name="wiki_ads_off">Reklam engeli: kapalı (%1$d)</string>
+    <string name="wiki_tools_info">Sayfa araçları hakkında</string>
+    <string name="wiki_dom_translating">Google → %1$s · Çevriliyor… (%2$d metin)</string>
+    <string name="wiki_dom_translated">Google → %1$s · %2$d metin çevrildi</string>
+    <string name="wiki_dom_partial">Bazı metinler çevrilemedi. Orijinalleri korundu.</string>
+    <string name="wiki_dom_limit">Büyük sayfa için güvenli çeviri sınırına ulaşıldı; kalan metinler özgün bırakıldı.</string>
+    <string name="wiki_dom_no_article">Desteklenen makale alanı henüz bulunamadı; özgün içerik korunuyor.</string>
+    <string name="wiki_tools_assets_failed">Sayfa araçları yüklenemedi. Yeniden deneyebilir veya sade okuyucuyu kullanabilirsiniz.</string>
+    <string name="wiki_tools_save_failed">Sayfa tercihi kaydedilemedi. Lütfen yeniden deneyin.</string>
+    <string name="wiki_tools_explanation">Çeviri, uygulamanın otomatik çeviri ve kaynak/hedef dil ayarlarını izler. Makale metinleri mevcut uygulama içi Google çeviri servisine gönderilir; formlar ve düzenlenebilir alanlar gönderilmez. Harici çeviri uygulaması tercihi değiştirilmez.\n\nBağlantılar, görseller ve HTML öğeleri yerinde kalır; metin uzadığında satır yükseklikleri değişebilir. Gizli içerikler, tek harfli dekoratif başlıklar ve gömülü çerçeveler çevrilmez. Orijinal metne dönüş aynı belgede ağsızdır.\n\nReklam engeli bu wiki alan adı için hatırlanır. Değiştirince sayfa yeniden yüklenir. Alan adı filtresi ve reklam kutusu gizleme birlikte çalışır; tüm reklamların engellenmesi garanti değildir. Site bozulursa bu wiki için kapatabilirsiniz.</string>
+    <string name="wiki_filter_attribution">%1$d alan adı kuralı · StevenBlack katkı listesi (MIT) + Kitsugi reklam ağı kuralları. Sabit liste sürümü: %2$s. Kaynak: github.com/StevenBlack/hosts. Tam tarayıcı eklentisi veya EasyList motoru değildir.</string>
+    <string name="wiki_tools_preferences_failed">Ayarlar okunamadı. Otomatik çeviri kapalı, reklam engeli varsayılan olarak açık tutuldu. Ayarları yeniden yükleyin.</string>
+    <string name="wiki_tools_script_failed">Sayfa araçları bu belgede çalıştırılamadı. Özgün içerik korunuyor; yeniden deneyebilirsiniz.</string>
+
+    <!-- Original wiki reading appearance and native find -->
+    <string name="wiki_more_tools">Diğer sayfa araçları</string>
+    <string name="wiki_reading_appearance">Görünüm ve yazı boyutu</string>
+    <string name="wiki_theme_explanation">Site teması özgün görünümü korur. Diğer seçenekler, desteklenen wikinin kendi açık/koyu renklerini kullanır; resimlere filtre uygulanmaz. Bu ayarlar tüm wiki sayfalarında geçerlidir.</string>
+    <string name="wiki_theme_site">Site teması (özgün)</string>
+    <string name="wiki_theme_app">Uygulama temasını izle</string>
+    <string name="wiki_theme_light">Açık tema</string>
+    <string name="wiki_theme_dark">Koyu tema</string>
+    <string name="wiki_theme_limited">Bu wiki görünümünde tema değişimi desteklenmiyor veya uygulanamadı. Site renkleri korunuyor.</string>
+    <string name="wiki_text_percent">Yazı boyutu: %1$d%%</string>
+    <string name="wiki_text_scale_hint">Sistem yazı ölçeği de dikkate alınır. Büyütme, tablo ve kutuların yerleşimini değiştirebilir; bazı sabit boyutlu öğeler aynı kalabilir. Sayfada iki parmakla yakınlaştırma da kullanılabilir.</string>
+    <string name="wiki_reading_reset">Özgün görünüme dön</string>
+    <string name="wiki_reading_apply">Uygula</string>
+    <string name="wiki_find_in_page">Sayfada bul</string>
+    <string name="wiki_find_previous">Önceki eşleşme</string>
+    <string name="wiki_find_next">Sonraki eşleşme</string>
+    <string name="wiki_find_close">Sayfada aramayı kapat</string>
+    <string name="wiki_find_matches">%1$d / %2$d eşleşme</string>
+</resources>

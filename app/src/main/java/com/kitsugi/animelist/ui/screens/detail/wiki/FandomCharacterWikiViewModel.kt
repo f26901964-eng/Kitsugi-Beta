@@ -110,6 +110,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
     private var readerJob: Job? = null
     private val readerSectionJobs = HashMap<Int, Job>()
     private var readerRelatedJob: Job? = null
+    private var readerWebMode = true
     private val readerBrowserController = FandomReaderBrowserController()
     private val _readerBrowser = MutableStateFlow(FandomReaderBrowserState.Empty)
     val readerBrowser: StateFlow<FandomReaderBrowserState> = _readerBrowser.asStateFlow()
@@ -229,6 +230,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerSectionJobs.clear()
         readerRelatedJob?.cancel()
         relatedJob?.cancel()
+        readerWebMode = true
         readerBrowserController.reset()
         _readerBrowser.value = FandomReaderBrowserState.Empty
         _relatedPages.value = emptyList()
@@ -323,6 +325,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerSectionJobs.values.forEach { it.cancel() }
         readerSectionJobs.clear()
         readerRelatedJob?.cancel()
+        readerWebMode = true
         readerBrowserController.reset()
         _readerBrowser.value = FandomReaderBrowserState.Empty
         _relatedPages.value = emptyList()
@@ -875,12 +878,28 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         loadReaderLocation(location)
     }
 
+    // Original pages are loaded by WebView. Do not also parse/translate the same page
+    // in the background, or let an API error prevent a working website from opening.
+    fun setReaderWebMode(enabled: Boolean) {
+        if (readerWebMode == enabled) return
+        readerWebMode = enabled
+        readerBrowserController.activeLocation?.let { loadReaderLocation(it) }
+    }
+
+    fun updateReaderWebLocation(tabId: Long, location: FandomReaderLocation) {
+        if (!readerWebMode || FandomUrls.normalize(location.wikiId) == null) return
+        if (readerBrowserController.updateWebLocation(tabId, location)) {
+            _readerBrowser.value = readerBrowserController.snapshot
+        }
+    }
+
     private fun loadReaderLocation(location: FandomReaderLocation, forceRefresh: Boolean = false) {
         readerJob?.cancel()
         readerSectionJobs.values.forEach { it.cancel() }
         readerSectionJobs.clear()
         readerRelatedJob?.cancel()
         _reader.value = ReaderState.Loading
+        if (readerWebMode) return
         readerJob = viewModelScope.launch {
             val meta = try {
                 FandomRepository.loadFullPageMeta(appContext, location.wikiId, location.title, forceRefresh)
@@ -1096,6 +1115,7 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
         readerSectionJobs.values.forEach { it.cancel() }
         readerSectionJobs.clear()
         readerRelatedJob?.cancel()
+        readerWebMode = true
         readerBrowserController.reset()
         _readerBrowser.value = FandomReaderBrowserState.Empty
         _reader.value = ReaderState.Closed

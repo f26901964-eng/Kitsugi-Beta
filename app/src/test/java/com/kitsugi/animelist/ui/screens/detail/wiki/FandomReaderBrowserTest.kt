@@ -9,6 +9,46 @@ import org.junit.Test
 
 class FandomReaderBrowserTest {
     @Test
+    fun webNavigationSynchronizesDuplicateTargetWithoutDuplicatingNativeHistory() {
+        val browser = FandomReaderBrowserController()
+        browser.navigate(FandomReaderLocation("you-zitsu", "Home"), false)
+        val target = FandomReaderLocation("tr.onepiece", "Ana Sayfa")
+        assertTrue(browser.updateWebLocation(browser.snapshot.activeTabId!!, target))
+        assertEquals(target, browser.activeLocation)
+        assertFalse(browser.snapshot.canGoBack)
+        assertFalse(browser.updateWebLocation(browser.snapshot.activeTabId!!, target))
+        assertEquals(target, browser.openNewTab())
+    }
+
+    @Test
+    fun disposedWebViewCannotRenameAnotherTab() {
+        val browser = FandomReaderBrowserController()
+        val home = FandomReaderLocation("you-zitsu", "Home")
+        browser.navigate(home, false)
+        val firstId = browser.snapshot.activeTabId!!
+        browser.openNewTab()
+        val target = FandomReaderLocation("you-zitsu", "Character")
+        assertFalse(browser.updateWebLocation(firstId, target))
+        browser.closeTab(firstId)
+        assertFalse(browser.updateWebLocation(firstId, target))
+        assertEquals(home, browser.activeLocation)
+        browser.reset()
+        assertFalse(browser.updateWebLocation(firstId, target))
+    }
+
+    @Test
+    fun webAddressSyncPreservesExistingNativeBackStack() {
+        val browser = FandomReaderBrowserController()
+        val home = FandomReaderLocation("you-zitsu", "Home")
+        val target = FandomReaderLocation("you-zitsu", "Character")
+        browser.navigate(home, false)
+        browser.navigate(FandomReaderLocation("you-zitsu", "Synopsis"), true)
+        browser.updateWebLocation(browser.snapshot.activeTabId!!, target)
+        assertEquals(home, browser.back())
+        assertEquals(target, browser.forward())
+    }
+
+    @Test
     fun backAndForwardFollowBrowserHistoryAndNewNavigationClearsForward() {
         val browser = FandomReaderBrowserController()
         val home = FandomReaderLocation("example", "Home")
