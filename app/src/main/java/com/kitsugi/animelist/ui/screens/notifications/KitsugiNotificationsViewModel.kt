@@ -174,6 +174,12 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     private var malRawHasMore: Boolean = false
     private var malRawPage: Int = 1
     private var malRawNextPageUrl: String? = null
+    /** İlk canlı WebView/HTML yanıtındaki satır sayısı; yerel arşiv sayısı değildir. */
+    private var malRawBatchSize: Int? = null
+    /** `.notificaiton-category-nav` üzerinden okunan gerçek sunucu sayıları ve adresleri. */
+    private var malSidebarCounts: Map<MalNotificationCategory, Int> = emptyMap()
+    private var malCategoryUrls: Map<MalNotificationCategory, String> = emptyMap()
+    private var malCoverLookup: Map<Int, String> = emptyMap()
 
     // ── TMDB+Simkl ──
     private val _tmdbSimkl = MutableStateFlow(NotifUiState())
@@ -216,33 +222,37 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     // ─── Bildirim Arşivi (kaynak tarafında tutulmayanların yedeği) ───────────
 
     /** Canlı kayıtları arşive yazar; listeyi DEĞİŞTİRMEZ (sayfa eklemede kullanılır). */
-    private fun writeArchive(source: String, live: List<NotifItem>) {
-        if (live.isEmpty()) return
-        NotificationArchiveStore.mergeSourceAsync(ctx, source, live.map { it.toArchived() })
+    private fun writeArchive(
+        source: String,
+        live: List<NotifItem>,
+        retainOldWhere: ((NotificationArchiveStore.ArchivedNotif) -> Boolean)? = null
+    ) {
+        if (live.isEmpty() && retainOldWhere == null) return
+        NotificationArchiveStore.mergeSourceAsync(
+            ctx = ctx,
+            source = source,
+            fresh = live.map { it.toArchived() },
+            retainOldWhere = retainOldWhere
+        )
 
         // Cloud sync is scheduled by the store AFTER its local write completes.
     }
 
     /**
      * Kaynak tarafında kalıcı bildirim ucu OLMAYAN kaynaklar için (MAL, Simkl,
-     * Kitsu, Bangumi) canlı listeyi yerel arşivle birleştirir:
-     *
-     *  1. Yeni çekilen (canlı) kayıtlar arşive yazılır → 7 günlük pencereden
-     *     düşen bildirimler bile cihazda kalır.
-     *  2. Giriş yapılmışsa arşiv buluta (Kitsugi hesabı) yedeklenir.
-     *  3. Ekrana canlı liste + arşivde olup canlıda olmayan kayıtlar (ör.
-     *     günler önce yayınlanmış bölümler) gösterilir; id ile tekilleştirilir.
-     *
-     * AniList/Shikimori bunu KULLANMAZ — bunların bildirimleri kendi sunucularında
-     * tutulur, kaynağın akışı tek gerçek kaynaktır.
+     * Kitsu, Bangumi) canlı listeyi yerel arşivle birleştirir.
      */
-    private fun archiveAndMerge(source: String, live: List<NotifItem>): List<NotifItem> {
-        writeArchive(source, live)
+    private fun archiveAndMerge(
+        source: String,
+        live: List<NotifItem>,
+        retainOldWhere: ((NotificationArchiveStore.ArchivedNotif) -> Boolean)? = null
+    ): List<NotifItem> {
+        writeArchive(source, live, retainOldWhere = retainOldWhere)
 
         val liveIds = live.map { it.id }.toSet()
         val stored = NotificationArchiveStore.loadSource(ctx, source)
         val fromArchive = stored
-            .filter { it.id !in liveIds }
+            .filter { (retainOldWhere == null || retainOldWhere(it)) && it.id !in liveIds }
             .map { it.toNotifItem() }
 
         val merged = live + fromArchive
@@ -420,6 +430,11 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             return
         }
         _mal.value = _mal.value.copy(isLoading = true, error = null)
+        malCoverLookup = mediaEntries.mapNotNull { entry ->
+            val id = entry.malId
+            val img = entry.imageUrl?.takeIf(String::isNotBlank)
+            if (id != null && img != null) id to img else null
+        }.toMap()
         viewModelScope.launch {
             var attemptedWithCookie = false
             var webFeedError: Exception? = null
@@ -442,9 +457,6 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         oauthAvailable = identity.tokenAvailable
                     )
                     if (match == MalAccountMatch.Status.MISMATCHED) {
-                        // WebView oturumu bağlı OAuth hesabından FARKLI bir hesaba ait:
-                        // bildirimler yayınlanmaz, aksi hâlde kullanıcı başkasının
-                        // bildirimlerini kendi listesi sanır.
                         android.util.Log.w(
                             "KitsugiNotif",
                             "MAL account mismatch: oauth=${identity.username} web=${feed.sessionUsername}"
@@ -461,28 +473,47 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         )
                         return@launch
                     }
+                    malSidebarCounts = feed.categoryCounts
+                    malCategoryUrls = feed.categoryUrls
                     val mapped = feed.items
                         .map { it.toNotifItem() }
                         .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
-                    // Web akışı da arşivlenir: MAL penceresinden düşen bildirimler cihazda
-                    // kalır ve "bildirimlerin devamı" kaybolmaz (diğer kaynaklarla aynı kural).
-                    val merged = archiveAndMerge("MyAnimeList", mapped)
-                    val feedNotice = if (match == MalAccountMatch.Status.UNVERIFIED) {
-                        ctx.getString(R.string.notif_notice_mal_web_feed_unverified, mapped.size)
+                    // Gerçek MAL web akışı aktifken eski takvim yedek kayıtları (`mal_<id>_<ep>`)
+                    // temizlenir; aksi hâlde `Tümü` rozeti 25 + 3 = 28 gibi şişer.
+                    val merged = archiveAndMerge(
+                        source = "MyAnimeList",
+                        live = mapped,
+                        retainOldWhere = { it.id.startsWith(MalNotificationsClient.WEB_ID_PREFIX) }
+                    )
+                    val sidebarTotal = feed.categoryCounts[MalNotificationCategory.ALL]
+                    val effectiveHasMore = if (sidebarTotal != null && merged.size >= sidebarTotal) {
+                        false
                     } else {
-                        ctx.getString(R.string.notif_notice_mal_web_feed, mapped.size)
+                        feed.hasNextPage
+                    }
+                    val totalDisplayed = maxOf(merged.size, sidebarTotal ?: merged.size)
+                    val feedNotice = if (match == MalAccountMatch.Status.UNVERIFIED) {
+                        ctx.getString(R.string.notif_notice_mal_web_feed_unverified, totalDisplayed)
+                    } else {
+                        ctx.getString(R.string.notif_notice_mal_web_feed, totalDisplayed)
                     }
                     setMalStateWithFilter(
                         items = merged,
                         isLoading = false,
-                        hasMore = feed.hasNextPage,
+                        hasMore = effectiveHasMore,
                         page = feed.page,
                         nextPageUrl = feed.nextPageUrl,
+                        batchSize = feed.items.size,
                         notice = feedNotice,
                         requiresLogin = false,
                         oauthUser = identity.username,
                         webUser = feed.sessionUsername
                     )
+                    // İlk sayfa ekrana anında çizildikten hemen sonra eksik kalan eski
+                    // bildirimleri (ör. 26..45) arka planda tamamla ve arşive yaz.
+                    if (effectiveHasMore) {
+                        loadMalMore()
+                    }
                     return@launch
                 }
             } catch (e: CancellationException) {
@@ -560,24 +591,28 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     return@launch
                 }
 
-                val existingIds = malUnfilteredItems.map { it.id }.toSet()
+                // NotifItem kimlikleri `mal_web_<id>` öneklidir; MalNotificationsClient ise
+                // ham `<id>` ile çalışır. Önek soyulmazsa her aday sayfa "yeni kayıt" sanılıp
+                // sonsuz döngüye girer ve WebView devam motoruna hiç ulaşılamaz.
+                val knownRawIds = MalNotificationsClient.normalizeKnownIds(malUnfilteredItems.map { it.id })
+                val existingNotifIds = malUnfilteredItems.map { it.id }.toSet()
                 val nextPage = malRawPage + 1
                 val feed = MalNotificationsClient.fetchMore(
                     context = ctx,
                     cookieHeader = cookie,
                     page = nextPage,
                     nextPageUrl = malRawNextPageUrl,
-                    knownIds = existingIds,
-                    category = _malCategory.value.takeIf { it != MalNotificationCategory.ALL }
+                    knownIds = knownRawIds,
+                    category = _malCategory.value.takeIf { it != MalNotificationCategory.ALL },
+                    batchSize = malRawBatchSize,
+                    categoryUrls = malCategoryUrls
                 )
                 if (feed == null) {
-                    _mal.value = current.copy(isLoading = false, hasMore = false, loadMoreError = null)
+                    _mal.value = _mal.value.copy(isLoading = false, hasMore = false, loadMoreError = null)
                     malRawHasMore = false
                     return@launch
                 }
 
-                // The browser cookie jar and OAuth token are separate. Verify that a session
-                // switch during pagination cannot mix another account's notifications in.
                 val identity = fetchMalOAuthIdentity()
                 val match = MalAccountMatch.status(
                     oauthUsername = identity.username,
@@ -589,7 +624,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         "KitsugiNotif",
                         "MAL account mismatch during pagination: oauth=${identity.username} web=${feed.sessionUsername}"
                     )
-                    _mal.value = current.copy(
+                    _mal.value = _mal.value.copy(
                         items = emptyList(),
                         isLoading = false,
                         hasMore = false,
@@ -603,37 +638,66 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     return@launch
                 }
 
+                if (feed.categoryCounts.isNotEmpty()) {
+                    malSidebarCounts = feed.categoryCounts
+                }
+                if (feed.categoryUrls.isNotEmpty()) {
+                    malCategoryUrls = malCategoryUrls + feed.categoryUrls
+                }
+
+                val beforeCount = malUnfilteredItems.size
                 val fresh = feed.items
-                    .filter { it.id !in existingIds }
+                    .filter { MalNotificationsClient.rawNotificationId(it.id) !in knownRawIds }
                     .map { it.toNotifItem() }
-                if (fresh.isEmpty()) {
-                    _mal.value = current.copy(isLoading = false, hasMore = false, loadMoreError = null)
+                    .filter { it.id !in existingNotifIds }
+                val mergedUnfiltered = (malUnfilteredItems + fresh)
+                    .distinctBy { it.id }
+                    .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
+
+                if (fresh.isEmpty() || mergedUnfiltered.size <= beforeCount) {
+                    _mal.value = _mal.value.copy(isLoading = false, hasMore = false, loadMoreError = null)
                     malRawHasMore = false
                 } else {
-                    writeArchive("MyAnimeList", fresh)
-                    val mergedUnfiltered = (malUnfilteredItems + fresh)
-                        .distinctBy { it.id }
-                        .sortedWith(compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE })
-                    // Ham listeyi güncelle ve filtreyi yeniden uygula
+                    writeArchive(
+                        source = "MyAnimeList",
+                        live = fresh,
+                        retainOldWhere = { it.id.startsWith(MalNotificationsClient.WEB_ID_PREFIX) }
+                    )
+                    val sidebarTotal = malSidebarCounts[MalNotificationCategory.ALL]
+                    val stillHasMore = if (sidebarTotal != null && mergedUnfiltered.size >= sidebarTotal) {
+                        false
+                    } else {
+                        feed.hasNextPage
+                    }
                     malUnfilteredItems = mergedUnfiltered
-                    malRawHasMore = feed.hasNextPage
+                    malRawHasMore = stillHasMore
                     malRawPage = feed.page
                     malRawNextPageUrl = feed.nextPageUrl
+                    val totalDisplayed = maxOf(mergedUnfiltered.size, sidebarTotal ?: mergedUnfiltered.size)
+                    malUnfilteredNotice = if (match == MalAccountMatch.Status.UNVERIFIED) {
+                        ctx.getString(R.string.notif_notice_mal_web_feed_unverified, totalDisplayed)
+                    } else {
+                        ctx.getString(R.string.notif_notice_mal_web_feed, totalDisplayed)
+                    }
                     val category = _malCategory.value
-                    val filtered = if (category == MalNotificationCategory.ALL) mergedUnfiltered
-                    else mergedUnfiltered.filter { item -> category.typeIdentifiers.any { it.equals(item.typeIdentifier, ignoreCase = true) } }
-                    _mal.value = current.copy(
+                    val filtered = if (category == MalNotificationCategory.ALL) {
+                        mergedUnfiltered
+                    } else {
+                        mergedUnfiltered.filter { item ->
+                            category.typeIdentifiers.any { it.equals(item.typeIdentifier, ignoreCase = true) }
+                        }
+                    }
+                    _mal.value = _mal.value.copy(
                         items = filtered,
                         isLoading = false,
-                        hasMore = feed.hasNextPage,
+                        hasMore = stillHasMore,
                         page = feed.page,
                         nextPageUrl = feed.nextPageUrl,
+                        notice = malUnfilteredNotice,
                         malOAuthUsername = identity.username,
                         malWebUsername = feed.sessionUsername,
                         loadMoreError = null
                     )
-                    // Arşivlenmiş ham listeyi de güncelle
-                    malUnfilteredItems = mergedUnfiltered
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -718,21 +782,29 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         if (_malCategory.value == category) return
         _malCategory.value = category
         applyMalFilter()
+        val expected = malSidebarCounts[category] ?: 0
+        val currentCount = _mal.value.items.size
+        if (malRawHasMore && (currentCount == 0 || currentCount < expected)) {
+            loadMalMore()
+        }
     }
 
     fun getMalCategoryCounts(): Map<MalNotificationCategory, Int> {
-        if (malUnfilteredItems.isEmpty()) return emptyMap()
-        val counts = mutableMapOf<MalNotificationCategory, Int>()
-        MalNotificationCategory.entries.forEach { counts[it] = 0 }
-        counts[MalNotificationCategory.ALL] = malUnfilteredItems.size
+        if (malUnfilteredItems.isEmpty() && malSidebarCounts.isEmpty()) return emptyMap()
+        val localCounts = mutableMapOf<MalNotificationCategory, Int>()
+        MalNotificationCategory.entries.forEach { localCounts[it] = 0 }
+        localCounts[MalNotificationCategory.ALL] = malUnfilteredItems.size
         for (item in malUnfilteredItems) {
             val cat = MalNotificationCategory.fromTypeIdentifier(item.typeIdentifier)
             if (cat != MalNotificationCategory.ALL) {
-                counts[cat] = (counts[cat] ?: 0) + 1
+                localCounts[cat] = (localCounts[cat] ?: 0) + 1
             }
         }
-        // Boş kategoriler de gösterilsin ki kullanıcı filtrelerin varlığını görsün
-        return counts
+        val mergedCounts = mutableMapOf<MalNotificationCategory, Int>()
+        MalNotificationCategory.entries.forEach { cat ->
+            mergedCounts[cat] = maxOf(malSidebarCounts[cat] ?: 0, localCounts[cat] ?: 0)
+        }
+        return mergedCounts
     }
 
     private fun applyMalFilter() {
@@ -760,6 +832,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         hasMore: Boolean = false,
         page: Int = 1,
         nextPageUrl: String? = null,
+        /** Live response size only; archive rows must never affect offset calculation. */
+        batchSize: Int? = null,
         notice: String? = null,
         requiresLogin: Boolean = false,
         mismatch: Boolean = false,
@@ -773,6 +847,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         malRawHasMore = hasMore
         malRawPage = page
         malRawNextPageUrl = nextPageUrl
+        malRawBatchSize = batchSize?.takeIf { it > 0 }
         val category = _malCategory.value
         val filtered = if (category == MalNotificationCategory.ALL) items
         else items.filter { item -> category.typeIdentifiers.any { it.equals(item.typeIdentifier, ignoreCase = true) } }
@@ -871,6 +946,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
 
     private fun MalNotificationsClient.Notification.toNotifItem(): NotifItem {
         val createdAtMs = createdAt?.let { if (it > 10_000_000_000L) it else it * 1000L }
+            ?: parseMalDisplayTimestampMs(createdAtForDisplay ?: date)
         val plainTitle = displayTitle()
         val title = if (isDeleted &&
             !plainTitle.contains("deleted", ignoreCase = true) &&
@@ -878,23 +954,20 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         ) {
             plainTitle + ctx.getString(R.string.notif_mal_deleted_suffix)
         } else plainTitle
-        // Medya bildirimlerinde kart başlığı medyanın GERÇEK adıdır (AniList/Simkl/Kitsu
-        // kartlarıyla aynı düzen); MAL'ın kategori adı ikinci satıra iner ve anime adı iki
-        // kez yazılmaz. Kategori adı yalnızca medya bilgisi olmayan bildirimlerde başlıktır.
         val cardTitle = mediaTitle ?: title
         val cardBody = if (mediaTitle != null) {
             listOfNotNull(
                 displayTitle().takeIf { it.isNotBlank() },
                 animeMediaType?.trim()?.takeIf { it.isNotEmpty() },
-                // "Yayına başladı" bildirimlerinde tarih bilgisi ikinci satırda kalır.
                 date?.trim()?.takeIf { it.isNotEmpty() && typeIdentifier.equals("on_air", ignoreCase = true) }
             ).joinToString(" • ").ifBlank { displayBody() }
         } else {
             displayBody()
         }
+        val resolvedImage = imageUrl ?: mediaId?.let { malCoverLookup[it] }
         return NotifItem(
-            id = "mal_web_$id",
-            imageUrl = imageUrl,
+            id = "${MalNotificationsClient.WEB_ID_PREFIX}$id",
+            imageUrl = resolvedImage,
             title = cardTitle,
             body = cardBody,
             dateText = createdAtForDisplay?.takeIf(String::isNotBlank)
@@ -1537,4 +1610,52 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             .replace("&amp;", "&")
             .replace(Regex("\\s+"), " ")
             .trim()
+}
+
+/**
+ * Parses MAL's US-English display timestamps when `createdAt` epoch seconds are omitted
+ * (for example `"Dec 20, 2025 11:49 PM"` or current-year `"Jan 2, 8:03 PM"`).
+ */
+internal fun parseMalDisplayTimestampMs(
+    raw: String?,
+    nowMs: Long = System.currentTimeMillis()
+): Long? {
+    val clean = raw?.replace(Regex("\\s+"), " ")?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    val withYearPatterns = listOf("MMM d, yyyy h:mm a", "MMM d, yyyy")
+    for (pattern in withYearPatterns) {
+        val parsed = runCatching {
+            SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }.parse(clean)?.time
+        }.getOrNull()
+        if (parsed != null) return parsed
+    }
+
+    val yearFmt = SimpleDateFormat("yyyy", Locale.US)
+    val refYear = yearFmt.format(Date(nowMs)).toIntOrNull() ?: return null
+    val noYearPatterns = listOf("MMM d, h:mm a" to "MMM d yyyy h:mm a", "MMM d" to "MMM d yyyy")
+    for ((_, fullPattern) in noYearPatterns) {
+        val parts = clean.split(',', limit = 2)
+        val candidate = if (parts.size == 2) {
+            "${parts[0].trim()} $refYear ${parts[1].trim()}"
+        } else {
+            "$clean $refYear"
+        }
+        val parsed = runCatching {
+            SimpleDateFormat(fullPattern, Locale.US).apply { isLenient = false }.parse(candidate)?.time
+        }.getOrNull()
+        if (parsed != null) {
+            // If assuming the current calendar year lands far in the future, fall back to refYear - 1.
+            if (parsed > nowMs + 7L * 24 * 3600_000L) {
+                val prevCandidate = if (parts.size == 2) {
+                    "${parts[0].trim()} ${refYear - 1} ${parts[1].trim()}"
+                } else {
+                    "$clean ${refYear - 1}"
+                }
+                return runCatching {
+                    SimpleDateFormat(fullPattern, Locale.US).apply { isLenient = false }.parse(prevCandidate)?.time
+                }.getOrNull() ?: parsed
+            }
+            return parsed
+        }
+    }
+    return null
 }

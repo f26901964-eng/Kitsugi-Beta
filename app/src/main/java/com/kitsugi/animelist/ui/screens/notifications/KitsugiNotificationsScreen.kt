@@ -462,7 +462,7 @@ fun KitsugiNotificationsScreen(
                 // ──────────────── Page 1: MAL ────────────────
                 1 -> {
                     val malCategory by viewModel.malCategory.collectAsState()
-                    val malCounts = remember(malState.items, malCategory) { viewModel.getMalCategoryCounts() }
+                    val malCounts = remember(malState, malCategory) { viewModel.getMalCategoryCounts() }
                     Column(modifier = Modifier.fillMaxSize()) {
                         MalFilterHeader(
                             selectedCategory = malCategory,
@@ -697,7 +697,7 @@ private fun SourceNotifPage(
         derivedStateOf {
             val total = listState.layoutInfo.totalItemsCount
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total > 0 && last >= total - 5
+            (total == 0 && hasMore) || (total > 0 && last >= total - 8)
         }
     }
     LaunchedEffect(nearListEnd, hasMore, state.isLoading, state.loadMoreError) {
@@ -748,6 +748,28 @@ private fun SourceNotifPage(
                 }
                 state.items.isEmpty() -> {
                     item { CenteredEmptyState(emptyMessage) }
+                    state.loadMoreError?.let { message ->
+                        item(key = "mal_load_more_error_empty") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = message,
+                                    modifier = Modifier.weight(1f),
+                                    color = KitsugiColors.TextMuted,
+                                    fontSize = 12.sp
+                                )
+                                TextButton(onClick = { onLoadMore?.invoke() }) {
+                                    Text(stringResource(R.string.notif_mal_load_more_retry))
+                                }
+                                state.loadMoreErrorCode?.let { code -> PlatformErrorCodeChip(code = code) }
+                            }
+                        }
+                    }
                 }
                 else -> {
                     itemsIndexed(state.items, key = { idx, it -> "${idx}_${it.id}" }) { _, notif ->

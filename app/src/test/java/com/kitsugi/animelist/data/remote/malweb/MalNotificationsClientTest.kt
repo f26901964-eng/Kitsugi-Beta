@@ -235,6 +235,154 @@ class MalNotificationsClientTest {
         assertEquals("older-1", item.id)
         assertEquals("Fullmetal Alchemist", item.animeTitle)
         assertTrue(item.isRead)
+        // A short response is not proof that the MAL View more control is absent.
+        assertTrue(requireNotNull(feed).hasNextPage)
+    }
+
+    @Test
+    fun buildsContinuationCandidatesForShortAndTwentyRowFeeds() {
+        val candidates = MalNotificationsClient.moreUrlCandidates(page = 2, batchSize = 9)
+
+        assertTrue(candidates.contains("https://myanimelist.net/notification?p=2"))
+        assertTrue(candidates.contains("https://myanimelist.net/notification?offset=20"))
+        assertTrue(candidates.contains("https://myanimelist.net/notification?offset=9"))
+        assertTrue(candidates.contains("https://myanimelist.net/notification?page=2"))
+        assertTrue(candidates.contains("https://myanimelist.net/notification/history?page=2"))
+        assertEquals(candidates.distinct(), candidates)
+        assertTrue(MalNotificationsClient.moreUrlCandidates(page = 1).isEmpty())
+    }
+
+    @Test
+    fun stripsUiPrefixFromKnownIdsSoDuplicatePagesNeverTriggerEndlessLoops() {
+        assertEquals("998877", MalNotificationsClient.rawNotificationId("mal_web_998877"))
+        assertEquals("998877", MalNotificationsClient.rawNotificationId("998877"))
+        assertEquals(
+            setOf("101", "102"),
+            MalNotificationsClient.normalizeKnownIds(listOf("mal_web_101", "102", "  mal_web_102  "))
+        )
+    }
+
+    @Test
+    fun parsesSidebarCategoryCountsUrlsAndDeterminesHasNextFromTotalCount() {
+        val html = """
+            <html><body class="page-common notification">
+              <ul class="notificaiton-category-nav">
+                <li><a href="https://myanimelist.net/notification" class="active">All Notifications <span class="counter">45</span></a></li>
+                <li><a href="/notification?type=related_anime_add">New Related Anime <span class="counter">39</span></a></li>
+                <li><a href="/notification?type=on_air">Now Airing <span class="counter">4</span></a></li>
+                <li><a href="/notification?type=friend_request">Friend Requests <span class="counter">1</span></a></li>
+                <li><a href="/notification?type=profile_comment">Profile Comments <span class="counter">1</span></a></li>
+                <li><a href="/notification?type=blog_comment">Blog Comments <span class="counter zero">0</span></a></li>
+              </ul>
+              <script>window.MAL.notification = {"items": [{"id": "n-1", "typeIdentifier": "related_anime_add"}]};</script>
+            </body></html>
+        """.trimIndent()
+
+        val feed = requireNotNull(MalNotificationsClient.parseHtml(html))
+        assertEquals(45, feed.categoryCounts[MalNotificationCategory.ALL])
+        assertEquals(39, feed.categoryCounts[MalNotificationCategory.NEW_RELATED_ANIME])
+        assertEquals(4, feed.categoryCounts[MalNotificationCategory.NOW_AIRING])
+        assertEquals(1, feed.categoryCounts[MalNotificationCategory.FRIEND_REQUESTS])
+        assertEquals(1, feed.categoryCounts[MalNotificationCategory.PROFILE_COMMENTS])
+        assertEquals(0, feed.categoryCounts[MalNotificationCategory.BLOG_COMMENTS])
+        assertEquals(
+            "https://myanimelist.net/notification?type=profile_comment",
+            feed.categoryUrls[MalNotificationCategory.PROFILE_COMMENTS]
+        )
+        assertTrue(feed.hasNextPage)
+
+        val completeHtml = html.replace("<span class=\"counter\">45</span>", "<span class=\"counter\">1</span>")
+        val completeFeed = requireNotNull(MalNotificationsClient.parseHtml(completeHtml))
+        assertFalse(completeFeed.hasNextPage)
+    }
+
+    @Test
+    fun extractsNextPageFromNotificationPaginationAndRejectsHashAnchors() {
+        val numberedHtml = """
+            <html><body class="notification">
+              <div class="notification-pagination">
+                <span>1</span>
+                <a href="https://myanimelist.net/notification?p=2">2</a>
+              </div>
+              <script>window.MAL.notification = {"items": [{"id": "n-1"}]};</script>
+            </body></html>
+        """.trimIndent()
+        assertEquals(
+            "https://myanimelist.net/notification?p=2",
+            requireNotNull(MalNotificationsClient.parseHtml(numberedHtml, page = 1)).nextPageUrl
+        )
+
+        val hashOnlyHtml = """
+            <html><body class="notification">
+              <div class="notification-pagination">
+                <a href="#">View More</a>
+              </div>
+              <script>window.MAL.notification = {"items": [{"id": "n-1"}]};</script>
+            </body></html>
+        """.trimIndent()
+        assertNull(requireNotNull(MalNotificationsClient.parseHtml(hashOnlyHtml, page = 1)).nextPageUrl)
+        assertNull(MalNotificationsClient.normalizeNotificationPageUrl("#"))
+        assertNull(MalNotificationsClient.normalizeNotificationPageUrl("javascript:void(0)"))
+    }
+
+    @Test
+    fun mergesRenderedDomItemsWithoutDuplicatingEmbeddedJsonItems() {
+        val html = """
+            <html><body class="page-common notification">
+              <div id="content">
+                <div class="notification-section">
+                  <ol class="notification-item-list">
+                    <li class="notification-item related_anime_add">
+                      <div class="notification-item-header">
+                        <span class="time">Sep 23, 2025 5:40 AM</span>
+                        <span class="category">New Related Anime</span>
+                      </div>
+                      <div class="notification-item-content related_anime_add">
+                        <span><a href="https://myanimelist.net/anime/60001/Girls_Band_Cry_Movie_2">Girls Band Cry Movie 2</a> (TV) has just been added to the database.</span>
+                      </div>
+                    </li>
+                    <li class="notification-item profile_comment" data-id="older-26">
+                      <div class="notification-item-header">
+                        <span class="time">Aug 12, 2025 9:15 PM</span>
+                        <span class="category">Profile Comments</span>
+                      </div>
+                      <div class="notification-item-content profile_comment">
+                        <span><a href="https://myanimelist.net/profile/Alice">Alice</a> posted a comment on your profile: <q class="message">Nice list!</q></span>
+                      </div>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+              <script>window.MAL.notification = {"items": [{
+                "id": "n-25",
+                "typeIdentifier": "related_anime_add",
+                "categoryName": "New Related Anime",
+                "createdAtForDisplay": "Sep 23, 2025 5:40 AM",
+                "url": "https://myanimelist.net/anime/60001/Girls_Band_Cry_Movie_2",
+                "anime": {"title": "Girls Band Cry Movie 2", "mediaType": "TV"}
+              }]};</script>
+            </body></html>
+        """.trimIndent()
+
+        val feed = requireNotNull(MalNotificationsClient.parseHtml(html))
+        assertEquals(listOf("n-25", "older-26"), feed.items.map { it.id })
+        val olderComment = feed.items[1]
+        assertEquals("profile_comment", olderComment.typeIdentifier)
+        assertEquals("Alice", olderComment.commentUserName)
+        assertEquals("Nice list!", olderComment.text)
+    }
+
+    @Test
+    fun carriesExplicitFalseEndMarkerEvenWhenRowsArePresent() {
+        val payload = """{"items":[{"id":"notice-1"}],"hasNextPage":false}"""
+
+        val feed = requireNotNull(MalNotificationsClient.parseNotificationPayload(
+            payload = payload,
+            page = 1,
+            sessionUsername = null
+        ))
+
+        assertFalse(feed.hasNextPage)
     }
 
     @Test

@@ -31,4 +31,19 @@ class NotificationArchiveStoreTest {
         assertEquals("new", merged.first().title)
         assertEquals(merged.size, merged.map { it.id }.toSet().size)
     }
+
+    @Test fun parseMalDisplayTimestampHandlesYearAndCurrentYearFormats() {
+        val fixedNow = 1792580000_000L // Oct 2026
+        val dec2025 = com.kitsugi.animelist.ui.screens.notifications.parseMalDisplayTimestampMs(
+            "Dec 20, 2025 11:49 PM",
+            nowMs = fixedNow
+        )
+        val janCurrentYear = com.kitsugi.animelist.ui.screens.notifications.parseMalDisplayTimestampMs(
+            "Jan 2, 8:03 PM",
+            nowMs = fixedNow
+        )
+        assertNotNull(dec2025)
+        assertNotNull(janCurrentYear)
+        assertTrue(requireNotNull(janCurrentYear) > requireNotNull(dec2025))
+    }
 }

@@ -1,5 +1,16 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.335
+
+## 🇹🇷 Türkçe
+
+### 🔔 MyAnimeList (MAL) Bildirimlerinin Devamı & Sayfalama Kök Neden Onarımı
+- **`mal_web_` Kimlik Öneki Uyuşmazlığı Giderildi:** `loadMalMore()` içinde `mal_web_<id>` ile ham `<id>` karşılaştırması nedeniyle ilk sayfanın döngüde tekrar çekilip gerçek eski bildirimlere hiç geçilememesi sorunu giderildi (`rawNotificationId` / `normalizeKnownIds` + ilerleme kilidi).
+- **Çok Katmanlı Devam Motoru (`MalNotificationsWebPager` & `MalNotificationsClient`):** `XMLHttpRequest` / `fetch()` yanıtları, Vue 2/3 bileşen durumu, `window.MAL.notification` ve `.notification-item` DOM satırları birlikte okunur; kapsayıcı `<div>` yerine doğrudan `.notification-pagination` ve yaprak `"View more"` kontrolleri tıklanır.
+- **Gerçek Kategori Sayıları & Arşiv Temizliği:** `.notificaiton-category-nav` sayaçları ve kategori bağlantıları okunur, ilk sayfa çizildikten hemen sonra kalan eski bildirimler arka planda tamamlanıp arşivlenir; eski takvim yedeklerinin `Tümü` sayısını şişirmesi engellendi.
+
+---
+
 # Kitsugi Beta v2.4.334
 
 ## 🇹🇷 Türkçe
