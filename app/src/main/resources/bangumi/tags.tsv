@@ -31,7 +31,7 @@ web_novel	Web Romanı	Web Novel	网文	網文	网络小说	網路小說	WEB小�
 visual_novel	Görsel Roman	Visual Novel	视觉小说	視覺小說	視覚小说	ビジュアルノベル	VisualNovel
 galgame_adaptation	Galgame Uyarlaması	Galgame Adaptation	GAL改	gal改	美少女游戏改	エロゲ改
 galgame	Galgame	Galge	galgame	GALGAME	美少女游戏	美少女遊戲	エロゲ	GAL	【galgame】	【GAL】	Gal！	GalGame	ギャルゲー	galge
-4koma	4-Koma Manga	4-Koma Manga	四格漫画	四コマ	4-koma	四格
+4koma	Dört Kareli Manga	4-Koma Manga	四格漫画	四コマ	4-koma	四格
 doujin	Doujin Kaynak	Doujin	同人	同人作品	同人誌	Doujin	本子	.Doujin	doujin	同人志
 fan_work	Hayran Yapımı	Fan Work	二创	二次创作	二次創作
 adaptation	Uyarlama	Adaptation	改编	改編	改编作品
@@ -293,7 +293,7 @@ part_time_job	Yarı Zamanlı İş	Part Time Job	打工	バイト	兼职	兼職
 office_worker	Ofis Çalışanı	Office Worker	白领	白領	OL
 hikikomori	Hikikomori	Hikikomori	家里蹲	隠居	引きこもり	家裏蹲
 otaku_culture	Otaku Kültürü	Otaku Culture	御宅	オタク	秋叶原	宅文化
-cosplay	Cosplay	Cosplay	角色扮演	コスプレ	cosplay
+cosplay	Kostümlü Oyun	Cosplay	角色扮演	コスプレ	cosplay
 martial_master	Usta	Martial Master	师傅	師父	高手
 genius	Dahi	Genius	天才	高智商
 idiot_character	Saf Karakter	Idiot Character	笨蛋	傻瓜	天然呆	天然
@@ -2313,7 +2313,7 @@ movie_short	Film Kısa Filmi	Movie Short	剧场版短片	Film Kısa Filmi	Movie 
 mpi	mpi	mpi	mpi
 muku_ogura	Muku Ogura	Muku Ogura	小椋ムク	Muku Ogura
 multi_volume_hentai	Çok Ciltli Hentai Manga	Multi-Volume Hentai Manga	多卷H漫	Çok Ciltli Hentai Manga	Multi-Volume Hentai Manga
-multi_volumes	multi-volumes	multi-volumes	multi-volumes
+multi_volumes	Çok Ciltli	Multi-Volume	multi-volumes
 multiplatform	Çok Platformlu	Multiplatform	多平台	Çok Platformlu	Multiplatform
 multiplayer	Çok Oyunculu	Multiplayer	多人游戏	Çok Oyunculu	Multiplayer
 multiple_endings	Çoklu Son	Multiple Endings	多结局	Çoklu Son	Multiple Endings
@@ -3745,7 +3745,7 @@ satoshi_hino	Satoshi Hino	Satoshi Hino	日野聡	Satoshi Hino	日野聪
 sci_fi_manga	Bilim Kurgu Mangası	Sci-Fi Manga	科幻漫画	Bilim Kurgu Mangası	Sci-Fi Manga
 season_one	1. Sezon	Season 1	第一季	1. Sezon	Season 1
 sega	SEGA	SEGA	SEGA	sega
-sengoku_period	Sengoku Period	Sengoku Period	战国	Sengoku Period	戰國
+sengoku_period	Sengoku Dönemi	Sengoku Period	战国	Sengoku Period	戰國
 shanghai_animation_film_studio	Shanghai Animation Film Studio	Shanghai Animation Film Studio	上海美术电影制片厂	Shanghai Animation Film Studio	上美
 shin_ei	Shin-Ei Animation	Shin-Ei Animation	シンエイ動画	Shin-Ei Animation	SHIN-EI	Shin-EiAnimation
 shinshokan	Shinshokan	Shinshokan	新書館	Shinshokan	新书馆
@@ -3774,7 +3774,7 @@ tatsunoko	Tatsunoko Production	Tatsunoko Production	龙之子	Tatsunoko Producti
 teacher_student_relationship	Öğretmen-Öğrenci İlişkisi	Teacher-Student Relationship	师生	Öğretmen-Öğrenci İlişkisi	Teacher-Student Relationship
 team_shanghai_alice	Team Shanghai Alice	Team Shanghai Alice	上海アリス幻樂団	Team Shanghai Alice	上海アリス幻楽団
 text_adventure	Metin Macerası	Text Adventure	文字冒險	Metin Macerası	Text Adventure
-three_kingdoms	Three Kingdoms	Three Kingdoms	三国	Three Kingdoms	三國
+three_kingdoms	Üç Krallık Dönemi	Three Kingdoms	三国	Three Kingdoms	三國
 tms	TMS Entertainment	TMS Entertainment	TMS	TMS Entertainment	TMSEntertainment	东京Movie新社	TMS_Entertainment
 tohru_okawa	Tohru Okawa	Tohru Okawa	大川透	Tohru Okawa
 tokuma_shoten	Tokuma Shoten	Tokuma Shoten	徳間書店	Tokuma Shoten	德间书店	德間書店
@@ -3963,7 +3963,7 @@ nineties	90'lar	1990s	90年代	90'lar	1990s
 nintendo	Nintendo	Nintendo	任天堂	Nintendo	ニンテンドー	nintendo
 novel_series	Roman Serisi	Novel Series	小说系列	Roman Serisi	Novel Series	小說系列	小説シリーズ
 nukige	Nukige	Nukige	拔作	Nukige	抜きゲー	拔系	纯拔
-oped	OP+ED	OP+ED	OPED	OP+ED	OPED插入歌	OP_ED	op&ed	OPED剧中曲
+oped	Açılış + Kapanış	OP + ED	OPED	OP+ED	OPED插入歌	OP_ED	op&ed	OPED剧中曲
 otome_drama_cd	Otome Drama CD	Otome Drama CD	乙女向けドラマCD	Otome Drama CD
 otome_heart	Kız Kalbi	Maiden's Heart	乙女心	Kız Kalbi	Maiden's Heart
 platform_nds	Nintendo DS	Nintendo DS	NDS	Nintendo DS	DS	Nintendo_DS	nds
@@ -3975,7 +3975,7 @@ short_anime	Kısa Anime	Short Anime	泡面	Kısa Anime	Short Anime	泡麵
 single_volume	Tek Ciltlik	Single Volume	全一卷	Tek Ciltlik	Single Volume	1本完	全一巻	單卷	一卷全	单卷	全1巻	单册	小说单卷	全一册	单行	☆单册	單冊
 siscon	Siscon	Siscon	妹控	Siscon
 solo_use	Özel Kullanım	Solo Use	实用	Özel Kullanım	Solo Use	実用
-tankobon	Tankōbon	Tankōbon	漫画単行本	Tankōbon	單行本	単行本	单行本	漫画单行本	轻小说单行本	轻小说（单行本）	漫画單行本
+tankobon	Manga Cildi	Tankōbon	漫画単行本	Tankōbon	單行本	単行本	单行本	漫画单行本	轻小说单行本	轻小说（单行本）	漫画單行本
 touhou_project	Touhou Project	Touhou Project	东方	Touhou Project	東方Project	Touhou	TOUHOU	東方	東方project	东方Project	车万	东方project	東方プロジェクト	touhou	，TouHou
 training	Terbiye	Training	调教	Terbiye	Training	調教
 uncensored	Sansürsüz	Uncensored	无码	Sansürsüz	Uncensored	uncensored	无修	無碼
@@ -6314,7 +6314,7 @@ cjk_f2cdfc	總裁	總裁	總裁
 cjk_f2e67e	山本直樹	山本直樹	山本直樹
 cjk_f2ed88	鈴木行	鈴木行	鈴木行
 cjk_f30f45	庵田定夏	庵田定夏	庵田定夏
-cjk_f33696	孤独	孤独	孤独
+cjk_f33696	Yalnızlık	Loneliness	孤独
 cjk_f35861	川岸殴魚	川岸殴魚	川岸殴魚
 cjk_f37387	ぬらりひょんの孫	ぬらりひょんの孫	ぬらりひょんの孫
 cjk_f388c7	溝口肇	溝口肇	溝口肇
@@ -9167,7 +9167,7 @@ cjk_34c456	岩田剛典	岩田剛典	岩田剛典
 cjk_34d730	深井冰	深井冰	深井冰
 cjk_353404	初心カレ	初心カレ	初心カレ
 cjk_359121	不要太实用	不要太实用	不要太实用
-cjk_35d996	学生	学生	学生
+cjk_35d996	Öğrenci	Student	学生
 cjk_35e342	其他平台	其他平台	其他平台
 cjk_36025e	びびあん	びびあん	びびあん
 cjk_360b80	松本直也	松本直也	松本直也
@@ -11390,7 +11390,7 @@ cjk_1fdb2a	執事のプリンスさま	執事のプリンスさま	執事のプ�
 cjk_1fe7f0	中西隆三	中西隆三	中西隆三
 cjk_1fe7fd	平野靖士	平野靖士	平野靖士
 cjk_1fead8	松本淳	松本淳	松本淳
-cjk_1ffeb8	浮気	浮気	浮気
+cjk_1ffeb8	Aldatma	Infidelity	浮気
 cjk_20173d	はちこ	はちこ	はちこ
 cjk_202baf	やすゆき	やすゆき	やすゆき
 cjk_202dfa	少儿不宜哦	少儿不宜哦	少儿不宜哦
@@ -12276,7 +12276,7 @@ cjk_66987a	イブニング	イブニング	イブニング
 cjk_66c681	ジャンプSQ.19	ジャンプSQ.19	ジャンプSQ.19
 cjk_66daa1	西田ヒガシ	西田ヒガシ	西田ヒガシ
 cjk_66ee42	さくらねこ	さくらねこ	さくらねこ
-cjk_66f8e9	有声漫画	有声漫画	有声漫画
+cjk_66f8e9	Sesli Çizgi Roman	Voiced Comic	有声漫画
 cjk_670c84	御園えりい	御園えりい	御園えりい
 cjk_6713bb	ゴム	ゴム	ゴム
 cjk_671a66	银河爱豆	银河爱豆	银河爱豆
@@ -13138,7 +13138,7 @@ cjk_aa2f62	堀尾省太	堀尾省太	堀尾省太
 cjk_aa3a61	編輯	編輯	編輯
 cjk_aa3c98	六三四Musashi	六三四Musashi	六三四Musashi
 cjk_aa503f	野川樱	野川樱	野川樱
-cjk_aa5b42	秘密	秘密	秘密
+cjk_aa5b42	Sır	Secret	秘密
 cjk_aa6549	ハイスコアガール	ハイスコアガール	ハイスコアガール
 cjk_aa9486	黒兵衛	黒兵衛	黒兵衛
 cjk_aa9c07	机战OG	机战OG	机战OG
@@ -16595,7 +16595,7 @@ cjk_7f8dcf	されど罪人は竜と踊る	されど罪人は竜と踊る	され�
 cjk_7fa6a6	神保ひとで	神保ひとで	神保ひとで
 cjk_80047a	蓝川沙季	蓝川沙季	蓝川沙季
 cjk_802e21	川栄李奈	川栄李奈	川栄李奈
-cjk_804ec5	美少年	美少年	美少年
+cjk_804ec5	Güzel Erkek	Bishōnen	美少年
 cjk_804fa8	森崎ウィン	森崎ウィン	森崎ウィン
 cjk_805127	京吹	京吹	京吹
 cjk_8059bd	土屋斗紀雄	土屋斗紀雄	土屋斗紀雄
@@ -17017,7 +17017,7 @@ cjk_a3ede6	池上明子	池上明子	池上明子
 cjk_a3f2de	角川文庫	角川文庫	角川文庫
 cjk_a3f9e4	辉夜姬	辉夜姬	辉夜姬
 cjk_a4247a	戸田山雅司	戸田山雅司	戸田山雅司
-cjk_a43864	拟人化	拟人化	拟人化
+cjk_a43864	Kişileştirme	Anthropomorphism	拟人化
 cjk_a48502	百合姫	百合姫	百合姫
 cjk_a49139	伊藤信雄	伊藤信雄	伊藤信雄
 cjk_a49c15	半条命	半条命	半条命
@@ -19864,7 +19864,7 @@ cjk_1ed737	1997年四月番	1997年四月番	1997年四月番
 cjk_1edca0	小説野性時代	小説野性時代	小説野性時代
 cjk_1eeebd	竹田悠介	竹田悠介	竹田悠介
 cjk_1ef478	杉森建	杉森建	杉森建
-cjk_1f02f4	地球	地球	地球
+cjk_1f02f4	Dünya	Earth	地球
 cjk_1f0caf	横田惠	横田惠	横田惠
 cjk_1f1320	全员	全员	全员
 cjk_1f16d1	グランドジャンプ	グランドジャンプ	グランドジャンプ
@@ -22464,7 +22464,7 @@ cjk_84777b	モーニングKC	モーニングKC	モーニングKC
 cjk_84850c	秋津環	秋津環	秋津環
 cjk_848c6f	藤田祥雄	藤田祥雄	藤田祥雄
 cjk_848f8e	坂崎忠	坂崎忠	坂崎忠
-cjk_849623	電子書籍	電子書籍	電子書籍
+cjk_849623	E-Kitap	E-book	電子書籍
 cjk_84a2d6	英美合作	英美合作	英美合作
 cjk_84a4eb	神捏它	神捏它	神捏它
 cjk_84b4a1	萨满汪汪	萨满汪汪	萨满汪汪
@@ -22543,7 +22543,7 @@ cjk_877b57	本島幸久	本島幸久	本島幸久
 cjk_878986	蓝精灵	蓝精灵	蓝精灵
 cjk_878f61	石滨真史	石滨真史	石滨真史
 cjk_879040	史堂櫂	史堂櫂	史堂櫂
-cjk_8792ab	彩色	彩色	彩色
+cjk_8792ab	Renkli	Color	彩色
 cjk_87973b	工藤隆	工藤隆	工藤隆
 cjk_879ba6	北海惣史郎	北海惣史郎	北海惣史郎
 cjk_87a3ba	幸福小镇	幸福小镇	幸福小镇
@@ -24031,7 +24031,7 @@ cjk_bfab65	星の在り処	星の在り処	星の在り処
 cjk_bfbb8c	【系列】高达	【系列】高达	【系列】高达
 cjk_bfcb72	長崎健司	長崎健司	長崎健司
 cjk_bfd598	増田隆宣	増田隆宣	増田隆宣
-cjk_bfde96	希望	希望	希望
+cjk_bfde96	Umut	Hope	希望
 cjk_bfe467	青涩文学系列	青涩文学系列	青涩文学系列
 cjk_c00507	川崎琴	川崎琴	川崎琴
 cjk_c02505	被封锁的涩谷	被封锁的涩谷	被封锁的涩谷
@@ -28598,7 +28598,7 @@ cjk_06c47f	山本漫画制作所	山本漫画制作所	山本漫画制作所
 cjk_06c98c	いらいら	いらいら	いらいら
 cjk_06ce8f	羽中	羽中	羽中
 cjk_06d084	侦探战队	侦探战队	侦探战队
-cjk_06d1f4	圣女	圣女	圣女
+cjk_06d1f4	Azize	Saint	圣女
 cjk_06d22e	江思洁	江思洁	江思洁
 cjk_06d446	比嘉爱未	比嘉爱未	比嘉爱未
 cjk_06d711	安全确认	安全确认	安全确认
@@ -32460,7 +32460,7 @@ cjk_2c46f4	真利子哲也	真利子哲也	真利子哲也
 cjk_2c472d	决死+之梦	决死+之梦	决死+之梦
 cjk_2c49db	オルタネイティヴ	オルタネイティヴ	オルタネイティヴ
 cjk_2c4bbd	作画东条千佳	作画东条千佳	作画东条千佳
-cjk_2c4da2	総集編	総集編	総集編
+cjk_2c4da2	Derleme Bölüm	Compilation	総集編
 cjk_2c4efe	夏诺娅御姐！	夏诺娅御姐！	夏诺娅御姐！
 cjk_2c56b4	ヤスエイ	ヤスエイ	ヤスエイ
 cjk_2c6008	チカ	チカ	チカ
@@ -34213,7 +34213,7 @@ cjk_3db223	糖人家	糖人家	糖人家
 cjk_3db250	兔宝	兔宝	兔宝
 cjk_3db304	砂阿久雁	砂阿久雁	砂阿久雁
 cjk_3db7b1	央川みはら	央川みはら	央川みはら
-cjk_3db8bf	上司	上司	上司
+cjk_3db8bf	Amir	Boss	上司
 cjk_3dbaad	吉本浩二	吉本浩二	吉本浩二
 cjk_3dbbac	星川由美	星川由美	星川由美
 cjk_3dbc75	王蕾和安安组成了一小三一碧池组合，小三是王蕾，碧池也是王蕾	王蕾和安安组成了一小三一碧池组合，小三是王蕾，碧池也是王蕾	王蕾和安安组成了一小三一碧池组合，小三是王蕾，碧池也是王蕾
@@ -34740,7 +34740,7 @@ cjk_429dd5	疾風ロンド	疾風ロンド	疾風ロンド
 cjk_429f94	不能游泳！！！	不能游泳！！！	不能游泳！！！
 cjk_42a3ed	青山桐子	青山桐子	青山桐子
 cjk_42ae1a	片道勇者	片道勇者	片道勇者
-cjk_42b8ba	花火	花火	花火
+cjk_42b8ba	Havai Fişek	Fireworks	花火
 cjk_42ba0d	峯岸みなみ	峯岸みなみ	峯岸みなみ
 cjk_42baf0	编剧逆天	编剧逆天	编剧逆天
 cjk_42bd6c	Sanrio三丽鸥	Sanrio三丽鸥	Sanrio三丽鸥
@@ -42277,7 +42277,7 @@ cjk_8e60a1	未完童话	未完童话	未完童话
 cjk_8e61e7	增田雄市	增田雄市	增田雄市
 cjk_8e629c	手感很不错，打起来也很有萌感	手感很不错，打起来也很有萌感	手感很不错，打起来也很有萌感
 cjk_8e62d0	松本正志	松本正志	松本正志
-cjk_8e645b	欲望	欲望	欲望
+cjk_8e645b	Arzu	Desire	欲望
 cjk_8e69f0	あかつきゆきや	あかつきゆきや	あかつきゆきや
 cjk_8e6a51	マルイノ	マルイノ	マルイノ
 cjk_8e6d96	很对我胃口	很对我胃口	很对我胃口
@@ -46191,7 +46191,7 @@ cjk_b6f254	Cyber守护星	Cyber守护星	Cyber守护星
 cjk_b6f2c2	腦同步	腦同步	腦同步
 cjk_b6f46a	榊MAKI	榊MAKI	榊MAKI
 cjk_b6f4b5	地狱犬的挽歌	地狱犬的挽歌	地狱犬的挽歌
-cjk_b6f54f	失恋	失恋	失恋
+cjk_b6f54f	Kalp Kırıklığı	Heartbreak	失恋
 cjk_b6fa86	三宅乱太	三宅乱太	三宅乱太
 cjk_b709c2	实体化	实体化	实体化
 cjk_b70d6f	金贤秀	金贤秀	金贤秀

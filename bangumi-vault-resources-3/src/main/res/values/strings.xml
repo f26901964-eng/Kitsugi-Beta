@@ -913,7 +913,7 @@
     <string name="bangumi_network_cjk_1f76b4">芸術祭参加ドラマスペシャル</string>
     <string name="bangumi_network_cjk_1fedc8">京都放送</string>
     <string name="bangumi_network_cjk_229e71">北京电视台影视频道</string>
-    <string name="bangumi_network_cjk_239012">深圳电视台少儿频道</string>
+    <string name="bangumi_network_cjk_239012">Shenzhen TV Children\'s Channel</string>
     <string name="bangumi_network_cjk_24e13b">爱奇艺视频等平台</string>
     <string name="bangumi_network_cjk_264084">哈哈炫动卡通卫视</string>
     <string name="bangumi_network_cjk_278339">中天綜合台</string>
@@ -958,7 +958,7 @@
     <string name="bangumi_network_cjk_576ccb">パーフェクト</string>
     <string name="bangumi_network_cjk_581f8a">四川电视台康巴藏语卫视</string>
     <string name="bangumi_network_cjk_58dabb">オムニバスドラマ</string>
-    <string name="bangumi_network_cjk_5927c7">天津卫视</string>
+    <string name="bangumi_network_cjk_5927c7">Tianjin Satellite TV</string>
     <string name="bangumi_network_cjk_5a7d01">贵州卫视</string>
     <string name="bangumi_network_cjk_5a912a">浙江少儿频道</string>
     <string name="bangumi_network_cjk_5c0a0e">ニコニコ動画など</string>
@@ -968,7 +968,7 @@
     <string name="bangumi_network_cjk_666f2d">台视 台 东京电视台 日</string>
     <string name="bangumi_network_cjk_66eaa0">部分地方电视台</string>
     <string name="bangumi_network_cjk_6719c4">エンタメ～テレ</string>
-    <string name="bangumi_network_cjk_6a7368">時代劇専門チャンネル</string>
+    <string name="bangumi_network_cjk_6a7368">Jidaigeki Senmon Channel</string>
     <string name="bangumi_network_cjk_6c5e97">橋田壽賀子ドラマ</string>
     <string name="bangumi_network_cjk_6ca77f">チバテレ 群馬テレビ</string>
     <string name="bangumi_network_cjk_6d12eb">风行网</string>
@@ -1040,7 +1040,7 @@
     <string name="bangumi_network_cjk_c1de79">日曜エンタ</string>
     <string name="bangumi_network_cjk_c2739b">杭州电视台少儿频道</string>
     <string name="bangumi_network_cjk_c3537b">千叶电视台等</string>
-    <string name="bangumi_network_cjk_c406e2">中央广播电视总台</string>
+    <string name="bangumi_network_cjk_c406e2">China Media Group (CMG)</string>
     <string name="bangumi_network_cjk_c4f80a">よみうりテレビ系列</string>
     <string name="bangumi_network_cjk_c5dbe2">火曜日深夜枠</string>
     <string name="bangumi_network_cjk_c7163e">江西少儿</string>
@@ -1087,7 +1087,7 @@
     <string name="bangumi_network_cjk_fde411">广州电视台少儿频道</string>
     <string name="bangumi_network_cjk_fe26d9">大地电视台</string>
     <string name="bangumi_network_cntv">CNTV</string>
-    <string name="bangumi_network_cs_2">CSファミリー劇場</string>
+    <string name="bangumi_network_cs_2">CS Family Gekijo</string>
     <string name="bangumi_network_cs_4">CS日テレプラス</string>
     <string name="bangumi_network_csi">csi</string>
     <string name="bangumi_network_cw_3">美国CW</string>
@@ -1121,7 +1121,7 @@
     <string name="bangumi_network_history">History</string>
     <string name="bangumi_network_htb_50">HTB開局50周年ドラマ</string>
     <string name="bangumi_network_hulu_4">Hulu配信</string>
-    <string name="bangumi_network_hulu_6">Huluオリジナルストーリー</string>
+    <string name="bangumi_network_hulu_6">Hulu Orijinal Hikâyesi</string>
     <string name="bangumi_network_hulu_7">Huluオリジナルドラマ</string>
     <string name="bangumi_network_itv2">ITV2</string>
     <string name="bangumi_network_itv_citv">ITV (CITV)</string>
@@ -1164,7 +1164,7 @@
     <string name="bangumi_network_nbc_14">NBC 14</string>
     <string name="bangumi_network_nbc_4">Nagasaki Broadcasting</string>
     <string name="bangumi_network_nbc_u_s">NBC (U.S.)</string>
-    <string name="bangumi_network_neco">チャンネルNECO</string>
+    <string name="bangumi_network_neco">Channel NECO</string>
     <string name="bangumi_network_net_10">NET日本教育テレビ</string>
     <string name="bangumi_network_net_1_52">NET系(1～52話)</string>
     <string name="bangumi_network_net_72f3be2044">NETテレビ 現</string>
@@ -1174,7 +1174,7 @@
     <string name="bangumi_network_nhk_21">NHKエンタープライズ21</string>
     <string name="bangumi_network_nhk_22">日本NHK</string>
     <string name="bangumi_network_nhk_4">NHK大阪放送局</string>
-    <string name="bangumi_network_nhk_6">NHK大阪</string>
+    <string name="bangumi_network_nhk_6">NHK Osaka</string>
     <string name="bangumi_network_nhk_bs4k">NHK BS4K</string>
     <string name="bangumi_network_nhk_bs_3">NHK BSオンライン</string>
     <string name="bangumi_network_nhk_e_4">NHK Eテレ「ミニアニメ」</string>
@@ -1247,7 +1247,7 @@
     <string name="bangumi_network_tbs_cbc">TBS CBC</string>
     <string name="bangumi_network_tbs_wowow">TBS WOWOW</string>
     <string name="bangumi_network_tele_quebec">TELE-QUEBEC</string>
-    <string name="bangumi_network_teletoon_2">Teletoon(加拿大)</string>
+    <string name="bangumi_network_teletoon_2">Teletoon (Canada)</string>
     <string name="bangumi_network_television_yamanashi">Television Yamanashi</string>
     <string name="bangumi_network_teny_2">TeNY</string>
     <string name="bangumi_network_the_comedy_network_canada">The Comedy Network(Canada)</string>

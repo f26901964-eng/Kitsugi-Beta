@@ -843,7 +843,7 @@
     <string name="bangumi_network_cbs_all_access">CBS All Access</string>
     <string name="bangumi_network_cctv_14_3">CCTV-14等</string>
     <string name="bangumi_network_cctv_1_2">CCTV-1 高清</string>
-    <string name="bangumi_network_cctv_1_3">中央电视台综合频道 CCTV-1</string>
+    <string name="bangumi_network_cctv_1_3">CCTV-1 General Channel</string>
     <string name="bangumi_network_cctv_1_4">优漫卡通 CCTV-1</string>
     <string name="bangumi_network_cctv_2">CCTV少儿 银河剧场</string>
     <string name="bangumi_network_cctv_5">CCTV少儿频道</string>
@@ -872,7 +872,7 @@
     <string name="bangumi_network_cjk_11d886">无线儿童台</string>
     <string name="bangumi_network_cjk_12c3ea">重庆少儿频道</string>
     <string name="bangumi_network_cjk_13a4e5">さくらんぼテレビジョ</string>
-    <string name="bangumi_network_cjk_14eecb">帯ドラマ劇場</string>
+    <string name="bangumi_network_cjk_14eecb">Daily Strip Drama Theatre</string>
     <string name="bangumi_network_cjk_162712">年の瀬変愛ドラマ</string>
     <string name="bangumi_network_cjk_166119">創作テレビドラマ大賞</string>
     <string name="bangumi_network_cjk_16791d">地方广播电视台</string>
@@ -913,7 +913,7 @@
     <string name="bangumi_network_cjk_44980c">テレビ大阪 (火)</string>
     <string name="bangumi_network_cjk_44abdd">水曜劇場</string>
     <string name="bangumi_network_cjk_460176">ドローンドラマ</string>
-    <string name="bangumi_network_cjk_4a5d33">土曜ドラマ９</string>
+    <string name="bangumi_network_cjk_4a5d33">Saturday Drama 9</string>
     <string name="bangumi_network_cjk_4c3a71">八大综合台</string>
     <string name="bangumi_network_cjk_4e96d4">上海电视剧</string>
     <string name="bangumi_network_cjk_53f59f">Iwate Menkoi TV</string>
@@ -1060,7 +1060,7 @@
     <string name="bangumi_network_cjk_eb4448">ＧＷミステリー特別企画</string>
     <string name="bangumi_network_cjk_eb7330">陕西卫视</string>
     <string name="bangumi_network_cjk_ec750d">卡酷动画卫视</string>
-    <string name="bangumi_network_cjk_ef1fce">河北卫视</string>
+    <string name="bangumi_network_cjk_ef1fce">Hebei Satellite TV</string>
     <string name="bangumi_network_cjk_f3342c">中央电视台军事农业频道</string>
     <string name="bangumi_network_cjk_f375d5">浙江电视台经济生活频道</string>
     <string name="bangumi_network_cjk_f684b3">Drama 10</string>
@@ -1152,7 +1152,7 @@
     <string name="bangumi_network_netfiex">Netfiex</string>
     <string name="bangumi_network_netlix">Netlix</string>
     <string name="bangumi_network_nhk_10">日本NHK电视台</string>
-    <string name="bangumi_network_nhk_11">NHKスペシャル</string>
+    <string name="bangumi_network_nhk_11">NHK Special</string>
     <string name="bangumi_network_nhk_12">NHK电视台</string>
     <string name="bangumi_network_nhk_14">日本放送協會NHK</string>
     <string name="bangumi_network_nhk_15">NHK综合台</string>
@@ -13432,7 +13432,7 @@
     <string name="bangumi_tag_motionanime">MotionAnime</string>
     <string name="bangumi_tag_tokyo_movie">Tokyo Movie</string>
     <string name="bangumi_tag_mpi">mpi</string>
-    <string name="bangumi_tag_multi_volumes">multi-volumes</string>
+    <string name="bangumi_tag_multi_volumes">Multi-Volume</string>
     <string name="bangumi_tag_muv_luv">Muv-Luv</string>
     <string name="bangumi_tag_n">N+</string>
     <string name="bangumi_tag_n64">N64</string>

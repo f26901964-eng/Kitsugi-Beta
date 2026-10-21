@@ -49,7 +49,7 @@ houbunsha	tag	Houbunsha	Houbunsha	global	芳文社	yayıncı markası
 lune_soft	tag	Lune Soft	Lune Soft	global		marka adı (lune-soft)
 jump	tag	Jump	Jump	global		Jump künyesi — Latin sabitleme
 jpop	tag	J-Pop	J-Pop	global	JPOP	evrensel müzik terimi
-tankobon	tag	Tankōbon	Tankōbon	global	單行本;単行本	evrensel manga terimi
+tankobon	tag	Manga Cildi	Tankōbon	new	單行本;単行本	evrensel manga terimi | 009:new (global: Tankōbon)
 loli	tag	Loli	Loli	global	ロリ	fandom terimi
 siscon	tag	Siscon	Siscon	global		fandom terimi (little sister complex)
 nukige	tag	Nukige	Nukige	global		fandom terimi
@@ -62,7 +62,7 @@ anime	tag	Anime	Anime	global
 platform_steam	tag	Steam	Steam	global	STEAM	dijital platform markası
 platform_nds	tag	Nintendo DS	Nintendo DS	global	NDS	resmî platform adı
 platform_ps2	tag	PlayStation 2	PlayStation 2	global	PS2	resmî platform adı
-oped	tag	OP+ED	OP+ED	global	OPED	
+oped	tag	Açılış + Kapanış	OP + ED	new	OPED	009:new (global: OP+ED)
 # ── ETİKET: global karşılığı olmayanların çevirileri ───────────────────────────
 manga_series	tag	Manga Serisi	Manga Series	new	漫画系列;漫畫系列	
 manga_volumes	tag	Manga Ciltleri	Manga Volumes	new	漫画分卷;日本漫画-分卷	raf organizasyonu — açıklayıcı
@@ -423,12 +423,12 @@ cjk_543887	publisher	Daitosha	Daitosha	global		global/TR-EN düzeltmesi (大都�
 cjk_549332	publisher	Star Entertainment	Star Entertainment	global		global/TR-EN düzeltmesi (スター エンターテイメント)
 cjk_55ea67	publisher	Daran Culture	Daran Culture	global		global/TR-EN düzeltmesi (大然文化)
 cjk_569b00	publisher	NetEase Games	NetEase Games	global		global/TR-EN düzeltmesi (网易游戏)
-cjk_56faf4	publisher	浙江人民美术出版社	浙江人民美术出版社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_56faf4	publisher	Zhejiang People's Fine Arts Publishing House	Zhejiang People's Fine Arts Publishing House	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 浙江人民美术出版社)
 cjk_57f633	publisher	Oakla Publishing	Oakla Publishing	global		global/TR-EN düzeltmesi (オークラ出版)
 cjk_5ca8d1	publisher	HERO'S	HERO'S	global		global/TR-EN düzeltmesi (ヒーローズ)
 cjk_5caa54	publisher	Fujimi Shuppan	Fujimi Shuppan	global		global/TR-EN düzeltmesi (富士美出版)
 cjk_5f4e0b	publisher	Poplar Publishing	Poplar Publishing	global		global/TR-EN düzeltmesi (ポプラ社)
-cjk_6138e1	publisher	新世纪出版社	新世纪出版社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_6138e1	publisher	New Century Press	New Century Press	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 新世纪出版社)
 cjk_61d412	publisher	Gakken	Gakken	global		global/TR-EN düzeltmesi (学習研究社)
 cjk_6473f3	publisher	Daran Culture	Daran Culture	global		global/TR-EN düzeltmesi (台湾大然出版社)
 cjk_64dd9c	publisher	モモグレ	モモグレ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -449,9 +449,9 @@ cjk_8123c2	publisher	Shoujo Fractal	Shoujo Fractal	global		global/TR-EN düzeltm
 cjk_832718	publisher	寰宇之星	寰宇之星	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_834ba6	publisher	Geneon Entertainment	Geneon Entertainment	global		global/TR-EN düzeltmesi (ジェネオン エンタテインメント)
 cjk_84dffe	publisher	Electronic Arts	Electronic Arts	global		global/TR-EN düzeltmesi (艺电)
-cjk_85672a	publisher	中国致公出版社	中国致公出版社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_85672a	publisher	China Zhigong Publishing House	China Zhigong Publishing House	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 中国致公出版社)
 cjk_872532	publisher	Sanwa Shuppan	Sanwa Shuppan	global		global/TR-EN düzeltmesi (三和出版)
-cjk_883e15	publisher	ひつじぐも	ひつじぐも	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_883e15	publisher	Hitsujigumo	Hitsujigumo	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ひつじぐも)
 cjk_893b58	publisher	Junet	Junet	global		global/TR-EN düzeltmesi (ジュネット)
 cjk_8abcb8	publisher	Mellow Head	Mellow Head	global		global/TR-EN düzeltmesi (メロウヘッド)
 cjk_8c18e3	publisher	Kousai Shobou	Kousai Shobou	global		global/TR-EN düzeltmesi (光彩書房)
@@ -494,7 +494,7 @@ cjk_da167a	publisher	Kasakura Publishing	Kasakura Publishing	global		global/TR-E
 cjk_da2647	publisher	Seiunsha	Seiunsha	global		global/TR-EN düzeltmesi (星雲社)
 cjk_e1895b	publisher	トラックス	トラックス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e37d27	publisher	ソフトライン 東京漫画社	ソフトライン 東京漫画社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_e3e91f	publisher	バニラレシピ	バニラレシピ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e3e91f	publisher	Vanilla Recipe	Vanilla Recipe	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: バニラレシピ)
 cjk_e93e26	publisher	Koike Shoin	Koike Shoin	global		global/TR-EN düzeltmesi (小池書院)
 cjk_ea8ce7	publisher	Scholar	Scholar	global		global/TR-EN düzeltmesi (スコラ)
 cjk_eae18c	publisher	Shinkosha	Shinkosha	global		global/TR-EN düzeltmesi (心交社)
@@ -505,7 +505,7 @@ cjk_f272bd	publisher	Tosuisha	Tosuisha	global		global/TR-EN düzeltmesi (冬水�
 cjk_f2a13b	publisher	King Records	King Records	global		global/TR-EN düzeltmesi (皇声唱片)
 cjk_f345d5	publisher	TI Net	TI Net	global		global/TR-EN düzeltmesi (ティーアイネット)
 cjk_fd048e	publisher	Cosmic Publishing	Cosmic Publishing	global		global/TR-EN düzeltmesi (コスミック出版)
-cjk_fda620	publisher	黑龙江美术出版社	黑龙江美术出版社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_fda620	publisher	Heilongjiang Fine Arts Publishing House	Heilongjiang Fine Arts Publishing House	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 黑龙江美术出版社)
 columbia_music_entertainment	publisher	Columbia Music Entertainment	Columbia Music Entertainment	global		global karşılık: コロムビアミュージックエンタテインメント → Columbia Music Entertainment
 comics	publisher	Gentosha Comics	Gentosha Comics	global		global/TR-EN düzeltmesi (幻冬舍Comics)
 core_magazine	publisher	Core Magazine	Core Magazine	global		global karşılık: コアマガジン → Core Magazine
@@ -734,7 +734,7 @@ warner_bros_animation	studio	Warner Bros. Animation	Warner Bros. Animation	globa
 
 # ── CHUNK 002 · ETİKET count 200-499 (2026-10-21) ─────────────────────────────
 3dhentai	tag	3DHentai	3DHentai	global	3D Hentai	3B yetişkin animasyon markası
-4koma	tag	4-Koma Manga	4-Koma Manga	existing		sözlükte mevcut grup (değerler korunur)
+4koma	tag	Dört Kareli Manga	4-Koma Manga	new		sözlükte mevcut grup (değerler korunur) | 009:new (existing: 4-Koma Manga)
 a1_pictures	tag	A-1 Pictures	A-1 Pictures	existing		sözlükte mevcut grup (değerler korunur)
 adult_book	tag	Yetişkin Kitap	Adult Book	new	H本	yetişkin manga/kitap
 adult_content	tag	18+	18+	new	18+;１８＋	18+ içerik derecelendirmesi
@@ -1092,7 +1092,7 @@ satomi_sato	tag	Satomi Sato	Satomi Sato	global	佐藤聡美	established creator/
 satoshi_hino	tag	Satoshi Hino	Satoshi Hino	global	日野聡	established creator/performer name
 sci_fi_manga	tag	Bilim Kurgu Mangası	Sci-Fi Manga	new	科幻漫画	manga genre
 season_one	tag	1. Sezon	Season 1	new	第一季	season metadata
-sengoku_period	tag	Sengoku Period	Sengoku Period	global	战国	historical period
+sengoku_period	tag	Sengoku Dönemi	Sengoku Period	new	战国	historical period | 009:new (global: Sengoku Period)
 shanghai_animation_film_studio	tag	Shanghai Animation Film Studio	Shanghai Animation Film Studio	existing	上海美术电影制片厂	official studio name	bangumi_producer_shanghai_animation_film_studio
 shin_ei	tag	Shin-Ei Animation	Shin-Ei Animation	existing	SHIN-EI;シンエイ動画	studio	bangumi_studio_shin_ei
 shizuka_ito	tag	Shizuka Ito	Shizuka Ito	global	伊藤静	established creator/performer name
@@ -1122,7 +1122,7 @@ teacher_student_relationship	tag	Öğretmen-Öğrenci İlişkisi	Teacher-Student
 team_shanghai_alice	tag	Team Shanghai Alice	Team Shanghai Alice	global	上海アリス幻樂団	creator circle
 text_adventure	tag	Metin Macerası	Text Adventure	new	文字冒險	game format
 theme_song	tag	Tema Şarkısı	Theme Song	existing	Theme	existing tag group
-three_kingdoms	tag	Three Kingdoms	Three Kingdoms	global	三国	historical/cultural franchise
+three_kingdoms	tag	Üç Krallık Dönemi	Three Kingdoms	new	三国	historical/cultural franchise | 009:new (global: Three Kingdoms)
 tohru_okawa	tag	Tohru Okawa	Tohru Okawa	global	大川透	established creator/performer name
 tomokazu_seki	tag	Tomokazu Seki	Tomokazu Seki	global	関智一	established creator/performer name
 toshiki_masuda	tag	Toshiki Masuda	Toshiki Masuda	global	増田俊樹	established creator/performer name
@@ -1435,7 +1435,7 @@ cjk_4f75db	publisher	梶迫小道具店	梶迫小道具店	as_is		bilinmeyen CJK
 cjk_5537ca	publisher	ミュージックレコーズ	ミュージックレコーズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_57fb13	publisher	Outou Shobou	Outou Shobou	global		global/TR-EN düzeltmesi (桜桃書房)
 cjk_58f84f	publisher	スタイル	スタイル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_59e21e	publisher	はちみつれもん	はちみつれもん	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_59e21e	publisher	Hachimitsu-Lemon	Hachimitsu-Lemon	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: はちみつれもん)
 cjk_5c6d72	publisher	New Star Press	New Star Press	global		global/TR-EN düzeltmesi (新星出版社)
 cjk_6df754	publisher	角川アニメ	角川アニメ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_767cdb	publisher	荒御灵	荒御灵	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -1446,13 +1446,13 @@ cjk_8d527b	publisher	ダブリルムーン	ダブリルムーン	as_is		bilinmey
 cjk_907ac8	publisher	道玄坂書房	道玄坂書房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_9ceb68	publisher	Scholar Magazine	Scholar Magazine	global		global/TR-EN düzeltmesi (スコラマガジン)
 cjk_a2e607	publisher	ディファレンシア	ディファレンシア	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_a45bdc	publisher	荒御霊	荒御霊	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_a45bdc	publisher	AramiTama	AramiTama	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 荒御霊)
 cjk_b1cf41	publisher	삼양출판사(만화)	삼양출판사(만화)	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_b55b31	publisher	Kubo Shoten	Kubo Shoten	global		global/TR-EN düzeltmesi (久保書店)
 cjk_b9dce2	publisher	子弹社	子弹社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_bb9827	publisher	재미주의	재미주의	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_bd7328	publisher	ぴずやの独房	ぴずやの独房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_c8e220	publisher	凋叶棕	凋叶棕	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_bd7328	publisher	Pizuya's Cell	Pizuya's Cell	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ぴずやの独房)
+cjk_c8e220	publisher	Diao ye Zong	Diao ye Zong	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 凋叶棕)
 cjk_d0aef7	publisher	うんちく商事	うんちく商事	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_d21edf	publisher	キャラモモ	キャラモモ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e15053	publisher	Tokyo Sanseisha	Tokyo Sanseisha	global		global/TR-EN düzeltmesi (東京三世社)
@@ -1587,7 +1587,7 @@ cartoon_network_studios	studio	Cartoon Network Studios	Cartoon Network Studios	a
 chunsoft	studio	CHUNSOFT	CHUNSOFT	as_is		Latin ad — as_is
 circus	studio	CIRCUS	CIRCUS	as_is		Latin ad — as_is
 cjk_11691e	studio	タック	タック	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_3ffd96	studio	鈴木みら乃	鈴木みら乃	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3ffd96	studio	Suzuki Mirano	Suzuki Mirano	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 鈴木みら乃)
 cjk_43b170	studio	Ruohong Culture	Ruohong Culture	global		global/TR-EN düzeltmesi (若鸿文化)
 cjk_72344a	studio	エレクトリップ	エレクトリップ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_7d9bdc	studio	シブサワ	シブサワ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -1596,7 +1596,7 @@ cjk_877422	studio	癸乙夜	癸乙夜	as_is		bilinmeyen CJK — as_is (uydurma r
 cjk_ac8abc	studio	極フェロ	極フェロ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_d3fb85	studio	妖精传说	妖精传说	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e6277f	studio	Orangeban	Orangeban	global		global/TR-EN düzeltmesi (橘子班)
-cjk_e706c6	studio	わるきゅ〜れ	わるきゅ〜れ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e706c6	studio	Valkyria	Valkyria	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: わるきゅ〜れ)
 cjk_ee0895	studio	クレージュエース	クレージュエース	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 compile_heart	studio	Compile Heart	Compile Heart	global		global karşılık: コンパイルハート → Compile Heart
 d_o	studio	D.O.	D.O.	as_is		Latin ad — as_is
@@ -1666,7 +1666,7 @@ yumeta_company	studio	Yumeta Company	Yumeta Company	global		global karşılık: 
 zion	studio	ZION	ZION	as_is		Latin ad — as_is
 
 # ── ORG kanonları (chunk 004b · draft_org_map.py) ──────────────────────────
-4_nano	magazine	4コマnanoエース	4コマnanoエース	as_is		Latin ad — as_is
+4_nano	magazine	4-Koma Nano Ace	4-Koma Nano Ace	global		Latin ad — as_is | 009:global (as_is: 4コマnanoエース)
 action_2	magazine	Monthly Action	Monthly Action	global		global/TR-EN düzeltmesi (月刊Action)
 action_pizazz	magazine	Action Pizazz	Action Pizazz	global		global karşılık: アクションピザッツ → Action Pizazz
 anelala	magazine	AneLaLa	AneLaLa	as_is		Latin ad — as_is
@@ -1681,7 +1681,7 @@ cjk_4c0229	magazine	Nakayoshi	Nakayoshi	global		global/TR-EN düzeltmesi (好朋
 club_sunday	magazine	Club Sunday	Club Sunday	global		global karşılık: クラブサンデー → Club Sunday
 comic_2	magazine	COMIC Aun	COMIC Aun	global		global/TR-EN düzeltmesi (COMIC阿吽)
 comic_35	magazine	COMIC Ruelle	COMIC Ruelle	global		global/TR-EN düzeltmesi (COMICリュエル)
-comic_7	magazine	COMIC快楽天	COMIC快楽天	as_is		Latin ad — as_is
+comic_7	magazine	Comic Kairakuten	Comic Kairakuten	global		Latin ad — as_is | 009:global (as_is: COMIC快楽天)
 comic_days	magazine	Comic Days	Comic Days	as_is		Latin ad — as_is
 comic_dragon	magazine	Comic Dragon	Comic Dragon	global		global karşılık: コミックドラゴン → Comic Dragon
 comic_earth_star	magazine	COMIC EARTH STAR	COMIC EARTH STAR	as_is		Latin ad — as_is
@@ -1700,10 +1700,10 @@ cycomics	magazine	Cycomics	Cycomics	as_is		Latin ad — as_is
 dear	magazine	Dear+	Dear+	as_is		Latin ad — as_is
 deluxe_betsucomi	magazine	Deluxe Betsucomi	Deluxe Betsucomi	global		global karşılık: デラックスベツコミ → Deluxe Betsucomi
 e_2	magazine	E★Everystar	E★Everystar	global		global/TR-EN düzeltmesi (E★エブリスタ)
-e_3	magazine	eヤングマガジン	eヤングマガジン	as_is		Latin ad — as_is
+e_3	magazine	e Young Magazine	e Young Magazine	global		Latin ad — as_is | 009:global (as_is: eヤングマガジン)
 f	magazine	Next F	Next F	global		global/TR-EN düzeltmesi (ネクストF)
 famitsu	magazine	Famitsu	Famitsu	global		global karşılık: ファミ通 → Famitsu
-flexcomix_2	magazine	FlexComixブラッド	FlexComixブラッド	as_is		Latin ad — as_is
+flexcomix_2	magazine	Flex Comix Blood	Flex Comix Blood	global		Latin ad — as_is | 009:global (as_is: FlexComixブラッド)
 g_s_comic	magazine	Dengeki G's Comic	Dengeki G's Comic	global		global/TR-EN düzeltmesi (电击G's Comic)
 g_s_magazine	magazine	Dengeki G's Magazine	Dengeki G's Magazine	global		global/TR-EN düzeltmesi (電撃G's magazine)
 g_s_magazine_2	magazine	电击G's magazine	电击G's magazine	as_is		Latin ad — as_is
@@ -1718,7 +1718,7 @@ hibana	magazine	Hibana	Hibana	global		global karşılık: ヒバナ → Hibana
 itan	magazine	ITAN	ITAN	as_is		Latin ad — as_is
 jump_kai	magazine	Jump Kai	Jump Kai	global		global karşılık: ジャンプ改 → Jump Kai
 kindai_mahjong	magazine	Kindai Mahjong	Kindai Mahjong	global		global karşılık: 近代麻雀 → Kindai Mahjong
-le_paradis	magazine	楽園 Le Paradis	楽園 Le Paradis	as_is		Latin ad — as_is
+le_paradis	magazine	Rakuen Le Paradis	Rakuen Le Paradis	global		Latin ad — as_is | 009:global (as_is: 楽園 Le Paradis)
 magazine_4	magazine	Dengeki Bunko Magazine	Dengeki Bunko Magazine	global		global/TR-EN düzeltmesi (電撃文庫MAGAZINE)
 man	magazine	Moba MAN	Moba MAN	global		global/TR-EN düzeltmesi (モバMAN)
 manga_club	magazine	Manga Club	Manga Club	global		global karşılık: まんがくらぶ → Manga Club
@@ -1731,7 +1731,7 @@ manga_time_lovely	magazine	Manga Time Lovely	Manga Time Lovely	global		global ka
 mee	magazine	Manga Mee	Manga Mee	global		global/TR-EN düzeltmesi (マンガMee)
 miracle_jump	magazine	Miracle Jump	Miracle Jump	global		global karşılık: ミラクルジャンプ → Miracle Jump
 mobafra	magazine	MobaFra	MobaFra	global		global karşılık: モバフラ → MobaFra
-momo	magazine	まんがライフMOMO	まんがライフMOMO	as_is		Latin ad — as_is
+momo	magazine	Manga Life Momo	Manga Life Momo	global		Latin ad — as_is | 009:global (as_is: まんがライフMOMO)
 monthly_comic_avarus	magazine	Monthly Comic Avarus	Monthly Comic Avarus	global		global karşılık: 月刊コミックアヴァルス → Monthly Comic Avarus
 monthly_comic_bunch	magazine	Monthly Comic @Bunch	Monthly Comic @Bunch	global		global karşılık: 月刊コミック@バンチ → Monthly Comic @Bunch
 monthly_comic_garden	magazine	Monthly Comic Garden	Monthly Comic Garden	global		global karşılık: 月刊コミックガーデン → Monthly Comic Garden
@@ -1742,16 +1742,16 @@ monthly_shonen_rival	magazine	Monthly Shonen Rival	Monthly Shonen Rival	global		
 mrblue_2	magazine	Mrblue	Mrblue	as_is		Latin ad — as_is
 nemuki	magazine	Nemuki＋	Nemuki＋	as_is		Latin ad — as_is
 onblue	magazine	onBLUE	onBLUE	as_is		Latin ad — as_is
-pash	magazine	コミックPASH！	コミックPASH！	as_is		Latin ad — as_is
+pash	magazine	Comic PASH!	Comic PASH!	global		Latin ad — as_is | 009:global (as_is: コミックPASH！)
 petit_flower	magazine	Petit Flower	Petit Flower	global		global karşılık: プチフラワー → Petit Flower
 princess_2	magazine	Princess	Princess	as_is		Latin ad — as_is
-r_2	magazine	少年マガジンR	少年マガジンR	as_is		Latin ad — as_is
+r_2	magazine	Shonen Magazine R	Shonen Magazine R	global		Latin ad — as_is | 009:global (as_is: 少年マガジンR)
 red_2	magazine	Champion RED Ichigo	Champion RED Ichigo	global		global/TR-EN düzeltmesi (チャンピオンRED いちご)
 ridibooks	magazine	RIDIBOOKS	RIDIBOOKS	as_is		Latin ad — as_is
 shojo_comic	magazine	Shojo Comic	Shojo Comic	global		global karşılık: 少女コミック → Shojo Comic
 spica	magazine	Spica	Spica	global		global karşılık: スピカ → Spica
 spirits	magazine	Monthly! Spirits	Monthly! Spirits	global		global/TR-EN düzeltmesi (月刊！SPIRITS)
-storia	magazine	まんがライフSTORIA	まんがライフSTORIA	as_is		Latin ad — as_is
+storia	magazine	Manga Life Storia	Manga Life Storia	global		Latin ad — as_is | 009:global (as_is: まんがライフSTORIA)
 storia_dash	magazine	Storia Dash	Storia Dash	global		global karşılık: ストーリアダッシュ → Storia Dash
 suiyoubi_no_sirius	magazine	Suiyoubi no Sirius	Suiyoubi no Sirius	global		global karşılık: 水曜日のシリウス → Suiyoubi no Sirius
 sunday_gx	magazine	Monthly Sunday GX	Monthly Sunday GX	global		global/TR-EN düzeltmesi (月刊Sunday GX)
@@ -1762,7 +1762,7 @@ u17	magazine	U17	U17	global		global karşılık: 有妖气原创漫画梦工厂 
 ura_sunday_joshi_bu	magazine	Ura Sunday Joshi-bu	Ura Sunday Joshi-bu	global		global karşılık: 裏サンデー女子部 → Ura Sunday Joshi-bu
 vitaman	magazine	Vitaman	Vitaman	global		global karşılık: ビタマン → Vitaman
 vitamin_2	magazine	@vitamin	@vitamin	as_is		Latin ad — as_is
-web_38	magazine	トーチweb	トーチweb	as_is		Latin ad — as_is
+web_38	magazine	Torch Web	Torch Web	global		Latin ad — as_is | 009:global (as_is: トーチweb)
 weekly_comic_bunch	magazine	Weekly Comic Bunch	Weekly Comic Bunch	global		global karşılık: 週刊コミックバンチ → Weekly Comic Bunch
 wing_2	magazine	月刊ガンガンWING	月刊ガンガンWING	as_is		Latin ad — as_is
 you	magazine	YOU	YOU	as_is		Latin ad — as_is
@@ -2153,7 +2153,7 @@ yuji_nunokawa	producer	Yuji Nunokawa	Yuji Nunokawa	global		global karşılık: �
 yuma_takahashi	producer	Yuma Takahashi	Yuma Takahashi	global		global karşılık: 高橋祐馬 → Yuma Takahashi
 38beets	publisher	38BEETS	38BEETS	as_is		Latin ad — as_is
 505_games	publisher	505 Games	505 Games	as_is		Latin ad — as_is
-556	publisher	556ミリメートル	556ミリメートル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+556	publisher	556mm	556mm	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 556ミリメートル)
 5pb_records	publisher	5pb.Records	5pb.Records	as_is		Latin ad — as_is
 a_sring	publisher	A'sRing	A'sRing	as_is		Latin ad — as_is
 alcot	publisher	ALcot	ALcot	as_is		Latin ad — as_is
@@ -2190,7 +2190,7 @@ cjk_2c0997	publisher	若生出版	若生出版	as_is		bilinmeyen CJK — as_is (
 cjk_32eb04	publisher	威向文化	威向文化	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_37207d	publisher	シュベール出版	シュベール出版	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_372dcc	publisher	ばんび～の	ばんび～の	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_3dca40	publisher	クリムゾン	クリムゾン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3dca40	publisher	Crimson	Crimson	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: クリムゾン)
 cjk_43d5e9	publisher	フリルラレコード	フリルラレコード	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_48a74e	publisher	スノゥドロップス	スノゥドロップス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_5048a1	publisher	ビジュアルワークス	ビジュアルワークス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -2411,7 +2411,7 @@ wavforme	publisher	wavforme	wavforme	as_is		Latin ad — as_is
 wizards_of_the_coast	publisher	Wizards of the Coast	Wizards of the Coast	as_is		Latin ad — as_is
 world_affairs_press	publisher	World Affairs Press	World Affairs Press	global		global karşılık: 世界知识出版社 → World Affairs Press
 xd_inc	publisher	XD Inc.	XD Inc.	global		global karşılık: 心动 → XD Inc.
-xi_on	publisher	彩音 〜xi-on〜	彩音 〜xi-on〜	as_is		Latin ad — as_is
+xi_on	publisher	xi-on	xi-on	global		Latin ad — as_is | 009:global (as_is: 彩音 〜xi-on〜)
 yuuhei_catharsis	publisher	Yuuhei Catharsis	Yuuhei Catharsis	global		global karşılık: 幽閉カタルシス → Yuuhei Catharsis
 yuzusoft	publisher	Yuzusoft	Yuzusoft	global		global karşılık: 柚子软件 → Yuzusoft
 zain_records	publisher	ZAIN RECORDS	ZAIN RECORDS	as_is		Latin ad — as_is
@@ -2457,7 +2457,7 @@ cjk_23092b	studio	スピンドル	スピンドル	as_is		bilinmeyen CJK — as_i
 cjk_27772f	studio	吉野もみぢ	吉野もみぢ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_2b2a22	studio	祭企画	祭企画	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_30bbbe	studio	女武神	女武神	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_3a8bfc	studio	北京青青树动漫科技有限公司	北京青青树动漫科技有限公司	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_3a8bfc	studio	Vasoon Animation	Vasoon Animation	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 北京青青树动漫科技有限公司)
 cjk_3c4304	studio	Marine Entertainment	Marine Entertainment	global		global/TR-EN düzeltmesi (マリン)	bangumi_publisher_cjk_3c4304
 cjk_45718f	studio	はりねずみ工房	はりねずみ工房	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_46168e	studio	AKABEiSOFT2	AKABEiSOFT2	global		global/TR-EN düzeltmesi (あかべぇそふとつぅ)
@@ -2604,7 +2604,7 @@ zero	studio	ZERO	ZERO	as_is		Latin ad — as_is
 zyx	studio	ZyX	ZyX	as_is		Latin ad — as_is
 
 # ── ORG kanonları (chunk 004c · draft_org_map.py) ──────────────────────────
-be_boy_gold	magazine	BE・BOY GOLD	BE・BOY GOLD	as_is		Latin ad — as_is
+be_boy_gold	magazine	BE BOY GOLD	BE BOY GOLD	global		Latin ad — as_is | 009:global (as_is: BE・BOY GOLD)
 beans_ace	magazine	Beans Ace	Beans Ace	global		global karşılık: ビーンズエース → Beans Ace
 beat_s	magazine	Beat's	Beat's	as_is		Latin ad — as_is
 berry_s_fantasy	magazine	Berry’s Fantasy	Berry’s Fantasy	as_is		Latin ad — as_is
@@ -2616,29 +2616,29 @@ champion_3	magazine	Bessatsu Shonen Champion	Bessatsu Shonen Champion	global		gl
 champion_cross	magazine	Champion Cross	Champion Cross	global		global karşılık: チャンピオンクロス → Champion Cross
 chao_deluxe	magazine	Chao Deluxe	Chao Deluxe	global		global karşılık: ちゃおデラックス → Chao Deluxe
 chara	magazine	Chara	Chara	as_is		Latin ad — as_is
-cheek	magazine	ビーズログCHEEK	ビーズログCHEEK	as_is		Latin ad — as_is
+cheek	magazine	B's-LOG Cheek	B's-LOG Cheek	global		Latin ad — as_is | 009:global (as_is: ビーズログCHEEK)
 ciel	magazine	CIEL	CIEL	as_is		Latin ad — as_is
-cjk_01a38f	magazine	ハツキス	ハツキス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_0b59da	magazine	花音	花音	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_1514b6	magazine	姉系プチコミック	姉系プチコミック	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_01a38f	magazine	Hatsu Kiss	Hatsu Kiss	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ハツキス)
+cjk_0b59da	magazine	Kanon	Kanon	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 花音)
+cjk_1514b6	magazine	Ane-kei Petit Comic	Ane-kei Petit Comic	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 姉系プチコミック)
 cjk_17ce2d	magazine	エイジプレミアム	エイジプレミアム	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_1a9c10	magazine	エロティクス	エロティクス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_35bab8	magazine	ドラゴンエイジピュア	ドラゴンエイジピュア	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_35bab8	magazine	Dragon Age Pure	Dragon Age Pure	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ドラゴンエイジピュア)
 cjk_3ba7ca	magazine	天漫	天漫	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_47c0d2	magazine	ゆりひめ＠ピクシブ	ゆりひめ＠ピクシブ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_47c0d2	magazine	Yuri Hime @ Pixiv	Yuri Hime @ Pixiv	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ゆりひめ＠ピクシブ)
 cjk_517925	magazine	飒漫画	飒漫画	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_5cf4f2	magazine	漫画会	漫画会	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_65a2b5	magazine	玩漫	玩漫	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_718533	magazine	ナマイキッ!	ナマイキッ!	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_777b33	magazine	マンガ・エロティクス・エフ	マンガ・エロティクス・エフ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_777b33	magazine	Manga Erotics F	Manga Erotics F	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: マンガ・エロティクス・エフ)
 cjk_7b3bd4	magazine	ゴラクエッグ	ゴラクエッグ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_86431b	magazine	電撃大王ジェネシス	電撃大王ジェネシス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_86431b	magazine	Dengeki Daioh Genesis	Dengeki Daioh Genesis	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 電撃大王ジェネシス)
 cjk_89d947	magazine	ディアプラス	ディアプラス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_90ee4a	magazine	ぽこぽこ	ぽこぽこ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_96d080	magazine	コミックエール!	コミックエール!	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_96d080	magazine	Comic Yell!	Comic Yell!	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: コミックエール!)
 cjk_aa5b8e	magazine	ザ花とゆめ	ザ花とゆめ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_ad4884	magazine	みんなのコミック	みんなのコミック	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_adcbe2	magazine	轻小说	轻小说	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_adcbe2	magazine	Hafif Roman	Light Novel	new		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:new (as_is: 轻小说)
 cjk_b122ce	magazine	神漫	神漫	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c04fe3	magazine	漫漫漫画	漫漫漫画	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_f106fc	magazine	月刊キスカ	月刊キスカ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -2646,7 +2646,7 @@ cjk_fcf4d6	magazine	ルチル	ルチル	as_is		bilinmeyen CJK — as_is (uydurma
 colorful	magazine	Colorful!	Colorful!	as_is		Latin ad — as_is
 comic_12	magazine	COMIC 天魔	COMIC 天魔	as_is		Latin ad — as_is
 comic_33	magazine	毒りんごcomic	毒りんごcomic	as_is		Latin ad — as_is
-comic_50	magazine	comicコロナ	comicコロナ	as_is		Latin ad — as_is
+comic_50	magazine	Comic Corona	Comic Corona	global		Latin ad — as_is | 009:global (as_is: comicコロナ)
 comic_be	magazine	COMIC Be	COMIC Be	as_is		Latin ad — as_is
 comic_berry_s_2	magazine	comic Berry's	comic Berry's	as_is		Latin ad — as_is
 comic_blade_masamune	magazine	Comic Blade Masamune	Comic Blade Masamune	global		global karşılık: コミックブレイドMASAMUNE → Comic Blade Masamune
@@ -2668,13 +2668,13 @@ dengeki_bunko_magazine	magazine	Dengeki Bunko Magazine	Dengeki Bunko Magazine	gl
 dengeki_g_s_festival_comic	magazine	Dengeki G's Festival! Comic	Dengeki G's Festival! Comic	global		global karşılık: 電撃G's Festival! COMIC → Dengeki G's Festival! Comic
 dengeki_hp	magazine	Dengeki hp	Dengeki hp	global		global karşılık: 電撃hp → Dengeki hp
 dragon_magazine	magazine	Dragon Magazine	Dragon Magazine	global		global karşılık: ドラゴンマガジン → Dragon Magazine
-elegance	magazine	Eleganceイブ	Eleganceイブ	as_is		Latin ad — as_is
-flowers_2	magazine	増刊flowers	増刊flowers	as_is		Latin ad — as_is
+elegance	magazine	Elegance Eve	Elegance Eve	global		Latin ad — as_is | 009:global (as_is: Eleganceイブ)
+flowers_2	magazine	Zoukan Flowers	Zoukan Flowers	global		Latin ad — as_is | 009:global (as_is: 増刊flowers)
 gangan_powered	magazine	Gangan Powered	Gangan Powered	global		global karşılık: ガンガンパワード → Gangan Powered
 gene_line	magazine	Gene Line	Gene Line	global		global karşılık: ジーンLINE → Gene Line
 grand_jump_premium	magazine	Grand Jump Premium	Grand Jump Premium	global		global karşılık: グランドジャンプPREMIUM → Grand Jump Premium
 hana_lala_online	magazine	Hana LaLa online	Hana LaLa online	global		global karşılık: 花LaLa online → Hana LaLa online
-hug	magazine	Hugピクシブ	Hugピクシブ	as_is		Latin ad — as_is
+hug	magazine	Hug Pixiv	Hug Pixiv	global		Latin ad — as_is | 009:global (as_is: Hugピクシブ)
 ihr_hertz	magazine	ihr HertZ	ihr HertZ	as_is		Latin ad — as_is
 jour	magazine	JOURすてきな主婦たち	JOURすてきな主婦たち	as_is		Latin ad — as_is
 jump_rookie	magazine	Jump Rookie!	Jump Rookie!	global		global karşılık: ジャンプルーキー！ → Jump Rookie!
@@ -2683,7 +2683,7 @@ kerokero_ace	magazine	Kerokero Ace	Kerokero Ace	global		global karşılık: ケ�
 kirara_base	magazine	Kirara Base	Kirara Base	global		global karşılık: きららベース → Kirara Base
 kono_manga_ga_sugoi_web	magazine	Kono Manga ga Sugoi! Web	Kono Manga ga Sugoi! Web	global		global karşılık: このマンガがすごい！WEB → Kono Manga ga Sugoi! Web
 le_paradis_2	magazine	乐园 Le Paradis	乐园 Le Paradis	as_is		Latin ad — as_is
-lite	magazine	まんがぱれっとLite	まんがぱれっとLite	as_is		Latin ad — as_is
+lite	magazine	Manga Palette Lite	Manga Palette Lite	global		Latin ad — as_is | 009:global (as_is: まんがぱれっとLite)
 magazine_be_boy	magazine	MAGAZINE BE×BOY	MAGAZINE BE×BOY	as_is		Latin ad — as_is
 magazine_r	magazine	少年MAGAZINE_R	少年MAGAZINE_R	as_is		Latin ad — as_is
 manga_sunday	magazine	Manga Sunday	Manga Sunday	global		global karşılık: 漫画サンデー → Manga Sunday
@@ -3131,7 +3131,7 @@ cjk_c74caa	producer	エー・ライン	エー・ライン	as_is		bilinmeyen CJK 
 cjk_c750ae	producer	浅野澄美	浅野澄美	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c82631	producer	豊住政弘	豊住政弘	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c8adb8	producer	可知秀幸	可知秀幸	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_c8e220	producer	凋叶棕	凋叶棕	existing		mevcut anahtara birleşim: bangumi_publisher_cjk_c8e220	bangumi_publisher_cjk_c8e220
+cjk_c8e220	producer	Diao ye Zong	Diao ye Zong	existing		mevcut anahtara birleşim: bangumi_publisher_cjk_c8e220 | 009:mirror (bangumi_publisher_cjk_c8e220)	bangumi_publisher_cjk_c8e220
 cjk_c9b63b	producer	知遇アニメーション	知遇アニメーション	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c9d763	producer	池口和彦	池口和彦	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c9e0d0	producer	日比政広	日比政広	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -3736,7 +3736,7 @@ cjk_0782b3	studio	なぎや本舗	なぎや本舗	as_is		bilinmeyen CJK — as_i
 cjk_09b8c5	studio	たっちー	たっちー	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_1093e6	studio	丸得基地	丸得基地	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_120226	studio	ま〜まれぇど	ま〜まれぇど	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_12798d	studio	ぱじゃまソフト	ぱじゃまソフト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_12798d	studio	Pajama Soft	Pajama Soft	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ぱじゃまソフト)
 cjk_1289e9	studio	スナック・ファクトリー	スナック・ファクトリー	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_12adbc	studio	广州超神影业有限公司	广州超神影业有限公司	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_16690d	studio	トランス	トランス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -3744,7 +3744,7 @@ cjk_167aba	studio	めくじら	めくじら	as_is		bilinmeyen CJK — as_is (uyd
 cjk_19c037	studio	桃色剧场	桃色剧场	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_214458	studio	ビジョン	ビジョン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_256b75	studio	まじっくハウス	まじっくハウス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_29f71b	studio	あっぷりけ	あっぷりけ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_29f71b	studio	Applique	Applique	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: あっぷりけ)
 cjk_2a1e26	studio	Yuzusoft	Yuzusoft	global		global/TR-EN düzeltmesi (ゆずソフト)	bangumi_publisher_cjk_2a1e26
 cjk_2f7481	studio	禁飼育	禁飼育	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_324b73	studio	ブルームハンドル	ブルームハンドル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -3759,7 +3759,7 @@ cjk_52defa	studio	コットンソフト	コットンソフト	as_is		bilinmeyen 
 cjk_551902	studio	ゆめ太カンパニー 旧	ゆめ太カンパニー 旧	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_55369b	studio	アンダーリップ	アンダーリップ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_55ad19	studio	真空間	真空間	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_59e152	studio	すたじお緑茶	すたじお緑茶	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_59e152	studio	Studio Ryokucha	Studio Ryokucha	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: すたじお緑茶)
 cjk_5daa59	studio	凝冰剑斩	凝冰剑斩	existing		mevcut anahtara birleşim: bangumi_publisher_cjk_5daa59	bangumi_publisher_cjk_5daa59
 cjk_617350	studio	分子互动	分子互动	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_62d1f6	studio	智樂堂	智樂堂	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -3773,7 +3773,7 @@ cjk_6a4204	studio	动画国际公司	动画国际公司	as_is		bilinmeyen CJK �
 cjk_6b67b7	studio	一撸神	一撸神	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_6c2342	studio	ぱんだはうす	ぱんだはうす	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_6e17d9	studio	茸沢しめじ	茸沢しめじ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_6e51f6	studio	ふぐり屋	ふぐり屋	existing		mevcut anahtara birleşim: bangumi_publisher_cjk_6e51f6	bangumi_publisher_cjk_6e51f6
+cjk_6e51f6	studio	ふぐり屋	ふぐり屋	global		mevcut anahtara birleşim: bangumi_publisher_cjk_6e51f6 | 009:global (existing: ふぐり屋) | 009:mirror (bangumi_publisher_cjk_6e51f6)	bangumi_publisher_cjk_6e51f6
 cjk_70d12b	studio	ぱちぱちそふと	ぱちぱちそふと	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_750e1c	studio	主教社	主教社	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_75e2c4	studio	橙汁	橙汁	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -3814,16 +3814,16 @@ cjk_cc0e99	studio	路地の浦	路地の浦	as_is		bilinmeyen CJK — as_is (uyd
 cjk_cd43b9	studio	あんく	あんく	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_cd5107	studio	サボテン	サボテン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_d19425	studio	アーツ	アーツ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_d27394	studio	アンモライト	アンモライト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_d27394	studio	Ammolite	Ammolite	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: アンモライト)
 cjk_d5e754	studio	こすぷれ喫茶娘々	こすぷれ喫茶娘々	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_d6018b	studio	エロイット	エロイット	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_d81e78	studio	海心	海心	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_d9ade2	studio	北京互象动画有限公司	北京互象动画有限公司	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_db08a5	studio	若森数字	若森数字	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_db08a5	studio	Rocen Digital	Rocen Digital	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 若森数字)
 cjk_dc018c	studio	エーアイ	エーアイ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_dcac17	studio	シフト	シフト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_dd16fe	studio	ファンタジア	ファンタジア	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_e0c27a	studio	彩色铅笔动画	彩色铅笔动画	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e0c27a	studio	Colored Pencil Animation	Colored Pencil Animation	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 彩色铅笔动画)
 cjk_e0ef42	studio	プラン	プラン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e3d104	studio	カスガソフト	カスガソフト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e56d5d	studio	ボンびいボンボン!	ボンびいボンボン!	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -4030,7 +4030,7 @@ jump_giga	magazine	Jump GIGA	Jump GIGA	global		global karşılık: ジャンプG
 # ── ORG kanonları (chunk 005a · draft_org_map.py) ──────────────────────────
 4_kings_3	magazine	まんが4コマKINGSぱれっと[	まんが4コマKINGSぱれっと[	as_is		Latin ad — as_is
 ace_next	magazine	月刊ACE NEXT	月刊ACE NEXT	as_is		Latin ad — as_is
-ai	magazine	花ゆめAi	花ゆめAi	as_is		Latin ad — as_is
+ai	magazine	Hana Yume Ai	Hana Yume Ai	global		Latin ad — as_is | 009:global (as_is: 花ゆめAi)
 altima_ace	magazine	Altima Ace	Altima Ace	global		global karşılık: アルティマエース → Altima Ace
 animage	magazine	Animage	Animage	global		global karşılık: アニメージュ → Animage
 asuka_2	magazine	Monthly Asuka	Monthly Asuka	global		global/TR-EN düzeltmesi (月刊ASUKA)
@@ -4050,7 +4050,7 @@ chara_selection	magazine	Chara Selection	Chara Selection	as_is		Latin ad — as_
 charles_comics	magazine	Charles Comics	Charles Comics	as_is		Latin ad — as_is
 chuchu	magazine	ChuChu	ChuChu	as_is		Latin ad — as_is
 cjk_0b2025	magazine	ねこぱんち	ねこぱんち	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_0c1b28	magazine	くろふねピクシブ	くろふねピクシブ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_0c1b28	magazine	Kurofune Pixiv	Kurofune Pixiv	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: くろふねピクシブ)
 cjk_132a12	magazine	龙漫少年星期天	龙漫少年星期天	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_13a1e7	magazine	クロフネ	クロフネ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_154ac8	magazine	デンプレコミック	デンプレコミック	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -4092,18 +4092,18 @@ cjk_bb742c	magazine	瑪格麗特	瑪格麗特	as_is		bilinmeyen CJK — as_is (u
 cjk_bd20b0	magazine	日更计划	日更计划	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c15191	magazine	feel.	feel.	global		global/TR-EN düzeltmesi (フィール)
 cjk_c67871	magazine	少年ビッグコミック	少年ビッグコミック	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_db70bb	magazine	コミック乱ツインズ	コミック乱ツインズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_db70bb	magazine	Comic Ran Twins	Comic Ran Twins	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: コミック乱ツインズ)
 cjk_de7fea	magazine	ふらっとヒーローズ	ふらっとヒーローズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_e1184c	magazine	主任がゆく！スペシャル	主任がゆく！スペシャル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e1184c	magazine	Shunin ga Yuku! Special	Shunin ga Yuku! Special	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 主任がゆく！スペシャル)
 cjk_e3c9b9	magazine	ツー	ツー	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_e4c9a3	magazine	どこでもヤングチャンピオン	どこでもヤングチャンピオン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_e4c9a3	magazine	Dokodemo Young Champion	Dokodemo Young Champion	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: どこでもヤングチャンピオン)
 cjk_f1fafb	magazine	青骑士	青骑士	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_f49516	magazine	ゼノン編集部	ゼノン編集部	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_f61969	magazine	別冊ドラゴンエイジ→	別冊ドラゴンエイジ→	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_fd9bbc	magazine	サウス	サウス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cobalt	magazine	Cobalt	Cobalt	as_is		Latin ad — as_is
 com	magazine	COM	COM	as_is		Latin ad — as_is
-comic	magazine	COMICすもも	COMICすもも	as_is		Latin ad — as_is
+comic	magazine	Comic Sumomo	Comic Sumomo	global		Latin ad — as_is | 009:global (as_is: COMICすもも)
 comic_14	magazine	COMIC快乐天	COMIC快乐天	as_is		Latin ad — as_is
 comic_22	magazine	comicキャンドール	comicキャンドール	as_is		Latin ad — as_is
 comic_26	magazine	comic	comic	as_is		Latin ad — as_is
@@ -4211,7 +4211,7 @@ qpa	magazine	Qpa	Qpa	as_is		Latin ad — as_is
 reijin	magazine	Reijin	Reijin	global		global karşılık: 麗人 → Reijin
 renta	magazine	Renta!	Renta!	as_is		Latin ad — as_is
 ridibooks_2	magazine	ridibooks	ridibooks	as_is		Latin ad — as_is
-s_2	magazine	コミック百合姫S	コミック百合姫S	as_is		Latin ad — as_is
+s_2	magazine	Comic Yuri Hime S	Comic Yuri Hime S	global		Latin ad — as_is | 009:global (as_is: コミック百合姫S)
 s_girl	magazine	無敵恋愛S*girl	無敵恋愛S*girl	as_is		Latin ad — as_is
 saikyo_jump	magazine	Saikyo Jump	Saikyo Jump	global		global karşılık: 最強ジャンプ → Saikyo Jump
 shojo_friend	magazine	Shojo Friend	Shojo Friend	global		global karşılık: 少女フレンド → Shojo Friend
@@ -4330,7 +4330,7 @@ twitter	network	Twitter	Twitter	existing		mevcut anahtara birleşim: bangumi_mag
 uhf_2	network	Bağımsız UHF İstasyonları	Independent UHF Stations	new		global/TR-EN düzeltmesi (独立UHF局)
 ultra_2	network	Fuji TV +Ultra	Fuji TV +Ultra	global		global/TR-EN düzeltmesi (フジテレビ「＋Ultra」)
 upn	network	UPN	UPN	as_is		Latin ad — as_is
-w	network	Wナイト	Wナイト	as_is		Latin ad — as_is
+w	network	W Night	W Night	new		Latin ad — as_is | 009:new (as_is: Wナイト)
 www_cbs_com	network	www.cbs.com	www.cbs.com	as_is		Latin ad — as_is
 youtube_6	network	youtube	youtube	as_is		Latin ad — as_is
 2	producer	2匹目のどぜう	2匹目のどぜう	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -4982,7 +4982,7 @@ cjk_bc74c5	producer	崎田康平	崎田康平	as_is		bilinmeyen CJK — as_is (u
 cjk_bcd7cd	producer	楽音舎	楽音舎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_bd306b	producer	武田京市	武田京市	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_bd3ad3	producer	鄺業生	鄺業生	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_bd7328	producer	ぴずやの独房	ぴずやの独房	existing		mevcut anahtara birleşim: bangumi_publisher_cjk_bd7328	bangumi_publisher_cjk_bd7328
+cjk_bd7328	producer	Pizuya's Cell	Pizuya's Cell	existing		mevcut anahtara birleşim: bangumi_publisher_cjk_bd7328 | 009:mirror (bangumi_publisher_cjk_bd7328)	bangumi_publisher_cjk_bd7328
 cjk_bd860c	producer	松井千夏	松井千夏	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_bdb812	producer	小川正和	小川正和	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_be4ed4	producer	管爱如	管爱如	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -5075,7 +5075,7 @@ cjk_d9b940	producer	鈴木亜希乃	鈴木亜希乃	as_is		bilinmeyen CJK — as
 cjk_d9c787	producer	庄司隆三	庄司隆三	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_da252f	producer	向井悠樹	向井悠樹	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_da9c37	producer	山本暎一	山本暎一	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_db08a5	producer	若森数字	若森数字	existing		mevcut anahtara birleşim: bangumi_studio_cjk_db08a5	bangumi_studio_cjk_db08a5
+cjk_db08a5	producer	Rocen Digital	Rocen Digital	existing		mevcut anahtara birleşim: bangumi_studio_cjk_db08a5 | 009:mirror (bangumi_studio_cjk_db08a5)	bangumi_studio_cjk_db08a5
 cjk_db50cb	producer	永富大地	永富大地	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_dbcf61	producer	黄磊	黄磊	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_dc87a2	producer	釜秀樹→塩入大介→山中一孝	釜秀樹→塩入大介→山中一孝	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -5540,7 +5540,7 @@ cjk_0fba2f	publisher	ふゆーじょんぷろだくと	ふゆーじょんぷろ�
 cjk_1063aa	publisher	子ノ刻咄	子ノ刻咄	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_11c8f4	publisher	非可逆リズム	非可逆リズム	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_123dc1	publisher	クレバスランプ	クレバスランプ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_12798d	publisher	ぱじゃまソフト	ぱじゃまソフト	existing		mevcut anahtara birleşim: bangumi_studio_cjk_12798d	bangumi_studio_cjk_12798d
+cjk_12798d	publisher	Pajama Soft	Pajama Soft	existing		mevcut anahtara birleşim: bangumi_studio_cjk_12798d | 009:mirror (bangumi_studio_cjk_12798d)	bangumi_studio_cjk_12798d
 cjk_143936	publisher	永恆艾莉絲工坊	永恆艾莉絲工坊	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_14f6f7	publisher	三才ブックス	三才ブックス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_179877	publisher	アイエムエー	アイエムエー	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -5555,7 +5555,7 @@ cjk_23c636	publisher	平心出版社	平心出版社	as_is		bilinmeyen CJK — a
 cjk_254a17	publisher	きゃべつそふと	きゃべつそふと	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_2703e7	publisher	銘顯文化	銘顯文化	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_270b23	publisher	Shogakukan Music & Digital Entertainment	Shogakukan Music & Digital Entertainment	global		global/TR-EN düzeltmesi (小学館ミュージック&デジタルエンタテイメント)
-cjk_29f71b	publisher	あっぷりけ	あっぷりけ	existing		mevcut anahtara birleşim: bangumi_studio_cjk_29f71b	bangumi_studio_cjk_29f71b
+cjk_29f71b	publisher	Applique	Applique	existing		mevcut anahtara birleşim: bangumi_studio_cjk_29f71b | 009:mirror (bangumi_studio_cjk_29f71b)	bangumi_studio_cjk_29f71b
 cjk_2ed18b	publisher	ガレットワークス	ガレットワークス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_324283	publisher	대원문화출판사	대원문화출판사	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_32bf5f	publisher	ブラザース	ブラザース	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -5590,7 +5590,7 @@ cjk_5585d6	publisher	平和出版	平和出版	as_is		bilinmeyen CJK — as_is (
 cjk_575f2e	publisher	プライエイド	プライエイド	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_590009	publisher	ジーダス	ジーダス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_599778	publisher	吟遊夜会	吟遊夜会	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_59e152	publisher	すたじお緑茶	すたじお緑茶	existing		mevcut anahtara birleşim: bangumi_studio_cjk_59e152	bangumi_studio_cjk_59e152
+cjk_59e152	publisher	Studio Ryokucha	Studio Ryokucha	existing		mevcut anahtara birleşim: bangumi_studio_cjk_59e152 | 009:mirror (bangumi_studio_cjk_59e152)	bangumi_studio_cjk_59e152
 cjk_5e94e2	publisher	テスラカイト	テスラカイト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_5ea95e	publisher	株式会社ニノヤ	株式会社ニノヤ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_5ef9cb	publisher	東北ペネット	東北ペネット	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -6033,7 +6033,7 @@ spike_chunsoft	publisher	Spike Chunsoft	Spike Chunsoft	global		global karşılı
 splitter_verlag	publisher	Splitter Verlag	Splitter Verlag	as_is		Latin ad — as_is
 star_light_jazz_trio	publisher	Star Light Jazz Trio	Star Light Jazz Trio	as_is		Latin ad — as_is
 star_rose_label	publisher	Star Rose Label	Star Rose Label	as_is		Latin ad — as_is
-storia	publisher	まんがライフSTORIA	まんがライフSTORIA	existing		mevcut anahtara birleşim: bangumi_magazine_storia	bangumi_magazine_storia
+storia	publisher	Manga Life Storia	Manga Life Storia	existing		mevcut anahtara birleşim: bangumi_magazine_storia | 009:mirror (bangumi_magazine_storia)	bangumi_magazine_storia
 storytime_garden_s	publisher	Storytime Garden～S～	Storytime Garden～S～	as_is		Latin ad — as_is
 stpr_records	publisher	STPR Records	STPR Records	as_is		Latin ad — as_is
 stratiotes	publisher	Stratiotes	Stratiotes	as_is		Latin ad — as_is
@@ -6696,7 +6696,7 @@ spin_master	studio	Spin Master	Spin Master	as_is		Latin ad — as_is
 splash_damage	studio	Splash Damage	Splash Damage	as_is		Latin ad — as_is
 sprite	studio	sprite	sprite	existing		mevcut anahtara birleşim: bangumi_publisher_sprite	bangumi_publisher_sprite
 starbreeze_studios	studio	Starbreeze Studios	Starbreeze Studios	as_is		Latin ad — as_is
-storia	studio	まんがライフSTORIA	まんがライフSTORIA	existing		mevcut anahtara birleşim: bangumi_magazine_storia	bangumi_magazine_storia
+storia	studio	Manga Life Storia	Manga Life Storia	existing		mevcut anahtara birleşim: bangumi_magazine_storia | 009:mirror (bangumi_magazine_storia)	bangumi_magazine_storia
 studio_10	studio	狼烟动画STUDIO	狼烟动画STUDIO	as_is		Latin ad — as_is
 studio_11	studio	STUDIO邪恋	STUDIO邪恋	as_is		Latin ad — as_is
 studio_blanc	studio	Studio Blanc.	Studio Blanc.	existing		mevcut anahtara birleşim: bangumi_producer_studio_blanc	bangumi_producer_studio_blanc
@@ -7021,17 +7021,17 @@ zebel_2	magazine	コミックブレイドZEBEL	コミックブレイドZEBEL	as_
 zero_3	magazine	マンガZERO	マンガZERO	as_is		Latin ad — as_is
 zero_sum_2	magazine	月刊《コミックZERO-SUM》	月刊《コミックZERO-SUM》	as_is		Latin ad — as_is
 zero_sum_comics	magazine	ZERO-SUM COMICS	ZERO-SUM COMICS	as_is		Latin ad — as_is
-22_2	network	火曜22時枠連続ドラマ	火曜22時枠連続ドラマ	as_is		bilinmeyen CJK — as_is
-22_4	network	水曜22時枠連続ドラマ	水曜22時枠連続ドラマ	as_is		bilinmeyen CJK — as_is
-25_4	network	水ドラ25	水ドラ25	as_is		bilinmeyen CJK — as_is
-9_4	network	火曜夜9時枠連続ドラマ	火曜夜9時枠連続ドラマ	as_is		bilinmeyen CJK — as_is
+22_2	network	Salı 22.00 Dizi Kuşağı	Tuesday 22:00 Drama Slot	new		bilinmeyen CJK — as_is | 009:new (as_is: 火曜22時枠連続ドラマ)
+22_4	network	Çarşamba 22.00 Dizi Kuşağı	Wednesday 22:00 Drama Slot	new		bilinmeyen CJK — as_is | 009:new (as_is: 水曜22時枠連続ドラマ)
+25_4	network	Sui Dora 25	Sui Dora 25	new		bilinmeyen CJK — as_is | 009:new (as_is: 水ドラ25)
+9_4	network	Salı 21.00 Dizi Kuşağı	Tuesday 21:00 Drama Slot	new		bilinmeyen CJK — as_is | 009:new (as_is: 火曜夜9時枠連続ドラマ)
 abc	network	ABC	ABC	existing		mevcut anahtar: bangumi_network_abc	bangumi_network_abc
 aichi_tv	network	Aichi TV	Aichi TV	global		global karşılık: 爱知电视台 → Aichi TV
 akita_broadcasting	network	Akita Broadcasting	Akita Broadcasting	global		global karşılık: 秋田放送 → Akita Broadcasting
 amazon_3	network	Prime Video	Prime Video	global		global/TR-EN düzeltmesi (Amazonプライムビデオ)
 amazon_prime	network	Amazon Prime	Amazon Prime	as_is		Latin ad — as_is
 amazonjapan	network	AmazonJapan	AmazonJapan	as_is		Latin ad — as_is
-anb	network	朝日ANB	朝日ANB	as_is		Latin ad — as_is
+anb	network	TV Asahi (ANB)	TV Asahi (ANB)	global		Latin ad — as_is | 009:global (as_is: 朝日ANB)
 aomori_broadcasting	network	Aomori Broadcasting	Aomori Broadcasting	global		global karşılık: 青森放送 → Aomori Broadcasting
 aomori_tv	network	Aomori TV	Aomori TV	global		global karşılık: 青森テレビ → Aomori TV
 axn	network	AXN	AXN	as_is		Latin ad — as_is
@@ -7040,64 +7040,64 @@ bbc_hd	network	BBC HD	BBC HD	as_is		Latin ad — as_is
 beetv	network	BeeTV	BeeTV	as_is		Latin ad — as_is
 biz	network	Drama Biz	Drama Biz	global		global/TR-EN düzeltmesi (ドラマBiz)
 bs2	network	BS2	BS2	as_is		Latin ad — as_is
-bs_13	network	BSアニマックス	BSアニマックス	as_is		Latin ad — as_is
-bs_3	network	BSプレミアム	BSプレミアム	as_is		Latin ad — as_is
+bs_13	network	BS Animax	BS Animax	global		Latin ad — as_is | 009:global (as_is: BSアニマックス)
+bs_3	network	BS Premium	BS Premium	global		Latin ad — as_is | 009:global (as_is: BSプレミアム)
 bs_4	network	BS Sky PerfecTV!	BS Sky PerfecTV!	global		global/TR-EN düzeltmesi (BSスカパー!)
 bs_japan	network	BS Japan	BS Japan	as_is		Latin ad — as_is
 bss	network	BSS	BSS	as_is		Latin ad — as_is
 cineflix	network	Cineflix	Cineflix	as_is		Latin ad — as_is
-cjk_0b54da	network	东南卫视	东南卫视	as_is		bilinmeyen CJK — as_is
-cjk_0ed631	network	土曜時代ドラマ	土曜時代ドラマ	as_is		bilinmeyen CJK — as_is
-cjk_14dcb9	network	优酷土豆	优酷土豆	as_is		bilinmeyen CJK — as_is
-cjk_1ce026	network	黑龙江卫视	黑龙江卫视	as_is		bilinmeyen CJK — as_is
-cjk_1ebc93	network	ドラマホリック！	ドラマホリック！	as_is		bilinmeyen CJK — as_is
-cjk_28502a	network	山东卫视	山东卫视	as_is		bilinmeyen CJK — as_is
+cjk_0b54da	network	Southeast Satellite TV	Southeast Satellite TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 东南卫视)
+cjk_0ed631	network	Cumartesi Dönem Draması	Saturday Period Drama	new		bilinmeyen CJK — as_is | 009:new (as_is: 土曜時代ドラマ)
+cjk_14dcb9	network	Youku Tudou	Youku Tudou	global		bilinmeyen CJK — as_is | 009:global (as_is: 优酷土豆)
+cjk_1ce026	network	Heilongjiang Satellite TV	Heilongjiang Satellite TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 黑龙江卫视)
+cjk_1ebc93	network	Drama Holic!	Drama Holic!	global		bilinmeyen CJK — as_is | 009:global (as_is: ドラマホリック！)
+cjk_28502a	network	Shandong Satellite TV	Shandong Satellite TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 山东卫视)
 cjk_28cb73	network	嘉佳卡通卫视	嘉佳卡通卫视	as_is		bilinmeyen CJK — as_is
-cjk_340cac	network	埼玉电视台	埼玉电视台	as_is		bilinmeyen CJK — as_is
+cjk_340cac	network	TV Saitama	TV Saitama	global		bilinmeyen CJK — as_is | 009:global (as_is: 埼玉电视台)
 cjk_37f3e2	network	湖南广播电视台金鹰卡通	湖南广播电视台金鹰卡通	as_is		bilinmeyen CJK — as_is
-cjk_4c334d	network	福建少儿	福建少儿	as_is		bilinmeyen CJK — as_is
-cjk_511b9d	network	テレビ東京ネットワーク	テレビ東京ネットワーク	as_is		bilinmeyen CJK — as_is
-cjk_5d8092	network	浙江少儿	浙江少儿	as_is		bilinmeyen CJK — as_is
+cjk_4c334d	network	Fujian Children's Channel	Fujian Children's Channel	global		bilinmeyen CJK — as_is | 009:global (as_is: 福建少儿)
+cjk_511b9d	network	TV Tokyo Network	TV Tokyo Network	global		bilinmeyen CJK — as_is | 009:global (as_is: テレビ東京ネットワーク)
+cjk_5d8092	network	Zhejiang Children's Channel	Zhejiang Children's Channel	global		bilinmeyen CJK — as_is | 009:global (as_is: 浙江少儿)
 cjk_6135a3	network	Hiroshima Home Television	Hiroshima Home Television	global		global/TR-EN düzeltmesi (広島ホームテレビ)
-cjk_64e7fe	network	金鹰独播剧场	金鹰独播剧场	as_is		bilinmeyen CJK — as_is
-cjk_65d15d	network	正月時代劇	正月時代劇	as_is		bilinmeyen CJK — as_is
-cjk_7bc74c	network	北京电视台卡酷少儿频道	北京电视台卡酷少儿频道	as_is		bilinmeyen CJK — as_is
+cjk_64e7fe	network	Altın Kartal Tiyatrosu	Golden Eagle Theatre	new		bilinmeyen CJK — as_is | 009:new (as_is: 金鹰独播剧场)
+cjk_65d15d	network	Yeni Yıl Dönem Draması	New Year Period Drama	new		bilinmeyen CJK — as_is | 009:new (as_is: 正月時代劇)
+cjk_7bc74c	network	BTV Kaku Children Channel	BTV Kaku Children Channel	global		bilinmeyen CJK — as_is | 009:global (as_is: 北京电视台卡酷少儿频道)
 cjk_7eb60c	network	乐视网	乐视网	as_is		bilinmeyen CJK — as_is
-cjk_8099cc	network	広島テレビ	広島テレビ	as_is		bilinmeyen CJK — as_is
+cjk_8099cc	network	Hiroshima TV	Hiroshima TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 広島テレビ)
 cjk_823e0e	network	优酷视频	优酷视频	as_is		bilinmeyen CJK — as_is
-cjk_840afd	network	金鹰卡通卫视	金鹰卡通卫视	as_is		bilinmeyen CJK — as_is
-cjk_899fb9	network	木曜時代劇	木曜時代劇	as_is		bilinmeyen CJK — as_is
-cjk_9bdd91	network	中國電視公司	中國電視公司	as_is		bilinmeyen CJK — as_is
-cjk_9ed68a	network	卡酷少儿卫视	卡酷少儿卫视	as_is		bilinmeyen CJK — as_is
-cjk_ab054d	network	熊本県民テレビ	熊本県民テレビ	as_is		bilinmeyen CJK — as_is
-cjk_adb6fc	network	長崎国際テレビ	長崎国際テレビ	as_is		bilinmeyen CJK — as_is
+cjk_840afd	network	Golden Eagle Cartoon TV	Golden Eagle Cartoon TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 金鹰卡通卫视)
+cjk_899fb9	network	Perşembe Dönem Draması	Thursday Period Drama	new		bilinmeyen CJK — as_is | 009:new (as_is: 木曜時代劇)
+cjk_9bdd91	network	China Television (CTV)	China Television (CTV)	global		bilinmeyen CJK — as_is | 009:global (as_is: 中國電視公司)
+cjk_9ed68a	network	KAKU Kids Satellite TV	KAKU Kids Satellite TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 卡酷少儿卫视)
+cjk_ab054d	network	Kumamoto Kenmin Television	Kumamoto Kenmin Television	global		bilinmeyen CJK — as_is | 009:global (as_is: 熊本県民テレビ)
+cjk_adb6fc	network	Nagasaki International Television	Nagasaki International Television	global		bilinmeyen CJK — as_is | 009:global (as_is: 長崎国際テレビ)
 cjk_afe8bf	network	嘉佳卡通频道	嘉佳卡通频道	as_is		bilinmeyen CJK — as_is
 cjk_b0a039	network	湖南电视台金鹰卡通频道	湖南电视台金鹰卡通频道	as_is		bilinmeyen CJK — as_is
 cjk_b769fa	network	TVB	TVB	global		global/TR-EN düzeltmesi (無綫電視)
-cjk_b78277	network	新春ドラマスペシャル	新春ドラマスペシャル	as_is		bilinmeyen CJK — as_is
-cjk_b82fa4	network	四川卫视	四川卫视	as_is		bilinmeyen CJK — as_is
+cjk_b78277	network	Yeni Yıl Dizisi Özel Bölümü	New Year Drama Special	new		bilinmeyen CJK — as_is | 009:new (as_is: 新春ドラマスペシャル)
+cjk_b82fa4	network	Sichuan Satellite TV	Sichuan Satellite TV	global		bilinmeyen CJK — as_is | 009:global (as_is: 四川卫视)
 cjk_bf9526	network	哥伦比亚广播公司	哥伦比亚广播公司	as_is		bilinmeyen CJK — as_is
 cjk_cabd4a	network	关西电视台	关西电视台	as_is		bilinmeyen CJK — as_is
 cjk_d43d80	network	香港無線	香港無線	as_is		bilinmeyen CJK — as_is
-cjk_d4a388	network	神奈川电视台	神奈川电视台	as_is		bilinmeyen CJK — as_is
+cjk_d4a388	network	Television Kanagawa	Television Kanagawa	global		bilinmeyen CJK — as_is | 009:global (as_is: 神奈川电视台)
 cjk_d4c650	network	香港無綫	香港無綫	as_is		bilinmeyen CJK — as_is
-cjk_dda57f	network	北陸朝日放送	北陸朝日放送	as_is		bilinmeyen CJK — as_is
+cjk_dda57f	network	Hokuriku Asahi Broadcasting	Hokuriku Asahi Broadcasting	global		bilinmeyen CJK — as_is | 009:global (as_is: 北陸朝日放送)
 cjk_de506b	network	TVB Jade	TVB Jade	global		global/TR-EN düzeltmesi (无线电视翡翠台)
 cjk_fa38d4	network	乐视视频	乐视视频	as_is		bilinmeyen CJK — as_is
-cjk_fc60a5	network	福島中央テレビ	福島中央テレビ	as_is		bilinmeyen CJK — as_is
+cjk_fc60a5	network	Fukushima Central Television	Fukushima Central Television	global		bilinmeyen CJK — as_is | 009:global (as_is: 福島中央テレビ)
 crackle	network	Crackle	Crackle	as_is		Latin ad — as_is
-cs_1	network	CSテレ朝チャンネル1	CSテレ朝チャンネル1	as_is		Latin ad — as_is
+cs_1	network	CS TV Asahi Channel 1	CS TV Asahi Channel 1	global		Latin ad — as_is | 009:global (as_is: CSテレ朝チャンネル1)
 cs_6	network	CSチャンネル	CSチャンネル	as_is		Latin ad — as_is
 cw_television_network	network	CW Television Network	CW Television Network	as_is		Latin ad — as_is
 cx_3	network	富士CX	富士CX	as_is		Latin ad — as_is
-cx_4	network	富士电视CX	富士电视CX	as_is		Latin ad — as_is
+cx_4	network	Fuji TV (CX)	Fuji TV (CX)	global		Latin ad — as_is | 009:global (as_is: 富士电视CX)
 cx_5	network	富士電視CX	富士電視CX	as_is		Latin ad — as_is
 dc_universe	network	DC Universe	DC Universe	as_is		Latin ad — as_is
-ex_2	network	朝日EX	朝日EX	as_is		Latin ad — as_is
+ex_2	network	TV Asahi (EX)	TV Asahi (EX)	global		Latin ad — as_is | 009:global (as_is: 朝日EX)
 family_gekijo	network	Family Gekijo	Family Gekijo	global		global karşılık: ファミリー劇場 → Family Gekijo
 france_3	network	France 3	France 3	as_is		Latin ad — as_is
 freeform	network	FREEFORM	FREEFORM	as_is		Latin ad — as_is
-fri	network	フジバラナイト FRI	フジバラナイト FRI	as_is		Latin ad — as_is
+fri	network	Fuji Variety Night FRI	Fuji Variety Night FRI	new		Latin ad — as_is | 009:new (as_is: フジバラナイト FRI)
 fx_networks	network	FX Networks	FX Networks	as_is		Latin ad — as_is
 hbo_max_2	network	HBO max	HBO max	as_is		Latin ad — as_is
 hktv	network	HKTV	HKTV	as_is		Latin ad — as_is
@@ -7113,12 +7113,12 @@ kbs_5	network	KBS Kyoto	KBS Kyoto	global		global/TR-EN düzeltmesi (KBS 京都)
 kochi_sun_sun_tv	network	Kochi Sun Sun TV	Kochi Sun Sun TV	global		global karşılık: 高知さんさんテレビ → Kochi Sun Sun TV
 kyodo_television	network	Kyodo Television	Kyodo Television	existing		mevcut anahtara birleşim: bangumi_producer_kyodo_television	bangumi_producer_kyodo_television
 kyushu_asahi_broadcasting	network	Kyushu Asahi Broadcasting	Kyushu Asahi Broadcasting	global		global karşılık: 九州朝日放送 → Kyushu Asahi Broadcasting
-mbs_2	network	MBSテレビ	MBSテレビ	as_is		Latin ad — as_is
+mbs_2	network	MBS TV	MBS TV	global		Latin ad — as_is | 009:global (as_is: MBSテレビ)
 mtv_japan	network	MTV JAPAN	MTV JAPAN	as_is		Latin ad — as_is
 music_on_tv	network	MUSIC ON! TV	MUSIC ON! TV	as_is		Latin ad — as_is
 nagano_asahi_broadcasting	network	Nagano Asahi Broadcasting	Nagano Asahi Broadcasting	global		global karşılık: 長野朝日放送 → Nagano Asahi Broadcasting
 net_6	network	NET系	NET系	as_is		Latin ad — as_is
-net_7	network	NETテレビ	NETテレビ	as_is		Latin ad — as_is
+net_7	network	NET Television	NET Television	global		Latin ad — as_is | 009:global (as_is: NETテレビ)
 netflix	network	Netflix	Netflix	existing		mevcut anahtar: bangumi_network_netflix	bangumi_network_netflix
 nhk_18	network	NHK Educational TV	NHK Educational TV	global		global/TR-EN düzeltmesi (NHK教育频道)
 nhk_3	network	NHK教育テレビジョン	NHK教育テレビジョン	as_is		Latin ad — as_is
@@ -7136,12 +7136,12 @@ rkk_2	network	Kumamoto Broadcasting	Kumamoto Broadcasting	global		global/TR-EN d
 sci_fi_channel	network	Sci Fi Channel	Sci Fi Channel	as_is		Latin ad — as_is
 shanghai_television	network	Shanghai Television	Shanghai Television	global		global karşılık: 上海电视台 → Shanghai Television
 shenzhen_tv	network	Shenzhen TV	Shenzhen TV	global		global karşılık: 深圳卫视 → Shenzhen TV
-sun	network	SUN电视台	SUN电视台	as_is		Latin ad — as_is
+sun	network	Sun Television	Sun Television	global		Latin ad — as_is | 009:global (as_is: SUN电视台)
 syndicated	network	Syndicated	Syndicated	as_is		Latin ad — as_is
 t	network	Tナイト	Tナイト	as_is		Latin ad — as_is
-tbc_2	network	TBC東北放送	TBC東北放送	as_is		Latin ad — as_is
-tbs_1	network	TBSチャンネル1	TBSチャンネル1	as_is		Latin ad — as_is
-tbs_28_6	network	TBS系全国28局ネット	TBS系全国28局ネット	as_is		Latin ad — as_is
+tbc_2	network	Tohoku Broadcasting (TBC)	Tohoku Broadcasting (TBC)	global		Latin ad — as_is | 009:global (as_is: TBC東北放送)
+tbs_1	network	TBS Channel 1	TBS Channel 1	global		Latin ad — as_is | 009:global (as_is: TBSチャンネル1)
+tbs_28_6	network	TBS Ulusal Ağı (28 İstasyon)	TBS Network (28 National Stations)	new		Latin ad — as_is | 009:new (as_is: TBS系全国28局ネット)
 telasa	network	TELASA	TELASA	as_is		Latin ad — as_is
 teletoon	network	Teletoon	Teletoon	as_is		Latin ad — as_is
 the_wb	network	The WB	The WB	as_is		Latin ad — as_is
@@ -7150,7 +7150,7 @@ tokyo_channel_12	network	Tokyo Channel 12	Tokyo Channel 12	global		global karş�
 tokyo_mx	network	TOKYO MX	TOKYO MX	existing		mevcut anahtar: bangumi_network_tokyo_mx	bangumi_network_tokyo_mx
 ttfc	network	TTFC	TTFC	as_is		Latin ad — as_is
 tulip_tv	network	Tulip TV	Tulip TV	global		global karşılık: チューリップテレビ → Tulip TV
-tv	network	ひかりTV	ひかりTV	as_is		Latin ad — as_is
+tv	network	Hikari TV	Hikari TV	global		Latin ad — as_is | 009:global (as_is: ひかりTV)
 tv_iwate	network	TV Iwate	TV Iwate	global		global karşılık: テレビ岩手 → TV Iwate
 tv_land	network	TV Land	TV Land	as_is		Latin ad — as_is
 tv_nagasaki	network	TV Nagasaki	TV Nagasaki	global		global karşılık: テレビ長崎 → TV Nagasaki
@@ -7160,9 +7160,9 @@ tv_shinshu	network	TV Shinshu	TV Shinshu	global		global karşılık: テレビ�
 tv_wakayama	network	TV Wakayama	TV Wakayama	global		global karşılık: テレビ和歌山 → TV Wakayama
 tva	network	TV Aichi	TV Aichi	existing		mevcut anahtar: bangumi_network_tva	bangumi_network_tva
 tvokids	network	TVOKids	TVOKids	as_is		Latin ad — as_is
-two	network	フジテレビTWO	フジテレビTWO	as_is		Latin ad — as_is
+two	network	Fuji TV TWO	Fuji TV TWO	global		Latin ad — as_is | 009:global (as_is: フジテレビTWO)
 web_2	network	Web Yayını	Web Broadcast	new		global/TR-EN düzeltmesi (WEB放送)
-wowow_2	network	WOWOWプライム	WOWOWプライム	as_is		Latin ad — as_is
+wowow_2	network	WOWOW Prime	WOWOW Prime	global		Latin ad — as_is | 009:global (as_is: WOWOWプライム)
 www_youtube_com	network	www.youtube.com	www.youtube.com	as_is		Latin ad — as_is
 yomiuri_tv	network	Yomiuri TV	Yomiuri TV	existing		mevcut anahtara birleşim: bangumi_producer_yomiuri_tv	bangumi_producer_yomiuri_tv
 01_torte	producer	01-Torte	01-Torte	as_is		Latin ad — as_is
@@ -8346,7 +8346,7 @@ cjk_d1a7b6	producer	まゆげ	まゆげ	as_is		bilinmeyen CJK — as_is
 cjk_d1c5b1	producer	张悦	张悦	as_is		bilinmeyen CJK — as_is
 cjk_d1df7e	producer	龍貴大	龍貴大	as_is		bilinmeyen CJK — as_is
 cjk_d2189d	producer	高梨洋一	高梨洋一	as_is		bilinmeyen CJK — as_is
-cjk_d27394	producer	アンモライト	アンモライト	existing		mevcut anahtara birleşim: bangumi_studio_cjk_d27394	bangumi_studio_cjk_d27394
+cjk_d27394	producer	Ammolite	Ammolite	existing		mevcut anahtara birleşim: bangumi_studio_cjk_d27394 | 009:mirror (bangumi_studio_cjk_d27394)	bangumi_studio_cjk_d27394
 cjk_d2bb77	producer	尾西要一郎	尾西要一郎	as_is		bilinmeyen CJK — as_is
 cjk_d2fb1f	producer	今井遼介	今井遼介	as_is		bilinmeyen CJK — as_is
 cjk_d2fc15	producer	平尾隆之	平尾隆之	as_is		bilinmeyen CJK — as_is
@@ -8411,7 +8411,7 @@ cjk_e00992	producer	創符乱戸	創符乱戸	as_is		bilinmeyen CJK — as_is
 cjk_e056a8	producer	菊川幸夫	菊川幸夫	as_is		bilinmeyen CJK — as_is
 cjk_e08ba0	producer	木下暢起	木下暢起	as_is		bilinmeyen CJK — as_is
 cjk_e0a791	producer	河角直樹	河角直樹	as_is		bilinmeyen CJK — as_is
-cjk_e0c27a	producer	彩色铅笔动画	彩色铅笔动画	existing		mevcut anahtara birleşim: bangumi_studio_cjk_e0c27a	bangumi_studio_cjk_e0c27a
+cjk_e0c27a	producer	Colored Pencil Animation	Colored Pencil Animation	existing		mevcut anahtara birleşim: bangumi_studio_cjk_e0c27a | 009:mirror (bangumi_studio_cjk_e0c27a)	bangumi_studio_cjk_e0c27a
 cjk_e11152	producer	大西恒平	大西恒平	as_is		bilinmeyen CJK — as_is
 cjk_e19762	producer	高瀬奈緒文	高瀬奈緒文	as_is		bilinmeyen CJK — as_is
 cjk_e1b1c8	producer	瀬戸麻理子	瀬戸麻理子	as_is		bilinmeyen CJK — as_is
@@ -8443,7 +8443,7 @@ cjk_e62804	producer	陈乾元	陈乾元	as_is		bilinmeyen CJK — as_is
 cjk_e69842	producer	鳥海永行	鳥海永行	as_is		bilinmeyen CJK — as_is
 cjk_e6b84f	producer	本多祐	本多祐	as_is		bilinmeyen CJK — as_is
 cjk_e6f6c3	producer	村松秀信	村松秀信	as_is		bilinmeyen CJK — as_is
-cjk_e706c6	producer	わるきゅ〜れ	わるきゅ〜れ	existing		mevcut anahtara birleşim: bangumi_studio_cjk_e706c6	bangumi_studio_cjk_e706c6
+cjk_e706c6	producer	Valkyria	Valkyria	existing		mevcut anahtara birleşim: bangumi_studio_cjk_e706c6 | 009:mirror (bangumi_studio_cjk_e706c6)	bangumi_studio_cjk_e706c6
 cjk_e70e2e	producer	八尾香澄	八尾香澄	as_is		bilinmeyen CJK — as_is
 cjk_e724ef	producer	浅田成寛	浅田成寛	as_is		bilinmeyen CJK — as_is
 cjk_e771f5	producer	TBC	TBC	global		global/TR-EN düzeltmesi (東北放送)
@@ -11117,21 +11117,21 @@ canal	network	CANAL+	CANAL+	as_is		Latin ad — as_is
 cartoon_network	network	Cartoon Network	Cartoon Network	existing		değer eşleşmesi: cartoonnetwork → bangumi_network_cartoon_network	bangumi_network_cartoon_network
 cast	network	&CAST!!!	&CAST!!!	as_is		Latin ad — as_is
 cbs_all_access	network	CBS All Access	CBS All Access	as_is		Latin ad — as_is
-cctv_1_3	network	中央电视台综合频道 CCTV-1	中央电视台综合频道 CCTV-1	as_is		Latin ad — as_is
+cctv_1_3	network	CCTV-1 General Channel	CCTV-1 General Channel	global		Latin ad — as_is | 009:global (as_is: 中央电视台综合频道 CCTV-1)
 cctv_3	network	CCTV少儿	CCTV少儿	as_is		Latin ad — as_is
 cctv_6	network	CCTV-6	CCTV-6	as_is		Latin ad — as_is
 cctv_7	network	CCTV-7	CCTV-7	as_is		Latin ad — as_is
 cjk_00ed76	network	湖北	湖北	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_05358f	network	テッペン！水ドラ！！	テッペン！水ドラ！！	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_0609e2	network	オリジナルドラマ	オリジナルドラマ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_0609e2	network	Orijinal Dizi	Original Drama	new		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:new (as_is: オリジナルドラマ)
 cjk_11527f	network	ドラマ+	ドラマ+	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_12c3ea	network	重庆少儿频道	重庆少儿频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_14eecb	network	帯ドラマ劇場	帯ドラマ劇場	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_14eecb	network	Günlük Kuşak Dizi Tiyatrosu	Daily Strip Drama Theatre	new		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:new (as_is: 帯ドラマ劇場)
 cjk_168337	network	中国中央电视台综合频道	中国中央电视台综合频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_17cb4c	network	上海炫动卡通	上海炫动卡通	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_1881ad	network	ミニドラマ	ミニドラマ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_219c71	network	土曜ドラマスペシャル	土曜ドラマスペシャル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_239012	network	深圳电视台少儿频道	深圳电视台少儿频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_239012	network	Shenzhen TV Children's Channel	Shenzhen TV Children's Channel	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 深圳电视台少儿频道)
 cjk_276ab7	network	国家地理频道	国家地理频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_2baefe	network	東映チャンネル	東映チャンネル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_355b3b	network	湖南电视台金鹰卡通卫视	湖南电视台金鹰卡通卫视	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -11140,19 +11140,19 @@ cjk_37fce9	network	东京电视台系列	东京电视台系列	as_is		bilinmeyen
 cjk_390a9c	network	历史频道	历史频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_41bfe0	network	『このミス』大賞ドラマシリーズ	『このミス』大賞ドラマシリーズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_4715fe	network	日本朝日电视台	日本朝日电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_4a5d33	network	土曜ドラマ９	土曜ドラマ９	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_4a5d33	network	Cumartesi 21.00 Drama Kuşağı	Saturday Drama 9	new		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:new (as_is: 土曜ドラマ９)
 cjk_509fc6	network	麗的電視	麗的電視	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_53313c	network	亞洲電視本港台	亞洲電視本港台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_53313c	network	ATV Home	ATV Home	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 亞洲電視本港台)
 cjk_5497bb	network	大阪电视台	大阪电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_55fc65	network	湖北卫视	湖北卫视	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_5927c7	network	天津卫视	天津卫视	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_5a42e3	network	北京电视台	北京电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_5927c7	network	Tianjin Satellite TV	Tianjin Satellite TV	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 天津卫视)
+cjk_5a42e3	network	Beijing Television (BTV)	Beijing Television (BTV)	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 北京电视台)
 cjk_5a9b78	network	安徽广播电视台	安徽广播电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_5c1883	network	ТНТ	ТНТ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_66eaa0	network	部分地方电视台	部分地方电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_6a7368	network	時代劇専門チャンネル	時代劇専門チャンネル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_6a7368	network	Jidaigeki Senmon Channel	Jidaigeki Senmon Channel	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 時代劇専門チャンネル)
 cjk_6b2f38	network	名古屋电视台	名古屋电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_6b4966	network	ニコニコアニメチャンネル	ニコニコアニメチャンネル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_6b4966	network	Niconico Anime Channel	Niconico Anime Channel	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: ニコニコアニメチャンネル)
 cjk_6d12eb	network	风行网	风行网	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_764044	network	八大綜合台	八大綜合台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_78154f	network	中視無線台	中視無線台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -11167,21 +11167,21 @@ cjk_9e6b04	network	東森幼幼臺	東森幼幼臺	as_is		bilinmeyen CJK — as_
 cjk_a40744	network	佳藝電視	佳藝電視	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_a76b5f	network	各地地方电视台	各地地方电视台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_a86080	network	臺灣電視公司	臺灣電視公司	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_a9e116	network	日テレプラス	日テレプラス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_a9e116	network	Nittele Plus	Nittele Plus	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 日テレプラス)
 cjk_ac1aa1	network	广东电视台嘉佳卡通频道	广东电视台嘉佳卡通频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_ac623a	network	卡酷	卡酷	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_ac7722	network	浙江电视台少儿频道	浙江电视台少儿频道	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_b21497	network	オシドラサタデー	オシドラサタデー	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_c406e2	network	中央广播电视总台	中央广播电视总台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_c406e2	network	China Media Group (CMG)	China Media Group (CMG)	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 中央广播电视总台)
 cjk_c786da	network	云南卫视	云南卫视	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_ce195d	network	台灣卡通頻道 香港明珠台	台灣卡通頻道 香港明珠台	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_cf6577	network	央视八套	央视八套	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e5c4b5	network	プレミアム	プレミアム	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_e950ce	network	Fuji TV noitaminA	Fuji TV noitaminA	global		global/TR-EN düzeltmesi (フジテレビ ノイタミナ)
 cjk_ee00d2	network	木曜ドラマ劇場	木曜ドラマ劇場	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_ef1fce	network	河北卫视	河北卫视	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
+cjk_ef1fce	network	Hebei Satellite TV	Hebei Satellite TV	global		bilinmeyen CJK — as_is (uydurma romanizasyon yok) | 009:global (as_is: 河北卫视)
 cnn	network	CNN	CNN	as_is		Latin ad — as_is
-cs_2	network	CSファミリー劇場	CSファミリー劇場	as_is		Latin ad — as_is
+cs_2	network	CS Family Gekijo	CS Family Gekijo	global		Latin ad — as_is | 009:global (as_is: CSファミリー劇場)
 discovery	network	DISCOVERY	DISCOVERY	existing		değer eşleşmesi: Discovery → bangumi_studio_discovery	bangumi_studio_discovery
 discovery_family	network	Discovery Family	Discovery Family	as_is		Latin ad — as_is
 ebs_2	network	EBS	EBS	as_is		Latin ad — as_is
@@ -11200,7 +11200,7 @@ history	network	History	History	as_is		Latin ad — as_is
 hokkaido_broadcasting	network	Hokkaido Broadcasting	Hokkaido Broadcasting	global		global karşılık: HBC北海道放送 → Hokkaido Broadcasting
 home_box_office	network	Home Box Office	Home Box Office	as_is		Latin ad — as_is
 htb	network	HTB	HTB	as_is		Latin ad — as_is
-hulu_6	network	Huluオリジナルストーリー	Huluオリジナルストーリー	as_is		Latin ad — as_is
+hulu_6	network	Hulu Orijinal Hikâyesi	Hulu Original Story	new		Latin ad — as_is | 009:new (as_is: Huluオリジナルストーリー)
 ibc_iwate_broadcasting	network	IBC Iwate Broadcasting	IBC Iwate Broadcasting	global		global karşılık: IBC岩手放送 → IBC Iwate Broadcasting
 itv1	network	ITV1	ITV1	as_is		Latin ad — as_is
 itv2	network	ITV2	ITV2	as_is		Latin ad — as_is
@@ -11225,14 +11225,14 @@ nagano_broadcasting_systems	network	Nagano Broadcasting Systems	Nagano Broadcast
 nagasaki_culture_telecasting	network	Nagasaki Culture Telecasting	Nagasaki Culture Telecasting	global		global karşılık: NCC長崎文化放送 → Nagasaki Culture Telecasting
 nankai_broadcasting	network	Nankai Broadcasting	Nankai Broadcasting	global		global karşılık: 南海放送 → Nankai Broadcasting
 nara_television	network	Nara Television	Nara Television	global		global karşılık: 奈良テレビ → Nara Television
-neco	network	チャンネルNECO	チャンネルNECO	as_is		Latin ad — as_is
+neco	network	Channel NECO	Channel NECO	global		Latin ad — as_is | 009:global (as_is: チャンネルNECO)
 net	network	NET	NET	existing		değer eşleşmesi: NET → bangumi_producer_net	bangumi_producer_net
 net_72f3be2044	network	NETテレビ 現	NETテレビ 現	as_is		Latin ad — as_is · cid çakışması önlendi
 next	network	フジテレビNEXT	フジテレビNEXT	as_is		Latin ad — as_is · cid çakışması önlendi
-nhk_11	network	NHKスペシャル	NHKスペシャル	as_is		Latin ad — as_is
+nhk_11	network	NHK Special	NHK Special	global		Latin ad — as_is | 009:global (as_is: NHKスペシャル)
 nhk_2_2	network	NHK衛星第2テレビジョン	NHK衛星第2テレビジョン	as_is		Latin ad — as_is
 nhk_2_5	network	NHK卫星第2频道	NHK卫星第2频道	as_is		Latin ad — as_is
-nhk_6	network	NHK大阪	NHK大阪	as_is		Latin ad — as_is
+nhk_6	network	NHK Osaka	NHK Osaka	global		Latin ad — as_is | 009:global (as_is: NHK大阪)
 nhk_e_3	network	NHK E	NHK E	as_is		Latin ad — as_is
 nhk_tv	network	NHKワールドTV	NHKワールドTV	as_is		Latin ad — as_is
 nicovideo	network	nicovideo	nicovideo	as_is		Latin ad — as_is
@@ -11253,7 +11253,7 @@ sky_atlantic	network	Sky Atlantic	Sky Atlantic	as_is		Latin ad — as_is
 stv	network	Sapporo TV Broadcasting	Sapporo TV Broadcasting	existing		değer eşleşmesi: Sapporo TV Broadcasting → bangumi_producer_stv	bangumi_producer_stv
 sundance_channel	network	Sundance Channel	Sundance Channel	as_is		Latin ad — as_is
 syfy_u_s_space_canada	network	Syfy(U.S.) Space (Canada)	Syfy(U.S.) Space (Canada)	as_is		Latin ad — as_is
-teletoon_2	network	Teletoon(加拿大)	Teletoon(加拿大)	as_is		Latin ad — as_is
+teletoon_2	network	Teletoon (Canada)	Teletoon (Canada)	global		Latin ad — as_is | 009:global (as_is: Teletoon(加拿大))
 television_yamanashi	network	Television Yamanashi	Television Yamanashi	global		global karşılık: テレビ山梨 → Television Yamanashi
 the_cw_sitcom	network	The CW sitcom	The CW sitcom	as_is		Latin ad — as_is
 toyama_television_broadcasting	network	Toyama Television Broadcasting	Toyama Television Broadcasting	global		global karşılık: 富山テレビ → Toyama Television Broadcasting
@@ -11771,7 +11771,7 @@ cjk_39fe57	producer	鹿男	鹿男	as_is		bilinmeyen CJK — as_is (uydurma roman
 cjk_3a1bb8	producer	河野聡	河野聡	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3a53e9	producer	末吉孝充	末吉孝充	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3a77aa	producer	Raikaken	Raikaken	global		global/TR-EN düzeltmesi (雷火剣)	bangumi_tag_cjk_3a77aa
-cjk_3a8bfc	producer	北京青青树动漫科技有限公司	北京青青树动漫科技有限公司	existing		değer eşleşmesi: 北京青青树动漫科技有限公司 → bangumi_studio_cjk_3a8bfc	bangumi_studio_cjk_3a8bfc
+cjk_3a8bfc	producer	Vasoon Animation	Vasoon Animation	existing		değer eşleşmesi: 北京青青树动漫科技有限公司 → bangumi_studio_cjk_3a8bfc | 009:mirror (bangumi_studio_cjk_3a8bfc)	bangumi_studio_cjk_3a8bfc
 cjk_3a91df	producer	ファインエンターテイメント	ファインエンターテイメント	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3a96a3	producer	河野聡 バンダイビジュアル	河野聡 バンダイビジュアル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3af892	producer	立松嗣章	立松嗣章	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -13490,7 +13490,7 @@ william_oertel	producer	William Oertel	William Oertel	as_is		Latin ad — as_is
 wind_bell_soft	producer	WIND BELL SOFT	WIND BELL SOFT	as_is		Latin ad — as_is
 woc2006	producer	woc2006	woc2006	as_is		Latin ad — as_is
 xd_inc	producer	XD Inc.	XD Inc.	existing		değer eşleşmesi: XD Inc. → bangumi_publisher_xd_inc	bangumi_publisher_xd_inc
-xi_on	producer	彩音 〜xi-on〜	彩音 〜xi-on〜	existing		değer eşleşmesi: 彩音 〜xi-on〜 → bangumi_publisher_xi_on	bangumi_publisher_xi_on
+xi_on	producer	xi-on	xi-on	existing		değer eşleşmesi: 彩音 〜xi-on〜 → bangumi_publisher_xi_on | 009:mirror (bangumi_publisher_xi_on)	bangumi_publisher_xi_on
 y_tanuma	producer	Y-TANUMA	Y-TANUMA	as_is		Latin ad — as_is
 ytv	producer	ytv	Yomiuri TV	existing		değer eşleşmesi: ytv： → bangumi_network_ytv	bangumi_network_ytv
 yui_2	producer	YUI	YUI	as_is		Latin ad — as_is
@@ -14790,7 +14790,7 @@ cjk_3bc9f5	studio	四块二茶会	四块二茶会	as_is		bilinmeyen CJK — as_i
 cjk_3bfabc	studio	ジーニーズ	ジーニーズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3cdad0	studio	アトリエちょいす	アトリエちょいす	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3cef23	studio	ユメミル	ユメミル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_3dca40	studio	クリムゾン	クリムゾン	existing		değer eşleşmesi: クリムゾン → bangumi_publisher_cjk_3dca40	bangumi_publisher_cjk_3dca40
+cjk_3dca40	studio	Crimson	Crimson	existing		değer eşleşmesi: クリムゾン → bangumi_publisher_cjk_3dca40 | 009:mirror (bangumi_publisher_cjk_3dca40)	bangumi_publisher_cjk_3dca40
 cjk_3e9f53	studio	スワン	スワン	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_40fa24	studio	ゆぅ	ゆぅ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_41141a	studio	ユーフォーテーブル	ユーフォーテーブル	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -16659,7 +16659,7 @@ cjk_11e09c	producer	フェイス	フェイス	as_is		bilinmeyen CJK — as_is (u
 cjk_122c38	producer	塩田友	塩田友	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_122ffa	producer	协力：バンダイナムコホールディングス	协力：バンダイナムコホールディングス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_1275e2	producer	松井正一	松井正一	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_12798d	producer	ぱじゃまソフト	ぱじゃまソフト	existing		değer eşleşmesi: ぱじゃまソフト → bangumi_studio_cjk_12798d	bangumi_studio_cjk_12798d
+cjk_12798d	producer	Pajama Soft	Pajama Soft	existing		değer eşleşmesi: ぱじゃまソフト → bangumi_studio_cjk_12798d | 009:mirror (bangumi_studio_cjk_12798d)	bangumi_studio_cjk_12798d
 cjk_1279e8	producer	菅井嘉浩	菅井嘉浩	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_12ac12	producer	田村徹	田村徹	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_130c87	producer	山本漫画电影制作所	山本漫画电影制作所	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -17094,7 +17094,7 @@ cjk_3d5dfd	producer	大山暁子	大山暁子	as_is		bilinmeyen CJK — as_is (u
 cjk_3da02c	producer	羽雁彰	羽雁彰	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3da509	producer	真保安一郎	真保安一郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3dc735	producer	二宫清隆	二宫清隆	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_3dca40	producer	クリムゾン	クリムゾン	existing		değer eşleşmesi: クリムゾン → bangumi_publisher_cjk_3dca40	bangumi_publisher_cjk_3dca40
+cjk_3dca40	producer	Crimson	Crimson	existing		değer eşleşmesi: クリムゾン → bangumi_publisher_cjk_3dca40 | 009:mirror (bangumi_publisher_cjk_3dca40)	bangumi_publisher_cjk_3dca40
 cjk_3df8e6	producer	もんなかすけ	もんなかすけ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3e1a72	producer	長谷川良太	長谷川良太	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3e2062	producer	岩崎豊明	岩崎豊明	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -17785,7 +17785,7 @@ cjk_80551c	producer	八木征志 テレビ朝日	八木征志 テレビ朝日	as
 cjk_8057b5	producer	三浦建太郎	三浦建太郎	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_8057fa	producer	王鵬	王鵬	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_80949a	producer	「デッドマウント	「デッドマウント	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_8099cc	producer	広島テレビ	広島テレビ	existing		değer eşleşmesi: 広島テレビ → bangumi_network_cjk_8099cc	bangumi_network_cjk_8099cc
+cjk_8099cc	producer	Hiroshima TV	Hiroshima TV	existing		değer eşleşmesi: 広島テレビ → bangumi_network_cjk_8099cc | 009:mirror (bangumi_network_cjk_8099cc)	bangumi_network_cjk_8099cc
 cjk_80a0c0	producer	伊佐野英樹	伊佐野英樹	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_80ab20	producer	でじたろう 原作プロデューサー	でじたろう 原作プロデューサー	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_80bbec	producer	钟昌戋	钟昌戋	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -18476,7 +18476,7 @@ cjk_c37b31	producer	田中正栄	田中正栄	as_is		bilinmeyen CJK — as_is (u
 cjk_c3bd0a	producer	新田高史	新田高史	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c3c788	producer	大石睦美 ；	大石睦美 ；	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c401bd	producer	今村勝範	今村勝範	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_c406e2	producer	中央广播电视总台	中央广播电视总台	existing		değer eşleşmesi: 中央广播电视总台 → bangumi_network_cjk_c406e2	bangumi_network_cjk_c406e2
+cjk_c406e2	producer	China Media Group (CMG)	China Media Group (CMG)	existing		değer eşleşmesi: 中央广播电视总台 → bangumi_network_cjk_c406e2 | 009:mirror (bangumi_network_cjk_c406e2)	bangumi_network_cjk_c406e2
 cjk_c42d97	producer	勝田久美子	勝田久美子	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c45f39	producer	小門知代	小門知代	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_c478cc	producer	スターリーキューブ	スターリーキューブ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -19542,7 +19542,7 @@ nbkz	producer	nbkz	nbkz	as_is		Latin ad — as_is
 neal_h_moritz	producer	Neal H. Moritz	Neal H. Moritz	as_is		Latin ad — as_is
 nemo	producer	nemo	nemo	as_is		Latin ad — as_is
 net_2	producer	NET→テレビ朝日	NET→テレビ朝日	as_is		Latin ad — as_is
-nhk_6	producer	NHK大阪	NHK大阪	existing		değer eşleşmesi: NHK大阪 → bangumi_network_nhk_6	bangumi_network_nhk_6
+nhk_6	producer	NHK Osaka	NHK Osaka	existing		değer eşleşmesi: NHK大阪 → bangumi_network_nhk_6 | 009:mirror (bangumi_network_nhk_6)	bangumi_network_nhk_6
 nhk_nhk_21	producer	NHK 共同制作：NHKエンタープライズ21	NHK 共同制作：NHKエンタープライズ21	as_is		Latin ad — as_is
 nicola_shindler	producer	Nicola Shindler	Nicola Shindler	as_is		Latin ad — as_is
 nihon_falcom	producer	Nihon Falcom	Nihon Falcom	existing		değer eşleşmesi: Nihon Falcom → bangumi_publisher_nihon_falcom	bangumi_publisher_nihon_falcom
@@ -20137,7 +20137,7 @@ cjk_375a7f	publisher	ビーズログ文庫	ビーズログ文庫	as_is		bilinmey
 cjk_37840f	publisher	岡業資訊	岡業資訊	existing		değer eşleşmesi: 岡業資訊 → bangumi_studio_cjk_37840f	bangumi_studio_cjk_37840f
 cjk_389ac0	publisher	扑家工作室 中文版	扑家工作室 中文版	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3988b0	publisher	黒鳥	黒鳥	existing		değer eşleşmesi: 黒鳥 → bangumi_producer_cjk_3988b0	bangumi_producer_cjk_3988b0
-cjk_3a8bfc	publisher	北京青青树动漫科技有限公司	北京青青树动漫科技有限公司	existing		değer eşleşmesi: 北京青青树动漫科技有限公司 → bangumi_studio_cjk_3a8bfc	bangumi_studio_cjk_3a8bfc
+cjk_3a8bfc	publisher	Vasoon Animation	Vasoon Animation	existing		değer eşleşmesi: 北京青青树动漫科技有限公司 → bangumi_studio_cjk_3a8bfc | 009:mirror (bangumi_studio_cjk_3a8bfc)	bangumi_studio_cjk_3a8bfc
 cjk_3bc9f5	publisher	四块二茶会	四块二茶会	existing		değer eşleşmesi: 四块二茶会 → bangumi_studio_cjk_3bc9f5	bangumi_studio_cjk_3bc9f5
 cjk_3c7d3a	publisher	ジェッツコミックス	ジェッツコミックス	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3cc66a	publisher	バウンシーレコーズ	バウンシーレコーズ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -21104,7 +21104,7 @@ p_l_g_n_d	publisher	P.L.G.N.D	P.L.G.N.D	as_is		Latin ad — as_is
 panel_syndicate	publisher	Panel Syndicate	Panel Syndicate	as_is		Latin ad — as_is
 papilio	publisher	papilio	papilio	as_is		Latin ad — as_is
 paranoia_paradox	publisher	PARANOIA PARADOX	PARANOIA PARADOX	as_is		Latin ad — as_is
-pash	publisher	コミックPASH！	コミックPASH！	existing		değer eşleşmesi: コミックPASH！ → bangumi_magazine_pash	bangumi_magazine_pash
+pash	publisher	Comic PASH!	Comic PASH!	existing		değer eşleşmesi: コミックPASH！ → bangumi_magazine_pash | 009:mirror (bangumi_magazine_pash)	bangumi_magazine_pash
 pb2_records_2	publisher	PB2 RECORDS	PB2 RECORDS	as_is		Latin ad — as_is
 pc_12	publisher	ビジュアルアーツ PC	ビジュアルアーツ PC	as_is		Latin ad — as_is
 pc_24	publisher	雲豹娛樂 PC	雲豹娛樂 PC	as_is		Latin ad — as_is
@@ -21993,7 +21993,7 @@ cjk_86ffea	studio	朱超	朱超	as_is		bilinmeyen CJK — as_is (uydurma romaniz
 cjk_873fac	studio	スタジオ偽恋	スタジオ偽恋	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_878a6d	studio	うにか	うにか	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_87b075	studio	ブルーキャット	ブルーキャット	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_883e15	studio	ひつじぐも	ひつじぐも	existing		değer eşleşmesi: ひつじぐも → bangumi_publisher_cjk_883e15	bangumi_publisher_cjk_883e15
+cjk_883e15	studio	Hitsujigumo	Hitsujigumo	existing		değer eşleşmesi: ひつじぐも → bangumi_publisher_cjk_883e15 | 009:mirror (bangumi_publisher_cjk_883e15)	bangumi_publisher_cjk_883e15
 cjk_8844ea	studio	わたくび	わたくび	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_88faa1	studio	李婷婷	李婷婷	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_890ccf	studio	新系统屋噢	新系统屋噢	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -23567,7 +23567,7 @@ cjk_3d4abe	magazine	Comic Beam	Comic Beam	global		global/TR-EN düzeltmesi (コ�
 cjk_3d7798	magazine	貧乳素肌	貧乳素肌	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3d7ab3	magazine	シガリロ	シガリロ	existing		değer eşleşmesi: シガリロ → bangumi_publisher_cjk_3d7ab3	bangumi_publisher_cjk_3d7ab3
 cjk_3d8a34	magazine	コミックゲーメスト	コミックゲーメスト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_3dca40	magazine	クリムゾン	クリムゾン	existing		değer eşleşmesi: クリムゾン → bangumi_publisher_cjk_3dca40	bangumi_publisher_cjk_3dca40
+cjk_3dca40	magazine	Crimson	Crimson	existing		değer eşleşmesi: クリムゾン → bangumi_publisher_cjk_3dca40 | 009:mirror (bangumi_publisher_cjk_3dca40)	bangumi_publisher_cjk_3dca40
 cjk_3dcd91	magazine	もえスタビースト	もえスタビースト	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3dd272	magazine	小学館の学年別学習雑誌 小学三年生	小学館の学年別学習雑誌 小学三年生	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_3e4b00	magazine	限定)	限定)	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -32134,7 +32134,7 @@ cjk_880f77	producer	北京三角猫文化	北京三角猫文化	as_is		bilinmeye
 cjk_881117	producer	ワオ	ワオ	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_8824d4	producer	ぴた組	ぴた組	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_88371b	producer	川村英己	川村英己	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_883e15	producer	ひつじぐも	ひつじぐも	existing		değer eşleşmesi: ひつじぐも → bangumi_publisher_cjk_883e15	bangumi_publisher_cjk_883e15
+cjk_883e15	producer	Hitsujigumo	Hitsujigumo	existing		değer eşleşmesi: ひつじぐも → bangumi_publisher_cjk_883e15 | 009:mirror (bangumi_publisher_cjk_883e15)	bangumi_publisher_cjk_883e15
 cjk_884846	producer	佐伯雅久	佐伯雅久	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_884c32	producer	李义华	李义华	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_8852cb	producer	正大钱	正大钱	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -35393,7 +35393,7 @@ cjk_dd8efe	producer	大坊五郎	大坊五郎	as_is		bilinmeyen CJK — as_is (u
 cjk_dd9d4d	producer	いがらしみきお	いがらしみきお	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_dd9ef9	producer	范冰冰工作室	范冰冰工作室	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_dda54a	producer	程武 总出品人	程武 总出品人	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
-cjk_dda57f	producer	北陸朝日放送	北陸朝日放送	existing		değer eşleşmesi: 北陸朝日放送 → bangumi_network_cjk_dda57f	bangumi_network_cjk_dda57f
+cjk_dda57f	producer	Hokuriku Asahi Broadcasting	Hokuriku Asahi Broadcasting	existing		değer eşleşmesi: 北陸朝日放送 → bangumi_network_cjk_dda57f | 009:mirror (bangumi_network_cjk_dda57f)	bangumi_network_cjk_dda57f
 cjk_ddac65	producer	极刃工作室	极刃工作室	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_ddb50e	producer	津山智香	津山智香	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
 cjk_ddc119	producer	企画监修：	企画监修：	as_is		bilinmeyen CJK — as_is (uydurma romanizasyon yok)
@@ -39054,7 +39054,7 @@ nbcuniversal_syndication_studi	producer	NBCUniversal Syndication Studios	NBCUniv
 nc	producer	読売広告社(NC)	読売広告社(NC)	as_is		Latin ad — as_is
 ncc	producer	Nagasaki Cultural Broadcasting	Nagasaki Cultural Broadcasting	existing		değer eşleşmesi: Nagasaki Cultural Broadcasting → bangumi_network_ncc	bangumi_network_ncc
 neal_marlens_1985_86	producer	Neal Marlens (1985–86)	Neal Marlens (1985–86)	as_is		Latin ad — as_is
-neco	producer	チャンネルNECO	チャンネルNECO	existing		değer eşleşmesi: チャンネルNECO → bangumi_network_neco	bangumi_network_neco
+neco	producer	Channel NECO	Channel NECO	existing		değer eşleşmesi: チャンネルNECO → bangumi_network_neco | 009:mirror (bangumi_network_neco)	bangumi_network_neco
 ned_lott	producer	Ned Lott	Ned Lott	as_is		Latin ad — as_is
 neets	producer	Tokyo Active NEETs	Tokyo Active NEETs	global		global/TR-EN düzeltmesi (東京アクティブNEETs)	bangumi_publisher_neets
 neiges_d_antan	producer	neiges d'antan	neiges d'antan	as_is		Latin ad — as_is
@@ -39818,7 +39818,7 @@ tas	producer	(TaS	(TaS	as_is		Latin ad — as_is
 task	producer	TASK	TASK	as_is		Latin ad — as_is
 tasunoko_productions	producer	Tasunoko Productions (龙之子)	Tasunoko Productions (龙之子)	as_is		Latin ad — as_is
 tatsunoko_e7d53106d5	producer	TATSUNOKO制作公司	TATSUNOKO制作公司	as_is		Latin ad — as_is · cid çakışması önlendi
-tbc_2	producer	TBC東北放送	TBC東北放送	existing		değer eşleşmesi: TBC東北放送 → bangumi_network_tbc_2	bangumi_network_tbc_2
+tbc_2	producer	Tohoku Broadcasting (TBC)	Tohoku Broadcasting (TBC)	existing		değer eşleşmesi: TBC東北放送 → bangumi_network_tbc_2 | 009:mirror (bangumi_network_tbc_2)	bangumi_network_tbc_2
 tbs_10	producer	翼人伝承会 TBS	翼人伝承会 TBS	as_is		Latin ad — as_is
 tbs_11	producer	平野隆 TBS	平野隆 TBS	as_is		Latin ad — as_is
 tbs_13	producer	加藤新(TBSテレビ)	加藤新(TBSテレビ)	as_is		Latin ad — as_is
@@ -53678,7 +53678,7 @@ extra_long	tag	Aşırı Uzun	Extra Long	new	超長篇	chunk 006_b
 saki_hasemi	tag	Saki Hasemi	Saki Hasemi	global	长谷见沙贵	resmî/global ad
 junichi_sato	tag	Junichi Sato	Junichi Sato	global	佐藤顺一	resmî/global ad
 initial_d	tag	Initial D	Initial D	global	头文字D	resmî/global ad
-multi_volumes	tag	multi-volumes	multi-volumes	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
+multi_volumes	tag	Çok Ciltli	Multi-Volume	new		Latin/CJK ad korundu (uydurma romanizasyon yok) | 009:new (as_is: multi-volumes)
 betsucomi	tag	Betsucomi	Betsucomi	global	ベツコミ	resmî/global ad
 mary_jane	tag	Mary Jane	Mary Jane	global	メリー・ジェーン	resmî/global ad
 vita	tag	Vita	Vita	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
@@ -54165,7 +54165,7 @@ hakuoki	tag	Hakuoki	Hakuoki	global	薄樱鬼	resmî/global ad
 joji_nakata	tag	Joji Nakata	Joji Nakata	global	中田譲治	resmî/global ad
 hitsuji_de_oyasumi	tag	Hitsuji de Oyasumi Series	Hitsuji de Oyasumi Series	global	羊でおやすみシリーズ	resmî/global ad
 masaya_onosaka	tag	Masaya Onosaka	Masaya Onosaka	global	小野坂昌也	resmî/global ad
-cosplay	tag	Cosplay	Cosplay	existing	cosplay	cosplay
+cosplay	tag	Kostümlü Oyun	Cosplay	new	cosplay	cosplay | 009:new (existing: Cosplay)
 cuvie	tag	Cuvie	Cuvie	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 famishin	tag	Famishin	Famishin	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
 fifthavenue	tag	FifthAvenue	FifthAvenue	as_is		Latin/CJK ad korundu (uydurma romanizasyon yok)
@@ -58029,7 +58029,7 @@ cjk_ee92cc	tag	乃木坂春香的秘密	乃木坂春香的秘密	as_is		as_is: d
 cjk_ee9bf6	tag	竹野内丰	竹野内丰	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_efb945	tag	黒雛	黒雛	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_f12aee	tag	三枝成彰	三枝成彰	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_f33696	tag	孤独	孤独	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_f33696	tag	Yalnızlık	Loneliness	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 孤独)
 cjk_f3cde1	tag	信本敬子	信本敬子	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_f579b5	tag	小山宙哉	小山宙哉	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_f5a7b4	tag	長鴻	長鴻	as_is		as_is: doğrulanmamış CJK özel ad
@@ -61214,7 +61214,7 @@ cjk_31b8c7	tag	大嘘	大嘘	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3359d2	tag	公式アンソロジー	公式アンソロジー	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_345917	tag	吸血鬼骑士	吸血鬼骑士	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3461a6	tag	高橋脩	高橋脩	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_35d996	tag	学生	学生	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_35d996	tag	Öğrenci	Student	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 学生)
 cjk_360b80	tag	松本直也	松本直也	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_38902f	tag	袴田吉彦	袴田吉彦	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_391fca	tag	尾崎弘宜	尾崎弘宜	as_is		as_is: doğrulanmamış CJK özel ad
@@ -63377,7 +63377,7 @@ cjk_1fb043	tag	玉置成实	玉置成实	as_is		as_is: doğrulanmamış CJK öze
 cjk_1fb938	tag	榎波克己	榎波克己	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1fe7fd	tag	平野靖士	平野靖士	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1fead8	tag	松本淳	松本淳	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_1ffeb8	tag	浮気	浮気	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_1ffeb8	tag	Aldatma	Infidelity	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 浮気)
 cjk_208ef6	tag	福克斯	福克斯	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_20ee53	tag	靄太郎	靄太郎	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_20f625	tag	下天の華	下天の華	as_is		as_is: doğrulanmamış CJK özel ad
@@ -63978,7 +63978,7 @@ cjk_aa2b45	tag	伊藤淳史	伊藤淳史	as_is		as_is: doğrulanmamış CJK öze
 cjk_aa2d2e	tag	天地無用	天地無用	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_aa3a61	tag	編輯	編輯	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_aa503f	tag	野川樱	野川樱	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_aa5b42	tag	秘密	秘密	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_aa5b42	tag	Sır	Secret	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 秘密)
 cjk_aab4c6	tag	中居正広	中居正広	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_ab1736	tag	纯洁的玛利亚	纯洁的玛利亚	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_ab5d9b	tag	杨笑汝	杨笑汝	as_is		as_is: doğrulanmamış CJK özel ad
@@ -65581,7 +65581,7 @@ cjk_65becc	tag	西沢はぐみ	西沢はぐみ	as_is		as_is: doğrulanmamış CJ
 cjk_660bac	tag	のの原兎太	のの原兎太	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_66323f	tag	経験値	経験値	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_66daa1	tag	西田ヒガシ	西田ヒガシ	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_66f8e9	tag	有声漫画	有声漫画	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_66f8e9	tag	Sesli Çizgi Roman	Voiced Comic	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 有声漫画)
 cjk_671a66	tag	银河爱豆	银河爱豆	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_677605	tag	衣谷游	衣谷游	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_677bcb	tag	伊藤加奈子	伊藤加奈子	as_is		as_is: doğrulanmamış CJK özel ad
@@ -68795,7 +68795,7 @@ cjk_7f8dcf	tag	されど罪人は竜と踊る	されど罪人は竜と踊る	as_
 cjk_7fa6a6	tag	神保ひとで	神保ひとで	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_80047a	tag	蓝川沙季	蓝川沙季	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_802e21	tag	川栄李奈	川栄李奈	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_804ec5	tag	美少年	美少年	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_804ec5	tag	Güzel Erkek	Bishōnen	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 美少年)
 cjk_804fa8	tag	森崎ウィン	森崎ウィン	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_805127	tag	京吹	京吹	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_8059bd	tag	土屋斗紀雄	土屋斗紀雄	as_is		as_is: doğrulanmamış CJK özel ad
@@ -69166,7 +69166,7 @@ cjk_a3ede6	tag	池上明子	池上明子	as_is		as_is: doğrulanmamış CJK öze
 cjk_a3f2de	tag	角川文庫	角川文庫	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_a3f9e4	tag	辉夜姬	辉夜姬	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_a4247a	tag	戸田山雅司	戸田山雅司	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_a43864	tag	拟人化	拟人化	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_a43864	tag	Kişileştirme	Anthropomorphism	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 拟人化)
 cjk_a48502	tag	百合姫	百合姫	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_a49139	tag	伊藤信雄	伊藤信雄	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_a49c15	tag	半条命	半条命	as_is		as_is: doğrulanmamış CJK özel ad
@@ -72236,7 +72236,7 @@ cjk_1ed248	tag	サバイバル刃	サバイバル刃	as_is		as_is: doğrulanmam�
 cjk_1edca0	tag	小説野性時代	小説野性時代	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1eeebd	tag	竹田悠介	竹田悠介	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1ef478	tag	杉森建	杉森建	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_1f02f4	tag	地球	地球	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_1f02f4	tag	Dünya	Earth	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 地球)
 cjk_1f0caf	tag	横田惠	横田惠	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1f1320	tag	全员	全员	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_1f2196	tag	青池保子	青池保子	as_is		as_is: doğrulanmamış CJK özel ad
@@ -74428,7 +74428,7 @@ cjk_846d99	tag	椋露地桂子	椋露地桂子	as_is		as_is: doğrulanmamış CJ
 cjk_84850c	tag	秋津環	秋津環	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_848c6f	tag	藤田祥雄	藤田祥雄	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_848f8e	tag	坂崎忠	坂崎忠	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_849623	tag	電子書籍	電子書籍	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_849623	tag	E-Kitap	E-book	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 電子書籍)
 princess_series	tag	Prenses Serisi	Princess Series	new	公主系列	morfoloji:seri+sonek
 cjk_84a2d6	tag	英美合作	英美合作	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_84a4eb	tag	神捏它	神捏它	as_is		as_is: doğrulanmamış CJK özel ad
@@ -74493,7 +74493,7 @@ cjk_877b57	tag	本島幸久	本島幸久	as_is		as_is: doğrulanmamış CJK öze
 cjk_878986	tag	蓝精灵	蓝精灵	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_878f61	tag	石滨真史	石滨真史	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_879040	tag	史堂櫂	史堂櫂	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_8792ab	tag	彩色	彩色	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_8792ab	tag	Renkli	Color	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 彩色)
 cjk_87973b	tag	工藤隆	工藤隆	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_879ba6	tag	北海惣史郎	北海惣史郎	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_87a3ba	tag	幸福小镇	幸福小镇	as_is		as_is: doğrulanmamış CJK özel ad
@@ -75762,7 +75762,7 @@ cjk_bfab65	tag	星の在り処	星の在り処	as_is		as_is: doğrulanmamış CJ
 cjk_bfbb8c	tag	【系列】高达	【系列】高达	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_bfcb72	tag	長崎健司	長崎健司	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_bfd598	tag	増田隆宣	増田隆宣	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_bfde96	tag	希望	希望	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_bfde96	tag	Umut	Hope	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 希望)
 cjk_bfe467	tag	青涩文学系列	青涩文学系列	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_c00507	tag	川崎琴	川崎琴	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_c02505	tag	被封锁的涩谷	被封锁的涩谷	as_is		as_is: doğrulanmamış CJK özel ad
@@ -81420,7 +81420,7 @@ cjk_06c398	tag	长期	长期	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_06c47f	tag	山本漫画制作所	山本漫画制作所	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_06ce8f	tag	羽中	羽中	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_06d084	tag	侦探战队	侦探战队	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_06d1f4	tag	圣女	圣女	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_06d1f4	tag	Azize	Saint	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 圣女)
 cjk_06d22e	tag	江思洁	江思洁	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_06d446	tag	比嘉爱未	比嘉爱未	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_06d711	tag	安全确认	安全确认	as_is		as_is: doğrulanmamış CJK özel ad
@@ -84739,7 +84739,7 @@ cjk_2c457e	tag	新人物	新人物	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_2c46f4	tag	真利子哲也	真利子哲也	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_2c472d	tag	决死+之梦	决死+之梦	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_2c4bbd	tag	作画东条千佳	作画东条千佳	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_2c4da2	tag	総集編	総集編	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_2c4da2	tag	Derleme Bölüm	Compilation	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 総集編)
 cjk_2c4efe	tag	夏诺娅御姐！	夏诺娅御姐！	as_is		as_is: doğrulanmamış CJK özel ad
 american_idol	tag	Amerikan · İdol	American Idol	new	美国偶像	morfoloji:kök+kök
 cjk_2c6bb1	tag	辻理	辻理	as_is		as_is: doğrulanmamış CJK özel ad
@@ -86246,7 +86246,7 @@ cjk_3db223	tag	糖人家	糖人家	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3db250	tag	兔宝	兔宝	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3db304	tag	砂阿久雁	砂阿久雁	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3db7b1	tag	央川みはら	央川みはら	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_3db8bf	tag	上司	上司	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_3db8bf	tag	Amir	Boss	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 上司)
 cjk_3dbaad	tag	吉本浩二	吉本浩二	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3dbbac	tag	星川由美	星川由美	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_3dbc75	tag	王蕾和安安组成了一小三一碧池组合，小三是王蕾，碧池也是王蕾	王蕾和安安组成了一小三一碧池组合，小三是王蕾，碧池也是王蕾	as_is		as_is: doğrulanmamış CJK özel ad
@@ -86696,7 +86696,7 @@ cjk_429dd5	tag	疾風ロンド	疾風ロンド	as_is		as_is: doğrulanmamış CJ
 cjk_429f94	tag	不能游泳！！！	不能游泳！！！	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_42a3ed	tag	青山桐子	青山桐子	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_42ae1a	tag	片道勇者	片道勇者	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_42b8ba	tag	花火	花火	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_42b8ba	tag	Havai Fişek	Fireworks	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 花火)
 cjk_42ba0d	tag	峯岸みなみ	峯岸みなみ	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_42baf0	tag	编剧逆天	编剧逆天	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_42bddb	tag	熊谷育美	熊谷育美	as_is		as_is: doğrulanmamış CJK özel ad
@@ -93120,7 +93120,7 @@ cjk_8e60a1	tag	未完童话	未完童话	as_is		as_is: doğrulanmamış CJK öze
 cjk_8e61e7	tag	增田雄市	增田雄市	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_8e629c	tag	手感很不错，打起来也很有萌感	手感很不错，打起来也很有萌感	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_8e62d0	tag	松本正志	松本正志	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_8e645b	tag	欲望	欲望	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_8e645b	tag	Arzu	Desire	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 欲望)
 cjk_8e6d96	tag	很对我胃口	很对我胃口	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_8e7005	tag	八蔦生人	八蔦生人	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_8e7234	tag	铃木爱理	铃木爱理	as_is		as_is: doğrulanmamış CJK özel ad
@@ -96480,7 +96480,7 @@ cjk_b6e9a1	tag	跳蚤	跳蚤	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_b6f103	tag	牺牲换来胜利	牺牲换来胜利	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_b6f2c2	tag	腦同步	腦同步	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_b6f4b5	tag	地狱犬的挽歌	地狱犬的挽歌	as_is		as_is: doğrulanmamış CJK özel ad
-cjk_b6f54f	tag	失恋	失恋	as_is		as_is: doğrulanmamış CJK özel ad
+cjk_b6f54f	tag	Kalp Kırıklığı	Heartbreak	new		as_is: doğrulanmamış CJK özel ad | 009:new (as_is: 失恋)
 cjk_b6fa86	tag	三宅乱太	三宅乱太	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_b709c2	tag	实体化	实体化	as_is		as_is: doğrulanmamış CJK özel ad
 cjk_b70d6f	tag	金贤秀	金贤秀	as_is		as_is: doğrulanmamış CJK özel ad
