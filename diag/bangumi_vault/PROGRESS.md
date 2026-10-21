@@ -705,6 +705,24 @@ Chunk 004c için durumu (2026-10-21) → her satır **✅ tamam**:
       çalıştırılamadı. Kotlin tarafı yalnız `verify_bangumi_master.py` + `gen --check` +
       RAW parça bayt denetimiyle doğrulandı; asıl derleme CI'da (kotlinc adımı) koşar.
 
+### PR #22 CI takip — 2026-10-21
+
+- `verify` işi **✅ geçti** (Python doğrulayıcı + `gen --check`): 5.013 eşleme, gerçek çakışma 0,
+  TR/EN 11.311 = 11.311, RAW 6 parça. `🔨 Sözlükleri derle (kotlinc)` adımı da geçti.
+- `🧪 BangumiMasterDictionaryTest` (Gradle `testFossDebugUnitTest`) adımı **düştü**. Bu hata
+  chunk 004c içeriğiyle ilgili **değil**:
+  - Aynı adım `main` 4ef8714 run `39570087370`'de de düşüyor (ayrıca orada `🐍 Python doğrulayıcı`
+    da düşüyor — VAULT öncesi bilinen `神作 → masterpiece` sorunu; bu dalda o adım geçiyor).
+  - Aynı adım, **yalnız `PROGRESS.md` değiştiren** docs-only commit `e4b968f` run `39571452313`'te de düştü.
+  - Testin sabitlediği tüm sözlük iddiaları yerelde RAW üzerinden simüle edildi: **0 uyuşmazlık**
+    (`京アニ`/`京都动画`/`ボンズ`/`木棉花`/`TOKYO MX`/`フジテレビ`/`Production I.G`/`Pony Canyon` …
+    ve negatif iddialar `光坂高校演劇部`/`PROJECT-XXX`/`Clannad製作委員会` = eşleşme yok).
+  - Log/artifact indirme bu ortamda kısıtlı (`results-receiver.actions.githubusercontent.com` ve
+    `blob.core.windows.net` erişilemiyor) → adım çıktısı okunamadı.
+- Sonuç: dalgalı/altyapı kaynaklı kabul edildi; GitHub UI'dan "Re-run failed jobs" ile yeniden
+  denenebilir. Kod tarafı doğrulaması `verify_vault.py` + `verify_bangumi_master.py` +
+  `gen --check` + RAW bayt denetimi + yerel RAW simülasyonu ile tamamlandı.
+
 Chunk 004a için durumu (2026-10-21) → her satır **✅ tamam**:
 
 - [x] `draft_org_map.py --chunk 004a --min-count 60 --max-count 99` → 567 map + 501 canon satırı
