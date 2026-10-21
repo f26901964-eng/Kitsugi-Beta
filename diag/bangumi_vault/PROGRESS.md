@@ -2,7 +2,8 @@
 
 > **Bu dosya devir teslim dosyasıdır.** Yeni bir dal/şube işi buradan devralır.
 > Son güncelleme: **2026-10-21** · Chunk **001 + 002 + 003 + 004a + 004b + 004c + 005a + 005b** tamamlandı, uygulamaya işlendi.
-> Chunk 005b PR'ı: `arena/1e0c5ecd-kitsugi-beta` dalından açıldı (numarası Bölüm 2i'de).
+> Chunk 005b, aynı dalda olduğu için **PR #23** içinde taşınıyor (005a ile birlikte):
+> https://github.com/f26901964-eng/Kitsugi-Beta/pull/23
 > Chunk 005a PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/23 (dal `arena/1e0c5ecd-kitsugi-beta`).
 > Chunk 004c PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/22 — **`main`'e MERGE EDİLDİ** (2026-10-21).
 > Dal `arena/c54b58d5-kitsugi-beta`; chunk 001+002+003+004a+004b+004c'nin tamamını taşır. Artık yeni dal
@@ -520,7 +521,8 @@ Araç değişiklikleri (geriye dönük uyumlu):
 
 ### 2i) CHUNK 005b (TAMAM ✓ · 2026-10-21) — kurum count 5–9
 
-PR: `arena/1e0c5ecd-kitsugi-beta` dalından (numarası commit sonrası buraya işlendi).
+PR: https://github.com/f26901964-eng/Kitsugi-Beta/pull/23 — başlık `v2.4.327–328 … chunk 005a + 005b`
+(dal `arena/1e0c5ecd-kitsugi-beta`; 005a ile aynı PR'da, tek dal kuralı).
 
 | Rol | Kararlı | SKIP | Toplam |
 |---|---:|---:|---:|
@@ -869,7 +871,7 @@ Her chunk aynı pipeline'ı izler (Bölüm 0d). Bilinmeyen kişi/kurumlar `as_is
 
 ## 8. Kapanış kontrol listesi (chunk sonlarında)
 
-Chunk 005b için durumu (2026-10-21) → son iki satır hariç **✅ tamam**:
+Chunk 005b için durumu (2026-10-21) → son satır hariç **✅ tamam**:
 
 - [x] `draft_org_map.py --chunk 005b --min-count 5 --max-count 9` → 4.311 map + 4.239 canon satırı
       (taslak gözden geçirildi; +276 bilgi tabanı satırı, 30 ikiz grubu birleştirildi,
@@ -885,7 +887,8 @@ Chunk 005b için durumu (2026-10-21) → son iki satır hariç **✅ tamam**:
 - [x] Drive'a yüklendi: PROGRESS.md, progress.json, decisions/canon.tsv,
       decisions/map_chunk_005b_orgs.tsv, decisions/org_global_names.tsv,
       translations_done.tsv, translations_pending.tsv
-- [ ] Git commit + push (dal `arena/1e0c5ecd-kitsugi-beta`) + PR açıldı (numarası Bölüm 2i'de)
+- [x] Git commit + push (dal `arena/1e0c5ecd-kitsugi-beta`); chunk 005b **PR #23** içinde
+      (https://github.com/f26901964-eng/Kitsugi-Beta/pull/23)
 - [ ] **Not (yerel derleme):** bu oturumda JDK/kotlinc kurulu değildi; Kotlin tarafı yalnız
       `verify_bangumi_master.py` + `gen --check` + RAW parça bayt denetimiyle doğrulandı;
       asıl derleme CI'da (kotlinc adımı) koşar.
