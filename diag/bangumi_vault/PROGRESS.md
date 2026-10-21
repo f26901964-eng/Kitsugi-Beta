@@ -20,6 +20,10 @@
 > Chunk 002 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/16 (önceki kaynak dal)
 > Chunk 001 PR'ı: https://github.com/f26901964-eng/Kitsugi-Beta/pull/15
 > Drive klasörü: https://drive.google.com/drive/folders/1pZAOYsAnMjveNK6grdXjqV9IDM1TFaJp
+> ⚠ **Drive dosya kimlikleri sabit değildir:** içerik her güncellendiğinde
+> `delete_file` → `upload_file` yapıldığı için **yeni bir kimlik** oluşur. Aşağıda/2k'da
+> yazan kimlikler **tarihli**dir; güncel kimliği her zaman **klasör listesinden ada göre**
+> doğrula, kimliği ezberden kullanma.
 
 ---
 
@@ -1005,9 +1009,26 @@ RAW sınırı **49.999** tutulur; tam 50.000'e izin veren eski üst sınır dara
 | `verify_vault.py` | ✅ **52.219 / 51.104 / 61.398 / 121.284** |
 | `verify_bangumi_master.py` | ✅ 52.176 eşleme · GERÇEK çakışma 0 · TR=EN 58.398 |
 | `gen_bangumi_master.py --check` | ✅ +0 grup · +0 etiket · +0 kayıt |
-| `unittest` (scripts) | ✅ 18/18 |
+| `unittest` (scripts) | ✅ 23/23 (18 + 5 yeni `test_tag_dict_chunks.py`: parçalama / yeniden dengeleme / idempotentlik) |
 | Kapasite | app 11.292/20.000 · shard 13.565/13.782/13.580 (16.000) · RAW 66 parça ≤49.999 |
+| Drive | ✅ 2026-10-21: map a–d + canon + done + pending + progress + PROGRESS yüklendi |
 | Yerel derleme | ⚠ YAPILMADI — sandbox'ta JDK/kotlinc yok; "derlendi" DENMEZ |
+
+**006 Drive yüklemesi (2026-10-21, kimlikler tarihli):**
+
+| Dosya | Drive kimliği | Bayt |
+|---|---|---|
+| `map_chunk_006_a_tags.tsv` | `197E0QLsPBbPUqxuk3GuyxfddAKORv5MM` | 32.880 |
+| `map_chunk_006_b_tags.tsv` | `13PK1OCmqcNES3JQkplHOaR5o-66_b2if` | 49.074 |
+| `map_chunk_006_c_tags.tsv` | `1-dQJMkQ01MQbxH1p0TIjkv10lnCFYafM` | 50.866 |
+| `map_chunk_006_d_tags.tsv` | `1m9-1mI8fQmUFsEtpL8gEqJv89dbXyb9j` | 95.130 |
+| `decisions/canon.tsv` | `1Gjc0TpzXYGgFaeeH7P13wIWMcQzJHmul` | 5.847.695 |
+| `translations_done.tsv` | `1KsaLgEPckQhAH0HgE-sytCxL7Dgt1bJ2` | 7.141.787 |
+| `translations_pending.tsv` | `1U_hsTZuMxBL2u0mMlrVtmQe7zZQ9C_2W` | 5.102.517 |
+| `progress.json` | PROGRESS.md ile aynı gün yüklendi; kimliği **yenilenir** | — |
+| `PROGRESS.md` | kendini yüklerken kimliği yenilenir → klasörden ada göre bul | — |
+
+`005c_a/b/c` mapleri ve `org_global_names.tsv` bu turda **değişmedi**, yeniden yüklenmedi.
 
 **CI durumu:** gerçek CI bu chunk'ta **çalıştırılmadı/izlenmedi**; PR açıldıktan sonra
 sonuç ayrıca raporlanacak. Bilinen kırıklar (PR #24'ten devreden):
