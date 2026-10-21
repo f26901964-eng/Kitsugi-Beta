@@ -456,10 +456,13 @@ Chunk 003 için durumu (2026-10-21) → her satır **✅ tamam**:
   `stream_*` string anahtarının TR/EN kaynaklarından eksik olduğunu buldu. Anahtarlar base
   `13349e1`'de mevcuttu; önceki kaynak dosyası değişikliğinde düşmüşler. İki dil dosyasına
   base değerleriyle geri eklendiler; `Android Derleme Doğrulama` da aynı eksikleri bildirmişti.
-- Geri yükleme sonrası yerel doğrulama: XML parse + TR/EN simetrisi, `apply_map.py --check`,
-  `vault_to_strings.py --check`, `verify_vault.py`, `verify_bangumi_master.py`,
-  `gen_bangumi_master.py --check` ve JDK 17 + Kotlin 2.4.21 ile `compile_check.sh` geçti.
-  String kaynakları düzeltmesi push edildikten sonra GitHub Actions yeniden kontrol edilecek.
+- String düzeltmesi commit'i `938ac40` push edildikten sonra run `39565480946`'de `verify`,
+  sözlük kotlinc harness'ı ve tam uygulama Kotlin derlemesi geçti; `testFossDebugUnitTest` ise
+  `MalWebParserTest.followsOnlyObservedSameOriginNextPageLinks` ve
+  `MalNotificationsClientTest.acceptsOnlySameOriginNotificationContinuationUrls` testlerinde
+  başarısız oldu. Android `build-debug` run `39565476427` aynı test hatalarını verdi.
+  İki test ve MAL parser/client dosyaları PR base `13349e1`'den beri değişmedi; Bangumi düzeltmesi
+  bunlarla ilişkili değil. Bu, ayrı bir takip konusu olarak bırakıldı.
 
 Chunk 002 için durumu (2026-10-21) → her satır **✅ tamam**:
 
