@@ -220,13 +220,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         if (live.isEmpty()) return
         NotificationArchiveStore.mergeSourceAsync(ctx, source, live.map { it.toArchived() })
 
-        // Bulut yedeği — giriş yoksa sessizce atlanır; akış asla beklemez.
-        if (KitsugiAccountRepository.isLoggedIn()) {
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching { KitsugiAccountRepository.pushNotificationArchive(ctx) }
-                    .onFailure { android.util.Log.w("KitsugiNotif", "Arşiv buluta yazılamadı: ${it.message}") }
-            }
-        }
+        // Cloud sync is scheduled by the store AFTER its local write completes.
     }
 
     /**

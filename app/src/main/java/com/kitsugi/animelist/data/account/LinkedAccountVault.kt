@@ -11,8 +11,8 @@ import com.kitsugi.animelist.data.account.VaultCrypto.b64
 import com.kitsugi.animelist.data.account.VaultCrypto.unb64
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.from
@@ -30,6 +30,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -65,8 +68,6 @@ import com.kitsugi.animelist.R
  */
 object LinkedAccountVault {
 
-    private const val TAG = "LinkedAccountVault"
-
     // Token'ların bulunduğu mevcut SharedPreferences dosyası (diğer auth sınıflarıyla aynı)
     private const val TOKEN_PREFS = "MyWebViewPrefs"
     // Kasa anahtarının cihaz kopyası (oturum kapanınca silinir)
@@ -97,48 +98,57 @@ object LinkedAccountVault {
     private var settingsObserver: Job? = null
     private val mutex = Mutex()
     @Volatile private var restoring = false
-    private val _status = MutableStateFlow("Yedek durumu henüz doğrulanmadı.")
+    private const val INITIAL_STATUS = "Yedek durumu henüz doğrulanmadı."
+    private val _status = MutableStateFlow(INITIAL_STATUS)
+    private var statusOwner: String? = null
     val status = _status.asStateFlow()
+    // Compose observes readiness instead of decrypting Android Keystore data on every frame.
+    private val _unlockedOwner = MutableStateFlow<String?>(null)
+    val unlockedOwner = _unlockedOwner.asStateFlow()
     private val _conflicts = MutableStateFlow<Set<String>>(emptySet())
     val conflicts = _conflicts.asStateFlow()
     private var conflictRemote: JsonElement? = null
+    private var conflictOwner: String? = null
 
     /** Auth must not replace the singleton client's JWT in the middle of an upload for another owner. */
     suspend fun <T> changeSession(action: suspend () -> T): T = withContext(Dispatchers.IO) {
         mutex.withLock { action() }
     }
 
-    private suspend fun operation(block: suspend () -> Unit): Result<Unit> = withContext(Dispatchers.IO) {
+    private suspend fun operation(context: Context, block: suspend () -> Unit): Result<Unit> = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
                 block()
                 Result.success(Unit)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                _status.value = when (e) {
-                    is VaultConflictException, is VaultLockedException -> e.message.orEmpty()
-                    else -> KitsugiStrings.get(R.string.vault_operation_incomplete_generic)
-                }
+            } catch (e: LinkageError) {
+                _status.value = AccountErrorFormatter.userMessage(e)
                 Result.failure(e)
+            } catch (e: Exception) {
+                _status.value = AccountErrorFormatter.userMessage(e)
+                Result.failure(e)
+            } finally {
+                _unlockedOwner.value = userId()?.takeIf { hasLocalVault(context) }
+                statusOwner = userId()
             }
         }
     }
 
     /** Kullanıcının elle yönettiği otomatik yedekleme anahtarı (varsayılan: açık). */
     @Volatile
-    var autoBackupEnabled: Boolean = true
+    var autoBackupEnabled: Boolean = false
         private set
 
     /**
      * Otomatik yedeği aç/kapa. Açılışta bekleyen işler kuyruklanır; kapanışta
-     * periyodik + bekleyen WorkManager işleri iptal edilir. Elle "Şimdi eşitle"
-     * bu anahtardan bağımsız olarak her zaman çalışır.
+     * periyodik + bekleyen WorkManager işleri iptal edilir. Hesap ekranındaki
+     * "Şimdi eşitle" de yalnızca seçili veri kategorilerini eşitler.
      */
     fun setAutoBackupEnabled(context: Context, enabled: Boolean) {
         autoBackupEnabled = enabled
         val uid = userId() ?: return
-        if (enabled) {
+        if (enabled && _unlockedOwner.value == uid) {
             VaultBackupWorker.periodic(context, uid)
             VaultBackupWorker.enqueue(context, uid)
         } else {
@@ -150,6 +160,7 @@ object LinkedAccountVault {
         if (restoring) return
         if (!autoBackupEnabled) return
         val uid = userId() ?: return
+        if (_unlockedOwner.value != uid) return
         appContext?.let { VaultBackupWorker.enqueue(it, uid) }
     }
 
@@ -250,14 +261,23 @@ object LinkedAccountVault {
         localVaultKey(context) != null && LocalVaultKeyStore.baseline(context, uid) != null
     }.getOrDefault(false)
 
-    suspend fun forgetLocalVault(context: Context) = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            LocalVaultKeyStore.owner(context)?.let { VaultBackupWorker.cancel(context, it) }
-            LocalVaultKeyStore.clear(context)
-            _conflicts.value = emptySet()
-            conflictRemote = null
-            _status.value = KitsugiStrings.get(R.string.kasa_kilitli_giris_yaparak_acabilirsin)
-        }
+    private fun forgetLocalVaultUnlocked(context: Context) {
+        LocalVaultKeyStore.owner(context)?.let { VaultBackupWorker.cancel(context, it) }
+        LocalVaultKeyStore.clear(context)
+        _unlockedOwner.value = null
+        _conflicts.value = emptySet()
+        conflictRemote = null
+        conflictOwner = null
+        _status.value = KitsugiStrings.get(R.string.kasa_kilitli_giris_yaparak_acabilirsin)
+    }
+
+    /** Keep the only local decryption key if flushing or server sign-out fails. */
+    suspend fun signOutAndForget(context: Context, signOut: suspend () -> Unit): Result<Unit> = operation(context) {
+        val uid = userId()
+        val enabled = SettingsDataStore(context).settingsFlow.first().accountBackupEnabled
+        if (uid != null && enabled && hasLocalVault(context)) backupUnlocked(context, uid)
+        signOut()
+        forgetLocalVaultUnlocked(context)
     }
 
     // ─────────────────────────── Bulut işlemleri ───────────────────────────
@@ -293,10 +313,17 @@ object LinkedAccountVault {
      *  • Yedek varsa: kasa anahtarını açar, token'ları geri yükler.
      *  • Yoksa: yeni kasa oluşturur ve mevcut token'ları yedekler.
      */
-    suspend fun onSignedIn(context: Context, password: String): Result<Unit> = operation {
+    suspend fun onSignedIn(context: Context, password: String, expectedOwner: String): Result<Unit> = operation(context) {
         restoring = true
         try {
-            val uid = userId() ?: error("Oturum bulunamadı")
+            val uid = userId() ?: throw AccountSessionChangedException()
+            if (uid != expectedOwner) throw AccountSessionChangedException()
+            // A prior account's conflicts must not be shown under this identity.
+            _conflicts.value = emptySet()
+            conflictRemote = null
+            conflictOwner = null
+            autoBackupEnabled = SettingsDataStore(context).settingsFlow.first().accountBackupEnabled
+            _status.value = KitsugiStrings.get(R.string.account_vault_checking)
             LocalVaultKeyStore.owner(context)?.takeIf { it != uid }?.let { VaultBackupWorker.cancel(context, it) }
             val metaJson = fetchRow(uid, ROW_META)
             if (metaJson == null) {
@@ -336,6 +363,7 @@ object LinkedAccountVault {
                 if (pendingKey != null) compareAndSwap(ROW_META, metaJson, blobJson(meta.pending!!.asBlob()))
             }
             _conflicts.value = emptySet()
+            if (!autoBackupEnabled) _status.value = KitsugiStrings.get(R.string.account_vault_ready_backup_off)
             if (autoBackupEnabled) {
                 VaultBackupWorker.periodic(context, uid)
                 VaultBackupWorker.enqueue(context, uid)
@@ -344,12 +372,17 @@ object LinkedAccountVault {
     }
 
     /** Mevcut token ve taşınabilir ayarları şifreler. Kilitli kasa başarı sayılmaz. */
-    suspend fun backupNow(context: Context, expectedOwner: String? = null): Result<Unit> = operation {
+    suspend fun backupNow(
+        context: Context, expectedOwner: String? = null, automatic: Boolean = false
+    ): Result<Unit> = operation(context) {
+        // Check again INSIDE the session lock: the preference may have changed
+        // while an already-running worker was waiting for an auth operation.
+        if (automatic && !SettingsDataStore(context).settingsFlow.first().accountBackupEnabled) return@operation
         backupUnlocked(context, expectedOwner ?: userId() ?: throw VaultLockedException())
     }
 
     private suspend fun backupUnlocked(context: Context, uid: String, preferLocal: Boolean? = null) {
-        check(userId() == uid) { "Oturum değişti" }
+        if (userId() != uid) throw AccountSessionChangedException()
         val key = localVaultKey(context) ?: throw VaultLockedException()
         val base = LocalVaultKeyStore.baseline(context, uid) ?: throw VaultLockedException()
         val local = VaultMerge.groups(json.parseToJsonElement(snapshot(context).toString(Charsets.UTF_8)).jsonArray)
@@ -364,6 +397,7 @@ object LinkedAccountVault {
             val merged = VaultMerge.merge(local, remote, base.local, base.remote, preferLocal)
             if (merged.conflicts.isNotEmpty() && preferLocal == null) {
                 conflictRemote = remoteJson
+                conflictOwner = uid
                 _conflicts.value = merged.conflicts
                 throw VaultConflictException(merged.conflicts)
             }
@@ -380,6 +414,7 @@ object LinkedAccountVault {
                     VaultMerge.remoteBaselineAfterUpload(local, mergedGroups, base.remote))
                 _conflicts.value = emptySet()
                 conflictRemote = null
+                conflictOwner = null
                 _status.value = KitsugiStrings.get(R.string.sifreli_hesap_yedegi_guncel_son_basari) +
                     java.text.DateFormat.getDateTimeInstance().format(java.util.Date(LocalVaultKeyStore.lastSuccess(context)))
                 return
@@ -389,8 +424,8 @@ object LinkedAccountVault {
     }
 
     /** Explicit user decision; no service credentials are displayed. Other service groups still merge. */
-    suspend fun resolveConflict(context: Context, keepThisDevice: Boolean): Result<Unit> = operation {
-        check(_conflicts.value.isNotEmpty()) { "Çözülecek çakışma yok" }
+    suspend fun resolveConflict(context: Context, keepThisDevice: Boolean): Result<Unit> = operation(context) {
+        check(_conflicts.value.isNotEmpty() && conflictOwner == userId()) { "Çözülecek çakışma yok" }
         backupUnlocked(context, userId() ?: throw VaultLockedException(), keepThisDevice)
         if (!keepThisDevice) _status.value = KitsugiStrings.get(R.string.cakisan_servislerin_bulut_kopyasi_korundu_bu_cihazda_da_kullanma)
     }
@@ -400,31 +435,65 @@ object LinkedAccountVault {
      * gecikmeyle) günceller. Uygulama açılışında bir kez çağrılır.
      */
     fun startAutoBackup(context: Context) {
+        if (appContext != null) return
         val app = context.applicationContext
         appContext = app
         tokenPrefs(app).registerOnSharedPreferenceChangeListener(autoBackupListener)
         scope.launch {
             try {
-                // Kullanıcının elle kapattığı anahtarı kuyruğa iş eklemeden önce yükle.
-                autoBackupEnabled = SettingsDataStore(app).settingsFlow.first().accountBackupEnabled
-                KitsugiAccountClient.client.auth.awaitInitialization()
-                userId()?.let {
-                    if (autoBackupEnabled) {
-                        VaultBackupWorker.periodic(app, it)
-                        VaultBackupWorker.enqueue(app, it, startup = true)
+                val auth = KitsugiAccountClient.client.auth
+                auth.awaitInitialization()
+                val owners = auth.sessionStatus
+                    // A transient refresh/network failure is not a sign-out.
+                    .filter { it is SessionStatus.Authenticated || it is SessionStatus.NotAuthenticated }
+                    .map { (it as? SessionStatus.Authenticated)?.session?.user?.id }
+                    .distinctUntilChanged()
+                val enabledFlow = SettingsDataStore(app).settingsFlow
+                    .map { it.accountBackupEnabled }.distinctUntilChanged()
+                var previousOwner: String? = null
+                combine(owners, enabledFlow) { owner, enabled -> owner to enabled }.collect { (owner, enabled) ->
+                    mutex.withLock {
+                        // A queued observer emission must not mutate the next account's state.
+                        if (owner != userId()) return@withLock
+                        autoBackupEnabled = enabled
+                        previousOwner?.takeIf { it != owner }?.let { VaultBackupWorker.cancel(app, it) }
+                        if (conflictOwner != owner) {
+                            _conflicts.value = emptySet()
+                            conflictRemote = null
+                            conflictOwner = null
+                        }
+                        val wasReady = _unlockedOwner.value
+                        val ready = owner?.takeIf { hasLocalVault(app) }
+                        _unlockedOwner.value = ready
+                        // Do not replace a just-finished unlock failure with a generic
+                        // "locked" message merely because the auth observer ran afterwards.
+                        if (statusOwner != owner || _status.value == INITIAL_STATUS) {
+                            _status.value = KitsugiStrings.get(if (ready == null)
+                                R.string.kasa_kilitli_giris_yaparak_acabilirsin
+                            else if (!enabled) R.string.account_vault_ready_backup_off
+                            else R.string.account_vault_ready_check_pending)
+                        } else if (ready != null && !enabled) {
+                            _status.value = KitsugiStrings.get(R.string.account_vault_ready_backup_off)
+                        } else if (ready != null && wasReady != ready) {
+                            _status.value = KitsugiStrings.get(R.string.account_vault_ready_check_pending)
+                        }
+                        statusOwner = owner
+                        if (owner != null) {
+                            if (enabled && ready != null) {
+                                VaultBackupWorker.periodic(app, owner)
+                                VaultBackupWorker.enqueue(app, owner, startup = true)
+                            } else VaultBackupWorker.cancel(app, owner)
+                        }
+                        previousOwner = owner
                     }
                 }
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { _status.value = KitsugiStrings.get(R.string.oturum_baslatilamadi_tekrar_giris_yap) }
-        }
-        // Anahtar değişimlerini çalışma anında takip et (ayar ekranı bu süreci günceller).
-        scope.launch {
-            try {
-                SettingsDataStore(app).settingsFlow.drop(1).collect { s ->
-                    autoBackupEnabled = s.accountBackupEnabled
-                }
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: LinkageError) {
+                _status.value = AccountErrorFormatter.userMessage(e)
+            } catch (e: Exception) {
+                _status.value = AccountErrorFormatter.userMessage(e)
+            }
         }
         if (settingsObserver == null) settingsObserver = scope.launch {
             try {
@@ -435,7 +504,7 @@ object LinkedAccountVault {
     }
 
     /** Durable two-phase wrap transition. Never roll back on ambiguous network failures. */
-    suspend fun changePassword(context: Context, currentPassword: String, newPassword: String): Result<Unit> = operation {
+    suspend fun changePassword(context: Context, currentPassword: String, newPassword: String): Result<Unit> = operation(context) {
         require(newPassword.length >= 8) { "Yeni şifre en az 8 karakter olmalı." }
         val uid = userId() ?: throw VaultLockedException()
         val auth = KitsugiAccountClient.client.auth

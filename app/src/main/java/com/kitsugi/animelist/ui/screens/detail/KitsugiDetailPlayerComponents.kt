@@ -329,7 +329,7 @@ fun KitsugiYouTubePlayer(
 //  - Tek dokunma: kontrolleri göster / gizle (oynatılırken 3 sn sonra kendiliğinden gizlenir).
 //  - Ortadaki büyük düğme: oynat / duraklat. Alt çubuktaki düğme de aynısını yapar.
 //  - Alt çubuk: sürüklenebilir ilerleme çubuğu, süre bilgisi ve tam ekran düğmesi.
-//  - Çift dokunma: sol/sağ yarıdan 5 sn geri / ileri.
+//  - Çift dokunma: sol/sağ yarıdan 10 sn geri / ileri.
 //  Tüm düğmeler kendi dokunma alanına sahiptir; oynatıcı yüzeyine düşen dokunmalar
 //  ayrıca çift dokunma / kontrol gizleme için kullanılır.
 // ---------------------------------------------------------------------------
@@ -388,13 +388,13 @@ fun KitsugiPlayerGestureWrapper(
                             val isRightSide = offset.x > size.width / 2f
                             val total = latestDuration
                             val target = if (isRightSide) {
-                                val forward = latestPosition + 5_000L
+                                val forward = latestPosition + 10_000L
                                 if (total > 0L) forward.coerceAtMost(total) else forward
                             } else {
-                                (latestPosition - 5_000L).coerceAtLeast(0L)
+                                (latestPosition - 10_000L).coerceAtLeast(0L)
                             }
                             latestOnSeek(target)
-                            seekFeedbackText = if (isRightSide) "+5s" else "-5s"
+                            seekFeedbackText = if (isRightSide) "+10s" else "-10s"
                             controlsVisible = true
                             controlsToken++
                         },

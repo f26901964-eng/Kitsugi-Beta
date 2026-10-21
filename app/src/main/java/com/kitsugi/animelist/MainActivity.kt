@@ -19,7 +19,11 @@ import com.kitsugi.animelist.core.deeplink.DeepLinkHandler
 import com.kitsugi.animelist.core.recommendations.TvChannelSyncService
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.account.KitsugiAccountClient
-import io.github.jan.supabase.auth.handleDeeplinks
+import com.kitsugi.animelist.data.account.AccountConfirmationLink
+import com.kitsugi.animelist.data.account.AccountErrorFormatter
+import com.kitsugi.animelist.data.account.KitsugiAccountRepository
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.kitsugi.animelist.ui.theme.KitsugiAnimeListTheme
 import com.kitsugi.animelist.ui.tv.TvRootScreen
 import com.kitsugi.animelist.ui.tv.design.KitsugiTvTheme
@@ -219,40 +223,24 @@ class MainActivity : AppCompatActivity() {
             callbackUri.scheme == KitsugiAccountClient.AUTH_CALLBACK_SCHEME &&
             callbackUri.host == KitsugiAccountClient.AUTH_CALLBACK_HOST
         ) {
-            val callbackIntent = intent ?: return
-            val hasAuthResponse = callbackUri.fragment?.contains("access_token=") == true ||
-                callbackUri.getQueryParameter("code") != null
-            if (!hasAuthResponse) {
-                Toast.makeText(
-                    this,
-                    "E-posta bağlantısı açılamadı. Bağlantının süresi dolmuş olabilir; yeniden kayıt e-postası iste.",
-                    Toast.LENGTH_LONG
-                ).show()
-                return
-            }
-
-            try {
-                KitsugiAccountClient.client.handleDeeplinks(callbackIntent) { session ->
-                    runOnUiThread {
-                        val vaultHint = if (session.user?.email.isNullOrBlank()) {
-                            ""
-                        } else {
-                            " Ayarlar > Kitsugi Hesabı'nda aynı şifreyi girerek güvenli kasayı aç."
+            val response = AccountConfirmationLink.parse(callbackUri.toString())
+            // Consume once; Activity recreation must not re-exchange an expired one-time code.
+            intent?.data = null
+            when (response) {
+                is AccountConfirmationLink.Result.Code -> lifecycleScope.launch {
+                    KitsugiAccountRepository.confirmEmailCode(response.value)
+                        .onSuccess {
+                            Toast.makeText(this@MainActivity, getString(R.string.account_confirmation_success), Toast.LENGTH_LONG).show()
                         }
-                        Toast.makeText(
-                            this,
-                            "E-posta doğrulandı.${vaultHint}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                        .onFailure { error ->
+                            // Never log the callback URI, code, request headers or raw exception.
+                            Toast.makeText(this@MainActivity, AccountErrorFormatter.userMessage(error), Toast.LENGTH_LONG).show()
+                        }
                 }
-            } catch (error: Throwable) {
-                android.util.Log.e("MainActivity", "Kitsugi account confirmation callback failed", error)
-                Toast.makeText(
-                    this,
-                    "E-posta doğrulama bağlantısı işlenemedi. Lütfen yeniden deneyin.",
-                    Toast.LENGTH_LONG
+                AccountConfirmationLink.Result.ManualSignIn -> Toast.makeText(
+                    this, getString(R.string.account_confirmation_manual_login), Toast.LENGTH_LONG
                 ).show()
+                else -> Toast.makeText(this, getString(R.string.account_confirmation_invalid), Toast.LENGTH_LONG).show()
             }
             return
         }

@@ -346,7 +346,12 @@ class PlayerMediaSourceFactory(
 
             // 1) KESİN HLS belirteçleri (manifest adı / m3u8 yolu). Bunlar her şeyden
             //    öncedir: FilmMakinesi / CloseLoad 'hls/...mp4/master.txt' yapısı.
-            if (clean.contains(".m3u8") || clean.contains("m3u8") ||
+            // YouTube's HLS endpoint uses a signed URL such as
+            // manifest.googlevideo.com/api/manifest/hls_playlist/... with no .m3u8
+            // suffix. Without explicit HLS MIME, Media3 treats it as progressive media,
+            // leaving the inline player at 00:00 / 00:00.
+            if ((clean.contains("manifest.googlevideo.com") && clean.contains("hls_playlist")) ||
+                clean.contains(".m3u8") || clean.contains("m3u8") ||
                 clean.contains("master.txt") || clean.contains("playlist.txt") ||
                 clean.contains("video.txt") || clean.contains("tracks.txt") ||
                 clean.contains("vidmixi.com/list") || clean.contains("vidmixi.com/m3u")) {

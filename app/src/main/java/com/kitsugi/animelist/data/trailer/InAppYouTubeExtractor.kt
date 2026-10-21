@@ -479,7 +479,17 @@ class InAppYouTubeExtractor {
         val bestVideo = pickBestForClient(adaptiveVideo, PREFERRED_SEPARATE_CLIENT)
         val bestAudio = pickBestForClient(adaptiveAudio, PREFERRED_SEPARATE_CLIENT)
 
-        // Try adaptive video + audio first (best quality, separate streams)
+        // Prefer the multiplexed HLS stream when available. Adaptive YouTube formats are
+        // frequently signed per-client and can become unusable between extraction and the
+        // first media request; selecting one here caused the inline player to sit at 00:00
+        // even though the same video had a valid HLS manifest. HLS also avoids the fragile
+        // separate video/audio merge and remains seekable in Media3.
+        if (bestManifest != null) {
+            Log.d(TAG, "Using HLS manifest from ${bestManifest.client} (${bestManifest.height}p)")
+            return TrailerPlaybackSource(videoUrl = bestManifest.manifestUrl, audioUrl = null)
+        }
+
+        // No HLS available — try adaptive video + audio (best quality, separate streams).
         kotlinx.coroutines.yield()
         val resolvedVideo = bestVideo?.url?.let { resolveReachableUrl(it) }
         val resolvedAudio = if (resolvedVideo != null) bestAudio?.url?.let { resolveReachableUrl(it) } else null
@@ -488,12 +498,7 @@ class InAppYouTubeExtractor {
             return TrailerPlaybackSource(videoUrl = resolvedVideo, audioUrl = resolvedAudio)
         }
 
-        // Adaptive failed (403) — fall back to HLS manifest (1080p, always works for COPPA/kids content)
-        if (bestManifest != null) {
-            return TrailerPlaybackSource(videoUrl = bestManifest.manifestUrl, audioUrl = null)
-        }
-
-        // No HLS available — try progressive (combined video+audio, usually low quality)
+        // No HLS/adaptive source — try progressive (combined video+audio, usually low quality)
         val resolvedProgressive = bestProgressive?.url?.let { resolveReachableUrl(it) }
         if (resolvedProgressive != null) {
             return TrailerPlaybackSource(videoUrl = resolvedProgressive, audioUrl = null)

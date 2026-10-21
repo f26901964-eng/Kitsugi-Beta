@@ -1,7 +1,8 @@
 -- Kitsugi hesap senkronizasyonu şeması
 -- Supabase Dashboard → SQL Editor'da bir kez çalıştırılır.
--- Ardından migrations/20261009_vault_compare_and_swap.sql uygulanmalıdır;
--- güncel istemci kasa yazmalarında bu migration içindeki RPC'yi kullanır.
+-- Ardından migrations/ altındaki SQL dosyalarını tarih sırasıyla uygulayın.
+-- 20261009_vault_compare_and_swap.sql güvenli kasa RPC'sini kurar;
+-- 20261021_account_privilege_hardening.sql mevcut kurulumların fazla yetkilerini kaldırır.
 --
 -- Tasarım:
 --  * Her kullanıcının verisi, anahtar (key) bazında JSON olarak tutulur:
@@ -24,6 +25,7 @@ create table if not exists public.user_data (
 -- PostgreSQL tablo izinleri RLS'den ayrıdır. RLS satır sahibini sınırlar;
 -- bu GRANT'ler ise PostgREST'in authenticated rolüyle tabloya ulaşmasını sağlar.
 -- Özellikle mevcut Supabase projelerinde varsayılan izinler kaldırılmış olabilir.
+revoke all on table public.user_data from public, anon, authenticated;
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.user_data to authenticated;
 
@@ -31,9 +33,10 @@ grant select, insert, update, delete on table public.user_data to authenticated;
 create or replace function public.set_user_data_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
-    new.updated_at = now();
+    new.updated_at = pg_catalog.now();
     return new;
 end;
 $$;
@@ -42,6 +45,7 @@ drop trigger if exists user_data_set_updated_at on public.user_data;
 create trigger user_data_set_updated_at
     before insert or update on public.user_data
     for each row execute function public.set_user_data_updated_at();
+revoke all on function public.set_user_data_updated_at() from public, anon, authenticated;
 
 -- RLS
 alter table public.user_data enable row level security;

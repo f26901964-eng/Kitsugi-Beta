@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="account_email">Email</string>
+    <string name="account_signed_out_subtitle">Sign in to sync your data across devices.</string>
+    <string name="account_loading_session">Checking the saved session…</string>
+    <string name="account_refresh_failed">The session could not be refreshed. Check your connection or sign in again. The local vault has not been deleted.</string>
+    <string name="account_vault_checking">Checking the encrypted vault…</string>
+    <string name="account_vault_ready_check_pending">The vault is unlocked on this device. The cloud backup will be checked.</string>
+    <string name="account_vault_ready_backup_off">The vault is unlocked; encrypted account backup is turned off.</string>
+    <string name="account_vault_locked_hint">You are signed in, but the encrypted vault is locked on this device. Verify your Kitsugi password to unlock it. Search history and notification archive sync work independently of the vault.</string>
+    <string name="account_sync_selected_hint">Only enabled categories are synced. Search history and notifications are protected by account-specific server access rules, not end-to-end encryption. Linked-account tokens and portable settings are stored in the encrypted vault.</string>
+    <string name="account_sync_none_selected">All sync categories are turned off; no data was sent.</string>
+    <string name="account_sync_completed">Completed: %1$s</string>
+    <string name="account_signed_in">Signed in.</string>
+    <string name="account_created">Account created.</string>
+    <string name="account_signin_failed">Sign-in failed</string>
+    <string name="account_signup_failed">Sign-up failed</string>
+    <string name="account_signout_failed">Sign-out failed</string>
+    <string name="account_settings_failed">Could not save the setting</string>
+    <string name="account_password_verify_failed">Could not verify the password</string>
+    <string name="account_password_change_failed">Password change was not completed</string>
+    <string name="account_password_change_retry">If the connection dropped, try signing in with the new password. If the old password still works, repeat the change using the same new password.</string>
+    <string name="account_registration_password_rule">The new password must be at least 8 characters and match in both fields.</string>
+    <string name="account_password_confirmation">Repeat password</string>
+    <string name="account_prompt_sign_up">No account yet? Sign up</string>
+    <string name="account_resend_confirmation">Resend confirmation email</string>
+    <string name="account_resend_countdown">Wait %1$d s before resending</string>
+    <string name="account_confirmation_sent">If the address is awaiting confirmation, an email was sent. Check your inbox and spam folder. Open the link on the device where you signed up. If already confirmed, sign in normally.</string>
+    <string name="account_confirmation_send_failed">Could not send the confirmation email</string>
+    <string name="account_confirmation_success">Email confirmed. Verify your password in Settings → Kitsugi Account to unlock the encrypted vault.</string>
+    <string name="account_confirmation_manual_login">The email link returned to the app. If your email is confirmed, sign in with your email and password in Settings → Kitsugi Account. Request a new confirmation email if needed.</string>
+    <string name="account_confirmation_invalid">The confirmation link is invalid or has expired. Sign in normally if your email is already confirmed; otherwise request a new confirmation email.</string>
+    <string name="account_conflict_keep_device">Keep this device\'s account details for %1$s. Changes to other services will be merged. The operation stops if the cloud backup has changed in the meantime.</string>
+    <string name="account_conflict_keep_cloud">Keep the cloud account details for %1$s. Changes to other services will be merged. The operation stops if the cloud backup has changed in the meantime.</string>
+</resources>

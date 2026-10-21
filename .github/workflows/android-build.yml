@@ -8,6 +8,8 @@ on:
     branches: ['arena/**']
     paths:
       - 'app/**'
+      - 'supabase/**'
+      - 'scripts/account-tests/**'
       - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
@@ -26,6 +28,11 @@ jobs:
     steps:
       - name: 📥 Repo klonla
         uses: actions/checkout@v4
+
+      - name: 🧪 Hesap veritabanı güvenlik testleri
+        run: |
+          npm ci --prefix scripts/account-tests --ignore-scripts
+          npm test --prefix scripts/account-tests
 
       - name: ☕ JDK 17 kur
         uses: actions/setup-java@v4
@@ -70,6 +77,8 @@ jobs:
           ./gradlew :app:testFossDebugUnitTest \
             --tests 'com.kitsugi.animelist.core.diagnostics.*' \
             --tests 'com.kitsugi.animelist.data.settings.*' \
+            --tests 'com.kitsugi.animelist.data.account.*' \
+            --tests 'com.kitsugi.animelist.data.notifications.NotificationArchiveStoreTest' \
             --tests 'com.kitsugi.animelist.core.notifications.*' \
             --tests 'com.kitsugi.animelist.core.player.*' \
             --tests 'com.kitsugi.animelist.data.remote.malweb.*' \

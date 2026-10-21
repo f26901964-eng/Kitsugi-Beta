@@ -17,19 +17,22 @@ class SearchHistoryRepository(private val searchHistoryDao: SearchHistoryDao) {
 
     suspend fun insertSearchQuery(item: SearchHistoryItem) {
         if (item.query.isBlank()) return
+        val owner = KitsugiAccountRepository.currentUserId()
         val entity = SearchHistoryMapper.toEntity(item)
         searchHistoryDao.insertSearchQuery(entity)
         // Giriş yapılmışsa geçmişi buluta da yaz (giriş yoksa hiçbir şey yapmaz)
-        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao)
+        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
     }
 
     suspend fun deleteSearchQuery(query: String) {
+        val owner = KitsugiAccountRepository.currentUserId()
         searchHistoryDao.deleteSearchQuery(query)
-        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao)
+        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
     }
 
     suspend fun clearSearchHistory() {
+        val owner = KitsugiAccountRepository.currentUserId()
         searchHistoryDao.clearSearchHistory()
-        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao)
+        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
     }
 }

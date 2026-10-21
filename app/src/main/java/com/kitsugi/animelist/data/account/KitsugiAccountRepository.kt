@@ -3,55 +3,58 @@ package com.kitsugi.animelist.data.account
 import android.content.Context
 import com.kitsugi.animelist.data.local.SearchHistoryDao
 import com.kitsugi.animelist.data.local.SearchHistoryEntity
+import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.auth.SignOutScope
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionSource
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 
 /**
- * Hesap işlemleri ve veri senkronizasyonu.
- *
- * Kullanıcı verisi `public.user_data` tablosunda (user_id, key, value) olarak tutulur.
- * Şu an senkronize edilen: arama geçmişi (key = "search_history").
- * Eklentiler ve ayarlar aynı mekanizmayla sonraki adımda eklenecek.
+ * Auth, RLS-protected search/notification sync, and coordination with the encrypted vault.
+ * All disk/network work runs on IO. Auth replacement and transfers share the vault's
+ * session lock so an in-flight read for A can never be restored under B's session.
  */
 object KitsugiAccountRepository {
-
-    private suspend fun <T> accountResult(block: suspend () -> T): Result<T> = try {
-        Result.success(block())
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: LinkageError) {
-        // A missing SDK/runtime class must be reported as an account error, not take down the UI.
-        Result.failure(e)
-    } catch (e: Exception) {
-        Result.failure(e)
+    private suspend fun <T> accountResult(block: suspend () -> T): Result<T> = withContext(Dispatchers.IO) {
+        try {
+            Result.success(block())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: LinkageError) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     private const val TABLE = "user_data"
     private const val KEY_SEARCH_HISTORY = "search_history"
-    private const val SEARCH_HISTORY_LIMIT = 20
-
-    /**
-     * Kaynak tarafında tutulmayan bildirimlerin arşivi (MAL/Simkl/Kitsu/Bangumi).
-     * Değer: { "sources": { "<kaynak>": [ ArchivedNotif, ... ] } }
-     */
     private const val KEY_NOTIFICATIONS = "notifications"
-
+    private const val SEARCH_HISTORY_LIMIT = 20
     private val json = Json { ignoreUnknownKeys = true }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var settingsObserver: Job? = null
+    @Volatile private var appContext: Context? = null
 
     @Serializable
     private data class UserDataRow(
@@ -61,201 +64,211 @@ object KitsugiAccountRepository {
     )
 
     @Serializable
-    private data class RemoteSearchEntry(
-        val query: String,
-        val type: String,
-        val timestamp: Long
-    )
+    private data class RemoteSearchEntry(val query: String, val type: String, val timestamp: Long)
 
     private val searchListSerializer: KSerializer<List<RemoteSearchEntry>> =
         ListSerializer(RemoteSearchEntry.serializer())
 
-    private val scope = CoroutineScope(Dispatchers.IO)
-
-    /**
-     * Kullanıcının elle yönettiği eşitleme anahtarları (varsayılan: açık).
-     * Giriş/kayıt anında her şey OTOMATİK aktiftir; ayar ekranından kapatılabilir.
-     * [startSettingsObserver] çalışma anında günceller.
-     */
-    @Volatile
-    var searchSyncEnabled: Boolean = true
+    @Volatile var searchSyncEnabled: Boolean = false
+        private set
+    @Volatile var notificationSyncEnabled: Boolean = false
         private set
 
-    @Volatile
-    var notificationSyncEnabled: Boolean = true
-        private set
-
-    /** Uygulama başlangıcında çağrılır; hesap eşitleme anahtarlarını canlı takip eder. */
+    /** Do not assume sync is enabled until the user's persisted choices are loaded. */
     fun startSettingsObserver(context: Context) {
-        scope.launch {
+        appContext = context.applicationContext
+        if (settingsObserver != null) return
+        settingsObserver = scope.launch {
             try {
-                com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext)
-                    .settingsFlow
-                    .collect { s ->
-                        searchSyncEnabled = s.accountSearchSyncEnabled
-                        notificationSyncEnabled = s.accountNotificationSyncEnabled
-                    }
+                SettingsDataStore(context.applicationContext).settingsFlow.collect { settings ->
+                    searchSyncEnabled = settings.accountSearchSyncEnabled
+                    notificationSyncEnabled = settings.accountNotificationSyncEnabled
+                }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.w("KitsugiAccount", "Sync preferences unavailable: ${e.javaClass.simpleName}")
             }
         }
     }
 
-    /** Giriş yapılmışsa e-posta, yoksa null. */
     fun currentEmail(): String? =
         runCatching { KitsugiAccountClient.client.auth.currentUserOrNull()?.email }.getOrNull()
 
-    fun isLoggedIn(): Boolean = currentEmail() != null
+    internal fun currentUserId(): String? =
+        runCatching { KitsugiAccountClient.client.auth.currentUserOrNull()?.id }.getOrNull()
 
-    /**
-     * Kayıt. E-posta doğrulama açıksa oturum hemen açılmaz; sonuç `needsConfirmation = true` döner.
-     */
+    fun isLoggedIn(): Boolean = currentUserId() != null
+
+    private fun requireOwner(expectedOwner: String?): String {
+        val uid = currentUserId() ?: throw AccountSessionChangedException()
+        if (expectedOwner == null || uid != expectedOwner) throw AccountSessionChangedException()
+        return uid
+    }
+
+    /** true = signed in; false = confirmation email required. A failed signup never erases a key. */
     suspend fun signUp(context: Context, email: String, password: String): Result<Boolean> = accountResult {
-        LinkedAccountVault.forgetLocalVault(context)
+        require(AccountFormValidation.isValidEmail(email)) { "Geçerli bir e-posta adresi gir." }
+        require(password.length >= AccountFormValidation.MIN_NEW_PASSWORD) { "Yeni şifre en az 8 karakter olmalı." }
         val auth = KitsugiAccountClient.client.auth
-        LinkedAccountVault.changeSession {
-            auth.signUpWith(
-                provider = Email,
-                redirectUrl = KitsugiAccountClient.AUTH_CALLBACK_URL
-            ) {
+        val owner = LinkedAccountVault.changeSession {
+            auth.awaitInitialization()
+            check(auth.currentUserOrNull() == null) { "Yeni bir hesap açmadan önce mevcut hesaptan çıkış yap." }
+            auth.signUpWith(Email, redirectUrl = KitsugiAccountClient.AUTH_CALLBACK_URL) {
                 this.email = email.trim()
                 this.password = password
             }
+            auth.currentUserOrNull()?.id
         }
-        // true → oturum açıldı, false → e-posta doğrulaması bekleniyor
-        val hasSession = auth.currentUserOrNull() != null
-        if (hasSession) {
-            // Auth başarılı kalır; kasa hatası ayrıca gözlemlenebilir durum akışında gösterilir
-            LinkedAccountVault.onSignedIn(context, password)
-                .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.javaClass.simpleName}") }
-        }
-        hasSession
+        if (owner != null) LinkedAccountVault.onSignedIn(context, password, expectedOwner = owner)
+        owner != null
     }
 
     suspend fun signIn(context: Context, email: String, password: String): Result<Unit> = accountResult {
-        LinkedAccountVault.changeSession {
-            KitsugiAccountClient.client.auth.signInWith(Email) {
+        require(AccountFormValidation.isValidEmail(email)) { "Geçerli bir e-posta adresi gir." }
+        val auth = KitsugiAccountClient.client.auth
+        val owner = LinkedAccountVault.changeSession {
+            auth.awaitInitialization()
+            val previousEmail = auth.currentUserOrNull()?.email
+            check(previousEmail == null || previousEmail.equals(email.trim(), ignoreCase = true)) {
+                "Farklı bir hesaba girmeden önce mevcut hesaptan çıkış yap."
+            }
+            auth.signInWith(Email) {
                 this.email = email.trim()
                 this.password = password
             }
+            auth.currentUserOrNull()?.id ?: throw AccountSessionChangedException()
         }
-        // Bağlı servis token'larını yedekten geri yükle (şifre bu an elimizde)
-        LinkedAccountVault.onSignedIn(context, password)
-            .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.javaClass.simpleName}") }
+        // Authentication and vault readiness are separate; the vault exposes its own failure.
+        LinkedAccountVault.onSignedIn(context, password, expectedOwner = owner)
         Unit
+    }
+
+    suspend fun resendConfirmation(email: String): Result<Unit> = accountResult {
+        require(AccountFormValidation.isValidEmail(email)) { "Geçerli bir e-posta adresi gir." }
+        LinkedAccountVault.changeSession {
+            val auth = KitsugiAccountClient.client.auth
+            auth.awaitInitialization()
+            check(auth.currentUserOrNull() == null) { "Bu cihazda zaten giriş yapılmış." }
+            // Supabase 3.0.3's resend API has no redirect argument. The server's Site URL
+            // is kitsugi://account-confirm, and legacy/non-PKCE links use normal sign-in.
+            auth.resendEmail(OtpType.Email.SIGNUP, email.trim())
+        }
+    }
+
+    /** Await the PKCE exchange instead of launching an unobserved SDK coroutine. */
+    suspend fun confirmEmailCode(code: String): Result<Unit> = accountResult {
+        require(code.isNotBlank() && code.length <= 4096)
+        LinkedAccountVault.changeSession {
+            val auth = KitsugiAccountClient.client.auth
+            auth.awaitInitialization()
+            val previousOwner = auth.currentUserOrNull()?.id
+            val session = auth.exchangeCodeForSession(code, saveSession = false)
+            val newOwner = session.user?.id ?: throw AccountSessionChangedException()
+            if (previousOwner != null && previousOwner != newOwner) throw AccountSessionChangedException()
+            auth.importSession(session, source = SessionSource.External)
+        }
     }
 
     suspend fun signOut(context: Context): Result<Unit> = accountResult {
-        // Do not erase the only decryption key while this device has unsent account changes.
-        if (LinkedAccountVault.hasLocalVault(context)) LinkedAccountVault.backupNow(context).getOrThrow()
-        LinkedAccountVault.changeSession { KitsugiAccountClient.client.auth.signOut() }
-        LinkedAccountVault.forgetLocalVault(context)
-        Unit
+        // Flush + sign-out + local key removal are one session-locked operation.
+        LinkedAccountVault.signOutAndForget(context) {
+            KitsugiAccountClient.client.auth.signOut(SignOutScope.LOCAL)
+        }.getOrThrow()
     }
 
-    /** Yerel arama geçmişini buluta yazar (son [SEARCH_HISTORY_LIMIT] kayıt). */
-    suspend fun pushSearchHistory(dao: SearchHistoryDao): Result<Unit> = accountResult {
-        if (!searchSyncEnabled) return@accountResult
-        val uid = currentUserId() ?: return@accountResult
-        val local = dao.getRecentSearchHistory().first()
-        val payload = local.map { RemoteSearchEntry(it.query, it.type, it.timestamp) }
-        writeKey(uid, KEY_SEARCH_HISTORY, json.encodeToJsonElement(searchListSerializer, payload))
-    }
-
-    /**
-     * Buluttaki arama geçmişini yerelle birleştirir: aynı sorgu için en yeni zaman damgası kazanır,
-     * sonra sonuç hem yerel veritabanına hem buluta yazılır.
-     */
-    suspend fun pullAndMergeSearchHistory(dao: SearchHistoryDao): Result<Unit> = accountResult {
-        if (!searchSyncEnabled) return@accountResult
-        val uid = currentUserId() ?: return@accountResult
-        val remote = fetchRemoteSearchHistory(uid)
-        val local = dao.getRecentSearchHistory().first().map {
-            RemoteSearchEntry(it.query, it.type, it.timestamp)
+    /** Executes selected categories independently; a locked vault never blocks the other two. */
+    suspend fun syncSelected(
+        context: Context,
+        dao: SearchHistoryDao,
+        includeVault: Boolean = true
+    ): AccountSyncReport = withContext(Dispatchers.IO) {
+        val settings = SettingsDataStore(context).settingsFlow.first()
+        val owner = currentUserId()
+        val steps = linkedMapOf<AccountSyncSection, suspend () -> Result<Unit>>()
+        if (settings.accountSearchSyncEnabled) steps[AccountSyncSection.SEARCH_HISTORY] = {
+            pullAndMergeSearchHistory(context, dao, owner)
         }
-
-        val merged = (local + remote)
-            .groupBy { it.query }
-            .map { (_, entries) -> entries.maxBy { it.timestamp } }
-            .sortedByDescending { it.timestamp }
-            .take(SEARCH_HISTORY_LIMIT)
-
-        merged.forEach { e ->
-            dao.insertSearchQuery(SearchHistoryEntity(query = e.query, timestamp = e.timestamp, type = e.type))
+        if (settings.accountNotificationSyncEnabled) steps[AccountSyncSection.NOTIFICATIONS] = {
+            pullAndMergeNotificationArchive(context, owner)
         }
-        writeKey(uid, KEY_SEARCH_HISTORY, json.encodeToJsonElement(searchListSerializer, merged))
+        if (includeVault && settings.accountBackupEnabled) steps[AccountSyncSection.VAULT] = {
+            if (owner == null) Result.failure(AccountSessionChangedException())
+            else LinkedAccountVault.backupNow(context, expectedOwner = owner)
+        }
+        runAccountSyncSteps(steps)
     }
 
-    /**
-     * Arama geçmişi değiştiğinde çağrılır. Giriş yoksa hiçbir şey yapmaz.
-     * Ağ işlemi arka planda yapılır, arama akışını bekletmez.
-     */
-    fun onSearchHistoryChanged(dao: SearchHistoryDao) {
-        if (!isLoggedIn() || !searchSyncEnabled) return
-        scope.launch { pushSearchHistory(dao) }
+    /** Keep explicit local deletion semantics; the session gate serializes pushes and pulls. */
+    private suspend fun pushSearchHistory(
+        context: Context, dao: SearchHistoryDao, expectedOwner: String
+    ): Result<Unit> = accountResult {
+        LinkedAccountVault.changeSession {
+            val uid = requireOwner(expectedOwner)
+            if (!SettingsDataStore(context).settingsFlow.first().accountSearchSyncEnabled) return@changeSession
+            val local = dao.getRecentSearchHistory().first()
+            val payload = local.map { RemoteSearchEntry(it.query, it.type, it.timestamp) }
+            writeKey(uid, KEY_SEARCH_HISTORY, json.encodeToJsonElement(searchListSerializer, payload))
+        }
     }
 
-    // ─── Bildirim arşivi (kaynak tarafında tutulmayan bildirimlerin yedeği) ────
-
-    /**
-     * Yerel bildirim arşivini buluta yazar.
-     *
-     * MyAnimeList/Simkl/Kitsu/Bangumi gibi API'lerinde kişisel bildirim ucu olmayan
-     * kaynaklar için Kitsugi'nin ürettiği bildirimler (yayın takvimi + izleme listesi
-     * eşleşmeleri) sunucuda hiçbir yerde saklanmaz; bu yedek sayesinde hem cihazda
-     * hem hesapta kalıcı olurlar.
-     */
-    suspend fun pushNotificationArchive(context: Context): Result<Unit> = accountResult {
-        if (!notificationSyncEnabled) return@accountResult
-        val uid = currentUserId() ?: return@accountResult
-        writeKey(uid, KEY_NOTIFICATIONS, com.kitsugi.animelist.data.notifications.NotificationArchiveStore.toJsonElement(context))
+    private suspend fun pullAndMergeSearchHistory(
+        context: Context, dao: SearchHistoryDao, expectedOwner: String?
+    ): Result<Unit> = accountResult {
+        LinkedAccountVault.changeSession {
+            val uid = requireOwner(expectedOwner)
+            val remoteValue = fetchValue(uid, KEY_SEARCH_HISTORY)
+            // A malformed response must not be mistaken for an empty cloud backup and overwritten.
+            val remote = remoteValue?.let { json.decodeFromJsonElement(searchListSerializer, it) }.orEmpty()
+            val local = dao.getRecentSearchHistory().first().map { RemoteSearchEntry(it.query, it.type, it.timestamp) }
+            val merged = (local + remote).groupBy { it.query }
+                .map { (_, entries) -> entries.maxBy { it.timestamp } }
+                .sortedByDescending { it.timestamp }.take(SEARCH_HISTORY_LIMIT)
+            requireOwner(uid)
+            merged.forEach { entry ->
+                dao.insertSearchQuery(SearchHistoryEntity(query = entry.query, timestamp = entry.timestamp, type = entry.type))
+            }
+            dao.pruneToLimit(SEARCH_HISTORY_LIMIT)
+            writeKey(uid, KEY_SEARCH_HISTORY, json.encodeToJsonElement(searchListSerializer, merged))
+        }
     }
 
-    /**
-     * Buluttaki bildirim arşivini yerelle birleştirir.
-     *
-     * Birleştirme kuralı arşiv deposundadır ([com.kitsugi.animelist.data.notifications.NotificationArchiveStore.mergeLists]):
-     * aynı id için en yeni kayıt kazanır, kaynak başına üst sınıra kadar tutulur.
-     * Sonuç hem yerel dosyaya hem buluta geri yazılır.
-     */
-    suspend fun pullAndMergeNotificationArchive(context: Context): Result<Unit> = accountResult {
-        if (!notificationSyncEnabled) return@accountResult
-        val uid = currentUserId() ?: return@accountResult
-        val rows = KitsugiAccountClient.client.from(TABLE)
-            .select(columns = Columns.list("user_id", "key", "value")) {
-                filter {
-                    eq("user_id", uid)
-                    eq("key", KEY_NOTIFICATIONS)
+    fun onSearchHistoryChanged(dao: SearchHistoryDao, expectedOwner: String? = currentUserId()) {
+        val owner = expectedOwner ?: return
+        val context = appContext ?: return
+        scope.launch { pushSearchHistory(context, dao, owner) }
+    }
+
+    /** Called only AFTER the archive's atomic local write, never in parallel with it. */
+    fun onNotificationArchiveChanged(context: Context, expectedOwner: String?) {
+        val owner = expectedOwner ?: return
+        scope.launch {
+            accountResult {
+                if (SettingsDataStore(context).settingsFlow.first().accountNotificationSyncEnabled) {
+                    pullAndMergeNotificationArchive(context, owner).getOrThrow()
                 }
             }
-            .decodeList<UserDataRow>()
-        val remote = com.kitsugi.animelist.data.notifications.NotificationArchiveStore.fromJsonElement(rows.firstOrNull()?.value)
-        // Birleştirme yerel dosyaya zaten yazıldı; buluta aynı hâli geri yaz.
-        com.kitsugi.animelist.data.notifications.NotificationArchiveStore.mergeSourcesBlocking(context, remote)
-        writeKey(uid, KEY_NOTIFICATIONS, com.kitsugi.animelist.data.notifications.NotificationArchiveStore.toJsonElement(context))
+        }
     }
 
-    private suspend fun fetchRemoteSearchHistory(uid: String): List<RemoteSearchEntry> {
-        val rows = KitsugiAccountClient.client.from(TABLE)
-            .select(columns = Columns.list("user_id", "key", "value")) {
-                filter {
-                    eq("user_id", uid)
-                    eq("key", KEY_SEARCH_HISTORY)
-                }
-            }
-            .decodeList<UserDataRow>()
-        val value = rows.firstOrNull()?.value ?: return emptyList()
-        return runCatching { json.decodeFromJsonElement(searchListSerializer, value) }
-            .getOrDefault(emptyList())
+    private suspend fun pullAndMergeNotificationArchive(context: Context, expectedOwner: String?): Result<Unit> = accountResult {
+        LinkedAccountVault.changeSession {
+            val uid = requireOwner(expectedOwner)
+            val remote = NotificationArchiveStore.fromCloudJsonElement(fetchValue(uid, KEY_NOTIFICATIONS))
+            requireOwner(uid)
+            NotificationArchiveStore.mergeSources(context, remote)
+            writeKey(uid, KEY_NOTIFICATIONS, NotificationArchiveStore.toJsonElement(context))
+        }
     }
+
+    private suspend fun fetchValue(uid: String, key: String): JsonElement? =
+        KitsugiAccountClient.client.from(TABLE)
+            .select(columns = Columns.list("user_id", "key", "value")) {
+                filter { eq("user_id", uid); eq("key", key); eq("deleted", false) }
+            }.decodeList<UserDataRow>().firstOrNull()?.value
 
     private suspend fun writeKey(uid: String, key: String, value: JsonElement) {
-        KitsugiAccountClient.client.from(TABLE).upsert(
-            UserDataRow(userId = uid, key = key, value = value)
-        )
+        requireOwner(uid)
+        KitsugiAccountClient.client.from(TABLE).upsert(UserDataRow(userId = uid, key = key, value = value))
     }
-
-    private fun currentUserId(): String? =
-        runCatching { KitsugiAccountClient.client.auth.currentUserOrNull()?.id }.getOrNull()
 }

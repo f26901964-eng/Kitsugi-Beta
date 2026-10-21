@@ -26,6 +26,15 @@ class PlayerHlsDetectionTest {
         assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://cdn.example.com/stream/master.m3u8"))
         assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://vidmixi.com/list/abc"))
         assertTrue(PlayerMediaSourceFactory.isHlsUrl("https://rapidrame.com/x/playlist.txt"))
+        // YouTube's signed HLS endpoint has no .m3u8 suffix; it must still use HlsMediaSource.
+        assertTrue(
+            PlayerMediaSourceFactory.isHlsUrl(
+                "https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/123/id/abc"
+            )
+        )
+        assertFalse(
+            PlayerMediaSourceFactory.isHlsUrl("https://manifest.googlevideo.com/api/manifest/dash/id/abc")
+        )
     }
 
     @Test
