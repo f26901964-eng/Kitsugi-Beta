@@ -315,3 +315,38 @@ sync_taxonomy_tag_strings.py --check / sync_bangumi_tag_strings.py --check → g
 check_localization_resource_parity.py → 17.795 string + 4 dizi
 ktcheck (tree-sitter-kotlin)        → değişen tüm .kt dosyaları temiz
 ```
+
+---
+
+## 9) Beşinci tur (v2.4.340) — "alan var, adı hâlâ kaynak dilinde" sorunu
+
+Önceki turlar **alanların okunmasını** kapattı; bu tur **okunan adın ekrana hangi yazımla
+çıktığını** kapattı. Kök neden: kurum adları Bangumi infobox'ından geldiği yazımla (CJK) dil
+dosyasına yazılıyordu; alan doluydu ama ad Türkçe/İngilizce arayüzde okunamıyordu.
+
+| # | Kök neden | Etki | Çözüm |
+|---|---|---|---|
+| KN-24 | Kurum adları CJK olarak dil dosyasına yazılıyordu | 5.223 anahtar (TR 2.941 yapımcı, 890 yayınevi, 809 stüdyo, 452 dergi, 131 kanal) | `sync_org_latin_strings.py` → resmî ad / dergi öneki / romanizasyon |
+| KN-25 | 18 `bangumi_tag_cjk_*` etiketi sözlükte CJK TR/EN ile duruyordu | Etiket çipinde Çince ad | `BangumiTagDictionary.kt` TR/EN alanları Latin adla değiştirildi |
+| KN-26 | Arayüz metinlerinde kaynak etiket parantez içinde bırakılmıştı | `(在看)`, `(条目)`, `(打格子)`, `"允许"`, `收藏`, `小说/画集` … 18 metin | `fix_cjk_ui_strings.py` |
+| KN-27 | Bazı adlar `「Sunflower Studio」` gibi sarılı geliyordu | Adın parçası olmayan tırnak ekranda | `strip_wrapping()` (kurum adı normalizasyonu) |
+
+### Kural
+
+- **Kurum adı özel addır, çevrilmez** → TR ve EN aynı Latin yazımı kullanır.
+- **Etiket ortak addır, çevrilir** → TR/EN farklı olabilir, anahtar simetrisi korunur.
+- Üretilen adlar `diag/bangumi_master/org_latin.tsv` (9.457) ve `tag_latin.tsv` (18) üzerinden
+  kalıcıdır; sonraki turda aynı anahtar yeniden romanize edilmez.
+
+### Doğrulama (beşinci tur)
+
+```
+sync_org_latin_strings.py --check     → 9.457 anahtar · 0 çözülemeyen · dil dosyalarında CJK 0
+fix_cjk_ui_strings.py --check         → arayüz metinlerinde CJK yok
+sync_bangumi_tag_strings.py --check   → güncel (1.325 etiket)
+sync_taxonomy_tag_strings.py --check  → güncel (114 etiket)
+check_localization_resource_parity.py → 17.795 string + 4 dizi
+check_taxonomy_master.py              → 114 sözlük / 79 resmî tür / 0 uyarı
+check_bangumi_meta_tag_coverage.py    → 158 meta etiket / 0 eksik
+audit_taxonomy_sources.py --strict    → 35 alan · 7 kaynak · eksik yok
+```

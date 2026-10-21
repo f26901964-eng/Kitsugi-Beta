@@ -127,3 +127,41 @@ TÜM KAYNAKLAR BEKLENEN ALANLARI OKUYOR — eksik yok.
    olmalı** — çünkü ikisi de aynı yedi kaynağı birleştiriyor.
 3. `KitsugiDetailClient: Birleşik taksonomi: …` satırı nihai sayıları verir.
 4. Etiket sayısı beklediğinizden düşükse ilgili kaynağın `yok` yazıp yazmadığına bakın.
+
+---
+
+## 7) Ad yazımı kapsaması (v2.4.340) — kurum + etiket
+
+Alanların **okunması** kadar, okunan adın **hangi yazımla** ekrana çıktığı da kapsam içinde.
+Kaynaklar CJK adları Latin harflere çevirmeden döndürür; dönüşüm uygulama tarafındaki sözlük +
+dil dosyası katmanında yapılır.
+
+| Alan | Anahtar | Ekranda CJK | Yöntem |
+|---|---|---|---|
+| Yapımcı | 2.941 | 0 | resmî ad / romanizasyon |
+| Yayınevi | 890 | 0 | resmî ad / romanizasyon |
+| Stüdyo | 809 | 0 | resmî ad / romanizasyon |
+| Dergi | 452 | 0 | dergi öneki (`月刊`→`Monthly`) + romanizasyon |
+| Kanal | 131 | 0 | resmî ad / romanizasyon |
+| Etiket (CJK anahtar) | 18 | 0 | elle düzeltilmiş romanizasyon (`tag_latin.tsv`) |
+| **Toplam** | **5.241** | **0** | — |
+
+Kurallar:
+
+- **Kurum adı çevrilmez, yazımı sabitlenir.** TR ve EN dosyalarında aynı Latin ad
+  (`kurum anahtarlarında TR ≠ EN: 0`).
+- **Etiket çevrilir** (ortak ad), anahtar simetrisi korunur.
+- Arayüz metinlerindeki kaynak etiket parantezleri (`(在看)`, `(条目)`, `(打格子)`, `"允许"`)
+  tamamen kaldırıldı.
+
+Denetim komutları:
+
+```bash
+python3 scripts/sync_org_latin_strings.py --check   # 9.457 anahtar, CJK 0 olmalı
+python3 scripts/fix_cjk_ui_strings.py --check       # arayüz metni CJK 0 olmalı
+python3 scripts/sync_bangumi_tag_strings.py --check
+python3 scripts/sync_taxonomy_tag_strings.py --check
+```
+
+Kalıcı kaynaklar: `diag/bangumi_master/org_latin.tsv` (9.457 satır),
+`diag/bangumi_master/tag_latin.tsv` (18 satır).

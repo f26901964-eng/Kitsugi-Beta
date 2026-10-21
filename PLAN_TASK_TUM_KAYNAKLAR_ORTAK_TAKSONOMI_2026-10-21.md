@@ -222,3 +222,36 @@ sayfa asıl detayla açılmaya devam eder. Sonuç `DetailCache` + Room'a yazıl�
 | D15 | MAL kaynaklı manga | Dergiler bölümü dolu |
 | D16 | Kitsu kaynaklı manga | Yayınevi/dergi görünüyor |
 | D17 | `audit --strict` | 35 alan + 7 çapraz kaynak, eksik yok |
+
+---
+
+## 10) Beşinci tur işleri (v2.4.340) — kurum ve etiket adlarının dil tutarlılığı
+
+Kapsam daraltıldı: yeni kaynak/alan eklenmedi; **var olan 9.457 kurum anahtarı** ile 18 CJK
+etiket anahtarının TR ve EN dil dosyalarındaki yazımı tek bir kurala bağlandı.
+
+| # | İş | Durum | Dosya |
+|---|---|---|---|
+| T43 | 9.457 kurum anahtarı için Latin ad üreteci (resmî ad → dergi öneki → romanizasyon) | ✅ | `scripts/sync_org_latin_strings.py` |
+| T44 | TR + EN dil dosyalarına ve `BangumiOrgDictionary.kt` 3. alanına senkron | ✅ | `values/strings.xml`, `values-en/strings.xml`, `BangumiOrgDictionary.kt` |
+| T45 | 18 CJK etiket anahtarının `BangumiTagDictionary.kt` TR/EN alanlarına Latin ad | ✅ | `BangumiTagDictionary.kt`, `tag_latin.tsv` |
+| T46 | Arayüz metinlerinde kalan Çince açıklama parantezlerinin temizliği | ✅ | `scripts/fix_cjk_ui_strings.py` |
+
+### Kurallar
+
+1. **Kurum adı çevrilmez.** Aynı şirket iki dilde de aynı Latin yazımıyla görünür
+   (`kurum anahtarlarında TR ≠ EN: 0`). Yalnızca etiketler (ortak adlar) çevrilir.
+2. **Resmî Latin ad varsa o kazanır**; yoksa dergi öneki (`月刊`→`Monthly`, `別冊`→`Bessatsu`),
+   yoksa romanizasyon (Hepburn / pinyin / RR).
+3. **Üretilen ad kalıcıdır**: `org_latin.tsv` ve `tag_latin.tsv` elden geçirilebilir; betik
+   `--check` modunda fark bırakmaz (CI).
+4. **Ekranda CJK yok**: dil dosyalarında kurum/etiket/arayüz metni olarak CJK kalırsa
+   `sync_org_latin_strings.py --check` ve `fix_cjk_ui_strings.py --check` kırılır.
+
+### Yeni kabul ölçütleri
+
+| # | Senaryo | Beklenen |
+|---|---|---|
+| D18 | Bangumi kaynaklı herhangi bir yapım | Stüdyo/yapımcı/yayıncı/dergi/kanal çiplerinde tek bir CJK karakter yok |
+| D19 | Aynı yapım TR ve EN arayüzde | Kurum adları **birebir aynı** Latin yazımda; etiketler dile göre çevrili |
+| D20 | `grep -P '[\x{4e00}-\x{9fff}]' values*/strings.xml` | 0 satır |
