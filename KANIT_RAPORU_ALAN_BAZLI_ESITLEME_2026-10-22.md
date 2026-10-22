@@ -342,3 +342,55 @@ Ayrıca Simkl'de "hiç istek atılmadı" durumu artık `eşitlendi` değil `değ
 - Tree-sitter: 1284 Kotlin dosyası tarandı; **6 bilinen yanlış pozitif** (bu değişikliklerle ilgisiz).
 - `SyncFieldDiffTest` artık **22 test** (alan farkı, yetenek matrisi, tekrar bayrağı, tarih/puan/öncelik/favori/gizlilik kapsamı).
 - **Derleme ve çalışma zamanı testi bu ortamda YAPILAMADI** (JDK/Android SDK yok). Bu rapordaki hiçbir madde "derlendi" garantisi taşımaz; `./gradlew :app:compileDebugKotlin` çalıştırılmalıdır.
+
+---
+
+## 12. Dördüncü geçiş: sözlük ve içe aktarma denetimi (commit `04bdfe7`)
+
+Bu geçişte odak **"tekrar izleme" bilgisinin altı kaynakta tutarlı taşınması** ve **içe aktarma
+sırasında UYDURULMUŞ alan adları** oldu. Hepsi resmî sözleşmeye karşı doğrulandı
+(MAL API v2 `list_status`, AniList `MediaList`, Kitsu JSON:API `library-entries`).
+
+| # | Hata | Neden kritik | Düzeltme |
+|---|---|---|---|
+| E21 | **MAL içe aktarma var olmayan bir alan istiyordu:** `list_status{…,is_repeating,…}`. MAL API v2'de böyle bir alan YOK; anime için `is_rewatching`, manga için `is_rereading` vardır. | Tekrar durumu hiçbir zaman içe aktarılmıyordu; ayrıca bilinmeyen alan isteyen liste çağrısı 400 dönebilir (o durumda **tüm** MAL içe aktarması düşer). | İki ayrı URL anime/manga için doğru alan adlarıyla kurulur; eski yanıtlar için `is_repeating` yine okunur (geriye dönük uyum). |
+| E22 | **`rewatching`/`rereading` durum sözcükleri `WatchStatus.Repeating`e çevrilmeli mi?** İlk plan "evet"ti; kod okunduğunda **hayır** çıktı. | MAL'a geri yazımda `Repeating → completed` (E13) kodlanmıştır. Devam eden bir yapım `Repeating` olarak içe aktarılsaydı MAL'da "tamamlandı"ya dönerdi. MAL'ın kendi modeli: durum `watching`/`reading` kalır, tekrar `is_rewatching` bayrağındadır. | Durum `Watching` kalır; `isRepeating` bayrağı hem `is_rewatching`/`is_rereading` alanlarından hem de ham `rewatching`/`rereading` metninden doldurulur. |
+| E23 | **AniList içe aktarması `REPEATING` durumunu tanımıyordu** (`else -> Planned`). | AniList'te "tekrar izleniyor" kaydı kütüphaneye **"Planlandı"** olarak giriyordu. | `"REPEATING" -> WatchStatus.Repeating`. |
+| E24 | **`isRepeating = repeatCount > 0` yanlış semantik.** UI'da bu alan "Yeniden İzleniyor" anahtarıdır (şu an), "geçmişte tekrar yapıldı" demek değildir. | Geçmişte 2 kez tekrar izlenmiş bir yapım, sıradaki eşitlemede MAL'a `is_rewatching=1`, Kitsu'ya `reconsuming=true` yazıyordu → kullanıcının bitmiş yapımları "şu an tekrar izleniyor" görünüyor ve Kitsu/MAL durumu bozuluyordu. | AniList: bayrak yalnız `status == REPEATING` iken; Kitsu: yalnız `reconsuming`; Shikimori: yalnız `status == rewatching`. Sayaç (`repeatCount`) ayrı alan olarak korunur. |
+| E25 | **Kitsu içe aktarması tekrar bilgisini tamamen atıyordu.** `KitsuLibraryEntry` içinde `reconsuming`/`reconsumeCount` hiç okunmuyordu. | Kitsu'da "şu an tekrar izleniyor" bilgisi `status=current` + `reconsuming` ile tutulur; bu okunmadığı için içe aktarma sonrası ilk eşitleme bayrağı **kapatıyordu**. | Alanlar `KitsuLibraryEntry`e eklendi, `isRepeating`/`repeatCount` olarak eşlendi (Kitsu yanıtı `fields[]` ile kısıtlanmadığı için alanlar zaten geliyordu). |
+| E26 | **Kitsu'ya çelişkili kayıt yazılıyordu:** durum `completed` iken `reconsuming=true`. | Kitsu bu birleşimi "tekrar izleme sürüyor" olarak yorumlayabilir; bayrak kalıcı açık kalır. | `reconsuming` yalnız `status == "current"` iken gönderilir. |
+| E27 | **MAL etiketleri nesne olarak gelebiliyor:** `tags: [{"name":"x"}]`. Kod `optString` ile ham JSON metnini etiket yapıyordu. | Etiketler bozuk metin olarak yazılır, sonraki yazımda MAL'a geri gönderilir. | İki biçim de okunur (`String` / `{name}`); boş liste `null`a düşer. |
+| E28 | **AniList `priority` hiç sorgulanmıyordu.** | Öncelik alanı yazılabildiği hâlde içe aktarmada kayboluyordu. | Sorguya `priority` eklendi, `entry.priority`ye eşlendi (0 = yok). |
+| E29 | **Kimlik önbelleği "tamam" işaretini bağlantı durumuna bağlamıştı:** MAL bağlı değilken `malId == null` "tamam" sayılıyordu. | MAL kimliği, diğer beş kaynağın çözüm anahtarıdır. Kullanıcı MAL'ı sonradan bağladığında satır önbellekten "tamam" geldiği için **MAL'a hiçbir zaman yazılmıyordu** — sessiz ve kalıcı kayıp. | Anime/manga için `malId != null` bağlantıdan bağımsız zorunlu; çözülemezse kayıt `complete=false` yazılır ve 6 saatlik soğuma sonrası yeniden denenir. |
+
+### Ek doğrulama notları (bu geçişte yeniden okunanlar)
+
+- `ExternalListSyncManager.syncEntry`: altı kaynak tek `coroutineScope` içinde `async`; her kaynak
+  `disabled / not_connected / skipped_type / skipped_identity / timeout / up_to_date / failed / synced`
+  ayrımını **görünür** sonuç olarak döndürüyor; `Run.fieldsFor(provider)` yetenek süzgeci, `Run.isFullWrite`
+  ise süzme sonrası kümeye bakmadan taşınıyor (E7'nin kalıcı çözümü).
+- Shikimori yazımı: `rewatching` gerçek bir durumdur (`rewatchingAsStatus = true`), bu yüzden tekrar
+  bayrağı ayrıca gönderilmez; sayaç `rewatches` ile taşınır.
+- Bangumi: anime ilerlemesi ayrı uçtan (`setProgress`), kitap ilerlemesi `ep_status`/`vol_status`
+  ile; koleksiyon yazımı atlansa bile ilerleme yazılır (E11 korunuyor).
+- Simkl: `progressDirty` durum değişimini de kapsar (geçmiş yazımı sonrası durum en sonda yeniden
+  uygulanır); `notinteresting` ↔ `dropped` eşlemesi iki yönlü kapalı devre.
+
+### Test kapsamı
+
+- Yeni `WatchStatusMappingTest` (5 test): Kitsu `Repeating → current`, Kitsu durum gidiş-dönüşü,
+  Shikimori `rewatching` birinci sınıf durum, AniList `REPEATING` tablosu, MAL'ın `rewatching` diye
+  bir durumu **olmadığının** sabitlenmesi.
+- `MalImportManagerUrlTest` artık `is_rewatching` / `is_rereading` alanlarının varlığını ve
+  `is_repeating`in **yokluğunu** doğruluyor (E21 regresyon kilidi).
+- Toplam: `SyncFieldDiffTest` 22 + `WatchStatusMappingTest` 5 + `MalImportManagerUrlTest` 2.
+
+### Doğrulama durumu (dürüst)
+
+- Tree-sitter taraması: **1388 Kotlin dosyası**, 7 bilinen yanlış pozitif
+  (`AppRootTabPages.kt`, `LinkedAccountVault.kt`, `BangumiApiClient.kt`, `SimklApiClient.kt`,
+  `TmdbDiscoverClient.kt`, `KitsugiAccountContent.kt`, `scripts/tests/fixtures/RoomAnnotations.kt`).
+- **Derleme/çalıştırma YAPILMADI** (ortamda JDK/Android SDK yok). Kullanıcı tarafından
+  `./gradlew :app:compileDebugKotlin` ve
+  `./gradlew :app:testDebugUnitTest --tests '*WatchStatusMappingTest' --tests '*MalImportManagerUrlTest' --tests '*SyncFieldDiffTest'`
+  çalıştırılmalıdır.
