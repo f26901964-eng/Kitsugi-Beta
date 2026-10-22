@@ -115,8 +115,13 @@ object KitsugiPersonImageAggregator {
                 enqueue { aniListImage(kind, aniListId, nameCandidates) }
             }
             when (kind) {
-                PersonKind.CHARACTER -> enqueue {
-                    kitsuCharacterImage(knownId = id.takeIf { canonical == "kitsu" && it > 0 }, names = nameCandidates)
+                PersonKind.CHARACTER -> {
+                    enqueue {
+                        kitsuCharacterImage(knownId = id.takeIf { canonical == "kitsu" && it > 0 }, names = nameCandidates)
+                    }
+                    if (nameCandidates.isNotEmpty()) {
+                        enqueue { wikipediaCharacterImage(nameCandidates) }
+                    }
                 }
                 PersonKind.PERSON -> Unit // Kitsu personel görseli sağlamaz
             }
@@ -140,6 +145,130 @@ object KitsugiPersonImageAggregator {
             tasks.forEach { it.cancel() }
         }
         return results.distinctBy { it.url }
+    }
+
+    /**
+     * Liste kartları (ör. TMDB/Simkl Karakterler sekmesi) için **ilk geçerli portreyi** bulur bulmaz
+     * diğer paralel istekleri anında iptal ederek döner.
+     *
+     * [CharacterDetailPage]'in karakter adına tıklayınca her zaman portre bulabilmesinin sırrı,
+     * Kitsu + Bangumi + Jikan + AniList uçlarını paralel koşturmasıdır; bu metot aynı gücü tek
+     * görsel hedefiyle minimum gecikmeyle liste görünümüne taşır.
+     */
+    suspend fun firstPortrait(
+        names: List<String>,
+        allowSingleTokenNames: Boolean = true,
+        allowAnimeCatalogs: Boolean = true,
+        budgetMs: Long = 4_500L
+    ): String? {
+        val nameCandidates = names.asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .filter { isUnambiguousName(it, allowSingleTokenLatin = allowSingleTokenNames && allowAnimeCatalogs) }
+            .take(3)
+            .toList()
+        if (nameCandidates.isEmpty()) return null
+
+        for (candidate in nameCandidates) {
+            DetailCache.getCachedCharacterPortrait(candidate)?.let { return it }
+        }
+
+        var winner: String? = null
+        coroutineScope {
+            val completed = Channel<String?>(Channel.UNLIMITED)
+            val scope = this
+            val tasks = mutableListOf<Job>()
+            fun enqueue(fetch: suspend () -> String?) {
+                tasks += scope.launch {
+                    val found = try {
+                        fetch()?.takeIf { it.isNotBlank() }
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (_: Exception) {
+                        null
+                    }
+                    completed.send(found)
+                }
+            }
+
+            if (allowAnimeCatalogs) {
+                enqueue { kitsuCharacterImage(knownId = null, names = nameCandidates).firstOrNull()?.url }
+                enqueue { jikanDirectCharacterPortrait(nameCandidates) }
+                enqueue { aniListImage(PersonKind.CHARACTER, null, nameCandidates).firstOrNull()?.url }
+            }
+            enqueue { bangumiImage(PersonKind.CHARACTER, knownId = null, names = nameCandidates).firstOrNull()?.url }
+            enqueue { wikipediaCharacterImage(nameCandidates).firstOrNull()?.url }
+
+            val deadline = System.currentTimeMillis() + budgetMs
+            var finished = 0
+            while (finished < tasks.size && winner == null) {
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining <= 0L) break
+                val url = withTimeoutOrNull(remaining) { completed.receive() }
+                finished++
+                if (!url.isNullOrBlank()) {
+                    winner = url
+                    break
+                }
+            }
+            tasks.forEach { it.cancel() }
+        }
+
+        if (!winner.isNullOrBlank()) {
+            nameCandidates.firstOrNull()?.let { DetailCache.propagateCharacterPortrait(it, winner) }
+        }
+        return winner
+    }
+
+    private val FICTIONAL_CHAR_DESC_HINTS = listOf(
+        "fictional", "character", "protagonist", "antagonist", "animated",
+        "simpsons", "sitcom", "series", "comic", "manga", "anime",
+        "kurgusal", "karakter", "kahraman", "animasyon", "çizgi"
+    )
+
+    private suspend fun wikipediaCharacterImage(names: List<String>): List<SourceImage> {
+        val cleanNames = names.map { it.substringBefore("/").trim() }
+            .filter { it.length >= 2 }
+            .distinct()
+            .take(3)
+        if (cleanNames.isEmpty()) return emptyList()
+        val out = mutableListOf<SourceImage>()
+        for (wikiId in listOf("wikipedia.en", "wikipedia.tr")) {
+            val lookups = runCatching {
+                com.kitsugi.animelist.data.fandom.FandomApi.lookupTitles(wikiId, cleanNames)
+            }.getOrNull().orEmpty()
+            for (name in cleanNames) {
+                val hit = lookups[name]?.takeIf { it.exists && !it.isDisambiguation } ?: continue
+                val thumb = hit.thumbnailUrl?.takeIf { it.isNotBlank() } ?: continue
+                val desc = hit.description?.lowercase().orEmpty()
+                if (FICTIONAL_CHAR_DESC_HINTS.any { hint -> desc.contains(hint) }) {
+                    out += SourceImage(
+                        url = thumb,
+                        source = if (wikiId == "wikipedia.tr") "Vikipedi" else "Wikipedia"
+                    )
+                }
+            }
+            if (out.isNotEmpty()) break
+        }
+        return out
+    }
+
+    /**
+     * Jikan `/v4/characters?q=...` yanıtındaki ilk doğrulanmış eşleşmenin doğrudan portresini döner
+     * (`/pictures` için ikinci bir istek atmaz; `fetchCharacterDetail("tmdb")` ile birebir aynı mantık).
+     */
+    private suspend fun jikanDirectCharacterPortrait(names: List<String>): String? {
+        for (query in names) {
+            val results = runCatching { JikanApiClient().searchMalCharacters(query, page = 1) }.getOrNull().orEmpty()
+            val match = results.firstOrNull { item ->
+                !item.imageUrl.isNullOrBlank() && nameMatches(query, item.title)
+            }
+            if (match != null && !match.imageUrl.isNullOrBlank()) {
+                return match.imageUrl
+            }
+        }
+        return null
     }
 
     private suspend fun safeImages(fetch: suspend () -> List<SourceImage>): List<SourceImage> =

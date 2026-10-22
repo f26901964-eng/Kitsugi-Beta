@@ -56,6 +56,118 @@ object DetailCache {
 
     private val translations = BoundedCache<String, String>("detail.translations", 300)
 
+    /** Oturum boyunca çözülen kurgusal karakter portreleri (normalize karakter adı → URL). */
+    val resolvedCharacterPortraits = BoundedCache<String, String>("detail.characterPortraits", 1500)
+
+    /** Karakter portresi güncellendiğinde detay sekmelerinin anında haberdar olması için sayaç. */
+    private val _characterPortraitVersion = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val characterPortraitVersion: kotlinx.coroutines.flow.StateFlow<Long> = _characterPortraitVersion
+
+    private fun normalizePortraitKey(name: String): String =
+        name.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|seslendirme|ses|child)\\)", RegexOption.IGNORE_CASE), "")
+            .replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u")
+            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+
+    /**
+     * TMDB görsel URL'lerindeki boyut segmentini (`w185`, `w300`, `w500`, `original`)
+     * normalize ederek aynı kişi fotoğrafının farklı çözünürlüklerdeki kopyalarını eşleştirir.
+     */
+    fun normalizeImageIdentity(url: String?): String {
+        val clean = url?.trim()?.substringBefore('?')?.trimEnd('/').orEmpty()
+        if (clean.isEmpty()) return ""
+        return clean.replace(Regex("^https?://image\\.tmdb\\.org/t/p/[^/]+/"), "https://image.tmdb.org/t/p/")
+    }
+
+    fun isSameImageResource(a: String?, b: String?): Boolean {
+        val na = normalizeImageIdentity(a)
+        val nb = normalizeImageIdentity(b)
+        return na.isNotEmpty() && na == nb
+    }
+
+    fun getCachedCharacterPortrait(name: String?): String? {
+        if (name.isNullOrBlank()) return null
+        val fullKey = normalizePortraitKey(name)
+        if (fullKey.length >= 2) {
+            resolvedCharacterPortraits[fullKey]?.let { return it }
+        }
+        val primaryKey = normalizePortraitKey(name.substringBefore("/"))
+        if (primaryKey.length >= 2 && primaryKey != fullKey) {
+            resolvedCharacterPortraits[primaryKey]?.let { return it }
+        }
+        return null
+    }
+
+    /**
+     * Karakter detay sayfasında veya çapraz kaynakta doğrulanan portreyi kaydeder ve
+     * önbellekteki TMDB/Simkl karakter listelerinde görseli boş kalan kartlara anında işler.
+     */
+    fun propagateCharacterPortrait(name: String?, imageUrl: String?) {
+        val rawName = name?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val url = imageUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val primaryName = rawName.substringBefore("/").substringBefore(" (").trim()
+        val keys = listOf(rawName, primaryName)
+            .map(::normalizePortraitKey)
+            .filter { it.length >= 2 }
+            .distinct()
+        if (keys.isEmpty()) return
+
+        for (cacheKey in mediaCharacters.keys.toList()) {
+            if (!cacheKey.startsWith("tmdb") && !cacheKey.startsWith("simkl")) continue
+            val existing = mediaCharacters[cacheKey] ?: continue
+            val matchesVoiceActorPhoto = existing.any { char ->
+                val charFullKey = normalizePortraitKey(char.name)
+                val charPrimaryKey = normalizePortraitKey(char.name.substringBefore("/"))
+                (charFullKey in keys || charPrimaryKey in keys) &&
+                    char.voiceActors.any { va -> isSameImageResource(url, va.imageUrl) }
+            }
+            if (matchesVoiceActorPhoto) {
+                keys.forEach { k ->
+                    if (isSameImageResource(resolvedCharacterPortraits[k], url)) {
+                        resolvedCharacterPortraits.remove(k)
+                    }
+                }
+                return
+            }
+        }
+
+        var updatedAny = false
+        for (targetKey in keys) {
+            if (resolvedCharacterPortraits[targetKey] != url) {
+                resolvedCharacterPortraits[targetKey] = url
+                updatedAny = true
+            }
+        }
+        for (cacheKey in mediaCharacters.keys.toList()) {
+            if (!cacheKey.startsWith("tmdb") && !cacheKey.startsWith("simkl")) continue
+            val existing = mediaCharacters[cacheKey] ?: continue
+            var changed = false
+            val patched = existing.map { char ->
+                val charFullKey = normalizePortraitKey(char.name)
+                val charPrimaryKey = normalizePortraitKey(char.name.substringBefore("/"))
+                val isActorDup = !char.imageUrl.isNullOrBlank() &&
+                    char.voiceActors.any { va -> isSameImageResource(char.imageUrl, va.imageUrl) }
+                val urlIsActorPhoto = char.voiceActors.any { va -> isSameImageResource(url, va.imageUrl) }
+                if (!urlIsActorPhoto &&
+                    (charFullKey in keys || charPrimaryKey in keys) &&
+                    (char.imageUrl.isNullOrBlank() || (!char.isRealMediaRole && isActorDup))
+                ) {
+                    changed = true
+                    char.copy(imageUrl = url, isRealMediaRole = false)
+                } else {
+                    char
+                }
+            }
+            if (changed) {
+                mediaCharacters[cacheKey] = patched
+                updatedAny = true
+            }
+        }
+        if (updatedAny) {
+            _characterPortraitVersion.value = _characterPortraitVersion.value + 1L
+        }
+    }
+
     fun makeKey(source: String, id: Int, mediaType: String? = null): String {
         return if (!mediaType.isNullOrBlank()) {
             "${source.lowercase()}_${mediaType.lowercase()}_$id"

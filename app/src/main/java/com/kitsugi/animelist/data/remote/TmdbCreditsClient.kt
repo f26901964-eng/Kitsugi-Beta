@@ -56,9 +56,11 @@ internal object TmdbCreditsClient {
                     val actorName = item.optString("name", appString(R.string.source_unknown, "Unknown"))
                     val rawCharacterName = item.optString("character", appString(R.string.source_unknown, "Unknown"))
                     val isVoiceRole = rawCharacterName.contains("(voice)", ignoreCase = true) ||
-                        rawCharacterName.contains("(uncredited voice)", ignoreCase = true)
+                        rawCharacterName.contains("(uncredited voice)", ignoreCase = true) ||
+                        rawCharacterName.contains("(seslendirme)", ignoreCase = true) ||
+                        rawCharacterName.contains("(ses)", ignoreCase = true)
                     val characterName = rawCharacterName
-                        .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice)\\)", RegexOption.IGNORE_CASE), "")
+                        .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|seslendirme|ses)\\)", RegexOption.IGNORE_CASE), "")
                         .trim()
                     val profilePath = item.optNullableString("profile_path")
                     val order = item.optInt("order", 999)
@@ -76,7 +78,8 @@ internal object TmdbCreditsClient {
                             role = if (order < 5) appString(R.string.source_main_character, "Main character") else appString(R.string.source_supporting_character, "Supporting character"),
                             imageUrl = charImageUrl,
                             voiceActors = listOf(va),
-                            source = "tmdb"
+                            source = "tmdb",
+                            isVoiceRole = isVoiceRole
                         )
                     )
                 }

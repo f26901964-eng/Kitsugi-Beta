@@ -466,7 +466,8 @@ internal object KitsugiSimklDetailClient {
                 pictures = simklPictures,
                 rank = rankVal,
                 members = votesCount,
-                type = mediaType
+                type = mediaType,
+                countryOfOrigin = obj.optString("country", "").trim().takeIf { it.isNotEmpty() && it != "null" }
             )
         } catch (e: Exception) {
             // T3-05: printStackTrace → Log.e

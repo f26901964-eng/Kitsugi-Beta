@@ -208,6 +208,8 @@ data class KitsugiCharacter(
     // Canlı çekim (animasyon olmayan) dizi/film karakterleri: detay sayfası
     // AniList/MAL/Kitsu araması yerine doğrudan TMDB/Simkl verisiyle açılır.
     val isRealMediaRole: Boolean = false,
+    // TMDB jeneriğinde "(voice)" / "(seslendirme)" olarak işaretlenmiş seslendirme rolü mü?
+    val isVoiceRole: Boolean = false,
     val romanizedName: String? = null,
     val nativeName: String? = null,
     val englishName: String? = null

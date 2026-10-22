@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
@@ -51,6 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.MdbListQuota
+import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.utils.toTurkishGenre
 import com.kitsugi.animelist.utils.toEnglishGenreForSearch
@@ -71,6 +74,8 @@ import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.toLocalizedOrgName
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1086,6 +1091,24 @@ internal fun ApiMdbListRatingCard(
     val accentColor = LocalKitsugiAccent.current
     val uriHandler = LocalUriHandler.current
 
+    // Kota tek bir merkezden gelir: aynı anahtar için Ayarlar sayfası ve bu kart aynı sayıyı
+    // gösterir. Günlük sıfırlanma geçtiyse bayat "0" yerine yenilenmiş değer çizilir.
+    val storedQuota by MdbListQuotaCenter.quota.collectAsState()
+    val quota = remember(storedQuota) { storedQuota?.rolledOver() }
+    val exhaustedQuota = quota?.takeIf { it.isExhausted }
+    val context = LocalContext.current
+
+    // Kota dolduğu anda tek seferlik uyarı (ayarlar paneliyle ortak bayrak).
+    LaunchedEffect(exhaustedQuota != null, exhaustedQuota?.resetAtEpochSeconds) {
+        if (exhaustedQuota != null && MdbListQuotaCenter.consumeExhaustedNotice()) {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.mdblist_quota_exhausted_toast),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     val ratingItems = buildMdbRatingItems(
         ratings = ratings,
         mediaTitle = mediaTitle,
@@ -1099,8 +1122,10 @@ internal fun ApiMdbListRatingCard(
         showTrakt = showTrakt
     )
 
-    // Yükleniyor değilken gösterilecek puan yoksa kart tamamen gizlenir.
-    if (!isLoading && ratingItems.isEmpty()) return
+    // Yükleniyor değilken gösterilecek puan yoksa kart gizlenir. Tek istisna: günlük kota
+    // bittiyse uyarı yine gösterilir; aksi hâlde kullanıcı puanların neden gelmediğini
+    // hiçbir yerde göremezdi.
+    if (!isLoading && ratingItems.isEmpty() && exhaustedQuota == null) return
 
     Column(
         modifier = Modifier
@@ -1141,6 +1166,11 @@ internal fun ApiMdbListRatingCard(
                     )
                 }
 
+                // Kalan günlük kota: puanların neden gelmediğini tek bakışta anlatır.
+                if (quota != null && (quota.isKnown || quota.isExhausted)) {
+                    MdbQuotaBadge(quota = quota)
+                }
+
                 if (onSettingsClick != null) {
                     IconButton(
                         onClick = onSettingsClick,
@@ -1157,11 +1187,126 @@ internal fun ApiMdbListRatingCard(
             }
         }
 
+        if (exhaustedQuota != null) {
+            MdbQuotaExhaustedNotice(quota = exhaustedQuota)
+        }
+
         // ── Gövde ────────────────────────────────────────────────────────────
         if (isLoading) {
             DetailRatingBadgesLoadingSkeleton()
-        } else {
+        } else if (ratingItems.isNotEmpty()) {
             MdbRatingGrid(items = ratingItems)
+        }
+    }
+}
+
+/** Kota sayılarını yerel binlik ayırıcısıyla yazar (1.000 / 25.000). */
+private fun formatMdbQuotaCount(value: Int): String =
+    java.text.NumberFormat.getIntegerInstance().format(value)
+
+/** Sıfırlanma anını kullanıcının yerel saatinde kısa biçimde yazar. */
+private fun formatMdbQuotaReset(epochSeconds: Long?): String? {
+    val epoch = epochSeconds?.takeIf { it > 0L } ?: return null
+    return runCatching {
+        java.time.Instant.ofEpochSecond(epoch)
+            .atZone(java.time.ZoneId.systemDefault())
+            .format(
+                java.time.format.DateTimeFormatter.ofPattern(
+                    "d MMM HH:mm",
+                    java.util.Locale.getDefault()
+                )
+            )
+    }.getOrNull()
+}
+
+/**
+ * Kart başlığındaki küçük kota rozeti.
+ *
+ * - Normal: "998/1.000" (nötr renk)
+ * - Yüzde 10 ve altı: turuncu
+ * - Tükendi: kırmızı "Kota doldu"
+ *
+ * Limit API'den geldiği için ücretsiz ve ücretli hesaplar aynı rozetle çalışır.
+ */
+@Composable
+private fun MdbQuotaBadge(quota: MdbListQuota) {
+    val exhausted = quota.isExhausted
+    val color = when {
+        exhausted -> KitsugiColors.AccentRed
+        quota.isLow -> KitsugiColors.AccentOrange
+        else -> KitsugiColors.TextSecondary
+    }
+    val label = if (exhausted) {
+        stringResource(R.string.mdblist_quota_exhausted_inline)
+    } else {
+        stringResource(
+            R.string.mdblist_quota_remaining_short,
+            formatMdbQuotaCount(quota.remaining ?: 0),
+            formatMdbQuotaCount(quota.limit ?: 0)
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(7.dp))
+            .background(color.copy(alpha = 0.14f))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (exhausted) {
+            Icon(
+                imageVector = Icons.Rounded.WarningAmber,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(11.dp)
+            )
+            Spacer(Modifier.width(3.dp))
+        }
+        Text(
+            text = label,
+            color = color,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Black
+        )
+    }
+}
+
+/** Günlük kota bittiğinde kart gövdesinde gösterilen uyarı. */
+@Composable
+private fun MdbQuotaExhaustedNotice(quota: MdbListQuota) {
+    val warningColor = KitsugiColors.AccentRed
+    val resetLabel = formatMdbQuotaReset(quota.resetAtEpochSeconds)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(warningColor.copy(alpha = 0.12f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.WarningAmber,
+            contentDescription = null,
+            tint = warningColor,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.mdblist_quota_exhausted_title),
+                color = warningColor,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (resetLabel != null) {
+                    stringResource(R.string.mdblist_quota_exhausted_desc, resetLabel)
+                } else {
+                    stringResource(R.string.mdblist_quota_exhausted_desc_unknown)
+                },
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

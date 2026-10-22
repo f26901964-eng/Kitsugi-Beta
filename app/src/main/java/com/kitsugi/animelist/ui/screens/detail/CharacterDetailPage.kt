@@ -267,6 +267,12 @@ fun CharacterDetailPage(
                     wikiViewModel.bind(rawDetail, source, characterId)
                 }
                 val wikiState by wikiViewModel.state.collectAsState()
+                LaunchedEffect(wikiState) {
+                    val ready = wikiState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.UiState.Ready
+                    if (ready != null) {
+                        viewModel.onWikiCharacterPageResolved(ready.page)
+                    }
+                }
                 val wikiSections by wikiViewModel.sections.collectAsState()
                 val wikiTranslations by wikiViewModel.translations.collectAsState()
                 val wikiTranslating by wikiViewModel.translating.collectAsState()
@@ -312,7 +318,7 @@ fun CharacterDetailPage(
                 val tabKeys = buildList {
                     add(CharacterTabKey.ABOUT)
                     add(CharacterTabKey.APPEARANCES)
-                    if (source.lowercase() != "tmdb") add(CharacterTabKey.VOICE_ACTORS)
+                    if (source.lowercase() != "tmdb" || !isRealMediaRole) add(CharacterTabKey.VOICE_ACTORS)
                     // Wiki sekmesi en sonda ama sayfa açılır açılmaz görünür: çözümleme sürerken
                     // iskelet gösterilir, böylece sekme sonradan belirip sekmeleri kaydırmaz.
                     if (wikiTabPossible) add(CharacterTabKey.WIKI)
