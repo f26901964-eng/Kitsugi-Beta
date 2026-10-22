@@ -428,8 +428,8 @@ fun SearchScreen(
                             .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        uiState.sourceErrorCodes.values.distinct().forEach { code ->
-                            PlatformErrorCodeChip(code = code)
+                        uiState.sourceErrorCodes.forEach { (platform, code) ->
+                            PlatformErrorCodeChip(code = code, platform = platform)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
