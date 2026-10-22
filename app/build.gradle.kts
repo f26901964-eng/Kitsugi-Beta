@@ -316,6 +316,10 @@ dependencies {
 
     implementation(libs.gson)
 
+    // AniSub RAR paketlerini cihazda açmak için (saf Java unrar).
+    // AniSub'un sunucu arşiv API'si RAR desteklemez; paketlerin önemli bölümü .rar'dır.
+    implementation("com.github.junrar:junrar:7.5.5")
+
 
     testImplementation(libs.junit)
     // JVM contract tests need a real JSON implementation, not Android stub methods.
