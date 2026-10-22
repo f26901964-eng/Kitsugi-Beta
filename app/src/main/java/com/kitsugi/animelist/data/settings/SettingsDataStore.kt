@@ -173,6 +173,8 @@ class SettingsDataStore(
         // Açıklama Otomatik Çevirisi
         val WikiPageTheme = stringPreferencesKey("wiki_page_theme")
         val WikiTextZoom = intPreferencesKey("wiki_text_zoom")
+        /** Sayfa görünümü: true = masaüstü düzeni, false = mobil düzen (varsayılan). */
+        val WikiDesktopLayout = booleanPreferencesKey("wiki_desktop_layout")
         val WikiAdBlockDisabledHosts = stringSetPreferencesKey("wiki_adblock_disabled_hosts")
         val AutoTranslateEnabled = booleanPreferencesKey("auto_translate_enabled")
         val PreferredTranslator = stringPreferencesKey("preferred_translator")
@@ -663,6 +665,7 @@ class SettingsDataStore(
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
                     wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "SITE",
                     wikiTextZoom = preferences[Keys.WikiTextZoom] ?: 100,
+                    wikiDesktopLayout = preferences[Keys.WikiDesktopLayout] ?: false,
                     wikiAdBlockDisabledHosts = preferences[Keys.WikiAdBlockDisabledHosts] ?: emptySet(),
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
@@ -1288,6 +1291,11 @@ class SettingsDataStore(
             it[Keys.WikiPageTheme] = mode
             it[Keys.WikiTextZoom] = textZoom.coerceIn(80, 180)
         }
+    }
+
+    /** Wiki açılır sayfasının görünüm düzeni; seçim sekmeler ve oturumlar arasında korunur. */
+    suspend fun setWikiDesktopLayout(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.WikiDesktopLayout] = enabled }
     }
 
     /** Local per-wiki exception; never changes filtering in other application WebViews. */

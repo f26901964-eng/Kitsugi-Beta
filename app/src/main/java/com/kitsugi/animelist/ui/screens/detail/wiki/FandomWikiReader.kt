@@ -89,6 +89,8 @@ import androidx.compose.runtime.compositionLocalOf
 import com.kitsugi.animelist.data.fandom.FandomBlockLink
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
 import com.kitsugi.animelist.data.fandom.FandomUrls
+import com.kitsugi.animelist.data.settings.KitsugiContentPrefs
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.SubcomposeAsyncImage
@@ -189,15 +191,22 @@ internal fun FandomWikiReaderSheet(
     // its article title. Do not copy the source tab's WebView or back/forward history.
     val pendingWebDuplicate = remember { arrayOfNulls<WikiOriginalSession>(1) }
     val tab = navigation.activeTab
+    val context = LocalContext.current
+    val settingsStore = remember(context) { SettingsDataStore(context) }
+    val scope = rememberCoroutineScope()
     val webSession = tab?.let {
         val existing = webSessions[it.id]
         if (existing == null || (originalLayout && existing.readerLocation != it.location)) {
             (pendingWebDuplicate[0]?.takeIf { copy -> existing == null && copy.readerLocation == it.location }
-                ?: WikiOriginalSession(FandomUrls.pageUrl(it.location.wikiId, it.location.title), it.location))
+                ?: WikiOriginalSession(
+                    FandomUrls.pageUrl(it.location.wikiId, it.location.title),
+                    it.location,
+                    // Son seçilen düzen (yoksa mobil) — sekmeler ve oturumlar arasında korunur.
+                    initialDesktop = KitsugiContentPrefs.wikiDesktopLayout
+                ))
                 .also { session -> webSessions[it.id] = session }
         } else existing
     }
-    val context = LocalContext.current
     var externalUrl by remember { mutableStateOf<String?>(null) }
     val useReader: () -> Unit = {
         if (tab != null && webSession != null &&
@@ -351,7 +360,14 @@ internal fun FandomWikiReaderSheet(
                     if (originalLayout && webSession != null) {
                         FilterChip(
                             selected = webSession.desktop,
-                            onClick = { webSession.setDesktopMode(!webSession.desktop) },
+                            onClick = {
+                                val next = !webSession.desktop
+                                webSession.setDesktopMode(next)
+                                // Seçim kalıcı: bir sonraki wiki sayfası da aynı düzenle açılır.
+                                scope.launch {
+                                    runCatching { settingsStore.setWikiDesktopLayout(next) }
+                                }
+                            },
                             label = { Text(stringResource(if (webSession.desktop)
                                 R.string.wiki_desktop_layout else R.string.wiki_mobile_layout)) }
                         )
