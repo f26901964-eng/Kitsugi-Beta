@@ -891,7 +891,9 @@ private fun MdbListQuotaPanel(
         if (apiKey.isBlank()) return@LaunchedEffect
         MdbListQuotaCenter.bind(context, apiKey)
         refreshing = true
-        MdbListQuotaCenter.refresh(apiKey, maxAgeMillis = 60_000L)
+        // Tazeleme isteğinin kendisi de kotadan düşer: otomatik doğrulama seyrek tutulur,
+        // kullanıcı isterse yenile düğmesiyle anında günceller.
+        MdbListQuotaCenter.refresh(apiKey, maxAgeMillis = 5L * 60_000L)
         refreshing = false
     }
 

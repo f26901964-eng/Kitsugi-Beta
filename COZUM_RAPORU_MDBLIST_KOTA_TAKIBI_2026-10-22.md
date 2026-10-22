@@ -56,7 +56,7 @@ API anahtarı satırının altında yeni **API Kotası** paneli:
 - `998 / 1.000 istek kaldı` + oran çubuğu + `Sıfırlanma: 23 Eki 00:00` (yerel saat).
 - Plan rozeti (`Ücretsiz` / `Destekçi`) — yalnızca bilgi amaçlı, **kota hesabı bu rozete
   göre yapılmaz**.
-- Sağ üstte yenile düğmesi; sekme açıldığında otomatik tazelenir (60 sn kısa devre).
+- Sağ üstte yenile düğmesi; sekme açıldığında otomatik tazelenir (5 dk kısa devre).
 - Kota bitince çubuk yerine kırmızı uyarı bloğu: *Günlük API kotası doldu — harici puanlar
   … itibarıyla yeniden yüklenecek.*
 - Kota okunamazsa uydurma sayı yerine "Kota bilgisi alınamadı" + yenile düğmesi.
