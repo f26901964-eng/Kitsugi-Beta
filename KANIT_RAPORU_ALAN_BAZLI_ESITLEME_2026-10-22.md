@@ -696,7 +696,7 @@ sonuç yanlış olur. Üç mantık hatası bulundu.
 
 Birleştirme kuralı, Kotlin'deki mantığın **birebir Python modeli** olarak yazıldı ve
 rastgele 4000 aday kümesiyle koşturuldu (determinizm, sabit nokta/idempotans, monotonluk,
-toplam-il erleme tutarlılığı). İlk koşuda 4000 kümenin **126'sında** sonuç aday sırasına
+toplam–ilerleme tutarlılığı). İlk koşuda 4000 kümenin **126'sında** sonuç aday sırasına
 göre değişiyordu:
 
 | # | Hata | Kök neden | Etki | Düzeltme |
