@@ -664,7 +664,7 @@ object CrossProviderIdentityResolver {
         // kaynaklar "kimlik çözülemedi" diye sessizce atlanıyordu. Arama Jikan üzerinden
         // anonim yapılır; ek yetki gerektirmez.
         val malIdUseful = connected.mal || connected.shikimori || connected.kitsu ||
-            connected.bangumi || connected.anilist
+            connected.bangumi || connected.aniList
         if (ids.malId == null && malIdUseful && CrossSyncPolicy.supportsMal(entry.type)) {
             val searchTitles = listOfNotNull(entry.titleEnglish, entry.titleJapanese, entry.title)
                 .map { it.trim() }

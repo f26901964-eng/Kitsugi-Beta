@@ -1235,3 +1235,27 @@ imzaları varsayılmaz; önce okunur, sonra yazılır.
   doğrulamaları ve E60. Bir sonraki saldırı yüzeyi özellikle kimlik eşleşmesi ve
   orkestrasyon yoludur.
 
+---
+
+## 22. Geçiş 14 — Gerçek Gradle Derleme ve Birim Test Doğrulaması (E83, E84)
+
+Bu geçişte, önceki turlarda “ortamda JDK/Gradle yok” varsayımıyla ertelenen derleme ve birim testler, kullanıcının gerçek ortamında çalıştırılarak doğrulanmıştır.
+
+### 22.1 Bulunan ve Düzeltilen Hatalar
+
+| # | Hata | Kök Neden | En Küçük Düzeltme |
+|---|---|---|---|
+| **E83** | `CrossProviderIdentity.kt:667`'de `Unresolved reference 'anilist'` derleme hatası | `ConnectedSources` veri sınıfında `val aniList: Boolean = true` (büyük `L`) tanımlıyken, satırda küçük `l` ile `connected.anilist` yazılmış. Sözdizimi tarayıcısı (kcheck) tip çözümlemesi yapmadığından bu hata gerçek derlemeye kadar gizli kalmıştır. | `connected.anilist` → `connected.aniList` olarak düzeltildi. |
+| **E84** | `RewatchTargetVocabularyTest.kt:200`'de `anilist / Watching / mal-bayrak → beklenmeyen yazım: [STATUS]` testi kırıyordu | Testte her sağlayıcı, kendi meşru ve erişilebilir durum uzayı yerine **tüm sağlayıcıların bileşke durum uzayı** (`states`) üzerinden sınanıyordu. AniList'te "tekrar" ayrı bir durumdur (`REPEATING`) ve MAL gibi `Watching + is_rewatching=true` taşınamaz. Bu durum AniList'e verildiğinde politikanın AniList durumunu `REPEATING`e çekmek istemesi (`STATUS`) son derece doğru bir davranış olmasına rağmen test bunu regresyon olarak görüyordu. | Teste `statesFor(provider)` ayrımlaştırması eklendi; her sağlayıcının yalnızca kendi üretebildiği durumlar üzerinde tekil idempotans sınaması sağlandı. |
+
+### 22.2 Çalıştırılan Testler ve Sonuçlar
+
+1. **`RewatchTargetVocabularyTest`**: 12/12 test BAŞARILI.
+2. **`com.kitsugi.animelist.data.auth.*` (Tüm Senkronizasyon Paketi)**: 210 test BAŞARILI (`BUILD SUCCESSFUL in 3m 33s`).
+3. **`SimklSyncContractTest` (11 test) + `PendingSync*` (35 test)**: 46 test BAŞARILI (`BUILD SUCCESSFUL in 3m 26s`).
+4. **Toplam Kapsam**: 256 senkronizasyon birim testi sıfır hata ile tamamlanmıştır.
+
+### 22.3 Süreç Notu: Ağ Testlerinin Ayrıştırılması
+Genel `testFossDebugUnitTest` görevinde, `CsLivePluginTest` gibi 100'e yakın harici web sitesine (Türk dizi/film/anime eklentileri) canlı HTTP istekleri atan ve her biri için 10 saniye zaman aşımı bekleyen testler yerel senkronizasyon birim testlerini kilitlemekteydi. Bu testlerin birim test paketinden ayrılarak senkronizasyon testlerinin izole biçimde koşturulması sağlandı.
+
+

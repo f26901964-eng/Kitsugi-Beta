@@ -174,19 +174,33 @@ class RewatchTargetVocabularyTest {
         // Sağlayıcıların gerçekten ÜRETEBİLDİĞİ durumlar (erişilebilir durum uzayı):
         // "tekrar" ya ayrı bir durumdur (AniList/Shikimori) ya bir bayraktır (MAL/Kitsu)
         // ya da hiç ifade edilemez (Bangumi/Simkl).
-        val states = buildList {
-            listOf(WatchStatus.Watching, WatchStatus.Completed, WatchStatus.Planned,
-                WatchStatus.Dropped, WatchStatus.Paused, WatchStatus.Repeating).forEach { status ->
+        fun statesFor(provider: String): List<Triple<WatchStatus, Boolean, String>> = buildList {
+            listOf(
+                WatchStatus.Watching, WatchStatus.Completed, WatchStatus.Planned,
+                WatchStatus.Dropped, WatchStatus.Paused
+            ).forEach { status ->
                 add(Triple(status, false, "durum"))
             }
-            add(Triple(WatchStatus.Repeating, false, "anilist-REPEATING"))
-            add(Triple(WatchStatus.Watching, true, "mal-bayrak"))
-            add(Triple(WatchStatus.Completed, true, "mal-bayrak"))
-            add(Triple(WatchStatus.Watching, true, "kitsu-reconsuming"))
+            when (provider) {
+                "anilist", "shikimori" -> {
+                    add(Triple(WatchStatus.Repeating, true, "$provider-REPEATING"))
+                    add(Triple(WatchStatus.Repeating, false, "$provider-REPEATING"))
+                }
+                "mal" -> {
+                    add(Triple(WatchStatus.Watching, true, "mal-bayrak"))
+                    add(Triple(WatchStatus.Completed, true, "mal-bayrak"))
+                }
+                "kitsu" -> {
+                    add(Triple(WatchStatus.Watching, true, "kitsu-reconsuming"))
+                }
+                "bangumi", "simkl" -> {
+                    // Tekrarı ifade edemez; yalnız temel durumlar test edilir.
+                }
+            }
         }
 
         for (provider in listOf("anilist", "mal", "kitsu", "shikimori", "bangumi", "simkl")) {
-            for ((status, flag, label) in states) {
+            for ((status, flag, label) in statesFor(provider)) {
                 val single = row(
                     id = 1,
                     source = provider,
