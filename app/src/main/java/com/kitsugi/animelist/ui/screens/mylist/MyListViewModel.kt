@@ -67,6 +67,11 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         cachedCombinedLibrary = value
     }
 
+    // Plain caches, not Compose state: retain the last complete search and prepared
+    // documents across detail navigation without invalidating the screen per keystroke.
+    internal var cachedPreparedSearch: PreparedMyListSearch? = null
+    internal var cachedSearchResult: MyListSearchUiCache? = null
+
     init {
         // Bozuk Simkl subtitle'larını ve kaynak etiketlerini tek seferlik onar
         viewModelScope.launch {

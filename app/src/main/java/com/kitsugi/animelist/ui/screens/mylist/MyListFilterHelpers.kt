@@ -1,7 +1,5 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
-import com.kitsugi.animelist.ui.utils.plainLabel
-import com.kitsugi.animelist.ui.utils.localizedLabel
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -24,30 +22,33 @@ internal fun filterMyListEntries(
     selectedFavoriteFilterId: String,
     selectedScoreFilterId: String,
     selectedYearFilterId: String,
-    selectedExtraFilterId: String
+    selectedExtraFilterId: String,
+    searchIndex: MyListSearchIndex? = null,
+    fuzzySearchEnabled: Boolean = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzySearchEnabled,
+    checkActive: () -> Unit = {}
 ): List<MediaEntry> {
     val selectedStatus = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.status
     val selectedType = typeFilters.firstOrNull { it.id == selectedTypeFilterId }?.type
     val favoritesOnly = selectedFavoriteFilterId == "favorites" || selectedStatusFilterId == "favorites"
     val adultOnly = selectedStatusFilterId == "adult"
-    val normalizedQuery = searchQuery.trim().lowercase()
-    val normQuery = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(normalizedQuery)
+    val query = MyListSearchQuery(searchQuery, fuzzySearchEnabled)
+    // The index must refer to this exact snapshot/order; never reuse a document for a
+    // changed row or a coincidentally equal provider ID.
+    val index = searchIndex?.takeIf { it.entries === entries }
 
-    return entries.asSequence()
-        .filter { entry -> selectedStatus == null || entry.status == selectedStatus }
-        .filter { entry -> selectedType == null || entry.type == selectedType }
-        .filter { entry -> !favoritesOnly || entry.isFavorite }
-        .filter { entry -> !adultOnly || entry.isAdult }
-        .filter { entry ->
+    return entries.filterIndexed { position, entry ->
+        if (position % 32 == 0) checkActive()
+        (selectedStatus == null || entry.status == selectedStatus) &&
+            (selectedType == null || entry.type == selectedType) &&
+            (!favoritesOnly || entry.isFavorite) &&
+            (!adultOnly || entry.isAdult) &&
             when (selectedScoreFilterId) {
                 "high" -> (entry.score ?: 0) >= 8
                 "mid" -> (entry.score ?: 0) in 5..7
                 "low" -> (entry.score ?: 0) in 1..4
                 "unrated" -> entry.score == null || entry.score == 0
                 else -> true
-            }
-        }
-        .filter { entry ->
+            } &&
             when (selectedYearFilterId) {
                 "new" -> (entry.year ?: 0) >= 2025
                 "2020s" -> (entry.year ?: 0) in 2020..2024
@@ -55,70 +56,39 @@ internal fun filterMyListEntries(
                 "2000s" -> (entry.year ?: 0) in 2000..2009
                 "classic" -> (entry.year ?: 0) in 1..1999
                 else -> true
-            }
-        }
-        .filter { entry ->
+            } &&
             when (selectedExtraFilterId) {
                 "repeating" -> entry.isRepeating || entry.status == WatchStatus.Repeating
                 "private" -> entry.isPrivate
                 "ongoing" -> entry.status != WatchStatus.Completed && entry.status != WatchStatus.Dropped
                 else -> true
-            }
-        }
-        .filter { entry ->
-            if (normalizedQuery.isBlank()) {
-                true
-            } else {
-                entry.title.lowercase().contains(normalizedQuery) ||
-                    entry.titleEnglish?.lowercase()?.contains(normalizedQuery) == true ||
-                    entry.titleJapanese?.lowercase()?.contains(normalizedQuery) == true ||
-                    entry.subtitle.lowercase().contains(normalizedQuery) ||
-                    entry.type.name.lowercase().contains(normalizedQuery) ||
-                    entry.status.plainLabel().lowercase().contains(normalizedQuery) ||
-                    entry.source.lowercase().contains(normalizedQuery) ||
-                    entry.year?.toString()?.contains(normalizedQuery) == true ||
-                    entry.malId?.toString()?.contains(normalizedQuery) == true ||
-                    // PERF: normalize edilmiş (NFKC + regex) başlık eşleşmesi eskiden her
-                    // satır için ÖNDEN hesaplanıyordu; her tuş vuruşunda listenin tamamı
-                    // için 3 normalizasyon ana iş parçacığında çalışıyordu. `||` zinkesini
-                    // sona aldım: yalnızca ucuz `contains` denetimlerinin hiçbiri
-                    // eşleşmezse hesaplanır. Sıra değişimi sonucu değiştirmez (tümü yan
-                    // etkisiz boole ifadeleri).
-                    (normQuery.length >= 2 && (
-                        com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title).contains(normQuery) ||
-                            entry.titleEnglish?.let {
-                                com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
-                            } == true ||
-                            entry.titleJapanese?.let {
-                                com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
-                            } == true
-                        )) ||
-                    // AniHyou paritesi: "Fuzzy arama kullan" — yazım hatası/kısaltma toleransı
-                    (
-                        com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzySearchEnabled && (
-                            com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzyMatches(entry.title, normalizedQuery) ||
-                                com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzyMatches(entry.titleEnglish.orEmpty(), normalizedQuery) ||
-                                com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzyMatches(entry.titleJapanese.orEmpty(), normalizedQuery)
-                            )
-                        )
-            }
-        }
-        .toList()
+            } &&
+            (query.isBlank || (index?.matchesAt(position, query)
+                ?: MyListSearchDocument(entry).matches(query)))
+    }.also { checkActive() }
 }
 
+private val myListStatusOrder = listOf(
+    WatchStatus.Watching,
+    WatchStatus.Repeating,
+    WatchStatus.Planned,
+    WatchStatus.Paused,
+    WatchStatus.Dropped,
+    WatchStatus.Completed
+)
+
 internal fun groupMyListEntriesByStatus(
-    entries: List<MediaEntry>
+    entries: List<MediaEntry>,
+    checkActive: () -> Unit = {}
 ): List<Pair<WatchStatus, List<MediaEntry>>> {
-    val statusOrder = listOf(
-        WatchStatus.Watching,
-        WatchStatus.Repeating,
-        WatchStatus.Planned,
-        WatchStatus.Paused,
-        WatchStatus.Dropped,
-        WatchStatus.Completed
-    )
-    return statusOrder.map { status -> status to entries.filter { it.status == status } }
-        .filter { (_, statusEntries) -> statusEntries.isNotEmpty() }
+    // One pass, retaining the current sort order within each section.
+    val groups = mutableMapOf<WatchStatus, MutableList<MediaEntry>>()
+    entries.forEachIndexed { index, entry ->
+        if (index % 32 == 0) checkActive()
+        groups.getOrPut(entry.status) { mutableListOf() }.add(entry)
+    }
+    checkActive()
+    return myListStatusOrder.mapNotNull { status -> groups[status]?.let { status to it } }
 }
 
 internal fun applySort(

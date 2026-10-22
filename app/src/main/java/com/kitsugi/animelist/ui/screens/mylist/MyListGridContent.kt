@@ -41,7 +41,7 @@ internal fun LazyListScope.MyListGroupedContent(
     val isGrid = selectedListLayoutId == "grid_2col"
 
     groupedEntries.forEach { (status, itemsForStatus) ->
-        item(key = "header_${status.name}") {
+        item(key = "header_${status.name}", contentType = "mylist_status_header") {
             val headerTitle = when (status) {
                 WatchStatus.Watching   -> "İzleniyor"
                 WatchStatus.Repeating  -> "Yeniden İzleniyor"
@@ -60,16 +60,24 @@ internal fun LazyListScope.MyListGroupedContent(
         }
 
         if (isGrid) {
-            val rows = itemsForStatus.chunked(gridColumns)
+            // Register rows by count. chunked() used to allocate/copy the ENTIRE library
+            // whenever the lazy content was rebuilt, even though only a few rows are visible.
             items(
-                items = rows,
-                key = { row -> "grid_row_${status.name}_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
-            ) { row ->
+                count = (itemsForStatus.size + gridColumns - 1) / gridColumns,
+                key = { row ->
+                    val first = itemsForStatus[row * gridColumns]
+                    "grid_row_${status.name}_${first.source}_${first.id}"
+                },
+                contentType = { "mylist_grid_row" }
+            ) { rowIndex ->
                 Row(
                     modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    row.forEach { entry ->
+                    val start = rowIndex * gridColumns
+                    val end = minOf(start + gridColumns, itemsForStatus.size)
+                    for (index in start until end) {
+                        val entry = itemsForStatus[index]
                         KitsugiMediaEntryCard(
                             entry = entry,
                             layoutId = selectedListLayoutId,
@@ -83,8 +91,8 @@ internal fun LazyListScope.MyListGroupedContent(
                             sourceBadges = sourceBadgesByEntryId[entry.id]
                         )
                     }
-                    if (row.size < gridColumns) {
-                        repeat(gridColumns - row.size) {
+                    if (end - start < gridColumns) {
+                        repeat(gridColumns - (end - start)) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
@@ -136,16 +144,22 @@ internal fun LazyListScope.MyListFlatContent(
     val isGrid = selectedListLayoutId == "grid_2col"
 
     if (isGrid) {
-        val rows = visibleEntries.chunked(gridColumns)
         items(
-            items = rows,
-            key = { row -> "flat_grid_row_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
-        ) { row ->
+            count = (visibleEntries.size + gridColumns - 1) / gridColumns,
+            key = { row ->
+                val first = visibleEntries[row * gridColumns]
+                "flat_grid_row_${first.source}_${first.id}"
+            },
+            contentType = { "mylist_grid_row" }
+        ) { rowIndex ->
             Row(
                 modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                row.forEach { entry ->
+                val start = rowIndex * gridColumns
+                val end = minOf(start + gridColumns, visibleEntries.size)
+                for (index in start until end) {
+                    val entry = visibleEntries[index]
                     KitsugiMediaEntryCard(
                         entry = entry,
                         layoutId = selectedListLayoutId,
@@ -159,8 +173,8 @@ internal fun LazyListScope.MyListFlatContent(
                         sourceBadges = sourceBadgesByEntryId[entry.id]
                     )
                 }
-                if (row.size < gridColumns) {
-                    repeat(gridColumns - row.size) {
+                if (end - start < gridColumns) {
+                    repeat(gridColumns - (end - start)) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
