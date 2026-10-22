@@ -248,9 +248,12 @@ ENTITY_RE = re.compile(r"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9A-Fa-f]+;)")
 
 
 def xml_text(value: str) -> str:
-    """Android string kaynağı için XML kaçışı (`&` → `&amp;`, `<`/`>` kaçırılır)."""
+    """Android string kaynağı için XML kaçışı (`&` → `&amp;`, `<`/`>` kaçırılır, `'`/`"` kaçırılır)."""
     value = ENTITY_RE.sub("&amp;", value)
-    return value.replace("<", "&lt;").replace(">", "&gt;")
+    value = value.replace("<", "&lt;").replace(">", "&gt;")
+    value = re.sub(r"(?<!\\)'", r"\'", value)
+    value = re.sub(r'(?<!\\)"', r'\"', value)
+    return value
 
 
 def render_strings(path: Path, values: dict[str, str]) -> tuple[int, int]:

@@ -80,6 +80,77 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     val detailErrorCode: StateFlow<com.kitsugi.animelist.data.platform.PlatformErrorCode?> = _detailErrorCode.asStateFlow()
 
     /** Sekme hatası için kaynağın son `KTS-…` kodu; bilinmiyorsa genel sınıflandırılamayan kod. */
+    private fun isBangumiSource(source: String): Boolean {
+        val key = source.trim().lowercase()
+        return key == "bangumi" || key == "bgm"
+    }
+
+    /**
+     * Bangumi kadro adları için arka plan Latin adı çözümü: senkron geç süresi yetmediğinde
+     * CJK kalan karakter/kişi adlarını çözer, kalıcı önbelleğe yazar ve sekme hâlâ aynı
+     * veriyi gösteriyorsa ekranı günceller. İkinci ziyarette liste Latin adlarla açılır.
+     */
+    private fun warmBangumiCharacterNames(source: String, malId: Int, data: List<KitsugiCharacter>) {
+        if (!isBangumiSource(source) || data.isEmpty()) return
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichCharacterNamesFromBangumi(data, background = true)
+                }.getOrNull()
+            } ?: return@launch
+            if (updated == data) return@launch
+            if ((_charactersState.value as? DetailTabState.Success)?.data !== data) return@launch
+            DetailCache.putMediaCharacters(source, malId, updated)
+            _charactersState.value = DetailTabState.Success(updated)
+        }
+    }
+
+    private fun warmBangumiStaffNames(source: String, malId: Int, data: List<KitsugiStaff>) {
+        if (!isBangumiSource(source) || data.isEmpty()) return
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichStaffNamesFromBangumi(data, background = true)
+                }.getOrNull()
+            } ?: return@launch
+            if (updated == data) return@launch
+            if ((_staffState.value as? DetailTabState.Success)?.data !== data) return@launch
+            DetailCache.putMediaStaff(source, malId, updated)
+            _staffState.value = DetailTabState.Success(updated)
+        }
+    }
+
+    /**
+     * Bangumi ilişkiler/öneriler için arka plan başlık çözümü: p1 liste uçları slim subject
+     * döndürdüğünden CJK kalan başlıklar ortak çözümleyiciyle (AniList toplu arama + infobox
+     * + TMDB) çözülür, kalıcı önbelleğe yazılır ve sekme güncellenir.
+     */
+    private fun warmBangumiRelationTitles(
+        source: String,
+        malId: Int,
+        data: List<KitsugiRelation>,
+        recommendations: Boolean
+    ) {
+        if (!isBangumiSource(source) || data.isEmpty()) return
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichRelationTitles(data, background = true)
+                }.getOrNull()
+            } ?: return@launch
+            if (updated == data) return@launch
+            val currentState = if (recommendations) _recommendationsState.value else _relationsState.value
+            if ((currentState as? DetailTabState.Success)?.data !== data) return@launch
+            if (recommendations) {
+                DetailCache.putMediaRecommendations(source, malId, updated)
+                _recommendationsState.value = DetailTabState.Success(updated)
+            } else {
+                DetailCache.putMediaRelations(source, malId, updated)
+                _relationsState.value = DetailTabState.Success(updated)
+            }
+        }
+    }
+
     private fun tabFailureCode(source: String): com.kitsugi.animelist.data.platform.PlatformErrorCode =
         com.kitsugi.animelist.data.platform.PlatformFailureRegistry.latest(source)?.code
             ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
@@ -1008,6 +1079,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaCharacters(result.source, malId, data)
                             }
                             _charactersState.value = DetailTabState.Success(data)
+                            warmBangumiCharacterNames(result.source, malId, data)
                         }
                     }
                     3 -> {
@@ -1031,6 +1103,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaStaff(result.source, malId, data)
                             }
                             _staffState.value = DetailTabState.Success(data)
+                            warmBangumiStaffNames(result.source, malId, data)
                         }
                     }
                     4 -> {
@@ -1055,6 +1128,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaRecommendations(result.source, malId, data)
                             }
                             _recommendationsState.value = DetailTabState.Success(data)
+                            warmBangumiRelationTitles(result.source, malId, data, recommendations = true)
                         }
                     }
                     5 -> {
@@ -1079,6 +1153,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaRelations(result.source, malId, data)
                             }
                             _relationsState.value = DetailTabState.Success(data)
+                            warmBangumiRelationTitles(result.source, malId, data, recommendations = false)
                         }
                     }
                     6 -> {

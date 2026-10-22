@@ -9,9 +9,6 @@ import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
@@ -98,15 +95,15 @@ object BangumiImportManager {
      * @param subjectType null = tüm türler; [BangumiApiClient.SubjectType.ANIME] / `.BOOK`.
      * @param resolveAdult NSFW bayrağını条目 bazında doğrulamak için ek `GET /v0/subjects/{id}`
      *        istekleri atılır. Koleksiyon listesi kısaltılmış条目 döndürdüğü için `nsfw`
-     *        alanı içermez; yetişkin filtresi sıkı çalışsın isteniyorsa açılmalıdır.
-     *        Maliyeti sınırlamak için en fazla [maxAdultLookups]条目 sorgulanır.
+     *        alanı içermez; bu nedenle varsayılan olarak açıktır. Maliyeti sınırlamak için
+     *        en fazla [maxAdultLookups] desteklenen条目 sorgulanır.
      */
     suspend fun fetchAllLists(
         context: Context,
         token: String,
         username: String? = null,
         subjectType: Int? = null,
-        resolveAdult: Boolean = false,
+        resolveAdult: Boolean = true,
         maxAdultLookups: Int = 60
     ): List<MediaEntry> = withContext(Dispatchers.IO) {
         // ÖNEMLİ: `GET /v0/users/-/collections` Bangumi'de 404 verir ("-" yalnızca yazma
@@ -128,7 +125,13 @@ object BangumiImportManager {
         BangumiTitleCache.warmUp()
 
         val adultSubjectIds = if (resolveAdult && collections.isNotEmpty()) {
-            resolveNsfwSubjectIds(token, collections.take(maxAdultLookups).map { it.subjectId })
+            val supportedSubjectIds = collections.asSequence()
+                .filter { BangumiIdNamespace.supportsSubjectType(it.subjectType) }
+                .map { it.subjectId }
+                .distinct()
+                .take(maxAdultLookups.coerceAtLeast(0))
+                .toList()
+            resolveNsfwSubjectIds(token, supportedSubjectIds)
         } else {
             emptySet()
         }
@@ -212,20 +215,10 @@ object BangumiImportManager {
 
     /**
      * Verilen `subject_id` kümesinden NSFW olanları ayıklar.
-     * Bangumi'de toplu "ID'ye göre条目" ucu olmadığı için istekler küçük gruplar halinde
-     * paralel atılır; toplam istek sayısı `ids.size` kadardır.
+     * Başarılı pozitif/negatif sonuçlar import ve Listem'in artalan taraması arasında paylaşılır.
      */
-    private suspend fun resolveNsfwSubjectIds(token: String, ids: List<Int>): Set<Int> = coroutineScope {
-        ids.chunked(6).flatMap { chunk ->
-            chunk.map { subjectId ->
-                async(Dispatchers.IO) {
-                    runCatching {
-                        if (BangumiApiClient.getSubject(subjectId, token).nsfw) subjectId else null
-                    }.getOrNull()
-                }
-            }.awaitAll()
-        }.filterNotNull().toSet()
-    }
+    private suspend fun resolveNsfwSubjectIds(token: String, ids: List<Int>): Set<Int> =
+        BangumiAdultResolver.resolveAdultFlags(token, ids).filterValues { it }.keys
 
     /**
      * Koleksiyon çekimini dener; HTTP 401 alırsa refresh token ile zorla yeni access token
