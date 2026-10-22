@@ -14,6 +14,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import org.json.JSONObject
 
 object MalSyncManager {
     /**
@@ -69,6 +70,29 @@ object MalSyncManager {
         }
 
         val url = URL("https://api.myanimelist.net/v2/$endpointType/$malId/my_list_status")
+
+        // ── KISMİ YAZIM KAYIT OLUŞTURUYORSA TAM YAZIMA GEÇ (E69) ────────────────────
+        // `my_list_status` PATCH'i **upsert**'tür. Kayıt yokken yalnız bir alan göndermek
+        // (ör. yerel satırda yalnız puan değişti) MAL'de `plan_to_watch` + 0 ilerleme ile
+        // KISMİ bir kayıt oluşturur; kullanıcı MAL'de "planlandı 0/12" görür, üstelik sonraki
+        // turlarda durum/ilerleme "değişmediği" için bu yarım kayıt asla düzeltilmez.
+        // Bu yüzden durum alanı gönderilmeyen (dolayısıyla kaydı oluşturabilecek) yazımlardan
+        // önce kaydın VAR olduğu doğrulanır; yoksa bir kez tam yazım yapılır.
+        // Sorgu yalnız bu nadir yolda (puan/not/tarih düzenlemesi) çalışır; durum içeren
+        // yazımlarda ek istek yoktur.
+        if (SyncField.STATUS !in fields && !fullWrite) {
+            when (malListEntryExists(token, malId, endpointType, context)) {
+                false -> return updateMalEntry(
+                    token = token,
+                    entry = entry,
+                    context = context,
+                    fields = SyncField.ALL,
+                    fullWrite = true
+                )
+                // null = doğrulanamadı (ağ/HTTP hatası): davranış değişmez, kısmi yazım denenir.
+                true, null -> Unit
+            }
+        }
 
         // ── Alan bazlı gövde (bkz. ProviderCapabilitiesCatalog.mal) ──────────────────
         // Gönderilmeyen alan MAL'da DEĞİŞMEZ. Boş değer yalnızca kullanıcı o alanı bilerek
@@ -171,6 +195,38 @@ object MalSyncManager {
 
         return patchWithDateClearFallback(url = url, body = body, token = token, context = context)
     }
+
+    /**
+     * MAL'de bu yapım için liste kaydı var mı?
+     *
+     * @return `true` var, `false` yok (MAL 404 "not in list"), `null` bilinmiyor (ağ/HTTP).
+     *         `null` durumunda çağıran ESKİ davranışı (kısmi yazım) korur: ağ hatası yüzünden
+     *         yazımı tümden engellemek yeni bir sessiz kayıp olurdu.
+     */
+    private fun malListEntryExists(
+        token: String,
+        malId: Int,
+        endpointType: String,
+        context: Context
+    ): Boolean? = runSyncCatching {
+        val url = URL("https://api.myanimelist.net/v2/$endpointType/$malId?fields=my_list_status")
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $token")
+            .header("Accept", "application/json")
+            .build()
+        com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute().use { response ->
+            when {
+                response.code == 404 -> false
+                !response.isSuccessful -> null
+                else -> {
+                    val body = response.body?.string().orEmpty()
+                    runSyncCatching { JSONObject(body).optJSONObject("my_list_status") != null }
+                        .getOrNull()
+                }
+            }
+        }
+    }.getOrNull()
 
     /** [DATE_CLEAR] taşıyan PATCH 400 ile düşerse, tarih temizlemeyi bırakıp bir kez dener. */
     private fun patchWithDateClearFallback(

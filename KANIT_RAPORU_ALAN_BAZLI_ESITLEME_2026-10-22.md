@@ -686,6 +686,17 @@ sonuç yanlış olur. Üç mantık hatası bulundu.
 | **E67b** | `merged.isRepeating` "herhangi biri" iken `merged.status` "en yeni kazanır" idi → iki alan çelişebiliyordu | Yukarıdaki senaryo | Bayrak `true`, durum `Completed` → bayrak taşıyan hedefe gereksiz durum yazımı ve `is_rewatching` yeniden açılması | `isRepeating = (status == Repeating)`; tekrar satırlarının ilerlemesi de yalnız birleşik durum tekrar iken dikkate alınır |
 | **E68** | Kırpma toplamı **aday sırasına** bağlıydı (`firstOrNull`) | AniList 12 bölüm, MAL 13 bölüm bildiriyor | Grup sırası değişince kırpma değeri değişir; turdan tura ilerleme bir aşağı bir yukarı yazılır (deterministik değil) | Sabit öncelik: MAL → AniList → Kitsu → Shikimori → Bangumi; aynı kaynakta birden çok değer varsa en büyüğü |
 
+### 17.0 Aynı geçişte bulunan ek hata
+
+| # | Hata | Senaryo | Etki | Düzeltme |
+|---|---|---|---|---|
+| **E69** | MAL'da kısmi alan yazımı **kayıt oluşturuyordu** | Satır MAL kapalıyken/bağlı değilken eklendi; sonra MAL bağlandı ve kullanıcı yalnız puanı değiştirdi → `fields = {SCORE}` | `PATCH my_list_status` upsert olduğu için MAL'de `plan_to_watch` + `0/12` ile **yarım kayıt** doğar; sonraki turlarda durum/ilerleme "değişmediği" için asla düzeltilmez | Durum alanı içermeyen (kayıt oluşturabilecek) yazımlardan önce `GET ?fields=my_list_status` ile kaydın varlığı doğrulanır; **yoksa** bir kez tam yazıma geçilir. Ek istek yalnız bu nadir yolda (puan/not/tarih düzenlemesi) atılır; durum içeren her yazımda ek istek YOK. Doğrulama başarısız olursa (ağ) davranış eskisi gibi kalır |
+
+Aynı hata sınıfı diğer sağlayıcılarda **yok**, çünkü onlarda kaydın varlığı yazımdan önce
+kanıtlanıyor: AniList `aniListEntryId == null → writeAll`, Kitsu `findLibraryEntryId`
+(ardından 422 → bul → PATCH), Shikimori find-or-create, Bangumi `PATCH → 404 → upsert`
+(upsert her zaman `type` taşır), Simkl `add-to-list` her zaman `to` (durum) taşır.
+
 ### 17.1 Bu geçişte doğrulanan (değişiklik gerekmedi)
 
 - **Simkl notları**: `private_memo` yolu **zaten** var (`SimklSyncManager` L520-544 +
@@ -724,4 +735,6 @@ sonuç yanlış olur. Üç mantık hatası bulundu.
 3. **Shikimori favori** ve **Bangumi favori** yazımı yok (gerekçe §16.3).
 4. **`MutableList` alanı yok**: `tags` düz metin olarak tutuluyor; sıra değişikliği fark
    üretir (yalnız MAL ve Bangumi'ye yazıldığı için etkisi sınırlı).
-5. Bu geçişte de **derleme/test çalıştırılmadı** (ortamda JDK/Gradle yok).
+5. **E69'un doğrulama sorgusu** birim testine uygun değil (ağ): kod yolu okundu ve
+   mantığı yukarıda yazılı; entegrasyon testi gerekir.
+6. Bu geçişte de **derleme/test çalıştırılmadı** (ortamda JDK/Gradle yok).
