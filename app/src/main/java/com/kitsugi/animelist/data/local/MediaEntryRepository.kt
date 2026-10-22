@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.local
 import com.kitsugi.animelist.data.auth.runSyncCatching
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
+import com.kitsugi.animelist.data.auth.SiblingMirrorPolicy
 import com.kitsugi.animelist.data.auth.SyncField
 import com.kitsugi.animelist.data.auth.SyncFieldDiff
 import com.kitsugi.animelist.model.MediaEntry
@@ -58,7 +59,9 @@ class MediaEntryRepository(
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
         // Aynı yapımın başka kaynaklardaki yerel satırları da aynı kullanıcı değerlerini alsın.
-        mirrorUserFieldsToSiblings(persistedEntry)
+        // Yeni satır eklendiği için "tam yazım" kümesi geçilir; ayna yine de monoton ve
+        // yapışkan kurallara uyar (kardeş satırın 12 ilerlemesi 0'a çekilmez — E57).
+        mirrorUserFieldsToSiblings(persistedEntry, SyncField.ALL)
         if (syncExternal) syncEntryIfPossible(persistedEntry, skipBangumiWrite = skipBangumiWrite)
     }
 
@@ -256,7 +259,9 @@ class MediaEntryRepository(
         )
 
         // Kardeş satırlar (aynı yapımın diğer kaynak kopyaları) anında aynı değerleri görür.
-        mirrorUserFieldsToSiblings(entryWithTime)
+        // Yalnızca GERÇEKTEN değişen alanlar aynalanır: puan düzenlemesi kardeş satırın
+        // durumunu/tekrar bayrağını değiştirmez (E57/2).
+        mirrorUserFieldsToSiblings(entryWithTime, changedFields)
 
         if (syncExternal) {
             // Hiçbir kullanıcı alanı değişmediyse AĞA ÇIKILMAZ: altı hedefte de yazılacak
@@ -370,33 +375,20 @@ class MediaEntryRepository(
     }
 
     /**
-     * Kullanıcı değerlerini (durum/puan/ilerleme/tarih/not/etiket/favori/gizlilik/tekrar)
-     * kardeş satırlara yerel olarak yansıtır. Kimlik/başlık/görsel alanlarına dokunulmaz;
-     * uzak eşitleme ayrıca çalışır (bu yalnızca yerel önbellek tutarlılığıdır).
+     * Kullanıcı değerlerini kardeş satırlara **yerel önbellek** olarak yansıtır. Kimlik/başlık/
+     * görsel alanlarına dokunulmaz; uzak eşitleme ayrıca çalışır.
+     *
+     * Kurallar [SiblingMirrorPolicy] içinde (saf, test edilebilir): yalnız [fields] ile bildirilen
+     * alanlar taşınır, ilerleme/cilt/tekrar sayısı asla düşürülmez, `Dropped`/`Paused` yapışkan
+     * durumlar ve `updatedAt` korunur (E57).
      */
-    private suspend fun mirrorUserFieldsToSiblings(entry: MediaEntry) {
+    private suspend fun mirrorUserFieldsToSiblings(entry: MediaEntry, fields: Set<SyncField>) {
         runSyncCatching {
             findSiblingRows(entry).forEach { sibling ->
-                dao.update(
-                    sibling.copy(
-                        status = entry.status,
-                        score = entry.score,
-                        progress = entry.progress,
-                        volumeProgress = entry.volumeProgress,
-                        startDate = entry.startDate,
-                        endDate = entry.endDate,
-                        notes = entry.notes,
-                        tags = entry.tags,
-                        isFavorite = entry.isFavorite,
-                        isPrivate = entry.isPrivate,
-                        isHiddenFromStatusLists = entry.isHiddenFromStatusLists,
-                        priority = entry.priority,
-                        isRepeating = entry.isRepeating,
-                        repeatCount = entry.repeatCount,
-                        repeatValue = entry.repeatValue,
-                        updatedAt = entry.updatedAt
-                    ).toEntity()
-                )
+                val mirrored = SiblingMirrorPolicy.mirrored(sibling, entry, fields)
+                // Değişmeyen satırı yazmak gereksiz akış yenilemesi (ve gereksiz Room yazımı)
+                // üretirdi.
+                if (mirrored != sibling) dao.update(mirrored.toEntity())
             }
         }
     }

@@ -761,3 +761,73 @@ kanıtlanıyor: AniList `aniListEntryId == null → writeAll`, Kitsu `findLibrar
 5. **E69'un doğrulama sorgusu** birim testine uygun değil (ağ): kod yolu okundu ve
    mantığı yukarıda yazılı; entegrasyon testi gerekir.
 6. Bu geçişte de **derleme/test çalıştırılmadı** (ortamda JDK/Gradle yok).
+
+---
+
+## §18 — Geçiş 10: kardeş satır aynası + hedef sözlüğünde tekrar (E57, E72)
+
+Bu geçişte iki ayrı hata sınıfı kapatıldı. İkisi de "alan değeri yanlış" değil,
+**veri katmanının kendi kuralını delmesi** türündendir.
+
+### 18.1 E57 — kardeş satır aynası birleştirme kurallarını deliyordu
+
+`MediaEntryRepository.mirrorUserFieldsToSiblings` kullanıcı alanlarını (durum, puan,
+ilerleme, cilt, tarihler, not, etiket, favori, gizlilik, öncelik, tekrar, `updatedAt`)
+**koşulsuz** kopyalıyordu. Üç ayrı sonucu vardı:
+
+| # | Delinen kural | Senaryo | Sonuç |
+|---|---|---|---|
+| 1 | "İlerleme asla gerilemez" | AniList satırı 12, Kitsu satırı 10; kullanıcı Kitsu'da 11'e çekti | Ayna AniList satırını da 11 yapıyor → birleşim 11 → AniList'e **12 → 11 geri yazım** (E71'in veri katmanındaki eşdeğeri) |
+| 2 | "Yalnız değişen alan yazılır" | Kullanıcı yalnız puanı düzenledi | Ayna `status`'u da kopyalıyor → `Dropped`/`Paused` yapışkan kararı ve tamamlanmış kayıt başka duruma çekiliyor |
+| 3 | "En yeni kullanıcı işlemi kazanır" | Ayna `updatedAt`'i de eziyor | Hiçbir alanı değişmeyen kardeş satır "az önce düzenlendi" gibi damgalanıyor → birleştirme yanlış satırı en yeni sanıyor |
+
+**Düzeltme.** Ayna saf ve test edilebilir bir kurala taşındı: `data/auth/SiblingMirrorPolicy.kt`.
+- Ayna yalnız **gerçekten değişen alanları** taşır (`changed: Set<SyncField>`); dokunulmayan
+  alanlar kardeş satırda kalır.
+- **Monotonluk:** ilerleme, cilt ilerlemesi, tekrar sayısı ve tekrar değeri `max` ile taşınır —
+  asla düşürülmez.
+- **Yapışkanlık:** durum açıkça değiştirilmediyse `Dropped`/`Paused` ezilmez; ilerlemesi olan
+  satır `Planned`a çekilmez. Durum **açıkça** değiştirildiyse (diff'te `STATUS` varsa) kullanıcı
+  kararı aynen taşınır.
+- **Puan silme yayılmaz:** `null` puan kardeş satıra yazılmaz (bir kaynağın gerçek puanı yerelde
+  silinirse sonraki birleştirme o kaynağa başka bir puan yazar — E41 ile aynı gerekçe).
+- **Tarihler:** tam yazımda birleştirme kuralıyla aynı (başlangıç = en erken, bitiş = en geç);
+  açık değişiklikte aynen (boşaltma dahil).
+- **`updatedAt` kopyalanmaz.**
+- Değişmeyen satır Room'a hiç yazılmaz (gereksiz akış/`entriesFlow` yenilemesi yok).
+
+### 18.2 E72 — MAL'de yayında olan yapım "tamamlandı"ya çevriliyordu (ve sonsuz yazım)
+
+`ProviderCapabilities.statusFor` birleşik `Repeating` durumunu her `AS_FLAG` hedefte
+`repeatingStatus`a zorluyordu (MAL → `Completed`). Ama MAL `is_rewatching` bayrağı durumdan
+**bağımsızdır** ve içe aktarma (E22) `watching` + bayrak üretir. Sonuç:
+
+1. Yayında olan bir yapım tekrar izlenirken MAL'de `watching` → bizim yazdığımız `completed`
+   ile **veri bozuluyordu** (MAL'ın kendi modeline aykırı).
+2. `dirtyFields` içe aktarılan `watching` ile hedef `completed`ı hiç eşitleyemediği için
+   **her turda** aynı PATCH atılıyordu (E47/E54/E67 sınıfı sonsuz yazım).
+
+**Düzeltme.** `ProviderCapabilities.rewatchFlagNeedsRepeatingStatus` eklendi.
+- MAL (ve bayrağı durumdan bağımsız taşıyan hedefler): durum **korunur**, yalnız bayrak yazılır.
+  `repeatingStatus` yalnız durumu olmayan (`Planned`) satırda kullanılır.
+- Kitsu: `reconsuming` yalnız `status == current` iken gönderildiği için (E26) durum
+  `repeatingStatus`a (`Watching` = `current`) çekilir — aksi hâlde bayrak sunucuda oluşmaz.
+
+### 18.3 Bu geçişte eklenen testler
+
+| Dosya | Test | Ne sabitliyor |
+|---|---|---|
+| `SiblingMirrorPolicyTest` | **19** | ilerleme/cilt/tekrar gerilemez; puan düzenlemesi durumu değiştirmez; açık durum değişikliği yapışkanlığı ezer; `Planned`a geri çekilme yok; boş puan taşınmaz; tarih birleştirme; `updatedAt` korunur; bayat tekrar bayrağı temizlenir; boş küme/aynı satır dejenere durumları |
+| `RewatchTargetVocabularyTest` | **12** | MAL/Kitsu/AniList tekrar hâlinde `dirtyFieldsFor` **boş**; MAL `watching` korunur; Kitsu `current`a çekilir; Bangumi/Simkl tekrar yüzünden durum yazmaz; tekrar bitince bayrak kapanır; **tek kaynaklı grupta sağlayıcı kendine yazmaz** (6 sağlayıcı × 10 durum tablosu) |
+
+`data/auth` test sayısı: **145 → 176** (20 dosya).
+
+### 18.4 Dürüst durum
+
+- Bu geçişte de **derleme/test çalıştırılmadı**: ortamda JDK/Gradle/Android SDK yok.
+  Doğrulama = satır satır kod okuması + sözdizimi taraması (`/tmp/kcheck.py`, 4 dosya, 0 hata)
+  + yeni testlerin mantık yürütmesi.
+- Kullanıcının çalıştırması gereken komut değişmedi:
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
+- Açık kalan: §17.3 listesi (kademeli yazım bütçesi, saat kayması, Shikimori/Bangumi favori,
+  `tags` düz metin, E69 entegrasyon testi).

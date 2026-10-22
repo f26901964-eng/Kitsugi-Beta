@@ -148,7 +148,19 @@ data class ProviderCapabilities(
     val rewatchModel: RewatchModel = if (rewatchingAsStatus) RewatchModel.AS_STATUS
     else RewatchModel.UNSUPPORTED,
     /** [RewatchModel.AS_FLAG] hedeflerde `Repeating` durumunun gönderilecek karşılığı. */
-    val repeatingStatus: WatchStatus = WatchStatus.Completed
+    val repeatingStatus: WatchStatus = WatchStatus.Completed,
+    /**
+     * (E72) `true` ise bu hedefte "tekrar izleniyor" bayrağı YALNIZ belirli bir durumda
+     * kabul edilir (Kitsu: `reconsuming` alanı yalnız `status == current` iken gönderilir,
+     * bkz. E26). Böyle bir hedefte tekrar başlarken durum da [repeatingStatus]a çekilmelidir,
+     * aksi hâlde bayrak sunucuda oluşmaz ve her turda yeniden yazılır (sonsuz döngü).
+     *
+     * MAL'da böyle bir kısıt YOKTUR: `is_rewatching` durumdan bağımsızdır. Orada durumu
+     * korumak gerekir; aksi hâlde yayında olan bir yapım tekrar izlenirken `completed`a
+     * çevrilir (veri bozulması) ve içe aktarma `watching` döndüğü için satır her turda
+     * yeniden yazılır.
+     */
+    val rewatchFlagNeedsRepeatingStatus: Boolean = false
 ) {
     /**
      * Verilen hedef sözlüğünde [merged] durumunun karşılığı.
@@ -160,6 +172,21 @@ data class ProviderCapabilities(
     fun statusFor(current: MediaEntry, mergedStatus: WatchStatus): WatchStatus = when {
         mergedStatus != WatchStatus.Repeating -> mergedStatus
         rewatchModel == RewatchModel.AS_STATUS -> WatchStatus.Repeating
+        // ── E72 ──────────────────────────────────────────────────────────────────
+        // AS_FLAG hedeflerde (MAL `is_rewatching`, Kitsu `reconsuming`) DURUM ile TEKRAR
+        // BAYRAĞI birbirinden bağımsızdır. Tekrar yüzünden durumu [repeatingStatus]a
+        // zorlamak iki hata üretiyordu:
+        //   1. Yayında olan bir yapım tekrar izlenirken MAL'de `watching` iken bizim
+        //      yazdığımız `completed` ile **bozuluyordu** (E22'nin yazma tarafındaki
+        //      karşılığı eksikti: içe aktarma `watching` + bayrak üretiyor, yazıcı
+        //      `completed` istiyordu).
+        //   2. Aynı satır her turda yeniden yazılıyordu: içe aktarılan satır
+        //      (`watching` + bayrak) ile hedef durum (`completed`) hiç eşitlenmediği
+        //      için `dirtyFields` her seferinde STATUS üretiyordu — sonsuz yazım.
+        // Doğru davranış: durum KORUNUR, yalnız bayrak yazılır. `repeatingStatus` yalnız
+        // henüz bir durumu olmayan (`Planned`) satırda gerekir.
+        rewatchModel == RewatchModel.AS_FLAG && !rewatchFlagNeedsRepeatingStatus &&
+            current.status != WatchStatus.Planned -> current.status
         rewatchModel == RewatchModel.AS_FLAG -> repeatingStatus
         else -> current.status
     }
@@ -237,7 +264,10 @@ object ProviderCapabilitiesCatalog {
         rewatchModel = ProviderCapabilities.RewatchModel.AS_FLAG,
         repeatingStatus = WatchStatus.Watching,
         statusVocabulary = setOf("current", "planned", "completed", "on_hold", "dropped"),
-        rewatchingAsStatus = false
+        rewatchingAsStatus = false,
+        // Kitsu `reconsuming` yalnız `status == current` iken gönderilir (E26) → durum
+        // "current"a çekilmeden bayrak sunucuda oluşmaz.
+        rewatchFlagNeedsRepeatingStatus = true
     )
 
     private val shikimori = ProviderCapabilities(
