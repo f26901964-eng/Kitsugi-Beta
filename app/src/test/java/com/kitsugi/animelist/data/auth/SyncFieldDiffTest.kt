@@ -38,7 +38,8 @@ class SyncFieldDiffTest {
         isRepeating: Boolean = false,
         repeatCount: Int = 0,
         repeatValue: Int = 0,
-        priority: Int? = null
+        priority: Int? = null,
+        isHiddenFromStatusLists: Boolean = false
     ) = MediaEntry(
         id = id,
         title = "Test",
@@ -57,7 +58,8 @@ class SyncFieldDiffTest {
         isRepeating = isRepeating,
         repeatCount = repeatCount,
         repeatValue = repeatValue,
-        priority = priority
+        priority = priority,
+        isHiddenFromStatusLists = isHiddenFromStatusLists
     )
 
     @Test
@@ -183,6 +185,51 @@ class SyncFieldDiffTest {
     fun `anilist tekrar sayisi durumu tetiklemez`() {
         val narrowed = setOf(SyncField.REWATCH_COUNT).narrowTo("anilist")
         assertEquals(setOf(SyncField.REWATCH_COUNT), narrowed)
+    }
+
+    /** "Listelerde gizle" yalnız AniList'te var; başka hedefe yazılmamalı. */
+    @Test
+    fun `listede gizleme yalniz aniliste`() {
+        val previous = entry(isHiddenFromStatusLists = false)
+        val current = previous.copy(isHiddenFromStatusLists = true)
+        assertEquals(
+            setOf(SyncField.HIDDEN_FROM_STATUS_LISTS),
+            SyncFieldDiff.between(previous, current)
+        )
+        assertEquals(
+            setOf(SyncField.HIDDEN_FROM_STATUS_LISTS),
+            setOf(SyncField.HIDDEN_FROM_STATUS_LISTS).narrowTo("anilist")
+        )
+        assertTrue(setOf(SyncField.HIDDEN_FROM_STATUS_LISTS).narrowTo("mal").isEmpty())
+        assertTrue(setOf(SyncField.HIDDEN_FROM_STATUS_LISTS).narrowTo("kitsu").isEmpty())
+    }
+
+    /** Öncelik: AniList + MAL; Kitsu/Shikimori/Bangumi/Simkl desteklemez. */
+    @Test
+    fun `oncelik yalniz anilist ve malde`() {
+        assertEquals(setOf(SyncField.PRIORITY), setOf(SyncField.PRIORITY).narrowTo("anilist"))
+        assertEquals(setOf(SyncField.PRIORITY), setOf(SyncField.PRIORITY).narrowTo("mal"))
+        assertTrue(setOf(SyncField.PRIORITY).narrowTo("bangumi").isEmpty())
+        assertTrue(setOf(SyncField.PRIORITY).narrowTo("simkl").isEmpty())
+    }
+
+    /** Favori yalnız AniList'te gerçek bir alandır (MAL'de favori ucu yok). */
+    @Test
+    fun `favori yalniz aniliste`() {
+        assertEquals(setOf(SyncField.FAVORITE), setOf(SyncField.FAVORITE).narrowTo("anilist"))
+        assertTrue(setOf(SyncField.FAVORITE).narrowTo("mal").isEmpty())
+    }
+
+    /** Tarih: Kitsu + AniList + MAL destekler; Bangumi/Shikimori/Simkl desteklemez. */
+    @Test
+    fun `tarih destegi saglayici bazli`() {
+        val dates = setOf(SyncField.START_DATE, SyncField.END_DATE)
+        assertEquals(dates, dates.narrowTo("anilist"))
+        assertEquals(dates, dates.narrowTo("mal"))
+        assertEquals(dates, dates.narrowTo("kitsu"))
+        assertTrue(dates.narrowTo("shikimori").isEmpty())
+        assertTrue(dates.narrowTo("bangumi").isEmpty())
+        assertTrue(dates.narrowTo("simkl").isEmpty())
     }
 
     @Test

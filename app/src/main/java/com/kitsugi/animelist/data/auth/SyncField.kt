@@ -32,7 +32,10 @@ enum class SyncField {
     PRIVATE,
     REWATCH_COUNT,
     REPEAT_VALUE,
-    PRIORITY;
+    PRIORITY,
+
+    /** AniList `hiddenFromStatusLists` — yalnız AniList destekler. */
+    HIDDEN_FROM_STATUS_LISTS;
 
     companion object {
         val ALL: Set<SyncField> = entries.toSet()
@@ -72,6 +75,9 @@ object SyncFieldDiff {
         }
         if (previous.repeatValue != current.repeatValue) changed += SyncField.REPEAT_VALUE
         if (previous.priority != current.priority) changed += SyncField.PRIORITY
+        if (previous.isHiddenFromStatusLists != current.isHiddenFromStatusLists) {
+            changed += SyncField.HIDDEN_FROM_STATUS_LISTS
+        }
         return changed
     }
 
@@ -96,6 +102,7 @@ object SyncFieldDiff {
  * | tekrar sayısı | ✓ repeat | ✓ num_times_rewatched / num_times_reread | ✓ reconsumeCount | ✓ rewatches | ✗ | ✗ |
  * | tekrar değeri | ✗ | ✓ rewatch_value / reread_value | ✗ | ✗ | ✗ | ✗ |
  * | öncelik | ✓ priority 0-255 | ✓ priority 0-2 | ✗ | ✗ | ✗ | ✗ |
+ * | listede gizli | ✓ hiddenFromStatusLists | ✗ | ✗ | ✗ | ✗ | ✗ |
  *
  * Kaynaklar: AniList GraphQL şeması (`SaveMediaListEntry`, `MediaListStatus`), MAL API v2
  * (`PATCH /anime|manga/{id}/my_list_status`), Kitsu JSON:API (`library-entries` —
@@ -161,7 +168,8 @@ object ProviderCapabilitiesCatalog {
         supports = setOf(
             SyncField.STATUS, SyncField.SCORE, SyncField.PROGRESS, SyncField.VOLUME_PROGRESS,
             SyncField.START_DATE, SyncField.END_DATE, SyncField.NOTES, SyncField.FAVORITE,
-            SyncField.PRIVATE, SyncField.REWATCH_COUNT, SyncField.PRIORITY
+            SyncField.PRIVATE, SyncField.REWATCH_COUNT, SyncField.PRIORITY,
+            SyncField.HIDDEN_FROM_STATUS_LISTS
         ),
         scoreScale = ProviderCapabilities.ScoreScale.HUNDRED,
         statusVocabulary = setOf("CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"),

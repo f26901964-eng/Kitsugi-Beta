@@ -175,7 +175,9 @@ object AniListSyncManager {
             variables.put("notes", entry.notes ?: "")
         }
         if (writeAll || SyncField.REWATCH_COUNT in fields) variables.put("repeat", entry.repeatCount)
-        if (writeAll) variables.put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
+        if (writeAll || SyncField.HIDDEN_FROM_STATUS_LISTS in fields) {
+            variables.put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
+        }
 
         // Değişken yalnız dokümanda tanımlıysa gönderilir (yukarıdaki `scoreRaw` kararı).
         scoreRaw?.let { variables.put("scoreRaw", it) }
