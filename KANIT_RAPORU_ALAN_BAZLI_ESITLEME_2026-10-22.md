@@ -533,3 +533,65 @@ Bunlar "şüpheli" listesindeydi; kod okundu, **doğru** bulundu, değiştirilme
   JDK/Gradle/Android SDK yok. Yeni semboller (`CrossSyncMergePolicy`, `dirtyFieldsFor`,
   `isRetrySafe`) ve 26 test yalnız **statik** doğrulandı. Derleyici/test çıktısı gelirse
   düzeltmek için hazırım; bu raporda "geçti" denmemesi bilinçlidir.
+
+---
+
+## 15. Yedinci geçiş: dış kaynak doğrulaması (MAL-Sync, resmî API dokümanları, bağımsız istemciler)
+
+Bu geçişte kod yalnız kendi içinde değil, **referans uygulamaların ve resmî dokümanların
+kaynak koduyla** karşılaştırıldı. Okunan kaynaklar:
+
+- `MALSync/MALSync` → `src/_provider/MyAnimeList_api/single.ts`, `.../Kitsu/single.ts`,
+  `.../Shikimori/single.ts` + `.../Shikimori/helper.ts`, `.../AniList/single.ts`,
+  `.../Simkl/helper.ts`, `src/_provider/singleAbstract.ts`
+- Shikimori resmî API v2 dokümanı: `user_rates/create` (POST gövdesi ve **yalnız 201** dönüşü)
+- Bağımsız istemci/eklenti araştırmaları: `anime-db/anime-db-plugins` (#42 Shikimori
+  find-or-create, #181 MAL `is_rewatching` tuzağı), `Harborofficial/Harbor` PR #22
+  (rewatch push'unda ilerlemenin sıfırlanması), AniList forum #15234 + r/anilist
+  ("rewatching" durumunun anlamı, bitiş tarihinin korunması)
+
+### 15.1 Bulunan yeni hatalar
+
+| # | Hata | Kanıt | Düzeltme |
+|---|---|---|---|
+| E49 | **Shikimori'de `POST /user_rates` "create-only"dir, upsert DEĞİL.** Kodumuz "create upsert'tir" varsayıp, rate kimliği önbellekte yokken doğrudan POST atıyordu. | Resmî doküman: create yalnız `201` döner; bağımsız istemci notu: "POST — create-only; обновление — PATCH/PUT /:id … find-or-create". | `ShikimoriApiClient.fetchUserRateId()` eklendi (`GET /v2/user_rates?user_id&target_id&target_type`). Artık: kimlik önbellekte → PATCH; yoksa **önce arayıp** varsa PATCH, yoksa POST. POST yine başarısız olursa (yarış) bir kez daha ID aranıp PATCH'e düşülür. Kayıt bulununca **her zaman PATCH** (POST'un "zaten var" davranışına bağımlılık kaldırıldı). |
+| E50 | **MAL, ilerleme yazıldığında `is_rewatching` bayrağını kendisi `false`'a çeker.** Yalnız `num_watched_episodes` gönderdiğimizde kullanıcının "şu an tekrar izliyorum" durumu sessizce siliniyordu. | `anime-db-plugins` #181: "Push без is_rewatching=false: флаг пересмотра переживает push … следующий pull снова возвращает Watching"; MALSync tüm `my_list_status` nesnesini gönderdiği için tuzağa düşmüyor. | `PROGRESS` yazılırken, tekrar sürüyorsa `is_rewatching=true` (`is_rereading=true`) aynı gövdede gönderilir. `false` göndermek gereksiz (sunucunun varsayılanı zaten `false`). |
+| E51 | **Tekrar sırasında ilerleme `max` ile alınıyordu.** 12/12 bitmiş yapımı yeniden izlemeye başlayan kullanıcıda MAL 12, AniList 2 bildirir → AniList'e 12 yazılır, tekrar anında "bitmiş" görünür. | `Harbor` PR #22: "a plain CURRENT/'watching' push would reset the entry's progress, because both trackers set progress to whatever is sent"; r/anilist: "You set it to rewatching … you can add each episode again **without losing your previous watch info**". | Tekrar sürerken (`status == REPEATING` ya da `isRepeating` + `Watching/Completed`) **en güncel tekrar satırının** ilerlemesi esastır; `max` yalnız raporlamada (`rawMaxProgress`) kalır. Ayrıca "ilerleme gerilemez" kuralı gereği diğer kaynaklara geri yazılmaz. |
+| E52 | **İlerleme toplamı yakaladığında durum `Completed`'a yükseltiliyordu; bu, tekrar sırasında AniList'in `REPEATING` durumunu ve tekrar ilerlemesini eziyordu.** | Aynı kaynaklar; AniList'te REPEATING ayrı bir durumdur ve ilerleme yeniden sayılır. | `resolveStatus`: herhangi bir kaynak "şu an tekrar izleniyor" diyorsa sonuç `Repeating`'dir; toplam-tabanlı `Completed` çıkarımı **tekrar sürerken uygulanmaz**. |
+| E53 | **Durum, hedefin sözlüğüne çevrilmeden karşılaştırılıyordu.** `Repeating`, MAL'de `completed`, Kitsu'da `current`, Bangumi/Simkl'de hiçbir şey demektir. Karşılaştırma ham tutulduğu için ya gereksiz yazım ya da (Simkl'de) "tamamlandı"yı "izliyorum"a çevirme riski vardı. | MALSync `_setStatus` her sağlayıcıda kendi sözlüğüne çevirir; Simkl `translateList` içinde `dropped` yok, `notinteresting` var. | `ProviderCapabilities.rewatchModel` (`AS_STATUS` / `AS_FLAG` / `UNSUPPORTED`) + `repeatingStatus` eklendi. `dirtyFieldsFor` durumu **hedefin sözlüğünde** karşılaştırır: MAL `completed`, Kitsu `current`; Bangumi/Simkl'de tekrar yüzünden durum **değiştirilmez**. |
+| E54 | **Bayrak farkı, bayrak taşımayan hedeflerde de `STATUS` üretiyordu → her turda aynı istek (sonsuz yazım döngüsü).** | Kendi kodumuzun analizi (E47'nin devamı): Simkl/Bangumi `Repeating`i ifade edemez, yazılan durum geri okununca fark hiç kapanmaz. | `STATUS`, bayrak farkından **yalnız `AS_FLAG` hedeflerde** eklenir (MAL, Kitsu). Regresyon testi: `tekrar ifade edemeyen hedefin durumu degistirilmez`, `MAL_da baslayan tekrar AniList'e REPEATING olarak yazilir ve bir kez yazilir`. |
+
+### 15.2 Referansla doğrulananlar (değişiklik yok)
+
+- **Puan ölçekleri**: AniList `_setScore(score) = score * 10` (POINT_100) → bizim
+  `SyncScores.aniListRaw = 0..10 * 10` **aynı**. Kitsu `ratingTwenty = ratingHundred / 5`
+  → bizim `tenPoint * 2` **aynı**. Kitsu'da MALSync puanı 5'in altında `1` gönderiyor
+  (API alt sınırı 2 iken); bizim `kitsuTwenty` **2'ye sabitliyor** — referanstan daha doğru.
+- **Kitsu tekrar**: MALSync `reconsuming && status === 'current'` → Rewatching; bizim
+  `isRepeating` tanımı ve `reconsuming = reconsuming && status == "current"` kapımız aynı.
+- **MAL yazımı**: `PATCH my_list_status` bir **upsert**'tir (find-or-create gerekmez — bizim
+  kod da öyle); `start_date`/`finish_date` temizlemek için `0000-00-00`; `Repeating →
+  completed + is_rewatching` (MALSync `_setStatus`).
+- **Shikimori tarihleri**: MALSync `datesSupport = false`; bizim yetenek matrisinde
+  Shikimori'de `START_DATE`/`END_DATE` **yok** — tutarlı. Durum sözlüğü (planned, watching,
+  rewatching, completed, on_hold, dropped) doğrulandı.
+- **Simkl**: `notinteresting` = Dropped, tarih/tekrar alanı yok — kodda aynı.
+- **Bangumi**: `type` 1..5 (wish/collect/do/on_hold/dropped) eşlemesi doğru; `rate` 0..10;
+  `Repeating → DOING`.
+- **Tekrar bitince bitiş tarihi değişmez** (r/anilist): birleştirmede `endDate = en geç`
+  kuralı eski bitiş tarihini korur — istenen davranış.
+
+### 15.3 Test kapsamı
+
+`CrossSyncMergePolicyTest` → **29 test** (yeni: tekrar sürerken ilerleme, MAL→AniList
+REPEATING yayılımı ve döngüsüzlüğü, tekrar ifade edemeyen hedef, MAL/Kitsu bayrak taşıma).
+
+### 15.4 Kalan riskler (dürüst)
+
+- **Derleme/test çalıştırılmadı** (JDK/Gradle/Android SDK yok). Tüm doğrulama statik.
+- Kitsu `filter[userId]` / `filter[animeId]` biçimi: MALSync `filter[user_id]` kullanıyor;
+  Kitsu (jsonapi-resources + humps) iki biçimi de kabul ediyor, ancak **canlı doğrulanmadı**.
+- `retryOnConnectionFailure(true)` (OkHttp içi tekrar) kapatılmadı; kalan etki Simkl'de
+  mükerrer "play" sayısıdır (kayıt bütünlüğü değil).
+- Shikimori'de **puanı 0 yapmak** puanı siler; biz puanı yalnız diff'te gönderiyoruz, ancak
+  "puanı kaldır" (null) ile "hiç puan vermedim" ayrımı Shikimori'de de yapılamıyor (§14.4).

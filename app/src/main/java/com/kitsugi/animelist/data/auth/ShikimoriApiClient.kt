@@ -874,6 +874,42 @@ object ShikimoriApiClient {
     }
 
     /**
+     * Kullanıcının bu yapı için VAR OLAN liste kaydının kimliğini bulur.
+     *
+     * Neden gerekli: yerel önbellekte rate kimliği yokken (kayıt Shikimori web'inde
+     * oluşturulmuş, satır başka bir kaynaktan gelmiş) doğrudan `POST /user_rates` göndermek
+     * "zaten var" hatasına düşerse kayıt **hiç eşitlenmez**. MAL-Sync de her yazımdan önce
+     * bu sorguyu yapar (`_update` → `v2/user_rates?target_id=..&user_id=..&target_type=..`).
+     *
+     * @return kayıt varsa `rate id`, yoksa `null` (ağ hatası da `null`).
+     */
+    suspend fun fetchUserRateId(
+        token: String,
+        userId: Int,
+        targetId: Int,
+        targetType: String
+    ): Int? = withContext(Dispatchers.IO) {
+        val url = "$BASE_URL/api/v2/user_rates?user_id=$userId&target_id=$targetId" +
+            "&target_type=$targetType&limit=1"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
+        runCatching {
+            executeShikimori(request).use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                if (body.isBlank()) return@use null
+                val array = org.json.JSONArray(body)
+                if (array.length() == 0) null
+                else array.getJSONObject(0).optInt("id", 0).takeIf { it > 0 }
+            }
+        }.getOrNull()
+    }
+
+    /**
      * Shikimori liste kaydına YALNIZCA verilen alanları yazar (`PATCH /api/v2/user_rates/{id}`).
      *
      * Alan bazlı eşitlemenin temeli: gönderilmeyen alan Shikimori'de değişmez. `score` 0

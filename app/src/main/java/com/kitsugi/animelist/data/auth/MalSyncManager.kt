@@ -87,6 +87,16 @@ object MalSyncManager {
             }
             if (SyncField.PROGRESS in fields) {
                 append("&$progressKey=${entry.progress}")
+                // KRİTİK: MAL, ilerleme artırıldığında `is_rewatching` bayrağını KENDİSİ
+                // false'a çeker. Sadece ilerleme gönderirsek kullanıcının "şu an tekrar
+                // izliyorum" durumu sessizce kaybolur (MAL-Sync tüm `my_list_status`
+                // nesnesini gönderdiği için bu tuzağa düşmez). Bayrak yalnız TRUE yönünde
+                // eklenir; `false` göndermek, verimizin zaten false olduğu anlamına gelir
+                // ve sunucunun varsayılan davranışıyla aynıdır.
+                if (entry.status == WatchStatus.Repeating || entry.isRepeating) {
+                    if (entry.type == MediaType.Manga) append("&is_rereading=true")
+                    else append("&is_rewatching=true")
+                }
             }
             if (SyncField.VOLUME_PROGRESS in fields && entry.type == MediaType.Manga) {
                 append("&num_volumes_read=${entry.volumeProgress}")

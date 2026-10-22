@@ -360,20 +360,66 @@ class CrossSyncMergePolicyTest {
     }
 
     @Test
-    fun `bayrak farki AniList'e sonsuz durum yazimi uretmez`() {
-        // MAL'da "tekrar izleniyor" bayrağı açık, AniList kaydı tamamlanmış. Birleşimde
-        // `isRepeating=true` kalır. AniList'te tekrar AYRI bir durumdur ve `repeat` alanı
-        // "şu an tekrar izleniyor" demek DEĞİLDİR; bu yüzden durum değişmediyse AniList'e
-        // yazım yapılmamalı. Aksi hâlde her eşitleme turunda aynı istek atılırdı.
+    fun `tekrar suren yapimda ilerleme max alinmaz`() {
+        // 12/12 bitmiş bir yapımı tekrar izlemeye başlayan kullanıcı: MAL 12, AniList 2.
+        // `max` alınsaydı AniList'e 12 yazılır ve tekrar anında "bitmiş" görünürdü.
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = true, repeatCount = 1)
+        val aniRow = e("anilist", status = WatchStatus.Repeating, progress = 2, isRepeating = true, repeatCount = 1, updatedAt = 50)
+        val merged = CrossSyncMergePolicy.merge(listOf(malRow, aniRow))
+        assertEquals(WatchStatus.Repeating, merged.status)
+        assertEquals(2, merged.progress)
+        assertTrue(merged.isRepeating)
+        // Tekrar ilerlemesi MAL'a geri yazılmaz (ilerleme gerilemez kuralı).
+        assertFalse(SyncField.PROGRESS in CrossSyncMergePolicy.dirtyFieldsFor(malRow, merged, "mal"))
+    }
+
+    @Test
+    fun `MAL_da baslayan tekrar AniList'e REPEATING olarak yazilir ve bir kez yazilir`() {
+        // Yalnız MAL bayrağı "şu an tekrar izleniyor" diyor. AniList bunu ancak REPEATING
+        // durumuyla ifade edebilir. Yazımdan sonra AniList satırı REPEATING okunur ve
+        // sonraki turlarda kirli alan kalmaz (sonsuz yazım yok).
         val malRow = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = true, repeatCount = 1)
         val aniRow = e("anilist", status = WatchStatus.Completed, progress = 12, isRepeating = false, repeatCount = 1)
         val merged = CrossSyncMergePolicy.merge(listOf(malRow, aniRow))
-        assertTrue(merged.isRepeating)
+        assertEquals(WatchStatus.Repeating, merged.status)
+        assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(aniRow, merged, "anilist"))
+
+        // Yazım sonrası durum (AniList artık REPEATING) → döngü yok.
+        val after = aniRow.copy(status = WatchStatus.Repeating, isRepeating = true)
         assertEquals(
             emptySet<SyncField>(),
-            CrossSyncMergePolicy.dirtyFieldsFor(aniRow, merged, "anilist")
+            CrossSyncMergePolicy.dirtyFieldsFor(after, CrossSyncMergePolicy.merge(listOf(malRow, after)), "anilist")
         )
-        // MAL'de ise bayrak ayrı bir alandır: durum yazımıyla taşınır.
+    }
+
+    @Test
+    fun `tekrar ifade edemeyen hedefin durumu degistirilmez`() {
+        // Simkl/Bangumi "tekrar izleniyor" bilgisini TAŞIYAMAZ. Tekrar yüzünden bunların
+        // durumunu değiştirmek her turda aynı isteği atardı (sonsuz yazım) ve kullanıcının
+        // Simkl'deki "tamamlandı" işaretini bozardı.
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = true, repeatCount = 1)
+        val simklRow = e("simkl", status = WatchStatus.Completed, progress = 12, isRepeating = false)
+        val merged = CrossSyncMergePolicy.merge(listOf(malRow, simklRow))
+        assertEquals(WatchStatus.Repeating, merged.status)
+        assertEquals(
+            emptySet<SyncField>(),
+            CrossSyncMergePolicy.dirtyFieldsFor(simklRow, merged, "simkl")
+        )
+    }
+
+    @Test
+    fun `Kitsu ve MAL bayrak farkini durum yazimiyla tasir`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = true, repeatCount = 1),
+                e("kitsu", status = WatchStatus.Watching, progress = 12, isRepeating = false, repeatCount = 1)
+            )
+        )
+        assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(
+            e("kitsu", status = WatchStatus.Watching, progress = 12, isRepeating = false, repeatCount = 1),
+            merged,
+            "kitsu"
+        ))
         assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(
             e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = false, repeatCount = 1),
             merged,

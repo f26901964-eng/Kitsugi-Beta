@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.WatchStatus
 
 /**
  * ÇAPRAZ EŞİTLEMEDE TAŞINAN VERİ ALANLARI.
@@ -132,8 +133,39 @@ data class ProviderCapabilities(
      * Shikimori: rewatching). `false` ise durum + sayaç/flag ile ifade edilir (MAL) ya da
      * hiç desteklenmez (Bangumi, Simkl).
      */
-    val rewatchingAsStatus: Boolean = false
+    val rewatchingAsStatus: Boolean = false,
+    /**
+     * "Şu an tekrar izleniyor" durumunun bu hedefte NASIL ifade edildiği.
+     *
+     *  - [RewatchModel.AS_STATUS]    : ayrı bir durum değeri vardır (AniList `REPEATING`,
+     *                                  Shikimori `rewatching`).
+     *  - [RewatchModel.AS_FLAG]      : durum ayrı değildir, bayrakla taşınır (MAL
+     *                                  `is_rewatching`, Kitsu `reconsuming`). [repeatingStatus]
+     *                                  o hedefteki "durum" karşılığıdır.
+     *  - [RewatchModel.UNSUPPORTED]  : hiç ifade edilemez (Bangumi, Simkl). Tekrar yüzünden
+     *                                  bu hedefin durumu DEĞİŞTİRİLMEZ.
+     */
+    val rewatchModel: RewatchModel = if (rewatchingAsStatus) RewatchModel.AS_STATUS
+    else RewatchModel.UNSUPPORTED,
+    /** [RewatchModel.AS_FLAG] hedeflerde `Repeating` durumunun gönderilecek karşılığı. */
+    val repeatingStatus: WatchStatus = WatchStatus.Completed
 ) {
+    /**
+     * Verilen hedef sözlüğünde [merged] durumunun karşılığı.
+     *
+     * Amaç, "tekrar izleniyor" bilgisini ifade EDEMEYEN hedeflerde gereksiz durum yazımını
+     * (ve sonsuz yazım döngüsünü) engellemek: Simkl'de kayıt `completed` ise, kullanıcı
+     * AniList'te tekrar izlemeye başladı diye Simkl kaydı `watching`e çekilmemelidir.
+     */
+    fun statusFor(current: MediaEntry, mergedStatus: WatchStatus): WatchStatus = when {
+        mergedStatus != WatchStatus.Repeating -> mergedStatus
+        rewatchModel == RewatchModel.AS_STATUS -> WatchStatus.Repeating
+        rewatchModel == RewatchModel.AS_FLAG -> repeatingStatus
+        else -> current.status
+    }
+
+    enum class RewatchModel { AS_STATUS, AS_FLAG, UNSUPPORTED }
+
     fun supports(field: SyncField): Boolean = field in supports
 
     /** Verilen değişiklik kümesinden bu sağlayıcıya yazılabilecek olanları süzer. */
@@ -184,6 +216,9 @@ object ProviderCapabilitiesCatalog {
             SyncField.REWATCH_COUNT, SyncField.REPEAT_VALUE, SyncField.PRIORITY
         ),
         scoreScale = ProviderCapabilities.ScoreScale.TEN,
+        // MAL'de tekrar ayrı durum değildir: `completed` + `is_rewatching` (MAL-Sync aynı).
+        rewatchModel = ProviderCapabilities.RewatchModel.AS_FLAG,
+        repeatingStatus = WatchStatus.Completed,
         statusVocabulary = setOf(
             "watching", "reading", "completed", "on_hold", "dropped", "plan_to_watch", "plan_to_read"
         ),
@@ -198,6 +233,9 @@ object ProviderCapabilitiesCatalog {
             SyncField.REWATCH_COUNT
         ),
         scoreScale = ProviderCapabilities.ScoreScale.TWENTY,
+        // Kitsu'da tekrar ayrı durum değildir: `current` + `reconsuming`.
+        rewatchModel = ProviderCapabilities.RewatchModel.AS_FLAG,
+        repeatingStatus = WatchStatus.Watching,
         statusVocabulary = setOf("current", "planned", "completed", "on_hold", "dropped"),
         rewatchingAsStatus = false
     )
