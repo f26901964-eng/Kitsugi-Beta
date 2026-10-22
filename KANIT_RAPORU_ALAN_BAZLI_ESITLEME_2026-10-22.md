@@ -670,3 +670,58 @@ yanlış pozitif dışında hata yok. Çalıştırılması gereken komut:
 ```
 ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest
 ```
+
+---
+
+## §17 — Geçiş 9: Birleştirme kuralının kendi içinde denetimi
+
+Bu geçişte odak, tek tek sağlayıcılar değil **altı kaynağı tek karara indiren kural**
+(`CrossSyncMergePolicy`) oldu. Kural yanlışsa bütün sağlayıcı yazıcıları doğru olsa bile
+sonuç yanlış olur. Üç mantık hatası bulundu.
+
+| # | Hata | Senaryo | Etki | Düzeltme |
+|---|---|---|---|---|
+| **E66** | Tekrar sürerken ilerleme **hiç** geri yazılmıyordu | MAL'da 12/12 bitmiş yapım tekrar izlenmeye başlandı (2. bölüm) → AniList `REPEATING` oldu ama ilerlemesi 12'de kaldı | AniList'te tekrar "12/12" görünür; tekrar ilerlemesi hiç yansımaz | `dirtyFieldsFor`: `AS_STATUS` hedeflerde (AniList `REPEATING`, Shikimori `rewatching`) ve birleşik durum tekrar ise, ilerleme farkı **geri yönlü de** yazılır. Bayrak taşıyan hedeflerde (MAL `is_rewatching`, Kitsu `reconsuming`) geri yazım YOK — MAL'de ilerlemeyi düşürmek bayrağı sıfırlar |
+| **E67** | "Herhangi bir kayıt tekrar diyor" kuralı bayat satırla kilitleniyordu | Kullanıcı tekrarı MAL'da bitirdi (bayrak kapandı, daha yeni); AniList'te bayat `REPEATING` kaldı | Birleşim sonsuza kadar `Repeating`; her turda MAL'a `is_rewatching=true` **geri yazılır**, tekrar asla bitmez | Tekrar bilgisi ancak kendisinden **daha yeni** bir kayıt aksini söylemediği sürece geçerli (eşitlikte tekrar kazanır: tekrarı başlatan tur kendi kendini iptal etmesin) |
+| **E67b** | `merged.isRepeating` "herhangi biri" iken `merged.status` "en yeni kazanır" idi → iki alan çelişebiliyordu | Yukarıdaki senaryo | Bayrak `true`, durum `Completed` → bayrak taşıyan hedefe gereksiz durum yazımı ve `is_rewatching` yeniden açılması | `isRepeating = (status == Repeating)`; tekrar satırlarının ilerlemesi de yalnız birleşik durum tekrar iken dikkate alınır |
+| **E68** | Kırpma toplamı **aday sırasına** bağlıydı (`firstOrNull`) | AniList 12 bölüm, MAL 13 bölüm bildiriyor | Grup sırası değişince kırpma değeri değişir; turdan tura ilerleme bir aşağı bir yukarı yazılır (deterministik değil) | Sabit öncelik: MAL → AniList → Kitsu → Shikimori → Bangumi; aynı kaynakta birden çok değer varsa en büyüğü |
+
+### 17.1 Bu geçişte doğrulanan (değişiklik gerekmedi)
+
+- **Simkl notları**: `private_memo` yolu **zaten** var (`SimklSyncManager` L520-544 +
+  `SimklApiClient` L1057); not değişimi add-to-list yazımını tetikliyor, boşaltma `""` ile
+  gidiyor. (Önceki geçiş notum "Simkl not desteklemiyor" **yanlıştı**, düzeltildi.)
+- **Sağlayıcı hız sınırlayıcı**: `PlatformRateLimiter` platform başına mutex tutuyor; farklı
+  platformlar birbirini **beklemiyor** → altı kaynak gerçekten eşzamanlı (kabul ölçütü).
+  Aynı platform içinde seri olması doğru (429 üretmemek için). Yan not: `notifyRateLimited`
+  hem `lastCallTime`i ileri atıyor hem `delay` yapıyor (çift bekleme); davranışı bozmadığı
+  için değiştirilmedi.
+- **`SyncFieldDiff`** 14 alanın tamamını karşılaştırıyor; boşaltma (`null` → `""`) fark
+  sayılıyor, `isRepeating` değişimi `STATUS`ı da işaretliyor (bayrak hedefte durumla taşınır).
+- **Simkl/Kitsu/Shikimori/Bangumi/MAL/AniList** yazıcılarının alan kapıları
+  (`fullWrite` / `SyncField.X in fields`) tek tek okundu; boş değer yalnız kullanıcı
+  alanı boşalttığında gönderiliyor.
+
+### 17.2 Test kapsamı
+
+`CrossSyncMergePolicyTest` 29 → **34 test**. Yeni 5 test:
+- `tekrar sirasinda AniList ilerlemesi geri sayilir` (E66)
+- `bayrakli hedefte tekrar sirasinda ilerleme geri yazilmaz` (E66'nın sınırı)
+- `biten tekrar bayat REPEATING satirini ezmez` (E67 + E67b)
+- `esit zaman damgasinda tekrar kazanir` (E67 eşitlik kuralı)
+- `toplam kaynagi aday sirasindan bagimsizdir` (E68)
+
+### 17.3 Kalan açık riskler (dürüst liste, önem sırasıyla)
+
+1. **Kademeli yazım yok**: bir kaynakta kimlik çözümü + yazım + favori sorgusu arka arkaya
+   gidiyor; `PlatformRateLimiter` beklemesiyle toplam süre 30 sn'lik kaynak bütçesini
+   aşarsa sonuç `OUTCOME_TIMEOUT` olur. OkHttp `callTimeout` (25 sn) bloke çağrıyı kesiyor
+   ama **çok adımlı** akışta ikinci/üçüncü istek hiç başlamayabilir. Bu bir "yanlış veri"
+   hatası değil, "eksik yazım" hatasıdır ve kuyruk yeniden dener.
+2. **`updatedAt` kaynak saatine dayanır**: farklı sağlayıcıların saat kayması "en yeni
+   kazanır" kuralını teorik olarak etkileyebilir (kabul edilen risk; alternatifi yerel
+   işlem zamanı tutmak ve bunu her sağlayıcı için ayrı saklamak olurdu).
+3. **Shikimori favori** ve **Bangumi favori** yazımı yok (gerekçe §16.3).
+4. **`MutableList` alanı yok**: `tags` düz metin olarak tutuluyor; sıra değişikliği fark
+   üretir (yalnız MAL ve Bangumi'ye yazıldığı için etkisi sınırlı).
+5. Bu geçişte de **derleme/test çalıştırılmadı** (ortamda JDK/Gradle yok).

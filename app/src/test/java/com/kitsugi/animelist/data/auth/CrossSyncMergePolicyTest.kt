@@ -393,6 +393,70 @@ class CrossSyncMergePolicyTest {
     }
 
     @Test
+    fun `tekrar sirasinda AniList ilerlemesi geri sayilir`() {
+        // E66: 12/12 bitmiş yapım MAL'da tekrar izlenmeye başlandı (2. bölüm). AniList'te
+        // durum REPEATING'e çekildiğinde oradaki ilerleme de 2 olmalı; `dirtyFields`in
+        // "ilerleme asla gerilemez" koruması bunu engelliyordu ve AniList sonsuza kadar
+        // "REPEATING 12/12" gösteriyordu.
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 2, isRepeating = true, repeatCount = 1, updatedAt = 100)
+        val aniRow = e("anilist", status = WatchStatus.Repeating, progress = 12, isRepeating = true, repeatCount = 1, updatedAt = 10)
+        val merged = CrossSyncMergePolicy.merge(listOf(malRow, aniRow))
+        assertEquals(WatchStatus.Repeating, merged.status)
+        assertEquals(2, merged.progress)
+
+        val aniDirty = CrossSyncMergePolicy.dirtyFieldsFor(aniRow, merged, "anilist")
+        assertTrue(SyncField.PROGRESS in aniDirty)
+    }
+
+    @Test
+    fun `bayrakli hedefte tekrar sirasinda ilerleme geri yazilmaz`() {
+        // MAL'de ilerlemeyi düşürmek `is_rewatching`i sıfırlar; bayrak taşıyan hedefte
+        // tekrar ilerlemesi geri yazılmaz (yalnız AS_STATUS hedeflerde geri sayılır).
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = true, repeatCount = 1, updatedAt = 10)
+        val aniRow = e("anilist", status = WatchStatus.Repeating, progress = 2, isRepeating = true, repeatCount = 1, updatedAt = 100)
+        val merged = CrossSyncMergePolicy.merge(listOf(malRow, aniRow))
+        assertEquals(2, merged.progress)
+        assertFalse(SyncField.PROGRESS in CrossSyncMergePolicy.dirtyFieldsFor(malRow, merged, "mal"))
+    }
+
+    @Test
+    fun `biten tekrar bayat REPEATING satirini ezmez`() {
+        // E67: MAL'da tekrar bitti (bayrak kapandı, DAHA YENİ). AniList'te kalan bayat
+        // REPEATING satırı birleşimi "tekrar"da tutsaydı her turda MAL'a is_rewatching=true
+        // geri yazılır ve tekrar asla bitmezdi.
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = false, repeatCount = 1, updatedAt = 200)
+        val aniRow = e("anilist", status = WatchStatus.Repeating, progress = 3, isRepeating = true, repeatCount = 1, updatedAt = 100)
+        val merged = CrossSyncMergePolicy.merge(listOf(malRow, aniRow))
+
+        assertEquals(WatchStatus.Completed, merged.status)
+        assertFalse(merged.isRepeating)
+        // Bayat satırın düşük ilerlemesi birleşime sızmamalı.
+        assertEquals(12, merged.progress)
+        // AniList'e "tamamlandı" yazılır; MAL'a dokunulmaz.
+        assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(aniRow, merged, "anilist"))
+        assertFalse(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(malRow, merged, "mal"))
+    }
+
+    @Test
+    fun `esit zaman damgasinda tekrar kazanir`() {
+        // Tekrarı başlatan turda karşı satır aynı saniyede yazılabilir; eşitlikte tekrar
+        // kazanmazsa başlatılan tekrar hemen iptal edilirdi.
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 2, isRepeating = true, repeatCount = 1, updatedAt = 100)
+        val aniRow = e("anilist", status = WatchStatus.Completed, progress = 12, isRepeating = false, updatedAt = 100)
+        assertEquals(WatchStatus.Repeating, CrossSyncMergePolicy.merge(listOf(malRow, aniRow)).status)
+    }
+
+    @Test
+    fun `toplam kaynagi aday sirasindan bagimsizdir`() {
+        // İki kaynak toplamda anlaşmıyorsa seçim aday sırasına bağlı OLMAMALI; aksi hâlde
+        // kırpma değeri turlar arasında değişip ilerleme bir aşağı bir yukarı yazılırdı.
+        val ani = e("anilist", total = 12)
+        val mal = e("mal", total = 13)
+        assertEquals(13, CrossSyncMergePolicy.merge(listOf(ani, mal)).total)
+        assertEquals(13, CrossSyncMergePolicy.merge(listOf(mal, ani)).total)
+    }
+
+    @Test
     fun `tekrar ifade edemeyen hedefin durumu degistirilmez`() {
         // Simkl/Bangumi "tekrar izleniyor" bilgisini TAŞIYAMAZ. Tekrar yüzünden bunların
         // durumunu değiştirmek her turda aynı isteği atardı (sonsuz yazım) ve kullanıcının

@@ -60,7 +60,13 @@ object CrossSyncMergePolicy {
 
         val total = totalOf(candidates)
         val rawMaxProgress = candidates.maxOf { it.progress }
-        val rewatchRows = candidates.filter { it.isRewatchInProgress() }
+        val status = resolveStatus(candidates, total, rawMaxProgress)
+        // (E66/E67) İlerleme ve bayrak kararı DURUMLA tutarlı olmalı: birleşik durum artık
+        // "tekrar" değilse (kullanıcı tekrarı bitirdi), eski bir `REPEATING` satırının düşük
+        // ilerlemesi de bayrağı da dikkate alınmaz. Aksi hâlde biten bir tekrar, bayat
+        // satır yüzünden ilerlemeyi 12'den 3'e düşürür ve `is_rewatching`i yeniden açar.
+        val rewatchActive = status == WatchStatus.Repeating
+        val rewatchRows = if (rewatchActive) candidates.filter { it.isRewatchInProgress() } else emptyList()
 
         // Toplam biliniyorsa daha fazlası yazılamaz: MAL `num_watched_episodes` toplamı
         // aşınca 400 döner, Kitsu 422 verir. Kırpma, yazımın tümden düşmesini engeller.
@@ -81,7 +87,7 @@ object CrossSyncMergePolicy {
         }
 
         return Merged(
-            status = resolveStatus(candidates, total, rawMaxProgress),
+            status = status,
             progress = progress,
             rawMaxProgress = rawMaxProgress,
             volumeProgress = candidates.maxOf { it.volumeProgress }.coerceAtLeast(0),
@@ -89,7 +95,7 @@ object CrossSyncMergePolicy {
             startDate = candidates.mapNotNull { it.startDate?.takeIf(String::isNotBlank) }.minOrNull(),
             endDate = candidates.mapNotNull { it.endDate?.takeIf(String::isNotBlank) }.maxOrNull(),
             repeatCount = candidates.maxOf { it.repeatCount }.coerceAtLeast(0),
-            isRepeating = rewatchRows.isNotEmpty(),
+            isRepeating = rewatchActive,
             isFavorite = candidates.any { it.isFavorite },
             total = total
         )
@@ -159,6 +165,22 @@ object CrossSyncMergePolicy {
         ) {
             fields += SyncField.STATUS
         }
+        // ── TEKRAR İLERLEMESİ GERİ SAYILIRKEN (E66) ────────────────────────────────
+        // `dirtyFields` ilerlemeyi yalnız ARTARKEN yazar (veri kaybı koruması). Bir tekrar
+        // başladığında ise hedefin ilerlemesi bilerek GERİ gider: AniList'te 12/12 bitmiş
+        // bir yapım tekrar izlenmeye başlandığında orada da "2/12" görünmelidir.
+        // Yalnız tekrarın AYRI DURUM olarak ifade edildiği hedeflerde (AniList `REPEATING`,
+        // Shikimori `rewatching`) yapılır: bu hedefler "şu an tekrar izleniyor" bilgisini
+        // taşıdığı için düşük ilerleme yanlış anlaşılmaz. Bayrak taşıyan hedeflerde
+        // (MAL/Kitsu) satırın kendi durumu zaten korunur; orada ilerlemeyi düşürmek
+        // `is_rewatching` sıfırlanmasına yol açabilir.
+        if (capabilities.rewatchModel == ProviderCapabilities.RewatchModel.AS_STATUS &&
+            merged.isRepeating &&
+            SyncField.PROGRESS in capabilities.supports &&
+            current.progress != merged.progress
+        ) {
+            fields += SyncField.PROGRESS
+        }
         return fields
     }
 
@@ -169,11 +191,25 @@ object CrossSyncMergePolicy {
      * toplam değildir) → tamamlanma çıkarımında KULLANILMAZ. AniList/MAL/Kitsu/Shikimori
      * toplamları güvenilirdir.
      */
-    fun totalOf(candidates: List<MediaEntry>): Int? = candidates
-        .asSequence()
-        .filter { MediaIdentity.canonicalSource(it.source) != "simkl" }
-        .mapNotNull { it.total?.takeIf { total -> total > 0 } }
-        .firstOrNull()
+    fun totalOf(candidates: List<MediaEntry>): Int? {
+        val totals = candidates.mapNotNull { entry ->
+            entry.total?.takeIf { total -> total > 0 }?.let { total ->
+                MediaIdentity.canonicalSource(entry.source) to total
+            }
+        }.filter { (source, _) -> source != "simkl" }
+        if (totals.isEmpty()) return null
+        // Kaynaklar toplamda anlaşamıyorsa (bölünmüş sezon, hatalı meta veri…) seçim
+        // ADAY SIRASINA bağlı olmamalı: sıra değişince kırpma değeri değişir ve iki tur
+        // arasında ilerleme bir aşağı bir yukarı yazılırdı. Bu yüzden sabit bir öncelik
+        // sırası vardır (MAL → AniList → Kitsu → Shikimori → Bangumi); aynı kaynakta
+        // birden çok değer varsa en büyüğü alınır.
+        val bySource = totals.groupBy({ it.first }, { it.second })
+        return TOTAL_SOURCE_PRIORITY.firstNotNullOfOrNull { source -> bySource[source]?.maxOrNull() }
+            ?: bySource.values.maxOf { values -> values.max() }
+    }
+
+    /** Toplam (bölüm/cilt sayısı) çıkarımında kaynak önceliği — deterministik olmalı. */
+    private val TOTAL_SOURCE_PRIORITY = listOf("mal", "anilist", "kitsu", "shikimori", "bangumi")
 
     /**
      * Durum çözümü — belgelenmiş, deterministik sıra:
@@ -200,7 +236,18 @@ object CrossSyncMergePolicy {
         // bitmiş bir yapımı yeniden izlemeye başlayan kullanıcı "tamamlandı" değildir.
         // (Eski kod tam burada `Completed` üretip AniList'teki `REPEATING` durumunu ve
         // tekrar ilerlemesini eziyordu.)
-        if (candidates.any { it.isRewatchInProgress() }) return WatchStatus.Repeating
+        // (E67) "Herhangi bir kayıt tekrar diyor" yetmez: kullanıcı tekrarı MAL'da bitirip
+        // bayrağı kapattığında AniList'te kalan BAYAT `REPEATING` satırı, birleşimi sonsuza
+        // kadar "tekrar" tutar ve her turda MAL'a `is_rewatching=true` geri yazılırdı.
+        // Kural: tekrar bilgisi, kendisinden DAHA YENİ bir kayıt aksini söylemediği sürece
+        // geçerlidir. Eşit zaman damgasında tekrar kazanır (aksi hâlde tekrarı başlatan tur,
+        // aynı saniyede yazılan karşı satır yüzünden hemen iptal edilirdi).
+        val newestRewatch = candidates
+            .filter { it.isRewatchInProgress() }
+            .maxByOrNull { it.updatedAt }
+        if (newestRewatch != null && newestRewatch.updatedAt >= byRecency.first().updatedAt) {
+            return WatchStatus.Repeating
+        }
         return when {
             // Kullanıcının EN SON yaptığı işlem bir durum değişikliğiyse o kazanır. Özellikle
             // `Dropped`/`Paused`: eski bir "tamamlandı" kaydı bu kararı geri almamalı.
