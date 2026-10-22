@@ -171,7 +171,19 @@ fun MyListScreen(
     isBottomBarVisible: Boolean = true,
     onScrollReset: () -> Unit = {},
     isNotificationsVisible: Boolean = false,
-    onOpenNotifications: () -> Unit = {}
+    onOpenNotifications: () -> Unit = {},
+    /**
+     * Gerçek bir liste yenilemesi sürüyor mu? (AuthViewModel'deki `*ImportRunning`
+     * bayraklarının birleşimi.) Pull-to-refresh göstergesi buna bağlıdır; eskiden
+     * istek başlatılır başlatılmaz kapatıldığı için kullanıcı hiç yenilendiğini
+     * göremiyordu.
+     */
+    isSyncing: Boolean = false,
+    /**
+     * Sayfa açıldığında bayat kaynakları arka planda artımlı yeniler (altı kaynak).
+     * Sonuç, [onExternalSyncMessage] üzerinden snackbar olarak iletilir.
+     */
+    onAutoRefresh: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -184,6 +196,15 @@ fun MyListScreen(
         viewModel.syncMessages.collect { message ->
             onExternalSyncMessage(message)
         }
+    }
+
+    // ── Sayfalar KENDİLİĞİNDEN güncellensin ────────────────────────────────────
+    // Hangi platform sekmesi seçili olursa olsun (Tümü dahil) Listem her açıldığında
+    // bağlı kaynakların hepsi için bayatlık kontrolü yapılır ve yalnızca eksikler
+    // tamamlanır. Sonuç Room akışına yazıldığı için TÜM sayfalar (Tümü + altı
+    // platform) aynı anda tazelenir; kullanıcı "Yenile"ye basmak zorunda değildir.
+    LaunchedEffect(Unit) {
+        onAutoRefresh()
     }
 
     // Başlık dili değişince (örn. Romaji → İng) Bangumi satırlarının o dile ait eksik
@@ -639,23 +660,31 @@ fun MyListScreen(
                             }
                         }
                     },
+                    isRefreshing = isSyncing,
                     onRefresh = {
-                        when (pageTabIndex) {
-                            MY_LIST_ANILIST_TAB_INDEX -> onSyncAniList()
-                            MY_LIST_MAL_TAB_INDEX -> onSyncMal()
-                            MY_LIST_SIMKL_TAB_INDEX -> onSyncSimkl()
-                            MY_LIST_KITSU_TAB_INDEX -> onSyncKitsu()
-                            MY_LIST_SHIKIMORI_TAB_INDEX -> onSyncShikimori()
-                            MY_LIST_BANGUMI_TAB_INDEX -> onSyncBangumi()
-                            MY_LIST_ALL_TAB_INDEX -> {
-                                var startedSync = false
-                                if (isAniListConnected) { onSyncAniList(); startedSync = true }
-                                if (isMalConnected) { onSyncMal(); startedSync = true }
-                                if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
-                                if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
-                                if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
-                                if (isBangumiConnected) { onSyncBangumi(); startedSync = true }
-                                if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
+                        // Zaten süren bir yenileme varsa ikinci bir istek yığmak yok
+                        // (her kaynakta zaten `isXImportRunning` kilidi var, burada tek
+                        // yerden kısa devre yapılıyor).
+                        if (!isSyncing) {
+                            when (pageTabIndex) {
+                                MY_LIST_ANILIST_TAB_INDEX -> onSyncAniList()
+                                MY_LIST_MAL_TAB_INDEX -> onSyncMal()
+                                MY_LIST_SIMKL_TAB_INDEX -> onSyncSimkl()
+                                MY_LIST_KITSU_TAB_INDEX -> onSyncKitsu()
+                                MY_LIST_SHIKIMORI_TAB_INDEX -> onSyncShikimori()
+                                MY_LIST_BANGUMI_TAB_INDEX -> onSyncBangumi()
+                                MY_LIST_ALL_TAB_INDEX -> {
+                                    // "Tümü": bağlı olan TÜM kaynaklar artımlı yenilenir;
+                                    // sayfalar bu yüzden tek tek değil, birlikte tazelenir.
+                                    var startedSync = false
+                                    if (isAniListConnected) { onSyncAniList(); startedSync = true }
+                                    if (isMalConnected) { onSyncMal(); startedSync = true }
+                                    if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
+                                    if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
+                                    if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
+                                    if (isBangumiConnected) { onSyncBangumi(); startedSync = true }
+                                    if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
+                                }
                             }
                         }
                     },

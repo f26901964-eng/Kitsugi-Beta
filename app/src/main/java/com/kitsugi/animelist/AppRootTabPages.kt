@@ -521,6 +521,27 @@ private fun MyListTabPageWrapper(
         isBottomBarVisible = isBottomBarVisible,
         onScrollReset = onScrollReset,
         isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected,
-        onOpenNotifications = { navState.navigateToDetail(DetailScreen.Notifications) }
+        onOpenNotifications = { navState.navigateToDetail(DetailScreen.Notifications) },
+        // Pull-to-refresh göstergesi gerçek yenileme durumuna bağlı (yalan söylemesin).
+        isSyncing = authViewModel.isAnyListImportRunning,
+        // Sayfa açılışında bayat kaynakları artımlı yenile: seçili sekmeye bakmaksızın
+        // altı kaynak birden taranır, yalnızca eksikler tamamlanır. Mutex sayesinde
+        // uygulama açılışındaki taramayla çakışmaz / iş iki kez yapılmaz.
+        onAutoRefresh = {
+            coroutineScope.launch {
+                val reports = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        com.kitsugi.animelist.core.sync.AutoListRefresh.refreshStale(
+                            context = context,
+                            minIntervalMs = com.kitsugi.animelist.core.sync.AutoListRefresh.FOREGROUND_MIN_INTERVAL_MS
+                        )
+                    }.getOrDefault(emptyList())
+                }
+                val message = com.kitsugi.animelist.core.sync.AutoListRefresh.summaryMessage(reports)
+                if (!message.isNullOrBlank()) {
+                    appViewModel.showSnackbarMessage(message)
+                }
+            }
+        }
     )
 }

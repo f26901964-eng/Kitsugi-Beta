@@ -198,10 +198,21 @@ class AiringNotificationWorker(
             if (!simklToken.isNullOrBlank()) {
                 try {
                     val importedEntries = SimklImportManager.fetchAllLists(simklToken)
-                    val repository = MediaEntryRepository(db.mediaEntryDao())
-                    // Sil-yeniden-yaz sırasında +18 işaretlerini koru (bkz. repository)
-                    repository.replaceSourcePreservingAdultFlags("simkl", importedEntries)
-                    Log.d(TAG, "Simkl background sync successful: ${importedEntries.size} entries")
+                    val repository = MediaEntryRepository(
+                        dao = db.mediaEntryDao(),
+                        pendingSyncDao = db.pendingSyncDao(),
+                        context = context
+                    )
+                    // ARTIMLI yenileme: kaynağı silip yeniden yazmak yerine yalnızca
+                    // eksikler tamamlanır (bkz. MediaEntryRepository.refreshFromSource).
+                    // Böylece gece işi çalıştığında Listem sayfaları baştan kurulmaz,
+                    // bekleyen çevrimdışı değişiklikler ve +18 işaretleri korunur.
+                    val stats = repository.refreshFromSource("simkl", importedEntries)
+                    Log.d(
+                        TAG,
+                        "Simkl background sync successful: ${importedEntries.size} entries " +
+                            "(+${stats.added} new, ${stats.updated} updated, ${stats.unchanged} unchanged)"
+                    )
 
                     val calendarClient = SimklCalendarClient()
                     val watchingIds = runCatching { calendarClient.fetchWatchingIds(simklToken) }.getOrNull()

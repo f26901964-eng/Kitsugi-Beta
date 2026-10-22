@@ -6067,6 +6067,8 @@
     <string name="account_sync_import_running">%1$s import is already running.</string>
     <string name="account_sync_import_fetching">Fetching the %1$s list...</string>
     <string name="account_sync_import_success">%1$d %2$s entries imported successfully.</string>
+    <string name="account_sync_refresh_changed">%1$s refreshed — %2$d new entries added, %3$d updated (nothing was rebuilt from scratch)</string>
+    <string name="account_sync_refresh_unchanged">%1$s is up to date — no missing entries (%2$d entries checked)</string>
     <string name="account_sync_import_save_failed">Could not save the %1$s list: %2$s</string>
     <string name="account_sync_import_failed">%1$s import failed.</string>
     <string name="account_sync_import_credentials_missing">%1$s token or user ID not found.</string>

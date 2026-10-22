@@ -57,7 +57,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,7 +76,6 @@ import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiMyListSortMenu
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
-import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -846,6 +844,8 @@ fun MyListContentPage(
     appSettings: com.kitsugi.animelist.data.settings.AppSettings,
     pageScrollState: LazyListState,
     onLogin: () -> Unit,
+    /** Gerçek yenileme durumu (üst katmandan). Gösterge buna bağlıdır. */
+    isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onEntryClick: (MediaEntry) -> Unit,
     onIncrementProgress: (MediaEntry) -> Unit,
@@ -855,9 +855,7 @@ fun MyListContentPage(
 ) {
     val KitsugiColors = LocalKitsugiColors.current
     val isTvDevice = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
-    val coroutineScope = rememberCoroutineScope()
     val pageRefreshState = rememberPullToRefreshState()
-    var pageIsRefreshing by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -867,21 +865,23 @@ fun MyListContentPage(
         else -> if (screenWidthDp >= 600) 4 else 2
     }
 
+    // Gösterge artık YEREL bir bayrağa değil, üst katmandaki GERÇEK yenileme durumuna
+    // bağlı. Eski sürüm jetonu `onRefresh()` çağrısından hemen sonra false yapıyordu;
+    // istekler ise ViewModel'de asenkron sürdüğü için animasyon bir kare bile
+    // görünmüyor, kullanıcı listesinin yenilendiğini anlayamıyordu.
     PullToRefreshBox(
-        isRefreshing = pageIsRefreshing,
+        isRefreshing = isRefreshing,
         onRefresh = {
-            coroutineScope.launch {
-                pageIsRefreshing = true
-                onRefresh()
-                pageIsRefreshing = false
-            }
+            // Bağlı olmayan sekmede ağ isteği başlatmak (ve hata snackbar'ı üretmek)
+            // yerine hiçbir şey yapma; kullanıcı zaten "Bağlan" durumunu görüyor.
+            if (isConnected) onRefresh()
         },
         modifier = Modifier.fillMaxSize(),
         state = pageRefreshState,
         indicator = {
             KitsugiPullToRefreshIndicator(
                 state = pageRefreshState,
-                isRefreshing = pageIsRefreshing,
+                isRefreshing = isRefreshing,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
         }

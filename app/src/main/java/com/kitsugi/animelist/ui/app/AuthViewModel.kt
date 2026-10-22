@@ -198,6 +198,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     var isBangumiImportRunning by mutableStateOf(false)
         private set
 
+    /**
+     * Herhangi bir kaynağın liste yenilemesi sürüyor mu?
+     *
+     * Listem'deki yenileme göstergesi (pull-to-refresh) artık bu değerle sürülür.
+     * Eskiden gösterge, istek başlatıldığı anda kapatılıyordu; kullanıcı "yenileniyor"
+     * animasyonunu göremeden liste sessizce güncelleniyordu.
+     */
+    val isAnyListImportRunning: Boolean
+        get() = isAniListImportRunning || isMalImportRunning || isSimklImportRunning ||
+            isKitsuImportRunning || isShikimoriImportRunning || isBangumiImportRunning
+
     var isCrossSyncRunning by mutableStateOf(false)
         private set
 
@@ -499,6 +510,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         onShowMessage?.invoke(context.getString(R.string.account_sync_disconnected, displayName))
     }
 
+    /**
+     * Artımlı yenilemenin sonucunu kullanıcıya anlatır.
+     *
+     * Eski mesaj her seferinde "N kayıt başarıyla aktarıldı" diyordu; yenileme aslında
+     * listeyi sıfırdan yazmadığı için bu metin yanıltıcıydı ("yine baştan çekti" hissi).
+     * Yeni metin yalnızca gerçekten eklenen/güncellenen kaydı söyler, hiç değişiklik
+     * yoksa "eksik yok, liste güncel" der.
+     */
+    private fun incrementalRefreshMessage(
+        stats: com.kitsugi.animelist.data.local.SourceRefreshStats?,
+        fetched: Int,
+        label: String
+    ): String {
+        val safe = stats ?: com.kitsugi.animelist.data.local.SourceRefreshStats(fetched = fetched)
+        return if (safe.hasChanges) {
+            context.getString(R.string.account_sync_refresh_changed, label, safe.added, safe.updated)
+        } else {
+            context.getString(R.string.account_sync_refresh_unchanged, label, fetched)
+        }
+    }
+
     fun importAniListAnimeList(
         currentEntries: List<MediaEntry>,
         repository: MediaEntryRepository
@@ -532,11 +564,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 AniListImportManager.fetchAllLists(token)
             }.onSuccess { importedEntries ->
+                // ARTIMLI yenileme: liste sıfırdan yazılmaz; yalnızca eksik kayıtlar
+                // eklenir ve gerçekten değişen alanlar güncellenir. Hiçbir satır
+                // silinmez, bekleyen çevrimdışı senkron işi düşürülmez.
                 val importResult = runCatching {
-                    repository.smartImport("anilist", importedEntries, allowDelete = false)
+                    repository.refreshFromSource("anilist", importedEntries)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "AniList"))
+                    onShowMessage?.invoke(
+                        incrementalRefreshMessage(importResult.getOrNull(), importedEntries.size, "AniList")
+                    )
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "AniList", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
@@ -585,11 +622,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val showAdult = settingsDataStore.settingsFlow.first().showAdultContent
                 MalImportManager.fetchAllLists(token, showAdult)
             }.onSuccess { importedEntries ->
+                // ARTIMLI yenileme: liste sıfırdan yazılmaz; yalnızca eksik kayıtlar
+                // eklenir ve gerçekten değişen alanlar güncellenir. Hiçbir satır
+                // silinmez, bekleyen çevrimdışı senkron işi düşürülmez.
                 val importResult = runCatching {
-                    repository.smartImport("mal", importedEntries, allowDelete = false)
+                    repository.refreshFromSource("mal", importedEntries)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "MyAnimeList"))
+                    onShowMessage?.invoke(
+                        incrementalRefreshMessage(importResult.getOrNull(), importedEntries.size, "MyAnimeList")
+                    )
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "MyAnimeList", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
@@ -1846,38 +1888,38 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 if (isAniList) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "AniList"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false) }
+                    runSyncCatching { repository.refreshFromSource("anilist", AniListImportManager.fetchAllLists(aniListToken!!)) }
                         .onFailure { logEvent("AniList", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isMal) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "MyAnimeList"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false) }
+                    runSyncCatching { repository.refreshFromSource("mal", MalImportManager.fetchAllLists(malToken!!, showAdult)) }
                         .onFailure { logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isKitsu) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Kitsu"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false) }
+                    runSyncCatching { repository.refreshFromSource("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!)) }
                         .onFailure { logEvent("Kitsu", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isShikimori) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Shikimori"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false) }
+                    runSyncCatching { repository.refreshFromSource("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!)) }
                         .onFailure { logEvent("Shikimori", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isSimkl) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Simkl"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
                     val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error(context.getString(R.string.cross_sync_simkl_disconnected))
-                    runSyncCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
+                    runSyncCatching { repository.refreshFromSource("simkl", SimklImportManager.fetchAllLists(refreshToken)) }
                         .onFailure { logEvent("Simkl", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isBangumi) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Bangumi"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("bangumi", BangumiImportManager.fetchAllLists(context, bangumiToken!!), allowDelete = false) }
+                    runSyncCatching { repository.refreshFromSource("bangumi", BangumiImportManager.fetchAllLists(context, bangumiToken!!)) }
                         .onFailure { logEvent("Bangumi", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                     // Doğrulama aktarımından sonra eksik Latin/İngilizce adları tamamla
                     // (çapraz senkron beklenmez; tarama arka planda, kilitle sıralanarak çalışır).
@@ -2134,11 +2176,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 KitsuImportManager.fetchAllLists(context, token, userId)
             }.onSuccess { importedEntries ->
+                // ARTIMLI yenileme: liste sıfırdan yazılmaz; yalnızca eksik kayıtlar
+                // eklenir ve gerçekten değişen alanlar güncellenir. Hiçbir satır
+                // silinmez, bekleyen çevrimdışı senkron işi düşürülmez.
                 val importResult = runCatching {
-                    repository.smartImport("kitsu", importedEntries, allowDelete = false)
+                    repository.refreshFromSource("kitsu", importedEntries)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Kitsu"))
+                    onShowMessage?.invoke(
+                        incrementalRefreshMessage(importResult.getOrNull(), importedEntries.size, "Kitsu")
+                    )
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "Kitsu", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
@@ -2177,11 +2224,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 ShikimoriImportManager.fetchAllLists(context, token, userId)
             }.onSuccess { importedEntries ->
+                // ARTIMLI yenileme: liste sıfırdan yazılmaz; yalnızca eksik kayıtlar
+                // eklenir ve gerçekten değişen alanlar güncellenir. Hiçbir satır
+                // silinmez, bekleyen çevrimdışı senkron işi düşürülmez.
                 val importResult = runCatching {
-                    repository.smartImport("shikimori", importedEntries, allowDelete = false)
+                    repository.refreshFromSource("shikimori", importedEntries)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Shikimori"))
+                    onShowMessage?.invoke(
+                        incrementalRefreshMessage(importResult.getOrNull(), importedEntries.size, "Shikimori")
+                    )
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "Shikimori", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
@@ -2279,11 +2331,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             runSyncCatching {
                 BangumiImportManager.fetchAllLists(context, token)
             }.onSuccess { importedEntries ->
+                // ARTIMLI yenileme: liste sıfırdan yazılmaz; yalnızca eksik kayıtlar
+                // eklenir ve gerçekten değişen alanlar güncellenir.
                 val importResult = runCatching {
-                    repository.smartImport("bangumi", importedEntries, allowDelete = false)
+                    repository.refreshFromSource("bangumi", importedEntries)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Bangumi"))
+                    onShowMessage?.invoke(
+                        incrementalRefreshMessage(importResult.getOrNull(), importedEntries.size, "Bangumi")
+                    )
                     // Koleksiyon satırları yalnızca özgün (Japonca/Çince) adla gelir.
                     // Aktarım biter bitmez Latin/İngilizce adları tamamla; aksi halde
                     // tarama yalnızca Listem ViewModel'i yaratıldığında çalıştığı için
@@ -2346,11 +2402,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 SimklImportManager.fetchAllLists(token)
             }.onSuccess { importedEntries ->
+                // ARTIMLI yenileme: liste sıfırdan yazılmaz; yalnızca eksik kayıtlar
+                // eklenir ve gerçekten değişen alanlar güncellenir. Hiçbir satır
+                // silinmez, bekleyen çevrimdışı senkron işi düşürülmez.
                 val importResult = runCatching {
-                    repository.smartImport("simkl", importedEntries, allowDelete = false)
+                    repository.refreshFromSource("simkl", importedEntries)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Simkl"))
+                    onShowMessage?.invoke(
+                        incrementalRefreshMessage(importResult.getOrNull(), importedEntries.size, "Simkl")
+                    )
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "Simkl", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }

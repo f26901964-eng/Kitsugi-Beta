@@ -234,11 +234,16 @@ class AppViewModel : ViewModel() {
 
     private fun hasAnyConnectedAccount(context: Context): Boolean {
         val auth = com.kitsugi.animelist.data.auth.ExternalAuthManager
+        // ALTINCI KAYNAK: Bangumi eskiden listede yoktu → yalnızca Bangumi bağlı bir
+        // kullanıcı uygulamayı açtığında "Tümü" yerine boş AniList sekmesi görüyordu.
+        // Ayrıca Kitsu/Shikimori'de token olmasına rağmen kullanıcı kimliği çözülmemiş
+        // olabileceği için bu kontrol bilinçli olarak "token var mı" düzeyinde tutulur.
         return auth.getAniListToken(context) != null ||
             auth.getMalToken(context) != null ||
             auth.getSimklToken(context) != null ||
             auth.getKitsuToken(context) != null ||
-            auth.getShikimoriToken(context) != null
+            auth.getShikimoriToken(context) != null ||
+            com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context)
     }
 
     fun updateMyListScrollPosition(index: Int, offset: Int) {

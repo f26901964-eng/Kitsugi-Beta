@@ -94,74 +94,74 @@ class MediaEntryRepository(
             return
         }
 
-        val existing = dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
-        val updates = linkedMapOf<Int, MediaEntryEntity>()
-        val inserts = mutableListOf<MediaEntry>()
-        val matchedIds = mutableSetOf<Int>()
-        for (entry in importedEntries) {
-            val imported = entry.copy(source = source)
-            val matches = existing.filter {
-                com.kitsugi.animelist.model.MediaIdentity.sameMedia(it.toDomain(), imported)
-            }
-            val match = when {
-                matches.isEmpty() -> null
-                matches.size == 1 -> matches.single()
-                else -> {
-                    // Birden fazla eşleşme durumunda en doğru kaydı tespit et (çökmeyi engelle)
-                    val importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported)
-                    val keyMatch = matches.firstOrNull { m ->
-                        val mKeys = com.kitsugi.animelist.model.MediaIdentity.keys(m.toDomain())
-                        importedKeys.intersect(mKeys).isNotEmpty()
-                    }
-                    val exactTitleMatch = matches.firstOrNull { m ->
-                        val normLocal = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(m.title)
-                        val normImp = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(imported.title)
-                        normLocal.isNotBlank() && normLocal == normImp
-                    }
-                    val exactEngMatch = matches.firstOrNull { m ->
-                        val engLocal = m.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
-                        val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
-                        !engLocal.isNullOrBlank() && engLocal == engImp
-                    }
-                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
-                }
-            }
-            if (match != null) {
-                matchedIds.add(match.id)
-                // +18 işareti GERİ ALINMAZ: örneğin Simkl liste API'si yetişkin bayrağını
-                // taşımıyor; güncel kayıt `isAdult = false` getirse bile AniList/MAL gibi
-                // birinci elden bilgilendirilmiş satırın işaretini silmek bulanıklığı
-                // kaybeder (rapor: "Simkl listesinde 18+ blur uygulanmıyor").
-                // Çözülmüş başlıklar da GERİ ALINMAZ: Bangumi koleksiyon ucu yalnızca özgün
-                // (Japonca/Çince) adı döndürdüğü için her yeniden içe aktarım, daha önce
-                // tamamlanmış Latin/İngilizce adları CJK adla eziyordu — liste, başlık dili
-                // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüyordu (v2.4.315).
-                updates[match.id] = preserveResolvedTitles(match, imported).copy(
-                    id = match.id,
-                    isAdult = imported.isAdult || match.isAdult
-                ).toEntity()
-            } else {
-                val prior = inserts.indexOfFirst {
-                    com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
-                }
-                if (prior >= 0) inserts[prior] = imported else inserts.add(imported)
-            }
-        }
-        // allowDelete=false must really mean NO deletion, including alleged title duplicates.
-        val deletions = if (allowDelete) existing.filter { it.id !in matchedIds }.map { it.id } else emptyList()
+        val plan = planSourceMerge(
+            source = source,
+            importedEntries = importedEntries,
+            existing = dao.getAll().filter { it.source.equals(source, ignoreCase = true) },
+            allowDelete = allowDelete
+        )
         // İçe aktarımda listeden DÜŞEN satırların bayat kuyruk işleri de düşürülür:
         // eski kopya sonradan uzaklara geri yazılsa import taze veriyi silerdi.
-        if (deletions.isNotEmpty()) clearPendingJobsFor(entryIds = deletions)
-        dao.smartImportTransaction(inserts.map { it.copy(id = 0).toEntity() }, updates.values.toList(), deletions)
+        if (plan.deletions.isNotEmpty()) clearPendingJobsFor(entryIds = plan.deletions)
 
-        if (sourceNeedsAdultRescan(source)) {
-            // Liste yeni çekildi → +18 işaretlerini kimliklerden tamamla.
-            val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
-            if (appContext != null) {
-                runCatching {
-                    com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration.requestRescan(appContext)
-                }
-            }
+        // GERÇEKTEN değişen yoksa veritabanına HİÇ dokunulmaz: Room emisyonu tetiklenmez,
+        // Listem yeniden kompoze olmaz (boşuna "liste baştan çekildi" hissi oluşmaz).
+        if (plan.inserts.isNotEmpty() || plan.updates.isNotEmpty() || plan.deletions.isNotEmpty()) {
+            dao.smartImportTransaction(plan.inserts, plan.updates, plan.deletions)
+        }
+        requestAdultRescanIfNeeded(source)
+    }
+
+    /**
+     * "Yenile" akışının artımlı hâli: uzaktan gelen listeyi **sıfırdan yazmaz**, yerel
+     * kütüphaneyi silip yeniden kurmaz; yalnızca eksik kayıtları ekler ve gerçekten
+     * değişmiş alanları günceller.
+     *
+     * Neden ayrı bir metot: arka plan otomatik yenileme ve Listem'deki yenileme
+     * düğmesi eskiden `deleteBySource(...) + insertAll(...)` (tam yeniden yazma) ya da
+     * her satırı koşulsuz UPDATE eden `smartImport` kullanıyordu. İkisi de:
+     * - bekleyen çevrimdışı senkron işlerini (henüz gönderilmemiş kullanıcı
+     *   değişikliklerini) çöpe atıyordu,
+     * - Room'da tüm tabloyu geçersiz kılıp listeyi baştan çizdiriyordu (kaydırma
+     *   konumu/zamanlaması bozuluyor, "yeniledi ama liste baştan geldi" hissi doğuyordu),
+     * - yerelde zenginleştirilmiş alanları (çözülmüş başlıklar, +18 işaretleri) risk
+     *   altına alıyordu.
+     *
+     * Bu metot hiçbir satırı SİLMEZ (uzakta silinmiş kayıtlar kullanıcı onayı olmadan
+     * yerelden de silinmez) ve hiçbir bekleyen işi düşürmez.
+     *
+     * @return eklenen / güncellenen / değişmeyen satır sayıları (kullanıcıya rapor için).
+     */
+    suspend fun refreshFromSource(
+        source: String,
+        entries: List<MediaEntry>
+    ): SourceRefreshStats {
+        // Boş yanıt "her şey uzakta silinmiş" demek DEĞİLDİR; yenilemede asla silmeyiz.
+        if (entries.isEmpty()) return SourceRefreshStats.empty()
+
+        val plan = planSourceMerge(
+            source = source,
+            importedEntries = entries,
+            existing = dao.getAll().filter { it.source.equals(source, ignoreCase = true) },
+            allowDelete = false
+        )
+        if (plan.inserts.isNotEmpty() || plan.updates.isNotEmpty()) {
+            dao.smartImportTransaction(plan.inserts, plan.updates, emptyList())
+            requestAdultRescanIfNeeded(source)
+        }
+        return plan.stats
+    }
+
+    /**
+     * Bu kaynakların liste API'leri +18 bilgisini taşımaz; yeni/güncellenen satırlar
+     * kimlik üzerinden yeniden taranmalı (bkz. `AdultFlagBackfillMigration`).
+     */
+    private fun requestAdultRescanIfNeeded(source: String) {
+        if (!sourceNeedsAdultRescan(source)) return
+        val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+        if (appContext == null) return
+        runCatching {
+            com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration.requestRescan(appContext)
         }
     }
 
@@ -537,6 +537,163 @@ class MediaEntryRepository(
             onExternalSyncMessage?.invoke(message)
         }
     }
+}
+
+/**
+ * Bir "yenile" çağrısının sonucu. Kullanıcıya "baştan çekildi" değil
+ * "3 yeni, 1 güncellendi, 120 değişmedi" diyebilmek için tutulur.
+ */
+data class SourceRefreshStats(
+    val fetched: Int = 0,
+    val added: Int = 0,
+    val updated: Int = 0,
+    val unchanged: Int = 0
+) {
+    val touched: Int get() = added + updated
+    val hasChanges: Boolean get() = touched > 0
+
+    companion object {
+        fun empty() = SourceRefreshStats()
+    }
+}
+
+/**
+ * [planSourceMerge] çıktısı: veritabanına yazılacak net fark.
+ * Boş `updates`/`inserts` "hiçbir şey değişmedi" demektir — bu durumda Room'a hiç
+ * yazılmaz, dolayısıyla Liste akışı yeniden emit etmez.
+ */
+internal data class SourceMergePlan(
+    val inserts: List<MediaEntryEntity> = emptyList(),
+    val updates: List<MediaEntryEntity> = emptyList(),
+    val deletions: List<Int> = emptyList(),
+    val stats: SourceRefreshStats = SourceRefreshStats()
+)
+
+/**
+ * Uzak listenin yerel kütüphaneyle farkını hesaplar (saf fonksiyon — Room'a dokunmaz).
+ *
+ * Sözleşme:
+ * - **Sadece gerçek farklar yazılır.** Eşleşen satır, kimlik/tarih/başlık dahil tüm
+ *   alanlarıyla aynıysa UPDATE listesine girmez; böylece "yenile" işlemi listeyi
+ *   yeniden çizdirmez, yalnızca eksikleri tamamlar.
+ * - **Kullanıcı verisi geri alınmaz:** +18 işareti (`true → false`), çözülmüş Latin /
+ *   İngilizce başlıklar (`title`, `titleEnglish`, `titleJapanese`) ve uzak kaynağın
+ *   göndermediği `updatedAt` değeri korunur.
+ * - `allowDelete = false` ise hiçbir satır silinmez (yenileme akışının varsayılanı).
+ */
+internal fun planSourceMerge(
+    source: String,
+    importedEntries: List<MediaEntry>,
+    existing: List<MediaEntryEntity>,
+    allowDelete: Boolean = false
+): SourceMergePlan {
+    if (importedEntries.isEmpty()) {
+        return SourceMergePlan(
+            deletions = if (allowDelete) existing.map { it.id } else emptyList(),
+            stats = SourceRefreshStats()
+        )
+    }
+
+    val now = System.currentTimeMillis() / 1000L
+    val existingByDomain = existing.map { it.toDomain() }
+    // PERF: kimlik anahtarları satır başına BİR kez hesaplanır. Eski döngü her
+    // (mevcut satır × gelen satır) çifti için `MediaIdentity.keys` çağırıyordu; 1000
+    // satırlık kütüphanede içe aktarma başına ~1M ekstra küme tahsisi demekti.
+    val existingKeysById = HashMap<Int, Set<String>>(existing.size)
+    existing.forEachIndexed { index, row ->
+        existingKeysById[row.id] = com.kitsugi.animelist.model.MediaIdentity.keys(existingByDomain[index])
+    }
+
+    val updates = linkedMapOf<Int, MediaEntryEntity>()
+    val inserts = mutableListOf<MediaEntry>()
+    val matchedIds = mutableSetOf<Int>()
+    var unchangedCount = 0
+
+    for (entry in importedEntries) {
+        val imported = entry.copy(source = source)
+        val importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported)
+        val matches = existing.filterIndexed { index, row ->
+            com.kitsugi.animelist.model.MediaIdentity.sameMedia(
+                existingByDomain[index],
+                imported,
+                existingKeysById.getValue(row.id),
+                importedKeys
+            )
+        }
+        val match = when {
+            matches.isEmpty() -> null
+            matches.size == 1 -> matches.single()
+            else -> {
+                // Birden fazla eşleşme durumunda en doğru kaydı tespit et (çökmeyi engelle)
+                val keyMatch = matches.firstOrNull { m ->
+                    importedKeys.intersect(existingKeysById.getValue(m.id)).isNotEmpty()
+                }
+                val exactTitleMatch = matches.firstOrNull { m ->
+                    val normLocal = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(m.title)
+                    val normImp = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(imported.title)
+                    normLocal.isNotBlank() && normLocal == normImp
+                }
+                val exactEngMatch = matches.firstOrNull { m ->
+                    val engLocal = m.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                    val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                    !engLocal.isNullOrBlank() && engLocal == engImp
+                }
+                keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+            }
+        }
+
+        if (match != null) {
+            matchedIds.add(match.id)
+            // +18 işareti GERİ ALINMAZ: örneğin Simkl liste API'si yetişkin bayrağını
+            // taşımıyor; güncel kayıt `isAdult = false` getirse bile AniList/MAL gibi
+            // birinci elden bilgilendirilmiş satırın işaretini silmek bulanıklığı
+            // kaybeder (rapor: "Simkl listesinde 18+ blur uygulanmıyor").
+            // Çözülmüş başlıklar da GERİ ALINMAZ: Bangumi koleksiyon ucu yalnızca özgün
+            // (Japonca/Çince) adı döndürdüğü için her yeniden içe aktarım, daha önce
+            // tamamlanmış Latin/İngilizce adları CJK adla eziyordu — liste, başlık dili
+            // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüşüyordu (v2.4.315).
+            val merged = preserveResolvedTitles(match, imported).copy(
+                id = match.id,
+                isAdult = imported.isAdult || match.isAdult
+            ).toEntity()
+            // Liste ucu zaman damgası göndermiyorsa (Simkl vb.) yerel damga korunur;
+            // aksi hâlde "Son Güncelleme" sıralaması her yenilemede sıfırlanırdı.
+            val planned = if (merged.updatedAt <= 0L) merged.copy(updatedAt = match.updatedAt) else merged
+            val previous = updates[match.id] ?: match
+            if (planned != previous) {
+                updates[match.id] = planned
+            } else {
+                unchangedCount++
+            }
+        } else {
+            // Aynı yeni satır iki listede birden geldiyse (örn. anime + "watching" tekrarı)
+            // tek kayda indir; aksi hâlde "Tümü" sekmesinde çift kart oluşur.
+            val prior = inserts.indexOfFirst {
+                com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
+            }
+            if (prior >= 0) inserts[prior] = imported else inserts.add(imported)
+        }
+    }
+
+    // allowDelete=false must really mean NO deletion, including alleged title duplicates.
+    val deletions = if (allowDelete) existing.filter { it.id !in matchedIds }.map { it.id } else emptyList()
+
+    return SourceMergePlan(
+        inserts = inserts.map { entry ->
+            entry.copy(
+                id = 0,
+                updatedAt = entry.updatedAt.takeIf { it > 0L } ?: now
+            ).toEntity()
+        },
+        updates = updates.values.toList(),
+        deletions = deletions,
+        stats = SourceRefreshStats(
+            fetched = importedEntries.size,
+            added = inserts.size,
+            updated = updates.size,
+            unchanged = unchangedCount
+        )
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
