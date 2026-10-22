@@ -657,7 +657,15 @@ object CrossProviderIdentityResolver {
         // 6) Son çare: MAL kataloğunda sıkı başlık araması (tek ve net eşleşme).
         // Adaylar sırayla denenir: Bangumi satırında İngilizce çoğu zaman yoktur ve görünen
         // başlık Çince olabilir; Jikan'da net eşleşme verecek alan özgün Japonca başlıktır.
-        if (ids.malId == null && connected.mal && CrossSyncPolicy.supportsMal(entry.type)) {
+        //
+        // KAPI `connected.mal` DEĞİL: MAL kimliği MAL'a yazmak için değil, **Shikimori'nin
+        // `target_id`si** ve Kitsu'nun `mappings` köprüsü için de gerekir. Kullanıcı MAL'ı
+        // hiç bağlamamış ama Shikimori/Kitsu/Bangumi bağlamışsa bu adım atlanıyordu ve o
+        // kaynaklar "kimlik çözülemedi" diye sessizce atlanıyordu. Arama Jikan üzerinden
+        // anonim yapılır; ek yetki gerektirmez.
+        val malIdUseful = connected.mal || connected.shikimori || connected.kitsu ||
+            connected.bangumi || connected.anilist
+        if (ids.malId == null && malIdUseful && CrossSyncPolicy.supportsMal(entry.type)) {
             val searchTitles = listOfNotNull(entry.titleEnglish, entry.titleJapanese, entry.title)
                 .map { it.trim() }
                 .filter { it.isNotBlank() }

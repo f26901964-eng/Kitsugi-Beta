@@ -2,6 +2,7 @@ package com.kitsugi.animelist.core.network
 
 import android.util.Log
 import okhttp3.Interceptor
+import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 
@@ -9,9 +10,13 @@ import java.io.IOException
  * OkHttp interceptor'ı: 5xx, 429 ve IOException durumlarında
  * üstel geri çekilme (exponential backoff) ile yeniden deneme.
  *
- * — 5xx hatası → 300ms, 600ms gecikme ile 2 retry
- * — 429 Too Many Requests → Retry-After header'a uyulur (max 10s)
- * — IOException → 400ms, 800ms gecikme ile 2 retry
+ * — 429 Too Many Requests → Retry-After header'a uyulur (max 5s) — TÜM metotlar
+ * — 5xx hatası → 300ms, 600ms gecikme ile 2 retry — yalnız güvenli (GET/HEAD) istekler
+ * — IOException → 400ms, 800ms gecikme ile 2 retry — yalnız güvenli istekler
+ *
+ * Yazma istekleri (POST/PATCH/PUT/DELETE) yalnız 429'da yeniden denenir; 5xx ve
+ * bağlantı kopmasında isteğin uygulanıp uygulanmadığı bilinemediği için tekrar
+ * gönderim çift kayıt üretir (bkz. [isRetrySafe]).
  *
  * NOT: Thread.sleep() yerine kısa, non-blocking gecikmeler kullanılır.
  * OkHttp kendi Dispatcher thread pool'unu yönetir; Thread.sleep() ile
@@ -29,8 +34,26 @@ class RetryInterceptor(
         private const val MAX_RETRY_AFTER_MS = 5_000L
     }
 
+    /**
+     * Yazma isteklerinde (POST/PATCH/PUT/DELETE) tekrar deneme YALNIZCA sunucunun isteği
+     * hiç işlemediğini kesin olarak bildirdiği durumda (429) yapılır.
+     *
+     * Neden: 5xx ve IOException "istek işlendi mi?" sorusunu yanıtsız bırakır. Yanıt
+     * kaybolduğunda istek tekrar gönderilirse Kitsu'da ikinci bir `library-entries` kaydı,
+     * Simkl'de ikinci bir history satırı oluşabilir. HTTP sözleşmesinde yalnızca GET/HEAD
+     * güvenli (safe) kabul edilir; POST idempotent değildir, PATCH de tekrar uygulanabilir
+     * olmak zorunda değildir.
+     *
+     * 429 istisnadır: sunucu isteği reddettiğini açıkça söyler, hiçbir yan etki oluşmamıştır.
+     */
+    private fun Request.isRetrySafe(): Boolean = when (method.uppercase()) {
+        "GET", "HEAD", "OPTIONS", "TRACE" -> true
+        else -> false
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
+        val retrySafe = request.isRetrySafe()
         var lastException: java.io.IOException? = null
 
         repeat(maxRetries + 1) { attempt ->
@@ -66,8 +89,9 @@ class RetryInterceptor(
                     return@repeat // devam et, retry
                 }
 
-                // 5xx Server Error — exponential backoff (max 600ms)
-                if (response.code in 500..599 && attempt < maxRetries) {
+                // 5xx Server Error — exponential backoff (max 600ms).
+                // Güvenli olmayan isteklerde tekrar DENENMEZ (yukarıdaki açıklama).
+                if (response.code in 500..599 && attempt < maxRetries && retrySafe) {
                     val delayMs = 300L * (1L shl attempt) // 300ms → 600ms
                     Log.w(TAG, "${response.code} server error. Retry after ${delayMs}ms — ${request.url}")
                     response.close()
@@ -86,7 +110,9 @@ class RetryInterceptor(
                     throw java.io.IOException("Canceled", e)
                 }
                 lastException = e
-                if (attempt < maxRetries) {
+                // Gövde gönderildikten sonra kopan bağlantıda isteğin işlenip işlenmediği
+                // bilinmez → yazma isteklerinde tekrar denenmez.
+                if (attempt < maxRetries && retrySafe) {
                     val delayMs = 400L * (1L shl attempt) // 400ms → 800ms
                     Log.w(TAG, "IOException (attempt $attempt): ${e.message}. Retry after ${delayMs}ms — ${request.url}")
                     if (chain.call().isCanceled()) {

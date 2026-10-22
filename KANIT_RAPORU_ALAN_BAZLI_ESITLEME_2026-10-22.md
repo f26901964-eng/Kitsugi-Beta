@@ -436,3 +436,99 @@ okundu; `_setStatus(Rewatching)` davranışı **birebir doğrulandı** (aşağı
 - **Derleme/çalıştırma YAPILMADI** (ortamda JDK/Android SDK yok). `syncClient` gibi yeni semboller
   ve yeni test dosyaları yalnız **statik** olarak doğrulandı; derleyici hata verirse düzeltmek için
   çıktı yeterli.
+
+---
+
+## 14. Altıncı geçiş: birleştirme kuralının tek noktaya taşınması + yazma yolu denetimi
+
+Odak: **çapraz eşitleme motorunun (`AuthViewModel` L1179-1750) karar mantığı.** Bu blok,
+altı kaynağın altı ayrı `if` gövdesinde kendi kopyası olan bir mantığı çalıştırıyordu; her
+kopya kendi hatasını taşıyordu. Karar mantığı **saf, yan etkisiz ve test edilebilir** tek bir
+nesneye taşındı: `data/auth/CrossSyncMergePolicy.kt` (+ `CrossSyncMergePolicyTest`, 26 test).
+
+Bu geçişte ayrıca yazma yolu (interceptor + sağlayıcı yazıcıları) satır satır yeniden okundu;
+iki yeni hata bulundu (E45, E46), biri bu geçişte kendi eklediğim kuralın ürettiği bir
+**sonsuz yazım döngüsüydü** (E47) ve düzeltildi.
+
+### 14.1 Bulunan hatalar
+
+| # | Hata | Neden kritik | Düzeltme |
+|---|---|---|---|
+| E37 | `needsUpdate` kapısı `!singleSourceGroup` ile korunuyordu: **tek kaynaklı grupta o kaynağa hiç yazılmıyordu.** | Kullanıcının elinde yalnız MAL kaydı varken (12/12 izlenmiş ama durum "izliyorum") otomatik düzeltme asla uygulanmıyordu. Aynı şekilde toplamı aşan ilerleme hiç kırpılmıyordu. | Kapı kaldırıldı. Tek kaynaklı grupta da `dirtyFields` çalışır; birleşim tek satırın kendisinden türediği için normalde boş küme döner, yalnız **gerçek** düzeltme (toplam yakalandı → `Completed`, ilerleme toplamı aştı → kırp) yazılır. |
+| E38 | `bestStartDate`/`bestEndDate` = `firstNotNullOfOrNull` | Sonuç aday **sırasına** bağlıydı; aynı veri her turda farklı tarih üretebiliyordu. | Kural: başlangıç = **en erken**, bitiş = **en geç** tarih (ISO sözlük sırası = kronolojik). Boş/boşluk tarihler yok sayılır. Sıra bağımsızlığı test edildi (`merge(list) == merge(list.reversed())`). |
+| E39 | `bestStatus` sabit öncelik zinciri `Repeating > Watching > Paused > Dropped` | Kullanıcının **bilerek bıraktığı** (Dropped) yapım, eski bir "izliyorum" satırı yüzünden geri açılıyordu. Ters yönde de `Planned` satırı ilerlemesi olan kaydı ezebiliyordu. | Yeni kural: (1) en güncel **anlamlı** satır (`Planned` hariç) `Dropped`/`Paused` diyorsa o kazanır — 12/12 izleyip bırakan kullanıcı `Completed`'a çevrilmez; (2) en güncel anlamlı satır `Completed` diyorsa `Completed`; (3) aksi hâlde ilerleme toplamı yakaladıysa `Completed` (kaynaklar arası en yaygın tutarsızlık); (4) yoksa en güncel anlamlı satırın durumu. Eşit zaman damgasında sıra deterministik (ilerleme ↓, kaynak adı ↑). |
+| E40 | `progress = maxProgress` **kırpılmadan** yazılıyordu | Bir kaynak 12 bölümlük yapı için 25 bildirirse MAL `PATCH` 400 döner ve **aynı istekteki durum/puan/tarih de** yazılmaz. Kitsu 422 verir. | `Merged.progress` = toplam biliniyorsa `min(rawMaxProgress, total)`; `rawMaxProgress` raporlama için korunur. Toplam bilinmiyorsa kırpılmaz. |
+| E41 | `score` = "en güncel **sıfırdan büyük** puan" | Belgelenmiş davranış korundu, ancak eşit zaman damgasında sıra kaynak adına bağlıydı. | `updatedAt` ↓, sonra puan ↓, sonra kaynak adı ↑ ile **deterministik**. Puan **silme**nin taşınamaması bilinçli sınırlama olarak §14.4'te yazıldı. |
+| E42 | `bestRepeat`/`isFav` hesaplanıp `mergedEntry`'ye yazılıyor **ama altı `needsUpdate` ifadesinin hiçbiri bu alanlara bakmıyordu** | İki alan hiçbir zaman hedefe gitmiyordu (ölü kod). | `dirtyFields` artık `REWATCH_COUNT` ve (tek yönlü) `FAVORITE` üretir. AniList favorisi ayrı bir mutasyondur (`ToggleFavourite`) ve **tersine dönebilir**: yazmadan önce uzak durum okunur, yalnız farklıysa toggle edilir (`getAniListMediaFavoriteStatus` → `toggleAniListFavourite`). |
+| E43 | Simkl toplu yazımı `mergedEntry.status/progress` kullanıyordu ama kırpma yoktu | Aynı 400 sınıfı hata (Simkl `shows`). | `mergedEntry.progress = merge.progress` olduğu için toplu yol da kırpılmış değeri gönderir. |
+| E44 | Not/etiket/öncelik `firstNotNullOfOrNull` ile **birleştiriliyordu** | Farklı sağlayıcıların serbest metinleri birbirini ezerdi; öncelik ölçekleri uyumsuz (MAL 0..2, AniList 0..255, Bangumi yok). | Bu üç alan **bilinçli olarak birleştirilmiyor**: en güncel satırın değeri kullanılır ve `dirtyFields` bu alanları **hiç üretmez** → bir kaynağın notu diğerine yazılmaz. Gerekçe kodda yorum olarak duruyor. |
+| E45 | **MAL kimliği araması (`Jikan`, adım 6) `connected.mal` şartına bağlıydı** | MAL kimliği MAL'a yazmak için değil, **Shikimori'nin `target_id`si** ve Kitsu `mappings` köprüsü için de gerekir. Kullanıcı MAL'ı bağlamamış ama Shikimori/Kitsu/Bangumi bağlamışsa bu adım atlanıyor → o kaynaklar "kimlik çözülemedi" diye sessizce atlanıyordu. | Kapı `connected.mal || connected.shikimori || connected.kitsu || connected.bangumi || connected.anilist` oldu. Arama Jikan'da **anonim** yapılır, ek yetki gerekmez; eşik aynı (normalize başlık eşitliği + yıl + `singleOrNull`). |
+| E46 | `RetryInterceptor` **POST/PATCH isteklerini de** 5xx ve `IOException` durumunda yeniden deniyordu | "İstek işlendi mi?" bilinmediği için tekrar gönderim **çift kayıt** üretir (Kitsu `library-entries`, Simkl history). `retryOnConnectionFailure(true)` de OkHttp seviyesinde aynı riski taşır. | `Request.isRetrySafe()` eklendi: 5xx ve `IOException` tekrarı yalnız `GET/HEAD/OPTIONS/TRACE` için. **429 istisna**: sunucu isteği reddettiğini açıkça söyler, yan etki oluşmamıştır → tüm metotlarda tekrar denenir. |
+| E47 | **E42'nin yan etkisi: sonsuz yazım döngüsü.** `isRepeating` yalnız "bayrak" farkıyla değiştiğinde AniList/Shikimori'ye durum yazılıyordu; oysa bu iki hedefte tekrar **ayrı bir durumdur** ve yazılan durum geri okunduğunda `isRepeating` hiç oluşmaz. | Her eşitleme turunda aynı PATCH sonsuza kadar tekrarlanırdı (kota + gürültü). | Yeni `CrossSyncMergePolicy.dirtyFieldsFor(current, merged, provider)`: sağlayıcı yetenekleriyle süzer ve `rewatchingAsStatus = true` olan hedeflerde durum **yalnız durumun kendisi değiştiyse** yazılır. Bayrak tabanlı hedeflerde (MAL `is_rewatching`, Kitsu `reconsuming`) bayrak farkı durum yazımıyla taşınmaya devam eder. Test: `bayrak farki AniList'e sonsuz durum yazimi uretmez`. |
+
+### 14.2 Yazıcı sözleşmeleri — yeniden doğrulananlar (değişiklik yok)
+
+Bunlar "şüpheli" listesindeydi; kod okundu, **doğru** bulundu, değiştirilmedi:
+
+- **AniList puanı silme**: `scoreRaw = 0` gönderiliyor (yalnız diff'te `SCORE` varsa ve puan
+  boşsa); `scoreRaw: null` **hiç gönderilmiyor** (seanime #985 → 400 "must be an integer").
+  Tam yazımda boş puan gönderilmez, uzaktaki puan silinmez.
+- **Kitsu** `reconsuming` yalnız `status == "current"` iken gönderiliyor (`completed` +
+  `reconsuming=true` çelişkisi engellendi); boş PATCH atılmıyor; **kayıt oluşturmadan önce
+  `findLibraryEntryId` ile aranıyor** ve 422 "already exists" durumunda ID bulunup PATCH'e
+  düşülüyor → tekrar gönderim çift kayıt üretmez.
+- **İçe aktarma tarafı**: altı içe aktarıcı da `isRepeating`'i **"şu an tekrar izleniyor"**
+  olarak yazıyor (AniList `status == REPEATING`, MAL `is_rewatching || is_rereading`,
+  Kitsu `reconsuming`, Shikimori `status == rewatching`); `rewatches`/`repeat`/`reconsumeCount`
+  **sayıdan bayrak türetilmiyor**. Bu, §12/E27'deki kararın kodla teyidi.
+- **MAL** `Repeating → completed` + `is_rewatching` (MALSync `_setStatus(Rewatching)` ile aynı);
+  `Dropped → dropped`, `Paused → on_hold`, manga için `reading`/`plan_to_read`.
+
+### 14.3 Akış (yeni)
+
+1. `unifiedItems` → grup başına `candidates` (altı kaynağın satırları).
+2. `CrossSyncMergePolicy.merge(candidates)` → **tek** birleşik değer kümesi (`status`,
+   `progress` kırpılmış, `rawMaxProgress`, `volumeProgress`, `score`, tarihler, `repeatCount`,
+   `isRepeating`, `isFavorite`, `total`).
+3. Her kaynak için `dirtyFieldsFor(current, merged, provider)` → **yalnız o kaynağa yazılacak,
+   yalnız gerçekten geride kalan, yalnız desteklenen** alanlar. Boş küme = istek yok,
+   "güncellendi" mesajı yok.
+4. Yazıcılar alan kümesini onurlandırır (gönderilmeyen alan hedefte değişmez).
+
+### 14.4 Bilinçli sınırlamalar (düzeltilmedi — gerekçeli)
+
+- **Puan silme taşınamaz.** Altı API'nin hiçbiri "puanı kaldırdım" ile "hiç puan vermedim"
+  arasında ayrım sunmaz (hepsi `null`/`0` döner). Bir kaynakta puanı silmek, puanlı eski
+  kaydın değerini geri getirir. Rastgele temizlemek kullanıcının diğer servislerdeki
+  puanlarını sessizce silerdi. Test: `BILINEN SINIRLAMA puan silme ...`.
+- **`retryOnConnectionFailure(true)` (OkHttp içi tekrar)** kapatılmadı: kapatmak GET'ler için
+  DNS/rota yedekliliğini de kaybettirir. Kalan risk: gövde gönderildikten sonra bağlantı
+  koparsa OkHttp POST'u bir kez daha gönderebilir. Etki alanı daraltıldı — yazma yollarının
+  tamamı upsert'tir (AniList `SaveMediaListEntry`, MAL `PATCH`, Shikimori `user_rates`,
+  Bangumi `POST /collections/{subject_id}`, Simkl `add-to-list`) ve Kitsu oluşturma yolu
+  "önce ara, sonra oluştur" + 422 geri düşüşü ile korunur. Kalan tek etki Simkl'de mükerrer
+  "play" sayısıdır (izleme geçmişi), kayıt bütünlüğü değil.
+- **`isRepeating` birleşimi "herhangi biri" (`any`)**: bir istemcide açık kalan bayrak
+  diğerlerine yayılır. Ters yön (bayrağı kapatma) taşınmaz; hiçbir API "bayrak kapalı"yı
+  güvenilir biçimde bildirmez.
+- **Not/etiket/öncelik birleştirilmez** (E44). Kayıt başına tek doğru değer yoktur.
+- **TMDB** liste yazımı yoktur (salt okunur metadata kaynağı); `simkl` manga desteklemez.
+
+### 14.5 Test kapsamı
+
+- Yeni `CrossSyncMergePolicyTest` — **26 test**: ilerleme gerilemezliği, toplam kırpma,
+  Simkl `total` istisnası, `Dropped`/`Paused` korunması, `Planned` ezmemesi, tamamlanma
+  çıkarımı, tarih determinizmi ve sıra bağımsızlığı, puan seçimi + belgelenmiş sınırlama,
+  tekrar/favori, kirli alan kümesi (boş küme, geri yazmama, not/etiket/öncelik üretmeme),
+  sağlayıcı süzgeci, sonsuz döngü koruması.
+- Önceki dosyalar: `SyncFieldDiffTest` 22, `WatchStatusMappingTest` 5,
+  `MalImportManagerUrlTest` 2, `SyncResultRetrySemanticsTest` 7, `EntryAutoRulesTest`.
+
+### 14.6 Doğrulama durumu (dürüst)
+
+- Tree-sitter: **1390 Kotlin dosyası**, 7 bilinen yanlış pozitif (aynı liste; hepsi
+  `*/` içeren KDoc ya da Room anotasyon fixture'ı).
+- **`./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` ÇALIŞTIRILMADI** — bu ortamda
+  JDK/Gradle/Android SDK yok. Yeni semboller (`CrossSyncMergePolicy`, `dirtyFieldsFor`,
+  `isRetrySafe`) ve 26 test yalnız **statik** doğrulandı. Derleyici/test çıktısı gelirse
+  düzeltmek için hazırım; bu raporda "geçti" denmemesi bilinçlidir.

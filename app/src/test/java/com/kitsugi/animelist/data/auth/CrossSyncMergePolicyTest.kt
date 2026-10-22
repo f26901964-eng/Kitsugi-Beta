@@ -1,0 +1,394 @@
+package com.kitsugi.animelist.data.auth
+
+import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.model.WatchStatus
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Çapraz eşitleme birleştirme kuralının davranış sözleşmesi.
+ *
+ * Her test, sahada görülmüş ya da görülmesi matematiksel olarak mümkün bir çelişkiyi
+ * temsil eder; kuralın bu çelişkiyi deterministik biçimde çözmesi beklenir.
+ */
+class CrossSyncMergePolicyTest {
+
+    private fun e(
+        source: String,
+        status: WatchStatus = WatchStatus.Watching,
+        progress: Int = 0,
+        total: Int? = 12,
+        score: Int? = null,
+        volumeProgress: Int = 0,
+        startDate: String? = null,
+        endDate: String? = null,
+        repeatCount: Int = 0,
+        isRepeating: Boolean = false,
+        isFavorite: Boolean = false,
+        updatedAt: Long = 0L,
+        notes: String? = null,
+        tags: String? = null,
+        priority: Int? = null
+    ) = MediaEntry(
+        id = source.hashCode(),
+        title = "Test",
+        type = MediaType.Anime,
+        status = status,
+        score = score,
+        progress = progress,
+        total = total,
+        source = source,
+        startDate = startDate,
+        endDate = endDate,
+        notes = notes,
+        tags = tags,
+        priority = priority,
+        isRepeating = isRepeating,
+        repeatCount = repeatCount,
+        volumeProgress = volumeProgress,
+        isFavorite = isFavorite,
+        updatedAt = updatedAt
+    )
+
+    // ── 1. İlerleme asla gerilemez ───────────────────────────────────────────────
+
+    @Test
+    fun `en yuksek ilerleme kazanir`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", progress = 3, updatedAt = 100),
+                e("anilist", progress = 7, updatedAt = 50)
+            )
+        )
+        assertEquals(7, merged.progress)
+        assertEquals(7, merged.rawMaxProgress)
+    }
+
+    @Test
+    fun `ilerleme toplami astiginda yazilabilir deger kirpilir ama raporlama bozulmaz`() {
+        // Bir kaynak 25 bölüm bildiriyor, gerçek toplam 12. Kırpılmasaydı MAL PATCH 400
+        // döner ve AYNI istekteki durum/puan/tarih yazımı da düşerdi.
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", total = 12, progress = 5),
+                e("simkl", total = 25, progress = 25)
+            )
+        )
+        assertEquals(12, merged.progress)
+        assertEquals(25, merged.rawMaxProgress)
+        assertEquals(WatchStatus.Completed, merged.status)
+    }
+
+    @Test
+    fun `toplam bilinmiyorsa ilerleme kirpilmaz`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(e("mal", total = null, progress = 40))
+        )
+        assertEquals(40, merged.progress)
+    }
+
+    // ── 2. Toplam çıkarımı ───────────────────────────────────────────────────────
+
+    @Test
+    fun `simkl toplami tamamlanma cikariminda kullanilmaz`() {
+        // Simkl'in `total` değeri "yayınlanmış bölüm" sayısıdır; devam eden dizilerde
+        // gerçek toplam değildir. Tek başına kaynak olduğunda bile çıkarım yapılmamalı.
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(e("simkl", status = WatchStatus.Watching, progress = 3, total = 3))
+        )
+        assertEquals(WatchStatus.Watching, merged.status)
+        assertNull(merged.total)
+    }
+
+    @Test
+    fun `toplam yakalandiginda durum tamamlandiya yukselir`() {
+        // Tek kaynaklı grup: eskiden `singleSourceGroup` koruması yüzünden bu düzeltme
+        // hiç yapılmıyordu (E37).
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(e("mal", status = WatchStatus.Watching, progress = 12, total = 12))
+        )
+        assertEquals(WatchStatus.Completed, merged.status)
+        assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFields(
+            e("mal", status = WatchStatus.Watching, progress = 12, total = 12), merged
+        ))
+    }
+
+    // ── 3. Durum çözümü ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `bilerek birakilan yapim eski tamamlandi kaydiyla geri acilmaz`() {
+        // E39: sabit öncelik zinciri (Watching > Paused > Dropped) yüzünden kullanıcının
+        // "bıraktım" kararı sessizce "izliyorum"a çevriliyordu.
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", status = WatchStatus.Watching, progress = 4, updatedAt = 10),
+                e("anilist", status = WatchStatus.Dropped, progress = 4, updatedAt = 99)
+            )
+        )
+        assertEquals(WatchStatus.Dropped, merged.status)
+    }
+
+    @Test
+    fun `on ikide on iki izleyip birakan kullanici tamamlandiya cevrilmez`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(e("mal", status = WatchStatus.Dropped, progress = 12, total = 12))
+        )
+        assertEquals(WatchStatus.Dropped, merged.status)
+    }
+
+    @Test
+    fun `duraklatilan yapim izliyora cevrilmez`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("kitsu", status = WatchStatus.Watching, progress = 6, updatedAt = 5),
+                e("mal", status = WatchStatus.Paused, progress = 6, updatedAt = 20)
+            )
+        )
+        assertEquals(WatchStatus.Paused, merged.status)
+    }
+
+    @Test
+    fun `planlandi kaydi ilerlemesi olan kaydin durumunu ezmez`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("anilist", status = WatchStatus.Watching, progress = 5, updatedAt = 10),
+                e("mal", status = WatchStatus.Planned, progress = 0, updatedAt = 99)
+            )
+        )
+        assertEquals(WatchStatus.Watching, merged.status)
+    }
+
+    @Test
+    fun `tum kaynaklar planlandiysa planlandi kalir`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", status = WatchStatus.Planned, progress = 0),
+                e("kitsu", status = WatchStatus.Planned, progress = 0)
+            )
+        )
+        assertEquals(WatchStatus.Planned, merged.status)
+    }
+
+    @Test
+    fun `esit zaman damgasinda sira deterministiktir`() {
+        val a = e("anilist", status = WatchStatus.Dropped, progress = 2, updatedAt = 7)
+        val b = e("mal", status = WatchStatus.Watching, progress = 2, updatedAt = 7)
+        assertEquals(
+            CrossSyncMergePolicy.merge(listOf(a, b)).status,
+            CrossSyncMergePolicy.merge(listOf(b, a)).status
+        )
+    }
+
+    // ── 4. Puan ────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `BILINEN SINIRLAMA puan silme diger kaynaklarin puaniyla doldurulur`() {
+        // Altı API'nin hiçbiri "puanı kaldırdım" ile "hiç puan vermedim" arasında ayrım
+        // sunmaz (hepsi `null`/`0` döner). Bu yüzden bir kaynakta puanı silmek, eski
+        // puanlı kaydın değerini geri getirir. Bilinçli tercih: rastgele temizlemek
+        // kullanıcının diğer servislerdeki puanlarını sessizce silerdi.
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", score = 8, updatedAt = 10),
+                e("anilist", score = 0, updatedAt = 99)
+            )
+        )
+        assertEquals(8, merged.score)
+    }
+
+    @Test
+    fun `en guncel gecerli puan kazanir`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", score = 9, updatedAt = 10),
+                e("anilist", score = 6, updatedAt = 50)
+            )
+        )
+        assertEquals(6, merged.score)
+    }
+
+    @Test
+    fun `esit zaman damgasinda yuksek puan kazanir`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", score = 5, updatedAt = 10),
+                e("anilist", score = 8, updatedAt = 10)
+            )
+        )
+        assertEquals(8, merged.score)
+    }
+
+    // ── 5. Tarihler ────────────────────────────────────────────────────────────
+
+    @Test
+    fun `baslangic en erken bitis en gec tarihtir ve kaynak sirasina bagli degildir`() {
+        // E38: `firstNotNullOfOrNull` kaynak sırasına bağlıydı; aynı veri kümesi her
+        // turda farklı sonuç üretebiliyordu.
+        val list = listOf(
+            e("anilist", startDate = "2024-05-01", endDate = "2024-06-01"),
+            e("mal", startDate = "2024-03-01", endDate = "2024-07-09"),
+            e("kitsu", startDate = "2024-04-01", endDate = "2024-05-20")
+        )
+        val merged = CrossSyncMergePolicy.merge(list)
+        assertEquals("2024-03-01", merged.startDate)
+        assertEquals("2024-07-09", merged.endDate)
+        assertEquals(merged, CrossSyncMergePolicy.merge(list.reversed()))
+    }
+
+    @Test
+    fun `bos tarihler yok sayilir`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(e("mal", startDate = "   ", endDate = ""), e("anilist", startDate = "2023-01-02"))
+        )
+        assertEquals("2023-01-02", merged.startDate)
+        assertNull(merged.endDate)
+    }
+
+    // ── 6. Tekrar / favori ─────────────────────────────────────────────────────
+
+    @Test
+    fun `tekrar sayisi ve bayragi korunur`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                e("mal", repeatCount = 2, isRepeating = false),
+                e("anilist", repeatCount = 1, isRepeating = true)
+            )
+        )
+        assertEquals(2, merged.repeatCount)
+        assertTrue(merged.isRepeating)
+    }
+
+    @Test
+    fun `favori tek kaynakta bile olsa korunur`() {
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(e("mal", isFavorite = false), e("anilist", isFavorite = true))
+        )
+        assertTrue(merged.isFavorite)
+    }
+
+    // ── 7. Kirli alan kümesi ───────────────────────────────────────────────────
+
+    @Test
+    fun `hicbir sey degismediyse bos kume doner`() {
+        val current = e("mal", status = WatchStatus.Watching, progress = 3, score = 7)
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(current, e("anilist", status = WatchStatus.Watching, progress = 3, score = 7))
+        )
+        assertEquals(emptySet<SyncField>(), CrossSyncMergePolicy.dirtyFields(current, merged))
+    }
+
+    @Test
+    fun `kaynak daha ileriyse geri yazilmaz`() {
+        // Kullanıcı başka bir istemciden MAL'da 11. bölümü işledi; yerel birleşim 5'te
+        // kaldıysa MAL'a "5" yazıp ilerlemeyi geri sarmak veri kaybıdır.
+        val current = e("mal", progress = 11, total = 12)
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(current, e("anilist", progress = 5, total = 12))
+        )
+        assertFalse(SyncField.PROGRESS in CrossSyncMergePolicy.dirtyFields(current, merged))
+    }
+
+    @Test
+    fun `tekrar bayragi degistiginde durum da yazilir`() {
+        // MAL'de "tekrar izleniyor" ayrı bir durum değildir: `status` + `is_rewatching`
+        // birlikte gönderilmelidir.
+        val current = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = false)
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                current,
+                e(
+                    "anilist",
+                    status = WatchStatus.Repeating,
+                    progress = 2,
+                    repeatCount = 1,
+                    isRepeating = true
+                )
+            )
+        )
+        val dirty = CrossSyncMergePolicy.dirtyFields(current, merged)
+        assertTrue(SyncField.STATUS in dirty)
+        assertTrue(SyncField.REWATCH_COUNT in dirty)
+    }
+
+    @Test
+    fun `favori yalniz tek yonde yazilir`() {
+        val notFav = e("anilist", isFavorite = false)
+        val favMerged = CrossSyncMergePolicy.merge(listOf(notFav, e("mal", isFavorite = false)))
+        assertFalse(SyncField.FAVORITE in CrossSyncMergePolicy.dirtyFields(notFav, favMerged))
+
+        val favSource = e("anilist", isFavorite = true)
+        val merged = CrossSyncMergePolicy.merge(listOf(notFav, favSource))
+        assertTrue(merged.isFavorite)
+        // Hedefte zaten favori ise hiç istek atılmaz.
+        assertFalse(SyncField.FAVORITE in CrossSyncMergePolicy.dirtyFields(favSource, merged))
+        assertTrue(SyncField.FAVORITE in CrossSyncMergePolicy.dirtyFields(notFav, merged))
+    }
+
+    @Test
+    fun `not etiket ve oncelik asla kirli sayilmaz`() {
+        val current = e("mal", notes = "MAL notu", tags = "a,b", priority = 2)
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(current, e("anilist", notes = "AniList notu", updatedAt = 99))
+        )
+        val dirty = CrossSyncMergePolicy.dirtyFields(current, merged)
+        assertFalse(SyncField.NOTES in dirty)
+        assertFalse(SyncField.TAGS in dirty)
+        assertFalse(SyncField.PRIORITY in dirty)
+    }
+
+    // ── 8. Sağlayıcı süzgeciyle birlikte ──────────────────────────────────────
+
+    @Test
+    fun `kirli alanlar saglayici yetenegine gore suzulur`() {
+        val current = e("kitsu", status = WatchStatus.Watching, progress = 2, total = 12)
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(
+                current,
+                e("mal", status = WatchStatus.Completed, progress = 12, startDate = "2024-01-01")
+            )
+        )
+        val kitsuDirty = CrossSyncMergePolicy.dirtyFieldsFor(current, merged, "kitsu")
+        assertTrue(SyncField.STATUS in kitsuDirty)
+        assertTrue(SyncField.PROGRESS in kitsuDirty)
+        assertTrue(SyncField.START_DATE in kitsuDirty)
+        // Kitsu cilt ilerlemesi desteklemez; birleşimde olsa bile yazılmaz.
+        assertFalse(SyncField.VOLUME_PROGRESS in kitsuDirty)
+    }
+
+    @Test
+    fun `bayrak farki AniList'e sonsuz durum yazimi uretmez`() {
+        // MAL'da "tekrar izleniyor" bayrağı açık, AniList kaydı tamamlanmış. Birleşimde
+        // `isRepeating=true` kalır. AniList'te tekrar AYRI bir durumdur ve `repeat` alanı
+        // "şu an tekrar izleniyor" demek DEĞİLDİR; bu yüzden durum değişmediyse AniList'e
+        // yazım yapılmamalı. Aksi hâlde her eşitleme turunda aynı istek atılırdı.
+        val malRow = e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = true, repeatCount = 1)
+        val aniRow = e("anilist", status = WatchStatus.Completed, progress = 12, isRepeating = false, repeatCount = 1)
+        val merged = CrossSyncMergePolicy.merge(listOf(malRow, aniRow))
+        assertTrue(merged.isRepeating)
+        assertEquals(
+            emptySet<SyncField>(),
+            CrossSyncMergePolicy.dirtyFieldsFor(aniRow, merged, "anilist")
+        )
+        // MAL'de ise bayrak ayrı bir alandır: durum yazımıyla taşınır.
+        assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(
+            e("mal", status = WatchStatus.Completed, progress = 12, isRepeating = false, repeatCount = 1),
+            merged,
+            "mal"
+        ))
+    }
+
+    @Test
+    fun `simkl dropped durumunu yazmaz`() {
+        val current = e("simkl", status = WatchStatus.Watching, progress = 3)
+        val merged = CrossSyncMergePolicy.merge(
+            listOf(current, e("mal", status = WatchStatus.Dropped, progress = 3, updatedAt = 99))
+        )
+        assertEquals(WatchStatus.Dropped, merged.status)
+        // Simkl `dropped` bilmez; eşleme `notinteresting` olmalıdır (SimklSyncManager).
+        assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(current, merged, "simkl"))
+    }
+}
