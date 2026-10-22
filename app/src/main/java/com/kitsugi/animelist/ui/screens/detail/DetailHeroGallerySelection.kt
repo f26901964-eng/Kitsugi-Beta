@@ -11,10 +11,12 @@ import kotlin.math.max
  *
  *  - Yatay (landscape) modda her zaman dikey poster tercih edilir; ekran boyutu
  *    ne olursa olsun, dikey poster dikey-uzun-dar bir kutuya yerleştirilir.
- *  - Dikey (portrait) modda ekran oranına bakılır:
- *      * Çok uzun-dar telefonlarda (genişlik/yükseklik ≤ `PORTRAIT_TALL_RATIO`)
- *        dikey poster tercih edilir; poster dikey-uzun-dar bir kutuya yerleştirilir.
- *      * Daha kare/tablet benzeri cihazlarda yatay arka plan tercih edilir.
+ *  - Dikey (portrait) modda ekran ORANI ve MUTLAK BOYUTU birlikte bakılır:
+ *      * Uzun-dar telefonlarda (genişlik/yükseklik ≤ `PORTRAIT_TALL_RATIO` ve
+ *        genişlik < `PORTRAIT_TABLET_MIN_WIDTH_DP`) dikey poster tercih edilir;
+ *        poster dikey-uzun-dar bir kutuya yerleştirilir.
+ *      * Daha kare/tablet benzeri veya BÜYÜK ekranlarda yatay arka plan tercih
+ *        edilir; dev posterin ekranı yutması engellenir.
  *  - Hiçbir kurala uymayan nadir köşelerde güvenli varsayılan: yatay arka plan.
  */
 internal enum class HeroArtworkPreference {
@@ -27,10 +29,21 @@ internal enum class HeroArtworkPreference {
 internal object HeroArtworkLayoutRules {
     /**
      * Dikey modda "yeterince uzun-dar telefon sayılır" eşiği. Tipik telefonler
-     * 9:19.5 (~0.46) ile 9:21 (~0.43) arasındadır; 0.55 üstü tablet/kare cihaz
-     * kabul edilir ve yatay arka plan tercih edilir.
+     * 9:19.5 (~0.46) ile 9:18 (~0.50) arasındadır; 0.55 üstü (eski 16:9 telefonlar,
+     * katlanabilirler, tabletler) yatay arka plan tercih eder.
+     *
+     * NOT: v2.4.338'de bu eşik geçici olarak 0.75'e çekilmişti; sonuçta neredeyse
+     * tüm dikey ekranlar dev boyutlu tam-ekran poster gösteriyordu. Kullanıcı
+     * geri bildirimiyle 0.55 orijinal eşiğine geri dönüldü.
      */
-    const val PORTRAIT_TALL_RATIO: Float = 0.75f
+    const val PORTRAIT_TALL_RATIO: Float = 0.55f
+
+    /**
+     * Dikey modda "büyük ekran" mutlak genişlik eşiği (dp). Ekrana bakılmaksızın
+     * bu genişliğin üstündeki dikey düzenler (tablet/katlanabilir iç ekran) oranına
+     * bakılmaksızın yatay arka plan gösterir; dev posterin ekranı yutması engellenir.
+     */
+    const val PORTRAIT_TABLET_MIN_WIDTH_DP: Int = 600
 
     /**
      * Yatay modda "dikey poster için yeterince kısa modül" eşiği. Genelde tüm
@@ -41,7 +54,11 @@ internal object HeroArtworkLayoutRules {
 }
 
 /**
- * Ekranın yönüne + oranına göre vitrinin birincil görsel tercihini döndürür.
+ * Ekranın yönüne + boyutuna + oranına göre vitrinin birincil görsel tercihini döndürür.
+ *
+ * Karar SAYFA YÜKLENMEDEN, yalnızca ekran ölçülerinden verilir; ağ çağrısı veya
+ * görsel boyutu beklemez. Böylece vitrin ilk kareden itibaren doğru yöndeki
+ * görseli gösterir, yükleme sonrası yön değişimi (flip) olmaz.
  *
  * @param screenWidthDp Ekranın mevcut genişliği (dp).
  * @param screenHeightDp Ekranın mevcut yüksekliği (dp).
@@ -62,7 +79,9 @@ internal fun resolveHeroArtworkPreference(
                 HeroArtworkPreference.BACKDROP
             }
         }
-        // Dikey mod: ekran ne kadar uzun-dar?
+        // Dikey mod: BÜYÜK ekranlar (tablet/katlanabilir) daima yatay arka plan.
+        screenWidthDp >= HeroArtworkLayoutRules.PORTRAIT_TABLET_MIN_WIDTH_DP -> HeroArtworkPreference.BACKDROP
+        // Dikey mod: uzun-dar telefonlar dikey poster, daha kare ekranlar arka plan.
         ratio <= HeroArtworkLayoutRules.PORTRAIT_TALL_RATIO -> HeroArtworkPreference.POSTER
         else -> HeroArtworkPreference.BACKDROP
     }

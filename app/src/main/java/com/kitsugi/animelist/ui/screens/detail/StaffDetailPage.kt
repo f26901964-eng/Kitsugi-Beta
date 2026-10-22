@@ -272,9 +272,11 @@ fun StaffDetailPage(
                     }
                 ) {
                 val listState = rememberLazyListState()
+                // item 0 = hero, item 1 = yapışkan sekme barı (pinned olduğu için
+                // hero ekran dışına çıkar çıkmaz firstVisibleItemIndex 1'de kalır).
                 val showFloatingHeader = rememberDetailStickyHeaderVisible(
                     listState = listState,
-                    showAtIndex = 2,
+                    showAtIndex = 1,
                     hideAtIndex = 0
                 )
                 // Wiki çözümlemesi ham detayla yapılır (ad gösterim tercihinden bağımsız).

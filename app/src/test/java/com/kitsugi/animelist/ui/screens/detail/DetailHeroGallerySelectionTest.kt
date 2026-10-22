@@ -90,26 +90,46 @@ class DetailHeroGallerySelectionTest {
     }
 
     @Test
-    fun `tall narrow and standard phone in portrait prefers poster artwork`() {
-        // e.g. 390x844 (ratio ~0.46 <= 0.75) or 360x800 (ratio 0.45)
+    fun `tall narrow phone in portrait prefers poster artwork`() {
+        // e.g. 390x844 (9:19.5, ratio ~0.46) or 360x800 (9:20, ratio 0.45)
         val modernPhone = resolveHeroArtworkPreference(screenWidthDp = 390, screenHeightDp = 844)
         assertEquals(HeroArtworkPreference.POSTER, modernPhone)
 
         val ultraTallPhone = resolveHeroArtworkPreference(screenWidthDp = 360, screenHeightDp = 800)
         assertEquals(HeroArtworkPreference.POSTER, ultraTallPhone)
+    }
 
-        // v2.4.338+: Standard 16:9 phone portrait (360x640, ratio 0.5625 <= 0.75) prefers POSTER
-        val standardPhone = resolveHeroArtworkPreference(screenWidthDp = 360, screenHeightDp = 640)
-        assertEquals(HeroArtworkPreference.POSTER, standardPhone)
+    @Test
+    fun `wide portrait screen prefers backdrop artwork`() {
+        // 16:9 ve daha geniş dikey ekranlarda (ratio > 0.55) dev poster yerine
+        // yatay arka plan bandı gösterilir.
+        val classic169Phone = resolveHeroArtworkPreference(screenWidthDp = 360, screenHeightDp = 640)
+        assertEquals(HeroArtworkPreference.BACKDROP, classic169Phone)
+
+        // Kullanıcı regresyonu (462x800 dp, ratio ~0.58): v2.4.338'deki 0.75 eşiği
+        // bu cihazı tam ekran poster'e mahkûm etmişti; artık arka plan bandı gelir.
+        val widePortraitDevice = resolveHeroArtworkPreference(screenWidthDp = 462, screenHeightDp = 800)
+        assertEquals(HeroArtworkPreference.BACKDROP, widePortraitDevice)
+    }
+
+    @Test
+    fun `large portrait screens prefer backdrop regardless of ratio`() {
+        // Tablet genişliğinde (>= 600dp) dikey düzen: oranı uzun-dar olsa bile
+        // dev poster ekranı yutmasın; yatay arka plan tercih edilir.
+        val bigSlate = resolveHeroArtworkPreference(screenWidthDp = 600, screenHeightDp = 1200)
+        assertEquals(HeroArtworkPreference.BACKDROP, bigSlate)
+
+        val tablet = resolveHeroArtworkPreference(screenWidthDp = 800, screenHeightDp = 1280)
+        assertEquals(HeroArtworkPreference.BACKDROP, tablet)
     }
 
     @Test
     fun `square or wide tablet portrait prefers backdrop artwork`() {
-        // e.g. square device portrait: 800x900 (ratio ~0.89 > 0.75)
+        // e.g. square device portrait: 800x900 (ratio ~0.89)
         val squareDevice = resolveHeroArtworkPreference(screenWidthDp = 800, screenHeightDp = 900)
         assertEquals(HeroArtworkPreference.BACKDROP, squareDevice)
 
-        // Wide tablet portrait: 600x700 (ratio ~0.86 > 0.75)
+        // Wide tablet portrait: 600x700 (ratio ~0.86)
         val wideTablet = resolveHeroArtworkPreference(screenWidthDp = 600, screenHeightDp = 700)
         assertEquals(HeroArtworkPreference.BACKDROP, wideTablet)
     }

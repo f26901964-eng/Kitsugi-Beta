@@ -104,11 +104,18 @@ fun DetailPageScaffold(
     val leftPanelFocusRequester = remember { FocusRequester() }
     val tabBarFocusRequester = remember { FocusRequester() }
     val selectedTab = pagerState.currentPage
-    // Yapışkan başlık yüksekliği index == 2 sınırında gidip gelmesin.
+    // Yapışkan başlık (geri + paylaşım + favori şeridi) görünürlüğü:
+    // Portre düzeni: item 0 = hero, item 1 = yapışkan sekme barı, item 2 = içerik.
+    // Sekme barı viewport tepesine SABİTLENDİĞİ anda hero tamamen ekran dışına
+    // çıkmıştır ve firstVisibleItemIndex 1'de kilitli kalır (pinned sticky header).
+    // Bu yüzden eşik hero sınırının ta kendisi olmalı: index ≥ 1 → göster,
+    // kullanıcı hero'ya geri kaydırdığında (index 0) → gizle.
+    // NOT: Eski showAtIndex = 3 eşiği pinned header yüzünden HİÇ tetiklenemiyordu;
+    // kaydırınca geri/share/favori şeridi bir daha belirmiyordu.
     val showFloatingHeader = rememberDetailStickyHeaderVisible(
         listState = listState,
-        showAtIndex = 3,
-        hideAtIndex = 1
+        showAtIndex = 1,
+        hideAtIndex = 0
     )
 
     when {

@@ -129,8 +129,9 @@ fun KitsugiDetailHero(
     val screenHeightDp = configuration.screenHeightDp.toFloat()
     val screenWidthDp = configuration.screenWidthDp
     // Yatay modda her zaman dikey poster birincil olur; dikey modda ekran
-    // oranına bakılır — uzun-dar telefonlarda dikey poster, daha kare/tablet
-    // benzeri cihazlarda yatay arka plan tercih edilir.
+    // ORANI + MUTLAK BOYUTU birlikte bakılır — uzun-dar telefonlarda dikey
+    // poster, daha kare/tablet benzeri ya da BÜYÜK ekranlarda yatay arka plan
+    // tercih edilir (dev poster ekranı yutmasın).
     val artworkPreference = remember(screenWidthDp, configuration.screenHeightDp) {
         resolveHeroArtworkPreference(screenWidthDp, configuration.screenHeightDp)
     }

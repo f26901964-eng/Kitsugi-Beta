@@ -300,9 +300,11 @@ fun CharacterDetailPage(
                     }
                 ) {
                     val listState = rememberLazyListState()
+                // item 0 = hero, item 1 = yapışkan sekme barı (pinned olduğu için
+                // hero ekran dışına çıkar çıkmaz firstVisibleItemIndex 1'de kalır).
                 val showFloatingHeader = rememberDetailStickyHeaderVisible(
                     listState = listState,
-                    showAtIndex = 2,
+                    showAtIndex = 1,
                     hideAtIndex = 0
                 )
                 val tabAbout      = stringResource(R.string.character_tab_about)

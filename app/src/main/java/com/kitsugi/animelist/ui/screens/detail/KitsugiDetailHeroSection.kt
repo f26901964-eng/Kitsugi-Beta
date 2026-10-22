@@ -96,14 +96,23 @@ internal fun DetailHero(
 
     // ── Görsel seçimi: YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ ─────────────────────────
     // KURAL: Bir yapımın görsel çifti sabittir (dikey-uzun-dar POSTER + yatay-geniş-kısa
-    // ARKA PLAN); vitrin ekran yönüne göre doğru eşi OTOMATİK seçer ve görsel alanı
-    // gösterdiği görselin şekline birebir uyup resmi TAM kaplar:
-    //  - YATAY mod → en kaliteli DİKEY POSTER, uzun-dar kutuda tam kaplama.
-    //  - DİKEY mod → en kaliteli YATAY ARKA PLAN, geniş-kısa bantta tam kaplama.
+    // ARKA PLAN); vitrin, ortak resolveHeroArtworkPreference kuralının verdiği tercihe
+    // göre doğru eşi seçer ve görsel alanı gösterdiği görselin şekline birebir uyup
+    // resmi TAM kaplar:
+    //  - POSTER tercihi → en kaliteli DİKEY POSTER, uzun-dar kutuda tam kaplama.
+    //  - BACKDROP tercihi → en kaliteli YATAY ARKA PLAN, geniş-kısa bantta tam kaplama.
     // Eşlerden biri yoksa diğeri gösterilir; görsel alanı yine Crop ile TAM kaplanır.
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
-    val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
+    val screenWidthDp = configuration.screenWidthDp
+    // YÖN ⇄ GÖRSEL TERCİHİ: ApiResultDetailPage'in kullandığı ortak kural
+    // (resolveHeroArtworkPreference). Dikey modda ekran ORANI + MUTLAK BOYUTU
+    // birlikte bakılır: uzun-dar telefonlarda dikey poster, kare/tablet benzeri
+    // ve büyük ekranlarda yatay arka plan. Karar sayfa yüklenmeden verilir.
+    val artworkPreference = remember(screenWidthDp, configuration.screenHeightDp) {
+        resolveHeroArtworkPreference(screenWidthDp, configuration.screenHeightDp)
+    }
+    val usePosterArtwork = artworkPreference == HeroArtworkPreference.POSTER
 
     val posterUrl = remember(entry.imageUrl) { KitsugiHeroArtworkResolver.upgradeNativePosterUrl(entry.imageUrl) }
     val wideGalleryUrls = remember(galleryItems) {
@@ -115,10 +124,9 @@ internal fun DetailHero(
     val tallCandidates = remember(posterUrl, tallGalleryUrls) {
         listOfNotNull(posterUrl) + tallGalleryUrls
     }
-    // YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ: yatay modda dikey poster birincil,
-    // dikey modda yatay arka plan birincil (çift sabit olduğu için eşleşme otomatiktir).
-    val imagePlan = remember(wideGalleryUrls, tallCandidates, isLandscapeScreen) {
-        if (isLandscapeScreen) (tallCandidates + wideGalleryUrls).distinct()
+    // POSTER tercihi → dikey poster birincil; BACKDROP tercihi → yatay arka plan birincil.
+    val imagePlan = remember(wideGalleryUrls, tallCandidates, usePosterArtwork) {
+        if (usePosterArtwork) (tallCandidates + wideGalleryUrls).distinct()
         else (wideGalleryUrls + tallCandidates).distinct()
     }
     var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
@@ -130,17 +138,18 @@ internal fun DetailHero(
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // GÖRSEL ALANININ ŞEKLİ: yönün varsayılan oranıyla başlar, görsel yüklenince
-        // GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği görselle birebir aynı
-        // şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
-        //  - YATAY mod → 2:3 DİKEY poster kutusu (uzun-dar).
-        //  - DİKEY mod → 16:9 YATAY arka plan bandı (geniş-kısa).
-        val defaultBoxAspect = if (isLandscapeScreen) 2f / 3f else 16f / 9f
+        // GÖRSEL ALANININ ŞEKLİ: tercih edilen yönün varsayılan oranıyla başlar,
+        // görsel yüklenince GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği
+        // görselle birebir aynı şekle gelir ve görsel (Crop ile) alanı TAM kaplar;
+        // kırpma/boşluk ≈ sıfır.
+        //  - POSTER tercihi (yatay mod + uzun-dar telefonlar) → 2:3 DİKEY poster kutusu.
+        //  - BACKDROP tercihi (kare/tablet benzeri ve büyük ekranlar) → 16:9 YATAY bant.
+        val defaultBoxAspect = if (usePosterArtwork) 2f / 3f else 16f / 9f
         val boxAspect = (loadedImageAspect ?: defaultBoxAspect).coerceIn(
-            minimumValue = if (isLandscapeScreen) 0.5f else 1.0f,
-            maximumValue = if (isLandscapeScreen) 1.6f else 2.2f
+            minimumValue = if (usePosterArtwork) 0.5f else 1.0f,
+            maximumValue = if (usePosterArtwork) 1.6f else 2.2f
         )
-        val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
+        val bannerCapDp = if (usePosterArtwork) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
 
         // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine

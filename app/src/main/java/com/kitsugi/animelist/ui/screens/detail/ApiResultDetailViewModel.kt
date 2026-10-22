@@ -548,9 +548,21 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         heroArtworkKey = key
         _heroArtwork.value = artwork
 
-        // En kaliteli yatay adayi sayfa acilmadan decode et (ilk kare aninda gelsin).
-        // Manga gibi yatay görseli olmayan kayitlarda poster adayi kullanilir.
-        val preloadUrls = artwork.backdropCandidates.ifEmpty { artwork.posterCandidates }
+        // Ekran yönü/boyutu BİLİNEN TEK değişken: vitrin tercihi (POSTER/BACKDROP)
+        // yalnızca bundan türetilir ve sayfa render edilmeden birincil adaylar
+        // decode edilir. Böylece vitrin ilk kareden itibaren DOĞRU yöndeki görseli
+        // basar; "önce yanlış yön, yükleme sonrası flip" yaşanmaz.
+        // Manga gibi yatay görseli olmayan kayıtlarda diğer tür adaylar kullanılır.
+        val configuration = context.resources.configuration
+        val prefersPoster = resolveHeroArtworkPreference(
+            screenWidthDp = configuration.screenWidthDp,
+            screenHeightDp = configuration.screenHeightDp
+        ) == HeroArtworkPreference.POSTER
+        val preloadUrls = if (prefersPoster) {
+            artwork.posterCandidates.ifEmpty { artwork.backdropCandidates }
+        } else {
+            artwork.backdropCandidates.ifEmpty { artwork.posterCandidates }
+        }
         try {
             HeroArtworkImagePolicy.preload(context = context, urls = preloadUrls)
         } catch (ce: CancellationException) {
