@@ -394,3 +394,45 @@ sırasında UYDURULMUŞ alan adları** oldu. Hepsi resmî sözleşmeye karşı d
   `./gradlew :app:compileDebugKotlin` ve
   `./gradlew :app:testDebugUnitTest --tests '*WatchStatusMappingTest' --tests '*MalImportManagerUrlTest' --tests '*SyncFieldDiffTest'`
   çalıştırılmalıdır.
+
+---
+
+## 13. Beşinci geçiş: dayanıklılık + "kaybolan değişiklik" avı (commit `bcc61dd`)
+
+Odak: **yazım sırasında oluşan sessiz kayıplar** ve **tek bir yavaş kaynağın turu kilitlemesi**.
+MAL-Sync kaynak kodu (`src/_provider/MyAnimeList_api/{single,helper}.ts`) bu geçişte yeniden
+okundu; `_setStatus(Rewatching)` davranışı **birebir doğrulandı** (aşağıda E-not).
+
+| # | Hata | Neden kritik | Düzeltme |
+|---|---|---|---|
+| E30 | **Eşitleme yazımlarında toplam çağrı tavanı yoktu.** `KitsugiHttpClient.client` içinde `callTimeout` yok; `connectTimeout`/`readTimeout` yalnız tek adımı sınırlar. | Yavaş damlayan (trickle) bir yanıt + 2 otomatik yeniden deneme, tek bir kaydın yazımını dakikalarca sürdürebiliyordu. `withTimeoutOrNull` **bloklayan** çağrıyı kesemez. | Yeni `KitsugiHttpClient.syncClient` (25 sn `callTimeout`, bağlantı havuzu/dispatcher paylaşılır) MAL/Kitsu/Shikimori/Simkl yazımlarında kullanılıyor. Bangumi zaten `bangumiClient` (14 sn) kullanıyordu; AniList `aniListClient` (15 sn). İndirme/oynatma yolları **etkilenmez**. |
+| E31 | **Hesap bağlantısı kesilince çapraz kimlik önbelleği temizlenmiyordu.** | Önbellek "tamam/eksik" işaretini bağlantı durumuna göre taşır; bayat işaret yüzünden yeniden bağlanan hesapta kimlikler eksik kalabiliyordu. | `ExternalAuthManager.disconnectAccount` → `CrossProviderIdentityCache.clear`. |
+| E32 | **"Bağlı değil" sonucu başarı sayılıyordu.** `SyncResult.needsRetry` yalnız `errors`e bakıyordu. | Token'ı süresi dolmuşken yapılan düzenleme kuyruğa **yazılmıyor**, üstelik kuyrukta bekleyen iş "başarılı" sayılıp **siliniyordu** → değişiklik o sağlayıcıya bir daha hiç gitmiyordu. | `hasConnectionGap` + `connectionGapSources` eklendi; `needsRetry` bunu da kapsıyor. `MediaEntryRepository` (update + delete) `success` ölçütünü `!needsRetry` yaptı; böylece iş kuyruğa yazılıyor. |
+| E33 | **Yukarıdaki düzeltmenin yan etkisi: kullanıcının hiç kullanmadığı servisler için gürültü.** | Bangumi hesabı olmayan bir kullanıcıya her düzenlemede "hesap bağlı değil" uyarısı çıkardı. | `connectionGapSources` yalnız **kullanıldığı kanıtlı** kaynakları içerir: satırın kendi kaynağı, ya da satırda o sağlayıcıya ait kayıt kimliği (AniList `aniListEntryId`, Simkl `simklId`). Diğerleri sessizce "bağlı değil" kalır. |
+| E34 | **Kitsu boş PATCH'i "güncellendi" diye raporluyordu.** | Değişen alanlar süzüldükten sonra yazılacak attribute kalmadığında istek atılmıyor ama kullanıcıya başarı mesajı gidiyordu; üst katman da sonucu `eşitlendi` sayıyordu. | Attribute kümesi boşsa `SyncResult(messages = empty)` döner; `ExternalListSyncManager` bunu `değişiklik yok` olarak raporlar. |
+| E35 | **Yeniden bağlanma, kuyruktaki işlere taze bütçe vermiyordu.** | 5 denemeyi doldurmuş işler (ör. uzun süre token'sız kalmış) hesap yeniden bağlandığında da denenmiyordu. | `AuthEvent.Success` akışındaki `drainPendingQueue()` → `freshBudget = true`. |
+| E36 | **Zaman aşımının hata olarak işaretlendiği doğrulandı.** | (Şüphe: `timed()` hatasız dönüyor olabilirdi.) Kod okundu: `aggregate` `OUTCOME_TIMEOUT` için `errors`e mesaj ekliyor → `needsRetry = true`. Ek değişiklik **yapılmadı** (mükerrer mesaj olurdu). | — |
+
+### Doğrulanan upstream davranış (değişiklik değil, teyit)
+
+- `MALSync src/_provider/MyAnimeList_api/single.ts` → `_setStatus(Rewatching)`: durum **`completed`**
+  yapılır ve `is_rewatching = true` yazılır; `_getStatus()` de `completed + is_rewatching` çiftini
+  `Rewatching` olarak geri okur. Bizim `Repeating → completed` + `is_rewatching` eşlememiz **aynı**.
+  (Bu satır, önceki geçişte "şüpheli" işaretlenmişti; kaynak kodla kapatıldı.)
+- `MALSync .../helper.ts` durum sözlüğü `watching|completed|on_hold|dropped|plan_to_watch` —
+  "rewatching" bir **durum değildir** (E22/E13 ile tutarlı).
+
+### Test kapsamı
+
+- Yeni `SyncResultRetrySemanticsTest` (**7 test**): kimlik atlaması tekrar denemez, geçici hata
+  dener, "bağlı değil" (kanıtlı) dener, kullanılmayan servis denemez, kapalı servis denemez,
+  "değişiklik yok" denemez, zaman aşımı dener.
+- Toplam test dosyası: `SyncFieldDiffTest` 22, `WatchStatusMappingTest` 5,
+  `MalImportManagerUrlTest` 2, `SyncResultRetrySemanticsTest` 7, `EntryAutoRulesTest` (mevcut).
+
+### Doğrulama durumu (dürüst)
+
+- Tree-sitter: **1390 Kotlin dosyası**, 7 bilinen yanlış pozitif (aynı liste).
+- **Derleme/çalıştırma YAPILMADI** (ortamda JDK/Android SDK yok). `syncClient` gibi yeni semboller
+  ve yeni test dosyaları yalnız **statik** olarak doğrulandı; derleyici hata verirse düzeltmek için
+  çıktı yeterli.
