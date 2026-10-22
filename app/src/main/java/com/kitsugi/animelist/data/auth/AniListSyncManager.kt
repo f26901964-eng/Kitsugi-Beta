@@ -48,7 +48,13 @@ object AniListSyncManager {
          * ("The score raw must be an integer") — alan hiç gönderilmemelidir. Ayrıca
          * gönderilmeyen her alan AniList'te olduğu gibi kalır.
          */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        /**
+         * Tam yazım mı? Süzme sonrası kümeden ANLAŞILAMAZ: `fieldsFor(provider)` her hedefe
+         * kendi alt kümesini verir. Bu bayrak `true` iken boş puan/not/tarih GÖNDERİLMEZ
+         * (uzaktaki değer korunur); `false` iken yalnız diff'te görünen alanlar yazılır.
+         */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): Int? {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_anilist_type_unsupported)
@@ -93,7 +99,7 @@ object AniListSyncManager {
         if (existingEntryId == null && mediaId == null) return null
 
         // Yeni kayıt: hedefte korunacak veri yok → tam yazım. Mevcut kayıt: yalnız değişen alanlar.
-        val writeAll = existingEntryId == null || fields == SyncField.ALL
+        val writeAll = existingEntryId == null || fullWrite
 
         /**
          * Gönderilecek HAM puan (`scoreRaw`, 0..100) — `null` ise alan sorguya HİÇ girmez.
@@ -161,7 +167,13 @@ object AniListSyncManager {
         if (writeAll || SyncField.PROGRESS in fields) variables.put("progress", entry.progress)
         if (writeAll || SyncField.VOLUME_PROGRESS in fields) variables.put("progressVolumes", entry.volumeProgress)
         if (writeAll || SyncField.PRIVATE in fields) variables.put("private", entry.isPrivate)
-        if (writeAll || SyncField.NOTES in fields) variables.put("notes", entry.notes ?: "")
+        // Not: boş notu yalnızca kullanıcı SİLDİYSE gönder (diff); tam yazımda boş not
+        // göndermek AniList'teki notu silerdi.
+        if (writeAll && !entry.notes.isNullOrBlank()) {
+            variables.put("notes", entry.notes)
+        } else if (!writeAll && SyncField.NOTES in fields) {
+            variables.put("notes", entry.notes ?: "")
+        }
         if (writeAll || SyncField.REWATCH_COUNT in fields) variables.put("repeat", entry.repeatCount)
         if (writeAll) variables.put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
 

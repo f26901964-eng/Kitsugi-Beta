@@ -413,8 +413,19 @@ class MediaEntryRepository(
         val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
 
         if (success) {
-            val messages = syncResult?.messages.orEmpty()
+            val messages = syncResult?.messages.orEmpty().toMutableList()
             if (messages.isNotEmpty()) removeFromQueueIfPresent(entry, "UPDATE")
+            // BAŞARI yolunda da hangi kaynağın ne yaptığı görünmeli: "eşitlendi" dışında bir
+            // sonuç varsa (kapalı / bağlı değil / tür desteklenmiyor / kimlik çözülemedi /
+            // değişiklik yok) özet eklenir. Eskiden bu bilgi yalnız HATA yolunda gösteriliyordu
+            // ve kullanıcı "Simkl'e neden yazmadı?" sorusunun cevabını hiç göremiyordu.
+            val allSynced = syncResult?.outcomes.orEmpty().values.all {
+                it == ExternalListSyncManager.OUTCOME_SYNCED ||
+                    it == ExternalListSyncManager.OUTCOME_WRITTEN_BY_CALLER
+            }
+            if (!allSynced) {
+                syncOutcomeNote(syncResult?.outcomes)?.let { messages.add(it) }
+            }
             notifySyncResult(messages)
 
             // Dual-write: AniList'ten dönen list entry ID'yi yerel DB'ye kaydet

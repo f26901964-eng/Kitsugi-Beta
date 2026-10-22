@@ -44,15 +44,23 @@ object PendingSyncDrainer {
         fields: Set<SyncField> = SyncField.ALL
     ) = withContext(Dispatchers.IO) {
         drainMutex.withLock {
+            // Aynı satır için bekleyen işler bulunur. Yeni iş eskileri EZER (satır en güncel
+            // hâliyle yazılır) — ama ALAN KÜMELERİ BİRLEŞTİRİLİR: aksi hâlde çevrimdışıyken
+            // önce "ilerleme", sonra "not" değiştirilirse ikinci iş birincisini siler ve
+            // ilerleme güncellemesi sessizce kaybolurdu.
+            var mergedFields = fields
             val older = dao.getAll().filter { pending ->
                 runSyncCatching {
                     val previous = JSONObject(pending.entryJson)
-                    entry.id > 0 && previous.optInt("id", 0) == entry.id &&
-                        previous.optString("source") == entry.source && previous.optString("type") == entry.type.name
+                    val sameRow = entry.id > 0 && previous.optInt("id", 0) == entry.id &&
+                        previous.optString("source") == entry.source &&
+                        previous.optString("type") == entry.type.name
+                    if (sameRow) mergedFields = mergedFields + previous.readFields()
+                    sameRow
                 }.getOrDefault(false)
             }
             // Insert first: a failed insert must not destroy the previous recoverable job.
-            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(fields)))
+            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(mergedFields)))
             older.forEach { dao.deleteById(it.id) }
         }
     }
@@ -104,10 +112,10 @@ object PendingSyncDrainer {
 
             result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             val syncResult = result.getOrNull()
-            // Yalnızca gerçek hata yeniden denemeyi haklı çıkarır; "kimlik çözülemedi"
-            // (atlandı) durumları kuyrukta sonsuza kadar dönmez.
-            val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty() &&
-                (syncResult.messages.isNotEmpty() || syncResult.skipped.isNotEmpty())
+            // Yalnızca GERÇEK hata (ağ/HTTP) yeniden denemeyi haklı çıkarır. "Kimlik çözülemedi"
+            // ya da "değişiklik yok" gibi sonuçlar hatasız olduğu için iş kuyruktan düşer;
+            // aksi hâlde bu işler 5 kez denenip sonsuza kadar kuyrukta kalıyordu.
+            val success = result.isSuccess && syncResult != null && !syncResult.needsRetry
 
             if (success) {
                 dao.deleteById(item.id)
@@ -160,6 +168,13 @@ object PendingSyncDrainer {
             .copy(id = item.optInt("id", 0))
         return entry to fields
     }
+
+    /** Kayıttaki alan kümesini okur (yoksa tam yazım). */
+    private fun JSONObject.readFields(): Set<SyncField> = optJSONArray(KEY_FIELDS)?.let { names ->
+        (0 until names.length()).mapNotNull { index ->
+            runSyncCatching { SyncField.valueOf(names.getString(index)) }.getOrNull()
+        }.toSet()
+    }?.takeIf { it.isNotEmpty() } ?: SyncField.ALL
 
     private const val KEY_FIELDS = "_syncFields"
 }

@@ -134,7 +134,9 @@ object KitsuSyncManager {
         entry: MediaEntry,
         knownKitsuMediaId: Int? = null,
         /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField], [ProviderCapabilitiesCatalog]). */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        /** Tam yazım mı? Boş puan/not/tarih bu durumda GÖNDERİLMEZ (uzak değer korunur). */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
@@ -186,19 +188,36 @@ object KitsuSyncManager {
                 put("reconsuming", reconsuming)
             }
             if (SyncField.PROGRESS in fields) put("progress", entry.progress)
+            // PUAN: Kitsu aralığı 2..20 (0/1 geçersiz). Temizleme yalnızca kullanıcı puanı
+            // gerçekten SİLDİĞİNDE (diff) yapılır; tam yazımda (ALL) boş puan uzaktaki puanı silmez.
             if (SyncField.SCORE in fields) {
-                // Puan temizlendiyse Kitsu'da null YAZILMALI (0/1 geçersiz: aralık 2..20).
-                put("ratingTwenty", ratingTwenty ?: org.json.JSONObject.NULL)
+                when {
+                    ratingTwenty != null -> put("ratingTwenty", ratingTwenty)
+                    !fullWrite -> put("ratingTwenty", org.json.JSONObject.NULL)
+                }
             }
             if (SyncField.REWATCH_COUNT in fields) put("reconsumeCount", entry.repeatCount)
+            // Tarih/not: aynı kural — ALL'da boş değer gönderilmez, diff'te gönderilir (temizler).
             if (SyncField.START_DATE in fields) {
-                put("startedAt", KitsuApiClient.toKitsuDateTime(entry.startDate) ?: org.json.JSONObject.NULL)
+                val startedAt = KitsuApiClient.toKitsuDateTime(entry.startDate)
+                when {
+                    startedAt != null -> put("startedAt", startedAt)
+                    !fullWrite -> put("startedAt", org.json.JSONObject.NULL)
+                }
             }
             if (SyncField.END_DATE in fields) {
-                put("finishedAt", KitsuApiClient.toKitsuDateTime(entry.endDate) ?: org.json.JSONObject.NULL)
+                val finishedAt = KitsuApiClient.toKitsuDateTime(entry.endDate)
+                when {
+                    finishedAt != null -> put("finishedAt", finishedAt)
+                    !fullWrite -> put("finishedAt", org.json.JSONObject.NULL)
+                }
             }
             if (SyncField.NOTES in fields) {
-                put("notes", entry.notes?.takeIf { it.isNotBlank() } ?: org.json.JSONObject.NULL)
+                val notes = entry.notes?.takeIf { it.isNotBlank() }
+                when {
+                    notes != null -> put("notes", notes)
+                    !fullWrite -> put("notes", org.json.JSONObject.NULL)
+                }
             }
             if (SyncField.PRIVATE in fields) put("private", entry.isPrivate)
         }

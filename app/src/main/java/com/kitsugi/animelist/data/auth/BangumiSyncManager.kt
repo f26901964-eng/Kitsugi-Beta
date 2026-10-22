@@ -92,7 +92,9 @@ object BangumiSyncManager {
          */
         knownSubjectId: Int? = null,
         /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField]). */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        /** Tam yazım mı? Süzme sonrası kümeden anlaşılamaz. */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!supportsMediaType(entry.type)) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_media_type_unsupported)))
@@ -131,21 +133,28 @@ object BangumiSyncManager {
         //
         //    Sunucu kuralı: not ≤380 karakter, etiket ≤10 adet, her etiket ≥2 karakter ve
         //    boşluksuz — kural dışı tek değer TÜM isteği 400 yaptığı için burada süzülür.
-        val writeAll = fields == SyncField.ALL || SyncField.STATUS in fields
+        val writeAll = fullWrite || SyncField.STATUS in fields
         val rateArg = if (writeAll || SyncField.SCORE in fields) rate else null
         val epArg = if (isBook && (writeAll || SyncField.PROGRESS in fields)) progress.takeIf { it > 0 } else null
         val volArg = if (isBook && (writeAll || SyncField.VOLUME_PROGRESS in fields)) {
             entry.volumeProgress.takeIf { it > 0 }
         } else null
-        val commentArg = if (writeAll || SyncField.NOTES in fields) {
-            BangumiApiClient.sanitizeCommentForWrite(entry.notes)
-        } else null
+        // Not/etiket: kullanıcı alanı BOŞALTTIYSA hedefte de silinmeli (`""` / `[]`).
+        // Tam yazımda ve alan değişmediyse boş değer GÖNDERİLMEZ (mevcut not/etiket korunur).
+        val commentArg = when {
+            writeAll -> BangumiApiClient.sanitizeCommentForWrite(entry.notes)
+            SyncField.NOTES in fields ->
+                BangumiApiClient.sanitizeCommentForWrite(entry.notes) ?: ""
+            else -> null
+        }
         val privateArg = if (writeAll || SyncField.PRIVATE in fields) entry.isPrivate else null
-        val tagsArg = if (writeAll || SyncField.TAGS in fields) {
-            BangumiApiClient.sanitizeTagsForWrite(
-                entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
-            )
-        } else null
+        val rawTags = entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+        val tagsArg = when {
+            writeAll -> BangumiApiClient.sanitizeTagsForWrite(rawTags)
+            SyncField.TAGS in fields ->
+                BangumiApiClient.sanitizeTagsForWrite(rawTags) ?: emptyList()
+            else -> null
+        }
 
         // Yazılacak tek bir değer bile yoksa (ör. yalnız not değişti ama not boş) istek atılmaz:
         // boş gövde Bangumi'de 400 üretir, ardından gereksiz bir tam upsert tetiklenirdi.

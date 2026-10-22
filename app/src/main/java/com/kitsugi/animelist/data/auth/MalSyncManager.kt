@@ -39,7 +39,9 @@ object MalSyncManager {
         token: String,
         entry: MediaEntry,
         context: Context,
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        /** Tam yazım mı? Süzme sonrası kümeden anlaşılamaz; boş puan/öncelik korunur. */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): Boolean {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_mal_type_unsupported)
@@ -75,8 +77,13 @@ object MalSyncManager {
             }
             if (SyncField.SCORE in fields) {
                 // 0 = "puanı kaldır" (MAL sözleşmesi). Normalde 1..10; eski 100'lük değerler
-                // onluk ölçeğe indirgenir.
-                append("&score=${SyncScores.tenPoint(entry.score) ?: 0}")
+                // onluk ölçeğe indirgenir. TAM yazımda (ALL) boş puan gönderilmez: yeni kayıtta
+                // zaten puan yok, mevcut kayıtta ise uzaktaki puan gereksiz yere silinmemeli.
+                val tenPoint = SyncScores.tenPoint(entry.score)
+                when {
+                    tenPoint != null -> append("&score=$tenPoint")
+                    !fullWrite -> append("&score=0")
+                }
             }
             if (SyncField.PROGRESS in fields) {
                 append("&$progressKey=${entry.progress}")
@@ -104,8 +111,12 @@ object MalSyncManager {
                 }
             }
             if (SyncField.PRIORITY in fields) {
-                // MAL önceliği 0..2 (0=düşük, 1=orta, 2=yüksek).
-                append("&priority=${(entry.priority ?: 0).coerceIn(0, 2)}")
+                // MAL önceliği 0..2 (0=düşük, 1=orta, 2=yüksek). ALL'da boş öncelik gönderilmez.
+                val priority = entry.priority
+                when {
+                    priority != null -> append("&priority=${priority.coerceIn(0, 2)}")
+                    !fullWrite -> append("&priority=0")
+                }
             }
             if (SyncField.REWATCH_COUNT in fields) {
                 if (entry.type == MediaType.Manga) append("&num_times_reread=${entry.repeatCount}")
@@ -116,11 +127,18 @@ object MalSyncManager {
                 else append("&rewatch_value=${entry.repeatValue.coerceIn(0, 5)}")
             }
             if (SyncField.TAGS in fields) {
-                // Etiketler virgülle ayrılır; boş string etiketleri temizler.
-                append("&tags=${URLEncoder.encode(entry.tags.orEmpty(), "UTF-8")}")
+                // Etiketler virgülle ayrılır; boş string etiketleri TEMİZLER. Bu yüzden boş
+                // değer yalnızca kullanıcı etiketleri sildiğinde (diff) gönderilir.
+                val tags = entry.tags.orEmpty()
+                if (tags.isNotBlank() || !fullWrite) {
+                    append("&tags=${URLEncoder.encode(tags, "UTF-8")}")
+                }
             }
             if (SyncField.NOTES in fields) {
-                append("&comments=${URLEncoder.encode(entry.notes.orEmpty(), "UTF-8")}")
+                val notes = entry.notes.orEmpty()
+                if (notes.isNotBlank() || !fullWrite) {
+                    append("&comments=${URLEncoder.encode(notes, "UTF-8")}")
+                }
             }
         }
 

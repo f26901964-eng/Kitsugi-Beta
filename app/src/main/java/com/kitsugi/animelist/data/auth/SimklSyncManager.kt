@@ -366,7 +366,9 @@ object SimklSyncManager {
          * (tarih, cilt, tekrar sayısı) hiç gönderilmez; puan yalnızca değiştiyse yazılır —
          * aksi halde yerel puan boşken `removeRating` çağrılıp **Simkl puanı siliniyordu**.
          */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        /** Tam yazım mı? Süzme sonrası kümeden anlaşılamaz; boş puan silinmez. */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
@@ -439,7 +441,7 @@ object SimklSyncManager {
         // anime kayıtlarında reddediliyor ya da yanlış bölüm işaretleniyordu. Dizi (TV)
         // ilerlemesi sezon kataloğu olmadan gönderilmez (toplu hatla aynı kural, sessiz atlama).
         val progress = entry.progress
-        val writeAll = fields == SyncField.ALL
+        val writeAll = fullWrite
         // İlerleme değişmediyse geçmiş yazımı atlanır; ancak DURUM değiştiyse (ör. "Tamamlandı")
         // Simkl'in kendi geçmişini tutarlı tutmak için bölümler yine işaretlenir.
         val progressDirty = writeAll || SyncField.PROGRESS in fields || SyncField.STATUS in fields
@@ -497,7 +499,9 @@ object SimklSyncManager {
                 errors.add(context.getString(R.string.simkl_sync_rating_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
                 Log.e(TAG, "syncEntryToSimkl setRating hatası", e)
             }
-        } else if (scoreChanged && (score == null || score == 0) && effectiveSimklId > 0) {
+        } else if (!fullWrite && SyncField.SCORE in fields && (score == null || score == 0) && effectiveSimklId > 0) {
+            // Yalnızca kullanıcı puanı SİLDİYSE kaldırılır. Tam yazımda (ALL) puan boşsa
+            // `removeRating` çağırmak Simkl'deki puanı gereksiz yere silerdi.
             // Puan silinmişse kaldır. Yalnız 4xx (zaten puan yok) sessiz sayılır;
             // taşıma/5xx/401 hataları kuyruğa girer ki "puanı sil" işlemi kaybolmasın.
             runCatching {

@@ -97,6 +97,15 @@ object ExternalListSyncManager {
         /** Bu sağlayıcıya yazılacak alanlar (desteklenmeyenler süzülür). */
         fun fieldsFor(provider: String): Set<SyncField> = fields.narrowTo(provider)
 
+        /**
+         * İlk/tam yazım mı? (yeni kayıt ya da eski kuyruk işi)
+         *
+         * ÖNEMLİ: bu bayrak süzme SONRASI kümeyle hesaplanamaz — süzme her sağlayıcıya
+         * farklı bir alt küme verdiği için "tam yazım" bilgisi kaybolurdu ve boş puan/not
+         * hedefte silinirdi. Yazıcılara AÇIKÇA geçirilir.
+         */
+        val isFullWrite: Boolean get() = fields == SyncField.ALL
+
         fun isOn(key: String): Boolean = enabled[key] == true
         fun token(key: String): String? = tokens[key]
 
@@ -350,7 +359,8 @@ object ExternalListSyncManager {
                 context = context,
                 knownAniListMediaId = run.identity.aniListId,
                 knownMalId = run.identity.malId,
-                fields = fields
+                fields = fields,
+                fullWrite = run.isFullWrite
             )
         }
 
@@ -387,8 +397,10 @@ object ExternalListSyncManager {
             return SourceResult(ANILIST, OUTCOME_SKIPPED_IDENTITY, skipped = skipped)
         }
 
-        // AniList favori durumu senkronizasyonu (yalnızca favori alanı değiştiyse)
-        if (SyncField.FAVORITE !in fields) {
+        // AniList favori durumu: diff'te iki yönlü, tam yazımda YALNIZ EKLEME yönünde.
+        // (Tam yazımda yerel `isFavorite=false` iken uzaktaki favoriyi silmek veri kaybıydı.)
+        val touchFavorite = if (run.isFullWrite) run.entry.isFavorite else SyncField.FAVORITE in fields
+        if (!touchFavorite) {
             return SourceResult(ANILIST, OUTCOME_SYNCED, synced = true, aniListEntryId = entryId, skipped = skipped)
         }
         runSyncCatching {
@@ -458,7 +470,10 @@ object ExternalListSyncManager {
         if (fields.isEmpty()) return SourceResult(MAL, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("mal")
-            MalSyncManager.updateMalEntry(token = token, entry = run.remoteEntry, context = context, fields = fields)
+            MalSyncManager.updateMalEntry(
+                token = token, entry = run.remoteEntry, context = context,
+                fields = fields, fullWrite = run.isFullWrite
+            )
         }.fold(
             // `false` = gönderilecek geçerli alan yok (ör. yalnız parsiyel tarih değişti) →
             // "eşitlendi" demek yalan olurdu.
@@ -491,7 +506,8 @@ object ExternalListSyncManager {
             SimklSyncManager.syncEntryToSimkl(
                 context, run.remoteEntry,
                 knownMalId = run.identity.malId,
-                fields = fields
+                fields = fields,
+                fullWrite = run.isFullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -532,7 +548,8 @@ object ExternalListSyncManager {
                 context = context,
                 entry = run.remoteEntry,
                 knownKitsuMediaId = run.identity.kitsuId,
-                fields = fields
+                fields = fields,
+                fullWrite = run.isFullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -583,7 +600,8 @@ object ExternalListSyncManager {
             ShikimoriSyncManager.syncEntryToShikimori(
                 context, shikimoriEntry,
                 knownMalId = run.identity.malId,
-                fields = fields
+                fields = fields,
+                fullWrite = run.isFullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -621,7 +639,8 @@ object ExternalListSyncManager {
                 // çağrıya ayrı olarak verilir.
                 entry = run.entry,
                 knownSubjectId = run.identity.bangumiSubjectId,
-                fields = fields
+                fields = fields,
+                fullWrite = run.isFullWrite
             )
         }.fold(
             onSuccess = { result ->

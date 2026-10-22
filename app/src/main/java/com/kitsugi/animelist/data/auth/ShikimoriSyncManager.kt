@@ -78,7 +78,9 @@ object ShikimoriSyncManager {
          */
         knownMalId: Int? = null,
         /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField]). */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        /** Tam yazım mı? Süzme sonrası kümeden anlaşılamaz. */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
@@ -128,7 +130,7 @@ object ShikimoriSyncManager {
         val knownRateId = runSyncCatching {
             ExternalAuthManager.getShikimoriRateId(context, targetId, targetType)
         }.getOrNull()
-        val patched = if (knownRateId != null && fields != SyncField.ALL) {
+        val patched = if (knownRateId != null && !fullWrite) {
             val attributes = org.json.JSONObject()
             if (SyncField.STATUS in fields) attributes.put("status", status)
             if (SyncField.SCORE in fields) attributes.put("score", score.coerceIn(0, 10))
@@ -151,7 +153,7 @@ object ShikimoriSyncManager {
             ShikimoriApiClient.createUserRate(
                 token = token, userId = userId, targetId = targetId, targetType = targetType,
                 status = status,
-                score = if (SyncField.SCORE in fields || fields == SyncField.ALL) score else null,
+                score = if (SyncField.SCORE in fields || fullWrite) score else null,
                 progress = progress,
                 text = entry.notes?.takeIf { it.isNotBlank() },
                 rewatches = entry.repeatCount.takeIf { it > 0 },
