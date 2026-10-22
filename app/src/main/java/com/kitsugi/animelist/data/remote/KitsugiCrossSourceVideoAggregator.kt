@@ -797,7 +797,7 @@ object KitsugiCrossSourceVideoAggregator {
     }
 
     private fun fetchKitsuTrailerVideo(kitsuId: Int): List<KitsugiVideoItem> {
-        val url = runCatching { URL("${KitsuApiHost.API_BASE}/anime/$kitsuId") }.getOrNull() ?: return emptyList()
+        val url = runCatching { URL("${KitsuApiHost.PRIMARY}/anime/$kitsuId") }.getOrNull() ?: return emptyList()
         val body = KitsugiApiBase.executeGetRequest(url) ?: return emptyList()
         val ytId = runCatching {
             JSONObject(body).optJSONObject("data")?.optJSONObject("attributes")?.optNullableString("youtubeVideoId")

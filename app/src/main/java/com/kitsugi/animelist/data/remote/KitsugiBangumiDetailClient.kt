@@ -2029,10 +2029,10 @@ object KitsugiBangumiDetailClient {
         if (pendingIds.isNotEmpty()) {
             withTimeoutOrNull(4_500L) {
                 coroutineScope {
-                    pendingIds.distinct().take(20).map { id ->
+                    pendingIds.distinct().take(20).map { id: Int ->
                         async(Dispatchers.IO) {
                             runCatching {
-                                loadLocalizedEntityName(EntityNameLookup(kind, id))?.let {
+                                loadEntityLocalizedName(EntityNameLookup(kind, id))?.let {
                                     resolvedById[id] = it
                                 }
                             }
