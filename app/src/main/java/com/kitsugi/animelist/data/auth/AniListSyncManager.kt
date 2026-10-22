@@ -29,7 +29,17 @@ object AniListSyncManager {
          * medya kimliği. Verilmezse eski zincir (yerel kimlik → MAL `idMal` → ARM) çalışır.
          * Verilse bile yazmadan önce [verifyAniListMediaIdentity] ile doğrulanır.
          */
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        /**
+         * Çapraz kimlik katmanının çözdüğü **gerçek MAL kimliği**.
+         *
+         * Kitsu / Shikimori / Bangumi kaynaklı satırlarda `MediaIdentity.realMalId(entry)` NULL
+         * döner (kaynak MAL değil), dolayısıyla kimlik zinciri `MAL idMal → ARM` adımlarını
+         * atlayıp `null` ile çıkıyordu: bu satırlar AniList'e **hiç** yazılmıyordu. Çözülmüş
+         * MAL kimliği buradan verilir; AniList yanıtındaki `idMal` alanı bunu yine de
+         * teyit etmek zorundadır.
+         */
+        knownMalId: Int? = null
     ): Int? {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_anilist_type_unsupported)
@@ -45,17 +55,24 @@ object AniListSyncManager {
                 val mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME"
                 verifyAniListMediaIdentity(
                     token, candidate, mediaTypeGql, entry,
-                    CrossSyncIdentityGuard.aliasesOf(entry), context
+                    CrossSyncIdentityGuard.aliasesOf(entry), context,
+                    knownMalId = knownMalId
                 )
             }
-            verifiedKnownId ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            verifiedKnownId ?: resolveAniListMediaId(
+                token = token,
+                entry = entry,
+                context = context,
+                knownMalId = knownMalId
+            )
         } else {
             val verifiedMediaId = resolveAniListMediaIdForEntry(
                 token = token,
                 entryId = existingEntryId,
                 entry = entry,
                 context = context,
-                knownAniListMediaId = knownAniListMediaId
+                knownAniListMediaId = knownAniListMediaId,
+                knownMalId = knownMalId
             ) ?: error(context.getString(R.string.account_sync_anilist_entry_identity_mismatch, entry.title))
             // Existing list-entry IDs are only mutation handles. Verify the attached media before
             // updating status, progress, score, or other fields.
@@ -167,10 +184,11 @@ object AniListSyncManager {
         token: String,
         entry: MediaEntry,
         context: Context,
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        knownMalId: Int? = null
     ): Boolean? {
         val aniListMediaId: Int = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context, knownMalId = knownMalId)
             ?: return null
 
         val query = """
@@ -202,10 +220,11 @@ object AniListSyncManager {
         token: String,
         entry: MediaEntry,
         context: Context,
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        knownMalId: Int? = null
     ): Boolean {
         val aniListMediaId: Int? = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context, knownMalId = knownMalId)
 
         if (aniListMediaId == null) return false
 
@@ -309,7 +328,8 @@ object AniListSyncManager {
         entryId: Int,
         entry: MediaEntry,
         context: Context,
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        knownMalId: Int? = null
     ): Int? = runSyncCatching {
         if (entryId <= 0) return@runSyncCatching null
         val query = """
@@ -339,7 +359,7 @@ object AniListSyncManager {
         // Liste kaydının bağlı olduğu medya, çapraz katmanın çözdüğü kimlikle de doğrulanabilir;
         // yerel zincir başlık/yıl katılıkları yüzünden aynı medyayı bulamayabiliyordu.
         val expectedMediaId = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token, entry, context)
+            ?: resolveAniListMediaId(token, entry, context, knownMalId = knownMalId)
             ?: return@runSyncCatching null
         mediaId.takeIf { it == expectedMediaId }
     }.getOrNull()
@@ -347,34 +367,54 @@ object AniListSyncManager {
     fun resolveAniListMediaId(
         token: String,
         entry: MediaEntry,
-        context: Context
+        context: Context,
+        knownMalId: Int? = null
     ): Int? {
         val mediaTypeGql = when (entry.type) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "ANIME"
             MediaType.Manga -> "MANGA"
         }
-        val realMalId = MediaIdentity.realMalId(entry)
+        // Çapraz katmanın çözdüğü gerçek MAL kimliği, kaynak-özel çıkarımdan önce gelir:
+        // Kitsu/Shikimori/Bangumi satırlarında `MediaIdentity.realMalId` kaynak MAL olmadığı
+        // için null döner ve zincir burada kırılıyordu.
+        val realMalId = CrossProviderIds.realMalIdOf(knownMalId) ?: MediaIdentity.realMalId(entry)
         val nativeAniListId = MediaIdentity.aniListId(entry)
         val verifiedTitleAliases = if (nativeAniListId != null) {
             CrossSyncIdentityGuard.aliasesOf(entry)
         } else {
             if (realMalId == null) return null
-            val malVerdict = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                CrossSyncIdentityGuard.verifyMalId(
-                    malId = realMalId,
-                    mediaType = entry.type,
-                    localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
-                    localYear = entry.year
-                )
-            } as? CrossSyncIdentityGuard.Verdict.Verified ?: return null
-            malVerdict.matchedLocalTitles
+            if (CrossProviderIds.realMalIdOf(knownMalId) != null) {
+                // Kimlik çapraz katmandan geldi ve orada MAL kataloğuna karşı doğrulandı;
+                // aşağıdaki `idMal` sorgusu ve [verifyAniListMediaIdentity] yine teyit eder.
+                CrossSyncIdentityGuard.aliasesOf(entry)
+            } else {
+                val malVerdict = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                    CrossSyncIdentityGuard.verifyMalId(
+                        malId = realMalId,
+                        mediaType = entry.type,
+                        localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                        localYear = entry.year
+                    )
+                }
+                when (malVerdict) {
+                    is CrossSyncIdentityGuard.Verdict.Verified -> malVerdict.matchedLocalTitles
+                    // Çelişki yok, sadece kanıt eksik (yıl yok / katalog okunamadı): yazım
+                    // hedefin KENDİ `idMal` teyidine bırakılır. Eskiden burada `return null`
+                    // vardı ve yıl alanı boş olan her satır AniList'e hiç gitmiyordu.
+                    else -> if (CrossSyncIdentityGuard.blocksCrossWrite(malVerdict)) return null
+                    else CrossSyncIdentityGuard.aliasesOf(entry)
+                }
+            }
         }
         val rawKitsuId = MediaIdentity.kitsuId(entry)
 
         // A stored AniList media ID is source-native but still checked against type/title/year before add/favorite writes.
         if (nativeAniListId != null) {
             return nativeAniListId.takeIf {
-                verifyAniListMediaIdentity(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
+                verifyAniListMediaIdentity(
+                    token, it, mediaTypeGql, entry, verifiedTitleAliases, context,
+                    knownMalId = realMalId
+                )
             }
         }
 
@@ -392,7 +432,10 @@ object AniListSyncManager {
             }.getOrNull()
             if (resolved != null) {
                 return resolved.takeIf {
-                    verifyAniListMediaIdentity(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
+                    verifyAniListMediaIdentity(
+                    token, it, mediaTypeGql, entry, verifiedTitleAliases, context,
+                    knownMalId = realMalId
+                )
                 }
             }
         }
@@ -413,7 +456,10 @@ object AniListSyncManager {
         } else null
         if (
             armId != null && armId > 0 &&
-            verifyAniListMediaIdentity(token, armId, mediaTypeGql, entry, verifiedTitleAliases, context)
+            verifyAniListMediaIdentity(
+                token, armId, mediaTypeGql, entry, verifiedTitleAliases, context,
+                knownMalId = realMalId
+            )
         ) {
             return armId
         }
@@ -428,7 +474,8 @@ object AniListSyncManager {
         expectedType: String,
         entry: MediaEntry,
         expectedTitles: Collection<String>,
-        context: Context
+        context: Context,
+        knownMalId: Int? = null
     ): Boolean = runSyncCatching {
         val query = """
             query (${'$'}id: Int) {
@@ -449,16 +496,24 @@ object AniListSyncManager {
         )
         val media = JSONObject(response).optJSONObject("data")?.optJSONObject("Media") ?: return@runSyncCatching false
         if (media.optInt("id", 0) != mediaId || media.optString("type") != expectedType) return@runSyncCatching false
-        val expectedMalId = MediaIdentity.realMalId(entry)
-        if (expectedMalId != null && media.optInt("idMal", 0) != expectedMalId) return@runSyncCatching false
+        val expectedMalId = CrossProviderIds.realMalIdOf(knownMalId) ?: MediaIdentity.realMalId(entry)
+        val remoteMalId = media.optInt("idMal", 0).takeIf { it in 1..99_999_999 }
+        // Çelişki varsa hiçbir gerekçe yazıma izin vermez.
+        if (expectedMalId != null && remoteMalId != expectedMalId) return@runSyncCatching false
         val expectedAniListId = MediaIdentity.aniListId(entry)
         if (expectedAniListId != null && expectedAniListId != mediaId) return@runSyncCatching false
+        // ── OTORİTER ÇAPRAZ REFERANS ────────────────────────────────────────────────
+        // AniList'in KENDİ `Media.idMal` alanı, MAL ↔ AniList eşlemesinin resmî kaynağıdır.
+        // İstenen MAL kimliği ile birebir eşleşiyorsa (ve tür doğruysa) bu, "yanlış yapıma
+        // yazma" riski TAŞIMAZ; başlık/yl ölçütlerini ayrıca aramak yalnızca yanlış
+        // negatif üretiyordu (İngilizce başlık farkı, yayın yılı farkı, yıl alanı boş…).
+        if (expectedMalId != null && remoteMalId == expectedMalId) return@runSyncCatching true
         val title = media.optJSONObject("title")
         val remoteTitles = listOf("romaji", "english", "native")
             .mapNotNull { title?.optString(it)?.takeIf(String::isNotBlank) }
         val remoteYear = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }
         CrossSyncIdentityGuard.titlesAreIdentityEquivalent(expectedTitles, remoteTitles) &&
-            CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear)
+            (CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear) || entry.year == null || remoteYear == null)
     }.getOrDefault(false)
 
     /**

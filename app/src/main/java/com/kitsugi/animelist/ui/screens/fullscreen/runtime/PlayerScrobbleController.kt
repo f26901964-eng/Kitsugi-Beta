@@ -2,7 +2,6 @@ package com.kitsugi.animelist.ui.screens.fullscreen.runtime
 
 import android.content.Context
 import android.util.Log
-import com.kitsugi.animelist.data.auth.AniListSyncManager
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.CoroutineScope
@@ -78,10 +77,6 @@ class PlayerScrobbleController(
         if (scrobbled) return
         scrobbled = true
         val entry = currentMediaEntry ?: return
-        val token = getAniListToken() ?: run {
-            Log.d(TAG, "No AniList token, skipping scrobble")
-            return
-        }
 
         scrobbleJob = scope.launch(Dispatchers.IO) {
             try {
@@ -93,13 +88,25 @@ class PlayerScrobbleController(
                         WatchStatus.Watching
                     }
                 )
-                val result = AniListSyncManager.updateAniListEntry(token, updatedEntry, context = context)
-                if (result != null) {
-                    Log.d(TAG, "Scrobble SUCCESS: aniListId=$result ep=$currentEpisode")
-                    onScrobbleSuccess(result, currentEpisode)
+                // ── İlerleme artık YALNIZCA AniList'e değil, BAĞLI TÜM KAYNAKLARA yazılır ──
+                // Eski kod tek hedefe (AniList) yazıyordu ve AniList oturumu yoksa hiçbir
+                // şey yapmıyordu: MAL/Kitsu/Shikimori/Bangumi/Simkl'de izleme ilerlemesi
+                // oynatıcıdan ASLA güncellenmiyordu. Aynı çapraz eşitleme hattı (eşzamanlı,
+                // kaynak başına zaman aşımı, kimlik kapısı) burada da kullanılır.
+                val outcome = com.kitsugi.animelist.data.auth.ExternalListSyncManager.syncEntry(
+                    context = context,
+                    entry = updatedEntry
+                )
+                val aniListEntryId = outcome.aniListEntryId
+                if (aniListEntryId != null) {
+                    Log.d(TAG, "Scrobble SUCCESS: aniListId=$aniListEntryId ep=$currentEpisode")
+                    onScrobbleSuccess(aniListEntryId, currentEpisode)
+                } else if (outcome.anySynced) {
+                    Log.d(TAG, "Scrobble SUCCESS (diğer kaynaklar): ${outcome.outcomes} ep=$currentEpisode")
+                    onScrobbleSuccess(entry.id, currentEpisode)
                 } else {
-                    Log.w(TAG, "Scrobble returned null")
-                    onScrobbleFail("AniList null response")
+                    Log.w(TAG, "Scrobble hiçbir kaynağa yazılamadı: ${outcome.outcomes} ${outcome.skipped}")
+                    onScrobbleFail(outcome.errors.firstOrNull() ?: "Hiçbir kaynak eşitlenmedi")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Scrobble failed", e)

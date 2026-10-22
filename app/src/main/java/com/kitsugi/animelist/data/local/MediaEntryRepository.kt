@@ -415,10 +415,13 @@ class MediaEntryRepository(
             enqueuePending("UPDATE", entry)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
             val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
-            val displayMessage = if (isAuthError) {
-                "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
-            } else {
-                "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
+            // KISMİ BAŞARI: en az bir kaynak yazıldıysa "çevrimdışı" demek yanıltıcıydı —
+            // kullanıcı "hiçbir yere gitmiyor" sanıyordu. Gerçekte yalnızca bazı kaynaklar
+            // yeniden denenecek; hangileri olduğu kaynak özetinde görünür.
+            val displayMessage = when {
+                isAuthError -> "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
+                syncResult?.anySynced == true -> "🔄 " + appContext.getString(com.kitsugi.animelist.R.string.account_sync_partial_synced)
+                else -> "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
             }
             notifySyncResult(
                 syncResult?.messages.orEmpty() + listOf(displayMessage) +

@@ -6035,6 +6035,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="account_sync_sources_deleted">%1$s kütüphanesinden silindi</string>
     <string name="account_sync_sources_synced">%1$s başarıyla eşitlendi</string>
     <string name="account_sync_source_failure">%1$s: %2$s</string>
+    <string name="account_sync_source_timeout">%1$s: zaman aşımı (yanıt gelmedi), sonra yeniden denenecek</string>
+    <string name="account_sync_partial_synced">Kısmen eşitlendi — kalan kaynaklar bağlantıda yeniden denenecek</string>
     <string name="account_sync_sources_skipped">Atlanan: %1$s</string>
     <string name="account_sync_fanout_blocked_bangumi">Bangumi kaydı için doğrulanmış MAL/AniList kimliği çözülemedi; diğer kaynaklara yazılmadı</string>
     <string name="account_sync_offline_identity_pending">Çevrimdışı: kimlik doğrulanamadı, bağlantıda yeniden denenecek</string>
