@@ -416,7 +416,11 @@ class MediaEntryRepository(
         val syncResult = result.getOrNull()
         // "Atlandı" (kimlik güvenle çözülemedi) başarısızlık sayılmaz: kaynak listeye göre
         // katalogda hiç karşılığı olmayan yapımlar kuyrukta birikip her açılışta tekrar denenirdi.
-        val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
+        //
+        // ANCAK bir kaynağın "bağlı değil" (token yok / süresi dolmuş) demesi BAŞARI DEĞİLDİR:
+        // o hedefe yazılacak değişiklik kaybolurdu. Böyle bir tur kuyruğa yazılır ve hesap
+        // yeniden bağlanınca gönderilir (bkz. SyncResult.needsRetry / hasConnectionGap).
+        val success = result.isSuccess && syncResult != null && !syncResult.needsRetry
 
         if (success) {
             val messages = syncResult?.messages.orEmpty().toMutableList()
@@ -451,6 +455,8 @@ class MediaEntryRepository(
             // yeniden denenecek; hangileri olduğu kaynak özetinde görünür.
             val displayMessage = when {
                 isAuthError -> "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
+                syncResult?.hasConnectionGap == true ->
+                    "🔑 Bir hesap bağlı değil; bağlandığında bu değişiklik gönderilecek"
                 syncResult?.anySynced == true -> "🔄 " + appContext.getString(com.kitsugi.animelist.R.string.account_sync_partial_synced)
                 else -> "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
             }
@@ -479,7 +485,9 @@ class MediaEntryRepository(
         }
 
         val syncResult = result.getOrNull()
-        val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
+        // Silmede de aynı kural: "bağlı değil" bir sonraki oturuma ertelenmeli, yoksa
+        // kullanıcının silme niyeti o sağlayıcıda hayalet kayıt olarak kalır.
+        val success = result.isSuccess && syncResult != null && !syncResult.needsRetry
 
         if (success) {
             val messages = syncResult?.messages.orEmpty()

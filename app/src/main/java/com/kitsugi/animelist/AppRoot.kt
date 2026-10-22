@@ -599,7 +599,10 @@ fun AppRoot(
                     }
 
                     launch {
-                        val count = mediaRepository.drainPendingQueue()
+                        // Hesap yeniden bağlandı: bekleyen işlere TAZE deneme bütçesi verilir.
+                        // (Token süresi dolduğu için kuyrukta bekleyen işler, sayaçları
+                        // dolduğu için aksi hâlde bir daha denenmezdi.)
+                        val count = mediaRepository.drainPendingQueue(freshBudget = true)
                         if (count > 0) {
                             appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.cevrimdisi_kaydedilen_x_islem_senkronize_edildi, count))
                         }

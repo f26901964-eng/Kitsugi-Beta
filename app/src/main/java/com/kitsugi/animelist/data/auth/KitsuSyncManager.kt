@@ -258,6 +258,12 @@ object KitsuSyncManager {
             val attributes = changedAttributes()
             // Uzunluk sınırı yalnızca ilerleme yazarken tetiklenebilir; attributes'ı o an kopyalarız.
             if (SyncField.PROGRESS in fields) attributes.put("progress", entry.progress)
+            // Hiçbir attribute kalmadıysa (ör. yalnız Kitsu'nun desteklemediği bir alan değişti)
+            // istek ATILMAZ ve "Kitsu güncellendi" mesajı da verilmez: boş PATCH göndermek
+            // yerine "değişiklik yok" demek doğrudur.
+            if (attributes.length() == 0) {
+                return@withContext SyncResult(messages = emptyList(), errors = emptyList())
+            }
             val result = writeWithLengthGuard { p ->
                 if (SyncField.PROGRESS in fields) attributes.put("progress", p)
                 KitsuApiClient.patchLibraryEntry(

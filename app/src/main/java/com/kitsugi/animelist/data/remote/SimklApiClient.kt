@@ -165,7 +165,7 @@ internal fun parseBestMediaArray(
 class SimklApiClient(
     private val clientMap: Map<String, String>? = null
 ) {
-    private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
+    private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient
 
     // ── Resmî saniyelik limitler (api.simkl.org/resources/rate-limits) ─────────
     // 10 GET/sn ve 1 POST/sn (client_id + kullanıcı token'ı). GET aşımı 429;

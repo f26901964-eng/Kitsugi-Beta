@@ -15,6 +15,9 @@ object KitsugiHttpClient {
      */
     private const val METADATA_CALL_TIMEOUT_SECONDS = 20L
 
+    /** Çapraz eşitleme yazımları için toplam çağrı tavanı (bkz. [syncClient]). */
+    private const val SYNC_CALL_TIMEOUT_SECONDS = 25L
+
     /**
      * [client] ile aynı bağlantı havuzu ve dispatcher'ı paylaşır; yalnızca `callTimeout` eklenir.
      */
@@ -73,6 +76,29 @@ object KitsugiHttpClient {
             .writeTimeout(12, TimeUnit.SECONDS)
             .callTimeout(14, TimeUnit.SECONDS)
             .apply { interceptors().removeAll { it is RetryInterceptor } }
+            .build()
+    }
+
+    /**
+     * SENKRON YAZIMLARI (çapraz eşitleme) için toplam süre tavanlı istemci.
+     *
+     * Neden gerekli: [client] içinde `callTimeout` YOK — `connectTimeout`/`readTimeout`
+     * yalnızca TEK bir bağlantı/okuma adımını sınırlar. Yavaş damlayan (trickle) bir yanıt
+     * ya da iki kez yeniden deneme, tek bir yazma çağrısını dakikalarca sürdürebiliyordu.
+     * Çapraz eşitlemede altı kaynak PARALEL çalıştığı için diğerleri beklemiyor, **ama**
+     * sonucu bekleyen çağrı (bildirim/kuyruk) ve `withTimeoutOrNull` bloklayan çağrıyı
+     * kesemediği için tur uzuyordu.
+     *
+     * `callTimeout` yeniden denemeler dâhil TÜM çağrıyı sınırlar (25 sn ≈ kaynak başına
+     * 30 sn'lik yayılım bütçesi). Yalnız ana [client]'tan farklı olarak çağrı tavanı
+     * eklenir; bağlantı havuzu ve dispatcher PAYLAŞILIR (ek bağlantı yükü yok).
+     *
+     * Not: indirme/oynatma yolları [client]'ı kullanmaya devam eder — uzun süreli
+     * aktarımlara tavan konmaz.
+     */
+    val syncClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(SYNC_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 

@@ -717,6 +717,10 @@ object ExternalAuthManager {
         context: Context,
         serviceName: String
     ) {
+        // Çapraz kimlik önbelleği hesap bağlantısına göre "tamam/eksik" işaretlenir
+        // (bkz. CrossProviderIdentity.isCompleteFor). Bağlantı kesildiğinde bu işaretler
+        // bayatlar; temizlenmezse yeniden bağlanan hesapta kimlikler eksik kalabilir.
+        com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.clear(context)
         val editor = prefs(context).edit()
         when (serviceName.lowercase()) {
             "anilist" -> editor.remove(KEY_ANILIST_TOKEN)

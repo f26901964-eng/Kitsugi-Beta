@@ -319,10 +319,27 @@ object ExternalListSyncManager {
         )
     }
 
-    /** Bir kaynağı zaman aşımına karşı korur: kilitlenen kaynak turu kilitlemez. */
+    /**
+     * Bir kaynağı zaman aşımına karşı korur: kilitlenen kaynak turu kilitlemez.
+     *
+     * Zaman aşımı `aggregate` içinde **hata** olarak da yazılır (bkz. `OUTCOME_TIMEOUT`
+     * işleme) — böylece `SyncResult.needsRetry` `true` olur ve bekleyen-senkron kuyruğu
+     * işi "başarılı" sayıp silmez.
+     */
     private suspend fun timed(source: String, block: suspend () -> SourceResult): SourceResult =
         withTimeoutOrNull(SOURCE_TIMEOUT_MS) { block() }
             ?: SourceResult(source = source, outcome = OUTCOME_TIMEOUT)
+
+    /** Görünen kaynak adı → kanonik sağlayıcı anahtarı. */
+    private fun providerKeyOf(source: String): String = when (source) {
+        ANILIST -> "anilist"
+        MAL -> "mal"
+        KITSU -> "kitsu"
+        SHIKIMORI -> "shikimori"
+        BANGUMI -> "bangumi"
+        SIMKL -> "simkl"
+        else -> source.lowercase()
+    }
 
     private fun identitySkip(run: Run, source: String): SourceResult {
         val reason = runSyncCatching {
@@ -554,6 +571,10 @@ object ExternalListSyncManager {
         }.fold(
             onSuccess = { result ->
                 when {
+                    // Hiç istek atılmadı (yazılacak attribute kalmadı) → "eşitlendi" değil
+                    // "değişiklik yok". Aksi hâlde arayüz yazılmamış bir alan için başarı gösterir.
+                    result.errors.isEmpty() && result.messages.isEmpty() ->
+                        SourceResult(KITSU, OUTCOME_UP_TO_DATE)
                     result.errors.isEmpty() -> SourceResult(KITSU, OUTCOME_SYNCED, synced = true)
                     // Kimlik bulunamadı: güvenli atlama, yeniden denenecek hata değil.
                     result.unresolvedMedia -> SourceResult(KITSU, OUTCOME_SKIPPED_IDENTITY, skipped = result.errors)
@@ -945,6 +966,18 @@ object ExternalListSyncManager {
             if (result.source == ANILIST && result.aniListEntryId != null) aniListEntryId = result.aniListEntryId
         }
 
+        // "Bağlı değil" sonuçları arasından YALNIZ gerçekten kullanılanları ayır.
+        val rowSourceKey = providerKeyOf(prepared.run.rowSource)
+        val connectionGapSources = results
+            .filter { it.outcome == OUTCOME_NOT_CONNECTED }
+            .map { it.source }
+            .filter { source ->
+                val key = providerKeyOf(source)
+                key == rowSourceKey ||
+                    (key == "anilist" && prepared.run.entry.aniListEntryId != null) ||
+                    (key == "simkl" && (prepared.run.entry.simklId ?: 0) > 0)
+            }
+
         val messages = mutableListOf<String>()
         val formatted = formatSyncSources(context, syncedSources, isDelete)
         if (formatted.isNotEmpty()) messages.add(formatted)
@@ -961,6 +994,7 @@ object ExternalListSyncManager {
             messages = messages,
             errors = errors,
             aniListEntryId = aniListEntryId,
+            connectionGapSources = connectionGapSources,
             skipped = skipped,
             outcomes = outcomes
         )
@@ -1061,13 +1095,35 @@ object ExternalListSyncManager {
          */
         val skipped: List<String> = emptyList(),
         /** Kaynak adı → [OUTCOME_SYNCED] / [OUTCOME_SKIPPED_IDENTITY] / … (raporlama ve arayüz). */
-        val outcomes: Map<String, String> = emptyMap()
+        val outcomes: Map<String, String> = emptyMap(),
+        /**
+         * "Bağlı değil" olduğu için yazılamayan **ve gerçekten kullanılan** kaynaklar.
+         *
+         * Kullanıcının hiç bağlamadığı bir servis (ör. Bangumi hesabı yok) buraya GİRMEZ;
+         * aksi hâlde her düzenlemede "hesap bağlı değil" uyarısı çıkardı. Yalnız satırın
+         * kendi kaynağı ya da satırda o sağlayıcıya ait bir kayıt kimliği varsa (AniList
+         * `aniListEntryId`, Simkl `simklId`) bu bir boşluk sayılır.
+         */
+        val connectionGapSources: List<String> = emptyList()
     ) {
         /** En az bir kaynak gerçekten yazıldı mı? (kısmi başarı bildirimi için) */
         val anySynced: Boolean
             get() = outcomes.values.any { it == OUTCOME_SYNCED || it == OUTCOME_WRITTEN_BY_CALLER }
 
-        /** Yalnızca gerçek hatalar yeniden denemeyi haklı çıkarır. */
-        val needsRetry: Boolean get() = CrossSyncPolicy.shouldRetry(errors, skipped)
+        /**
+         * En az bir kaynak "bağlı değil" dedi (oturum yok / token süresi dolmuş).
+         *
+         * Bu bir API hatası değildir ama **kaybedilecek bir değişikliktir**: kullanıcı
+         * hesabı yeniden bağladığında yazılması gerekir. Eskiden `needsRetry` yalnız
+         * `errors`e baktığı için bu iş "başarılı" sayılıp kuyruktan SİLİNİYORDU →
+         * token'ı süresi dolmuşken yapılan düzenleme o sağlayıcıya bir daha hiç gitmiyordu.
+         * "Kapalı" (kullanıcı o kaynağın eşitlemesini kapatmış) bu kapsama GİRMEZ.
+         */
+        val hasConnectionGap: Boolean
+            get() = connectionGapSources.isNotEmpty()
+
+        /** Yalnızca gerçek hatalar ve bağlantı boşlukları yeniden denemeyi haklı çıkarır. */
+        val needsRetry: Boolean
+            get() = CrossSyncPolicy.shouldRetry(errors, skipped) || hasConnectionGap
     }
 }

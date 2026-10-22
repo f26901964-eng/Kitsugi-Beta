@@ -55,7 +55,7 @@ object ShikimoriApiClient {
      * elle takip edilir.
      */
     private val shikimoriHttpClient: OkHttpClient by lazy {
-        KitsugiHttpClient.client.newBuilder()
+        KitsugiHttpClient.syncClient.newBuilder()
             .followRedirects(false)
             .followSslRedirects(false)
             .build()

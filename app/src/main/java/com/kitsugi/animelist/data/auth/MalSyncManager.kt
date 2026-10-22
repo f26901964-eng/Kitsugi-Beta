@@ -158,7 +158,7 @@ object MalSyncManager {
             .build()
 
         try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorText = response.body?.string().orEmpty()
                     throw IllegalStateException(
@@ -202,7 +202,7 @@ object MalSyncManager {
             .build()
 
         try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute().use { response ->
                 if (response.code == 404) {
                     return
                 }

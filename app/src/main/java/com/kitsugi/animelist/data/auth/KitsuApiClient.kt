@@ -30,7 +30,7 @@ object KitsuApiClient {
      */
     private fun executeWithHostFallback(request: Request): Response {
         return try {
-            KitsugiHttpClient.client.newCall(request).execute()
+            KitsugiHttpClient.syncClient.newCall(request).execute()
         } catch (e: java.io.IOException) {
             val alt = when (request.url.host) {
                 "kitsu.app" -> "kitsu.io"
@@ -48,7 +48,7 @@ object KitsuApiClient {
             val swapped = request.newBuilder()
                 .url(request.url.newBuilder().host(alt).build())
                 .build()
-            KitsugiHttpClient.client.newCall(swapped).execute()
+            KitsugiHttpClient.syncClient.newCall(swapped).execute()
         }
     }
     private const val TAG = "KitsuApiClient"
