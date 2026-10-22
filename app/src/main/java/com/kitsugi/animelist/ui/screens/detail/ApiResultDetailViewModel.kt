@@ -10,6 +10,7 @@ import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.MdbListClient
+import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
@@ -1386,9 +1387,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val settings = settingsDataStore.settingsFlow.first()
         if (!settings.mdbListEnabled || settings.mdbListApiKey.isBlank()) {
             _mdbListRatings.value = null
+            // Özellik kapalı/anahtar yok: detay kartında bayat kota rozeti çizilmesin.
+            MdbListQuotaCenter.bind(context, "")
             return
         }
 
+        // Kota anahtara özgüdür: diskteki son kayıt bu anahtarla eşleşiyorsa anında gösterilir.
+        MdbListQuotaCenter.bind(context, settings.mdbListApiKey)
         _mdbListLoading.value = true
 
         try {
@@ -1441,11 +1446,20 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 Log.d(TAG, "MDBList skipped: no IMDb or TMDB identity is available")
                 _mdbListRatings.value = null
             }
+
         } catch (e: Exception) {
             Log.e(TAG, "MDBList rating fetch failed", e)
             _mdbListRatings.value = null
         } finally {
             _mdbListLoading.value = false
+        }
+
+        // Puan yanıtı çoğu zaman `X-RateLimit-*` başlıklarıyla kotayı zaten günceller.
+        // Eski uç nokta başlık göndermediğinde sayı bayat kalmasın diye `/user` en fazla
+        // 10 dakikada bir doğrulanır. Ayrı iş olarak başlatılır: kart iskeletini bekletmez.
+        viewModelScope.launch {
+            // `refresh` ağ hatalarını kendi içinde yutar; yalnızca iptal durumunu yukarı iletir.
+            MdbListQuotaCenter.refresh(settings.mdbListApiKey, maxAgeMillis = 10L * 60_000L)
         }
     }
 

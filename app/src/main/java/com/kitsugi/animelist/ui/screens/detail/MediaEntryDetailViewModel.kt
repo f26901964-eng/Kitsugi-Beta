@@ -38,6 +38,7 @@ import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.data.local.MangaMappingEntity
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
 import com.kitsugi.animelist.data.remote.MdbListClient
+import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -1729,8 +1730,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val context = getApplication<android.app.Application>().applicationContext
         val settingsDataStore = SettingsDataStore(context)
         val settings = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()
-        if (settings == null || !settings.mdbListEnabled || settings.mdbListApiKey.isBlank()) return
+        if (settings == null || !settings.mdbListEnabled || settings.mdbListApiKey.isBlank()) {
+            // Özellik kapalı/anahtar yok: detay kartında bayat kota rozeti çizilmesin.
+            MdbListQuotaCenter.bind(context, "")
+            return
+        }
 
+        // Kota anahtara özgüdür: diskteki son kayıt bu anahtarla eşleşiyorsa anında gösterilir.
+        MdbListQuotaCenter.bind(context, settings.mdbListApiKey)
         _mdbListLoading.value = true
         try {
             val stableId = entry.malId ?: 0
@@ -1776,10 +1783,19 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             } else {
                 _mdbListRatings.value = null
             }
+
         } catch (e: Exception) {
             Log.e(TAG, "MDBList entry rating fetch failed", e)
         } finally {
             _mdbListLoading.value = false
+        }
+
+        // Puan yanıtı çoğu zaman `X-RateLimit-*` başlıklarıyla kotayı zaten günceller.
+        // Başlık gelmeyen yanıtlarda sayı bayat kalmasın diye `/user` en fazla 10 dakikada
+        // bir doğrulanır. Ayrı iş olarak başlatılır: puan kartının iskeletini bekletmez.
+        viewModelScope.launch {
+            // `refresh` ağ hatalarını kendi içinde yutar; yalnızca iptal durumunu yukarı iletir.
+            MdbListQuotaCenter.refresh(settings.mdbListApiKey, maxAgeMillis = 10L * 60_000L)
         }
     }
 }
