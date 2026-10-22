@@ -21,13 +21,13 @@ object MalImportManager {
     private const val ANIME_LIST_URL =
         "https://api.myanimelist.net/v2/users/@me/animelist" +
         "?fields=id,title,alternative_titles,main_picture,start_date,end_date,media_type,status,num_episodes,start_season,nsfw,genres,rating," +
-        "list_status%7Bstatus,score,num_episodes_watched,start_date,finish_date,is_favorited,priority,is_repeating,num_times_rewatched,rewatch_value,tags,comments,updated_at%7D" +
+        "list_status%7Bstatus,score,num_episodes_watched,start_date,finish_date,is_favorited,priority,is_rewatching,num_times_rewatched,rewatch_value,tags,comments,updated_at%7D" +
         "&limit=100&nsfw=true"
 
     private const val MANGA_LIST_URL =
         "https://api.myanimelist.net/v2/users/@me/mangalist" +
         "?fields=id,title,alternative_titles,main_picture,start_date,end_date,media_type,status,num_chapters,start_season,num_volumes,nsfw,genres," +
-        "list_status%7Bstatus,score,num_chapters_read,num_volumes_read,start_date,finish_date,is_favorited,priority,is_repeating,num_times_reread,reread_value,tags,comments,updated_at%7D" +
+        "list_status%7Bstatus,score,num_chapters_read,num_volumes_read,start_date,finish_date,is_favorited,priority,is_rereading,num_times_reread,reread_value,tags,comments,updated_at%7D" +
         "&limit=100&nsfw=true"
 
     internal fun buildAnimeListUrl(showAdultContent: Boolean): String =
@@ -131,9 +131,8 @@ object MalImportManager {
         val imageUrl = picture?.optNullableString("large")
             ?: picture?.optNullableString("medium")
 
-        val status = convertMalListStatus(
-            listStatus.optNullableString("status").orEmpty()
-        )
+        val rawStatus = listStatus.optNullableString("status").orEmpty()
+        val status = convertMalListStatus(rawStatus)
 
         val score = listStatus.optInt("score", 0).takeIf { it > 0 }
 
@@ -156,7 +155,20 @@ object MalImportManager {
         }.coerceAtLeast(0)
 
         val priority = listStatus.optInt("priority", 0)
-        val isRepeating = listStatus.optBoolean("is_repeating", false)
+        // MAL API v2 `list_status` alanları: anime için `is_rewatching`, manga için
+        // `is_rereading`. `is_repeating` MAL sözleşmesinde YOKTUR — eskiden bu alan
+        // istendiği için tekrar durumu hiç okunamıyordu (ve geçersiz alan isteği
+        // 400'e yol açabiliyordu). Eski kayıtlarla uyum için yine de okunur.
+        // `rewatching`/`rereading` durum SÖZLERİ (eski MAL v1 / bazı istemciler) ayrı bir
+        // WatchStatus değildir: MAL'da kayıt `watching`/`reading` kalır, tekrar bilgisi
+        // bayrakla taşınır. `WatchStatus.Repeating`e ÇEVİRMEK yanlış olurdu çünkü geri
+        // yazımda MAL `Repeating`i `completed` olarak kodluyor (bkz. MalSyncManager.toMalStatus)
+        // — devam eden bir yapım içe aktarılırken "tamamlandı"ya dönerdi.
+        val isRepeating = listStatus.optBoolean("is_rewatching", false) ||
+            listStatus.optBoolean("is_rereading", false) ||
+            listStatus.optBoolean("is_repeating", false) ||
+            rawStatus.equals("rewatching", ignoreCase = true) ||
+            rawStatus.equals("rereading", ignoreCase = true)
         val repeatCount = if (mediaType == MediaType.Manga) {
             listStatus.optInt("num_times_reread", 0)
         } else {
@@ -172,12 +184,21 @@ object MalImportManager {
         val notes = listStatus.optNullableString("comments")
 
         val tagsJsonArray = listStatus.optJSONArray("tags")
+        // MAL `tags` dizisi sözleşmede düz string listesidir; ancak bazı yanıtlar
+        // {"name": "..."} nesnesi döndürüyor. Nesne gelirse `optString` ham JSON
+        // metnini yazacağı için adı ayrıca okuyoruz.
         val tags = if (tagsJsonArray != null) {
             val list = mutableListOf<String>()
             for (i in 0 until tagsJsonArray.length()) {
-                list.add(tagsJsonArray.optString(i))
+                val element = tagsJsonArray.opt(i)
+                val name = when (element) {
+                    is JSONObject -> element.optNullableString("name")
+                    is String -> element
+                    else -> null
+                }
+                name?.takeIf { it.isNotBlank() }?.let { list.add(it) }
             }
-            list.joinToString(", ")
+            list.joinToString(", ").takeIf { it.isNotBlank() }
         } else null
 
         val isFavorite = listStatus.optBoolean("is_favorited", false)

@@ -508,7 +508,13 @@ object CrossProviderIdentityResolver {
         connected: ConnectedSources = ConnectedSources.All
     ): Boolean = when (entry.type) {
         MediaType.Anime, MediaType.Manga ->
-            (ids.malId != null || !connected.mal) &&
+            // MAL kimliği bağlantı durumundan BAĞIMSIZ olarak zorunludur: diğer beş
+            // kaynağın neredeyse tamamı MAL kimliği üzerinden çözülür ve bu kimlik
+            // sonradan "tamam" işaretli önbellekten bir daha hesaplanmaz. Eskiden MAL
+            // bağlı değilken `malId == null` "tamam" sayılıyordu; kullanıcı MAL'ı
+            // sonradan bağladığında satır önbellekten geldiği için MAL'a hiçbir zaman
+            // yazılmıyordu (sessiz kalıcı kayıp).
+            ids.malId != null &&
                 (ids.aniListId != null || !connected.aniList) &&
                 (ids.kitsuId != null || !connected.kitsu) &&
                 (ids.bangumiSubjectId != null || !connected.bangumi) &&

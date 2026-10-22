@@ -71,6 +71,11 @@ object KitsuImportManager {
                         isPrivate = entry.isPrivate,
                         startDate = entry.startedAt,
                         endDate = entry.finishedAt,
+                        // Kitsu tekrar izlemeyi ayrı durum olarak tutmaz: `status=current`
+                        // + `reconsuming`/`reconsumeCount`. Bunlar okunmadan içe aktarma
+                        // tekrar bilgisini tamamen kaybediyordu (durum yine `Watching`).
+                        isRepeating = entry.reconsuming,
+                        repeatCount = entry.reconsumeCount,
                         updatedAt = entry.updatedAt,
                         // Yıl olmadan kimlik doğrulaması yapılamıyor; aynı isimli yapımlar
                         // çapraz eşitlemede "inceleme gerekli" diye atlanıyordu.

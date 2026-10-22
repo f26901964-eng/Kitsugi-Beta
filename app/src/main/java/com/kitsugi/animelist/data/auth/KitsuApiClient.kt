@@ -126,7 +126,15 @@ object KitsuApiClient {
         /** Başlangıç tarihi, yyyy-MM-dd (`startedAt`). */
         val startedAt: String? = null,
         /** Bitiş tarihi, yyyy-MM-dd (`finishedAt`). */
-        val finishedAt: String? = null
+        val finishedAt: String? = null,
+        /**
+         * Tekrar izleme/okuma sürüyor mu (`reconsuming`). Kitsu'da ayrı bir "rewatching"
+         * durumu yoktur: kayıt `current` kalır ve bu bayrak set edilir (MAL-Sync
+         * `_provider/Kitsu/single.ts` ile aynı model).
+         */
+        val reconsuming: Boolean = false,
+        /** Tamamlanmış tekrar sayısı (`reconsumeCount`). */
+        val reconsumeCount: Int = 0
     )
 
     /**
@@ -417,6 +425,8 @@ object KitsuApiClient {
                     val isPrivate = attrs.optBoolean("private", false)
                     val startedAt = fromKitsuDateTime(if (attrs.isNull("startedAt")) null else attrs.optString("startedAt"))
                     val finishedAt = fromKitsuDateTime(if (attrs.isNull("finishedAt")) null else attrs.optString("finishedAt"))
+                    val reconsuming = attrs.optBoolean("reconsuming", false)
+                    val reconsumeCount = attrs.optInt("reconsumeCount", 0).coerceAtLeast(0)
 
                     val rels = item.optJSONObject("relationships")
                     val animeData = rels?.optJSONObject("anime")?.optJSONObject("data")
@@ -452,7 +462,9 @@ object KitsuApiClient {
                             notes = notes,
                             isPrivate = isPrivate,
                             startedAt = startedAt,
-                            finishedAt = finishedAt
+                            finishedAt = finishedAt,
+                            reconsuming = reconsuming,
+                            reconsumeCount = reconsumeCount
                         )
                     )
                 }

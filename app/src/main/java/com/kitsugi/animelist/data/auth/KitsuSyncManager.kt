@@ -185,7 +185,10 @@ object KitsuSyncManager {
         fun changedAttributes(): org.json.JSONObject = org.json.JSONObject().apply {
             if (SyncField.STATUS in fields) {
                 put("status", status)
-                put("reconsuming", reconsuming)
+                // `reconsuming` yalnızca `current` durumuyla anlamlıdır. Kitsu'da
+                // `completed` + `reconsuming=true` çelişkili bir kayıttır ve bayrak
+                // "tekrar izleniyor" göstergesini kalıcı olarak açık bırakabilir.
+                put("reconsuming", reconsuming && status == "current")
             }
             if (SyncField.PROGRESS in fields) put("progress", entry.progress)
             // PUAN: Kitsu aralığı 2..20 (0/1 geçersiz). Temizleme yalnızca kullanıcı puanı

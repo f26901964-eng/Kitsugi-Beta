@@ -14,7 +14,8 @@ class MalImportManagerUrlTest {
             url = MalImportManager.buildAnimeListUrl(showAdultContent = false),
             path = "/v2/users/@me/animelist",
             adultContent = false,
-            progressField = "num_episodes_watched"
+            progressField = "num_episodes_watched",
+            rewatchField = "is_rewatching"
         )
     }
 
@@ -24,7 +25,8 @@ class MalImportManagerUrlTest {
             url = MalImportManager.buildMangaListUrl(showAdultContent = true),
             path = "/v2/users/@me/mangalist",
             adultContent = true,
-            progressField = "num_chapters_read"
+            progressField = "num_chapters_read",
+            rewatchField = "is_rereading"
         )
     }
 
@@ -32,7 +34,8 @@ class MalImportManagerUrlTest {
         url: String,
         path: String,
         adultContent: Boolean,
-        progressField: String
+        progressField: String,
+        rewatchField: String
     ) {
         // This was the failing point during cross-account sync: raw `{` / `}` in the query
         // caused java.net.URI to throw "Illegal character in query" before the HTTP request.
@@ -47,6 +50,10 @@ class MalImportManagerUrlTest {
         val fields = requireNotNull(httpUrl.queryParameter("fields"))
         assertTrue(fields.contains("list_status{"))
         assertTrue(fields.contains(progressField))
+        // MAL API v2 `list_status` tekrar bayrakları anime/manga için FARKLI adlanır;
+        // `is_repeating` diye bir alan yoktur (400 döner).
+        assertTrue(fields.contains(rewatchField))
+        assertFalse(fields.contains("is_repeating"))
         assertTrue(fields.endsWith("}"))
         assertEquals("100", httpUrl.queryParameter("limit"))
         assertEquals(adultContent.toString(), httpUrl.queryParameter("nsfw"))

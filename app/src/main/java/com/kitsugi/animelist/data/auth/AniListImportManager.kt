@@ -113,6 +113,7 @@ object AniListImportManager {
                         private
                         notes
                         repeat
+                        priority
                         hiddenFromStatusLists
                         updatedAt
                         startedAt {
@@ -251,6 +252,10 @@ object AniListImportManager {
                 val endDate = item.optJSONObject("completedAt").toLocalDateString()
 
                 val isPrivate = item.optBoolean("private", false)
+                // AniList `priority` 0..255 (0 = yok). Sorgulanmadığı için öncelik bilgisi
+                // içe aktarmada tamamen kayboluyordu; alan `SyncField.PRIORITY` ile
+                // yazılabildiği hâlde okunmuyordu.
+                val priority = item.optInt("priority", 0).takeIf { it > 0 }
                 val notes = item.optNullableString("notes")
                 val repeatCount = item.optInt("repeat", 0)
                 val volumeProgress = item.optInt("progressVolumes", 0)
@@ -286,8 +291,14 @@ object AniListImportManager {
                     endDate = endDate,
                     notes = notes,
                     isPrivate = isPrivate,
+                    priority = priority,
                     isHiddenFromStatusLists = isHiddenFromStatusLists,
-                    isRepeating = repeatCount > 0,
+                    // `isRepeating` UI'da "Yeniden İzleniyor/Okunuyor" anahtarıdır, "geçmişte
+                    // tekrar yapıldı" anlamına GELMEZ. `repeat` sayısı > 0 olan her kaydı
+                    // tekrar-ediliyor saymak, MAL'a `is_rewatching=1`, Kitsu'ya
+                    // `reconsuming=true` yazılmasına ve kullanıcının bitmiş yapımlarının
+                    // "şu an tekrar izleniyor" görünmesine yol açıyordu.
+                    isRepeating = item.optNullableString("status") == "REPEATING",
                     repeatCount = repeatCount,
                     volumeProgress = volumeProgress,
                     updatedAt = updatedAt,
@@ -364,6 +375,10 @@ object AniListImportManager {
             "DROPPED" -> WatchStatus.Dropped
             "PLANNING" -> WatchStatus.Planned
             "PAUSED" -> WatchStatus.Paused
+            // AniList'in `REPEATING` durumu vardır ve MAL/Kitsu'dan farklı olarak ayrı bir
+            // durumdur. Eşlenmediği için "tekrar izleniyor" kayıtları `Planned` olarak
+            // içe aktarılıyordu (yani kütüphanede "planlandı" görünüyordu).
+            "REPEATING" -> WatchStatus.Repeating
             else -> WatchStatus.Planned
         }
     }
