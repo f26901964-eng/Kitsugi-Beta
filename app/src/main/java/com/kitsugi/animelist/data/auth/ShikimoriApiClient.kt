@@ -832,7 +832,8 @@ object ShikimoriApiClient {
         targetId: Int, // MAL ID
         targetType: String, // "Anime" veya "Manga"
         status: String,
-        score: Int,
+        /** `null` = puana DOKUNMA (0 göndermek Shikimori'deki puanı siler). */
+        score: Int?,
         progress: Int,
         text: String? = null,
         rewatches: Int? = null,
@@ -844,7 +845,7 @@ object ShikimoriApiClient {
                 put("target_id", targetId)
                 put("target_type", targetType)
                 put("status", status)
-                put("score", score.coerceIn(0, 10))
+                score?.let { put("score", it.coerceIn(0, 10)) }
                 if (targetType == "Anime") put("episodes", progress)
                 else put("chapters", progress)
                 text?.takeIf { it.isNotBlank() }?.let { put("text", it) }
@@ -870,6 +871,31 @@ object ShikimoriApiClient {
                 null
             }
         }
+    }
+
+    /**
+     * Shikimori liste kaydına YALNIZCA verilen alanları yazar (`PATCH /api/v2/user_rates/{id}`).
+     *
+     * Alan bazlı eşitlemenin temeli: gönderilmeyen alan Shikimori'de değişmez. `score` 0
+     * göndermek kayıtlı puanı siler; bu yüzden puan yalnızca kullanıcı gerçekten
+     * değiştirdiğinde gönderilir.
+     */
+    suspend fun patchUserRate(
+        token: String,
+        rateId: Int,
+        attributes: JSONObject
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (attributes.length() == 0) return@withContext true
+        val payload = JSONObject().put("user_rate", attributes)
+        val request = Request.Builder()
+            .url("$BASE_URL/api/v2/user_rates/$rateId")
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", "Bearer $token")
+            .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+
+        executeShikimori(request).use { response -> response.isSuccessful }
     }
 
     /**

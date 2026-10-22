@@ -47,6 +47,8 @@ object ExternalListSyncManager {
     internal const val OUTCOME_NOT_CONNECTED = "bağlı değil"
     internal const val OUTCOME_FAILED = "hata"
     internal const val OUTCOME_TIMEOUT = "zaman aşımı"
+    /** Değişen alan yok: hedefe istek atılmadı (veri kaybını önleyen "dokunma" kuralı). */
+    internal const val OUTCOME_UP_TO_DATE = "değişiklik yok"
 
     /** Bangumi yazması çağrıda zaten yapıldı (`skipBangumiWrite`). */
     internal const val OUTCOME_WRITTEN_BY_CALLER = "çağıran yazdı"
@@ -84,8 +86,17 @@ object ExternalListSyncManager {
         val isBangumiRow: Boolean,
         val enabled: Map<String, Boolean>,
         val tokens: Map<String, String?>,
-        val verdictBlocked: Boolean
+        val verdictBlocked: Boolean,
+        /**
+         * Bu turda DEĞİŞEN alanlar. Sağlayıcı yalnızca kendi desteklediği alanları yazar;
+         * böylece hedefteki (uygulama dışında girilmiş) puan/not/tarih EZİLMEZ.
+         * bkz. [SyncField], [SyncFieldDiff], [ProviderCapabilitiesCatalog].
+         */
+        val fields: Set<SyncField>
     ) {
+        /** Bu sağlayıcıya yazılacak alanlar (desteklenmeyenler süzülür). */
+        fun fieldsFor(provider: String): Set<SyncField> = fields.narrowTo(provider)
+
         fun isOn(key: String): Boolean = enabled[key] == true
         fun token(key: String): String? = tokens[key]
 
@@ -127,9 +138,14 @@ object ExternalListSyncManager {
         context: Context,
         entry: MediaEntry,
         advancedScores: List<Double>? = null,
-        skipBangumiWrite: Boolean = false
+        skipBangumiWrite: Boolean = false,
+        /**
+         * Yerel satırda DEĞİŞEN alanlar ([SyncFieldDiff.between]). Varsayılan [SyncField.ALL]
+         * "tam yazım"dır ve yalnızca yeni kayıt/kuyruk yeniden denemesi için doğrudur.
+         */
+        fields: Set<SyncField> = SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
-        val prepared = prepare(context, entry, advancedScores, skipBangumiWrite)
+        val prepared = prepare(context, entry, advancedScores, skipBangumiWrite, fields)
         val run = prepared.run
 
         // ── EŞZAMANLI YAYILIM: altı kaynak aynı anda, birbirini beklemeden ──────────
@@ -169,7 +185,8 @@ object ExternalListSyncManager {
         context: Context,
         entry: MediaEntry,
         advancedScores: List<Double>?,
-        skipBangumiWrite: Boolean
+        skipBangumiWrite: Boolean,
+        fields: Set<SyncField> = SyncField.ALL
     ): Prepared {
         val skipped = mutableListOf<String>()
         val errors = mutableListOf<String>()
@@ -285,7 +302,8 @@ object ExternalListSyncManager {
                     "shikimori" to shikimoriToken,
                     "bangumi" to bangumiToken
                 ),
-                verdictBlocked = verdictBlocked
+                verdictBlocked = verdictBlocked,
+                fields = fields
             ),
             skipped = skipped,
             errors = errors
@@ -319,6 +337,10 @@ object ExternalListSyncManager {
             !run.allows("anilist") -> return identitySkip(run, ANILIST)
         }
 
+        val fields = run.fieldsFor("anilist")
+        // Değişen alan yoksa istek atılmaz: hedefte uygulama dışında girilmiş puan/not ezilmesin.
+        if (fields.isEmpty()) return SourceResult(ANILIST, OUTCOME_UP_TO_DATE)
+
         val update = runSyncCatching {
             PlatformRateLimiter.acquire("anilist")
             AniListSyncManager.updateAniListEntry(
@@ -327,7 +349,8 @@ object ExternalListSyncManager {
                 advancedScores = run.advancedScores,
                 context = context,
                 knownAniListMediaId = run.identity.aniListId,
-                knownMalId = run.identity.malId
+                knownMalId = run.identity.malId,
+                fields = fields
             )
         }
 
@@ -364,7 +387,10 @@ object ExternalListSyncManager {
             return SourceResult(ANILIST, OUTCOME_SKIPPED_IDENTITY, skipped = skipped)
         }
 
-        // AniList favori durumu senkronizasyonu
+        // AniList favori durumu senkronizasyonu (yalnızca favori alanı değiştiyse)
+        if (SyncField.FAVORITE !in fields) {
+            return SourceResult(ANILIST, OUTCOME_SYNCED, synced = true, aniListEntryId = entryId, skipped = skipped)
+        }
         runSyncCatching {
             val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(
                 token, run.remoteEntry, context,
@@ -428,9 +454,11 @@ object ExternalListSyncManager {
             )
         }
 
+        val fields = run.fieldsFor("mal")
+        if (fields.isEmpty()) return SourceResult(MAL, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("mal")
-            MalSyncManager.updateMalEntry(token = token, entry = run.remoteEntry, context = context)
+            MalSyncManager.updateMalEntry(token = token, entry = run.remoteEntry, context = context, fields = fields)
         }.fold(
             onSuccess = { SourceResult(MAL, OUTCOME_SYNCED, synced = true) },
             onFailure = { error ->
@@ -451,9 +479,15 @@ object ExternalListSyncManager {
             !run.allows("simkl") -> return identitySkip(run, SIMKL)
         }
 
+        val fields = run.fieldsFor("simkl")
+        if (fields.isEmpty()) return SourceResult(SIMKL, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("simkl")
-            SimklSyncManager.syncEntryToSimkl(context, run.remoteEntry, knownMalId = run.identity.malId)
+            SimklSyncManager.syncEntryToSimkl(
+                context, run.remoteEntry,
+                knownMalId = run.identity.malId,
+                fields = fields
+            )
         }.fold(
             onSuccess = { result ->
                 when {
@@ -482,12 +516,15 @@ object ExternalListSyncManager {
             !run.allows("kitsu") -> return identitySkip(run, KITSU)
         }
 
+        val fields = run.fieldsFor("kitsu")
+        if (fields.isEmpty()) return SourceResult(KITSU, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("kitsu")
             KitsuSyncManager.syncEntryToKitsu(
                 context = context,
                 entry = run.remoteEntry,
-                knownKitsuMediaId = run.identity.kitsuId
+                knownKitsuMediaId = run.identity.kitsuId,
+                fields = fields
             )
         }.fold(
             onSuccess = { result ->
@@ -531,9 +568,15 @@ object ExternalListSyncManager {
             run.remoteEntry
         }
 
+        val fields = run.fieldsFor("shikimori")
+        if (fields.isEmpty()) return SourceResult(SHIKIMORI, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("shikimori")
-            ShikimoriSyncManager.syncEntryToShikimori(context, shikimoriEntry, knownMalId = run.identity.malId)
+            ShikimoriSyncManager.syncEntryToShikimori(
+                context, shikimoriEntry,
+                knownMalId = run.identity.malId,
+                fields = fields
+            )
         }.fold(
             onSuccess = { result ->
                 when {
@@ -560,6 +603,8 @@ object ExternalListSyncManager {
             !run.allows("bangumi") -> return identitySkip(run, BANGUMI)
         }
 
+        val fields = run.fieldsFor("bangumi")
+        if (fields.isEmpty()) return SourceResult(BANGUMI, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("bangumi")
             BangumiSyncManager.syncEntryToBangumi(
@@ -567,7 +612,8 @@ object ExternalListSyncManager {
                 // Bangumi satırları kendi stableId'siyle yazılır; çözülen subject kimliği
                 // çağrıya ayrı olarak verilir.
                 entry = run.entry,
-                knownSubjectId = run.identity.bangumiSubjectId
+                knownSubjectId = run.identity.bangumiSubjectId,
+                fields = fields
             )
         }.fold(
             onSuccess = { result ->
@@ -600,7 +646,7 @@ object ExternalListSyncManager {
         // siliniyorsa (daha önce hiç yayılmamış içe aktarım satırı gibi) kimlik daha önce
         // çözülmemiş olabilir ve eski "ağ araması yok" kuralı yalnızca satırın kendi
         // kaynağından silinmesine izin veriyor, diğer kaynaklarda hayalet kayıt kalıyordu.
-        val prepared = prepare(context, entry, advancedScores = null, skipBangumiWrite = false)
+        val prepared = prepare(context, entry, advancedScores = null, skipBangumiWrite = false, fields = SyncField.ALL)
         val run = prepared.run
 
         val results = coroutineScope {

@@ -34,18 +34,27 @@ object SimklSyncManager {
         "watching", "reading", "rewatching" -> WatchStatus.Watching
         "completed"                         -> WatchStatus.Completed
         "hold", "on_hold", "paused"         -> WatchStatus.Paused
-        "dropped"                           -> WatchStatus.Dropped
+        "dropped", "notinteresting"         -> WatchStatus.Dropped
         "plantowatch", "plan_to_watch", "planning" -> WatchStatus.Planned
         else                                -> WatchStatus.Planned
     }
 
-    /** Uygulama WatchStatus'unu Simkl status string'ine çevirir (NyanTV alStatusToSimkl referans) */
+    /**
+     * Uygulama WatchStatus'unu Simkl status string'ine çevirir.
+     *
+     * ÖNEMLİ: Simkl'in `/sync/add-to-list` sözleşmesinde izinli `to` değerleri
+     * `watching | plantowatch | completed | notinteresting | hold` şeklindedir —
+     * `dropped` GEÇERLİ DEĞİLDİR (bırakılanlar `notinteresting` altında tutulur).
+     * Eskiden "dropped" gönderiliyordu; Simkl isteği reddediyor ve bırakılan kayıt
+     * hiçbir listeye girmiyordu. MAL-Sync `_provider/Simkl/helper.ts` de aynı eşlemeyi
+     * kullanır. Tekrar (rewatch) Simkl'de DESTEKLENMEZ: "watching" olarak yazılır.
+     */
     fun watchStatusToSimkl(status: WatchStatus?, mediaType: MediaType? = null): String {
         val s = when (status) {
             WatchStatus.Watching, WatchStatus.Repeating -> "watching"
             WatchStatus.Completed -> "completed"
             WatchStatus.Paused    -> "hold"
-            WatchStatus.Dropped   -> "dropped"
+            WatchStatus.Dropped   -> "notinteresting"
             WatchStatus.Planned   -> "plantowatch"
             else                  -> "plantowatch"
         }
@@ -53,7 +62,7 @@ object SimklSyncManager {
             when (s) {
                 "watching", "completed" -> "completed"
                 "hold", "plantowatch"   -> "plantowatch"
-                "dropped"               -> "dropped"
+                "notinteresting"        -> "notinteresting"
                 else                    -> "plantowatch"
             }
         } else {
@@ -351,7 +360,13 @@ object SimklSyncManager {
          * `source = "shikimori"` vb. satırların çözülmüş MAL kopyası ham kimlik sanılıp
          * düşürülmesin. bkz. [realMalIdOf].
          */
-        knownMalId: Int? = null
+        knownMalId: Int? = null,
+        /**
+         * Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField]). Simkl'de desteklenmeyen alanlar
+         * (tarih, cilt, tekrar sayısı) hiç gönderilmez; puan yalnızca değiştiyse yazılır —
+         * aksi halde yerel puan boşken `removeRating` çağrılıp **Simkl puanı siliniyordu**.
+         */
+        fields: Set<SyncField> = SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
@@ -424,7 +439,8 @@ object SimklSyncManager {
         // anime kayıtlarında reddediliyor ya da yanlış bölüm işaretleniyordu. Dizi (TV)
         // ilerlemesi sezon kataloğu olmadan gönderilmez (toplu hatla aynı kural, sessiz atlama).
         val progress = entry.progress
-        if (progress > 0 && entry.type == MediaType.Anime) {
+        val writeAll = fields == SyncField.ALL
+        if (progress > 0 && entry.type == MediaType.Anime && (writeAll || SyncField.PROGRESS in fields)) {
             runCatching {
                 simklApiClient.historyBatchReceipt(
                     token,
@@ -462,7 +478,8 @@ object SimklSyncManager {
 
         // 2. Puanı Simkl'e yaz (POST /sync/ratings)
         val score = entry.score
-        if (score != null && score > 0 && effectiveSimklId > 0) {
+        val scoreChanged = writeAll || SyncField.SCORE in fields
+        if (scoreChanged && score != null && score > 0 && effectiveSimklId > 0) {
             val normalizedRating = if (score > 10) {
                 kotlin.math.round(score / 10.0).toInt().coerceIn(1, 10)
             } else {
@@ -477,7 +494,7 @@ object SimklSyncManager {
                 errors.add(context.getString(R.string.simkl_sync_rating_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
                 Log.e(TAG, "syncEntryToSimkl setRating hatası", e)
             }
-        } else if ((score == null || score == 0) && effectiveSimklId > 0) {
+        } else if (scoreChanged && (score == null || score == 0) && effectiveSimklId > 0) {
             // Puan silinmişse kaldır. Yalnız 4xx (zaten puan yok) sessiz sayılır;
             // taşıma/5xx/401 hataları kuyruğa girer ki "puanı sil" işlemi kaybolmasın.
             runCatching {
@@ -493,7 +510,8 @@ object SimklSyncManager {
         // durum son sözü söyler (toplu hatla aynı sıra). Makbuz ayrıştırılır: `not_found`
         // (medya Simkl kataloğunda yok) hata değil atlamadır; yalnızca taşıma/HTTP
         // başarısızlıkları gerçek hatadır ve yeniden denemeyi haklı çıkarır.
-        runCatching {
+        val listWriteSkipped = !(writeAll || SyncField.STATUS in fields)
+        if (!listWriteSkipped) runCatching {
             simklApiClient.addToListBatchDetailed(
                 token = token,
                 entries = listOf(

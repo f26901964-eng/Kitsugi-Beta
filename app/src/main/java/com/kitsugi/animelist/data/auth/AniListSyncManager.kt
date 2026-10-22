@@ -39,7 +39,16 @@ object AniListSyncManager {
          * MAL kimliği buradan verilir; AniList yanıtındaki `idMal` alanı bunu yine de
          * teyit etmek zorundadır.
          */
-        knownMalId: Int? = null
+        knownMalId: Int? = null,
+        /**
+         * Yerel satırda DEĞİŞEN alanlar. Yeni kayıt oluşturulurken ([existingEntryId] yok)
+         * her zaman tam yazım yapılır; mevcut kayıtta yalnızca değişen alanlar gönderilir.
+         *
+         * Önemli: AniList `scoreRaw: null` (açıkça null) gönderimini **reddeder**
+         * ("The score raw must be an integer") — alan hiç gönderilmemelidir. Ayrıca
+         * gönderilmeyen her alan AniList'te olduğu gibi kalır.
+         */
+        fields: Set<SyncField> = SyncField.ALL
     ): Int? {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_anilist_type_unsupported)
@@ -125,33 +134,47 @@ object AniListSyncManager {
             }
         """.trimIndent()
 
+        // Yeni kayıt: hedefte korunacak veri yok → tam yazım. Mevcut kayıt: yalnız değişen alanlar.
+        val writeAll = existingEntryId == null || fields == SyncField.ALL
+
         val variables = JSONObject()
         if (existingEntryId != null) {
             variables.put("id", existingEntryId)
         } else {
             variables.put("mediaId", mediaId)
         }
-        variables
-            .put("status", entry.status.toAniListStatus())
-            .put("progress", entry.progress)
-            .put("progressVolumes", entry.volumeProgress)
-            .put("private", entry.isPrivate)
-            .put("notes", entry.notes ?: "")
-            .put("repeat", entry.repeatCount)
-            .put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
+        if (writeAll || SyncField.STATUS in fields) variables.put("status", entry.status.toAniListStatus())
+        if (writeAll || SyncField.PROGRESS in fields) variables.put("progress", entry.progress)
+        if (writeAll || SyncField.VOLUME_PROGRESS in fields) variables.put("progressVolumes", entry.volumeProgress)
+        if (writeAll || SyncField.PRIVATE in fields) variables.put("private", entry.isPrivate)
+        if (writeAll || SyncField.NOTES in fields) variables.put("notes", entry.notes ?: "")
+        if (writeAll || SyncField.REWATCH_COUNT in fields) variables.put("repeat", entry.repeatCount)
+        if (writeAll) variables.put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
 
-        if (scoreRaw != null) {
+        // `scoreRaw: null` AniList tarafından reddedilir → yalnız gerçekten değer varken gönder.
+        // Puan temizlendiyse 0 gönderilir (AniList'te 0 = puan yok).
+        if ((writeAll || SyncField.SCORE in fields) && scoreRaw != null) {
             variables.put("scoreRaw", scoreRaw)
+        } else if (!writeAll && SyncField.SCORE in fields) {
+            variables.put("scoreRaw", 0)
         }
 
-        val startedAt = entry.startDate.toAniListFuzzyDate()
-        if (startedAt != null) {
-            variables.put("startedAt", startedAt)
+        // FuzzyDate alanları: gönderilmezse AniList'teki tarih korunur. Temizlemek için
+        // {year: null, month: null, day: null} gerekir.
+        if (SyncField.START_DATE in fields || writeAll) {
+            val startedAt = entry.startDate.toAniListFuzzyDate()
+            when {
+                startedAt != null -> variables.put("startedAt", startedAt)
+                // Kullanıcı tarihi SİLDİYSE hedefte de silinmeli (yalnızca diff bunu söyler).
+                !writeAll -> variables.put("startedAt", clearedFuzzyDate())
+            }
         }
-
-        val completedAt = entry.endDate.toAniListFuzzyDate()
-        if (completedAt != null) {
-            variables.put("completedAt", completedAt)
+        if (SyncField.END_DATE in fields || writeAll) {
+            val completedAt = entry.endDate.toAniListFuzzyDate()
+            when {
+                completedAt != null -> variables.put("completedAt", completedAt)
+                !writeAll -> variables.put("completedAt", clearedFuzzyDate())
+            }
         }
 
         if (advancedScores != null) {
@@ -1003,6 +1026,12 @@ object AniListSyncManager {
             WatchStatus.Repeating -> "REPEATING"
         }
     }
+
+    /** Tarihi temizlemek için: tüm bileşenler null (AniList "boş tarih" olarak yorumlar). */
+    private fun clearedFuzzyDate(): JSONObject = JSONObject()
+        .put("year", JSONObject.NULL)
+        .put("month", JSONObject.NULL)
+        .put("day", JSONObject.NULL)
 
     private fun String?.toAniListFuzzyDate(): JSONObject? {
         // Boş tarih = değişken hiç gönderilmez. Eskiden {0,0,0} gönderiliyordu; AniList bunu

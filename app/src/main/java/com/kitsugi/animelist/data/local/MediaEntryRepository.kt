@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.local
 import com.kitsugi.animelist.data.auth.runSyncCatching
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
+import com.kitsugi.animelist.data.auth.SyncField
+import com.kitsugi.animelist.data.auth.SyncFieldDiff
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -218,6 +220,15 @@ class MediaEntryRepository(
         skipBangumiWrite: Boolean = false
     ) {
         val entryWithTime = entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+        // ── Alan bazlı fark ────────────────────────────────────────────────────────
+        // Hangi alanların gerçekten değiştiğini DB'deki ÖNCEKİ hâlle karşılaştırarak buluruz.
+        // Uzak hedeflere yalnızca bu alanlar yazılır; hedefte uygulama dışında girilmiş
+        // puan/not/tarih böylece EZİLMEZ (bkz. [SyncField], [SyncFieldDiff]).
+        val previous = if (entry.id > 0) {
+            runSyncCatching { dao.getById(entry.id)?.toDomain() }.getOrNull()
+        } else null
+        val changedFields = SyncFieldDiff.between(previous, entryWithTime)
+
         dao.update(
             entryWithTime.toEntity()
         )
@@ -226,7 +237,7 @@ class MediaEntryRepository(
         mirrorUserFieldsToSiblings(entryWithTime)
 
         if (syncExternal) {
-            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite)
+            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields)
         }
     }
 
@@ -369,7 +380,9 @@ class MediaEntryRepository(
     private suspend fun syncEntryIfPossible(
         entry: MediaEntry,
         advancedScores: List<Double>? = null,
-        skipBangumiWrite: Boolean = false
+        skipBangumiWrite: Boolean = false,
+        /** Uzak hedeflere yazılacak alanlar; boş küme "hiçbir şey değişmedi" demektir. */
+        fields: Set<SyncField> = SyncField.ALL
     ) {
         val appContext = context ?: return
         // Senkronizasyon için geçerli koşullar:
@@ -389,7 +402,8 @@ class MediaEntryRepository(
                 context = appContext,
                 entry = entry,
                 advancedScores = advancedScores,
-                skipBangumiWrite = skipBangumiWrite
+                skipBangumiWrite = skipBangumiWrite,
+                fields = fields
             )
         }
 

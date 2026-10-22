@@ -313,11 +313,16 @@ class SimklSyncRepository(
         }
     }
 
+    /**
+     * Simkl `/sync/add-to-list` izinli `to` değerleri: watching | plantowatch | completed |
+     * notinteresting | hold. `dropped` GEÇERSİZDİR — bırakılan kayıtlar `notinteresting`
+     * altına yazılır (MAL-Sync `_provider/Simkl/helper.ts` ile aynı).
+     */
     private fun watchStatusToSimkl(status: WatchStatus): String = when (status) {
         WatchStatus.Watching   -> "watching"
         WatchStatus.Completed  -> "completed"
         WatchStatus.Planned    -> "plantowatch"
-        WatchStatus.Dropped    -> "dropped"
+        WatchStatus.Dropped    -> "notinteresting"
         WatchStatus.Paused     -> "hold"
         WatchStatus.Repeating  -> "watching"
     }

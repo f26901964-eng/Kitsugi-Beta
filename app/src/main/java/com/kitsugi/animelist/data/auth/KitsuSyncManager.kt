@@ -132,7 +132,9 @@ object KitsuSyncManager {
     suspend fun syncEntryToKitsu(
         context: Context,
         entry: MediaEntry,
-        knownKitsuMediaId: Int? = null
+        knownKitsuMediaId: Int? = null,
+        /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField], [ProviderCapabilitiesCatalog]). */
+        fields: Set<SyncField> = SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
@@ -161,13 +163,45 @@ object KitsuSyncManager {
 
         val status = watchStatusToKitsu(entry.status)
         val ratingTwenty = SyncScores.kitsuTwenty(entry.score)
+        // Tekrar: Kitsu'da ayrı durum yok → status=current + reconsuming/reconsumeCount.
+        val reconsuming = entry.status == WatchStatus.Repeating || entry.isRepeating
         // Tarih / not / gizlilik: yalnızca dolu değerler gönderilir (boş alan uzaktaki değeri silmez).
         val kitsuExtras = KitsuApiClient.KitsuEntryExtras(
             startedAt = KitsuApiClient.toKitsuDateTime(entry.startDate),
             finishedAt = KitsuApiClient.toKitsuDateTime(entry.endDate),
             notes = entry.notes?.takeIf { it.isNotBlank() },
-            isPrivate = entry.isPrivate
+            isPrivate = entry.isPrivate,
+            reconsuming = reconsuming,
+            reconsumeCount = entry.repeatCount
         )
+
+        /**
+         * Güncelleme yolunda YALNIZCA değişen attribute'lar gönderilir. Gönderilmeyen alan
+         * Kitsu'da korunur; bu, "yerel puan boş → Kitsu puanını sil" hatasını kapatır.
+         * (MAL-Sync `SingleAbstract.getStateDiff` ile aynı yaklaşım.)
+         */
+        fun changedAttributes(): org.json.JSONObject = org.json.JSONObject().apply {
+            if (SyncField.STATUS in fields) {
+                put("status", status)
+                put("reconsuming", reconsuming)
+            }
+            if (SyncField.PROGRESS in fields) put("progress", entry.progress)
+            if (SyncField.SCORE in fields) {
+                // Puan temizlendiyse Kitsu'da null YAZILMALI (0/1 geçersiz: aralık 2..20).
+                put("ratingTwenty", ratingTwenty ?: org.json.JSONObject.NULL)
+            }
+            if (SyncField.REWATCH_COUNT in fields) put("reconsumeCount", entry.repeatCount)
+            if (SyncField.START_DATE in fields) {
+                put("startedAt", KitsuApiClient.toKitsuDateTime(entry.startDate) ?: org.json.JSONObject.NULL)
+            }
+            if (SyncField.END_DATE in fields) {
+                put("finishedAt", KitsuApiClient.toKitsuDateTime(entry.endDate) ?: org.json.JSONObject.NULL)
+            }
+            if (SyncField.NOTES in fields) {
+                put("notes", entry.notes?.takeIf { it.isNotBlank() } ?: org.json.JSONObject.NULL)
+            }
+            if (SyncField.PRIVATE in fields) put("private", entry.isPrivate)
+        }
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
@@ -199,14 +233,15 @@ object KitsuSyncManager {
         }
 
         if (existingEntryId != null) {
+            val attributes = changedAttributes()
+            // Uzunluk sınırı yalnızca ilerleme yazarken tetiklenebilir; attributes'ı o an kopyalarız.
+            if (SyncField.PROGRESS in fields) attributes.put("progress", entry.progress)
             val result = writeWithLengthGuard { p ->
-                KitsuApiClient.updateLibraryEntryDetailed(
+                if (SyncField.PROGRESS in fields) attributes.put("progress", p)
+                KitsuApiClient.patchLibraryEntry(
                     token = token,
                     entryId = existingEntryId,
-                    status = status,
-                    progress = p,
-                    ratingTwenty = ratingTwenty,
-                    extras = kitsuExtras
+                    attributes = attributes
                 )
             }
             if (result.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
@@ -234,14 +269,13 @@ object KitsuSyncManager {
                 }.getOrNull()
                 if (fallbackId != null) {
                     ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, fallbackId)
+                    val fallbackAttributes = changedAttributes()
                     val updated = writeWithLengthGuard { p ->
-                        KitsuApiClient.updateLibraryEntryDetailed(
+                        if (SyncField.PROGRESS in fields) fallbackAttributes.put("progress", p)
+                        KitsuApiClient.patchLibraryEntry(
                             token = token,
                             entryId = fallbackId,
-                            status = status,
-                            progress = p,
-                            ratingTwenty = ratingTwenty,
-                            extras = kitsuExtras
+                            attributes = fallbackAttributes
                         )
                     }
                     if (updated.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())

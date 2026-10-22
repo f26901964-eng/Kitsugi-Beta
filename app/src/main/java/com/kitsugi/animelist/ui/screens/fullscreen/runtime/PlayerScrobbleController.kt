@@ -95,7 +95,13 @@ class PlayerScrobbleController(
                 // kaynak başına zaman aşımı, kimlik kapısı) burada da kullanılır.
                 val outcome = com.kitsugi.animelist.data.auth.ExternalListSyncManager.syncEntry(
                     context = context,
-                    entry = updatedEntry
+                    entry = updatedEntry,
+                    // Yalnızca İLERLEME (+ gerekiyorsa durum) yazılır: oynatıcı puan/not/tarihe
+                    // dokunmaz, hedeflerdeki bu alanlar korunur.
+                    fields = setOf(
+                        com.kitsugi.animelist.data.auth.SyncField.PROGRESS,
+                        com.kitsugi.animelist.data.auth.SyncField.STATUS
+                    )
                 )
                 val aniListEntryId = outcome.aniListEntryId
                 if (aniListEntryId != null) {

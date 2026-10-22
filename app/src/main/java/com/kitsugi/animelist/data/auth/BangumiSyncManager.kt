@@ -90,7 +90,9 @@ object BangumiSyncManager {
          * Çapraz eşitlemenin [CrossProviderIdentityResolver] ile önceden çözdüğü `subject_id`.
          * Verildiğinde tekrar arama yapılmaz; verilmediğinde [resolveSubjectId] kendi zincirini işletir.
          */
-        knownSubjectId: Int? = null
+        knownSubjectId: Int? = null,
+        /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField]). */
+        fields: Set<SyncField> = SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!supportsMediaType(entry.type)) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_media_type_unsupported)))
@@ -119,25 +121,74 @@ object BangumiSyncManager {
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        // 1) Durum + puan + görünürlük: tek upsert isteği.
-        //    ep_status yalnızca kitap条目'larında anlamlı olduğu için anime'de burada GÖNDERİLMEZ.
-        val writeError = writeWithAuthRetry(context, subjectId) { activeToken ->
-            BangumiApiClient.upsertCollection(
-                token = activeToken,
-                subjectId = subjectId,
-                type = status,
-                rate = rate,
-                epStatus = if (isBook) progress.takeIf { it > 0 } else null,
-                volStatus = if (isBook) entry.volumeProgress.takeIf { it > 0 } else null,
-                // Not ve etiketler yalnızca doluysa gönderilir (boş alan uzaktaki notu silmez).
-                // Sunucu kuralı: not ≤380 karakter, etiket ≤10 adet, her etiket ≥2 karakter ve
-                // boşluksuz — kural dışı tek değer TÜM isteği 400 yaptığı için burada süzülür.
-                comment = BangumiApiClient.sanitizeCommentForWrite(entry.notes),
-                private = entry.isPrivate,
-                tags = BangumiApiClient.sanitizeTagsForWrite(
-                    entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
-                )
+        // 1) Durum + puan + görünürlük.
+        //    ep_status yalnızca kitap kayıtlarında anlamlı olduğu için anime'de burada GÖNDERİLMEZ.
+        //
+        //    Alan bazlı yazım: gönderilmeyen alan Bangumi'de DEĞİŞMEZ. Durum değişmediyse
+        //    `patchCollection` (PATCH) kullanılır; kayıt hiç yoksa 404 döner ve aşağıda
+        //    upsert'e düşülür. Böylece yalnızca puan düzenlendiğinde koleksiyon durumu
+        //    yeniden yazılmaz (uygulama dışında yapılan durum değişikliği ezilmez).
+        //
+        //    Sunucu kuralı: not ≤380 karakter, etiket ≤10 adet, her etiket ≥2 karakter ve
+        //    boşluksuz — kural dışı tek değer TÜM isteği 400 yaptığı için burada süzülür.
+        val writeAll = fields == SyncField.ALL || SyncField.STATUS in fields
+        val rateArg = if (writeAll || SyncField.SCORE in fields) rate else null
+        val epArg = if (isBook && (writeAll || SyncField.PROGRESS in fields)) progress.takeIf { it > 0 } else null
+        val volArg = if (isBook && (writeAll || SyncField.VOLUME_PROGRESS in fields)) {
+            entry.volumeProgress.takeIf { it > 0 }
+        } else null
+        val commentArg = if (writeAll || SyncField.NOTES in fields) {
+            BangumiApiClient.sanitizeCommentForWrite(entry.notes)
+        } else null
+        val privateArg = if (writeAll || SyncField.PRIVATE in fields) entry.isPrivate else null
+        val tagsArg = if (writeAll || SyncField.TAGS in fields) {
+            BangumiApiClient.sanitizeTagsForWrite(
+                entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
             )
+        } else null
+
+        val writeError = writeWithAuthRetry(context, subjectId) { activeToken ->
+            if (writeAll) {
+                BangumiApiClient.upsertCollection(
+                    token = activeToken,
+                    subjectId = subjectId,
+                    type = status,
+                    rate = rateArg,
+                    epStatus = epArg,
+                    volStatus = volArg,
+                    comment = commentArg,
+                    private = privateArg,
+                    tags = tagsArg
+                )
+            } else {
+                val patched = runSyncCatching {
+                    BangumiApiClient.patchCollection(
+                        token = activeToken,
+                        subjectId = subjectId,
+                        type = null,
+                        rate = rateArg,
+                        epStatus = epArg,
+                        volStatus = volArg,
+                        comment = commentArg,
+                        private = privateArg,
+                        tags = tagsArg
+                    )
+                }
+                // Koleksiyonda kayıt yoksa (404) tam upsert'e düş: kayıt oluşturulmalı.
+                if (patched.isFailure) {
+                    BangumiApiClient.upsertCollection(
+                        token = activeToken,
+                        subjectId = subjectId,
+                        type = status,
+                        rate = rateArg,
+                        epStatus = epArg,
+                        volStatus = volArg,
+                        comment = commentArg,
+                        private = privateArg,
+                        tags = tagsArg
+                    )
+                }
+            }
         }
         val collectionUpdated = writeError == null
         if (collectionUpdated) {

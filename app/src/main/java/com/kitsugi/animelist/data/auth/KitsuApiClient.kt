@@ -137,7 +137,14 @@ object KitsuApiClient {
         val startedAt: String? = null,
         val finishedAt: String? = null,
         val notes: String? = null,
-        val isPrivate: Boolean? = null
+        val isPrivate: Boolean? = null,
+        /**
+         * Kitsu'da "tekrar izleniyor" AYRI bir durum değildir: `status = current` +
+         * `reconsuming = true` + `reconsumeCount = n`. (MAL-Sync `_provider/Kitsu/single.ts`
+         * ile aynı sözleşme.) Eksik bırakılırsa tekrar bilgisi Kitsu'ya hiç yazılmıyordu.
+         */
+        val reconsuming: Boolean? = null,
+        val reconsumeCount: Int? = null
     )
 
     /** `yyyy-MM-dd` → Kitsu'nun beklediği ISO-8601 datetime (`yyyy-MM-ddT00:00:00.000Z`). */
@@ -540,6 +547,8 @@ object KitsuApiClient {
         extras.finishedAt?.let { put("finishedAt", it) }
         extras.notes?.let { put("notes", it) }
         extras.isPrivate?.let { put("private", it) }
+        extras.reconsuming?.let { put("reconsuming", it) }
+        extras.reconsumeCount?.let { put("reconsumeCount", it) }
     }
 
     /**
@@ -695,20 +704,45 @@ object KitsuApiClient {
         ratingTwenty: Int?,
         extras: KitsuEntryExtras? = null
     ): KitsuWriteResult = withContext(Dispatchers.IO) {
+        val attributes = JSONObject().apply {
+            put("status", status)
+            put("progress", progress)
+            if (ratingTwenty != null && ratingTwenty > 0) {
+                put("ratingTwenty", ratingTwenty)
+            } else {
+                put("ratingTwenty", JSONObject.NULL)
+            }
+            applyKitsuExtras(extras)
+        }
+        patchAttributes(token, entryId, attributes)
+    }
+
+    /**
+     * Kitsu kütüphane kaydına YALNIZCA verilen alanları yazar (`PATCH`).
+     *
+     * Alan bazlı eşitlemenin temeli: gönderilmeyen attribute Kitsu'da değişmez. Böylece
+     * yerel satırda puan yokken `ratingTwenty: null` gönderip **Kitsu'daki puanı silme**
+     * hatası ortadan kalkar (eskiden `updateLibraryEntryDetailed` her çağrıda null yazıyordu).
+     */
+    suspend fun patchLibraryEntry(
+        token: String,
+        entryId: String,
+        attributes: JSONObject
+    ): KitsuWriteResult = withContext(Dispatchers.IO) {
+        if (attributes.length() == 0) return@withContext KitsuWriteResult(success = true, entryId = entryId)
+        patchAttributes(token, entryId, attributes)
+    }
+
+    private suspend fun patchAttributes(
+        token: String,
+        entryId: String,
+        attributes: JSONObject
+    ): KitsuWriteResult = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("data", JSONObject().apply {
                 put("id", entryId)
                 put("type", "libraryEntries")
-                put("attributes", JSONObject().apply {
-                    put("status", status)
-                    put("progress", progress)
-                    if (ratingTwenty != null && ratingTwenty > 0) {
-                        put("ratingTwenty", ratingTwenty)
-                    } else {
-                        put("ratingTwenty", JSONObject.NULL)
-                    }
-                    applyKitsuExtras(extras)
-                })
+                put("attributes", attributes)
             })
         }
 

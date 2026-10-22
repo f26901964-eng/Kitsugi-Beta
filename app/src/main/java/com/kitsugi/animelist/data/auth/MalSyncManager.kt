@@ -27,10 +27,19 @@ object MalSyncManager {
 
     private fun String?.sendableDate(): String? = this?.takeIf { fullIsoDate.matches(it) }
 
+    /**
+     * @param fields yerel satırda DEĞİŞEN alanlar. Yalnızca bu alanlar gönderilir; böylece
+     * hedefteki (MAL web'inde girilmiş) puan/not/tarih EZİLMEZ.
+     *
+     * Kritik: eskiden `score` her zaman gönderiliyordu ve yerel puan boşken `0` gidiyordu.
+     * MAL API sözleşmesi "Set this value to 0 to remove the user's rating" der — yani
+     * uygulama, MAL'da verilmiş puanı **siliyordu**. Aynı şekilde `priority=0` de yazılıyordu.
+     */
     fun updateMalEntry(
         token: String,
         entry: MediaEntry,
-        context: Context
+        context: Context,
+        fields: Set<SyncField> = SyncField.ALL
     ) {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_mal_type_unsupported)
@@ -50,43 +59,73 @@ object MalSyncManager {
 
         val url = URL("https://api.myanimelist.net/v2/$endpointType/$malId/my_list_status")
 
+        // ── Alan bazlı gövde (bkz. ProviderCapabilitiesCatalog.mal) ──────────────────
+        // Gönderilmeyen alan MAL'da DEĞİŞMEZ. Boş değer yalnızca kullanıcı o alanı bilerek
+        // boşalttığında (diff'te göründüğünde) gönderilir.
         val postData = buildString {
-            append("status=${URLEncoder.encode(entry.status.toMalStatus(entry.type), "UTF-8")}")
-            // MAL puanı 0..10 ister; eski satırlarda 0..100 ölçekli değer kalmışsa ham gönderim
-            // tüm PATCH'i 400 ile düşürüyordu (diğer yöneticilerle aynı normalizasyon).
-            append("&score=${SyncScores.tenPoint(entry.score) ?: 0}")
-            append("&$progressKey=${entry.progress}")
-
-            val startDate = entry.startDate.sendableDate()
-            if (startDate != null) {
-                append("&start_date=${URLEncoder.encode(startDate, "UTF-8")}")
+            if (SyncField.STATUS in fields) {
+                append("status=${URLEncoder.encode(entry.status.toMalStatus(entry.type), "UTF-8")}")
+                // MAL'de "tekrar izleniyor" ayrı bir durum DEĞİLDİR: durum `completed` kalır ve
+                // `is_rewatching` bayrağı set edilir (MAL-Sync MyAnimeList_api/single.ts ile aynı).
+                if (entry.type == MediaType.Manga) {
+                    append("&is_rereading=${entry.status == WatchStatus.Repeating || entry.isRepeating}")
+                } else {
+                    append("&is_rewatching=${entry.status == WatchStatus.Repeating || entry.isRepeating}")
+                }
             }
-
-            val endDate = entry.endDate.sendableDate()
-            if (endDate != null) {
-                append("&finish_date=${URLEncoder.encode(endDate, "UTF-8")}")
+            if (SyncField.SCORE in fields) {
+                // 0 = "puanı kaldır" (MAL sözleşmesi). Normalde 1..10; eski 100'lük değerler
+                // onluk ölçeğe indirgenir.
+                append("&score=${SyncScores.tenPoint(entry.score) ?: 0}")
             }
-
-            append("&priority=${entry.priority ?: 0}")
-
-            if (entry.type == MediaType.Manga) {
-                append("&is_rereading=${entry.isRepeating || entry.status == WatchStatus.Repeating}")
+            if (SyncField.PROGRESS in fields) {
+                append("&$progressKey=${entry.progress}")
+            }
+            if (SyncField.VOLUME_PROGRESS in fields && entry.type == MediaType.Manga) {
                 append("&num_volumes_read=${entry.volumeProgress}")
-                append("&num_times_reread=${entry.repeatCount}")
-                append("&reread_value=${entry.repeatValue}")
-            } else {
-                append("&is_rewatching=${entry.isRepeating || entry.status == WatchStatus.Repeating}")
-                append("&num_times_rewatched=${entry.repeatCount}")
-                append("&rewatch_value=${entry.repeatValue}")
             }
-
-            entry.tags?.takeIf { it.isNotBlank() }?.let {
-                append("&tags=${URLEncoder.encode(it, "UTF-8")}")
+            if (SyncField.START_DATE in fields) {
+                // Alan yalnızca kullanıcı tarihi değiştirdiğinde gönderilir:
+                //  - tam tarih  → olduğu gibi
+                //  - boşaltıldı → `0000-00-00` (MAL'de "tarihi sil" karşılığı; MAL-Sync aynı
+                //    sabiti kullanır). Boş string 400 döndürür.
+                //  - parsiyel ("2016", "2016-05") → GÖNDERİLMEZ (uzak değer korunur).
+                val startDate = entry.startDate.sendableDate()
+                when {
+                    startDate != null -> append("&start_date=$startDate")
+                    entry.startDate.isNullOrBlank() -> append("&start_date=0000-00-00")
+                }
             }
-            entry.notes?.takeIf { it.isNotBlank() }?.let {
-                append("&comments=${URLEncoder.encode(it, "UTF-8")}")
+            if (SyncField.END_DATE in fields) {
+                val endDate = entry.endDate.sendableDate()
+                when {
+                    endDate != null -> append("&finish_date=$endDate")
+                    entry.endDate.isNullOrBlank() -> append("&finish_date=0000-00-00")
+                }
+            }
+            if (SyncField.PRIORITY in fields) {
+                // MAL önceliği 0..2 (0=düşük, 1=orta, 2=yüksek).
+                append("&priority=${(entry.priority ?: 0).coerceIn(0, 2)}")
+            }
+            if (SyncField.REWATCH_COUNT in fields) {
+                if (entry.type == MediaType.Manga) append("&num_times_reread=${entry.repeatCount}")
+                else append("&num_times_rewatched=${entry.repeatCount}")
+            }
+            if (SyncField.REPEAT_VALUE in fields) {
+                if (entry.type == MediaType.Manga) append("&reread_value=${entry.repeatValue.coerceIn(0, 5)}")
+                else append("&rewatch_value=${entry.repeatValue.coerceIn(0, 5)}")
+            }
+            if (SyncField.TAGS in fields) {
+                // Etiketler virgülle ayrılır; boş string etiketleri temizler.
+                append("&tags=${URLEncoder.encode(entry.tags.orEmpty(), "UTF-8")}")
+            }
+            if (SyncField.NOTES in fields) {
+                append("&comments=${URLEncoder.encode(entry.notes.orEmpty(), "UTF-8")}")
             }
         }
+
+        // Değişen alan yoksa istek atılmaz (boş PATCH 400 döner).
+        if (postData.isEmpty()) return
 
         val request = Request.Builder()
             .url(url)
