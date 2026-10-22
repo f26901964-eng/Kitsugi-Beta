@@ -2,6 +2,10 @@ package com.kitsugi.animelist.ui.screens.fullscreen.runtime
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.data.local.toDomain
+import com.kitsugi.animelist.data.local.toEntity
+import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.CoroutineScope
@@ -80,28 +84,74 @@ class PlayerScrobbleController(
 
         scrobbleJob = scope.launch(Dispatchers.IO) {
             try {
-                val updatedEntry = entry.copy(
-                    progress = currentEpisode,
-                    status = if (currentEpisode >= (entry.total ?: Int.MAX_VALUE)) {
-                        WatchStatus.Completed
-                    } else {
-                        WatchStatus.Watching
-                    }
+                val nextStatus = if (currentEpisode >= (entry.total ?: Int.MAX_VALUE)) {
+                    WatchStatus.Completed
+                } else {
+                    WatchStatus.Watching
+                }
+                // Tarih otomasyonu: "izlemeye başla" → başlangıç bugün, "tamamla" → bitiş bugün.
+                // (Diğer ekleme/düzenleme yollarıyla AYNI kural motoru.)
+                val auto = EntryAutoRules.resolveOnStatusChange(
+                    status = nextStatus,
+                    startDate = entry.startDate,
+                    endDate = entry.endDate,
+                    progress = maxOf(entry.progress, currentEpisode),
+                    total = entry.total,
+                    statusChanged = nextStatus != entry.status
                 )
+                val updatedEntry = entry.copy(
+                    progress = auto.progress,
+                    status = nextStatus,
+                    startDate = auto.startDate,
+                    endDate = auto.endDate
+                )
+                // ── Yerel satır GÜNCELLENİR ───────────────────────────────────────────
+                // Eski kod yalnız uzak hedeflere yazıyor, DB'yi güncellemiyordu: liste eski
+                // bölümü göstermeye devam ediyor ve sonraki bir tam yazım ESKİ ilerlemeyi
+                // tüm kaynaklara geri yazabiliyordu (ilerleme geri düşüyordu).
+                runCatching {
+                    val dao = KitsugiDatabase.getDatabase(context).mediaEntryDao()
+                    val stored = dao.getById(entry.id)?.toDomain()
+                    if (stored != null) {
+                        val mergedProgress = maxOf(stored.progress, updatedEntry.progress)
+                        // Tamamlanmış / tekrar izlenen kayıt oynatıcı yüzünden geri düşmesin.
+                        val mergedStatus = when (stored.status) {
+                            WatchStatus.Completed, WatchStatus.Repeating -> stored.status
+                            else -> updatedEntry.status
+                        }
+                        dao.update(
+                            stored.copy(
+                                progress = mergedProgress,
+                                status = mergedStatus,
+                                startDate = updatedEntry.startDate ?: stored.startDate,
+                                endDate = updatedEntry.endDate ?: stored.endDate,
+                                updatedAt = System.currentTimeMillis() / 1000L
+                            ).toEntity()
+                        )
+                    }
+                }
+
                 // ── İlerleme artık YALNIZCA AniList'e değil, BAĞLI TÜM KAYNAKLARA yazılır ──
                 // Eski kod tek hedefe (AniList) yazıyordu ve AniList oturumu yoksa hiçbir
                 // şey yapmıyordu: MAL/Kitsu/Shikimori/Bangumi/Simkl'de izleme ilerlemesi
                 // oynatıcıdan ASLA güncellenmiyordu. Aynı çapraz eşitleme hattı (eşzamanlı,
                 // kaynak başına zaman aşımı, kimlik kapısı) burada da kullanılır.
+                val scrobbleFields = buildSet {
+                    add(com.kitsugi.animelist.data.auth.SyncField.PROGRESS)
+                    add(com.kitsugi.animelist.data.auth.SyncField.STATUS)
+                    // Tarih yalnızca bu turda DOLDURULDUYSA gönderilir (boş alan ezmez).
+                    if (updatedEntry.startDate != entry.startDate) {
+                        add(com.kitsugi.animelist.data.auth.SyncField.START_DATE)
+                    }
+                    if (updatedEntry.endDate != entry.endDate) {
+                        add(com.kitsugi.animelist.data.auth.SyncField.END_DATE)
+                    }
+                }
                 val outcome = com.kitsugi.animelist.data.auth.ExternalListSyncManager.syncEntry(
                     context = context,
                     entry = updatedEntry,
-                    // Yalnızca İLERLEME (+ gerekiyorsa durum) yazılır: oynatıcı puan/not/tarihe
-                    // dokunmaz, hedeflerdeki bu alanlar korunur.
-                    fields = setOf(
-                        com.kitsugi.animelist.data.auth.SyncField.PROGRESS,
-                        com.kitsugi.animelist.data.auth.SyncField.STATUS
-                    )
+                    // Oynatıcı puan/not/etiket/tarihe (doldurduğu tarih hariç) dokunmaz.
+                    fields = scrobbleFields
                 )
                 val aniListEntryId = outcome.aniListEntryId
                 if (aniListEntryId != null) {

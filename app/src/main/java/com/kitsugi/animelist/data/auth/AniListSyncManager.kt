@@ -983,8 +983,16 @@ object AniListSyncManager {
                 com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
                     if (response.code == 429) {
                         val retrySec = response.header("Retry-After")?.toLongOrNull()?.coerceIn(1L, 120L) ?: 60L
+                        // `notifyRateLimited` geri çekilme durumunu (lastCallTime) yazar ve
+                        // `delay(waitMs)` yapar. Burada BLOKLAYAN bir bağlamdayız (postAniList
+                        // suspend değil) ve `withTimeoutOrNull` bloklayan çağrıyı KESEMEZ:
+                        // Retry-After=120 sn olduğunda tek bir istek tüm yayılımı 2 dakika
+                        // kilitliyordu. Bu yüzden bekleme 5 sn ile sınırlanır; sayaç yine de
+                        // gerçek değerle işaretlenir, sonraki istekler doğru süre bekler.
                         kotlinx.coroutines.runBlocking {
-                            PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+                            kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+                                PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+                            }
                         }
                         if (attempt >= MAX_ANILIST_ATTEMPTS) {
                             throw IllegalStateException(

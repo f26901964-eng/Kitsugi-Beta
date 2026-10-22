@@ -230,7 +230,12 @@ object MalSyncManager {
             WatchStatus.Planned -> if (mediaType == MediaType.Manga) "plan_to_read" else "plan_to_watch"
             WatchStatus.Dropped -> "dropped"
             WatchStatus.Paused -> "on_hold"
-            WatchStatus.Repeating -> if (mediaType == MediaType.Manga) "reading" else "watching"
+            // MAL'de "tekrar izleniyor" AYRI BİR DURUM DEĞİLDİR: kayıt `completed` kalır ve
+            // `is_rewatching` bayrağı set edilir (MAL'ın kendi arayüzü ve MAL-Sync
+            // `_provider/MyAnimeList_api/single.ts` ile aynı davranış). Eskiden "watching"
+            // gönderiliyordu; bu, tamamlanmış bir animeyi MAL'da yeniden "İzleniyor"a
+            // düşürüyor ve tamamlanma durumunu bozuyordu.
+            WatchStatus.Repeating -> "completed"
         }
     }
 
