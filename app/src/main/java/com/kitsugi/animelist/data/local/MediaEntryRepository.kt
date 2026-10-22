@@ -438,7 +438,9 @@ class MediaEntryRepository(
 
         if (success) {
             val messages = syncResult?.messages.orEmpty().toMutableList()
-            if (messages.isNotEmpty()) removeFromQueueIfPresent(entry, "UPDATE")
+            // (E73) Kuyruktaki işten yalnız BU turda gönderilen alanlar düşülür; çevrimdışıyken
+            // kuyruğa girmiş başka alanlar (ör. not) bu tur gitmediyse kuyrukta yaşamaya devam eder.
+            if (messages.isNotEmpty()) removeFromQueueIfPresent(entry, "UPDATE", fields)
             // BAŞARI yolunda da hangi kaynağın ne yaptığı görünmeli: "eşitlendi" dışında bir
             // sonuç varsa (kapalı / bağlı değil / tür desteklenmiyor / kimlik çözülemedi /
             // değişiklik yok) özet eklenir. Eskiden bu bilgi yalnız HATA yolunda gösteriliyordu
@@ -463,7 +465,11 @@ class MediaEntryRepository(
         } else {
             enqueuePending("UPDATE", entry, fields)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
-            val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
+            // (E74) Yetki kontrolü tek yerden ve fırlatılan istisna mesajını da kapsar;
+            // aksi hâlde istisna yolu kullanıcıya yanlışlıkla "çevrimdışı" gösteriyordu.
+            val isAuthError = PendingSyncPolicy.isAuthError(
+                listOf(allErrors, result.exceptionOrNull()?.message)
+            )
             // KISMİ BAŞARI: en az bir kaynak yazıldıysa "çevrimdışı" demek yanıltıcıydı —
             // kullanıcı "hiçbir yere gitmiyor" sanıyordu. Gerçekte yalnızca bazı kaynaklar
             // yeniden denenecek; hangileri olduğu kaynak özetinde görünür.
@@ -511,7 +517,9 @@ class MediaEntryRepository(
         } else {
             enqueuePending("DELETE", entry)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
-            val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
+            val isAuthError = PendingSyncPolicy.isAuthError(
+                listOf(allErrors, result.exceptionOrNull()?.message)
+            )
             val displayMessage = if (isAuthError) {
                 "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
             } else {
@@ -565,18 +573,20 @@ class MediaEntryRepository(
         }
     }
 
-    private suspend fun removeFromQueueIfPresent(entry: MediaEntry, operation: String) {
+    /**
+     * Doğrudan yazımın gönderdiği alanları aynı satırın bekleyen işinden düşer (E73).
+     *
+     * Kuyruk JSON'unun biçimi (`_syncFields`) [PendingSyncDrainer]'a aittir; satır
+     * eşleştirme + alan düşme kararı orada ([PendingSyncPolicy]) tek yerden yapılır.
+     * `DELETE` çağrıları varsayılan [SyncField.ALL] ile işi bütünüyle düşürür.
+     */
+    private suspend fun removeFromQueueIfPresent(
+        entry: MediaEntry,
+        operation: String,
+        syncedFields: Set<SyncField> = SyncField.ALL
+    ) {
         val queueDao = pendingSyncDao ?: return
-        val all = queueDao.getAll()
-        all.filter { it.operation == operation }.forEach { pending ->
-            // Bare MAL IDs are not unique across anime, manga, or platform libraries.
-            runSyncCatching {
-                val json = org.json.JSONObject(pending.entryJson)
-                val sameLocalRecord = entry.id > 0 && json.optInt("id", 0) == entry.id &&
-                    json.optString("type") == entry.type.name && json.optString("source") == entry.source
-                if (sameLocalRecord) queueDao.deleteById(pending.id)
-            }
-        }
+        PendingSyncDrainer.removeSyncedFields(queueDao, operation, entry, syncedFields)
     }
 
     /**

@@ -831,3 +831,128 @@ ilerleme, cilt, tarihler, not, etiket, favori, gizlilik, öncelik, tekrar, `upda
   `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
 - Açık kalan: §17.3 listesi (kademeli yazım bütçesi, saat kayması, Shikimori/Bangumi favori,
   `tags` düz metin, E69 entegrasyon testi).
+
+## §19 — Geçiş 11: kuyruk testleri (T02) + kuyrukta sessiz alan kaybı (E73, E74, E75)
+
+**Devralma notu.** Bu geçiş yeni dalda (`arena/71836ee9-kitsugi-beta`) yapıldı. Dal,
+`main` (`26bb044`) üzerinden açılmıştı; §18'in commit'i `0762faf` onun torunu olduğu
+için dal **fast-forward** ile devir noktasına getirildi (başka dala geçilmedi, başka
+dala yazılmadı). Doğrulanan başlangıç durumu: HEAD `0762faf`, `appVersionName = "2.4.340"`,
+`data/auth` içinde 20 dosya / 176 `@Test`, E57 (`SiblingMirrorPolicy`) ve E72
+(`rewatchFlagNeedsRepeatingStatus`, `SyncField.kt:163`) kodda mevcut.
+`03_HATA_KAYDI`'nda `AÇIK` satır yoktur; tek `DOĞRULANMADI` satır E60'tır (Kitsu
+puan temizleme/kırpma çalışma zamanı — T09 kapsamında açık kalıyor).
+
+Bu geçişin konusu listedeki ilk iş (**T02**: `PendingSyncDrainer` kuyruk testleri) idi.
+Kuyruğu test edilebilir hâle getirirken zincirin tamamı (Drainer ↔ DAO ↔
+`MediaEntryRepository` ↔ `SyncResult.needsRetry`) satır satır okundu ve üç hata bulundu.
+
+### 19.1 E73 — başarılı kısmi yazım, kuyruktaki gönderilmemiş alanları siliyordu
+
+Kuyruk işleri alan kümesiyle saklanır (`_syncFields`): çevrimdışıyken yalnız not
+değiştirilirse iş `{NOTES}` taşır. Doğrudan (çevrimiçi) yazım başarılı olduğunda
+`MediaEntryRepository.syncEntryIfPossible` aynı satırın kuyruk işini
+`removeFromQueueIfPresent(entry, "UPDATE")` ile **alan kümesine hiç bakmadan**
+siliyordu (eski `MediaEntryRepository.kt:441` + eski `L568` gövdesi).
+
+| Adım | Olay | Eski sonuç |
+|---|---|---|
+| 1 | Çevrimdışı: kullanıcı notu değiştirdi → diff `{NOTES}` → yazım başarısız → kuyrukta `{NOTES}` işi | not yalnız yerel DB'de + kuyrukta |
+| 2 | Çevrimiçi: kullanıcı ilerlemeyi değiştirdi → diff `{PROGRESS}` (`update()` L254/L272) → yazım başarılı | ilerleme altı kaynağa gitti |
+| 3 | Başarı yolu kuyruktaki işi (alanlarına bakmadan) sildi | **not hiçbir hedefe gitmeden kayboldu**; yerel DB'de durduğu için kullanıcı fark etmez (A6 ihlali) |
+
+**Düzeltme.** Alan düşme kararı saf kural olarak `PendingSyncPolicy.remainingFields`e,
+uygulaması kuyruk JSON'unun sahibine (`PendingSyncDrainer.removeSyncedFields`) taşındı:
+başarılı doğrudan yazım, kuyruktaki işten **yalnızca o turda gönderilen alanları**
+düşer; geri kalan alanlar `_syncFields` güncellenerek kuyrukta kalır (anlık görüntüdeki
+değerleriyle — aradaki her değişiklik ya doğrudan gönderilip düşülmüş ya da yeni
+`enqueue` ile görüntüyü tazelemiştir). `DELETE` yolu `SyncField.ALL` geçirir ve işi
+bütünüyle düşürür (eski davranış, silme için doğru). Aynı denetimde, hiç çağrılmayan
+ama bütçesi dolan işleri **toplu silen** `PendingSyncDao.deleteStale` kaldırıldı:
+tavan yalnız otomatik denemeyi durdurur, kayıt silinmez sözleşmesine aykırı bir
+metodun DAO'da hazır durması başlı başına riskti.
+
+### 19.2 E74 — yetki hatası istisna olarak geldiğinde deneme sayacını yakıyordu
+
+Sözleşme: *"yetki hatası sayaç artırmaz."* Oysa hem drainer (eski `L125`) hem
+repository (eski `L466`, `L514`) yetki kontrolünü yalnız `SyncResult.errors`
+metinlerinde yapıyordu. Yazım çağrısının kendisi fırlatırsa (`prepare()` içinde
+token/ayar okuma, DataStore I/O vb.) `syncResult == null` olur, hata metni boş
+kalır ve (a) kuyruk sayacı yetki hatasında bile artar, (b) kullanıcıya "oturum
+süresi doldu" yerine "çevrimdışı kaydedildi" gösterilirdi.
+
+**Düzeltme.** Kontrol tek yere toplandı: `PendingSyncPolicy.isAuthError(...)`
+(üç kopya silindi; alt dizgeler `401` / `token geçersiz` / `Unauthorized` aynen
+korundu) ve fırlatılan istisnanın mesajı da karara girdi
+(`PendingSyncPolicy.decision(..., thrownMessage)`).
+
+### 19.3 E75 — birleşik kayda taban seçimi aday sırasına bağlıydı (AuthViewModel)
+
+`AuthViewModel.kt` toplu eşitleme yolunda `val newest = candidates.maxByOrNull
+{ it.updatedAt }` (eski L1222) — E70'in yasakladığı eşitlik-bozucusuz seçim.
+`newest`, birleşik kaydın tabanıdır (başlıklar + `bestNotes/bestTags/bestPriority`);
+eşit zaman damgasında (içe aktarılmış satırlar aynı saniyeyi taşır) seçim aday
+sırasını miras alıyordu. Sıra `CrossSyncMergePolicy` ile aynı yapıldı:
+`updatedAt` (azalan) → ilerleme (azalan) → kaynak adı → satır `id`.
+
+Aynı desenin iki kopyası içe aktarma eşleştirme yolunda duruyor
+(`MediaEntryRepository.kt:131`, `MediaEntryBackup.kt:192` —
+`matches.maxByOrNull { it.updatedAt }`). Bunlar yazım döngüsünde değil, içe aktarım
+satır eşleştirmesindedir; çağrı zinciri bu geçişte okunmadığı için **bilinçli olarak
+dokunulmadı** ve T20 (dedektör testi) ile birlikte ele alınmak üzere açık bırakıldı.
+
+### 19.4 T02 — kuyruk artık test edilebilir ve test ediliyor
+
+`PendingSyncDrainer.drain`, `Context` + altı yazıcıyı doğrudan çağırdığı için JVM'de
+koşulamıyordu. Kamu imzası korunarak çekirdek, çalıştırıcıyı parametre alan iç
+(`internal`) bir `drain(dao, freshBudget, execute)` dikişine ayrıldı; kararlar saf
+`PendingSyncPolicy`ye (`MAX_RETRIES`, uygunluk, `RetryDecision`, alan
+birleştirme/düşme, satır eşleştirme, yetki metni) taşındı. Yeni testler
+`app/src/test/java/com/kitsugi/animelist/data/local/` altında (dizinde önceden
+3 dosya / 18 test vardı; bu geçişle 5 dosya / 53 test):
+
+| Dosya | Test | Ne sabitliyor |
+|---|---|---|
+| `PendingSyncPolicyTest` | **11** | bütçe = 5 ve uygunluk sınırı; karar tablosu (düşür / artır / artırma); E74 istisna yolu; alan birleşimi; E73 alan düşme; satır eşleştirme matrisi (`id<=0`, kaynak, tür) |
+| `PendingSyncDrainerTest` | **24** | sahte DAO ile: enqueue alan birleştirme + en yeni anlık görüntü, farklı satır/`id=0`/eski-biçim işler; `removeSyncedFields` (E73 regresyonu, kısmi düşme, sayaç koruma, işlem/satır ayrımı); drain (başarıda düşme + çözülen alan/satırın çalıştırıcıya geçişi, geçici hatada artırma, **DISABLED = gönderildi**, bağlantı boşluğunda koruma, yetki sonucunda VE istisnasında artırma yok, ağ istisnasında artırma, `MAX_RETRIES` dolunca çalıştırmadan koruma, `freshBudget` ile canlanma, bozuk JSON, tanınmayan işlem, boş kuyruk, iptalin bütçe yakmadan yayılması ve kilidin bırakılması) |
+
+`data/auth` sayısı değişmedi (**176**); bu geçiş **+35 test** getirdi.
+
+### 19.5 Model koşturması bulgusu: `fuzz2.py` "added_row_lowers" (kod hatası DEĞİL)
+
+Drive'daki araçlar yeniden koşturuldu (**model koşturması** — Kotlin'i değil kuralı
+doğrular): `fuzz_merge.py` → `{'status': 0, 'progress': 0, 'total': 0}`;
+`fuzz2.py` → `{'monotone_progress': 0, 'added_row_lowers': 66, 'invariants': 0}`.
+66 ihlalin örüntüsü tek: toplamı bilinmeyen adaylara (ör. ilerleme 14, `total = null`)
+toplamı 12 olan yeni bir satır eklenince birleşik ilerleme 14 → 12 oluyor.
+Kotlin karşılığı denetlendi: bu, `CrossSyncMergePolicy.merge` kırpmasıdır
+(toplam biliniyorsa ilerleme toplama kırpılır; MAL toplamı aşanı 400 ile reddeder —
+kırpılmazsa isteğin TAMAMI düşerdi) ve E71 dalıyla tutarlıdır (daha büyük toplam
+adaylarda varsa o kullanılır; yoksa tek bilinen toplam geçerlidir). **Yazım geriye
+gitmez:** `dirtyFields` ilerlemeyi yalnız `current.progress < merged.progress`
+iken yazar; 14'teki hedefe 12 yazılmaz, gerideki hedefe 12 yazılır (12 üstü zaten
+toplama aykırı olduğundan geçersiz veridir). Sonuç: model invaryantı, sözleşmeden
+daha katı yazılmış; kod değiştirilmedi. `fuzz2.py` invaryantının "toplam altında
+kalan ilerleme düşmez" biçiminde daraltılması Drive araçlarının işidir (araçlar
+depoda değil, Drive'dadır — bu geçişte düzenlenmedi).
+
+### 19.6 Dürüst durum
+
+- **Derleme ve birim test ÇALIŞTIRILMADI**: ortamda JDK/Gradle/Android SDK yok
+  (`java: command not found` ile doğrulandı). Doğrulama düzeyi: **kod okuması**
+  (zincirin tamamı satır satır) + **sözdizimi taraması** (`kcheck.py`: değişen/
+  eklenen 7 dosya, 0 hata) + **model koşturması** (yukarıda). Yeni testlerin
+  JVM'de koşulabilirliği bağımlılıklardan denetlendi (`org.json:json` test
+  bağımlılığı gerçek impl.; `runBlocking` coroutines-core'da; `SyncResult`
+  mevcut testte zaten JVM'de kuruluyor) — ama bu, "test geçti" demek DEĞİLDİR.
+- Kullanıcının çalıştırması gereken komut değişmedi:
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
+- Bu geçişte değişen dosyalar: `data/local/PendingSyncPolicy.kt` (yeni),
+  `data/local/PendingSyncDrainer.kt`, `data/local/PendingSyncDao.kt`,
+  `data/local/MediaEntryRepository.kt`, `ui/app/AuthViewModel.kt` +
+  2 yeni test dosyası.
+- Sıradaki işler (02_TASK_TAKIP sırasıyla): **T13** (`AuthViewModel`
+  orkestrasyon testi — E75'in denetimi sırasında okunan AVM yolu hâlâ testsiz),
+  **T05** (sağlayıcı başına geri-okuma koşumu), **T03/T04** (kısmi yeniden
+  bağlanmada bayat token, kaynak bazlı kimlik önbelleği temizliği). Ayrıca
+  §19.3'te bırakılan iki `maxByOrNull` kopyası T20 ile birlikte bakılmalı.
