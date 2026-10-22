@@ -255,7 +255,7 @@ internal class WikiPageEnhancements(
         val slots = Semaphore(IN_FLIGHT_BATCHES)
         val results = Channel<TranslatedBatch>(Channel.UNLIMITED)
 
-        fun alive() = currentCoroutineContext().isActive && ready && id == documentId &&
+        suspend fun alive() = currentCoroutineContext().isActive && ready && id == documentId &&
             run == runGeneration && config == settings
         // Kozmetik reklam katmanı saniyede en fazla bir kez tazelenir; her turda JS çağırmak
         // kaydırma sırasında gereksiz ana iş parçacığı yükü üretiyordu.
