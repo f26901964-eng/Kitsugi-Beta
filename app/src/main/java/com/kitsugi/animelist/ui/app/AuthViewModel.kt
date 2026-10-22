@@ -1422,42 +1422,49 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         } else {
                             val dirty = dirtyFor("anilist", current)
-                            if (dirty.isNotEmpty()) {
+                            // Favori `SaveMediaListEntry`'nin parçası DEĞİLDİR: ayrı bir
+                            // `ToggleFavourite` mutasyonudur. Yalnız favori değiştiyse liste
+                            // kaydına içi boş bir mutasyon göndermek anlamsızdır (E42/E48).
+                            val listFields = dirty - com.kitsugi.animelist.data.auth.SyncField.FAVORITE
+                            val target = mergedEntry.copy(aniListEntryId = current.aniListEntryId)
+                            var writeOk = true
+                            if (listFields.isNotEmpty()) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
-                                val target = mergedEntry.copy(aniListEntryId = current.aniListEntryId)
                                 val res = runSyncCatching {
                                     AniListSyncManager.updateAniListEntry(
-                                        aniListToken!!, target, context = context, fields = dirty
+                                        aniListToken!!, target, context = context, fields = listFields
                                     )
                                 }
-                                if (res.isSuccess && res.getOrNull() != null) {
-                                    // Favori ayrı bir mutasyon (`ToggleFavourite`) ve TERSİNE
-                                    // dönebilir bir işlemdir: yalnız uzak durum okunup farklıysa
-                                    // çağrılır. Eskiden çapraz eşitleme favoriyi hiç yazmıyordu (E42).
-                                    if (com.kitsugi.animelist.data.auth.SyncField.FAVORITE in dirty) {
-                                        runSyncCatching {
-                                            val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(
-                                                aniListToken!!, target, context,
-                                                knownAniListMediaId = target.aniListEntryId,
-                                                knownMalId = realMalId
-                                            )
-                                            if (remoteFav != null && remoteFav != mergedEntry.isFavorite) {
-                                                AniListSyncManager.toggleAniListFavourite(
-                                                    aniListToken!!, target, context,
-                                                    knownAniListMediaId = target.aniListEntryId,
-                                                    knownMalId = realMalId
-                                                )
-                                            }
-                                        }
-                                    }
-                                    statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                    logEvent("AniList", context.getString(R.string.cross_sync_log_updated, "AniList", mergedEntry.title), isUpdate = true, details = mappingDetails)
-                                } else {
+                                writeOk = res.isSuccess && res.getOrNull() != null
+                                if (!writeOk) {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
                                     val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
                                         ?: context.getString(R.string.cross_sync_api_anilist_update_not_confirmed)
                                     logEvent("AniList", context.getString(R.string.cross_sync_log_failed_update, "AniList", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
+                            }
+                            if (writeOk && com.kitsugi.animelist.data.auth.SyncField.FAVORITE in dirty) {
+                                // Toggle TERSİNE dönebilir bir işlemdir: yazmadan önce uzak
+                                // durum okunur, yalnız farklıysa çağrılır. Hiçbir kaynakta
+                                // favori alanı yoksa kaldırma yönünde yazım YAPILMAZ.
+                                runSyncCatching {
+                                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(
+                                        aniListToken!!, target, context,
+                                        knownAniListMediaId = target.aniListEntryId,
+                                        knownMalId = realMalId
+                                    )
+                                    if (remoteFav != null && remoteFav != mergedEntry.isFavorite) {
+                                        AniListSyncManager.toggleAniListFavourite(
+                                            aniListToken!!, target, context,
+                                            knownAniListMediaId = target.aniListEntryId,
+                                            knownMalId = realMalId
+                                        )
+                                    }
+                                }
+                            }
+                            if (writeOk) {
+                                statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
+                                logEvent("AniList", context.getString(R.string.cross_sync_log_updated, "AniList", mergedEntry.title), isUpdate = true, details = mappingDetails)
                             }
                         }
                     }
