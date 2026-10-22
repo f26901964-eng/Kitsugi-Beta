@@ -17894,4 +17894,25 @@
     <string name="search_org_role_magazine">Magazine</string>
     <string name="search_org_loading">Loading</string>
     <string name="search_taxonomy_pending_notice">Genre/tag support varies by provider; seven-source mapping will be completed in the next release.</string>
+    <string name="inline_video_unsupported_title">This video could not be played inline</string>
+    <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
+    <string name="inline_open_fullscreen">Open in fullscreen</string>
+    <string name="inline_try_other_engine">Try another engine</string>
+    <!-- Kitsu and shared detail info field labels -->
+    <string name="detail_info_format">Format</string>
+    <string name="detail_info_episodes">Episodes</string>
+    <string name="detail_info_chapters">Chapters</string>
+    <string name="detail_info_volumes">Volumes</string>
+    <string name="detail_info_romaji">Romaji</string>
+    <string name="detail_info_russian">Russian</string>
+    <string name="detail_info_episodes_aired">Episodes Aired</string>
+    <string name="detail_info_next_episode">Next Episode</string>
+    <string name="detail_info_next_episode_value">Episode %1$d • %2$s</string>
+    <string name="detail_info_duration_minutes">%1$d min</string>
+    <string name="detail_info_fansubbers">Fansub Groups</string>
+    <string name="detail_info_fandubbers">Fandub Groups</string>
+    <string name="detail_info_licensors">Licensors</string>
+    <string name="detail_link_official_site">Official Website</string>
+    <string name="detail_link_wikipedia">Wikipedia</string>
+    <string name="detail_stat_members">Members</string>
 </resources>

@@ -690,6 +690,8 @@ private val mediaTypeStringMap = mapOf(
     "ONA" to "ONA",
     "Special" to "Özel",
     "SPECIAL" to "Özel",
+    "TV Special" to "TV Özel Bölümü",
+    "TV_SPECIAL" to "TV Özel Bölümü",
     "Music" to "Müzik",
     "MUSIC" to "Müzik",
     "Manga" to "Manga",

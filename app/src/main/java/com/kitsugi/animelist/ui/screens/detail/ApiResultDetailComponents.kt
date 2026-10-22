@@ -569,74 +569,15 @@ internal fun ApiInfoSection(
     onSearchQuery: (String) -> Unit = {},
     onSeasonClick: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {}
 ) {
-    val seasonMetadata = com.kitsugi.animelist.ui.screens.search.resolveDetailSeasonMetadata(
-        rawSeason = detail.rawSeason ?: detail.season,
-        displayedSeason = detail.season,
-        seasonYear = detail.seasonYear,
-        startDate = detail.startDate,
-        fallbackYear = detail.year ?: fallbackYear,
-        deriveFromDate = mediaType == MediaType.Anime
+    // Arama sonucu detayında ve kütüphane detayında aynı alanlar gösterilir.
+    // İki kartın farklı kurallarla çatallanmasını önlemek için ortak bileşen kullanılır.
+    EntryInfoSection(
+        detail = detail,
+        mediaType = mediaType,
+        fallbackYear = fallbackYear,
+        onSearchQuery = onSearchQuery,
+        onSeasonClick = onSeasonClick
     )
-    SelectionContainer {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
-                .background(KitsugiColors.Surface)
-        ) {
-            Text(
-                text = stringResource(R.string.detail_info_header),
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
-            )
-
-            val synonymNames = cleanDetailSynonyms(detail.synonyms)
-            val aliasesLabel = stringResource(R.string.detail_info_aliases)
-            val rows = buildList {
-                if (!detail.status.isNullOrBlank()) add(stringResource(R.string.detail_info_status) to detail.status)
-                seasonMetadata.displayLabel?.let { add(stringResource(R.string.detail_info_season) to it) }
-                if (!detail.startDate.isNullOrBlank()) add(stringResource(R.string.detail_date_start) to detail.startDate)
-                if (!detail.endDate.isNullOrBlank()) add(stringResource(R.string.detail_date_end) to detail.endDate)
-                if (!detail.sourceMaterial.isNullOrBlank()) add(stringResource(R.string.detail_info_source) to detail.sourceMaterial)
-                if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name.toLocalizedOrgName() })
-                    if (!detail.episodeDuration.isNullOrBlank()) add(stringResource(R.string.detail_info_duration) to detail.episodeDuration)
-                    if (!detail.broadcast.isNullOrBlank()) add(stringResource(R.string.detail_info_broadcast) to detail.broadcast)
-                    if (!detail.rating.isNullOrBlank()) add(stringResource(R.string.detail_info_rating) to detail.rating)
-                }
-                if (!detail.titleEnglish.isNullOrBlank()) add(stringResource(R.string.detail_info_english) to detail.titleEnglish)
-                if (!detail.titleJapanese.isNullOrBlank()) add(stringResource(R.string.detail_info_japanese) to detail.titleJapanese)
-                if (synonymNames.isNotEmpty()) add(aliasesLabel to synonymNames.joinToString(", "))
-            }
-
-            rows.forEachIndexed { index, (label, value) ->
-                val onValueClick = if (
-                    label == stringResource(R.string.detail_info_season) && seasonMetadata.apiSeason != null && seasonMetadata.year != null
-                ) {
-                    { onSeasonClick(seasonMetadata) }
-                } else {
-                    null
-                }
-                DetailInfoValueRow(
-                    label = label,
-                    value = value,
-                    names = if (label == aliasesLabel) synonymNames else emptyList(),
-                    onValueClick = onValueClick
-                )
-                if (index < rows.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = KitsugiColors.Background.copy(alpha = 0.5f),
-                        thickness = 0.5.dp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-    }
 }
 
 @Composable

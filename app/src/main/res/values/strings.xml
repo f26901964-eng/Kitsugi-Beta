@@ -17898,5 +17898,27 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="search_org_role_network">Kanal</string>
     <string name="search_org_role_magazine">Dergi</string>
     <string name="search_org_loading">Yükleniyor</string>
-    <string name="search_taxonomy_pending_notice">Kaynakların tür/etiket desteği farklıdır; yedi kaynak eşlemesi sonraki sürümde tamamlanacak.</string>
+    <string name="search_taxonomy_pending_notice">Tür/etiket desteği sağlayıcıya göre değişir; yedi kaynaklı eşleme sonraki sürümde tamamlanacak.</string>
+    <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
+    <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
+    <string name="inline_open_fullscreen">Tam ekranda aç</string>
+    <string name="inline_try_other_engine">Diğer motorla dene</string>
+
+    <!-- Kitsu ve ortak detay bilgi alanı etiketleri -->
+    <string name="detail_info_format">Format</string>
+    <string name="detail_info_episodes">Bölüm Sayısı</string>
+    <string name="detail_info_chapters">Bölüm</string>
+    <string name="detail_info_volumes">Cilt</string>
+    <string name="detail_info_romaji">Romaji</string>
+    <string name="detail_info_russian">Rusça</string>
+    <string name="detail_info_episodes_aired">Yayınlanan Bölüm</string>
+    <string name="detail_info_next_episode">Sonraki Bölüm</string>
+    <string name="detail_info_next_episode_value">%1$d. bölüm • %2$s</string>
+    <string name="detail_info_duration_minutes">%1$d dk</string>
+    <string name="detail_info_fansubbers">Fansub Grupları</string>
+    <string name="detail_info_fandubbers">Fandub Grupları</string>
+    <string name="detail_info_licensors">Lisanslayanlar</string>
+    <string name="detail_link_official_site">Resmi Web Sitesi</string>
+    <string name="detail_link_wikipedia">Vikipedi</string>
+    <string name="detail_stat_members">Üyeler</string>
 </resources>

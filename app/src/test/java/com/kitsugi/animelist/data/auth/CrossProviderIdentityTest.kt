@@ -50,7 +50,7 @@ class CrossProviderIdentityTest {
 
         val shikimori = CrossProviderIds.decode(storedId = 400_006_789, source = "shikimori", type = MediaType.Anime)
         assertEquals(6_789, shikimori.shikimoriId)
-        assertNull("Shikimori numeric ID asla MAL ID değildir", shikimori.malId)
+        assertEquals("Shikimori target_id MAL kimliğiyle aynıdır", 6_789, shikimori.malId)
 
         val bangumi = CrossProviderIds.decode(storedId = 500_035_658, source = "bangumi", type = MediaType.Anime)
         assertEquals(35_658, bangumi.bangumiSubjectId)
@@ -162,14 +162,14 @@ class CrossProviderIdentityTest {
     }
 
     @Test
-    fun rawProviderIdsBelow100MAreNeverDecodedAsMal() {
-        // Shikimori içe aktarması ham target_id yazar; eski Kitsu/Bangumi satırları da ham
-        // kimlik taşıyabilir. Bunlar MAL sayılırsa çözümleyici MAL adımını atlıyor ve
-        // (Bangumi'de) subject_id sahte MAL kimliği gibi kullanılıp yayılım kapısı açılıyordu.
+    fun rawShikimoriTargetIdSharesMalAxisButBangumiAndKitsuStayIsolated() {
+        // Shikimori'nin resmî AnimeProfileSerializer/MangaProfileSerializer sözleşmesinde
+        // myanimelist_id = object.id. Dolayısıyla ham target_id iki alanda da taşınır.
         val shikimori = CrossProviderIds.decode(storedId = 5114, source = "shikimori", type = MediaType.Anime)
         assertEquals(5114, shikimori.shikimoriId)
-        assertNull("Shikimori ham target_id MAL kimliği değildir", shikimori.malId)
+        assertEquals(5114, shikimori.malId)
 
+        // Bangumi/Kitsu ham kimlikleri farklı kataloglara aittir; MAL sanılmamalıdır.
         val bangumi = CrossProviderIds.decode(storedId = 35_658, source = "bangumi", type = MediaType.Anime)
         assertEquals(35_658, bangumi.bangumiSubjectId)
         assertNull("Bangumi ham subject_id MAL kimliği değildir", bangumi.malId)

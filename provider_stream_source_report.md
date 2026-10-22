@@ -1,14 +1,14 @@
 # Kitsugi Provider Stream Source Discovery — L4/L5/L6 Raporu
 
-**Oluşturulma:** 2026-10-17T13:38:23.494570800
+**Oluşturulma:** 2026-10-22T15:34:46.581071800
 **Taranan provider:** 59
 
 ## Özet
 | Metrik | Sayı |
 |---|---|
 | 🔍 Arama başarılı (200 OK + embed bulundu) | 1 |
-| ✅ Arama sayfası 200 OK | 37 |
-| ❌ Arama başarısız (timeout/CF/404) | 22 |
+| ✅ Arama sayfası 200 OK | 39 |
+| ❌ Arama başarısız (timeout/CF/404) | 20 |
 | 🔐 Cloudflare challenge (JS bypass gerekli) | 0 |
 
 ## CDN Kullanım Haritası (hangi CDN kaç provider tarafından kullanılıyor)
@@ -35,7 +35,7 @@
 | **Asyafanatiklerim** | `https://asyafanatiklerim.com` | — | 0 | — | ❌ Erişilemiyor |
 | **BelgeselX** | `https://belgeselx.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **CizgiMax** | `https://cizgimax.online` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
-| **CizgiveDizi** | `https://cizgivedizi.com` | — | 0 | — | ❌ Erişilemiyor |
+| **CizgiveDizi** | `https://cizgivedizi.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DDizi** | `https://www.ddizi.im` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DiziAsia** | `https://diziasia.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **DiziAsya** | `https://diziasya.com` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
@@ -66,7 +66,7 @@
 | **KoreanTurk** | `https://www.koreanturk.net` | — | 0 | — | ❌ Erişilemiyor |
 | **KultFilmler** | `https://kultfilmler.net` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **RecTV** | `https://b.prectv38.sbs` | — | 0 | — | ❌ Erişilemiyor |
-| **SeiCode** | `https://seiwatch.net` | — | 0 | — | ❌ Erişilemiyor |
+| **SeiCode** | `https://seiwatch.net` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **SelcukFlix** | `https://selcukflix.co` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |
 | **SetFilmIzle** | `https://www.setfilmizle.uk` | — | 0 | — | ❌ Erişilemiyor |
 | **SezonlukDizi** | `https://sezonlukdizi.cc` | naruto | 0 | — | ⚠️ Sayfa OK, embed yok |

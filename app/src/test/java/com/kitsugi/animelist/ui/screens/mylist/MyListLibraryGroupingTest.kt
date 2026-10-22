@@ -61,6 +61,29 @@ class MyListLibraryGroupingTest {
     }
 
     @Test
+    fun shikimoriCopyJoinsSameMalProductionWithoutDependingOnLocalizedTitle() {
+        val shikimori = entry(
+            id = 12,
+            title = "Zom 100: Zombie ni Naru made ni Shitai 100 no Koto",
+            source = "shikimori",
+            malId = 54_112,
+            year = 2023
+        )
+        val mal = entry(
+            id = 10,
+            title = "Zom 100: Bucket List of the Dead",
+            source = "mal",
+            malId = 54_112,
+            year = 2023
+        )
+
+        val grouped = groupMyListEntries(listOf(shikimori, mal))
+
+        assertEquals(1, grouped.size)
+        assertEquals(setOf("shikimori", "mal"), grouped.single().sourceIds.toSet())
+    }
+
+    @Test
     fun doesNotGroupDifferentMediaTypesOrConflictingProviderIds() {
         val first = entry(id = 4, title = "Same Title", source = "mal", malId = 1234)
         val otherMalRecord = entry(id = 3, title = "Same Title", source = "mal", malId = 5678)

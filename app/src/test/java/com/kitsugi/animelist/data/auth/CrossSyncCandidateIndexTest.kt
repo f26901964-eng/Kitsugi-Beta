@@ -45,6 +45,32 @@ class CrossSyncCandidateIndexTest {
     }
 
     @Test
+    fun shikimoriRomajiRowFindsMalEnglishRowThroughSharedTargetId() {
+        val index = CrossSyncCandidateIndex<Group>()
+        val group = Group("zom-100")
+        val mal = anime(
+            "Zom 100: Bucket List of the Dead",
+            malId = 54_112,
+            titleEnglish = "Zom 100: Bucket List of the Dead",
+            year = 2023,
+            source = "mal"
+        )
+        index.add(group, mal)
+
+        // user_rates embeds AnimeSerializer, which does not include the English aliases.
+        val shikimori = anime(
+            "Zom 100: Zombie ni Naru made ni Shitai 100 no Koto",
+            malId = 54_112,
+            titleEnglish = null,
+            year = 2023,
+            source = "shikimori"
+        )
+
+        assertEquals(setOf(group), index.possibleMatches(shikimori))
+        assertTrue(com.kitsugi.animelist.model.MediaIdentity.sameMedia(mal, shikimori, allowTitle = false))
+    }
+
+    @Test
     fun indexPartitionsTitlesByMediaTypeAndDoesNotReturnUnrelatedGroups() {
         val index = CrossSyncCandidateIndex<Group>()
         val groups = (0 until 2_000).map { position ->

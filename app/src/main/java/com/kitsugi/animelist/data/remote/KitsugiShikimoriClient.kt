@@ -432,11 +432,12 @@ object KitsugiShikimoriClient {
                 KitsugiApiBase.runWithRateLimit {
                     val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                     val data = JSONObject(response)
+                    val metadata = ShikimoriDetailParser.parse(data, mediaType)
 
-                    val russianTitle = data.optString("russian").takeIf { it.isNotBlank() }
-                    val romajiTitle = data.optString("name").takeIf { it.isNotBlank() }
-                    val engTitle = data.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() }
-                    val japTitle = data.optJSONArray("japanese")?.optString(0)?.takeIf { it.isNotBlank() }
+                    val russianTitle = metadata.russianTitle
+                    val romajiTitle = data.optNullableString("name")
+                    val engTitle = metadata.englishTitle
+                    val japTitle = metadata.japaneseTitle
                     val mainTitle = romajiTitle ?: engTitle ?: russianTitle ?: "Bilinmeyen"
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
@@ -461,13 +462,7 @@ object KitsugiShikimoriClient {
                     }
 
                     val ratingRaw = data.optString("rating", "").lowercase()
-                    val statusRaw = data.optString("status", "")
-                    val statusStr = when (statusRaw) {
-                        "released" -> "Finished Airing"
-                        "ongoing"  -> "Currently Airing"
-                        "anons"    -> "Not yet aired"
-                        else       -> statusRaw
-                    }.toTurkishStatus()
+                    val statusStr = metadata.status?.toTurkishStatus()
 
                     val genresList = mutableListOf<String>()
                     // `kind` alanı Shikimori'nin kendi sınıflandırmasıdır: theme/demographic
@@ -569,13 +564,11 @@ object KitsugiShikimoriClient {
                             }
                         }
                         val linksDef = async(Dispatchers.IO) {
-                            if (mediaType == MediaType.Manga) {
-                                emptyList<KitsugiExternalLink>()
-                            } else {
-                                runCatching {
-                                    withTimeoutOrNull(SHIKI_EXTRAS_TIMEOUT_MS) { fetchShikimoriExternalLinks(externalId) }
-                                }.getOrNull().orEmpty()
-                            }
+                            runCatching {
+                                withTimeoutOrNull(SHIKI_EXTRAS_TIMEOUT_MS) {
+                                    fetchShikimoriExternalLinks(externalId, mediaType)
+                                }
+                            }.getOrNull().orEmpty()
                         }
                         val themesDef = async(Dispatchers.IO) {
                             val malId = realMalId
@@ -595,8 +588,19 @@ object KitsugiShikimoriClient {
                     // Shikimori ekstra videolar (PV, Teaser, Karakter tanıtımları, OP, ED)
                     val shikiVideos = extras.first
 
-                    // Shikimori harici ve yayın linkleri
-                    val shikiLinks = extras.second
+                    // Shikimori harici ve yayın linkleri. Kaydın kendi sayfası ve doğrulanmış
+                    // MAL karşılığı da listede bulunur; API aynı URL'yi tekrar ederse tekilleştirilir.
+                    val shikimoriPage = ShikimoriPosterResolver.absoluteUrl(
+                        data.optNullableString("url") ?: "/$endpoint/$externalId"
+                    )?.let { KitsugiExternalLink(site = "Shikimori", url = it) }
+                    val malPage = realMalId?.let { malId ->
+                        val kind = if (mediaType == MediaType.Manga) "manga" else "anime"
+                        KitsugiExternalLink(site = "MyAnimeList", url = "https://myanimelist.net/$kind/$malId")
+                    }
+                    val shikiLinks = (listOfNotNull(shikimoriPage) + extras.second + listOfNotNull(malPage))
+                        .distinctBy { link ->
+                            link.url.trim().substringAfter("://").trimEnd('/').lowercase(java.util.Locale.ROOT)
+                        }
 
                     // AnimeThemes entegrasyonu (MyAnimeList ID üzerinden)
                     val (themeOps, themeEds) = extras.third
@@ -627,8 +631,8 @@ object KitsugiShikimoriClient {
                     val extraEdsAsThemes = shikiVideos.filter { it.first == "ed" }.map { it.second }
                     val finalEndings = (themeEds + extraEdsAsThemes).distinctBy { it.videoUrl ?: it.label }
 
-                    val streamingSites = setOf("Crunchyroll", "Netflix", "HIDIVE", "Disney+", "Amazon Prime")
-                    val streamingLinks = shikiLinks.filter { link -> streamingSites.any { link.site.contains(it, ignoreCase = true) } }
+                    val streamingLinks = shikiLinks.filter { ShikimoriDetailParser.isStreamingSite(it.site) }
+                    val externalLinks = shikiLinks.filterNot { ShikimoriDetailParser.isStreamingSite(it.site) }
 
                     val rawDesc = data.optNullableString("description")?.cleanApiText()
                     // Çeviri sayfa açılışını bloklamaz: kısa bütçeyle denenir, olmazsa
@@ -646,20 +650,26 @@ object KitsugiShikimoriClient {
                         themes = shikiThemes.distinct().toTurkishGenres(),
                         demographics = shikiDemographics.distinct().toTurkishGenres(),
                         status = statusStr,
+                        season = metadata.season?.toTurkishSeason(),
                         studios = studiosList,
                         rating = rating,
-                        episodeDuration = data.optInt("duration").takeIf { it > 0 }?.let { "$it dk" },
+                        episodeDuration = data.optInt("duration").takeIf { it > 0 }?.let {
+                            KitsugiStrings.get(R.string.detail_info_duration_minutes, it)
+                        },
                         startDate = data.optNullableString("aired_on"),
                         endDate = data.optNullableString("released_on"),
-                        titleEnglish = engTitle ?: romajiTitle,
+                        titleEnglish = engTitle,
                         titleJapanese = japTitle,
                         titleRomaji = romajiTitle,
                         titleNative = japTitle,
+                        titleRussian = russianTitle,
+                        synonyms = metadata.synonyms,
                         trailerUrl = trailerUrl,
                         title = mainTitle,
                         imageUrl = imageUrl,
                         score = score,
                         meanScore = meanScore,
+                        averageScore = meanScore,
                         year = year,
                         total = total,
                         isAdult = isAdult,
@@ -669,8 +679,25 @@ object KitsugiShikimoriClient {
                         serializations = shikiPublishers,
                         openings = finalOpenings,
                         endings = finalEndings,
-                        externalLinks = shikiLinks,
-                        streamingLinks = streamingLinks
+                        externalLinks = externalLinks,
+                        streamingLinks = streamingLinks,
+                        nextAiringEpisode = metadata.nextAiringEpisode,
+                        popularity = metadata.members,
+                        scoredBy = metadata.scoredBy,
+                        members = metadata.members,
+                        isFavourite = metadata.isFavourite,
+                        format = metadata.format,
+                        volumes = metadata.volumes,
+                        rawFormat = metadata.rawFormat,
+                        rawStatus = metadata.rawStatus,
+                        rawSeason = metadata.rawSeason,
+                        seasonYear = year,
+                        episodesAired = metadata.episodesAired,
+                        publishers = metadata.publishers ?: shikiPublishers.map { it.name }.takeIf { it.isNotEmpty() },
+                        licensors = metadata.licensors ?: shikiLicensors.map { it.name }.takeIf { it.isNotEmpty() },
+                        fansubbers = metadata.fansubbers,
+                        fandubbers = metadata.fandubbers,
+                        nativeStats = metadata.nativeStats
                     )
                 }
             }.getOrElse { err ->
@@ -741,31 +768,43 @@ object KitsugiShikimoriClient {
         }.getOrElse { emptyList() }
     }
 
-    suspend fun fetchShikimoriExternalLinks(animeId: Int): List<KitsugiExternalLink> = withContext(Dispatchers.IO) {
-        if (animeId <= 0) return@withContext emptyList()
-        val url = runCatching { URL("$BASE_URL/animes/$animeId/external_links") }.getOrNull() ?: return@withContext emptyList()
+    suspend fun fetchShikimoriExternalLinks(
+        externalId: Int,
+        mediaType: MediaType = MediaType.Anime
+    ): List<KitsugiExternalLink> = withContext(Dispatchers.IO) {
+        if (externalId <= 0) return@withContext emptyList()
+        val endpoint = if (mediaType == MediaType.Manga) "mangas" else "animes"
+        val url = runCatching { URL("$BASE_URL/$endpoint/$externalId/external_links") }.getOrNull()
+            ?: return@withContext emptyList()
         runCatching {
             val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val list = mutableListOf<KitsugiExternalLink>()
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
-                val lUrl = item.optString("url")
-                if (lUrl.isBlank()) continue
+                val lUrl = item.optNullableString("url") ?: continue
                 val kind = item.optString("kind", "official_site")
                 val siteName = when (kind.lowercase()) {
-                    "official_site" -> "Resmi Web Sitesi"
-                    "wikipedia" -> "Vikipedi"
+                    "official_site" -> KitsugiStrings.get(R.string.detail_link_official_site)
+                    "wikipedia" -> KitsugiStrings.get(R.string.detail_link_wikipedia)
                     "crunchyroll" -> "Crunchyroll"
                     "twitter" -> "X (Twitter)"
                     "youtube" -> "YouTube"
                     "netflix" -> "Netflix"
                     "hidive" -> "HIDIVE"
-                    "animenewsnetwork" -> "Anime News Network"
+                    "animenewsnetwork", "anime_news_network" -> "Anime News Network"
                     "myanimelist" -> "MyAnimeList"
+                    "amazon_prime" -> "Amazon Prime"
+                    "kinopoisk_hd" -> "Kinopoisk HD"
                     else -> kind.replace("_", " ").replaceFirstChar { it.uppercase() }
                 }
-                list.add(KitsugiExternalLink(site = siteName, url = lUrl))
+                list.add(
+                    KitsugiExternalLink(
+                        site = siteName,
+                        url = lUrl,
+                        language = ShikimoriDetailParser.externalLinkLanguage(kind, lUrl)
+                    )
+                )
             }
             list
         }.getOrElse { emptyList() }

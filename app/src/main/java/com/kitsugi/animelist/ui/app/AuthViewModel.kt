@@ -1226,23 +1226,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val maxProgress = candidates.maxOf { it.progress }
                     val maxVolumeProgress = candidates.maxOf { it.volumeProgress }
 
-                    // 2. En gelişmiş izleme durumu
+                    // 2. Tamamlanma güvencelerini koru; diğer durumlarda EN YENİ kullanıcı kararını
+                    // kullan. Eski sabit öncelik sırası (Watching > Paused > Dropped) bayat bir
+                    // Shikimori "İzleniyor" satırının daha yeni "Bırakıldı" kararını sonsuza kadar
+                    // ezmesine ve kaydın tek taraflı olarak eşitlenememesine yol açıyordu.
                     // Simkl'in `total` değeri "yayınlanmış bölüm sayısı"dır (devam eden dizilerde toplam değil);
-                    // bu sayıdan context.getString(R.string.cross_sync_log_category_complete) çıkarımı yapmak devam eden yapımları yanlışlıkla bitmiş gösteriyordu.
+                    // bu sayıdan tamamlanma çıkarımı yapmak devam eden yapımları yanlışlıkla bitmiş gösteriyordu.
                     // Çıkarım için yalnızca MAL/AniList/Kitsu/Shikimori toplamları kullanılır.
                     val totalCount = candidates
                         .filter { com.kitsugi.animelist.model.MediaIdentity.canonicalSource(it.source) != "simkl" }
                         .firstNotNullOfOrNull { it.total?.takeIf { t -> t > 0 } }
                     val singleSourceGroup = candidates.size == 1
-                    val bestStatus = when {
-                        totalCount != null && maxProgress >= totalCount -> WatchStatus.Completed
-                        candidates.any { it.status == WatchStatus.Completed } && (totalCount == null || maxProgress >= (totalCount ?: 0)) -> WatchStatus.Completed
-                        candidates.any { it.status == WatchStatus.Repeating } -> WatchStatus.Repeating
-                        candidates.any { it.status == WatchStatus.Watching } -> WatchStatus.Watching
-                        candidates.any { it.status == WatchStatus.Paused } -> WatchStatus.Paused
-                        candidates.any { it.status == WatchStatus.Dropped } -> WatchStatus.Dropped
-                        else -> newest.status
-                    }
+                    val bestStatus = com.kitsugi.animelist.data.auth.CrossSyncMergePolicy.selectStatus(
+                        candidates = candidates,
+                        newest = newest,
+                        totalCount = totalCount,
+                        maxProgress = maxProgress
+                    )
 
                     // 3. Puan (Eksik puanlar doldurulur, en güncel geçerli puan korunur)
                     val bestScore = candidates.filter { (it.score ?: 0) > 0 }.maxByOrNull { it.updatedAt }?.score

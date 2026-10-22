@@ -1137,6 +1137,8 @@ class KitsugiDetailClient {
             source.equals("kitsu", ignoreCase = true) -> "${base}_ks1"
             // s2: Simkl detaylarına çapraz realMalId ve type eklendi.
             source.equals("simkl", ignoreCase = true) -> "${base}_vl${MediaTitleResolver.VERSION}_s2"
+            // shiki_info1: Shikimori'nin atlanan yerel detay/istatistik alanları eklendi.
+            source.equals("shikimori", ignoreCase = true) -> "${base}_shiki_info1"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }

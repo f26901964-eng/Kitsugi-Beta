@@ -131,6 +131,22 @@ class MpvPlayerEngine(
             val view = mpvView ?: return false
             return runCatching { view.isVideoOutputActiveNow() }.getOrDefault(false)
         }
+
+    /**
+     * Video çıkışı kurulu, seçili parça var VE yüzey görünür durumda mı?
+     *
+     * Küçük oynatıcı bu bayrağı ses-only bekçisinde kullanır. SurfaceView görünmez
+     * (0×0, kırpılmış, pencereden düşmüş) ise mpv kare üretse bile kullanıcı siyah
+     * ekran görür; bu durumda yedek motor denenmeli ya da tam ekrana yönlendirilmeli.
+     */
+    override val hasRenderedVideoFrame: Boolean
+        get() {
+            if (released) return false
+            val view = mpvView ?: return false
+            return runCatching {
+                view.isVideoOutputActiveNow() && view.hasVisibleVideoSurface()
+            }.getOrDefault(false)
+        }
     override var currentState: PlayerEngine.State = PlayerEngine.State.IDLE
         private set
 

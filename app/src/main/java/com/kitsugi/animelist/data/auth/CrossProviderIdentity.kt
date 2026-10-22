@@ -27,7 +27,8 @@ import org.json.JSONObject
  * @param malId gerçek MAL ID (1..99M) — MAL API'si ve Shikimori `target_id` bunu bekler
  * @param aniListId AniList medya kimliği (offset'siz)
  * @param kitsuId Kitsu medya kimliği (offset'siz)
- * @param shikimoriId Shikimori'nin KENDİ numeric kimliği — MAL ID değildir
+ * @param shikimoriId Shikimori `target_id`; anime/manga kataloğunda MAL kimliğiyle aynıdır.
+ * Kaynak-özel tutamaç/eski önbellek anahtarları için ayrıca taşınır.
  * @param bangumiSubjectId Bangumi `subject_id` (offset'siz ham değer)
  */
 data class CrossProviderIds(
@@ -179,15 +180,15 @@ data class CrossProviderIds(
 
             storedId?.let { id ->
                 when {
-                    // 100M altı değer, satırın KAYNAĞINA göre yorumlanır (MediaIdentity.keys ile
-                    // birebir aynı sözleşme): Shikimori içe aktarması ham `target_id` yazar, eski
-                    // Kitsu/Bangumi satırları da ham kimlik taşıyabilir. Bunlar MAL kimliği SAYILMAZ;
-                    // eski decode hepsini MAL saydığı için Shikimori satırlarında MAL çözümleme
-                    // adımı hiç çalışmıyor, eski Bangumi satırlarında ise subject_id yanlışlıkla
-                    // MAL kimliği gibi kullanılıp yayılım kapısı sahte kimlikle açılıyordu.
+                    // 100M altı değer, satırın KAYNAĞINA göre yorumlanır. Shikimori'nin
+                    // anime/manga `target_id`sı resmî API'de `myanimelist_id` ile birebir
+                    // aynıdır; bu yüzden hem MAL eksenine hem kaynak-özel tutamacına yazılır.
+                    // Kitsu/Bangumi ham kimlikleri ise MAL kimliği değildir ve kendi uzaylarında
+                    // kalır (Bangumi subject_id'nin sahte MAL kimliğiyle yayılım açması önlenir).
                     id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "shikimori" -> {
                         shikimoriId = id
                         via["shikimori"] = "kayit"
+                        via["mal"] = "Shikimori target_id"
                     }
                     id in REAL_MAL_MIN..REAL_MAL_MAX && normalizedSource == "bangumi" -> {
                         bangumiSubjectId = id
@@ -218,6 +219,7 @@ data class CrossProviderIds(
                         if (id in (SHIKIMORI_OFFSET + 1)..(SHIKIMORI_OFFSET + 99_999_999)) {
                             shikimoriId = id - SHIKIMORI_OFFSET
                             via["shikimori"] = "kayit"
+                            via["mal"] = "Shikimori target_id"
                         }
                         BangumiIdNamespace.rawIdFromStable(id)?.let {
                             bangumiSubjectId = it
@@ -227,11 +229,12 @@ data class CrossProviderIds(
                 }
             }
 
-            // Gerçek MAL kimliği yalnızca MAL kimlik uzayını kullanan kaynaklarda (<100M ham
-            // değer) geçerlidir; Shikimori/Bangumi/Kitsu ham değerleri yukarıda kendi alanlarına
-            // yerleştirildi, burada MAL sayılmazlar.
-            val decodedMalId = realMalIdOf(storedId)?.takeIf {
-                normalizedSource !in setOf("shikimori", "bangumi", "kitsu")
+            // Shikimori target_id hem ham hem 400M stable-ID biçiminde doğrudan MAL kimliğini
+            // verir. Bangumi/Kitsu kimlikleri ise yalnızca kendi kaynak uzaylarında geçerlidir.
+            val decodedMalId = when {
+                shikimoriId != null -> realMalIdOf(shikimoriId)
+                normalizedSource in setOf("bangumi", "kitsu") -> null
+                else -> realMalIdOf(storedId)
             }
             return CrossProviderIds(
                 malId = decodedMalId,
@@ -248,9 +251,10 @@ data class CrossProviderIds(
         /**
          * Bir yapımın kararlı önbellek anahtarı — satır hangi kaynaktan gelirse gelsin aynı olmalı.
          *
-         * [source] verilirse 100M altı ham değerler [decode] ile aynı kuralla yorumlanır:
-         * Shikimori/Bangumi/Kitsu ham kimlikleri "mal:" uzayına YAZILMAZ (eski anahtar, aynı
-         * sayıdaki bambaşka bir MAL yapımının çözülmüş kimliğini bu satıra yapıştırabiliyordu).
+         * [source] verilirse önbellek satırı kaynak tutamacıyla adlandırılır. Shikimori'nin
+         * MAL kimliği [decode] içinde korunur; buradaki `shikimori:` anahtarı yalnızca eski
+         * önbellek kayıtlarıyla uyumluluğu sağlar. Bangumi/Kitsu ham kimlikleri MAL uzayına
+         * yazılmaz; aynı sayıdaki bambaşka bir yapımın kimliği bu satıra yapışmamalıdır.
          */
         fun cacheKey(
             type: MediaType?,
@@ -468,7 +472,9 @@ object CrossProviderIdentityResolver {
     ): CrossProviderIds {
         var ids = start
 
-        // 1) Shikimori satırları: Shikimori numeric ID ≠ MAL ID. Önce oradan MAL'e in.
+        // 1) Eski önbelleklerde Shikimori target_id tek başına bulunabilir. Güncel decode
+        // bunu zaten doğrudan MAL kimliği olarak verir; API doğrulaması yalnızca eski kayıtlar
+        // ve olası katalog sapmaları için geri-düşüş olarak kalır.
         if (ids.malId == null && ids.shikimoriId != null) {
             val malFromShiki = runSyncCatching {
                 com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveMalIdFromShikimori(ids.shikimoriId)
