@@ -1128,3 +1128,110 @@ sessiz döngü üretmez, hata/yeniden-deneme yoluna girer).
   **T22** (ayna entegrasyonu); çalışma-zamanı doğrulamaları **T06/T07/T09** gerçek
   hesap/API gerektirir. E60 tek DOĞRULANMADI çalışma-zamanı maddesi olarak durur.
 
+---
+
+## §21 — Geçiş 13: kullanıcı sorgusuyla tetiklenen çapraz denetim (E81, E82)
+
+Geçiş 12 kapatıldıktan sonra kullanıcı, “bir eksik/gedik veya yanlış eşleşme
+kalmadığına emin misin?” diye açıkça sordu. Buna sözlü güvence verilmedi; onun
+yerine yasak desenler ve Geçiş 12'de eklenen testlerin çağırdığı semboller tekrar
+tarandı. Bu denetim iki gerçek hata daha buldu: biri üretim kodunda, biri bu
+oturumda yazılan test kodunda.
+
+### 21.1 E81 — Simkl silme akışı geçersiz `dropped` durumu gönderiyordu
+
+**Kanıt (kod okuması, düzeltme öncesi):**
+
+- Normal Simkl yazım yolu doğruydu: `SimklSyncManager.watchStatusToSimkl`
+  `WatchStatus.Dropped` değerini `notinteresting`e çevirir.
+- Silme akışı ise ikinci bir yoldu ve `deleteEntryFromSimkl` içinde
+  `SimklBatchEntry(status = "dropped", ...)` sert-kodluyordu.
+- `SimklApiClient.addToListBatchDetailed`, bu dizgeyi normalize etmeden
+  `JSONObject().put("to", entry.status)` ile `/sync/add-to-list` gövdesine koyuyordu.
+- Simkl sözleşmesindeki izinli `to` değerleri
+  `watching | plantowatch | completed | notinteresting | hold`dur; `dropped`
+  geçerli değildir. Dosyanın kendi `watchStatusToSimkl` açıklaması da Simkl'in bunu
+  reddettiğini söyler.
+- Ayrıca `SimklApiClient.addToList` üzerindeki eski KDoc, `dropped`ı geçerli bir
+  durum gibi listeliyordu. Bu metin-kod çelişkisi E81'in muhtemel kaynağıydı;
+  sözleşmeye uygun olan kod esas alınarak yorum düzeltildi.
+
+**Etki:** Yerel silmede ilerleme ve puan temizleme adımları çalışsa bile son
+“satırı bırakıldı kovasına taşı” isteği geçersiz enum yüzünden kabul edilmiyordu.
+Böylece kayıt Simkl'de eski liste durumunda kalabiliyordu; makbuzun `not_found`
+benzeri sayılan dalı da bu sessiz eksikliği ayırt etmiyordu. Bu, silmenin altı
+kaynağa doğru yayılması (A1/A10) ve sessiz atlama yasağı açısından üretim hatasıdır.
+
+**Düzeltme (iki katman):**
+
+1. Asıl sözleşme çağırana iade edildi: silme akışı artık
+   `watchStatusToSimkl(WatchStatus.Dropped, entry.type)` kullanır.
+2. İstemci sınırına son emniyet eklendi:
+   `SimklSyncContract.normalizeListStatus`, bilinen tek geçersiz eşlemeyi
+   (`dropped`, büyük/küçük harf ve çevre boşluğu duyarsız) `notinteresting`e
+   çevirir. Bu doğrulayıcı değildir; bilinmeyen değerler sessizce başka kovaya
+   çevrilmez.
+3. Yanlış KDoc, `notinteresting`i geçerli kova olarak gösterecek şekilde düzeltildi.
+
+**Testler:** `SimklSyncContractTest`e 3 test eklendi; dosya 8 testten 11 teste
+çıktı. Testler çeviriyi, beş yasal kovanın değişmeden geçişini ve bilinmeyen
+değerlerin yeniden yazılmadığını kilitler. Gerçek Simkl hesabında silme isteğinin
+sunucuda kabulü bu bölümle **çalışma-zamanı doğrulanmış sayılmaz**; hesabı olan
+kullanıcı koşusu/T06 kapsamı ayrıca gerekir.
+
+### 21.2 E82 — Geçiş 12 testlerinde var olmayan yardımcı parametresi
+
+Geçiş 12'de eklenen dört `newestOrNull` testi,
+`CrossSyncMergePolicyTest.e("mal", id = 1, ...)` biçiminde yazılmıştı. Oysa
+yardımcının `id` parametresi yoktur; `MediaEntry(id = source.hashCode(), ...)`
+kurar. Bu hata kullanıcının ilk Gradle koşusunda test derlemesini kırardı.
+
+Bu, üretim davranışında bir hata değildir; bu oturumun test yazım hatasıdır ve
+saklanmadan kaydedilmiştir. Testler `e(...).copy(id = ...)` biçimine çevrildi;
+böylece ilerleme → kaynak → `id` kırılımı gerçekten ayrı kimliklerle sınanır.
+Geçiş 12'deki diğer yeni testlerin çağırdığı ilgili kurucu/fonksiyon imzaları da
+(`MediaEntry`, `statusFor`, `ProviderCapabilitiesCatalog.of`, `Merged`,
+`malStatusForWrite`, Simkl import yardımcıları ve puan dönüşümleri) bu denetimde
+tek tek kaynakla karşılaştırıldı.
+
+### 21.3 Aynı denetimde hata sayılmayan iki şüpheli nokta
+
+- `MalImportManager.kt` içinde `is_favorited` ilk seçicide görünür; ancak kod
+  400/`invalid field` durumunda alanı çıkarıp bir kez yeniden dener ve sonraki
+  sayfalarda da atlamayı hatırlar. Bu, daha önce belgelenmiş MAL içe aktarma
+  alan-düşürme istisnasıdır; yeni bir üretim hatası olarak işaretlenmedi.
+- `ShikimoriSyncManager.kt` içindeki `fullWrite || SyncField.STATUS in fields`
+  yalnız `status` niteliğini kapılar; Bangumi E11'deki “STATUS varsa her şeyi yaz”
+  tırmanması değildir. Diğer alanlar kendi `SyncField` koşullarıyla ayrıca
+  kapılandığı için bu nokta temiz bulundu.
+
+### 21.4 Süreç bulgusu: geçici test dosyası ezmesi yakalanıp geri alındı
+
+E81 testleri yazılırken `SimklSyncContractTest.kt` için tam dosya yazımı kullanıldı
+ve mevcut dosya çalışma ağacında geçici olarak ezildi. Bu, commit öncesi `git diff`
+denetiminde fark edildi; dosya `HEAD` sürümünden geri getirildi, mevcut 8 test
+aynen korunarak yeni 3 test sonuna eklendi. Ezilmiş içerik commit/push edilmemiştir;
+kalıcı test kaybı yoktur. Buradaki ders E82 ile aynıdır: dosya varlığı ve yardımcı
+imzaları varsayılmaz; önce okunur, sonra yazılır.
+
+### 21.5 Doğrulama ve dürüst durum
+
+- `kcheck.py`: bu geçişte dokunulan 5 dosya tarandı. Tek rapor,
+  `SimklApiClient.kt` satır 167'deki önceden bilinen yanlış pozitif olmuştur;
+  diğer 4 dosyada sözdizimi hatası yoktur.
+- Birleşim algoritması bu geçişte değişmediği için fuzz sonuçları §20.8'deki
+  tabanla aynı kapsamdadır; yeni bir “fuzz geçti” iddiası üretilmemiştir.
+- **Derleme ve birim test bu ortamda yine ÇALIŞTIRILMADI.** E82'nin kendisi,
+  yalnız kod okuması ve kcheck'in bir Gradle koşusu yerine geçemeyeceğini gösterir.
+  Kullanıcının çalıştırması gereken komut değişmemiştir:
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
+- Bu geçişte değişen dosyalar: `data/auth/SimklSyncManager.kt`,
+  `data/remote/SimklApiClient.kt`, `data/remote/SimklSyncContract.kt`,
+  `data/auth/CrossSyncMergePolicyTest.kt` ve
+  `data/remote/SimklSyncContractTest.kt`.
+- “Hiç eksik kalmadı” iddiası bu bölümle de kurulmaz. Açık kalan başlıca kanıt
+  boşlukları: Gradle derleme/test koşusu; T13 `AuthViewModel` orkestrasyonu;
+  T03/T04 token/kimlik önbelleği; T22 ayna entegrasyonu; T06/T07/T09 çalışma-zamanı
+  doğrulamaları ve E60. Bir sonraki saldırı yüzeyi özellikle kimlik eşleşmesi ve
+  orkestrasyon yoludur.
+

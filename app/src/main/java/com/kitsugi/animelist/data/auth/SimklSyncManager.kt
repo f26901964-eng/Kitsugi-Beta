@@ -666,11 +666,14 @@ object SimklSyncManager {
             errors.add(context.getString(R.string.simkl_sync_rating_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
         }
 
-        // 3/3 Kalan liste-durumu → DROPPED: resmî "listeden tam-silme" ucu yok (API);
-        // ekosistem standardı (MALSync vb.) silmeyi dropped'a taşımaktır. İlerleme ve
-        // puan yukarıda temizlendi; burada kalan satırın durumu kapatılır. Yalnız
-        // linkedBeforeDelete (hayalet-koruma). Makbuz: taşıma hatası yeniden denesin,
-        // not_found sessiz atlasın (id bulunduysa bu da nadir).
+        // 3/3 Kalan liste-durumu → bırakıldı kovası: resmî "listeden tam-silme" ucu yok
+        // (API); ekosistem standardı (MALSync vb.) silmeyi bırakıldıya taşımaktır.
+        // İlerleme ve puan yukarıda temizlendi; burada kalan satırın durumu kapatılır.
+        // Yalnız linkedBeforeDelete (hayalet-koruma). Makbuz: taşıma hatası yeniden
+        // denesin, not_found sessiz atlasın (id bulunduysa bu da nadir).
+        // (E81) Durum `watchStatusToSimkl` üzerinden gider: ham "dropped" dizgesi
+        // Simkl sözleşmesinde GEÇERSİZDİR (`notinteresting`); sert-kodlu gönderim
+        // reddediliyor ve silinen satır Simkl'de eski durumunda kalıyordu.
         if (linkedBeforeDelete) {
             runCatching {
                 simklApiClient.addToListBatchDetailed(
@@ -678,7 +681,7 @@ object SimklSyncManager {
                     entries = listOf(
                         SimklApiClient.SimklBatchEntry(
                             type = type,
-                            status = "dropped",
+                            status = watchStatusToSimkl(WatchStatus.Dropped, entry.type),
                             simklId = simklId,
                             malId = realMalId,
                             tmdbId = entry.tmdbId,
@@ -690,15 +693,15 @@ object SimklSyncManager {
                 )
             }.onSuccess { receipt ->
                 when {
-                    receipt.isSuccess -> Log.i(TAG, "deleteEntryFromSimkl: kayıt dropped'a taşındı")
+                    receipt.isSuccess -> Log.i(TAG, "deleteEntryFromSimkl: kayıt notinteresting kovasına taşındı")
                     receipt.transportFailed -> {
-                        Log.e(TAG, "deleteEntryFromSimkl: dropped taşıması başarısız=${receipt.errorMessage}")
+                        Log.e(TAG, "deleteEntryFromSimkl: kovaya taşıma başarısız=${receipt.errorMessage}")
                         errors.add(context.getString(R.string.simkl_sync_entry_delete_failed))
                     }
-                    else -> Log.i(TAG, "deleteEntryFromSimkl: dropped atlandı (not_found vb.)")
+                    else -> Log.i(TAG, "deleteEntryFromSimkl: kovaya taşıma atlandı (not_found vb.)")
                 }
             }.onFailure { e ->
-                Log.e(TAG, "deleteEntryFromSimkl dropped hatası", e)
+                Log.e(TAG, "deleteEntryFromSimkl kovaya taşıma hatası", e)
                 errors.add(context.getString(R.string.simkl_sync_entry_delete_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
             }
         }

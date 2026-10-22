@@ -927,7 +927,9 @@ class SimklApiClient(
     /**
      * Listeye iÃ§erik ekler veya durumunu gÃ¼nceller.
      * type: "shows" veya "movies" veya "anime"
-     * status: "watching", "plantowatch", "completed", "hold", "dropped"
+     * status: "watching", "plantowatch", "completed", "hold", "notinteresting"
+     * ("dropped" Simkl sözleşmesinde GEÇERSİZDİR — bkz. E81;
+     *  SimklSyncContract.normalizeListStatus son emniyet olarak çevirir.)
      * NyanTV referans: POST /sync/add-to-list
      */
     suspend fun addToList(
@@ -1043,7 +1045,9 @@ class SimklApiClient(
 
         entries.forEach { entry ->
             val idObj = buildSimklIds(entry)
-            val itemObj = JSONObject().put("to", entry.status)
+            // (E81) Son emniyet: `to` alanına geçersiz `dropped` enum'u hiç gitmez
+            // (asıl sözleşme çağıranda — bkz. SimklSyncContract.normalizeListStatus).
+            val itemObj = JSONObject().put("to", SimklSyncContract.normalizeListStatus(entry.status))
             if (idObj.length() > 0) {
                 itemObj.put("ids", idObj)
             }

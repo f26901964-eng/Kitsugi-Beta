@@ -534,36 +534,39 @@ class CrossSyncMergePolicyTest {
     // veriyordu; eşit damgalı adaylarda yerel yansıma satırı ile tohum satırı
     // aynı kayda farklı kazananlar seçebiliyordu.
 
+    // NOT (E82): `e()` yardımcısının `id` parametresi yoktur (`id = source.hashCode()`);
+    // kimlik gerektiren senaryolar `.copy(id = ...)` ile kurulur.
+
     @Test
     fun `newest en yuksek damgayı secer`() {
-        val older = e("mal", id = 1, updatedAt = 100)
-        val newer = e("anilist", id = 2, updatedAt = 200)
+        val older = e("mal", updatedAt = 100).copy(id = 1)
+        val newer = e("anilist", updatedAt = 200).copy(id = 2)
         assertEquals(newer, CrossSyncMergePolicy.newestOrNull(listOf(older, newer)))
         assertEquals(newer, CrossSyncMergePolicy.newestOrNull(listOf(newer, older)))
     }
 
     @Test
     fun `newest esit damgada ilerleme sonra kaynak sonra id ile kirar`() {
-        val ahead = e("mal", id = 5, progress = 9, updatedAt = 100)
-        val behind = e("anilist", id = 1, progress = 4, updatedAt = 100)
+        val ahead = e("mal", progress = 9, updatedAt = 100).copy(id = 5)
+        val behind = e("anilist", progress = 4, updatedAt = 100).copy(id = 1)
         assertEquals(ahead, CrossSyncMergePolicy.newestOrNull(listOf(behind, ahead)))
 
-        val aniListRow = e("anilist", id = 9, progress = 4, updatedAt = 100)
-        val malRow = e("mal", id = 2, progress = 4, updatedAt = 100)
+        val aniListRow = e("anilist", progress = 4, updatedAt = 100).copy(id = 9)
+        val malRow = e("mal", progress = 4, updatedAt = 100).copy(id = 2)
         assertEquals(aniListRow, CrossSyncMergePolicy.newestOrNull(listOf(malRow, aniListRow)))
 
-        val lowId = e("mal", id = 3, progress = 4, updatedAt = 100)
-        val highId = e("mal", id = 8, progress = 4, updatedAt = 100)
+        val lowId = e("mal", progress = 4, updatedAt = 100).copy(id = 3)
+        val highId = e("mal", progress = 4, updatedAt = 100).copy(id = 8)
         assertEquals(lowId, CrossSyncMergePolicy.newestOrNull(listOf(highId, lowId)))
     }
 
     @Test
     fun `newest girdi sirasindan bagimsizdir`() {
         val rows = listOf(
-            e("mal", id = 11, progress = 6, updatedAt = 300),
-            e("kitsu", id = 4, progress = 6, updatedAt = 300),
-            e("kitsu", id = 2, progress = 6, updatedAt = 300),
-            e("anilist", id = 30, progress = 1, updatedAt = 900)
+            e("mal", progress = 6, updatedAt = 300).copy(id = 11),
+            e("kitsu", progress = 6, updatedAt = 300).copy(id = 4),
+            e("kitsu", progress = 6, updatedAt = 300).copy(id = 2),
+            e("anilist", progress = 1, updatedAt = 900).copy(id = 30)
         )
         assertEquals(rows[3], CrossSyncMergePolicy.newestOrNull(rows))
         assertEquals(rows[3], CrossSyncMergePolicy.newestOrNull(rows.reversed()))
