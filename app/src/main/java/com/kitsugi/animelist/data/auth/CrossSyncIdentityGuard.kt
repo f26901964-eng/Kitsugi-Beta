@@ -324,6 +324,12 @@ object CrossSyncIdentityGuard {
         val yearOk = yearsCompatible(localYear, remote.year)
         val matchedLocalTitles = matchingLocalTitleAliases(titles, remote.titles)
         val related = matchedLocalTitles.isNotEmpty()
+        // Tam (birebir) başlık eşdeğerliği + aynı MAL türü, yıl bilgisinden BAĞIMSIZ kanıttır:
+        // aynı türdeki iki kayıt aynı normalize başlığı taşıyorsa bu, yanlış yapıma yazma
+        // riskini doğurmaz. Yıl farkı çoğu zaman yayın/yayın-başlangıcı ya da sezon (TV ↔ film)
+        // farkından gelir; eskiden bu yüzden `Unverifiable` dönüyor ve çapraz yayılımın TAMAMI
+        // sessizce atlanıyordu ("MAL'a ekledim, hiçbir yere gitmiyor").
+        val identityEquivalent = titlesAreIdentityEquivalent(titles, remote.titles)
 
         return when {
             !typeOk -> Verdict.Rejected(
@@ -337,6 +343,7 @@ object CrossSyncIdentityGuard {
                 remoteTitle = remote.primaryTitle,
                 remoteYear = remote.year
             )
+            identityEquivalent -> Verdict.Verified(remote.primaryTitle, remote.year, matchedLocalTitles)
             related && yearOk -> Verdict.Verified(remote.primaryTitle, remote.year, matchedLocalTitles)
             !related -> Verdict.Rejected(
                 reason = KitsugiStrings.get(
@@ -351,6 +358,7 @@ object CrossSyncIdentityGuard {
             )
             localYear == null || localYear <= 0 || remote.year == null || remote.year <= 0 ->
                 Verdict.Unverifiable(KitsugiStrings.get(R.string.cross_sync_identity_year_unavailable))
+            // Yalnızca ZAYIF başlık akrabalığı var ve yıllar çelişiyor → gerçek çelişki.
             else -> Verdict.Rejected(
                 reason = KitsugiStrings.get(
                     R.string.cross_sync_identity_year_mismatch,
@@ -364,6 +372,19 @@ object CrossSyncIdentityGuard {
             )
         }
     }
+
+    /**
+     * Kararın çapraz yazımı **engelleyip engellemediği**.
+     *
+     * Eski kural `Verified` dışındaki her sonucu engelliyordu. Bu, ağ/kota nedeniyle katalog
+     * okunamadığında ([Unverifiable]) veya yerel satırda yıl bulunmadığında **hiçbir** kaynağa
+     * yazılmaması demekti — kullanıcı "MAL'a ekledim, AniList/Kitsu/Shikimori/Bangumi'ye hiç
+     * gitmiyor" diyordu. Doğru ayrım: yalnızca katalog **çelişki** gösterdiğinde
+     * ([Rejected]) yazım durur; kanıt yokluğu ([Unverifiable]) hedefin KENDİ resmî
+     * kimliğiyle doğrulamasına bırakılır (AniList `idMal`, Kitsu `mappings`,
+     * Simkl `ids.mal`, Shikimori `target_id` = MAL ID).
+     */
+    fun blocksCrossWrite(verdict: Verdict): Boolean = verdict is Verdict.Rejected
 
     /** Test/teşhis amaçlı: önbelleği boşaltır. */
     fun clearCache() = identityCache.clear()

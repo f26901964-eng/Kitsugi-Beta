@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -96,6 +97,10 @@ object ShikimoriImportManager {
                         aniListEntryId = null,
                         source = "shikimori",
                         notes = rate.notes,
+                        // Shikimori'de tekrar durumu ayrı bir `status` değeridir ("rewatching");
+                        // `rewatches` ise TAMAMLANMIŞ tekrar sayısıdır. Bayrağı sayıdan türetmek
+                        // bitmiş yapımları "şu an tekrar izleniyor" gibi göstermeye yol açardı.
+                        isRepeating = status == WatchStatus.Repeating,
                         repeatCount = rate.rewatches,
                         volumeProgress = if (isManga) rate.volumes else 0,
                         updatedAt = rate.updatedAt,

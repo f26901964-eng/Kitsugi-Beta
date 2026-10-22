@@ -6568,6 +6568,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="account_sync_bangumi_match_not_found">Bangumi eşleşmesi bulunamadı: %1$s</string>
     <string name="account_sync_shikimori_id_not_found">Shikimori (MAL) kimliği bulunamadı: %1$s</string>
     <string name="account_sync_missing_external_ids">Simkl/MAL/TMDB kimliği bulunamadı: %1$s</string>
+    <string name="account_sync_no_changes_to_write">%1$s: Güncellenecek yeni bir değişiklik yok</string>
+    <string name="account_sync_source_timeout">%1$s yanıt vermedi (zaman aşımı)</string>
+    <string name="account_sync_partial_synced">Kısmi eşitleme: bazı servisler güncellendi, kalanlar yeniden denenecek</string>
     <string name="account_sync_api_error">%1$s API hatası: %2$d %3$s</string>
     <string name="account_sync_connection_error">%1$s bağlantı hatası: %2$s</string>
     <string name="account_sync_delete_error">%1$s silme hatası: %2$s</string>

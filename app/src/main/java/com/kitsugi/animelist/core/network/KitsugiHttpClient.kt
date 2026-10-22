@@ -56,6 +56,27 @@ object KitsugiHttpClient {
             .build()
     }
 
+    /**
+     * Bangumi istemcisi: [RetryInterceptor] YOK ve 14 sn toplam çağrı tavanı uygulanır.
+     */
+    val bangumiClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(14, TimeUnit.SECONDS)
+            .apply { interceptors().removeAll { it is RetryInterceptor } }
+            .build()
+    }
+
+    /**
+     * Çapraz liste eşitleme yazımları için istemci (MAL, Kitsu, Shikimori, Simkl).
+     * 25 sn toplam çağrı tavanı ile asılı kalan istekleri keser.
+     */
+    val syncClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(25, TimeUnit.SECONDS)
+            .build()
+    }
+
+
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .dns(IPv4FirstDns())

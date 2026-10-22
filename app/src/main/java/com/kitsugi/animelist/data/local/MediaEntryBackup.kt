@@ -189,7 +189,10 @@ object MediaEntryBackup {
                         val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
                         !engLocal.isNullOrBlank() && engLocal == engImp
                     }
-                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+                    // (E78) "En yeni eşleşme" aday sırasına bağlı seçilemez: tek kaynak sıra.
+                    keyMatch ?: exactTitleMatch ?: exactEngMatch
+                        ?: com.kitsugi.animelist.data.auth.CrossSyncMergePolicy.newestOrNull(matches)
+                        ?: matches.first()
                 }
             }
 

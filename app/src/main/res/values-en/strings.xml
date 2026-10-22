@@ -6566,6 +6566,9 @@
     <string name="account_sync_bangumi_match_not_found">No matching Bangumi entry found: %1$s</string>
     <string name="account_sync_shikimori_id_not_found">Shikimori (MAL) ID not found: %1$s</string>
     <string name="account_sync_missing_external_ids">Simkl/MAL/TMDB ID not found: %1$s</string>
+    <string name="account_sync_no_changes_to_write">%1$s: No changes to write</string>
+    <string name="account_sync_source_timeout">%1$s did not respond (timeout)</string>
+    <string name="account_sync_partial_synced">Partial sync: some services updated, remaining will be retried</string>
     <string name="account_sync_api_error">%1$s API error: %2$d %3$s</string>
     <string name="account_sync_connection_error">%1$s connection error: %2$s</string>
     <string name="account_sync_delete_error">%1$s deletion error: %2$s</string>
