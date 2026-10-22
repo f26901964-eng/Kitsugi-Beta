@@ -692,6 +692,27 @@ sonuç yanlış olur. Üç mantık hatası bulundu.
 |---|---|---|---|---|
 | **E69** | MAL'da kısmi alan yazımı **kayıt oluşturuyordu** | Satır MAL kapalıyken/bağlı değilken eklendi; sonra MAL bağlandı ve kullanıcı yalnız puanı değiştirdi → `fields = {SCORE}` | `PATCH my_list_status` upsert olduğu için MAL'de `plan_to_watch` + `0/12` ile **yarım kayıt** doğar; sonraki turlarda durum/ilerleme "değişmediği" için asla düzeltilmez | Durum alanı içermeyen (kayıt oluşturabilecek) yazımlardan önce `GET ?fields=my_list_status` ile kaydın varlığı doğrulanır; **yoksa** bir kez tam yazıma geçilir. Ek istek yalnız bu nadir yolda (puan/not/tarih düzenlemesi) atılır; durum içeren her yazımda ek istek YOK. Doğrulama başarısız olursa (ağ) davranış eskisi gibi kalır |
 
+### 17.0b Model koşturmasıyla bulunan iki hata (E70, E71)
+
+Birleştirme kuralı, Kotlin'deki mantığın **birebir Python modeli** olarak yazıldı ve
+rastgele 4000 aday kümesiyle koşturuldu (determinizm, sabit nokta/idempotans, monotonluk,
+toplam-il erleme tutarlılığı). İlk koşuda 4000 kümenin **126'sında** sonuç aday sırasına
+göre değişiyordu:
+
+| # | Hata | Kök neden | Etki | Düzeltme |
+|---|---|---|---|---|
+| **E70** | Birleşik ilerleme, adayların **sırasına** bağlıydı | İki kaynak aynı saniyede güncellendiğinde `maxByOrNull { updatedAt }` **ilk rastlanan** satırı seçer; `sortedWith` kararlı olduğu için `resolveStatus`/`resolveScore` de eşit anahtarda sıraya bağlı kalıyordu | Aynı veriden iki farklı birleşim → ilerleme 6 ↔ 13 arasında zıplayıp **her iki yöne de yazım** üretebilir | Sıralamaya son anahtar olarak satır kimliği (`id`) eklendi; tekrar satırı seçimi `newestRewatch()` yardımcısına alındı (en yeni → en yüksek ilerleme → kaynak → id) |
+| **E71** | Öncelikli kaynağın toplamı eldeki ilerlemeyi taşımıyorsa ilerleme **kırpılarak geri yazılıyordu** | `totalOf` yalnız öncelik sırasına bakıyordu | Ör. AniList 12 bölüm, Bangumi 13 bölüm ve ilerleme 14 → birleşim 12'ye kırpılıyor; yeni bir kaynak eklendiğinde ilerleme 13 → 12 düşebiliyor | Öncelikli toplam, en yüksek ilerlemeyi taşımıyorsa adaylardaki **en büyük** toplam kullanılır (deterministik; maksimum sıradan bağımsız) |
+
+Düzeltmeden sonra aynı koşturma: **sıra bağımlılığı 0, durum/ilerleme idempotans ihlali 0,
+monotonluk ihlali 0**. Kalan 66 "toplam düştü" vakası, hiç toplam yokken bir kaynağın ilk kez
+toplam bildirmesi (14 → 12 kırpma) ve **beklenen** davranış: kırpma olmasa MAL/Kitsu yazımı
+400/422 ile tümden düşer; daha ileride olan sağlayıcıya geri yazım zaten yapılmaz.
+
+> Not: Bu koşturma Kotlin kodunu çalıştırmaz; **kuralın algoritmasını** doğrular (model
+> tabanlı test). Kotlin tarafındaki ifade ile model arasındaki fark riski raporda açıkça
+> kabul edilmiştir.
+
 Aynı hata sınıfı diğer sağlayıcılarda **yok**, çünkü onlarda kaydın varlığı yazımdan önce
 kanıtlanıyor: AniList `aniListEntryId == null → writeAll`, Kitsu `findLibraryEntryId`
 (ardından 422 → bul → PATCH), Shikimori find-or-create, Bangumi `PATCH → 404 → upsert`
@@ -715,12 +736,14 @@ kanıtlanıyor: AniList `aniListEntryId == null → writeAll`, Kitsu `findLibrar
 
 ### 17.2 Test kapsamı
 
-`CrossSyncMergePolicyTest` 29 → **34 test**. Yeni 5 test:
+`CrossSyncMergePolicyTest` 29 → **36 test**. Yeni testler:
 - `tekrar sirasinda AniList ilerlemesi geri sayilir` (E66)
 - `bayrakli hedefte tekrar sirasinda ilerleme geri yazilmaz` (E66'nın sınırı)
 - `biten tekrar bayat REPEATING satirini ezmez` (E67 + E67b)
 - `esit zaman damgasinda tekrar kazanir` (E67 eşitlik kuralı)
 - `toplam kaynagi aday sirasindan bagimsizdir` (E68)
+- `esit zaman damgasinda tekrar satiri da deterministik secilir` (E70)
+- `toplam eldeki ilerlemeyi tasimiyorsa buyuk toplam kullanilir` (E71)
 
 ### 17.3 Kalan açık riskler (dürüst liste, önem sırasıyla)
 

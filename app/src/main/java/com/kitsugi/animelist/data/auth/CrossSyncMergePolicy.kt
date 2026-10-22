@@ -66,7 +66,7 @@ object CrossSyncMergePolicy {
         // ilerlemesi de bayrağı da dikkate alınmaz. Aksi hâlde biten bir tekrar, bayat
         // satır yüzünden ilerlemeyi 12'den 3'e düşürür ve `is_rewatching`i yeniden açar.
         val rewatchActive = status == WatchStatus.Repeating
-        val rewatchRows = if (rewatchActive) candidates.filter { it.isRewatchInProgress() } else emptyList()
+        val newestRewatchRow = if (rewatchActive) newestRewatch(candidates) else null
 
         // Toplam biliniyorsa daha fazlası yazılamaz: MAL `num_watched_episodes` toplamı
         // aşınca 400 döner, Kitsu 422 verir. Kırpma, yazımın tümden düşmesini engeller.
@@ -77,9 +77,8 @@ object CrossSyncMergePolicy {
         // tekrar satırının ilerlemesi esastır (MAL-Sync de tekrar sırasında ilerlemeyi
         // kaynak satırın kendi değeriyle yazar).
         val progress = when {
-            rewatchRows.isNotEmpty() -> {
-                val rewatchProgress = rewatchRows.maxByOrNull { it.updatedAt }?.progress
-                    ?: rawMaxProgress
+            newestRewatchRow != null -> {
+                val rewatchProgress = newestRewatchRow.progress
                 if (total != null) rewatchProgress.coerceAtMost(total) else rewatchProgress
             }
             total != null -> rawMaxProgress.coerceAtMost(total)
@@ -204,8 +203,19 @@ object CrossSyncMergePolicy {
         // sırası vardır (MAL → AniList → Kitsu → Shikimori → Bangumi); aynı kaynakta
         // birden çok değer varsa en büyüğü alınır.
         val bySource = totals.groupBy({ it.first }, { it.second })
-        return TOTAL_SOURCE_PRIORITY.firstNotNullOfOrNull { source -> bySource[source]?.maxOrNull() }
+        val preferred = TOTAL_SOURCE_PRIORITY.firstNotNullOfOrNull { source -> bySource[source]?.maxOrNull() }
             ?: bySource.values.maxOf { values -> values.max() }
+        // (E71) Öncelikli kaynağın toplamı, ELDEKİ en yüksek ilerlemeyi taşıyamıyorsa
+        // (kaynaklar bölüm sayısında anlaşmıyor: bölünmüş sezon, hatalı meta veri…),
+        // kırpma o toplama göre yapılırsa ilerleme GERİ yazılır: 14 bölde 13'e, sonra
+        // kaynak eklendiğinde 12'ye. "Hiçbir alan gerilemez" kuralı gereği bu durumda
+        // adaylardaki EN BÜYÜK toplam kullanılır (deterministik: maksimum, sıraya bağlı değil).
+        val maxProgress = candidates.maxOf { it.progress }
+        return if (maxProgress > preferred) {
+            totals.maxOf { it.second }.coerceAtLeast(preferred)
+        } else {
+            preferred
+        }
     }
 
     /** Toplam (bölüm/cilt sayısı) çıkarımında kaynak önceliği — deterministik olmalı. */
@@ -224,11 +234,14 @@ object CrossSyncMergePolicy {
      */
     fun resolveStatus(candidates: List<MediaEntry>, total: Int?, maxProgress: Int): WatchStatus {
         val byRecency = candidates.sortedWith(
+            // Eşit zaman damgasında (ör. içe aktarılmış satırlar) sıra deterministik olsun:
+            // ilerleme yüksek olan, sonra kaynak adı, en son satır kimliği. `sortedWith`
+            // kararlı (stable) olduğu için son anahtar olmadan sıra ADAY SIRASINA bağlı kalır;
+            // bu da aynı veriden iki farklı birleşim üretip turlar arasında zıt yazımlara yol açar.
             compareByDescending<MediaEntry> { it.updatedAt }
-                // Eşit zaman damgasında (ör. içe aktarılmış satırlar) sıra deterministik olsun:
-                // ilerleme yüksek olan, sonra kaynak adı.
-            .thenByDescending { it.progress }
+                .thenByDescending { it.progress }
                 .thenBy { it.source }
+                .thenBy { it.id }
         )
         val meaningful = byRecency.firstOrNull { it.status != WatchStatus.Planned } ?: byRecency.first()
         // TEKRAR İZLENİYOR: bir kaynak "şu an tekrar izleniyor" diyorsa kullanıcının durumu
@@ -242,9 +255,7 @@ object CrossSyncMergePolicy {
         // Kural: tekrar bilgisi, kendisinden DAHA YENİ bir kayıt aksini söylemediği sürece
         // geçerlidir. Eşit zaman damgasında tekrar kazanır (aksi hâlde tekrarı başlatan tur,
         // aynı saniyede yazılan karşı satır yüzünden hemen iptal edilirdi).
-        val newestRewatch = candidates
-            .filter { it.isRewatchInProgress() }
-            .maxByOrNull { it.updatedAt }
+        val newestRewatch = newestRewatch(candidates)
         if (newestRewatch != null && newestRewatch.updatedAt >= byRecency.first().updatedAt) {
             return WatchStatus.Repeating
         }
@@ -276,6 +287,26 @@ object CrossSyncMergePolicy {
         else -> false
     }
 
+    /**
+     * "Şu an tekrar izleniyor" satırları arasından EN GÜNCEL olanı seçer.
+     *
+     * Eşitlik bozucular zorunludur (E70): iki kaynak aynı saniyede güncellenmişse `maxByOrNull`
+     * **ilk rastlanan** satırı döndürür, yani sonuç aday sırasına bağlı kalır. Bu durumda
+     * birleşik ilerleme turdan tura 6 ↔ 13 gibi zıt değerler alıp her iki yöne de yazım
+     * üretebiliyordu. Sıra: en yeni → en yüksek ilerleme → kaynak adı → satır kimliği.
+     * (İlerlemenin yükseği tercih edilir: eşitlikte ilerlemeyi düşürmek veri kaybıdır.)
+     */
+    private fun newestRewatch(candidates: List<MediaEntry>): MediaEntry? = candidates
+        .asSequence()
+        .filter { it.isRewatchInProgress() }
+        .sortedWith(
+            compareByDescending<MediaEntry> { it.updatedAt }
+                .thenByDescending { it.progress }
+                .thenBy { it.source }
+                .thenBy { it.id }
+        )
+        .firstOrNull()
+
     /** Sıfırdan büyük puanlar arasından en son güncellenen; eşitlikte yüksek olan. */
     private fun resolveScore(candidates: List<MediaEntry>): Int? = candidates
         .asSequence()
@@ -284,6 +315,7 @@ object CrossSyncMergePolicy {
             compareByDescending<MediaEntry> { it.updatedAt }
                 .thenByDescending { it.score ?: 0 }
                 .thenBy { it.source }
+                .thenBy { it.id }
         )
         .mapNotNull { it.score }
         .firstOrNull()

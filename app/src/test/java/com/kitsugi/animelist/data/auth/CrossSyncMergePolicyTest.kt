@@ -447,6 +447,32 @@ class CrossSyncMergePolicyTest {
     }
 
     @Test
+    fun `esit zaman damgasinda tekrar satiri da deterministik secilir`() {
+        // E70: iki kaynak AYNI saniyede güncellenmişse `maxByOrNull` ilk rastlananı seçiyordu
+        // → birleşik ilerleme aday sırasına bağlı kalıp 6 ↔ 13 arasında gidip geliyor, her
+        // iki yöne de yazım üretiyordu. Eşitlikte yüksek ilerleme (veri kaybı olmasın), sonra
+        // kaynak adı ve satır kimliği sıralamayı tekilleştirir.
+        val a = e("mal", status = WatchStatus.Completed, progress = 6, total = 20, isRepeating = true, repeatCount = 1, updatedAt = 20)
+        val b = e("kitsu", status = WatchStatus.Completed, progress = 13, total = 20, isRepeating = true, repeatCount = 1, updatedAt = 20)
+        val first = CrossSyncMergePolicy.merge(listOf(a, b))
+        val second = CrossSyncMergePolicy.merge(listOf(b, a))
+        assertEquals(first, second)
+        assertEquals(13, first.progress)
+        assertEquals(WatchStatus.Repeating, first.status)
+    }
+
+    @Test
+    fun `toplam eldeki ilerlemeyi tasimiyorsa buyuk toplam kullanilir`() {
+        // E71: öncelikli kaynağın (AniList 12) toplamı eldeki ilerlemeyi (14) taşımıyor;
+        // 12'ye kırpmak ilerlemeyi geri yazmak olurdu. Bu durumda adaylardaki en büyük
+        // toplam (Bangumi 13) kullanılır; sonuç yine deterministiktir.
+        val ani = e("anilist", progress = 14, total = 12)
+        val bangumi = e("bangumi", progress = 14, total = 13)
+        assertEquals(13, CrossSyncMergePolicy.merge(listOf(ani, bangumi)).total)
+        assertEquals(13, CrossSyncMergePolicy.merge(listOf(bangumi, ani)).total)
+    }
+
+    @Test
     fun `toplam kaynagi aday sirasindan bagimsizdir`() {
         // İki kaynak toplamda anlaşmıyorsa seçim aday sırasına bağlı OLMAMALI; aksi hâlde
         // kırpma değeri turlar arasında değişip ilerleme bir aşağı bir yukarı yazılırdı.
