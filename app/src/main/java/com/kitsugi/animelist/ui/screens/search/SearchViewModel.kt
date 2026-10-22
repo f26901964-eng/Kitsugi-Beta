@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import android.app.Application
+import com.kitsugi.animelist.data.platform.ListPlatform
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -1171,6 +1173,73 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * Bu aramada kullanıcıya gösterilecek kaynak hata rozetlerini süzer.
+     *
+     * KÖK NEDEN:
+     * [PlatformFailureRegistry] süreç genelindedir ve ağ katmanı (PlatformFailureInterceptor)
+     * her 4xx/5xx yanıtını kaydeder. Bir kaynak rafını başarıyla doldursa bile o kaynağın
+     * iç çağrılarından biri (yedek host denemesi, sayfa sondası, karakter araması, arka
+     * planda çalışan bildirim/takvim isteği) 404 döndüğünde, arama ekranı bu kaydı
+     * "Kayıt bulunamadı (HTTP 404)" rozeti olarak sonuçların üstüne basıyordu. Kullanıcı
+     * ise Kitsu/AniList raflarında sonuçları görüyordu → çelişkili, güven kırıcı rozet.
+     *
+     * KURAL:
+     *  - "Tümü" (raf) aramasında rozet yalnızca **planlanmış olduğu hâlde boş kalan**
+     *    kaynaklar için gösterilir; sonuç üreten kaynak başarılı sayılır.
+     *  - Tek kaynak sekmesinde rozet yalnızca o kaynağın sonucu hiç yoksa gösterilir.
+     */
+    private fun visibleSourceErrorCodes(
+        state: SearchUiState,
+        sinceMillis: Long,
+    ): Map<ListPlatform, PlatformErrorCode> {
+        val failures = PlatformFailureRegistry.failuresSince(sinceMillis)
+        if (failures.isEmpty()) return emptyMap()
+
+        val shelfSearch = (state.currentTab == KitsugiSearchTab.All ||
+            state.selectedEngine == SearchSourceEngine.ALL) &&
+            state.selectedScope != SearchScope.CHARACTER &&
+            state.selectedScope != SearchScope.STAFF
+
+        if (shelfSearch) {
+            val multi = state.multiResults
+            val plan = planAllSourcesForState(state, state.selectedScope)
+            // Planlanmış + sonuç üretmiş kaynaklar "başarılı" sayılır.
+            val healthy = buildSet {
+                if (plan.aniList && multi.aniListResults.isNotEmpty()) add(ListPlatform.ANILIST)
+                if (plan.mal && multi.malResults.isNotEmpty()) add(ListPlatform.MAL)
+                if (plan.tmdb && multi.tmdbResults.isNotEmpty()) add(ListPlatform.TMDB)
+                if (plan.shikimori && multi.shikimoriResults.isNotEmpty()) add(ListPlatform.SHIKIMORI)
+                if (plan.kitsu && multi.kitsuResults.isNotEmpty()) add(ListPlatform.KITSU)
+                if (plan.simkl && multi.simklResults.isNotEmpty()) add(ListPlatform.SIMKL)
+                if (plan.bangumi && multi.bangumiResults.isNotEmpty()) add(ListPlatform.BANGUMI)
+            }
+            return failures.filterKeys { it !in healthy }
+        }
+
+        // Tek kaynak sekmesi (AniList, MAL, Kitsu…): yalnızca sonuç yoksa rozet göster.
+        if (state.selectedEngine != SearchSourceEngine.ALL) {
+            if (state.results.isNotEmpty()) return emptyMap()
+            val platform = state.selectedEngine.toListPlatform() ?: return emptyMap()
+            return failures[platform]?.let { mapOf(platform to it) } ?: emptyMap()
+        }
+
+        // Karakter/Personel kapsamları: sonuç varsa rozet gösterilmez.
+        return if (state.results.isEmpty()) failures else emptyMap()
+    }
+
+    /** Arama motoru → hata kaydındaki liste kaynağı eşlemesi. */
+    private fun SearchSourceEngine.toListPlatform(): ListPlatform? = when (this) {
+        SearchSourceEngine.ANILIST -> ListPlatform.ANILIST
+        SearchSourceEngine.MAL -> ListPlatform.MAL
+        SearchSourceEngine.TMDB -> ListPlatform.TMDB
+        SearchSourceEngine.SHIKIMORI -> ListPlatform.SHIKIMORI
+        SearchSourceEngine.KITSU -> ListPlatform.KITSU
+        SearchSourceEngine.SIMKL -> ListPlatform.SIMKL
+        SearchSourceEngine.BANGUMI -> ListPlatform.BANGUMI
+        SearchSourceEngine.ALL -> null
+    }
+
+    /**
      * Aramanın tamamı başarısız olduğunda kodu seçer. Tek kaynaklı aramada o kaynağın
      * kaydı; "Tümü" aramasında bu süre içindeki en son kaynak hatası kullanılır.
      */
@@ -1258,7 +1327,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         page = 1,
                         hasNextPage = hasNext,
                         errorMessage = if (visible.isEmpty()) KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77) else null,
-                        sourceErrorCodes = PlatformFailureRegistry.failuresSince(searchStartedAt),
+                        sourceErrorCodes = visibleSourceErrorCodes(it, searchStartedAt),
                         platformErrorCode = null
                     )
                 }
@@ -1273,7 +1342,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         isLoading = false,
                         errorMessage = if (it.results.isEmpty()) e.message ?: KitsugiStrings.get(R.string.arama_sirasinda_bir_hata_olustu) else null,
                         platformErrorCode = if (it.results.isEmpty()) failureCode else null,
-                        sourceErrorCodes = PlatformFailureRegistry.failuresSince(searchStartedAt),
+                        sourceErrorCodes = visibleSourceErrorCodes(it, searchStartedAt),
                         hasNextPage = false
                     )
                 }
