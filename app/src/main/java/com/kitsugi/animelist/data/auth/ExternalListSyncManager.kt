@@ -975,7 +975,12 @@ object ExternalListSyncManager {
                 val key = providerKeyOf(source)
                 key == rowSourceKey ||
                     (key == "anilist" && prepared.run.entry.aniListEntryId != null) ||
-                    (key == "simkl" && (prepared.run.entry.simklId ?: 0) > 0)
+                    (key == "simkl" && (prepared.run.entry.simklId ?: 0) > 0) ||
+                    // Daha önce bağlanmış ama oturumu düşmüş hesap: token yenilemesi
+                    // başarısız olduğu için "bağlı değil" dendi. Bu bir DEĞİŞİKLİK KAYBIDIR;
+                    // kullanıcı yeniden bağlandığında yazılması için kuyruğa girmelidir.
+                    // Hiç bağlanmamış servisler (iz yok) yine sessiz kalır — gereksiz uyarı yok.
+                    ExternalAuthManager.hasStoredAccount(context, key)
             }
 
         val messages = mutableListOf<String>()

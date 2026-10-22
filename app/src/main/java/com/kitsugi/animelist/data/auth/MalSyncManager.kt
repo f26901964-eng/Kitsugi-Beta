@@ -25,6 +25,15 @@ object MalSyncManager {
      */
     private val fullIsoDate = Regex("""\d{4}-\d{2}-\d{2}""")
 
+    /**
+     * MAL'da "tarihi sil" karşılığı olan sentinel. Boş string 400 döndürür; MAL-Sync de
+     * aynı sabiti kullanır. Yine de sunucu tarafında davranış değişebileceği için
+     * [patchWithDateClearFallback] bu alanı taşıyan PATCH 400 ile düşerse isteği
+     * sentinelsiz bir kez tekrarlar: tarihi temizleyememek, aynı istekte taşınan
+     * durum/ilerleme/puanın da kaybolmasından iyidir (E62).
+     */
+    private const val DATE_CLEAR = "0000-00-00"
+
     private fun String?.sendableDate(): String? = this?.takeIf { fullIsoDate.matches(it) }
 
     /**
@@ -110,14 +119,14 @@ object MalSyncManager {
                 val startDate = entry.startDate.sendableDate()
                 when {
                     startDate != null -> append("&start_date=$startDate")
-                    entry.startDate.isNullOrBlank() -> append("&start_date=0000-00-00")
+                    entry.startDate.isNullOrBlank() -> append("&start_date=$DATE_CLEAR")
                 }
             }
             if (SyncField.END_DATE in fields) {
                 val endDate = entry.endDate.sendableDate()
                 when {
                     endDate != null -> append("&finish_date=$endDate")
-                    entry.endDate.isNullOrBlank() -> append("&finish_date=0000-00-00")
+                    entry.endDate.isNullOrBlank() -> append("&finish_date=$DATE_CLEAR")
                 }
             }
             if (SyncField.PRIORITY in fields) {
@@ -160,6 +169,43 @@ object MalSyncManager {
         // (yalnızca ilk alan gönderildiğinde gövde "&score=..." başlıyordu).
         val body = postData.trimStart('&')
 
+        return patchWithDateClearFallback(url = url, body = body, token = token, context = context)
+    }
+
+    /** [DATE_CLEAR] taşıyan PATCH 400 ile düşerse, tarih temizlemeyi bırakıp bir kez dener. */
+    private fun patchWithDateClearFallback(
+        url: URL,
+        body: String,
+        token: String,
+        context: Context
+    ): Boolean {
+        return try {
+            executePatch(url = url, body = body, token = token, context = context)
+            true
+        } catch (e: IllegalStateException) {
+            val message = e.message.orEmpty()
+            val rejected = message.contains(": 400") || message.contains("bad_request")
+            if (!body.contains(DATE_CLEAR) || !rejected) throw e
+            val withoutClears = stripDateClears(body)
+            // Yalnız tarih temizleme isteniyorduysa gönderilecek başka alan yok: temizleme
+            // yapılamadı, ama başka hiçbir alan da kaybedilmedi.
+            if (withoutClears.isBlank()) return false
+            executePatch(url = url, body = withoutClears, token = token, context = context)
+            true
+        }
+    }
+
+    /**
+     * Form gövdesinden YALNIZ tarih temizleme parametrelerini çıkarır.
+     *
+     * `unit` testleri için görünür: sentinel'i taşıyan PATCH 400 ile düşerse diğer alanlar
+     * kaybolmasın diye gövde bu yardımcıyla süzülür (E62).
+     */
+    internal fun stripDateClears(body: String): String = body.split('&')
+        .filterNot { it.endsWith("=$DATE_CLEAR") }
+        .joinToString("&")
+
+    private fun executePatch(url: URL, body: String, token: String, context: Context) {
         val request = Request.Builder()
             .url(url)
             .patch(body.toRequestBody("application/x-www-form-urlencoded; charset=utf-8".toMediaTypeOrNull()))
@@ -184,7 +230,6 @@ object MalSyncManager {
                 e
             )
         }
-        return true
     }
 
     fun deleteMalEntry(

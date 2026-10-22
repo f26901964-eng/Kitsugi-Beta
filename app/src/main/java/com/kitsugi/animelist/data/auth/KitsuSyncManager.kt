@@ -203,16 +203,18 @@ object KitsuSyncManager {
             // Tarih/not: aynı kural — ALL'da boş değer gönderilmez, diff'te gönderilir (temizler).
             if (SyncField.START_DATE in fields) {
                 val startedAt = KitsuApiClient.toKitsuDateTime(entry.startDate)
-                when {
-                    startedAt != null -> put("startedAt", startedAt)
-                    !fullWrite -> put("startedAt", org.json.JSONObject.NULL)
+                when (SyncDates.action(entry.startDate, startedAt, fullWrite)) {
+                    SyncDates.Action.WRITE -> put("startedAt", startedAt)
+                    SyncDates.Action.CLEAR -> put("startedAt", org.json.JSONObject.NULL)
+                    SyncDates.Action.SKIP -> Unit
                 }
             }
             if (SyncField.END_DATE in fields) {
                 val finishedAt = KitsuApiClient.toKitsuDateTime(entry.endDate)
-                when {
-                    finishedAt != null -> put("finishedAt", finishedAt)
-                    !fullWrite -> put("finishedAt", org.json.JSONObject.NULL)
+                when (SyncDates.action(entry.endDate, finishedAt, fullWrite)) {
+                    SyncDates.Action.WRITE -> put("finishedAt", finishedAt)
+                    SyncDates.Action.CLEAR -> put("finishedAt", org.json.JSONObject.NULL)
+                    SyncDates.Action.SKIP -> Unit
                 }
             }
             if (SyncField.NOTES in fields) {

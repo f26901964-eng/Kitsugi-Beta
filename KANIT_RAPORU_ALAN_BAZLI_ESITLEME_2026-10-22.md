@@ -595,3 +595,78 @@ REPEATING yayılımı ve döngüsüzlüğü, tekrar ifade edemeyen hedef, MAL/Ki
   mükerrer "play" sayısıdır (kayıt bütünlüğü değil).
 - Shikimori'de **puanı 0 yapmak** puanı siler; biz puanı yalnız diff'te gönderiyoruz, ancak
   "puanı kaldır" (null) ile "hiç puan vermedim" ayrımı Shikimori'de de yapılamıyor (§14.4).
+
+---
+
+## §16 — Geçiş 8: Dış Kaynak Doğrulaması (MALSync / MAL şeması / topluluk notları)
+
+Bu geçişte amaç "kod kendi içinde tutarlı mı" değil, **kod üçüncü taraf gerçek
+uygulamalarla aynı şeyi mi yapıyor** sorusuydu. Aşağıdaki kaynaklar bu geçişte
+okunmuştur (dosya + satır düzeyinde karşılaştırma yapıldı):
+
+| Kaynak | Okunan yer | Çıkarılan kural |
+|---|---|---|
+| MALSync `src/_provider/MyAnimeList_api/single.ts` | `_update`, `_sync`, `_getStatus`, `_setStatus`, `_setAbsoluteScore` | Yazma **PUT** + tüm `my_list_status` nesnesi; tarih `?? ''`; `_getStatus` tekrar bayrağını **yalnız `completed` ile** `Rewatching`'e çevirir; `num_episodes_watched` → `num_watched_episodes` eşitlemesi ("// Handle api bug") |
+| MALSync `src/_provider/AniList/single.ts` | `_update`, `_sync`, `_delete` | Puan **`score(format: POINT_100)`** ile okunur (profil formatı ne olursa olsun); `mediaId` ile yazar; `DeleteMediaListEntry(id: <liste kaydı id>)` |
+| MALSync `src/_provider/Kitsu/single.ts` | `_getStatus`, `_setStatus`, `_getScore`, `_setScore`, `_getVolume` | `reconsuming && status === 'current'` = tekrar; `ratingHundred = ratingTwenty*5`; puan 0 → `ratingTwenty = null`; cilt = `volumesOwned` |
+| SuperMarcus `myanimelist-api-specification` | `MyListStatusObject` | `is_favorited` **şemada YOK**; ilerleme alanı `num_episodes_watched` |
+| `Daiya404/AL-Additions` (Troubleshooting) | — | "MAL bir değeri sürekli reddediyorsa o alan bastırılır, aksi hâlde **yazma döngüsü** oluşur" |
+| `bigspawn/anilist-mal-sync` | README | "nil source date never overwrites a set target date"; bitiş tarihi yalnız `Completed` iken; MAL'de favori **yazma ucu yok** |
+
+### 16.1 Bu geçişte doğrulanan (kod zaten doğruydu)
+
+| # | İddia | Doğrulama |
+|---|---|---|
+| V1 | MAL'a tarih temizleme `0000-00-00` ile gider, `''` 400 döner | `MalSyncManager` §E49 yolu; MALSync `?? ''` gönderdiği için **her iki biçim de denenebilir** (aşağıdaki E62) |
+| V2 | Kitsu puanı 2..20 (`tenPoint*2`), 0 → `null` | `SyncScores.kitsuTwenty` + `KitsuSyncManager` L198-199; MALSync `ratingHundred`/`ratingTwenty*5` ile birebir |
+| V3 | Shikimori'ye tarih **hiç** gönderilmez | `ProviderCapabilitiesCatalog.shikimori.supports` içinde START_DATE/END_DATE yok; yazıcı yalnız status/score/progress/rewatches/notes |
+| V4 | MAL tekrar bayrağı `is_rewatching`/`is_rereading` (manga ayrı ad) | `MalSyncManager` STATUS bloğu; `is_repeating` hiç gönderilmiyor; import iki adı da okuyor |
+| V5 | AniList puanı profil formatından bağımsız okunur | `AniListImportManager` L110-111: `score(format: POINT_10_DECIMAL)` **ve** `scoreRaw: score(format: POINT_100)` |
+| V6 | Kitsu'da tekrar yalnız `current` ile yazılır | `KitsuSyncManager` L188-191 `reconsuming && status == "current"` |
+| V7 | Kitsu cilt alanı `volumesOwned` **değildir** | `ProviderCapabilitiesCatalog.kitsu` VOLUME_PROGRESS içermiyor → çapraz eşitleme cilt yazmıyor |
+| V8 | AniList/Kitsu'da `tags` diye bir alan yok (MALSync etiketleri `notes`'a gömüyor) | `ProviderCapabilitiesCatalog` bu iki sağlayıcıda TAGS içermiyor → notlar etiketle ezilmiyor. Bu **bilinçli** bir sapma: MALSync etiket/not ayrımını kaybeder. |
+| V9 | "Bağlı değil" bir değişiklik kaybıdır, "kapalı" değildir | `SyncResult.needsRetry` + `connectionGapSources`; `SyncResultRetrySemanticsTest` (7 test) ile sabitlendi |
+
+### 16.2 Bu geçişte bulunan **yeni** hatalar
+
+| # | Hata | Etki | Düzeltme |
+|---|---|---|---|
+| **E62** | MAL'da tarih temizleme sentinel'i (`0000-00-00`) 400 ile reddedilirse **istekteki tüm alanlar** (durum/ilerleme/puan) kayboluyordu | Sessiz eşitleme kaybı + kuyrukta 5 kez tekrar | `patchWithDateClearFallback` + `stripDateClears`: 400'de yalnız tarih temizleme parametreleri çıkarılıp **bir kez** yeniden denenir; başka alan kaybolmaz |
+| **E63** | AniList ve Kitsu yazıcıları "tarih **ayrıştırılamadı**" ile "tarih **boşaltıldı**"yı ayırt etmiyordu. İçe aktarmadan sızmış `"2016"` / `"2016-05"` gibi parsiyel tarihte hedefteki tarih **siliniyordu** | Kullanıcı tarihe dokunmadığı hâlde AniList/Kitsu'daki başlangıç-bitiş tarihi kaybolur | `SyncDates.action(raw, parsed, fullWrite)` → `WRITE / CLEAR / SKIP`; iki yazıcı da bu tek kararı kullanıyor. `SyncDatesActionTest` (4 test) parsiyel tarihin **asla** temizleme üretmediğini sabitliyor |
+| **E64** | MAL `my_list_status` içindeki ilerleme alanının adı **uca göre** değişiyor (`num_episodes_watched` ↔ `num_watched_episodes`); import tek ad okuyordu | Yanıt biçimi değişirse ilerleme **0** okunur ve 0 olarak beş sağlayıcıya yazılır (sessiz veri kaybı) | `MalImportManager` iki adı da okur (`maxOf`); yazma adı `num_watched_episodes` olarak korunur |
+| **E65** | MAL liste isteğinde `is_favorited` alanı isteniyordu; bu alan MAL v2 `MyListStatusObject` şemasında **yok** | Sunucu bilinmeyen alanı reddederse `400 invalid field` → **tüm MAL içe aktarma** çalışmaz | `fetchPageWithFieldFallback`: 400'de `is_favorited` seçiciden çıkarılıp sayfa tekrar denenir (sonraki sayfalarda da atlanır). `MalImportManagerUrlTest.favoritedFieldCanBeDroppedWhenServerRejectsIt` testi eklendi |
+
+### 16.3 Bilinçli olarak yapılmayanlar (gerekçeli)
+
+1. **Alan bazlı "reddedilen değer bastırma"** (AL-Additions deseni): MAL bir alanı sürekli
+   reddediyorsa o alanın bir süre gönderilmemesi. Bizde döngü riski yok çünkü (a) alan farkı
+   **yerel DB satırına** göre hesaplanıyor — yazım başarısız olsa da satır değişmiyor,
+   dolayısıyla aynı turda ikinci kez denenmiyor; (b) kuyruk en fazla 5 kez deneyip bekletiyor;
+   (c) çapraz eşitleme kullanıcı tetiklemeli. Yine de uzun vadede eklenmesi gereken bir
+   koruma olarak not edildi.
+2. **Shikimori favori**: Shikimori'de `POST /api/v2/favorites` var; ancak hedef `linked_id`
+   Shikimori'nin kendi anime id'sidir ve mevcut yazıcı yalnız user-rate bağlamında MAL id
+   taşıyor. Yanlış id ile favori eklemek geri alınamaz olduğu için **bu geçişte eklenmedi**;
+   ayrı bir kimlik çözümü turu gerektirir. (AniList favori uçtan uca çalışıyor, MAL/Kitsu/
+   Bangumi/Simkl'de yazma ucu yok.)
+3. **MALSync'in "etiketleri `notes`'a göm" davranışı** kopyalanmadı (V8).
+4. **`finish_date` yalnız `Completed` iken yazılır** (bigspawn kuralı) uygulanmadı: bizde
+   tarih yalnız **kullanıcı değiştirdiğinde** (diff) gönderildiği için "yarım kalmış bitiş
+   tarihi" senaryosu oluşmuyor; ayrıca `Completed` dışı bir durumda bitiş tarihi yazımını
+   engellemek, kullanıcının bilerek girdiği değeri düşürürdü.
+
+### 16.4 Test kapsamı (bu geçişte eklenen)
+
+- `SyncDatesActionTest` — 4 test (WRITE / CLEAR / SKIP; parsiyel tarih ASLA CLEAR değil)
+- `MalDateClearBodyTest` — 4 test (yalnız sentinel süzülür; gerçek tarihler korunur; gövde boşalırsa istek atılmaz)
+- `MalImportManagerUrlTest` — +1 test (`is_favorited` alanı düşürülünce seçici bozulmuyor)
+
+### 16.5 Dürüst durum
+
+Bu depo **derlenmedi ve test edilmedi** (ortamda JDK/Gradle/Android SDK yok). Doğrulama
+`python3 /tmp/kcheck.py` (tree-sitter sözdizimi) ile yapıldı: 1392 `.kt` dosyası, 7 bilinen
+yanlış pozitif dışında hata yok. Çalıştırılması gereken komut:
+
+```
+./gradlew :app:compileDebugKotlin :app:testDebugUnitTest
+```

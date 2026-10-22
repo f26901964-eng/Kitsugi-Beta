@@ -184,19 +184,26 @@ object AniListSyncManager {
 
         // FuzzyDate alanları: gönderilmezse AniList'teki tarih korunur. Temizlemek için
         // {year: null, month: null, day: null} gerekir.
+        //
+        // DİKKAT (E63): "ayrıştırılamadı" ile "boşaltıldı" AYNI ŞEY DEĞİLDİR. Eski kod
+        // `toAniListFuzzyDate()` null döndüğünde (ör. yalnız yıl içeren "2016", ya da içe
+        // aktarmadan sızmış "2016-05") temizleme gönderiyordu → kullanıcı tarihe dokunmadığı
+        // hâlde AniList'teki tarih SİLİNİYORDU. Artık temizleme yalnızca alan GERÇEKTEN
+        // boşaltıldığında gönderilir; parsiyel tarih hiç gönderilmez (uzak değer korunur).
         if (SyncField.START_DATE in fields || writeAll) {
             val startedAt = entry.startDate.toAniListFuzzyDate()
-            when {
-                startedAt != null -> variables.put("startedAt", startedAt)
-                // Kullanıcı tarihi SİLDİYSE hedefte de silinmeli (yalnızca diff bunu söyler).
-                !writeAll -> variables.put("startedAt", clearedFuzzyDate())
+            when (SyncDates.action(entry.startDate, startedAt, writeAll)) {
+                SyncDates.Action.WRITE -> variables.put("startedAt", startedAt)
+                SyncDates.Action.CLEAR -> variables.put("startedAt", clearedFuzzyDate())
+                SyncDates.Action.SKIP -> Unit
             }
         }
         if (SyncField.END_DATE in fields || writeAll) {
             val completedAt = entry.endDate.toAniListFuzzyDate()
-            when {
-                completedAt != null -> variables.put("completedAt", completedAt)
-                !writeAll -> variables.put("completedAt", clearedFuzzyDate())
+            when (SyncDates.action(entry.endDate, completedAt, writeAll)) {
+                SyncDates.Action.WRITE -> variables.put("completedAt", completedAt)
+                SyncDates.Action.CLEAR -> variables.put("completedAt", clearedFuzzyDate())
+                SyncDates.Action.SKIP -> Unit
             }
         }
 

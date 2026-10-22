@@ -67,19 +67,40 @@ object MalImportManager {
         }
     }
 
+    /**
+     * `list_status` seçicisinden `is_favorited` alanını çıkarır.
+     *
+     * NEDEN: MAL API v2 `MyListStatusObject` şemasında `is_favorited` **YOKTUR** (resmî
+     * şema: status, score, num_*_watched, is_rewatching, updated_at, start_date, finish_date,
+     * priority, num_times_*, *_value, tags, comments). Favori alanı sunulmadığı için
+     * (bağımsız istemciler de favorileri Jikan üzerinden okuyor) istek
+     * `400 invalid field` ile **tümden** düşebilir; o zaman MAL içe aktarma hiç çalışmaz.
+     * Bu yardımcı, 400 alındığında alanı atıp sayfayı yeniden dener.
+     */
+    internal fun withoutFavoritedField(url: String): String = url
+        .replace("is_favorited,", "")
+        .replace(",is_favorited", "")
+
     private fun fetchPaginatedList(
         accessToken: String,
         startUrl: String
     ): List<MediaEntry> {
         val allEntries = mutableListOf<MediaEntry>()
         var nextUrl: String? = startUrl
+        // MAL bilinmeyen alanı reddederse yalnızca bu bayrak açılır ve sayfa tekrar denenir.
+        var dropFavoritedField = false
 
         val visited = mutableSetOf<String>()
         while (nextUrl != null) {
             check(visited.add(nextUrl)) { "MAL sayfalama döngüsü algılandı" }
             val pageUri = java.net.URI(nextUrl)
             require(pageUri.scheme == "https" && pageUri.host == "api.myanimelist.net") { "Geçersiz MAL sayfa adresi" }
-            val response = getJson(accessToken = accessToken, urlString = nextUrl)
+            val response = fetchPageWithFieldFallback(
+                accessToken = accessToken,
+                url = nextUrl,
+                dropFavoritedField = { dropFavoritedField },
+                onDropFavoritedField = { dropFavoritedField = true }
+            )
             val root = JSONObject(response)
             val dataArray = root.getJSONArray("data")
 
@@ -96,6 +117,32 @@ object MalImportManager {
         }
 
         return allEntries
+    }
+
+    /**
+     * Sayfayı getirir; `is_favorited` yüzünden 400 gelirse alanı atıp BİR KEZ daha dener.
+     * Sonraki sayfalarda da alan atlanır (MAL'ın `paging.next` adresi aynı seçiciyi taşır).
+     */
+    private fun fetchPageWithFieldFallback(
+        accessToken: String,
+        url: String,
+        dropFavoritedField: () -> Boolean,
+        onDropFavoritedField: () -> Unit
+    ): String {
+        val firstTry = if (dropFavoritedField()) withoutFavoritedField(url) else url
+        return try {
+            getJson(accessToken = accessToken, urlString = firstTry)
+        } catch (e: IllegalStateException) {
+            val message = e.message.orEmpty()
+            val looksLikeBadRequest = message.contains(": 400") || message.contains("invalid field") ||
+                message.contains("bad_request")
+            if (!dropFavoritedField() && looksLikeBadRequest && url.contains("is_favorited")) {
+                onDropFavoritedField()
+                getJson(accessToken = accessToken, urlString = withoutFavoritedField(url))
+            } else {
+                throw e
+            }
+        }
     }
 
     private fun nodeToMediaEntry(
@@ -136,10 +183,19 @@ object MalImportManager {
 
         val score = listStatus.optInt("score", 0).takeIf { it > 0 }
 
+        // MAL'ın `my_list_status` nesnesinde ilerleme alanının adı UCUNA göre değişir:
+        //  - liste ucu (`/users/@me/animelist`)      → `num_episodes_watched`
+        //  - tek kayıt ucu (`/anime/{id}`)           → `num_watched_episodes`
+        // MAL-Sync de bu yüzden iki adı eşitler ("// Handle api bug", MyAnimeList_api/single.ts).
+        // Tek ad okumak, uç/yanıt değiştiğinde ilerlemeyi **0** okumak ve bu 0'ı diğer beş
+        // sağlayıcıya yazmak demekti (sessiz veri kaybı). İkisi de okunur; büyük olan kazanır.
         val progress = if (mediaType == MediaType.Manga) {
             listStatus.optInt("num_chapters_read", 0)
         } else {
-            listStatus.optInt("num_episodes_watched", 0)
+            maxOf(
+                listStatus.optInt("num_episodes_watched", 0),
+                listStatus.optInt("num_watched_episodes", 0)
+            )
         }.coerceAtLeast(0)
 
         val total = if (mediaType == MediaType.Manga) {

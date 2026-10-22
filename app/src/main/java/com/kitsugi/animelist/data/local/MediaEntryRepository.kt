@@ -224,10 +224,32 @@ class MediaEntryRepository(
         // Hangi alanların gerçekten değiştiğini DB'deki ÖNCEKİ hâlle karşılaştırarak buluruz.
         // Uzak hedeflere yalnızca bu alanlar yazılır; hedefte uygulama dışında girilmiş
         // puan/not/tarih böylece EZİLMEZ (bkz. [SyncField], [SyncFieldDiff]).
-        val previous = if (entry.id > 0) {
-            runSyncCatching { dao.getById(entry.id)?.toDomain() }.getOrNull()
-        } else null
-        val changedFields = SyncFieldDiff.between(previous, entryWithTime)
+        // ── ÖNCEKİ HÂL OKUMASI (E56) ────────────────────────────────────────────────
+        // Alan farkı bu okumaya bağlıdır. Okuma başarısız olduğunda `previous = null`
+        // bırakmak, `SyncFieldDiff`in TÜM alanları değişmiş saymasına ve altı hedefe tam
+        // yazım gitmesine yol açıyordu — yani bir DB aksaklığı, kullanıcının başka
+        // sağlayıcıda elle girdiği puan/not/tarihi ezebilirdi.
+        // 1) Room'un geçici hataları (kapanan imleç, "database is locked") tek seferde
+        //    geçebildiği için okuma BİR KEZ tekrarlanır.
+        // 2) Hâlâ okunamıyorsa TAM yazım bilinçli olarak seçilir: bu yolda `fullWrite`
+        //    semantiği geçerlidir (boş puan/not/tarih GÖNDERİLMEZ), yani uzak değerler
+        //    korunur; buna karşılık kullanıcının bu düzenlemesi sessizce kaybolmaz.
+        //    (Ağa hiç çıkmamak, E56'nın "diğer yarısı" olan veri kaybını üretirdi.)
+        var previousRead = if (entry.id > 0) {
+            runSyncCatching { dao.getById(entry.id)?.toDomain() }
+        } else {
+            Result.success(null)
+        }
+        if (previousRead.isFailure && entry.id > 0) {
+            previousRead = runSyncCatching { dao.getById(entry.id)?.toDomain() }
+        }
+        val previousUnreadable = previousRead.isFailure
+        val previous = previousRead.getOrNull()
+        val changedFields = if (previousUnreadable) {
+            SyncField.ALL
+        } else {
+            SyncFieldDiff.between(previous, entryWithTime)
+        }
 
         dao.update(
             entryWithTime.toEntity()

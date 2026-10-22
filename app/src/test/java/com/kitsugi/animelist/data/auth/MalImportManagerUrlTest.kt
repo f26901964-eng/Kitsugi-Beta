@@ -30,6 +30,33 @@ class MalImportManagerUrlTest {
         )
     }
 
+    @Test
+    fun favoritedFieldCanBeDroppedWhenServerRejectsIt() {
+        // MAL API v2 `MyListStatusObject` şemasında `is_favorited` YOK. Sunucu alanı
+        // reddederse tüm içe aktarma 400 ile düşerdi; bu yardımcı alanı atıp isteği
+        // geçerli (ve istek şemasına uygun) hâle getirir.
+        val full = MalImportManager.buildAnimeListUrl(showAdultContent = false)
+        assertTrue(full.contains("is_favorited"))
+
+        val safe = MalImportManager.withoutFavoritedField(full)
+        assertFalse(safe.contains("is_favorited"))
+        // Kalan alan seçicisi bozulmamalı: virgül/parantez artığı kalmamalı.
+        assertFalse(safe.contains(",,", ignoreCase = false))
+        assertFalse(safe.contains("{,"))
+        assertFalse(safe.contains(",}"))
+
+        val fields = requireNotNull(safe.toHttpUrl().queryParameter("fields"))
+        assertTrue(fields.contains("list_status{"))
+        assertTrue(fields.endsWith("}"))
+        assertTrue(fields.contains("num_episodes_watched"))
+
+        val mangaSafe = MalImportManager.withoutFavoritedField(
+            MalImportManager.buildMangaListUrl(showAdultContent = false)
+        )
+        assertFalse(mangaSafe.contains("is_favorited"))
+        assertTrue(requireNotNull(mangaSafe.toHttpUrl().queryParameter("fields")).endsWith("}"))
+    }
+
     private fun assertValidListUrl(
         url: String,
         path: String,
