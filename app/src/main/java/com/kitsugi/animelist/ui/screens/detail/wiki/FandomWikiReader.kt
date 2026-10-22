@@ -91,6 +91,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import com.kitsugi.animelist.data.settings.KitsugiContentPrefs
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import kotlinx.coroutines.launch
 import com.kitsugi.animelist.data.fandom.FandomBlockLink
 import com.kitsugi.animelist.data.fandom.FandomTextBlock
 import com.kitsugi.animelist.data.fandom.FandomUrls
@@ -210,15 +213,22 @@ internal fun FandomWikiReaderSheet(
     // its article title. Do not copy the source tab's WebView or back/forward history.
     val pendingWebDuplicate = remember { arrayOfNulls<WikiOriginalSession>(1) }
     val tab = navigation.activeTab
+    val context = LocalContext.current
+    val settingsStore = remember(context) { SettingsDataStore(context) }
+    val scope = rememberCoroutineScope()
     val webSession = tab?.let {
         val existing = webSessions[it.id]
         if (existing == null || (originalLayout && existing.readerLocation != it.location)) {
             (pendingWebDuplicate[0]?.takeIf { copy -> existing == null && copy.readerLocation == it.location }
-                ?: WikiOriginalSession(FandomUrls.pageUrl(it.location.wikiId, it.location.title), it.location))
+                ?: WikiOriginalSession(
+                    FandomUrls.pageUrl(it.location.wikiId, it.location.title),
+                    it.location,
+                    // Son seçilen düzen (yoksa mobil) — sekmeler ve oturumlar arasında korunur.
+                    initialDesktop = KitsugiContentPrefs.wikiDesktopLayout
+                ))
                 .also { session -> webSessions[it.id] = session }
         } else existing
     }
-    val context = LocalContext.current
     var externalUrl by remember { mutableStateOf<String?>(null) }
     val useReader: () -> Unit = {
         if (tab != null && webSession != null &&
@@ -336,7 +346,16 @@ internal fun FandomWikiReaderSheet(
                             onBack = goBack,
                             onForward = goForward,
                             onReload = { webSession?.reload() },
-                            onToggleDesktop = { webSession?.let { it.setDesktopMode(!it.desktop) } },
+                            onToggleDesktop = {
+                                webSession?.let { session ->
+                                    val next = !session.desktop
+                                    session.setDesktopMode(next)
+                                    // Seçim kalıcı: bir sonraki wiki sayfası da aynı düzenle açılır.
+                                    scope.launch {
+                                        runCatching { settingsStore.setWikiDesktopLayout(next) }
+                                    }
+                                }
+                            },
                             onNewTab = {
                                 if (originalLayout && webSession != null) {
                                     pendingWebDuplicate[0] = WikiOriginalSession(webSession.url, webSession.readerLocation).also {
