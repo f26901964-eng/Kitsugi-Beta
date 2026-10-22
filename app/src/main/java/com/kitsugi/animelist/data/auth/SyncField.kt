@@ -199,10 +199,17 @@ data class ProviderCapabilities(
     fun narrow(fields: Set<SyncField>): Set<SyncField> {
         if (fields.isEmpty()) return emptySet()
         val allowed = fields.filterTo(mutableSetOf()) { it in supports }
-        // Ayrı "tekrar" durumu olmayan sağlayıcıda durum değişikliği tekrar bayrağını da taşır
-        // (MAL: completed + is_rewatching). Böylece yalnız REWATCH_COUNT değişse bile hedef
-        // tekrar durumunu doğru gösterir.
-        if (!rewatchingAsStatus && SyncField.REWATCH_COUNT in fields && SyncField.STATUS in supports) {
+        // Bayrak-tabanlı hedeflerde (MAL `is_rewatching`, Kitsu `reconsuming`) tekrar
+        // sayısı değişikliği, bayrağı taşıyan durum yazımıyla birlikte gitmelidir; aksi
+        // hâlde yalnız sayaç gider, hedef "şu an tekrar" bilgisini hiç öğrenemez.
+        //
+        // (E76) Bu ekleme YALNIZ `AS_FLAG` içindir. Eski koşul `!rewatchingAsStatus`
+        // diyor ve tekrarı HİÇ ifade edemeyen Bangumi/Simkl'i de kapsıyordu: o satırlarda
+        // `repeatCount` hep 0 kaldığı (API'de alan yok) için birleşik sayaç büyük olduğu
+        // sürece her toplu turda aynı STATUS isteği üretiliyordu — sonsuz yazım (A5).
+        if (rewatchModel == RewatchModel.AS_FLAG &&
+            SyncField.REWATCH_COUNT in fields && SyncField.STATUS in supports
+        ) {
             allowed += SyncField.STATUS
         }
         return allowed

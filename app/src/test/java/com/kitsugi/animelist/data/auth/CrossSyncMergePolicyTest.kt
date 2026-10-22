@@ -527,4 +527,53 @@ class CrossSyncMergePolicyTest {
         // Simkl `dropped` bilmez; eşleme `notinteresting` olmalıdır (SimklSyncManager).
         assertTrue(SyncField.STATUS in CrossSyncMergePolicy.dirtyFieldsFor(current, merged, "simkl"))
     }
+
+    // ── E78: `en güncel` sıralaması tek kaynaktan ────────────────────────────────
+    // Eskiden AuthViewModel / MediaEntryBackup / smartImport aynı soruya
+    // `maxByOrNull { it.updatedAt }` ile (E70 `id` tiebreak'i olmadan) cevap
+    // veriyordu; eşit damgalı adaylarda yerel yansıma satırı ile tohum satırı
+    // aynı kayda farklı kazananlar seçebiliyordu.
+
+    @Test
+    fun `newest en yuksek damgayı secer`() {
+        val older = e("mal", id = 1, updatedAt = 100)
+        val newer = e("anilist", id = 2, updatedAt = 200)
+        assertEquals(newer, CrossSyncMergePolicy.newestOrNull(listOf(older, newer)))
+        assertEquals(newer, CrossSyncMergePolicy.newestOrNull(listOf(newer, older)))
+    }
+
+    @Test
+    fun `newest esit damgada ilerleme sonra kaynak sonra id ile kirar`() {
+        val ahead = e("mal", id = 5, progress = 9, updatedAt = 100)
+        val behind = e("anilist", id = 1, progress = 4, updatedAt = 100)
+        assertEquals(ahead, CrossSyncMergePolicy.newestOrNull(listOf(behind, ahead)))
+
+        val aniListRow = e("anilist", id = 9, progress = 4, updatedAt = 100)
+        val malRow = e("mal", id = 2, progress = 4, updatedAt = 100)
+        assertEquals(aniListRow, CrossSyncMergePolicy.newestOrNull(listOf(malRow, aniListRow)))
+
+        val lowId = e("mal", id = 3, progress = 4, updatedAt = 100)
+        val highId = e("mal", id = 8, progress = 4, updatedAt = 100)
+        assertEquals(lowId, CrossSyncMergePolicy.newestOrNull(listOf(highId, lowId)))
+    }
+
+    @Test
+    fun `newest girdi sirasindan bagimsizdir`() {
+        val rows = listOf(
+            e("mal", id = 11, progress = 6, updatedAt = 300),
+            e("kitsu", id = 4, progress = 6, updatedAt = 300),
+            e("kitsu", id = 2, progress = 6, updatedAt = 300),
+            e("anilist", id = 30, progress = 1, updatedAt = 900)
+        )
+        assertEquals(rows[3], CrossSyncMergePolicy.newestOrNull(rows))
+        assertEquals(rows[3], CrossSyncMergePolicy.newestOrNull(rows.reversed()))
+        val withoutNewest = rows.dropLast(1)
+        assertEquals(rows[2], CrossSyncMergePolicy.newestOrNull(withoutNewest))
+        assertEquals(rows[2], CrossSyncMergePolicy.newestOrNull(withoutNewest.reversed()))
+    }
+
+    @Test
+    fun `newest bos listede null`() {
+        assertEquals(null, CrossSyncMergePolicy.newestOrNull(emptyList()))
+    }
 }

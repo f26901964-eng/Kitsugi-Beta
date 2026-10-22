@@ -99,7 +99,21 @@ object MalSyncManager {
         // boşalttığında (diff'te göründüğünde) gönderilir.
         val postData = buildString {
             if (SyncField.STATUS in fields) {
-                append("status=${URLEncoder.encode(entry.status.toMalStatus(entry.type), "UTF-8")}")
+                // (E77) `Repeating` yazımında MAL'daki MEVCUT durum korunur (E72'nin yazıcı
+                // tarafı): mevcut durum yalnız bu nadir yolda bir GET ile okunur.
+                val existingMalStatus = if (entry.status == WatchStatus.Repeating) {
+                    malCurrentListStatus(token, malId, endpointType)
+                } else {
+                    null
+                }
+                append(
+                    "status=${
+                        URLEncoder.encode(
+                            malStatusForWrite(entry.status, entry.type, existingMalStatus),
+                            "UTF-8"
+                        )
+                    }"
+                )
                 // MAL'de "tekrar izleniyor" ayrı bir durum DEĞİLDİR: durum `completed` kalır ve
                 // `is_rewatching` bayrağı set edilir (MAL-Sync MyAnimeList_api/single.ts ile aynı).
                 if (entry.type == MediaType.Manga) {
@@ -333,6 +347,65 @@ object MalSyncManager {
             )
         }
     }
+
+    /**
+     * MAL'deki mevcut liste durumunu okur (`my_list_status.status`).
+     *
+     * @return API'nin döndürdüğü durum dizgesi; kayıt yoksa (404) ya da okuma
+     *         doğrulanamazsa `null` — çağıran bu durumda eski varsayılanı (`completed`)
+     *         korur, ağ hatası yazımı engellemez.
+     */
+    private fun malCurrentListStatus(
+        token: String,
+        malId: Int,
+        endpointType: String
+    ): String? = runSyncCatching {
+        val url = URL("https://api.myanimelist.net/v2/$endpointType/$malId?fields=my_list_status")
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $token")
+            .header("Accept", "application/json")
+            .build()
+        com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                null
+            } else {
+                val body = response.body?.string().orEmpty()
+                runSyncCatching {
+                    JSONObject(body).optJSONObject("my_list_status")
+                        ?.optString("status")
+                        ?.takeIf { it.isNotBlank() }
+                }.getOrNull()
+            }
+        }
+    }.getOrNull()
+
+    /**
+     * MAL'a gönderilecek `status` değeri (E77).
+     *
+     * (E72) politika katmanında "MAL'de durum korunur, yalnız bayrak yazılır" kararı
+     * verilmişti; ancak yazıcı `Repeating`i her zaman `completed`a çeviriyordu. Tekrar
+     * sürerken yalnızca bayrak taşınmak istendiğinde bile (STATUS alanı bayrak yüzünden
+     * kümede) yayındaki bir yapımın MAL durumu `watching` → `completed`a dönüyordu.
+     * Artık tekrar yazımında MAL'daki mevcut durum — `plan_to_*` dışında — aynen
+     * korunur; mevcut durum bilinmiyorsa (kayıt yok / okuma başarısız) eski varsayılan
+     * `completed` kullanılır. Bilinmeyen dizge API'ye geçirilmez (allowlist).
+     *
+     * `unit` testleri için görünür (bkz. `stripDateClears` deseni).
+     */
+    internal fun malStatusForWrite(
+        entryStatus: WatchStatus,
+        mediaType: MediaType,
+        existingMalStatus: String?
+    ): String {
+        if (entryStatus != WatchStatus.Repeating) return entryStatus.toMalStatus(mediaType)
+        val existing = existingMalStatus?.trim()?.lowercase()
+        return existing?.takeIf { it in PRESERVABLE_MAL_STATUSES } ?: "completed"
+    }
+
+    /** Tekrar yazımında korunabilecek MAL durumları (`plan_to_*` hariç — bkz. E72). */
+    private val PRESERVABLE_MAL_STATUSES =
+        setOf("watching", "reading", "completed", "on_hold", "dropped")
 
     private fun WatchStatus.toMalStatus(mediaType: MediaType): String {
         return when (this) {

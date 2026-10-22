@@ -956,3 +956,175 @@ depoda değil, Drive'dadır — bu geçişte düzenlenmedi).
   **T05** (sağlayıcı başına geri-okuma koşumu), **T03/T04** (kısmi yeniden
   bağlanmada bayat token, kaynak bazlı kimlik önbelleği temizliği). Ayrıca
   §19.3'te bırakılan iki `maxByOrNull` kopyası T20 ile birlikte bakılmalı.
+
+---
+
+## §20 — Geçiş 12: geri-okuma koşumu (T05) + E76/E77/E78/E79/E80, puan sınırları (T07/T08), Simkl not okuma (T06/T18 kod düzeyi)
+
+Bu geçiş T05 için planlanmıştı; koşum yazılırken ve çevre kod okunurken **beş yeni
+hata** bulundu. İkisi (E76, E77) E72'nin bizzat düzeltmek için yazıldığı hata
+sınıfının komşu katmanlarda süren örnekleridir: politika doğru karar veriyor ama
+daha alt katman (daraltma/yazıcı) kararı bozuyordu.
+
+### 20.1 E76 — Bangumi/Simkl'de sonsuz STATUS yazımı (`SyncField.narrow`)
+
+**Kanıt (kod okuması, eski hâl):** `ProviderCapabilities.narrow()`:
+
+```kotlin
+if (!rewatchingAsStatus && SyncField.REWATCH_COUNT in fields && SyncField.STATUS in supports) {
+    allowed += SyncField.STATUS
+}
+```
+
+Koşul "ayrı tekrar durumu olmayan her hedef" diyordu; bu kümeye tekrarı **hiç**
+ifade edemeyen Bangumi/Simkl (`RewatchModel.UNSUPPORTED`, `repeatCount` alanı API'de
+yok, satırda hep 0) de giriyordu. Birleşik sayaç 0'dan büyük olduğu sürece her toplu
+turda `dirtyFieldsFor`, Bangumi/Simkl için `{STATUS}` üretiyor; yazıcı aynı durumu
+yeniden yazıyor; satırdaki sayaç bir sonraki turda yine 0 — **sonsuz yazım** (A5
+ihlali, gereksiz API kotası + kuyruk gürültüsü). Mevcut testlerdeki Bangumi/Simkl
+senaryoları `repeatCount = 0` kullandığı için yakalanmamıştı.
+
+**Düzeltme:** koşul `rewatchModel == RewatchModel.AS_FLAG` oldu (MAL `is_rewatching`,
+Kitsu `reconsuming` — sayaç değişikliği bayrağı taşıyan durum yazımıyla gitmeli).
+UNSUPPORTED hedeflerde `REWATCH_COUNT` zaten `supports` kesişiminde düştüğü için
+sonuç boş küme: tekrar sayacı o hedeflerde **bilinçli kısıttır**, istek üretilmez.
+
+### 20.2 E77 — MAL yazıcısı E72'yi bozuyordu (`MalSyncManager`)
+
+**Kanıt (kod okuması, eski hâl):** E72 düzeltilirken politika katmanı
+(`ProviderCapabilities.statusFor` + `dirtyFieldsFor`) "MAL'de mevcut durum korunur,
+yalnız `is_rewatching` bayrağı yazılır" diye düzeltildi. Ama **yazıcının** STATUS
+gövdesi hâlâ koşulsuz eşlemedeydi:
+
+```kotlin
+append("status=${URLEncoder.encode(entry.status.toMalStatus(entry.type), "UTF-8")}")
+```
+
+`toMalStatus(Repeating) == "completed"` olduğundan, tekrar sürerken bayrak taşınmak
+için STATUS kümeye girdiğinde yayındaki bir yapımın MAL durumu `watching →
+completed`a dönüyordu. Politika doğru, yazıcı kararı uygulayamıyor — E72 ile aynı
+hastalık, bir katman altı.
+
+**Düzeltme:** tekrar yazımında (`entry.status == Repeating && STATUS ∈ fields`)
+MAL'deki mevcut durum tek bir GET ile okunur (`malCurrentListStatus`,
+`?fields=my_list_status`, `syncClient` kalıbı) ve saf karar fonksiyonu
+`malStatusForWrite(status, type, existing)` uygulanır: tekrar için mevcut durum
+`{watching, reading, completed, on_hold, dropped}` allowlist'indeyse korunur;
+`plan_to_*`/bilinmeyen/yoksa eski varsayılan `completed`. Allowlist dışı dizge
+API'ye asla geçirilmez. Okuma ağ/transient hatasında `null` döner → `completed`
+varsayılanı; yazım ek GET yüzünden bloklanmaz, hata sessizce yazıma dönüşmez
+(karar yalnızca gövde içeriğidir, başarı/yeniden-deneme semantiği değişmedi).
+Karar fonksiyonu `internal` ve saf — 6 birim testiyle kilitlendi
+(`MalRewatchStatusWriteTest`).
+
+### 20.3 E78 — "en yeni" seçiminin kalan kopyaları tek kaynağa toplandı (T20 kalanı)
+
+E75, `AuthViewModel`deki `maxByOrNull { updatedAt }`yi sıralamalı biçime çevirmişti
+ama sıra hâlâ **üç ayrı yerde elle yazılıyordu** (`resolveStatus`, `newestRewatch`,
+AVM) ve iki yerde daha tiebreak'siz kopya duruyordu (`MediaEntryBackup` eşleşme
+seçimi, `MediaEntryRepository.smartImport` entity eşleşmesi) — §19.3'te bilinçli
+bırakılanlar. Bu geçişte:
+
+- `CrossSyncMergePolicy.NEWEST_FIRST` + `newestOrNull()` tek kaynak yapıldı
+  (`updatedAt↓ → progress↓ → source↑ → id↑`; son anahtar E70).
+- `resolveStatus`/`newestRewatch` bu sırayı kullanır; davranış birebir aynı
+  (anahtarlar değişmedi), yalnız tanım tekelleşti.
+- `AuthViewModel` ve `MediaEntryBackup` `newestOrNull()`a bağlandı;
+  `smartImport` entity üzerinde aynı anahtarlarla sıralar (entity tipi farklı
+  olduğu için politika nesnesinin fonksiyonu doğrudan kullanılamaz; anahtarlar
+  yoruma çapraz referanslıdır).
+- 4 yeni birim testi (eşit damgada ilerleme/kaynak/id kırılımı, girdi sırasından
+  bağımsızlık, boş liste).
+- Bilinçli istisna: `MangaDetailViewModel`deki bölüm-ilerleme seçimi kütüphane
+  satırı seçimi değildir (kod okumasıyla doğrulandı), kapsam dışı bırakıldı.
+
+### 20.4 E79 — Simkl "bırakıldı" içe aktarmada "planlandı" oluyordu
+
+`SimklImportManager.mapSimklStatus` yalnız `"dropped"` dizgesini tanıyordu; Simkl'in
+gerçek kovası `notinteresting` (yazıcı ve `SimklSyncManager` okuma eşlemesi bunu
+kullanır) `else` dalından **Planned** oluyordu. Bırakılan her kayıt, içe aktarmada
+"planlandı"ya dönüyor; üstelik toplu tur bu yanlış durumu diğer kaynaklara "en yeni
+işlem" gibi yayabilirdi. Eşlemeye `notinteresting → Dropped` eklendi (iki dizge de
+kabul edilir); fonksiyon `internal` yapılıp testle kilitlendi.
+
+### 20.5 E80 — Simkl notu yazılıyor ama hiç okunmuyordu (+smartImport not silmesi)
+
+**Kanıt:** Simkl yazıcısı `private_memo` yazar (T18 kod düzeyi bu turda da
+doğrulandı: diff yazımında `entry.notes ?: ""`, tam yazımda yalnız dolu not;
+`SimklApiClient` `private_memo` alanını koyar). `SimklImportManager` ise içe
+aktarırken `notes` alanını hiç doldurmuyordu — üstelik `notes = null` gelen Simkl
+satırı, `smartImport`'ta yerel notun üzerine yazılarak **kullanıcının notunu
+siliyordu** (A4 ihlali, içe aktarma yönünde).
+
+**Resmî sözleşme (api.simkl.org/guides/sync, bu turda dokümandan doğrulandı):**
+`GET /sync/all-items?memos=yes`, kaleme tekil `memo` nesnesi ekler: `text`
+(≤140 karakter) + `is_private`; boş memo `{}`. Yazma tarafı `private_memo` düz
+dizgesidir — asimetri Simkl'in kendisinindir.
+
+**Düzeltme:** liste isteği `?memos=yes` taşır; `notes = simklMemoText(item)`
+(`memo.text`, boş/`{}` → `null`). Not uzunluğu 140'ı aşarsa Simkl tarafı kırpar —
+bu, hedefin kendi sınırıdır (E41 sınıfı bilinçli kısıt adayı); yerel tam metin
+başka hedeflerde korunur çünkü not merge'inde taşınmaz (sözleşme: not/etiket/
+öncelik birleştirilmez). Çalışma-zamanı doğrulaması (gerçek hesapta memo'nun
+dönmesi) hâlâ yok — T06'nın kalan yarısıdır.
+
+### 20.6 T05 — Geri-okuma koşumu (`ProviderReadBackIdempotenceTest`, 9 test × matris)
+
+Yeni koşum: adaylardan birleşim → `dirtyFieldsFor` → yazımın kabul edilip **hedefin
+kendi sözlüğünde geri okunduğu** satır (`readBackAfterWrite`: durum `statusFor` ile,
+bayrak AS_FLAG'de birleşik bayrağa, diğer alanlar yalnız dirty ise) → aynı birleşime
+karşı ikinci `dirtyFieldsFor` **BOŞ** olmalı. Senaryolar: geride satır, tamamlanma,
+aktif tekrar, bitmiş tekrar sayacı (E76 regresyonunu iki yönden kilitler: koşum +
+Bangumi/Simkl'de ilk dirty'nin de boş olduğu), yapışkan Dropped/Paused, puan+tarih
+doldurma, manga cilt (Simkl tür kapısı üst katmanda, matriste yok), yalnız-planlandı.
+9 test metodunun her biri 6 sağlayıcıyı döner. Koşum, E72 ve E76 öncesi kodda
+denendiğinde zihinsel çalıştırmayla **kırmızı** verir (Bayrak/STATUS döngüsü ikinci
+turda yeniden dirty üretir) — düzeltme sonrası boş küme. Koşumun sınırı: kanonik
+`MediaEntry` düzeyi; HTTP gövde dönüşümleri (puan ölçekleri) ayrı dosyada (§20.7),
+MAL gövdesi §20.2 testindedir; sunucunun kendi kırpmaları modellenmez (onlar
+sessiz döngü üretmez, hata/yeniden-deneme yoluna girer).
+
+### 20.7 T07/T08 kod düzeyi — puan sınırları (`ProviderScoreBoundaryTest`, 9 test)
+
+- **AniList** `scoreRaw`: `SyncScores.aniListRaw` 0..100 kelepçesi (null/negatif→0,
+  taşma→100).
+- **Kitsu** `ratingTwenty`: `kitsuTwenty`, 2..20 dışında asla değer üretmez
+  (−20..220 taraması); boş puan 0/1'e kelepçelenmez, `null` olur (yazıcı tarafında
+  temizleme — KDoc'ta sınırı yazıldı).
+- **Bangumi** `rate`: `toBangumiRate`, boş/0/negatif → `null` (gövdeye konmaz, E41),
+  100'lük sızıntılar 1..10'a (ör. 75→8, 95→10, 250→10); −50..300 taraması.
+  Yuvarlama bağı (x.5) değerleri, `kotlin.math.round`'un bağ-kırma semantiğine
+  test bağlanmasın diye bilinçli seçilmedi.
+- T07'nin çalışma-zamanı yarısı (`rate=0` sunucu davranışı) bu dosyayla KAPANMAZ;
+  gerçek API çağrısı gerekir.
+
+### 20.8 Doğrulama (model koşturması + sözdizimi)
+
+- `kcheck.py`: değişen/yeni **12 dosya, 0 hata**.
+- `fuzz_merge.py` (5000): `{status: 0, progress: 0, total: 0}`.
+- `fuzz2.py` (5000): `{monotone_progress: 0, added_row_lowers: 66, invariants: 0}`
+  — Geçiş 11 tabanıyla birebir aynı; 66, §19.5'teki sözleşme davranışıdır
+  (toplam kırpması), E78 anahtarları değiştirmediği için modelde regresyon yok.
+- Test sayıları: `data/auth` **24 dosya / 210 test** (bu geçiş: 4 yeni dosya 30 test
+  + `CrossSyncMergePolicyTest`e 4 = **+34**). Testler **dosyadadır, koşulmamıştır**.
+
+### 20.9 Dürüst durum
+
+- **Derleme ve birim test ÇALIŞTIRILMADI** (ortamda JDK/Gradle/Android SDK yok).
+  Doğrulama: kod okuması (bu bölümdeki her iddia satır/dosyayla) + resmî Simkl
+  dokümanı + kcheck (12/0) + model koşturması (yukarıda). "%100 çalışıyor" iddiası
+  ancak kullanıcının Gradle koşusu ve §20.5/§20.7'deki çalışma-zamanı
+  doğrulamalarıyla tamamlanır. Komut:
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
+- Bu geçişte değişen üretim dosyaları: `data/auth/SyncField.kt` (E76),
+  `data/auth/MalSyncManager.kt` (E77), `data/auth/CrossSyncMergePolicy.kt` +
+  `ui/app/AuthViewModel.kt` + `data/local/MediaEntryBackup.kt` +
+  `data/local/MediaEntryRepository.kt` (E78), `data/auth/SimklImportManager.kt`
+  (E79/E80). Yeni test dosyaları: `ProviderReadBackIdempotenceTest`,
+  `MalRewatchStatusWriteTest`, `SimklImportParsingTest`,
+  `ProviderScoreBoundaryTest` + `CrossSyncMergePolicyTest` ekleri.
+- Sıradaki işler: **T13** (`AuthViewModel` orkestrasyonu — hâlâ en büyük testsiz
+  yüzey), **T03/T04** (bayat token/kimlik önbelleği), **T10/T11** (favori),
+  **T22** (ayna entegrasyonu); çalışma-zamanı doğrulamaları **T06/T07/T09** gerçek
+  hesap/API gerektirir. E60 tek DOĞRULANMADI çalışma-zamanı maddesi olarak durur.
+

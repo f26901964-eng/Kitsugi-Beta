@@ -52,6 +52,25 @@ object CrossSyncMergePolicy {
     )
 
     /**
+     * "En yeni satır" sıralaması — TEK KAYNAK (E70/E75/E78).
+     *
+     * Anahtarlar: `updatedAt` (azalan) → ilerleme (azalan) → kaynak adı (artan) →
+     * satır `id` (artan). Son anahtar olmadan kararlı sıralama eşitlikte ADAY SIRASINI
+     * miras alır ve aynı veriden turlar arasında farklı "en yeni" seçilir (E70).
+     * Birleştirme dışındaki seçimler de (birleşik kayda taban, içe aktarım eşleşmesi)
+     * bu sırayı kullanır; yeni bir `maxByOrNull { updatedAt }` yazmak YASAKTIR.
+     */
+    val NEWEST_FIRST: Comparator<MediaEntry> =
+        compareByDescending<MediaEntry> { it.updatedAt }
+            .thenByDescending { it.progress }
+            .thenBy { it.source }
+            .thenBy { it.id }
+
+    /** [NEWEST_FIRST] sırasına göre en yeni satır; liste boşsa `null`. */
+    fun newestOrNull(candidates: Collection<MediaEntry>): MediaEntry? =
+        candidates.sortedWith(NEWEST_FIRST).firstOrNull()
+
+    /**
      * @param candidates aynı yapının kaynak kayıtları (aynı grupta eşleşmiş satırlar).
      *                   Boş liste bir programlama hatasıdır; çağıran taraf boş grubu atlar.
      */
@@ -233,16 +252,8 @@ object CrossSyncMergePolicy {
      * planlandı kaydı durumu belirlemez.
      */
     fun resolveStatus(candidates: List<MediaEntry>, total: Int?, maxProgress: Int): WatchStatus {
-        val byRecency = candidates.sortedWith(
-            // Eşit zaman damgasında (ör. içe aktarılmış satırlar) sıra deterministik olsun:
-            // ilerleme yüksek olan, sonra kaynak adı, en son satır kimliği. `sortedWith`
-            // kararlı (stable) olduğu için son anahtar olmadan sıra ADAY SIRASINA bağlı kalır;
-            // bu da aynı veriden iki farklı birleşim üretip turlar arasında zıt yazımlara yol açar.
-            compareByDescending<MediaEntry> { it.updatedAt }
-                .thenByDescending { it.progress }
-                .thenBy { it.source }
-                .thenBy { it.id }
-        )
+        // Sıra [NEWEST_FIRST]: eşit zaman damgasında sonuç aday sırasına bağlı kalmaz (E70).
+        val byRecency = candidates.sortedWith(NEWEST_FIRST)
         val meaningful = byRecency.firstOrNull { it.status != WatchStatus.Planned } ?: byRecency.first()
         // TEKRAR İZLENİYOR: bir kaynak "şu an tekrar izleniyor" diyorsa kullanıcının durumu
         // budur. İlerleme toplamı yakalamış olsa bile `Completed`'a yükseltilmez: 12/12
@@ -299,12 +310,7 @@ object CrossSyncMergePolicy {
     private fun newestRewatch(candidates: List<MediaEntry>): MediaEntry? = candidates
         .asSequence()
         .filter { it.isRewatchInProgress() }
-        .sortedWith(
-            compareByDescending<MediaEntry> { it.updatedAt }
-                .thenByDescending { it.progress }
-                .thenBy { it.source }
-                .thenBy { it.id }
-        )
+        .sortedWith(NEWEST_FIRST)
         .firstOrNull()
 
     /** Sıfırdan büyük puanlar arasından en son güncellenen; eşitlikte yüksek olan. */

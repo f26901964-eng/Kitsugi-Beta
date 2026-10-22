@@ -128,7 +128,14 @@ class MediaEntryRepository(
                         val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
                         !engLocal.isNullOrBlank() && engLocal == engImp
                     }
-                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+                    // (E78) "En yeni eşleşme" aday sırasına bağlı seçilemez: anahtarlar
+                    // CrossSyncMergePolicy.NEWEST_FIRST ile aynıdır (burada entity üzerinde).
+                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.sortedWith(
+                        compareByDescending<MediaEntryEntity> { it.updatedAt }
+                            .thenByDescending { it.progress }
+                            .thenBy { it.source }
+                            .thenBy { it.id }
+                    ).firstOrNull() ?: matches.first()
                 }
             }
             if (match != null) {

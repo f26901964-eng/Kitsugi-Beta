@@ -1219,17 +1219,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         continue
                     }
 
-                    // (E75) Eşit `updatedAt` damgasında sonuç ADAY SIRASINA bağlı kalmasın:
-                    // `maxByOrNull { updatedAt }` eşitlikte ilk satırı seçerdi; `newest`,
-                    // birleşik kaydın tabanı (başlık/not/etiket/öncelik) olduğu için seçim
-                    // turlar arasında salınabilirdi. Sıra, CrossSyncMergePolicy'dekiyle aynı:
-                    // en yeni → en yüksek ilerleme → kaynak adı → satır kimliği (E70).
-                    val newest = candidates.sortedWith(
-                        compareByDescending<MediaEntry> { it.updatedAt }
-                            .thenByDescending { it.progress }
-                            .thenBy { it.source }
-                            .thenBy { it.id }
-                    ).first()
+                    // (E75/E78) Birleşik kaydın tabanı aday sırasına bağlı seçilemez:
+                    // "en yeni" kararı tek kaynaktan gelir (`CrossSyncMergePolicy.NEWEST_FIRST`).
+                    val newest = com.kitsugi.animelist.data.auth.CrossSyncMergePolicy
+                        .newestOrNull(candidates) ?: candidates.first()
                     val isAnimeOrManga = newest.type == MediaType.Anime || newest.type == MediaType.Manga
 
                     // ── BİRLEŞTİRME (tek ve test edilebilir kural) ──────────────────────
