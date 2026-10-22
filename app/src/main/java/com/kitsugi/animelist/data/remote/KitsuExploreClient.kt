@@ -435,20 +435,7 @@ object KitsuExploreClient {
             }
 
             val subtypeRaw = attrs.optString("subtype", "")
-            val subtypeTr = when (subtypeRaw.lowercase()) {
-                "tv"      -> "TV"
-                "movie"   -> "Film"
-                "ova"     -> "OVA"
-                "ona"     -> "ONA"
-                "special" -> "Özel"
-                "music"   -> "Müzik"
-                "manga"   -> "Manga"
-                "manhwa"  -> "Manhwa"
-                "manhua"  -> "Manhua"
-                "novel"   -> "Novel"
-                "oneshot" -> "One-Shot"
-                else      -> subtypeRaw
-            }
+            val subtypeTr = KitsuClient.kitsuSubtypeToTurkish(subtypeRaw)
 
             val avgRating = attrs.optString("averageRating", "0").toDoubleOrNull() ?: 0.0
             val score = if (avgRating > 0) (avgRating / 10.0).toInt().coerceIn(1, 10) else null
@@ -543,7 +530,8 @@ object KitsuExploreClient {
     private suspend fun fetchMangaDetailOnce(kitsuId: String, authToken: String?): KitsugiMediaDetail? =
         withContext(Dispatchers.IO) {
             try {
-                val url = KitsuApiHost.url("/manga/$kitsuId?include=categories")
+                // categories → türler/etiketler, mappings → MAL/AniList kimlik + harici bağlantılar.
+                val url = KitsuApiHost.url("/manga/$kitsuId?include=categories,mappings")
                 val builder = Request.Builder()
                     .url(url)
                     .header("Accept", "application/vnd.api+json")
@@ -573,8 +561,13 @@ object KitsuExploreClient {
             val canonicalTitle = attrs.optString("canonicalTitle", "")
             val titlesObj = attrs.optJSONObject("titles")
             val titleEn = titlesObj?.optString("en", "")?.takeIf { it.isNotBlank() }
+                ?: titlesObj?.optString("en_us", "")?.takeIf { it.isNotBlank() }
             val titleJa = titlesObj?.optString("ja_jp", "")?.takeIf { it.isNotBlank() }
             val title = canonicalTitle.takeIf { it.isNotBlank() } ?: titleEn ?: titleJa ?: KitsugiStrings.get(R.string.basliksiz)
+            // Kısaltılmış/alternatif adlar (romaji, diğer diller) — "Diğer Adlar" satırı.
+            val synonyms = attrs.optJSONArray("abbreviatedTitles")?.let { arr ->
+                (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }
+            } ?: emptyList()
 
             val synopsis = attrs.optString("synopsis", "").takeIf { it.isNotBlank() }
             val startDate = attrs.optString("startDate", "")
@@ -582,12 +575,34 @@ object KitsuExploreClient {
             val year = startDate.take(4).toIntOrNull()
 
             val chapterCount = attrs.optInt("chapterCount", 0).takeIf { it > 0 }
+            val volumeCount = attrs.optInt("volumeCount", 0).takeIf { it > 0 }
+            // Format: Manga / Manhwa / Manhua / Novel / One-Shot
+            val subtypeRaw = attrs.optString("subtype", "")
+            val formatVal = subtypeRaw.takeIf { it.isNotBlank() }?.let { KitsuClient.kitsuSubtypeToTurkish(it) }
+            // Yayın dergisi (serileşme) — Stüdyolar kartında "Dergiler" çipi olarak görünür.
+            val serializationName = attrs.optString("serialization", "").takeIf { it.isNotBlank() }
+            val serializations = if (serializationName != null) {
+                listOf(KitsugiStudio(id = 0, name = serializationName, isMain = false, source = "kitsu", role = StudioRole.MAGAZINE))
+            } else emptyList()
+
             val avgRating = attrs.optString("averageRating", "0").toDoubleOrNull() ?: 0.0
             val score = if (avgRating > 0) (avgRating / 10.0).toInt().coerceIn(1, 10) else null
+            val meanScore = if (avgRating > 0) avgRating.toInt() else null
+            // Oy sayısı: ratingFrequencies haritasındaki sıklıkların toplamı.
+            val scoredByCount = attrs.optJSONObject("ratingFrequencies")?.let { freq ->
+                var sum = 0L
+                for (key in freq.keys()) sum += freq.optString(key, "0").toLongOrNull() ?: 0L
+                sum.toInt().takeIf { it > 0 }
+            }
+            val userCount = attrs.optInt("userCount", 0).takeIf { it > 0 }
+            val favCount = attrs.optInt("favoritesCount", 0).takeIf { it > 0 }
+            val ratingRank = attrs.optInt("ratingRank", 0).takeIf { it > 0 }
+            val popularityRank = attrs.optInt("popularityRank", 0).takeIf { it > 0 }
 
             val posterObj = attrs.optJSONObject("posterImage")
-            val imageUrl = posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
+            val imageUrl = posterObj?.optString("large")?.takeIf { it.isNotBlank() }
                 ?: posterObj?.optString("original")?.takeIf { it.isNotBlank() }
+                ?: posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
             val posterOriginal = posterObj?.optString("original")?.takeIf { it.isNotBlank() }
 
             val coverObj = attrs.optJSONObject("coverImage")
@@ -596,14 +611,18 @@ object KitsuExploreClient {
             val kitsuPictures = listOfNotNull(posterOriginal, coverOriginal).distinct()
 
             val kitsuId = data.optString("id", "")
+            val (mappingMalId, mappingLinks) = KitsuClient.parseKitsuMappings(included, isManga = true)
             val links = mutableListOf<KitsugiExternalLink>()
             if (kitsuId.isNotBlank()) links.add(KitsugiExternalLink("Kitsu", "https://kitsu.io/manga/$kitsuId", "EN"))
+            links.addAll(mappingLinks)
 
             val statusRaw = attrs.optString("status", "")
             val statusTr = when (statusRaw.lowercase()) {
                 "current"    -> "Devam Ediyor"
                 "finished"   -> "Tamamlandı"
                 "upcoming"   -> "Yakında"
+                "unreleased" -> "Yayınlanmadı"
+                "tba"        -> "Bilinmiyor"
                 else         -> statusRaw
             }
 
@@ -620,11 +639,24 @@ object KitsuExploreClient {
                 score         = score,
                 year          = year,
                 total         = chapterCount,
+                volumes       = volumeCount,
                 startDate     = startDate.takeIf { it.isNotBlank() },
                 endDate       = endDate.takeIf { it.isNotBlank() },
                 status        = statusTr,
                 isAdult       = KitsuAdultFlags.isAdult(attrs),
                 externalLinks = links,
+                synonyms      = synonyms,
+                realMalId     = mappingMalId,
+                format        = formatVal,
+                rawFormat     = subtypeRaw.takeIf { it.isNotBlank() },
+                serializations = serializations,
+                meanScore     = meanScore,
+                averageScore  = meanScore,
+                members       = userCount,
+                favorites     = favCount,
+                rank          = ratingRank,
+                popularityRank = popularityRank,
+                scoredBy      = scoredByCount,
                 pictures      = kitsuPictures
             )
         } catch (e: Exception) {

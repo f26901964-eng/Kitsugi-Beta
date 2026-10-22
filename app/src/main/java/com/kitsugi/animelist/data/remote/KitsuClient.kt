@@ -30,14 +30,115 @@ object KitsuClient {
     private val BASE: String get() = KitsuApiHost.base
 
     suspend fun fetchAnimeDetail(kitsuIdOrSlug: String): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
-        val url = "$BASE/anime/$kitsuIdOrSlug?include=categories"
+        // categories → türler/etiketler, animeProductions.producer → stüdyo/yapımcı/lisanslayan,
+        // mappings → MAL/AniList/AniDB kimlikleri ve harici bağlantılar (tek istek, ek gidiş-dönüş yok).
+        val url = "$BASE/anime/$kitsuIdOrSlug?include=categories,animeProductions.producer,mappings"
         executeGet(url)
     }
 
     suspend fun fetchAnimeDetailByTitle(title: String): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
         val encoded = URLEncoder.encode(title, "UTF-8")
-        val url = "$BASE/anime?filter[text]=$encoded&page[limit]=1&include=categories"
+        val url = "$BASE/anime?filter[text]=$encoded&page[limit]=1&include=categories,animeProductions.producer,mappings"
         executeGet(url, isArrayResponse = true)
+    }
+
+    /**
+     * Kitsu `subtype` değerini Türkçe etikete çevirir; arama kartı alt başlığı ve
+     * detay sayfasındaki "Format" satırı aynı çeviriyi kullanır.
+     */
+    internal fun kitsuSubtypeToTurkish(raw: String): String = when (raw.lowercase()) {
+        "tv"      -> "TV"
+        "movie"   -> "Film"
+        "ova"     -> "OVA"
+        "ona"     -> "ONA"
+        "special" -> "Özel"
+        "music"   -> "Müzik"
+        "manga"   -> "Manga"
+        "manhwa"  -> "Manhwa"
+        "manhua"  -> "Manhua"
+        "novel"   -> "Novel"
+        "oneshot" -> "One-Shot"
+        "doujin"  -> "Doujin"
+        "oel"     -> "OEL"
+        else      -> raw
+    }
+
+    /**
+     * Kitsu `mappings` kayıtlarını çözer: (gerçek MAL ID'si, harici bağlantılar).
+     *
+     * MAL kimliği; detay zenginleştirmesi (Jikan/AniList birleştirmesi), yedek zincirler ve
+     * çapraz senkron için kritiktir — Kitsu anonim yanıtları bu kimliği başka yolla vermez.
+     * Bağlantılar Harici Bağlantılar kartında gösterilir; bilinmeyen/Ölü bağlantı üretebilecek
+     * sağlayıcılar (anime-planet slug'ları vb.) bilerek atlanır.
+     */
+    internal fun parseKitsuMappings(included: JSONArray?, isManga: Boolean): Pair<Int?, List<KitsugiExternalLink>> {
+        if (included == null || included.length() == 0) return null to emptyList()
+        val mediaPath = if (isManga) "manga" else "anime"
+        var malId: Int? = null
+        val links = mutableListOf<KitsugiExternalLink>()
+        val seenUrls = mutableSetOf<String>()
+        for (i in 0 until included.length()) {
+            val inc = included.optJSONObject(i) ?: continue
+            if (inc.optString("type") != "mappings") continue
+            val attrs = inc.optJSONObject("attributes") ?: continue
+            val site = attrs.optString("externalSite", "").lowercase().trim()
+            val externalId = attrs.optString("externalId", "").trim()
+            if (site.isBlank() || externalId.isBlank()) continue
+            val link = when (site) {
+                "myanimelist/$mediaPath" -> {
+                    if (malId == null) malId = externalId.toIntOrNull()?.takeIf { it > 0 }
+                    KitsugiExternalLink("MyAnimeList", "https://myanimelist.net/$mediaPath/$externalId", "EN")
+                }
+                "anilist/$mediaPath" -> KitsugiExternalLink("AniList", "https://anilist.co/$mediaPath/$externalId", "EN")
+                "anidb/$mediaPath" -> KitsugiExternalLink("AniDB", "https://anidb.net/$mediaPath/$externalId", "EN")
+                else -> null
+            }
+            if (link != null && seenUrls.add(link.url)) links.add(link)
+        }
+        return malId to links
+    }
+
+    /**
+     * `animeProductions.producer` include'unu stüdyo/yapımcı/lisanslayan çiplerine çözer.
+     *
+     * Kitsu kurum ID'leri MAL ID uzayıyla AYNI DEĞİLDİR; çipler `source="kitsu"` taşır.
+     * Çipe tıklandığında StudioSourceSupport ad-temelli Jikan çözümlemesine düşer
+     * (namesMatch koruması sayesinde yanlış stüdyo sayfası açılamaz).
+     */
+    internal fun parseKitsuProductions(included: JSONArray?): Triple<List<KitsugiStudio>, List<KitsugiStudio>, List<KitsugiStudio>> {
+        if (included == null || included.length() == 0) return Triple(emptyList(), emptyList(), emptyList())
+        val producerNames = HashMap<String, String>()
+        val productions = ArrayList<JSONObject>()
+        for (i in 0 until included.length()) {
+            val inc = included.optJSONObject(i) ?: continue
+            when (inc.optString("type")) {
+                "producers" -> {
+                    val id = inc.optString("id", "")
+                    val name = inc.optJSONObject("attributes")?.optString("name", "")?.takeIf { it.isNotBlank() }
+                    if (id.isNotBlank() && name != null) producerNames[id] = name
+                }
+                "animeProductions" -> productions.add(inc)
+            }
+        }
+        if (producerNames.isEmpty() || productions.isEmpty()) return Triple(emptyList(), emptyList(), emptyList())
+        val studios = mutableListOf<KitsugiStudio>()
+        val producers = mutableListOf<KitsugiStudio>()
+        val licensors = mutableListOf<KitsugiStudio>()
+        for (prod in productions) {
+            val role = prod.optJSONObject("attributes")?.optString("role", "")?.lowercase().orEmpty()
+            val producerId = prod.optJSONObject("relationships")
+                ?.optJSONObject("producer")
+                ?.optJSONObject("data")
+                ?.optString("id", "").orEmpty()
+            val name = producerNames[producerId] ?: continue
+            val idInt = producerId.toIntOrNull() ?: 0
+            when (role) {
+                "studio"   -> studios.add(KitsugiStudio(id = idInt, name = name, isMain = true, source = "kitsu", role = StudioRole.STUDIO))
+                "producer" -> producers.add(KitsugiStudio(id = idInt, name = name, isMain = false, source = "kitsu", role = StudioRole.PRODUCER))
+                "licensor" -> licensors.add(KitsugiStudio(id = idInt, name = name, isMain = false, source = "kitsu", role = StudioRole.LICENSOR))
+            }
+        }
+        return Triple(studios, producers, licensors)
     }
 
     // ─── Character Fetching ───────────────────────────────────────────────────
@@ -495,9 +596,14 @@ object KitsuClient {
 
         val canonicalTitle = attributes.optString("canonicalTitle", "")
         val titlesObj = attributes.optJSONObject("titles")
-        val titleEnglish = titlesObj?.optString("en", "").takeIf { !it.isNullOrBlank() } ?: canonicalTitle
-        val titleRomaji = titlesObj?.optString("en_jp", "").takeIf { !it.isNullOrBlank() } ?: canonicalTitle
-        val titleNative = titlesObj?.optString("ja_jp", "").takeIf { !it.isNullOrBlank() }
+        // İngilizce: "en" yoksa resmî ABD İngilizcesi ("en_us") denenir (Kitsu'da yaygın eksik).
+        val titleEnglish = titlesObj?.optString("en", "")?.takeIf { it.isNotBlank() }
+            ?: titlesObj?.optString("en_us", "")?.takeIf { it.isNotBlank() }
+            ?: canonicalTitle
+        val titleRomaji = titlesObj?.optString("en_jp", "")?.takeIf { !it.isNullOrBlank() } ?: canonicalTitle
+        // Özgün ad: Japonca yoksa Çince (donghua kayıtları ja_jp taşımaz).
+        val titleNative = titlesObj?.optString("ja_jp", "")?.takeIf { it.isNotBlank() }
+            ?: titlesObj?.optString("zh_cn", "")?.takeIf { it.isNotBlank() }
         val synonyms = attributes.optJSONArray("abbreviatedTitles")?.let { arr ->
             (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }
         } ?: emptyList()
@@ -508,6 +614,14 @@ object KitsuClient {
         val endDate = attributes.optString("endDate", "").takeIf { it.isNotBlank() }
         val yearVal = startDate?.take(4)?.toIntOrNull()
 
+        // Kitsu'nun kendi sezon verisi: başlangıç tarihinden tahmin yerine yetkili kaynak.
+        val rawSeasonVal = attributes.optString("season", "").takeIf { it.isNotBlank() }
+        val seasonYearVal = attributes.optInt("seasonYear", 0).takeIf { it > 0 }
+
+        // Format: TV / Film / OVA / ONA / Özel / Müzik (arama kartıyla aynı Türkçe etiket).
+        val subtypeRaw = attributes.optString("subtype", "")
+        val formatVal = subtypeRaw.takeIf { it.isNotBlank() }?.let { kitsuSubtypeToTurkish(it) }
+
         val episodeCount = attributes.optInt("episodeCount", 0)
         val episodeLength = attributes.optInt("episodeLength", 0)
         val duration = if (episodeLength > 0) "$episodeLength dk" else null
@@ -516,6 +630,13 @@ object KitsuClient {
         val ratingDouble = averageRating.toDoubleOrNull() ?: 0.0
         val scoreVal = if (ratingDouble > 0) (ratingDouble / 10.0).toInt().coerceIn(1, 10) else null
         val meanScore = if (ratingDouble > 0) ratingDouble.toInt() else null
+
+        // Oy sayısı: ratingFrequencies haritasındaki tüm sıklıkların toplamı ("Oy Sayısı" istatistiği).
+        val scoredByCount = attributes.optJSONObject("ratingFrequencies")?.let { freq ->
+            var sum = 0L
+            for (key in freq.keys()) sum += freq.optString(key, "0").toLongOrNull() ?: 0L
+            sum.toInt().takeIf { it > 0 }
+        }
 
         val userCount = attributes.optInt("userCount", 0).takeIf { it > 0 }
         val favCount = attributes.optInt("favoritesCount", 0).takeIf { it > 0 }
@@ -534,8 +655,10 @@ object KitsuClient {
         val isAdult = com.kitsugi.animelist.data.remote.KitsuAdultFlags.isAdult(attributes)
 
         val posterObj = attributes.optJSONObject("posterImage")
-        val imageUrl = posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
+        // Detay sayfası için en büyük görsel tercih edilir (arama kartındaki medium değil).
+        val imageUrl = posterObj?.optString("large")?.takeIf { it.isNotBlank() }
             ?: posterObj?.optString("original")?.takeIf { it.isNotBlank() }
+            ?: posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
 
         val coverObj = attributes.optJSONObject("coverImage")
         val coverOriginal = coverObj?.optString("original")?.takeIf { it.isNotBlank() }
@@ -546,8 +669,12 @@ object KitsuClient {
         val youtubeVideoId = attributes.optString("youtubeVideoId", "")
         val trailerUrl = if (youtubeVideoId.isNotEmpty()) "https://www.youtube.com/watch?v=$youtubeVideoId" else null
 
+        val (mappingMalId, mappingLinks) = parseKitsuMappings(included, isManga = false)
+        val (kitsuStudios, kitsuProducers, kitsuLicensors) = parseKitsuProductions(included)
+
         val links = mutableListOf<KitsugiExternalLink>()
         links.add(KitsugiExternalLink("Kitsu", "https://kitsu.io/anime/$id", "EN"))
+        links.addAll(mappingLinks)
 
         return KitsugiMediaDetail(
             synopsis = synopsis,
@@ -576,6 +703,14 @@ object KitsuClient {
             favorites = favCount,
             rank = ratingRank,
             popularityRank = popularityRank,
+            scoredBy = scoredByCount,
+            realMalId = mappingMalId,
+            studios = kitsuStudios,
+            producers = kitsuProducers + kitsuLicensors,
+            format = formatVal,
+            rawFormat = subtypeRaw.takeIf { it.isNotBlank() },
+            rawSeason = rawSeasonVal,
+            seasonYear = seasonYearVal,
             pictures = kitsuPictures
         )
     }

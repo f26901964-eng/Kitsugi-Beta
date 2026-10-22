@@ -4823,6 +4823,10 @@
     <string name="detail_stat_score">Score</string>
     <string name="detail_stat_followers">Followers</string>
     <string name="detail_info_year">Year</string>
+    <string name="detail_info_format">Format</string>
+    <string name="detail_info_episodes">Episodes</string>
+    <string name="detail_info_chapters">Chapters</string>
+    <string name="detail_info_volumes">Volumes</string>
     <string name="detail_synopsis_none">No description found.</string>
     <string name="detail_trailer_tap">Tap to watch the trailer</string>
     <string name="detail_openings">Openings</string>

@@ -764,11 +764,21 @@ internal fun EntryInfoSection(
             )
             val synonymNames = cleanDetailSynonyms(detail.synonyms)
             val aliasesLabel = stringResource(R.string.detail_info_aliases)
+            val episodesLabel = if (mediaType == MediaType.Manga) {
+                stringResource(R.string.detail_info_chapters)
+            } else {
+                stringResource(R.string.detail_info_episodes)
+            }
+            val totalEpisodes = detail.total?.takeIf { it > 0 }
+            val totalVolumes = detail.volumes?.takeIf { it > 0 }
             val rows = buildList {
                 if (!detail.status.isNullOrBlank()) add(stringResource(R.string.detail_info_status) to detail.status)
                 seasonMetadata.displayLabel?.let { add(stringResource(R.string.detail_info_season) to it) }
                 if (!detail.startDate.isNullOrBlank()) add(stringResource(R.string.detail_date_start) to detail.startDate)
                 if (!detail.endDate.isNullOrBlank()) add(stringResource(R.string.detail_date_end) to detail.endDate)
+                if (!detail.format.isNullOrBlank()) add(stringResource(R.string.detail_info_format) to detail.format)
+                if (totalEpisodes != null) add(episodesLabel to totalEpisodes.toString())
+                if (totalVolumes != null) add(stringResource(R.string.detail_info_volumes) to totalVolumes.toString())
                 if (!detail.sourceMaterial.isNullOrBlank()) add(stringResource(R.string.detail_info_source) to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
                     if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name.toLocalizedOrgName() })

@@ -4825,6 +4825,10 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="detail_stat_score">Puan</string>
     <string name="detail_stat_followers">Takip Edenler</string>
     <string name="detail_info_year">Yıl</string>
+    <string name="detail_info_format">Format</string>
+    <string name="detail_info_episodes">Bölüm Sayısı</string>
+    <string name="detail_info_chapters">Bölüm</string>
+    <string name="detail_info_volumes">Cilt</string>
     <string name="detail_synopsis_none">Açıklama bulunamadı.</string>
     <string name="detail_trailer_tap">Fragmanı izlemek için dokunun</string>
     <string name="detail_openings">Açılış Müzikleri</string>

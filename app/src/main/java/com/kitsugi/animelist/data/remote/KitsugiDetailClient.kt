@@ -1045,9 +1045,10 @@ class KitsugiDetailClient {
             // v2: Bangumi'nin English / romaji / özgün adları ayrı taşınır. Önceki
             // sürümde Çince ad ana başlığa yazıldığı için eski satırlar okunmaz.
             source.equals("bangumi", ignoreCase = true) -> "${base}_bgm2"
-            // ks1: bozuk Kitsu özetleri temizlenmeye başlandı (KitsuSynopsisValidator).
-            // Eski satırlar bozuk özet taşıyabileceği için yeni anahtar kullanılır.
-            source.equals("kitsu", ignoreCase = true) -> "${base}_ks1"
+            // ks2: Kitsu detayları zenginleştirildi (format, sezon, stüdyo/yapımcı, oy sayısı,
+            // MAL/AniList mappings bağlantıları, manga puan istatistikleri). Eski ks1 satırları
+            // bu alanlar eksik olduğu için bilerek OKUNMAZ.
+            source.equals("kitsu", ignoreCase = true) -> "${base}_ks2"
             // s2: Simkl detaylarına çapraz realMalId ve type eklendi.
             source.equals("simkl", ignoreCase = true) -> "${base}_vl${MediaTitleResolver.VERSION}_s2"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
