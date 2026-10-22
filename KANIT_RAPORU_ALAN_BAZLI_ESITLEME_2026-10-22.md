@@ -313,3 +313,32 @@ Alan bazlı yazıma geçtikten sonra kodu tekrar taradım; altı yeni hata daha 
 | E6 | **MAL gövdesi `&` ile başlıyordu** — tek alan gönderildiğinde gövde `&score=8` oluyordu (eski kodda hep `status` önce geldiği için görünmüyordu). | `buildString` ilk parçayı da `&` ile ekliyor | Gönderim öncesi `trimStart('&')`. |
 
 Ayrıca Simkl'de "hiç istek atılmadı" durumu artık `eşitlendi` değil `değişiklik yok` olarak raporlanıyor (kapasite süzgeci tüm alanları eleyebilir).
+
+---
+
+## 11. Üçüncü geçiş: satır satır denetim (commit `f1198c6`, `ae0f897`, `b0b530a`)
+
+"En ufak kod atlanmasın" talebiyle tüm yazma yolları tek tek okundu. Bulunan **14 ek hata**:
+
+| # | Hata | Neden kritik | Düzeltme |
+|---|---|---|---|
+| E7 | **Tam yazım / kısmi yazım ayrımı kayboluyordu.** `Run.fieldsFor(provider)` her hedefe *süzülmüş* alt küme verdiği için yazıcı içindeki `fields == ALL` testi asla doğru olmuyordu. | "Tam yazımda boş puan gönderme" koruması hiç devreye girmiyordu → tam yazımda puan/not yine silinebiliyordu. | `Run.isFullWrite` + yazıcılara açık `fullWrite` parametresi. |
+| E8 | MAL'da tam yazımda `tags=` ve `comments=` boş gönderiliyordu. | MAL'daki etiket/not silinir. | Boş değer yalnız diff'te gönderiliyor. |
+| E9 | AniList'te tam yazımda `notes: ""` ve favori toggle. | Not silinir; yerelde favori yoksa AniList favorisi kaldırılır. | Not yalnız dolu/diff'te; favori tam yazımda **yalnız ekleme** yönünde. |
+| E10 | Simkl'de tam yazımda `removeRating`. | Simkl puanı silinir. | `removeRating` yalnız diff'te. |
+| E11 | Bangumi: `writeAll` "durum değişti" ile "tam yazım"ı karıştırıyordu; ayrıca yalnız ilerleme değişince koleksiyon yazımı atlanınca **bölüm işaretleme de atlanıyordu**. | Puan/not gereksiz eziliyor; anime ilerlemesi Bangumi'ye hiç gitmiyor. | `fullWrite` / `statusChanged` ayrıldı; koleksiyon atlanırken ilerleme yine yazılıyor. |
+| E12 | **Oynatıcı scrobble'ı yerel DB'yi hiç güncellemiyordu.** | Liste eski bölümü gösteriyor; sonraki bir tam yazım eski ilerlemeyi tüm kaynaklara geri yazabiliyordu (ilerleme geri düşer). | Scrobble sonrası yerel satır yazılır (`max(progress)`, Completed/Repeating korunur) + tarih otomasyonu. |
+| E13 | MAL'de `Repeating → "watching"`. | Tamamlanmış kayıt MAL'da "İzleniyor"a düşüyor, tamamlanma bozuluyor. | `completed` + `is_rewatching` (MAL'ın kendi modeli). |
+| E14 | AniList 429'da `Retry-After` kadar **bloklayan** bekleme (120 sn'ye kadar). | `withTimeoutOrNull(30s)` bloklayan çağrıyı kesemez → tek kayıt tüm yayılımı dakikalarca kilitler. | Bekleme 5 sn ile sınırlandı; geri çekilme sayacı gerçek değerle işaretlenir. |
+| E15 | Kuyrukta aynı satır için yeni iş eskisini **alan kümesi birleştirmeden** siliyordu. | Çevrimdışıyken önce ilerleme, sonra not değiştirilirse ilerleme güncellemesi kaybolur. | Alan kümeleri birleştirilir. |
+| E16 | Kuyruk boşaltmada başarı ölçütü "mesaj var mı"ydı. | Yazacak şey olmayan işler 5 kez denenip sonsuza kadar kuyrukta kalıyordu. | Ölçüt `!needsRetry` (yalnız gerçek hata). |
+| E17 | Başarı yolunda kaynak bazlı sonuç özeti gösterilmiyordu. | "Simkl'e neden yazmadı?" cevabı hiç görünmüyordu. | `eşitlendi` dışında sonuç varsa özet bildirime eklenir. |
+| E18 | `hiddenFromStatusLists` (listede gizle) hiç eşitlenmiyordu. | Düzenleme ekranındaki anahtar hiçbir yere gitmiyordu. | `SyncField.HIDDEN_FROM_STATUS_LISTS` + AniList yazımı. |
+| E19 | Kitsu tam yazımda puan/not/tarih `null` gönderiyordu. | Kitsu'daki değerler silinir. | Boş değer yalnız diff'te; tam yazımda yalnız dolu değerler. |
+| E20 | Değişiklik yokken bile altı kaynağa istek atılıyordu. | Gereksiz ağ yükü ve gürültülü bildirim. | Diff boşsa ağa çıkılmaz. |
+
+### Doğrulama durumu
+
+- Tree-sitter: 1284 Kotlin dosyası tarandı; **6 bilinen yanlış pozitif** (bu değişikliklerle ilgisiz).
+- `SyncFieldDiffTest` artık **22 test** (alan farkı, yetenek matrisi, tekrar bayrağı, tarih/puan/öncelik/favori/gizlilik kapsamı).
+- **Derleme ve çalışma zamanı testi bu ortamda YAPILAMADI** (JDK/Android SDK yok). Bu rapordaki hiçbir madde "derlendi" garantisi taşımaz; `./gradlew :app:compileDebugKotlin` çalıştırılmalıdır.

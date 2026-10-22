@@ -237,7 +237,13 @@ class MediaEntryRepository(
         mirrorUserFieldsToSiblings(entryWithTime)
 
         if (syncExternal) {
-            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields)
+            // Hiçbir kullanıcı alanı değişmediyse AĞA ÇIKILMAZ: altı hedefte de yazılacak
+            // bir şey yok, kullanıcıya da gereksiz "değişiklik yok" bildirimi gitmez.
+            // (Başarısız bir yazımın telafisi bekleyen-senkron kuyruğu + açılış/bağlantı
+            // tetikleyicileriyle yapılır.)
+            if (changedFields.isNotEmpty()) {
+                syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields)
+            }
         }
     }
 
