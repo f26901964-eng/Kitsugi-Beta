@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import com.google.gson.Gson
 import com.kitsugi.animelist.BuildConfig
+import com.kitsugi.animelist.core.memory.BoundedCache
 import com.kitsugi.animelist.core.network.IPv4FirstDns
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -182,6 +183,7 @@ class InAppYouTubeExtractor {
 
     private val cachedConfig = AtomicReference<CachedConfig?>(null)
     private val configMutex = Mutex()
+    private val searchVideoCache = BoundedCache<String, String>("youtube.search-video", 100)
 
     companion object {
         /** A process-wide extractor reuses config and HTTP resources across detail-video switches. */
@@ -255,6 +257,47 @@ class InAppYouTubeExtractor {
     fun invalidateConfig() {
         cachedConfig.set(null)
         Log.d(TAG, "Watch config invalidated")
+    }
+
+    /**
+     * Resolves the first actual video from YouTube search without sending the user to an
+     * external app. OP/ED rows whose provider only supplies a song label use this to obtain
+     * a normal video id, then share the exact same inline player as trailers.
+     */
+    suspend fun findFirstVideoId(query: String): String? = withContext(Dispatchers.IO) {
+        val normalizedQuery = query.trim().replace(Regex("\\s+"), " ")
+        if (normalizedQuery.isEmpty()) return@withContext null
+
+        searchVideoCache[normalizedQuery]?.let { cached ->
+            Log.d(TAG, "YouTube search cache hit (${cached.takeLast(4)})")
+            return@withContext cached
+        }
+
+        try {
+            val searchUrl = "https://www.youtube.com/results?search_query=${Uri.encode(normalizedQuery)}"
+            val response = performRequest(
+                url = searchUrl,
+                method = "GET",
+                headers = DEFAULT_HEADERS
+            )
+            if (!response.ok) {
+                Log.w(TAG, "YouTube search failed with HTTP ${response.status}")
+                return@withContext null
+            }
+
+            val videoId = extractFirstYouTubeSearchVideoId(response.body)
+            if (videoId == null) {
+                Log.w(TAG, "YouTube search returned no playable video renderer")
+            } else {
+                searchVideoCache[normalizedQuery] = videoId
+            }
+            videoId
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "YouTube search failed: ${e.message}")
+            null
+        }
     }
 
     suspend fun extractPlaybackSource(youtubeUrl: String): TrailerPlaybackSource? = withContext(Dispatchers.IO) {
