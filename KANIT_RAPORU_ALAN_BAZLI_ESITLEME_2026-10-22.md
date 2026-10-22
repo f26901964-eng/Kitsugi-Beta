@@ -296,3 +296,20 @@ Yeni test: `app/src/test/java/com/kitsugi/animelist/data/auth/SyncFieldDiffTest.
 
 **Hata raporu**
 11. seanime #985 — AniList `scoreRaw: null` → 400 *"The score raw must be an integer"* (17.10.2026).
+
+---
+
+## 10. Ek: ikinci geçişte kapatılan hatalar (commit `1e92d59`)
+
+Alan bazlı yazıma geçtikten sonra kodu tekrar taradım; altı yeni hata daha çıktı:
+
+| # | Hata | Kanıt | Düzeltme |
+|---|---|---|---|
+| E1 | **Kuyruktan yeniden deneme tam yazım yapıyordu** — çevrimdışıyken kuyruğa giren "ilerleme" işi, bağlantı gelince satırın tamamını yazıp hedeflerdeki puan/notu ezebilirdi. | `PendingSyncDrainer.drain` → `syncEntry(context, entry)` (varsayılan `ALL`) | İşin alan kümesi JSON'a `_syncFields` olarak gömülür; drain yalnız o alanları yazar. Eski kayıtlar (`_syncFields` yok) tam yazım olarak okunur — geriye dönük uyumlu. |
+| E2 | **AniList'te tanımsız GraphQL değişkeni** — puan temizlenirken `scoreRaw: 0` gönderiliyordu ama `$scoreRaw` dokümanda tanımlı değildi. | `AniListSyncManager` mutasyon metni `scoreRaw != null` iken kuruluyordu | Puan kararı (`null` / `0` / değer) **doküman kurulmadan önce** verilir; değişken yalnız tanımlıysa gönderilir. `scoreRaw: null` hiçbir durumda gönderilmez. |
+| E3 | **MAL "eşitlendi" yalanı** — yazılacak geçerli alan yokken (ör. yalnız parsiyel tarih değişti) istek atılmıyor ama sonuç "eşitlendi" görünüyordu. | `updateMalEntry` `Unit` dönüyordu | `Boolean` döner; `false` → `değişiklik yok`. |
+| E4 | **Simkl notu hiç yazılmıyordu** ama yetenek matrisi `NOTES` destekliyor diyordu. | `SimklBatchEntry` alanlarında not yok; `private_memo` gönderilmiyor | `SimklBatchEntry.privateMemo` + `private_memo` gövdesi; not değiştiyse `add-to-list` tetiklenir (not silinirse boş string). |
+| E5 | **Bangumi boş gövde** — yalnız not değişip not boşaltıldığında `PATCH {}` 400 üretiyor, ardından gereksiz tam upsert çalışıyordu. Ayrıca not düzenlemesi tüm bölümleri yeniden işaretliyordu. | `hasAnyArg` yok; `setProgress` bloğu koşulsuz | Yazacak argüman yoksa istek atılmaz (`yazılacak değişiklik yok`); bölüm işaretleme yalnız `PROGRESS`/`STATUS` kirliyken. |
+| E6 | **MAL gövdesi `&` ile başlıyordu** — tek alan gönderildiğinde gövde `&score=8` oluyordu (eski kodda hep `status` önce geldiği için görünmüyordu). | `buildString` ilk parçayı da `&` ile ekliyor | Gönderim öncesi `trimStart('&')`. |
+
+Ayrıca Simkl'de "hiç istek atılmadı" durumu artık `eşitlendi` değil `değişiklik yok` olarak raporlanıyor (kapasite süzgeci tüm alanları eleyebilir).

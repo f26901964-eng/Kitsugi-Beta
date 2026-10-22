@@ -128,9 +128,13 @@ object MalSyncManager {
         // `false` = "hiçbir şey yazılmadı": çağıran bunu "eşitlendi" diye raporlamamalı.
         if (postData.isEmpty()) return false
 
+        // Gövde parçaları "&alan=değer" olarak birleştirildiği için baştaki '&' kırpılır
+        // (yalnızca ilk alan gönderildiğinde gövde "&score=..." başlıyordu).
+        val body = postData.trimStart('&')
+
         val request = Request.Builder()
             .url(url)
-            .patch(postData.toRequestBody("application/x-www-form-urlencoded; charset=utf-8".toMediaTypeOrNull()))
+            .patch(body.toRequestBody("application/x-www-form-urlencoded; charset=utf-8".toMediaTypeOrNull()))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Authorization", "Bearer $token")
             .build()
