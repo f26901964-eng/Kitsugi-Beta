@@ -66,7 +66,7 @@ object KitsugiBangumiClient {
         context: Context? = null,
         includeAdult: Boolean = false
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             searchWithFallback(
                 keyword = query,
                 token = tokenOrNull(context),
@@ -79,7 +79,9 @@ object KitsugiBangumiClient {
                 .filter { includeAdult || !it.nsfw }
                 .map { it.toSearchResult(MediaType.Anime) }
                 .withLatinBangumiNames(context)
-        }.getOrElse { error ->
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
             Log.e(TAG, "Bangumi searchAnime failed: ${error.message}", error)
             emptyList()
         }
@@ -98,7 +100,7 @@ object KitsugiBangumiClient {
         includeAdult: Boolean = false,
         comicsOnly: Boolean = true
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             searchWithFallback(
                 keyword = query,
                 token = tokenOrNull(context),
@@ -111,8 +113,11 @@ object KitsugiBangumiClient {
                 .filter { it.type == BangumiApiClient.SubjectType.BOOK }
                 .filter { includeAdult || !it.nsfw }
                 .filter { !comicsOnly || it.platform == null || it.platform == "漫画" }
-                .map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
-        }.getOrElse { error ->
+                .map { it.toSearchResult(MediaType.Manga) }
+                .withLatinBangumiNames(context)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
             Log.e(TAG, "Bangumi searchManga failed: ${error.message}", error)
             emptyList()
         }
@@ -131,15 +136,20 @@ object KitsugiBangumiClient {
         includeAdult: Boolean = false
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
-        runCatching {
-            BangumiApiClient.searchCharacters(
+        try {
+            val raw = BangumiApiClient.searchCharacters(
                 keyword = query.trim(),
                 token = tokenOrNull(context),
                 nsfw = if (includeAdult) null else false,
                 limit = limit,
                 offset = (page - 1).coerceAtLeast(0) * limit
             ).data.map { it.toSearchResult("Karakter (Bangumi)") }
-        }.getOrElse { logAndEmpty("searchCharacters", it) }
+            KitsugiBangumiDetailClient.enrichSearchEntityResults(raw, isStaff = false)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            logAndEmpty("searchCharacters", error)
+        }
     }
 
     /** Kişi/seslendirmen (人物) araması — `POST /v0/search/persons` (deneysel uç). */
@@ -151,8 +161,8 @@ object KitsugiBangumiClient {
         career: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
-        runCatching {
-            BangumiApiClient.searchPersons(
+        try {
+            val raw = BangumiApiClient.searchPersons(
                 keyword = query.trim(),
                 token = tokenOrNull(context),
                 career = career,
@@ -162,7 +172,12 @@ object KitsugiBangumiClient {
                 val careerLabel = it.career.firstOrNull()?.let { c -> " · $c" } ?: ""
                 it.toSearchResult("Kişi (Bangumi)$careerLabel")
             }
-        }.getOrElse { logAndEmpty("searchPeople", it) }
+            KitsugiBangumiDetailClient.enrichSearchEntityResults(raw, isStaff = true)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            logAndEmpty("searchPeople", error)
+        }
     }
     /**
      * "Tümünü Gör" ızgarası için sayfalı gelişmiş arama.
@@ -320,11 +335,23 @@ object KitsugiBangumiClient {
      * başlık varmış gibi kabul edilmez.
      */
     @Suppress("UNUSED_PARAMETER")
-    internal suspend fun List<JikanSearchResult>.withLatinBangumiNames(context: Context? = null): List<JikanSearchResult> {
+    internal suspend fun List<JikanSearchResult>.withLatinBangumiNames(
+        context: Context? = null,
+        cacheOnly: Boolean = false,
+        thorough: Boolean = false
+    ): List<JikanSearchResult> {
+        if (cacheOnly) {
+            return map { item ->
+                if (!item.source.equals(SOURCE, ignoreCase = true)) item
+                else applyLocalizedBangumiTitles(item, BangumiTitleCache.get(rawBangumiId(item)))
+            }
+        }
         val requests = mapNotNull { item ->
             if (!item.source.equals(SOURCE, ignoreCase = true)) return@mapNotNull null
             val rawId = BangumiIdNamespace.rawIdFromStable(item.malId) ?: item.malId
             if (rawId <= 0 || hasReliableEnglish(item)) return@mapNotNull null
+            val cached = BangumiTitleCache.get(rawId)
+            if (BangumiSubjectTitleResolver.hasReliableEnglish(cached)) return@mapNotNull null
             val nativeTitle = item.titleJapanese?.trim()?.takeIf { it.isNotEmpty() } ?: item.title
             if (nativeTitle.isBlank()) return@mapNotNull null
             BangumiSubjectTitleResolver.Request(
@@ -334,13 +361,23 @@ object KitsugiBangumiClient {
                 subjectType = item.bangumiSubjectType
             )
         }
-        if (requests.isEmpty()) return map { applyLocalizedBangumiTitles(it, BangumiTitleCache.get(rawBangumiId(it))) }
+        if (requests.isEmpty()) {
+            return map { applyLocalizedBangumiTitles(it, BangumiTitleCache.get(rawBangumiId(it))) }
+        }
 
-        // Liste modu: yalnızca kalıcı önbellek + tek AniList geçişi. Per-subject infobox
-        // çözümlemesi burada YAPILMAZ; Keşfet/Arama şeritleri aynı anda açıldığında yüzlerce
-        // Bangumi isteği üretip tüm uygulamayı dakikalarca kilitliyordu.
         val resolved = try {
-            BangumiSubjectTitleResolver.resolve(requests, listMode = true)
+            if (thorough) {
+                // Canlı-aksiyon (REAL) yapımlar TMDB ile, anime/manga ise AniList + infobox ile
+                // arka planda çözülür; sonuçlar kalıcı önbelleğe yazılır.
+                val hasRealSubjects = requests.any { BangumiSubjectTitleResolver.shouldTryTmdb(it) }
+                if (hasRealSubjects) {
+                    BangumiSubjectTitleResolver.resolve(requests, background = true)
+                } else {
+                    BangumiSubjectTitleResolver.resolve(requests, background = true, tabMode = true)
+                }
+            } else {
+                BangumiSubjectTitleResolver.resolve(requests, listMode = true)
+            }
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -354,6 +391,29 @@ object KitsugiBangumiClient {
             applyLocalizedBangumiTitles(item, titles)
         }
     }
+
+    /**
+     * Keşfet ve "Tümünü Gör" ekranları için aşamalı arka plan başlık zenginleştiricisi.
+     *
+     * Ekran ilk çizimde önbellekteki adlarla anında açılır; bu fonksiyon eksik İngilizce/romaji
+     * başlıkları arka planda çözüp kalıcı önbelleğe yazar ve güncellenmiş listeyi döndürür.
+     */
+    suspend fun hydrateSearchResultTitles(
+        items: List<JikanSearchResult>,
+        thorough: Boolean = true
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (items.isEmpty()) return@withContext items
+        BangumiApiClient.runAsBackground {
+            items.withLatinBangumiNames(cacheOnly = false, thorough = thorough)
+        }
+    }
+
+    /** Bellek içi Bangumi başlık önbelleğindeki güncel dil varyantlarını listeye anında uygular. */
+    fun applyCachedTitles(items: List<JikanSearchResult>): List<JikanSearchResult> =
+        items.map { item ->
+            if (!item.source.equals(SOURCE, ignoreCase = true)) item
+            else applyLocalizedBangumiTitles(item, BangumiTitleCache.get(rawBangumiId(item)))
+        }
 
     private fun rawBangumiId(item: JikanSearchResult): Int? =
         if (!item.source.equals(SOURCE, ignoreCase = true)) null
@@ -405,27 +465,54 @@ object KitsugiBangumiClient {
         )
     }
 
+    private inline fun <T> safeBangumiCall(label: String, default: T, block: () -> T): T {
+        return try {
+            block()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            Log.e(TAG, "Bangumi $label failed: ${error.message}", error)
+            default
+        }
+    }
+
     // ── Keşfet kategorileri ──────────────────────────────────────────────────
 
     /** "En İyi Animeler" — `sort=rank` ile kategori sıralaması (排行榜). */
-    suspend fun topAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun topAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("topAnime", emptyList()) {
             BangumiApiClient.topRanked(BangumiApiClient.SubjectType.ANIME, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("topAnime", it) }
+                .data.map { it.toSearchResult(MediaType.Anime) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "Popüler Animeler" — koleksiyon sayısı (收藏人数) sıralaması. */
-    suspend fun trendingAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun trendingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("trendingAnime", emptyList()) {
             BangumiApiClient.mostCollected(BangumiApiClient.SubjectType.ANIME, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("trendingAnime", it) }
+                .data.map { it.toSearchResult(MediaType.Anime) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "En Yüksek Puanlı Animeler" — `sort=score` araması. */
-    suspend fun topRatedAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
-            // Boş anahtar kelimeli arama sunucuda hata verebilir → rank sıralamasına düş.
-            runCatching {
+    suspend fun topRatedAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("topRatedAnime", emptyList()) {
+            val primary = try {
                 BangumiApiClient.searchSubjects(
                     keyword = "",
                     token = tokenOrNull(context),
@@ -434,22 +521,32 @@ object KitsugiBangumiClient {
                     nsfw = false,
                     limit = limit,
                     offset = offset
-                ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
-            }.getOrDefault(emptyList())
-                .ifEmpty { topAnime(limit, context, offset) }
-        }.getOrElse { logAndEmpty("topRatedAnime", it) }
+                ).data.map { it.toSearchResult(MediaType.Anime) }
+                    .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }
+            primary.ifEmpty { topAnime(limit, context, offset, cacheOnlyTitles) }
+        }
 
     /**
      * "Bu Sezon" — içinde bulunulan ayın动画条目'ları, yayın tarihine göre.
      * Bangumi'de sezon "kış/ilkbahar/yaz/sonbahar" değil **yıl+ay** ile ifade edilir.
      */
-    suspend fun seasonalAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun seasonalAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         return seasonFor(
             year = calendar.get(Calendar.YEAR),
             month = calendar.get(Calendar.MONTH) + 1,
             limit = limit,
-            context = context
+            context = context,
+            cacheOnlyTitles = cacheOnlyTitles
         )
     }
 
@@ -459,36 +556,57 @@ object KitsugiBangumiClient {
         month: Int? = null,
         limit: Int = 20,
         context: Context? = null,
-        offset: Int = 0
-    ): List<JikanSearchResult> = runCatching {
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> = safeBangumiCall("seasonFor($year-$month)", emptyList()) {
         BangumiApiClient.browseSeason(year, month, tokenOrNull(context), limit, offset)
-            .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
-    }.getOrElse { logAndEmpty("seasonFor($year-$month)", it) }
+            .data.map { it.toSearchResult(MediaType.Anime) }
+            .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+    }
 
     /** "Şu An Yayında" — bu ay + geçen ay birleşimi (Bangumi'de airing durumu yoktur). */
-    suspend fun airingAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun airingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val previous = if (month == 1) (year - 1) to 12 else year to (month - 1)
-        val current = seasonFor(year, month, limit, context)
+        val current = seasonFor(year, month, limit, context, cacheOnlyTitles = cacheOnlyTitles)
         if (current.size >= limit) return current.take(limit)
-        val older = seasonFor(previous.first, previous.second, limit - current.size, context)
+        val older = seasonFor(
+            previous.first,
+            previous.second,
+            limit - current.size,
+            context,
+            cacheOnlyTitles = cacheOnlyTitles
+        )
         return (current + older).distinctBy { it.malId }.take(limit)
     }
 
     /** "Yaklaşan" — gelecek ayın条目'ları. */
-    suspend fun upcomingAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun upcomingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val next = if (month == 12) (year + 1) to 1 else year to (month + 1)
-        return seasonFor(next.first, next.second, limit, context)
+        return seasonFor(next.first, next.second, limit, context, cacheOnlyTitles = cacheOnlyTitles)
     }
 
     /** "Anime Filmleri" — `cat=3` (Movie) alt kategorisi. */
-    suspend fun movieAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun movieAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("movieAnime", emptyList()) {
             BangumiApiClient.browseSubjects(
                 type = BangumiApiClient.SubjectType.ANIME,
                 token = tokenOrNull(context),
@@ -496,12 +614,18 @@ object KitsugiBangumiClient {
                 sort = "rank",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("movieAnime", it) }
+            ).data.map { it.toSearchResult(MediaType.Movie) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** Bangumi REAL / 三次元 TV-drama şeridi (`type=6&cat=6001`). */
-    suspend fun realTvShows(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun realTvShows(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("realTvShows", emptyList()) {
             BangumiApiClient.browseSubjects(
                 type = BangumiApiClient.SubjectType.REAL,
                 token = tokenOrNull(context),
@@ -509,12 +633,18 @@ object KitsugiBangumiClient {
                 sort = "rank",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.TvShow) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("realTvShows", it) }
+            ).data.map { it.toSearchResult(MediaType.TvShow) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** Bangumi REAL film şeridi (`type=6&cat=6002`), anime filmlerinden ayrı tutulur. */
-    suspend fun realMovies(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun realMovies(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("realMovies", emptyList()) {
             BangumiApiClient.browseSubjects(
                 type = BangumiApiClient.SubjectType.REAL,
                 token = tokenOrNull(context),
@@ -522,31 +652,49 @@ object KitsugiBangumiClient {
                 sort = "rank",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("realMovies", it) }
+            ).data.map { it.toSearchResult(MediaType.Movie) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "Yeni Eklenen Animeler" — yayın tarihine göre en yeni条目'lar. */
-    suspend fun newlyAddedAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun newlyAddedAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("newlyAddedAnime", emptyList()) {
             BangumiApiClient.browseSubjects(
                 type = BangumiApiClient.SubjectType.ANIME,
                 token = tokenOrNull(context),
                 sort = "date",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("newlyAddedAnime", it) }
+            ).data.map { it.toSearchResult(MediaType.Anime) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "En İyi Mangalar" — 书籍 kategori sıralaması. */
-    suspend fun topManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun topManga(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("topManga", emptyList()) {
             BangumiApiClient.topRanked(BangumiApiClient.SubjectType.BOOK, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("topManga", it) }
+                .data.map { it.toSearchResult(MediaType.Manga) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "Yayınlanan Mangalar" — en yeni书籍条目'ları. */
-    suspend fun publishingManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun publishingManga(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("publishingManga", emptyList()) {
             BangumiApiClient.browseSubjects(
                 type = BangumiApiClient.SubjectType.BOOK,
                 token = tokenOrNull(context),
@@ -554,29 +702,48 @@ object KitsugiBangumiClient {
                 sort = "date",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("publishingManga", it) }
+            ).data.map { it.toSearchResult(MediaType.Manga) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "Popüler Mangalar" — koleksiyon sayısı sıralaması. */
-    suspend fun trendingManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
+    suspend fun trendingManga(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("trendingManga", emptyList()) {
             BangumiApiClient.mostCollected(BangumiApiClient.SubjectType.BOOK, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
-        }.getOrElse { logAndEmpty("trendingManga", it) }
+                .data.map { it.toSearchResult(MediaType.Manga) }
+                .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+        }
 
     /** "En Yüksek Puanlı Mangalar". */
-    suspend fun topRatedManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
-        runCatching {
-            BangumiApiClient.searchSubjects(
-                keyword = "",
-                token = tokenOrNull(context),
-                types = listOf(BangumiApiClient.SubjectType.BOOK),
-                sort = BangumiApiClient.SearchSort.SCORE,
-                limit = limit,
-                offset = offset
-            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
-                .ifEmpty { topManga(limit, context) }
-        }.getOrElse { logAndEmpty("topRatedManga", it) }
+    suspend fun topRatedManga(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0,
+        cacheOnlyTitles: Boolean = false
+    ): List<JikanSearchResult> =
+        safeBangumiCall("topRatedManga", emptyList()) {
+            val primary = try {
+                BangumiApiClient.searchSubjects(
+                    keyword = "",
+                    token = tokenOrNull(context),
+                    types = listOf(BangumiApiClient.SubjectType.BOOK),
+                    sort = BangumiApiClient.SearchSort.SCORE,
+                    limit = limit,
+                    offset = offset
+                ).data.map { it.toSearchResult(MediaType.Manga) }
+                    .withLatinBangumiNames(context, cacheOnly = cacheOnlyTitles)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
+            }
+            primary.ifEmpty { topManga(limit, context, offset, cacheOnlyTitles) }
+        }
 
     /**
      * Keşfet "Tümü" modu ve tek kaynak modu için tüm şeritleri tek çağrıda toplar.

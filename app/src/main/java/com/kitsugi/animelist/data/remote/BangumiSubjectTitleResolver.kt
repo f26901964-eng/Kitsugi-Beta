@@ -64,10 +64,14 @@ internal object BangumiSubjectTitleResolver {
         }
     }
 
-    /** Romaji tek başına İngilizce tercihini tamamlamaz; arama ancak English gerçekten ayrışmışsa biter. */
+    /** Romaji tek başına İngilizce tercihini tamamlamaz; arama ancak English gerçekten ayrışmışsa veya doğrulanmışsa biter. */
     internal fun hasReliableEnglish(titles: BangumiTitleCache.LatinTitles?): Boolean {
-        val english = usable(titles?.english) ?: return false
-        val romaji = usable(titles?.romaji)
+        if (titles == null) return false
+        if (titles.englishVerified) {
+            return usable(titles.english) != null || usable(titles.romaji) != null
+        }
+        val english = usable(titles.english) ?: return false
+        val romaji = usable(titles.romaji)
         return romaji == null || !english.equals(romaji, ignoreCase = true)
     }
 
@@ -106,24 +110,13 @@ internal object BangumiSubjectTitleResolver {
     }
 
     private const val INFOBOX_PASS_LIMIT = 24
-    private const val INFOBOX_PASS_LIMIT_BACKGROUND = 16
-    private const val ANILIST_PASS_LIMIT = 24
-    private const val ANILIST_PASS_LIMIT_BACKGROUND = 48
-    private const val ANILIST_BATCH_SIZE = 10
+    private const val INFOBOX_PASS_LIMIT_BACKGROUND = 20
+    private const val ANILIST_PASS_LIMIT = 30
+    private const val ANILIST_PASS_LIMIT_BACKGROUND = 50
+    private const val ANILIST_BATCH_SIZE = 25
 
-    /**
-     * Liste modu (Keşfet şeritleri, arama ızgarası, kütüphane): yalnızca önbellek + **tek**
-     * AniList geçişi. Infobox/TMDB geçişleri kapatılır.
-     *
-     * Neden: p1 liste uçları infobox döndürmediği için her satır tek tek `/v0/subjects/{id}`
-     * ile çözülüyordu. Keşfet 14 Bangumi şeridini aynı anda açtığında bu, şerit başına 40,
-     * toplamda 500'den fazla istek demekti. Bangumi'nin jeton kovalı sınırlayıcısıyla
-     * birleşince veri dakikalarca gelmiyordu. AniList toplu araması aynı işi 2 istekte
-     * yapar; bulunamayan satırlar özgün (CJK) adıyla gösterilir ve detay sayfası açıldığında
-     * kalıcı önbelleğe yazılır.
-     */
-    private const val LIST_ANILIST_LIMIT = 20
-    private const val LIST_ANILIST_BATCH_TIMEOUT_MS = 5_000L
+    private const val LIST_ANILIST_LIMIT = 25
+    private const val LIST_ANILIST_BATCH_TIMEOUT_MS = 4_500L
     /** Detay sekmesi (ilişkiler/öneriler/yapımlar): daha çok satır, infobox yedeği de açık. */
     private const val TAB_ANILIST_LIMIT = 64
     private const val TAB_ANILIST_BATCH_TIMEOUT_MS = 6_000L
@@ -206,16 +199,32 @@ internal object BangumiSubjectTitleResolver {
             .filter { !isNegative(it.rawId) }
             .take(TAB_INFOBOX_LIMIT)
 
-        // İki geçiş PARALEL: AniList toplu araması romaji verir, Bangumi infobox'ı gerçek
-        // İngilizce adı verir. Sırayla çalıştıklarında süreler toplanıyor (6 s + 8 s) ve
-        // sekme zenginleştirme bütçesi dolup liste Japonca kalıyordu.
+        val anilistCompleted = ConcurrentHashMap.newKeySet<Int>()
+        val infoboxCompleted = ConcurrentHashMap.newKeySet<Int>()
+
+        // İki geçiş PARALEL: AniList toplu araması romaji/İngilizce verir, Bangumi infobox'ı
+        // AniList'te olmayan veya infobox'ta ayrı 英文名 taşıyan yapımları tamamlar.
         coroutineScope {
-            launch { runAniListPass(anilistPending, TAB_ANILIST_BATCH_TIMEOUT_MS, result) }
-            launch { runInfoboxPass(infoboxPending, TAB_INFOBOX_BATCH_TIMEOUT_MS, result) }
+            launch { runAniListPass(anilistPending, TAB_ANILIST_BATCH_TIMEOUT_MS, result, anilistCompleted) }
+            launch { runInfoboxPass(infoboxPending, TAB_INFOBOX_BATCH_TIMEOUT_MS, result, infoboxCompleted) }
         }
 
-        // Geçişler birbirinin çözdüğü kayıtları önbellekten görsün: eşzamanlı iki pass'in
-        // sonuçlarını tek haritada birleştir (tamamlanmış olanlar tekrar istenmez).
+        // Hem AniList hem infobox denendikten sonra hâlâ yalnızca romaji bulunan yapımlar
+        // doğrulanmış olarak işaretlenir ki sonraki açılışlarda tekrar tekrar sorgulanmasın.
+        for (req in pending) {
+            val id = req.rawId
+            val needsAniList = shouldTryAniList(req) && PreferenceHelpers.hasCjkCharacters(req.nativeTitle)
+            if ((!needsAniList || id in anilistCompleted) && id in infoboxCompleted) {
+                val cur = result[id] ?: usableLatin(BangumiTitleCache.get(id))
+                if (cur != null && !cur.englishVerified) {
+                    BangumiTitleCache.put(id, cur.romaji, cur.english, cur.native, englishVerified = true)
+                    result[id] = usableLatin(BangumiTitleCache.get(id)) ?: cur.copy(englishVerified = true)
+                } else if (cur == null) {
+                    markNegative(id)
+                }
+            }
+        }
+
         for (req in requests) {
             if (result.containsKey(req.rawId)) continue
             usableLatin(BangumiTitleCache.get(req.rawId))?.let { result[req.rawId] = it }
@@ -227,7 +236,8 @@ internal object BangumiSubjectTitleResolver {
     private suspend fun runAniListPass(
         requests: List<Request>,
         timeoutMs: Long,
-        result: MutableMap<Int, BangumiTitleCache.LatinTitles>
+        result: MutableMap<Int, BangumiTitleCache.LatinTitles>,
+        completedIds: MutableSet<Int>? = null
     ) {
         if (requests.isEmpty()) return
         withTimeoutOrNull(timeoutMs) {
@@ -245,8 +255,16 @@ internal object BangumiSubjectTitleResolver {
                     }
                 }.awaitAll().forEach { chunkResult ->
                     if (chunkResult == null) return@forEach
+                    completedIds?.addAll(chunkResult.unmatched)
                     for ((rawId, latin) in chunkResult.resolved) {
-                        BangumiTitleCache.put(rawId, latin.romaji, latin.english, latin.native)
+                        completedIds?.add(rawId)
+                        BangumiTitleCache.put(
+                            rawId,
+                            latin.romaji,
+                            latin.english,
+                            latin.native,
+                            englishVerified = latin.englishVerified
+                        )
                         result[rawId] = usableLatin(BangumiTitleCache.get(rawId)) ?: latin
                     }
                 }
@@ -254,11 +272,15 @@ internal object BangumiSubjectTitleResolver {
         }
     }
 
-    /** Ortak infobox geçişi: yalnızca hâlâ Latin adı olmayan kayıtlar; sonuç kalıcıdır. */
+    /**
+     * Ortak infobox geçişi: [loadLocalizedSubject] kendi içinde [infoboxSemaphore] izni alır;
+     * dışarıda ikinci kez izin almak 8 eşzamanlı istekte kilitlenme (deadlock) yaratıyordu!
+     */
     private suspend fun runInfoboxPass(
         requests: List<Request>,
         timeoutMs: Long,
-        result: MutableMap<Int, BangumiTitleCache.LatinTitles>
+        result: MutableMap<Int, BangumiTitleCache.LatinTitles>,
+        completedIds: MutableSet<Int>? = null
     ) {
         if (requests.isEmpty()) return
         val loadedSubjects = ConcurrentHashMap<Int, BangumiApiClient.BangumiSubject>()
@@ -267,11 +289,23 @@ internal object BangumiSubjectTitleResolver {
                 requests.map { req ->
                     async(Dispatchers.IO) {
                         try {
-                            infoboxSemaphore.withPermit {
-                                val localized = loadLocalizedSubject(req, loadedSubjects) ?: return@async
-                                val latin = latinOf(localized.romaji, localized.english, localized.native)
-                                    ?: return@async
-                                BangumiTitleCache.put(req.rawId, latin.romaji, latin.english, latin.native)
+                            val localized = loadLocalizedSubject(req, loadedSubjects)
+                            if (localized != null) {
+                                completedIds?.add(req.rawId)
+                                val hasExplicitEnglish = usable(localized.english) != null
+                                val latin = latinOf(
+                                    localized.romaji,
+                                    localized.english,
+                                    localized.native,
+                                    englishVerified = hasExplicitEnglish
+                                ) ?: return@async
+                                BangumiTitleCache.put(
+                                    req.rawId,
+                                    latin.romaji,
+                                    latin.english,
+                                    latin.native,
+                                    englishVerified = hasExplicitEnglish
+                                )
                                 result[req.rawId] = usableLatin(BangumiTitleCache.get(req.rawId)) ?: latin
                             }
                         } catch (cancelled: CancellationException) {
@@ -387,7 +421,13 @@ internal object BangumiSubjectTitleResolver {
                         completedAniList.addAll(chunkResult.unmatched)
                         for ((rawId, latin) in chunkResult.resolved) {
                             completedAniList += rawId
-                            BangumiTitleCache.put(rawId, latin.romaji, latin.english, latin.native)
+                            BangumiTitleCache.put(
+                                rawId,
+                                latin.romaji,
+                                latin.english,
+                                latin.native,
+                                englishVerified = latin.englishVerified
+                            )
                             result[rawId] = usableLatin(BangumiTitleCache.get(rawId)) ?: latin
                         }
                     }
@@ -410,9 +450,20 @@ internal object BangumiSubjectTitleResolver {
                     infoboxPending.map { req ->
                         async(Dispatchers.IO) {
                             val localized = loadLocalizedSubject(req, loadedSubjects) ?: return@async
-                            val latin = latinOf(localized.romaji, localized.english, localized.native)
-                                ?: return@async
-                            BangumiTitleCache.put(req.rawId, latin.romaji, latin.english, latin.native)
+                            val verified = usable(localized.english) != null || req.rawId in completedAniList
+                            val latin = latinOf(
+                                localized.romaji,
+                                localized.english,
+                                localized.native,
+                                englishVerified = verified
+                            ) ?: return@async
+                            BangumiTitleCache.put(
+                                req.rawId,
+                                latin.romaji,
+                                latin.english,
+                                latin.native,
+                                englishVerified = verified
+                            )
                             result[req.rawId] = usableLatin(BangumiTitleCache.get(req.rawId)) ?: latin
                         }
                     }.awaitAll()
@@ -457,13 +508,19 @@ internal object BangumiSubjectTitleResolver {
                                     val romaji = usable(match.titleRomaji)
                                         ?: existing?.romaji
                                         ?: tmdbTitle?.takeUnless { english != null && it.equals(english, true) }
-                                    val titles = latinOf(romaji, english, existing?.native ?: req.nativeTitle)
+                                    val titles = latinOf(
+                                        romaji,
+                                        english,
+                                        existing?.native ?: req.nativeTitle,
+                                        englishVerified = true
+                                    )
                                     if (titles != null) {
                                         BangumiTitleCache.put(
                                             req.rawId,
                                             titles.romaji,
                                             titles.english,
-                                            titles.native
+                                            titles.native,
+                                            englishVerified = true
                                         )
                                         result[req.rawId] = usableLatin(BangumiTitleCache.get(req.rawId)) ?: titles
                                     }
@@ -611,10 +668,12 @@ internal object BangumiSubjectTitleResolver {
                     normalized.length >= 2 && normalized == target
                 }
                 if (hit) {
+                    val engCandidate = title.strOrNull("english")
                     match = latinOf(
                         title.strOrNull("romaji"),
-                        title.strOrNull("english"),
-                        title.strOrNull("native")
+                        engCandidate,
+                        title.strOrNull("native"),
+                        englishVerified = usable(engCandidate) != null
                     )
                     break
                 }
@@ -632,14 +691,24 @@ internal object BangumiSubjectTitleResolver {
         val romaji = usable(titles.romaji)
         val english = usable(titles.english)
         if (romaji == null && english == null) return null
-        return BangumiTitleCache.LatinTitles(romaji, english, titles.native)
+        return BangumiTitleCache.LatinTitles(romaji, english, titles.native, titles.englishVerified)
     }
 
-    private fun latinOf(romaji: String?, english: String?, native: String?): BangumiTitleCache.LatinTitles? {
+    private fun latinOf(
+        romaji: String?,
+        english: String?,
+        native: String?,
+        englishVerified: Boolean = false
+    ): BangumiTitleCache.LatinTitles? {
         val r = usable(romaji)
         val e = usable(english)
         if (r == null && e == null) return null
-        return BangumiTitleCache.LatinTitles(r, e, native?.trim()?.takeIf { it.isNotEmpty() })
+        return BangumiTitleCache.LatinTitles(
+            romaji = r,
+            english = e,
+            native = native?.trim()?.takeIf { it.isNotEmpty() },
+            englishVerified = englishVerified
+        )
     }
 
     private fun usable(value: String?): String? = value?.trim()?.takeIf {

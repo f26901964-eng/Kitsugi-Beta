@@ -94,6 +94,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _detailLoading = MutableStateFlow(true)
     val detailLoading: StateFlow<Boolean> = _detailLoading.asStateFlow()
 
+    private val _videosLoading = MutableStateFlow(false)
+    val videosLoading: StateFlow<Boolean> = _videosLoading.asStateFlow()
+
     private val _translatedSynopsis = MutableStateFlow<String?>(null)
     val translatedSynopsis: StateFlow<String?> = _translatedSynopsis.asStateFlow()
 
@@ -702,32 +705,44 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             // Fetch episode ratings
             fetchEpisodeRatings(result, finalDetail)
 
-            // ── Fragman yedek zinciri ─────────────────────────────────────────
-            // Kaynağın kendisi YouTube fragmanı vermediyse (trailerUrl boş), arka planda
-            // sırayla TMDB → diğer metadata kaynakları → Cloudstream eklentileri denenir.
-            // Bulunan fragman detay durumuna ve önbelleğe yazılır; kart kendiliğinden belirir.
-            if (finalDetail.trailerUrl.isNullOrBlank()) {
-                viewModelScope.launch {
-                    try {
-                        val trailer = com.kitsugi.animelist.data.trailer.DetailTrailerFallback.resolve(
+            // ── Ortak Çapraz Kaynak Video Toplayıcısı ─────────────────────────
+            // MAL/Jikan, AnimeThemes, TMDB, AniList, Shikimori, Simkl, Kitsu ve eklenti
+            // kaynaklarındaki tüm fragman, PV, OP/ED, müzik videosu ve kamera arkası klipleri
+            // paralel toplanıp tekilleştirilir; bulunan tüm videolar sekmeyi canlı günceller.
+            _videosLoading.value = true
+            viewModelScope.launch {
+                try {
+                    val enrichedVideosDetail = com.kitsugi.animelist.data.remote.KitsugiCrossSourceVideoAggregator
+                        .enrichDetailWithCrossSourceVideos(
                             context = getApplication(),
+                            source = result.source,
+                            externalId = result.malId,
+                            mediaType = result.type,
+                            detail = finalDetail,
+                            hintTmdbId = finalDetail.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value,
+                            hintMalId = finalDetail.realMalId ?: result.realMalId,
+                            hintSimklId = if (result.source.equals("simkl", ignoreCase = true)) result.malId else null,
                             title = finalDetail.title ?: result.title,
-                            year = finalDetail.year ?: result.year,
-                            type = result.type,
-                            tmdbId = finalDetail.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value,
-                            malId = finalDetail.realMalId ?: result.realMalId ?: result.malId,
-                            sourceName = result.source
+                            year = finalDetail.year ?: result.year
                         )
-                        if (!trailer.isNullOrBlank()) {
-                            val current = _detailState.value
-                            if (current != null && current.trailerUrl.isNullOrBlank()) {
-                                val updated = current.copy(trailerUrl = trailer)
-                                _detailState.value = updated
-                                DetailCache.putMediaDetail(result.source, result.malId, updated)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Fallback trailer resolution failed: ${e.message}")
+                    if (currentFetchKey == expectedFetchKey) {
+                        val latest = _detailState.value ?: finalDetail
+                        val mergedWithVideos = latest.copy(
+                            trailerUrl = latest.trailerUrl?.takeIf { it.isNotBlank() } ?: enrichedVideosDetail.trailerUrl,
+                            openings = enrichedVideosDetail.openings.ifEmpty { latest.openings },
+                            endings = enrichedVideosDetail.endings.ifEmpty { latest.endings },
+                            unifiedVideos = enrichedVideosDetail.unifiedVideos
+                        )
+                        _detailState.value = mergedWithVideos
+                        DetailCache.putMediaDetail(result.source, result.malId, mergedWithVideos)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Cross-source video aggregation failed: ${e.message}")
+                } finally {
+                    if (currentFetchKey == expectedFetchKey) {
+                        _videosLoading.value = false
                     }
                 }
             }

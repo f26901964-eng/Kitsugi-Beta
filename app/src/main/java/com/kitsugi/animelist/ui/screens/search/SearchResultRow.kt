@@ -151,7 +151,9 @@ fun SearchResultRow(
                         fontWeight = FontWeight.Medium
                     )
 
-                    val displayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
+                    val userDisplayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
+                    val isUserUnrated = userDisplayScore == "unrated" || userDisplayScore == "Unrated" || userDisplayScore == "Puanlanmamış" || userDisplayScore == "Puan yok"
+                    val displayScore = if (isUserUnrated) result.getDisplayScore(scoreFormat, hideScores) else userDisplayScore
                     val isUnrated = displayScore == "unrated" || displayScore == "Unrated" || displayScore == "Puanlanmamış" || displayScore == "Puan yok"
                     val scoreText = if (isUnrated) stringResource(R.string.score_unrated) else "★ $displayScore"
                     Text(

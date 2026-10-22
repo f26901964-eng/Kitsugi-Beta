@@ -873,56 +873,134 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    private var bangumiTitleHydrationJob: Job? = null
+
+    private fun launchBangumiExploreTitleHydration(seedPayload: ExplorePayload) {
+        bangumiTitleHydrationJob?.cancel()
+        bangumiTitleHydrationJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
+            fun ExplorePayload.withLatestBangumiTitles(): ExplorePayload = copy(
+                topAnime = bangumi.applyCachedTitles(topAnime),
+                airingAnime = bangumi.applyCachedTitles(airingAnime),
+                upcomingAnime = bangumi.applyCachedTitles(upcomingAnime),
+                topManga = bangumi.applyCachedTitles(topManga),
+                publishingManga = bangumi.applyCachedTitles(publishingManga),
+                trendingAnime = bangumi.applyCachedTitles(trendingAnime),
+                movieAnime = bangumi.applyCachedTitles(movieAnime),
+                bangumiTvShows = bangumi.applyCachedTitles(bangumiTvShows.orEmpty()),
+                bangumiMovies = bangumi.applyCachedTitles(bangumiMovies.orEmpty()),
+                seasonalAnime = bangumi.applyCachedTitles(seasonalAnime),
+                trendingManga = bangumi.applyCachedTitles(trendingManga),
+                newlyAddedAnime = bangumi.applyCachedTitles(newlyAddedAnime),
+                topRatedAnime = bangumi.applyCachedTitles(topRatedAnime.orEmpty()),
+                topRatedManga = bangumi.applyCachedTitles(topRatedManga.orEmpty())
+            )
+
+            val allItems = buildList {
+                addAll(seedPayload.topAnime)
+                addAll(seedPayload.trendingAnime)
+                addAll(seedPayload.topRatedAnime.orEmpty())
+                addAll(seedPayload.seasonalAnime)
+                addAll(seedPayload.airingAnime)
+                addAll(seedPayload.upcomingAnime)
+                addAll(seedPayload.movieAnime)
+                addAll(seedPayload.bangumiTvShows.orEmpty())
+                addAll(seedPayload.bangumiMovies.orEmpty())
+                addAll(seedPayload.newlyAddedAnime)
+                addAll(seedPayload.topManga)
+                addAll(seedPayload.publishingManga)
+                addAll(seedPayload.trendingManga)
+                addAll(seedPayload.topRatedManga.orEmpty())
+            }.distinctBy { it.malId }
+
+            if (allItems.isEmpty()) return@launch
+
+            var latestPayload = seedPayload
+            for (slice in allItems.chunked(48)) {
+                currentCoroutineContext().ensureActive()
+                runCatching { bangumi.hydrateSearchResultTitles(slice, thorough = true) }
+                currentCoroutineContext().ensureActive()
+                val basePayload = platformCache[ExplorePlatform.BANGUMI] ?: latestPayload
+                val updated = basePayload.withLatestBangumiTitles()
+                if (updated != basePayload) {
+                    latestPayload = updated
+                    platformCache[ExplorePlatform.BANGUMI] = updated
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (selectedPlatform == ExplorePlatform.BANGUMI) {
+                            applyPayload(updated)
+                        } else if (selectedPlatform == ExplorePlatform.ALL) {
+                            val existing = allSourceStates[ExplorePlatform.BANGUMI]
+                            if (existing != null) {
+                                allSourceStates = allSourceStates + (
+                                    ExplorePlatform.BANGUMI to existing.copy(
+                                        payload = updated.forSource(ExplorePlatform.BANGUMI)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            runCatching {
+                val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
+                db.exploreCacheDao().insertCategory(
+                    com.kitsugi.animelist.data.local.ExploreCacheEntity(
+                        categoryKey = exploreCacheKey(ExplorePlatform.BANGUMI),
+                        payloadJson = com.google.gson.Gson().toJson(latestPayload),
+                        cachedAtMs = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
     /**
      * Bangumi (bgm.tv) Keşfet verisi.
      *
-     * Tüm şeritler `POST /v0/search/subjects` + `GET /v0/subjects` uçlarından gelir ve
-     * token gerektirmez (anonim okuma serbest); bağlı bir hesap varsa token eklenir ki
-     * hız sınırı kullanıcı bazında sayılsın. Yetişkin içerik `nsfw` alanından süzülür.
+     * İki aşamalı aşamalı (progressive) mimari:
+     *  1. 14 şerit `cacheOnlyTitles = true` ile çekilir → AniList/infobox kuyruğunu beklemeden
+     *     ~1-2 saniye içinde ekrana çizilir, zaman aşımına takılıp veri kaybetmez.
+     *  2. Ardından [launchBangumiExploreTitleHydration] benzersiz tüm条目'ları arka planda
+     *     çözüp hem bellek/UI durumunu hem Room önbelleğini seçili dile uygun günceller.
      */
     private suspend fun loadBangumiData(): ExplorePayload = supervisorScope {
         val context = getApplication<Application>().applicationContext
         val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
 
-        /**
-         * Tek bir şeridin tüm vitrini kilitlemesini engeller.
-         *
-         * `supervisorScope` bir şerit hata verse bile diğerlerini sürdürür; ancak **asılı**
-         * bir şerit (yanıtı gelmeyen istek) tüm `ExplorePayload`'un dönmesini geciktirir ve
-         * kullanıcı bu sırada boş/iskelet ekran görür. Her şerit kendi süre tavanıyla
-         * sınırlandığında vitrin en geç [BANGUMI_SHELF_TIMEOUT_MS] içinde çizilir.
-         */
         suspend fun shelf(
             block: suspend () -> List<com.kitsugi.animelist.data.remote.JikanSearchResult>
         ): List<com.kitsugi.animelist.data.remote.JikanSearchResult> =
             withTimeoutOrNull(BANGUMI_SHELF_TIMEOUT_MS) {
-                runCatching { block() }.getOrDefault(emptyList())
+                try {
+                    block()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
             } ?: emptyList()
 
-        val topAnimeDeferred = async { shelf { bangumi.topAnime(20, context) } }
-        val trendingAnimeDeferred = async { shelf { bangumi.trendingAnime(20, context) } }
-        val topRatedAnimeDeferred = async { shelf { bangumi.topRatedAnime(20, context) } }
-        val seasonalAnimeDeferred = async { shelf { bangumi.seasonalAnime(20, context) } }
-        val airingAnimeDeferred = async { shelf { bangumi.airingAnime(20, context) } }
-        val upcomingAnimeDeferred = async { shelf { bangumi.upcomingAnime(20, context) } }
-        val movieAnimeDeferred = async { shelf { bangumi.movieAnime(20, context) } }
-        val bangumiTvShowsDeferred = async { shelf { bangumi.realTvShows(20, context) } }
-        val bangumiMoviesDeferred = async { shelf { bangumi.realMovies(20, context) } }
-        val newlyAddedAnimeDeferred = async { shelf { bangumi.newlyAddedAnime(20, context) } }
-        val topMangaDeferred = async { shelf { bangumi.topManga(20, context) } }
-        val publishingMangaDeferred = async { shelf { bangumi.publishingManga(20, context) } }
-        val trendingMangaDeferred = async { shelf { bangumi.trendingManga(20, context) } }
-        val topRatedMangaDeferred = async { shelf { bangumi.topRatedManga(20, context) } }
-        // Bangumi bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
+        val topAnimeDeferred = async { shelf { bangumi.topAnime(20, context, cacheOnlyTitles = true) } }
+        val trendingAnimeDeferred = async { shelf { bangumi.trendingAnime(20, context, cacheOnlyTitles = true) } }
+        val topRatedAnimeDeferred = async { shelf { bangumi.topRatedAnime(20, context, cacheOnlyTitles = true) } }
+        val seasonalAnimeDeferred = async { shelf { bangumi.seasonalAnime(20, context, cacheOnlyTitles = true) } }
+        val airingAnimeDeferred = async { shelf { bangumi.airingAnime(20, context, cacheOnlyTitles = true) } }
+        val upcomingAnimeDeferred = async { shelf { bangumi.upcomingAnime(20, context, cacheOnlyTitles = true) } }
+        val movieAnimeDeferred = async { shelf { bangumi.movieAnime(20, context, cacheOnlyTitles = true) } }
+        val bangumiTvShowsDeferred = async { shelf { bangumi.realTvShows(20, context, cacheOnlyTitles = true) } }
+        val bangumiMoviesDeferred = async { shelf { bangumi.realMovies(20, context, cacheOnlyTitles = true) } }
+        val newlyAddedAnimeDeferred = async { shelf { bangumi.newlyAddedAnime(20, context, cacheOnlyTitles = true) } }
+        val topMangaDeferred = async { shelf { bangumi.topManga(20, context, cacheOnlyTitles = true) } }
+        val publishingMangaDeferred = async { shelf { bangumi.publishingManga(20, context, cacheOnlyTitles = true) } }
+        val trendingMangaDeferred = async { shelf { bangumi.trendingManga(20, context, cacheOnlyTitles = true) } }
+        val topRatedMangaDeferred = async { shelf { bangumi.topRatedManga(20, context, cacheOnlyTitles = true) } }
         val airingSoonDeferred = async {
             withTimeoutOrNull(BANGUMI_SHELF_TIMEOUT_MS) { fetchSharedAiringSoon() }.orEmpty()
         }
 
-        // Vitrin arka planları veri yolunu BLOKE ETMEZ — prepareHomeHeroes() asenkron çözer.
-        val enrichedTopAnime = topAnimeDeferred.await()
-
-        ExplorePayload(
-            topAnime = enrichedTopAnime,
+        val payload = ExplorePayload(
+            topAnime = topAnimeDeferred.await(),
             airingAnime = airingAnimeDeferred.await(),
             upcomingAnime = upcomingAnimeDeferred.await(),
             topManga = topMangaDeferred.await(),
@@ -938,6 +1016,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             topRatedManga = topRatedMangaDeferred.await(),
             airingSoonAnime = airingSoonDeferred.await()
         )
+        launchBangumiExploreTitleHydration(payload)
+        payload
     }
 
     private suspend fun loadShikimoriData(): ExplorePayload = supervisorScope {

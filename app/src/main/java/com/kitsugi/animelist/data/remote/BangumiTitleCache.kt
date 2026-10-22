@@ -40,7 +40,14 @@ internal object BangumiTitleCache {
     data class LatinTitles(
         val romaji: String?,
         val english: String?,
-        val native: String?
+        val native: String?,
+        /**
+         * `true` olduğunda bu kayıt için yetkili dış kaynaklar (AniList `title.english` /
+         * Bangumi subject infobox / TMDB) gerçekten kontrol edilmiş demektir; `english == romaji`
+         * olan yapımlar (ör. Jujutsu Kaisen, Chainsaw Man, One Piece) veya yalnızca romaji adı
+         * bulunan yapımlar bir daha sonsuz döngüde yeniden sorgulanmaz.
+         */
+        val englishVerified: Boolean = false
     ) {
         val isEmpty: Boolean get() = romaji == null && english == null && native == null
     }
@@ -79,11 +86,13 @@ internal object BangumiTitleCache {
         previous: LatinTitles?,
         romaji: String?,
         english: String?,
-        native: String?
+        native: String?,
+        englishVerified: Boolean = false
     ): LatinTitles = LatinTitles(
         romaji = usableLatin(romaji) ?: previous?.romaji,
         english = usableLatin(english) ?: previous?.english,
-        native = native?.trim()?.takeIf { it.isNotEmpty() } ?: previous?.native
+        native = native?.trim()?.takeIf { it.isNotEmpty() } ?: previous?.native,
+        englishVerified = englishVerified || (previous?.englishVerified == true)
     )
 
     /**
@@ -125,7 +134,8 @@ internal object BangumiTitleCache {
         val titles = LatinTitles(
             romaji = obj.optString("r").takeIf { it.isNotBlank() },
             english = obj.optString("e").takeIf { it.isNotBlank() },
-            native = obj.optString("n").takeIf { it.isNotBlank() }
+            native = obj.optString("n").takeIf { it.isNotBlank() },
+            englishVerified = obj.optBoolean("ev", false)
         )
         if (titles.isEmpty) {
             memory.remove(rawId)
@@ -186,7 +196,13 @@ internal object BangumiTitleCache {
     }
 
     /** Bir kaydın Latin ad varyantlarını kaydeder (değişim yoksa disk yazması yapılmaz). */
-    suspend fun put(rawId: Int?, romaji: String?, english: String?, native: String?) {
+    suspend fun put(
+        rawId: Int?,
+        romaji: String?,
+        english: String?,
+        native: String?,
+        englishVerified: Boolean = false
+    ) {
         val id = rawId ?: return
         if (id <= 0) return
         ensureLoaded()
@@ -196,7 +212,7 @@ internal object BangumiTitleCache {
         // çözülebileceğinden birleştirme + bellek yazımı atomik yapılır.
         val record = synchronized(loadLock) {
             val previous = memory[id]
-            val merged = mergeTitles(previous, romaji, english, native)
+            val merged = mergeTitles(previous, romaji, english, native, englishVerified)
             if (merged.isEmpty || merged == previous) return@synchronized null
             memory[id] = merged
             merged
@@ -217,6 +233,7 @@ internal object BangumiTitleCache {
                 latest.romaji?.let { payload.put("r", it) }
                 latest.english?.let { payload.put("e", it) }
                 latest.native?.let { payload.put("n", it) }
+                if (latest.englishVerified) payload.put("ev", true)
                 editor.putString("$KEY_PREFIX$id", payload.toString())
                 editor.apply()
             }

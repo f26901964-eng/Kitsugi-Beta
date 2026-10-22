@@ -204,6 +204,7 @@ fun MediaEntryDetailPage(
     // Collect states from ViewModel
     val detailState by viewModel.detailState.collectAsState()
     val detailLoading by viewModel.detailLoading.collectAsState()
+    val videosLoading by viewModel.videosLoading.collectAsState()
     val detailErrorCode by viewModel.detailErrorCode.collectAsState()
     val mangaMapping by viewModel.mangaMapping.collectAsState()
     val synopsisState by viewModel.synopsisState.collectAsState()
@@ -632,7 +633,12 @@ fun MediaEntryDetailPage(
                     }
                     2 -> {
                         if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
-                            KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayEntry.title)
+                            KitsugiMediaVideosTab(
+                                detail = detailState,
+                                mediaTitle = displayEntry.title,
+                                primarySource = entry.source,
+                                isVideosLoading = videosLoading
+                            )
                         }
                     }
                     3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)

@@ -1637,9 +1637,40 @@ object KitsugiBangumiDetailClient {
     ): List<KitsugiRelation> =
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext emptyList()
-            val root = p1("/subjects/$rawId/relations", mapOf("limit" to "100")) ?: return@withContext emptyList()
-            val parsed = parseRelations(root)
-            if (enrichTitles) enrichRelationListTitles(parsed) else parsed
+            val parsed = p1("/subjects/$rawId/relations", mapOf("limit" to "100"))
+                ?.let { parseRelations(it) }
+                ?.takeIf { it.isNotEmpty() }
+                ?: fallbackRelationsFromV0(rawId)
+            if (enrichTitles) enrichRelationListTitles(parsed) else parsed.map { withCachedLatinTitle(it) }
+        }
+
+    private suspend fun fallbackRelationsFromV0(rawId: Int): List<KitsugiRelation> =
+        runCatching {
+            BangumiApiClient.getRelatedSubjects(rawId, tokenOrNull()).mapNotNull { rel ->
+                if (!BangumiIdNamespace.supportsSubjectType(rel.type)) return@mapNotNull null
+                val stable = stableIdOf(rel.id) ?: return@mapNotNull null
+                val localized = BangumiNameLocalizer.entity(rel.name, rel.nameCn)
+                val cachedTitles = BangumiTitleCache.get(rel.id)
+                val cachedLatin = BangumiTitleCache.latinTitleFor(rel.id, localized.display)
+                val cachedEnglish = cachedTitles?.english?.takeIf {
+                    BangumiSubjectTitleResolver.hasReliableEnglish(cachedTitles)
+                }
+                KitsugiRelation(
+                    malId = stable,
+                    title = cachedLatin ?: localized.display.ifBlank { "Bangumi #${rel.id}" },
+                    relationType = relationLabel(rel.relation, null),
+                    imageUrl = BangumiApiClient.absoluteImageUrl(rel.image),
+                    mediaType = BangumiIdNamespace.mediaTypeFor(rel.type, null),
+                    source = SOURCE,
+                    titleEnglish = localized.english ?: cachedEnglish,
+                    titleJapanese = localized.native ?: cachedTitles?.native,
+                    titleRomaji = localized.romaji ?: cachedTitles?.romaji ?: cachedLatin,
+                    bangumiSubjectType = rel.type
+                )
+            }.distinctBy { it.malId }
+        }.getOrElse { error ->
+            if (error is CancellationException) throw error
+            emptyList()
         }
 
     /** `/p1/subjects/{id}/relations` yanıtı → ilişkili yapımlar. */
@@ -1719,9 +1750,9 @@ object KitsugiBangumiDetailClient {
                 ?: return@map relation
             relation.copy(
                 title = display,
-                titleEnglish = relation.titleEnglish ?: latin.english,
+                titleEnglish = latin.english ?: relation.titleEnglish,
                 titleJapanese = relation.titleJapanese ?: latin.native,
-                titleRomaji = relation.titleRomaji ?: latin.romaji
+                titleRomaji = latin.romaji ?: relation.titleRomaji
             )
         }
     }
@@ -1749,11 +1780,18 @@ object KitsugiBangumiDetailClient {
         return updated.takeUnless { it == relation } ?: relation
     }
 
-    /** Çiplerde CJK başlık görünüyor ve kayıtta Latin varyant yoksa ek arama yapılır. */
-    private fun needsLatinTitle(relation: KitsugiRelation): Boolean =
-        usableLatinName(relation.title) == null &&
-            usableLatinName(relation.titleEnglish) == null &&
-            usableLatinName(relation.titleRomaji) == null
+    /** Çiplerde CJK başlık görünüyor veya ayrı İngilizce varyant henüz doğrulanmamışsa ek arama yapılır. */
+    private fun needsLatinTitle(relation: KitsugiRelation): Boolean {
+        val raw = BangumiIdNamespace.rawIdFromStable(relation.malId)
+        val cached = raw?.let { BangumiTitleCache.get(it) }
+        if (BangumiSubjectTitleResolver.hasReliableEnglish(cached)) return false
+        val currentTitles = BangumiTitleCache.LatinTitles(
+            romaji = relation.titleRomaji ?: usableLatinName(relation.title),
+            english = relation.titleEnglish,
+            native = relation.titleJapanese
+        )
+        return !BangumiSubjectTitleResolver.hasReliableEnglish(currentTitles)
+    }
 
     /** `/p1/subjects/{id}/recs` yanıtı → öneriler. */
     internal fun parseRecommendations(root: JSONObject): List<KitsugiRelation> =
@@ -1889,12 +1927,48 @@ object KitsugiBangumiDetailClient {
         )
     }
 
-    /** Ana hikâye bölümleri (`/p1/subjects/{id}/episodes?type=0`). */
+    /** Ana hikâye bölümleri (`/p1/subjects/{id}/episodes?type=0` + v0 `/v0/episodes` yedeği). */
     suspend fun fetchEpisodes(stableOrRawId: Int): List<KitsugiStreamingEpisode> =
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext emptyList()
-            val root = p1("/subjects/$rawId/episodes", mapOf("type" to "0", "limit" to "1000")) ?: return@withContext emptyList()
-            parseEpisodes(root)
+            val p1Result = p1("/subjects/$rawId/episodes", mapOf("type" to "0", "limit" to "1000"))
+                ?.let { parseEpisodes(it) }
+                ?.takeIf { it.isNotEmpty() }
+            if (p1Result != null) return@withContext p1Result
+            fallbackEpisodesFromV0(rawId)
+        }
+
+    private suspend fun fallbackEpisodesFromV0(rawId: Int): List<KitsugiStreamingEpisode> =
+        runCatching {
+            val seen = HashSet<Int>()
+            BangumiApiClient.getAllMainEpisodes(rawId, tokenOrNull())
+                .mapNotNull { ep ->
+                    val number = ep.sort.takeIf { !it.isNaN() && it > 0.0 }?.toInt()
+                        ?: return@mapNotNull null
+                    if (!seen.add(number)) return@mapNotNull null
+                    val rawName = ep.name.trim().takeIf { it.isNotEmpty() }
+                    val rawNameCn = ep.nameCn.trim().takeIf { it.isNotEmpty() }
+                    val latinName = listOfNotNull(rawName, rawNameCn).firstOrNull {
+                        PreferenceHelpers.isLatinText(it)
+                    }
+                    val chosen = latinName ?: rawName ?: rawNameCn
+                    val defaultTitle = if (isTurkish()) "Bölüm $number" else "Episode $number"
+                    KitsugiStreamingEpisode(
+                        title = if (chosen != null) {
+                            "#$number – $chosen"
+                        } else {
+                            KitsugiStrings.getOrFallback(R.string.inline_episode_1_s_dc662be, defaultTitle, number)
+                        },
+                        thumbnail = null,
+                        url = if (ep.id > 0) "${BangumiApiClient.SITE_BASE}/ep/${ep.id}" else null,
+                        site = "Bangumi",
+                        seasonNumber = 1,
+                        episodeNumber = number
+                    )
+                }.sortedBy { it.episodeNumber ?: 0 }
+        }.getOrElse { error ->
+            if (error is CancellationException) throw error
+            emptyList()
         }
 
     /** `/p1/subjects/{id}/episodes` yanıtı → bölüm listesi (yalnızca ana hikâye, tekil numara). */
@@ -1931,12 +2005,66 @@ object KitsugiBangumiDetailClient {
     // 4) KARAKTER / KİŞİ DETAY SAYFALARI
     // ═════════════════════════════════════════════════════════════════════════
 
+    /** Arama ekranındaki Bangumi karakter/kişi satırlarını kalıcı Latin adlarla zenginleştirir. */
+    suspend fun enrichSearchEntityResults(
+        items: List<JikanSearchResult>,
+        isStaff: Boolean
+    ): List<JikanSearchResult> {
+        if (items.isEmpty()) return items
+        val kind = if (isStaff) "persons" else "characters"
+        val resolvedById = ConcurrentHashMap<Int, BangumiLocalizedName>()
+        val pendingIds = mutableListOf<Int>()
+        for (item in items) {
+            val id = item.malId
+            if (id <= 0) continue
+            BangumiEntityNameStore.get(kind, id)?.let { stored ->
+                resolvedById[id] = stored
+            } ?: run {
+                val hasLatin = PreferenceHelpers.isLatinText(item.titleRomaji) ||
+                    PreferenceHelpers.isLatinText(item.titleEnglish) ||
+                    PreferenceHelpers.isLatinText(item.title)
+                if (!hasLatin) pendingIds += id
+            }
+        }
+        if (pendingIds.isNotEmpty()) {
+            withTimeoutOrNull(4_500L) {
+                coroutineScope {
+                    pendingIds.distinct().take(20).map { id ->
+                        async(Dispatchers.IO) {
+                            runCatching {
+                                loadLocalizedEntityName(EntityNameLookup(kind, id))?.let {
+                                    resolvedById[id] = it
+                                }
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+        }
+        return items.map { item ->
+            val localized = resolvedById[item.malId] ?: return@map item
+            val romaji = usableLatinName(localized.romaji) ?: usableLatinName(item.titleRomaji)
+            val english = usableLatinName(localized.english) ?: usableLatinName(item.titleEnglish)
+            val native = item.titleJapanese?.takeIf { it.isNotBlank() } ?: localized.native
+            val display = romaji ?: english ?: item.title
+            item.copy(
+                title = display,
+                titleRomaji = romaji,
+                titleEnglish = english,
+                titleJapanese = native
+            )
+        }
+    }
+
     suspend fun fetchCharacterDetail(characterId: Int): KitsugiCharacterDetail? =
         withContext(Dispatchers.IO) {
             if (characterId <= 0) return@withContext null
             coroutineScope {
-                val rootDef = async { p1("/characters/$characterId") }
+                val rootDef = async { loadEntityRoot(EntityNameLookup("characters", characterId)) }
                 val castsDef = async { p1("/characters/$characterId/casts", mapOf("limit" to "40")) }
+                val v0SubjectsDef = async {
+                    runCatching { BangumiApiClient.getRaw("/v0/characters/$characterId/subjects") }.getOrNull()
+                }
                 val root = rootDef.await() ?: return@coroutineScope null
                 val casts = castsDef.await()?.optJSONArray("data").objects()
                 val info = parseP1Infobox(root.optJSONArray("infobox"))
@@ -1958,26 +2086,58 @@ object KitsugiBangumiDetailClient {
                 }.distinctBy { it.id }
                 val localizedActors = enrichVoiceActorNamesFromBangumi(actors)
 
-                val appearances = casts.mapNotNull { item ->
+                val p1Appearances = casts.mapNotNull { item ->
                     val subject = item.optJSONObject("subject") ?: return@mapNotNull null
                     val type = subject.optInt("type", 2)
                     if (type != BangumiApiClient.SubjectType.ANIME && type != BangumiApiClient.SubjectType.BOOK &&
                         type != BangumiApiClient.SubjectType.REAL
                     ) return@mapNotNull null
-                    val stable = stableIdOf(subject.optInt("id", 0)) ?: return@mapNotNull null
+                    val rawSubjectId = subject.optInt("id", 0)
+                    val stable = stableIdOf(rawSubjectId) ?: return@mapNotNull null
                     val subjectName = subject.localizedName()
+                    val cached = BangumiTitleCache.get(rawSubjectId)
+                    val cachedEnglish = cached?.english?.takeIf { BangumiSubjectTitleResolver.hasReliableEnglish(cached) }
+                    val cachedRomaji = cached?.romaji
                     KitsugiCharacterMediaAppearance(
                         mediaId = stable,
-                        title = subjectName.display,
+                        title = cachedRomaji ?: cachedEnglish ?: subjectName.display,
                         imageUrl = subject.optJSONObject("images").image("common", "medium", "large", "grid"),
                         mediaType = if (type == BangumiApiClient.SubjectType.BOOK) "MANGA" else "ANIME",
                         characterRole = characterRole(item.optInt("type", 2)).toTurkishCharacterRole(),
                         source = SOURCE,
-                        titleEnglish = subjectName.english,
-                        titleJapanese = subjectName.native,
-                        titleRomaji = subjectName.romaji
+                        titleEnglish = subjectName.english ?: cachedEnglish,
+                        titleJapanese = subjectName.native ?: cached?.native,
+                        titleRomaji = subjectName.romaji ?: cachedRomaji
                     )
                 }.distinctBy { it.mediaId }
+
+                val appearances = p1Appearances.ifEmpty {
+                    val rawV0 = v0SubjectsDef.await()
+                    runCatching { JSONArray(rawV0.orEmpty()) }.getOrNull().objects().mapNotNull { subject ->
+                        val type = subject.optInt("type", 2)
+                        if (type != BangumiApiClient.SubjectType.ANIME && type != BangumiApiClient.SubjectType.BOOK &&
+                            type != BangumiApiClient.SubjectType.REAL
+                        ) return@mapNotNull null
+                        val rawSubjectId = subject.optInt("id", 0)
+                        val stable = stableIdOf(rawSubjectId) ?: return@mapNotNull null
+                        val subjectName = subject.localizedName()
+                        val cached = BangumiTitleCache.get(rawSubjectId)
+                        val cachedEnglish = cached?.english?.takeIf { BangumiSubjectTitleResolver.hasReliableEnglish(cached) }
+                        val cachedRomaji = cached?.romaji
+                        KitsugiCharacterMediaAppearance(
+                            mediaId = stable,
+                            title = cachedRomaji ?: cachedEnglish ?: subjectName.display,
+                            imageUrl = subject.optJSONObject("images").image("common", "medium", "large", "grid")
+                                ?: BangumiApiClient.absoluteImageUrl(subject.strOrNull("image")),
+                            mediaType = if (type == BangumiApiClient.SubjectType.BOOK) "MANGA" else "ANIME",
+                            characterRole = (subject.strOrNull("staff") ?: "Main").toTurkishCharacterRole(),
+                            source = SOURCE,
+                            titleEnglish = subjectName.english ?: cachedEnglish,
+                            titleJapanese = subjectName.native ?: cached?.native,
+                            titleRomaji = subjectName.romaji ?: cachedRomaji
+                        )
+                    }.distinctBy { it.mediaId }
+                }
 
                 val characterName = BangumiNameLocalizer.entityFromInfobox(
                     root.strOrNull("name"),
@@ -2008,35 +2168,70 @@ object KitsugiBangumiDetailClient {
         withContext(Dispatchers.IO) {
             if (personId <= 0) return@withContext null
             coroutineScope {
-                val rootDef = async { p1("/persons/$personId") }
+                val rootDef = async { loadEntityRoot(EntityNameLookup("persons", personId)) }
                 val worksDef = async { p1("/persons/$personId/works", mapOf("limit" to "60")) }
                 val castsDef = async { p1("/persons/$personId/casts", mapOf("limit" to "60")) }
+                val v0SubjectsDef = async {
+                    runCatching { BangumiApiClient.getRaw("/v0/persons/$personId/subjects") }.getOrNull()
+                }
                 val root = rootDef.await() ?: return@coroutineScope null
                 val info = parseP1Infobox(root.optJSONArray("infobox"))
 
-                val works = worksDef.await()?.optJSONArray("data").objects().mapNotNull { item ->
+                val p1Works = worksDef.await()?.optJSONArray("data").objects().mapNotNull { item ->
                     val subject = item.optJSONObject("subject") ?: return@mapNotNull null
                     val type = subject.optInt("type", 2)
                     if (type != BangumiApiClient.SubjectType.ANIME && type != BangumiApiClient.SubjectType.BOOK &&
                         type != BangumiApiClient.SubjectType.REAL
                     ) return@mapNotNull null
-                    val stable = stableIdOf(subject.optInt("id", 0)) ?: return@mapNotNull null
+                    val rawSubjectId = subject.optInt("id", 0)
+                    val stable = stableIdOf(rawSubjectId) ?: return@mapNotNull null
                     val role = item.optJSONArray("positions").objects()
                         .mapNotNull { pos -> pos.optJSONObject("type")?.let { it.strOrNull("en") ?: it.strOrNull("cn") } }
                         .distinct().take(3).joinToString(", ").ifBlank { "Staff" }
                     val subjectName = subject.localizedName()
+                    val cached = BangumiTitleCache.get(rawSubjectId)
+                    val cachedEnglish = cached?.english?.takeIf { BangumiSubjectTitleResolver.hasReliableEnglish(cached) }
+                    val cachedRomaji = cached?.romaji
                     KitsugiStaffMediaWork(
                         mediaId = stable,
-                        mediaTitle = subjectName.display,
+                        mediaTitle = cachedRomaji ?: cachedEnglish ?: subjectName.display,
                         mediaImageUrl = subject.optJSONObject("images").image("common", "medium", "large", "grid"),
                         mediaType = if (type == BangumiApiClient.SubjectType.BOOK) "MANGA" else "ANIME",
                         staffRole = role.toTurkishStaffRole(),
                         source = SOURCE,
-                        titleEnglish = subjectName.english,
-                        titleJapanese = subjectName.native,
-                        titleRomaji = subjectName.romaji
+                        titleEnglish = subjectName.english ?: cachedEnglish,
+                        titleJapanese = subjectName.native ?: cached?.native,
+                        titleRomaji = subjectName.romaji ?: cachedRomaji
                     )
                 }.distinctBy { it.mediaId }
+
+                val works = p1Works.ifEmpty {
+                    val rawV0 = v0SubjectsDef.await()
+                    runCatching { JSONArray(rawV0.orEmpty()) }.getOrNull().objects().mapNotNull { subject ->
+                        val type = subject.optInt("type", 2)
+                        if (type != BangumiApiClient.SubjectType.ANIME && type != BangumiApiClient.SubjectType.BOOK &&
+                            type != BangumiApiClient.SubjectType.REAL
+                        ) return@mapNotNull null
+                        val rawSubjectId = subject.optInt("id", 0)
+                        val stable = stableIdOf(rawSubjectId) ?: return@mapNotNull null
+                        val subjectName = subject.localizedName()
+                        val cached = BangumiTitleCache.get(rawSubjectId)
+                        val cachedEnglish = cached?.english?.takeIf { BangumiSubjectTitleResolver.hasReliableEnglish(cached) }
+                        val cachedRomaji = cached?.romaji
+                        KitsugiStaffMediaWork(
+                            mediaId = stable,
+                            mediaTitle = cachedRomaji ?: cachedEnglish ?: subjectName.display,
+                            mediaImageUrl = subject.optJSONObject("images").image("common", "medium", "large", "grid")
+                                ?: BangumiApiClient.absoluteImageUrl(subject.strOrNull("image")),
+                            mediaType = if (type == BangumiApiClient.SubjectType.BOOK) "MANGA" else "ANIME",
+                            staffRole = (subject.strOrNull("staff") ?: "Staff").toTurkishStaffRole(),
+                            source = SOURCE,
+                            titleEnglish = subjectName.english ?: cachedEnglish,
+                            titleJapanese = subjectName.native ?: cached?.native,
+                            titleRomaji = subjectName.romaji ?: cachedRomaji
+                        )
+                    }.distinctBy { it.mediaId }
+                }
 
                 val characterRoles = castsDef.await()?.optJSONArray("data").objects().flatMap { item ->
                     val character = item.optJSONObject("character") ?: return@flatMap emptyList()
@@ -2047,16 +2242,20 @@ object KitsugiBangumiDetailClient {
                         if (type != BangumiApiClient.SubjectType.ANIME && type != BangumiApiClient.SubjectType.BOOK &&
                             type != BangumiApiClient.SubjectType.REAL
                         ) return@mapNotNull null
-                        val stable = stableIdOf(subject.optInt("id", 0)) ?: return@mapNotNull null
+                        val rawSubjectId = subject.optInt("id", 0)
+                        val stable = stableIdOf(rawSubjectId) ?: return@mapNotNull null
                         val characterName = character.localizedName()
                         val subjectName = subject.localizedName()
+                        val cached = BangumiTitleCache.get(rawSubjectId)
+                        val cachedEnglish = cached?.english?.takeIf { BangumiSubjectTitleResolver.hasReliableEnglish(cached) }
+                        val cachedRomaji = cached?.romaji
                         KitsugiStaffCharacterRole(
                             characterId = characterId,
                             characterName = characterName.display,
                             characterImageUrl = character.optJSONObject("images").image("medium", "large", "grid", "small"),
                             characterSource = SOURCE,
                             mediaId = stable,
-                            mediaTitle = subjectName.display,
+                            mediaTitle = cachedRomaji ?: cachedEnglish ?: subjectName.display,
                             mediaImageUrl = subject.optJSONObject("images").image("common", "medium", "large", "grid"),
                             mediaType = if (type == BangumiApiClient.SubjectType.BOOK) "MANGA" else "ANIME",
                             characterRole = characterRole(relation.optInt("type", 2)).toTurkishCharacterRole(),
@@ -2064,9 +2263,9 @@ object KitsugiBangumiDetailClient {
                             characterRomanizedName = characterName.romaji,
                             characterNativeName = characterName.native,
                             characterEnglishName = characterName.english,
-                            mediaTitleEnglish = subjectName.english,
-                            mediaTitleJapanese = subjectName.native,
-                            mediaTitleRomaji = subjectName.romaji
+                            mediaTitleEnglish = subjectName.english ?: cachedEnglish,
+                            mediaTitleJapanese = subjectName.native ?: cached?.native,
+                            mediaTitleRomaji = subjectName.romaji ?: cachedRomaji
                         )
                     }
                 }.distinctBy { "${it.characterId}:${it.mediaId}" }

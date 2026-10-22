@@ -503,7 +503,10 @@ fun ThemePlayerContainer(
 private data class DetailVideoItem(
     val key: String,
     val title: String,
-    val videoUrl: String?
+    val videoUrl: String?,
+    val sources: List<String> = emptyList(),
+    val thumbnailUrl: String? = null,
+    val subtitle: String? = null
 )
 
 /**
@@ -517,57 +520,146 @@ private fun shareDetailVideo(context: android.content.Context, mediaTitle: Strin
     com.kitsugi.animelist.utils.ShareUtils.shareText(context, title, url)
 }
 
+private fun friendlyVideoSourceLabel(sourceId: String): String = when (sourceId.trim().lowercase()) {
+    "mal", "jikan", "myanimelist" -> "MyAnimeList"
+    "anilist" -> "AniList"
+    "tmdb" -> "TMDB"
+    "animethemes" -> "AnimeThemes"
+    "shikimori" -> "Shikimori"
+    "simkl" -> "Simkl"
+    "kitsu" -> "Kitsu"
+    "bangumi", "bgm" -> "Bangumi"
+    else -> sourceId.replaceFirstChar { it.uppercase() }
+}
+
+private fun categoryDisplayTitle(
+    category: com.kitsugi.animelist.data.remote.KitsugiVideoCategory,
+    openingsTitle: String,
+    endingsTitle: String,
+    trLocale: Boolean
+): String = when (category) {
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.TRAILER ->
+        if (trLocale) "Fragmanlar ve Tanıtımlar" else "Trailers & Promos"
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.OPENING -> openingsTitle
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.ENDING -> endingsTitle
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.MUSIC_VIDEO ->
+        if (trLocale) "Müzik Videoları" else "Music Videos"
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.FEATURETTE ->
+        if (trLocale) "Özel Videolar ve Kamera Arkası" else "Featurettes & Clips"
+}
+
+private fun categoryDisplayIcon(
+    category: com.kitsugi.animelist.data.remote.KitsugiVideoCategory
+): androidx.compose.ui.graphics.vector.ImageVector = when (category) {
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.TRAILER -> Icons.Rounded.Movie
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.OPENING -> Icons.Rounded.MusicNote
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.ENDING -> Icons.Rounded.MusicNote
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.MUSIC_VIDEO -> Icons.Rounded.MusicNote
+    com.kitsugi.animelist.data.remote.KitsugiVideoCategory.FEATURETTE -> Icons.Rounded.Movie
+}
+
 /**
- * Dedicated Videos tab shared by API-backed and list-backed media detail pages.
- * Exactly one selected item owns the inline player; changing or closing a row removes
- * the previous player immediately instead of keeping it alive for an exit animation.
+ * Dedicated unified cross-source Videos tab shared by API-backed and list-backed media detail pages.
+ * Aggregates trailers, PVs, OP/ED themes, official music videos, and featurettes across all sources.
  */
 @Composable
 fun KitsugiMediaVideosTab(
     detail: com.kitsugi.animelist.data.remote.KitsugiMediaDetail?,
-    /** Paylaşımda video başlığının önüne eklenen yapım adı (boşsa yalnızca video adı). */
-    mediaTitle: String = ""
+    mediaTitle: String = "",
+    primarySource: String = "",
+    isVideosLoading: Boolean = false
 ) {
-    val trailerUrl = detail?.trailerUrl?.takeIf { it.isNotBlank() }
     val shareContext = LocalContext.current
-    val onShareVideo: (DetailVideoItem) -> Unit = { item ->
-        shareDetailVideo(shareContext, mediaTitle, item)
-    }
-    val openingItems = remember(detail?.openings) {
-        detail?.openings.orEmpty().mapIndexed { index, theme ->
-            DetailVideoItem("opening-$index", theme.label, theme.videoUrl)
-        }
-    }
-    val endingItems = remember(detail?.endings) {
-        detail?.endings.orEmpty().mapIndexed { index, theme ->
-            DetailVideoItem("ending-$index", theme.label, theme.videoUrl)
-        }
-    }
     val uriHandler = LocalUriHandler.current
     val accentColor = LocalKitsugiAccent.current
-    var activeVideoKey by remember(trailerUrl, openingItems, endingItems) { mutableStateOf<String?>(null) }
+    val trLocale = com.kitsugi.animelist.utils.isTurkish()
+    val openingsTitle = stringResource(R.string.detail_openings)
+    val endingsTitle = stringResource(R.string.detail_endings)
 
-    val hasVideos = trailerUrl != null || openingItems.isNotEmpty() || endingItems.isNotEmpty()
+    val allUnifiedVideos = remember(detail, primarySource) {
+        val explicit = detail?.unifiedVideos.orEmpty()
+        if (explicit.isNotEmpty()) {
+            explicit
+        } else {
+            com.kitsugi.animelist.data.remote.KitsugiCrossSourceVideoAggregator
+                .buildSeedVideosFromDetail(detail, primarySource)
+        }
+    }
+
+    val sourceCounts = remember(allUnifiedVideos) {
+        val counts = LinkedHashMap<String, Int>()
+        for (video in allUnifiedVideos) {
+            for (src in video.allSources) {
+                val norm = src.lowercase()
+                counts[norm] = (counts[norm] ?: 0) + 1
+            }
+        }
+        counts.entries
+            .sortedByDescending { it.value }
+            .map { it.key to it.value }
+    }
+
+    var selectedSource by remember(mediaTitle) { mutableStateOf("all") }
+    LaunchedEffect(sourceCounts) {
+        if (selectedSource != "all" && sourceCounts.none { it.first == selectedSource }) {
+            selectedSource = "all"
+        }
+    }
+
+    val filteredVideos = remember(allUnifiedVideos, selectedSource) {
+        if (selectedSource == "all") {
+            allUnifiedVideos
+        } else {
+            allUnifiedVideos.filter { v -> v.allSources.any { it.equals(selectedSource, ignoreCase = true) } }
+        }
+    }
+
+    val groupedCategories = remember(filteredVideos) {
+        com.kitsugi.animelist.data.remote.KitsugiVideoCategory.entries.mapNotNull { cat ->
+            val items = filteredVideos
+                .filter { it.category == cat }
+                .mapIndexed { index, v ->
+                    DetailVideoItem(
+                        key = "${cat.name.lowercase()}-$index-${v.id}",
+                        title = v.title,
+                        videoUrl = v.videoUrl,
+                        sources = v.allSources,
+                        thumbnailUrl = v.thumbnailUrl,
+                        subtitle = v.subtitle
+                    )
+                }
+            if (items.isEmpty()) null else (cat to items)
+        }
+    }
+
+    var activeVideoKey by remember(selectedSource) { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier.padding(top = 12.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        if (!hasVideos) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(KitsugiColors.Surface)
-                    .padding(28.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(R.string.detail_video_empty),
-                    color = KitsugiColors.TextMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+        if (sourceCounts.isNotEmpty() || isVideosLoading) {
+            VideosSourceFilterBar(
+                totalCount = allUnifiedVideos.size,
+                sourceCounts = sourceCounts,
+                selectedSource = selectedSource,
+                isVideosLoading = isVideosLoading,
+                trLocale = trLocale,
+                accentColor = accentColor,
+                onSelectSource = { selectedSource = it }
+            )
+        }
+
+        if (groupedCategories.isEmpty()) {
+            VideosEmptyOrLoadingCard(
+                isVideosLoading = isVideosLoading,
+                trLocale = trLocale,
+                accentColor = accentColor
+            )
         } else {
+            val onShareVideo: (DetailVideoItem) -> Unit = { item ->
+                shareDetailVideo(shareContext, mediaTitle, item)
+            }
             val onSearchVideo: (DetailVideoItem) -> Unit = { item ->
                 val query = java.net.URLEncoder.encode(item.title, "UTF-8")
                 runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$query") }
@@ -579,30 +671,11 @@ fun KitsugiMediaVideosTab(
                 if (activeVideoKey?.let { it in hiddenKeys } == true) activeVideoKey = null
             }
 
-            if (trailerUrl != null) {
+            groupedCategories.forEach { (category, items) ->
                 DetailVideoGroup(
-                    title = stringResource(R.string.inline_preview_c9d9dd2),
-                    icon = Icons.Rounded.Movie,
-                    items = listOf(
-                        DetailVideoItem(
-                            key = "trailer",
-                            title = stringResource(R.string.inline_watch_trailer_8b06108),
-                            videoUrl = trailerUrl
-                        )
-                    ),
-                    activeVideoKey = activeVideoKey,
-                    accentColor = accentColor,
-                    onVideoSelected = selectVideo,
-                    onSearch = onSearchVideo,
-                    onShare = onShareVideo
-                )
-            }
-
-            if (openingItems.isNotEmpty()) {
-                DetailVideoGroup(
-                    title = stringResource(R.string.detail_openings),
-                    icon = Icons.Rounded.MusicNote,
-                    items = openingItems,
+                    title = categoryDisplayTitle(category, openingsTitle, endingsTitle, trLocale),
+                    icon = categoryDisplayIcon(category),
+                    items = items,
                     activeVideoKey = activeVideoKey,
                     accentColor = accentColor,
                     onVideoSelected = selectVideo,
@@ -611,20 +684,162 @@ fun KitsugiMediaVideosTab(
                     onShare = onShareVideo
                 )
             }
+        }
+    }
+}
 
-            if (endingItems.isNotEmpty()) {
-                DetailVideoGroup(
-                    title = stringResource(R.string.detail_endings),
-                    icon = Icons.Rounded.MusicNote,
-                    items = endingItems,
-                    activeVideoKey = activeVideoKey,
-                    accentColor = accentColor,
-                    onVideoSelected = selectVideo,
-                    onSearch = onSearchVideo,
-                    onCollapseHiddenItems = collapseHidden,
-                    onShare = onShareVideo
+@Composable
+private fun VideosEmptyOrLoadingCard(
+    isVideosLoading: Boolean,
+    trLocale: Boolean,
+    accentColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(KitsugiColors.Surface)
+            .padding(28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isVideosLoading) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CircularProgressIndicator(
+                    color = accentColor,
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = if (trLocale) "Tüm kaynaklardan videolar toplanıyor…" else "Collecting videos across all sources…",
+                    color = KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
+        } else {
+            Text(
+                text = stringResource(R.string.detail_video_empty),
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideosSourceFilterBar(
+    totalCount: Int,
+    sourceCounts: List<Pair<String, Int>>,
+    selectedSource: String,
+    isVideosLoading: Boolean,
+    trLocale: Boolean,
+    accentColor: Color,
+    onSelectSource: (String) -> Unit
+) {
+    androidx.compose.foundation.lazy.LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        item(key = "src-all") {
+            VideosSourceChip(
+                sourceId = "all",
+                label = if (trLocale) "Tümü" else "All",
+                count = totalCount,
+                isSelected = selectedSource == "all",
+                accentColor = accentColor,
+                onClick = { onSelectSource("all") }
+            )
+        }
+        items(
+            count = sourceCounts.size,
+            key = { idx -> "src-${sourceCounts[idx].first}" }
+        ) { idx ->
+            val (srcId, count) = sourceCounts[idx]
+            VideosSourceChip(
+                sourceId = srcId,
+                label = friendlyVideoSourceLabel(srcId),
+                count = count,
+                isSelected = selectedSource == srcId,
+                accentColor = accentColor,
+                onClick = { onSelectSource(srcId) }
+            )
+        }
+        if (isVideosLoading) {
+            item(key = "src-syncing") {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KitsugiColors.Surface)
+                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 9.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = accentColor,
+                        modifier = Modifier.size(12.dp),
+                        strokeWidth = 1.6.dp
+                    )
+                    Text(
+                        text = if (trLocale) "Kaynaklar taranıyor" else "Scanning sources",
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideosSourceChip(
+    sourceId: String,
+    label: String,
+    count: Int,
+    isSelected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    val chipShape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = Modifier
+            .clip(chipShape)
+            .background(
+                if (isSelected) accentColor.copy(alpha = 0.18f) else KitsugiColors.Surface
+            )
+            .border(
+                width = 1.dp,
+                color = if (isSelected) accentColor.copy(alpha = 0.55f) else KitsugiColors.Border.copy(alpha = 0.35f),
+                shape = chipShape
+            )
+            .tvClickable(shape = chipShape, onClick = onClick)
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        if (sourceId != "all" && com.kitsugi.animelist.ui.components.KitsugiPlatformLogos.resFor(sourceId) != null) {
+            com.kitsugi.animelist.ui.components.KitsugiPlatformLogo(
+                platformId = sourceId,
+                size = 13.dp,
+                cornerRadius = 3.dp
+            )
+        }
+        Text(
+            text = label,
+            color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
+        if (count > 0) {
+            Text(
+                text = count.toString(),
+                color = if (isSelected) accentColor else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -831,44 +1046,34 @@ private fun DetailVideoRow(
                 .tvClickable(shape = rowShape, onClick = onClick)
                 .padding(start = 8.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) accentColor else accentColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+            DetailVideoLeadingPreview(
+                thumbnailUrl = item.thumbnailUrl,
+                isSelected = isSelected,
+                accentColor = accentColor
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                Icon(
-                    imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    tint = if (isSelected) com.kitsugi.animelist.ui.theme.onAccentColor(accentColor) else accentColor,
-                    modifier = Modifier.size(15.dp)
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.title,
                     color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
-                    else stringResource(R.string.ui_play_in_app),
-                    color = KitsugiColors.TextMuted,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
+                DetailVideoMetaSubRow(
+                    item = item,
+                    accentColor = accentColor
                 )
             }
         }
-        // Material IconButton 48 dp'lik dokunma hedefi ekleyip kompakt satırı şişiriyordu.
         Box(
             modifier = Modifier
-                .size(30.dp)
+                .size(32.dp)
                 .clip(CircleShape)
                 .tvClickable(shape = CircleShape, onClick = onShare),
             contentAlignment = Alignment.Center
@@ -880,6 +1085,124 @@ private fun DetailVideoRow(
                 modifier = Modifier.size(16.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun DetailVideoLeadingPreview(
+    thumbnailUrl: String?,
+    isSelected: Boolean,
+    accentColor: Color
+) {
+    if (!thumbnailUrl.isNullOrBlank()) {
+        Box(
+            modifier = Modifier
+                .size(width = 72.dp, height = 42.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(KitsugiColors.SurfaceStrong),
+            contentAlignment = Alignment.Center
+        ) {
+            coil3.compose.AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) accentColor
+                        else Color.Black.copy(alpha = 0.68f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    tint = if (isSelected) com.kitsugi.animelist.ui.theme.onAccentColor(accentColor) else Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) accentColor else accentColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isSelected) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
+                contentDescription = null,
+                tint = if (isSelected) com.kitsugi.animelist.ui.theme.onAccentColor(accentColor) else accentColor,
+                modifier = Modifier.size(15.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailVideoMetaSubRow(
+    item: DetailVideoItem,
+    accentColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        item.sources.take(4).forEach { srcId ->
+            DetailVideoSourceBadge(sourceId = srcId, accentColor = accentColor)
+        }
+        val baseActionLabel = if (item.videoUrl.isNullOrBlank()) {
+            stringResource(R.string.ui_open_youtube_search)
+        } else {
+            stringResource(R.string.ui_play_in_app)
+        }
+        val metaText = if (!item.subtitle.isNullOrBlank()) {
+            "${item.subtitle} · $baseActionLabel"
+        } else {
+            baseActionLabel
+        }
+        Text(
+            text = metaText,
+            color = KitsugiColors.TextMuted,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun DetailVideoSourceBadge(
+    sourceId: String,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(5.dp))
+            .background(KitsugiColors.Surface)
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        if (com.kitsugi.animelist.ui.components.KitsugiPlatformLogos.resFor(sourceId) != null) {
+            com.kitsugi.animelist.ui.components.KitsugiPlatformLogo(
+                platformId = sourceId,
+                size = 10.dp,
+                cornerRadius = 2.dp
+            )
+        }
+        Text(
+            text = friendlyVideoSourceLabel(sourceId),
+            color = accentColor.copy(alpha = 0.9f),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
     }
 }
 

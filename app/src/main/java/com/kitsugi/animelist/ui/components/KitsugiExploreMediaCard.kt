@@ -212,9 +212,7 @@ fun KitsugiExploreMediaCard(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            val displayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
-                            val isUnrated = displayScore == "unrated" || displayScore == "Unrated" || displayScore == "Puanlanmamış" || displayScore == "Puan yok"
-                            val scoreLabel = if (isUnrated) "—" else "★ $displayScore"
+                            val scoreLabel = resolveListedCardScoreLabel(mediaEntry, result, scoreFormat, hideScores)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "• $scoreLabel",
@@ -377,9 +375,7 @@ fun KitsugiExploreMediaCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            val displayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
-                            val isUnrated = displayScore == "unrated" || displayScore == "Unrated" || displayScore == "Puanlanmamış" || displayScore == "Puan yok"
-                            val scoreLabel = if (isUnrated) "—" else "★ $displayScore"
+                            val scoreLabel = resolveListedCardScoreLabel(mediaEntry, result, scoreFormat, hideScores)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "• $scoreLabel",
@@ -526,9 +522,7 @@ fun KitsugiExploreMediaCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            val displayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
-                            val isUnrated = displayScore == "unrated" || displayScore == "Unrated" || displayScore == "Puanlanmamış" || displayScore == "Puan yok"
-                            val scoreLabel = if (isUnrated) "—" else "★ $displayScore"
+                            val scoreLabel = resolveListedCardScoreLabel(mediaEntry, result, scoreFormat, hideScores)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "• $scoreLabel",
@@ -701,4 +695,29 @@ private fun buildMetaText(
     }
 
     return parts.joinToString(" • ")
+}
+
+private fun isUnratedScoreText(text: String): Boolean =
+    text.isEmpty() || text == "N/A" || text == "0" || text == "unrated" ||
+        text == "Unrated" || text == "Puanlanmamış" || text == "Puan yok" || text == "—"
+
+private fun resolveListedCardScoreLabel(
+    mediaEntry: com.kitsugi.animelist.model.MediaEntry,
+    result: JikanSearchResult,
+    scoreFormat: String,
+    hideScores: Boolean
+): String {
+    if (hideScores) return "—"
+    val userScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
+    val effective = if (isUnratedScoreText(userScore)) {
+        result.getDisplayScore(scoreFormat, hideScores)
+    } else {
+        userScore
+    }
+    return when {
+        isUnratedScoreText(effective) -> "—"
+        effective.contains("★") || effective.contains("☆") ||
+            effective.contains("😊") || effective.contains("😐") || effective.contains("🙁") -> effective
+        else -> "★ $effective"
+    }
 }

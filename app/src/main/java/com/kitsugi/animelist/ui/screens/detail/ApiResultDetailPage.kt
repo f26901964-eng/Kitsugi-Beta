@@ -235,6 +235,7 @@ fun ApiResultDetailPage(
     // Collect states from ViewModel
     val detailState by viewModel.detailState.collectAsState()
     val detailLoading by viewModel.detailLoading.collectAsState()
+    val videosLoading by viewModel.videosLoading.collectAsState()
     val detailErrorCode by viewModel.detailErrorCode.collectAsState()
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
     val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
@@ -774,7 +775,12 @@ fun ApiResultDetailPage(
                     }
                     2 -> {
                         if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
-                            KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayResult.title)
+                            KitsugiMediaVideosTab(
+                                detail = detailState,
+                                mediaTitle = displayResult.title,
+                                primarySource = result.source,
+                                isVideosLoading = videosLoading
+                            )
                         }
                     }
                     3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)

@@ -373,12 +373,13 @@ internal object KitsugiSimklDetailClient {
                 simklTitle.takeIf { MediaTitleResolver.hasCjk(it) }
             ).firstOrNull { it.isNotBlank() && MediaTitleResolver.hasCjk(it) }
 
-            val ratingsObj = obj.optJSONObject("ratings")
-            val ratingObj = ratingsObj?.optJSONObject("simkl") ?: ratingsObj?.optJSONObject("mal")
-            val ratingScore = ratingObj?.optDouble("rating", 0.0) ?: 0.0
-            val votesCount = ratingObj?.optInt("votes", 0)?.takeIf { it > 0 }
-            val rankVal = obj.optInt("rank", 0).takeIf { it > 0 }
-                ?: ratingsObj?.optJSONObject("mal")?.optInt("rank", 0)?.takeIf { it > 0 }
+            val scoreInfo = extractSimklScoreInfo(obj)
+            val ratingScore = scoreInfo.rawScoreDouble ?: 0.0
+            val votesCount = scoreInfo.votes
+            val rankVal = scoreInfo.rank
+
+            val simklVideos = extractSimklTrailers(obj)
+            val primarySimklTrailer = simklVideos.firstOrNull { !it.videoUrl.isNullOrBlank() }?.videoUrl
 
             // Simkl pictures: büyük poster (_w.jpg) + orta poster (_m.jpg)
             val simklPictures = if (poster.isNotEmpty()) {
@@ -406,7 +407,7 @@ internal object KitsugiSimklDetailClient {
                 sourceMaterial = null,
                 studios = emptyList(),
                 producers = emptyList(),
-                rating = if (ratingScore > 0.0) ratingScore.toString() else null,
+                rating = if (ratingScore > 0.0) String.format(java.util.Locale.US, "%.1f", ratingScore) else null,
                 broadcast = null,
                 episodeDuration = if (runtime > 0) "$runtime min".toTurkishDuration() else null,
                 startDate = obj.optString("first_aired", "").takeIf { it.isNotBlank() && it != "null" }?.take(10),
@@ -421,10 +422,13 @@ internal object KitsugiSimklDetailClient {
                     .distinct(),
                 openings = emptyList(),
                 endings = emptyList(),
-                trailerUrl = null,
+                trailerUrl = primarySimklTrailer,
+                unifiedVideos = simklVideos,
                 title = resolvedTitle,
                 imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
-                score = if (ratingScore > 0.0) (ratingScore * 10).toInt() else null,
+                score = if (ratingScore > 0.0) kotlin.math.round(ratingScore).toInt().coerceIn(1, 10) else null,
+                meanScore = scoreInfo.score100,
+                averageScore = scoreInfo.score100,
                 year = if (year > 0) year else null,
                 total = if (totalEpisodes > 0) totalEpisodes else null,
                 isAdult = com.kitsugi.animelist.data.remote.SimklAdultFlags.isAdult(obj),
@@ -445,6 +449,39 @@ internal object KitsugiSimklDetailClient {
             android.util.Log.e("KitsugiSimklDetailClient", "fetchSimklDetailDirect simklId=$simklId failed: ${e.message}", e)
             null
         }
+    }
+
+    internal fun extractSimklTrailers(obj: JSONObject): List<KitsugiVideoItem> {
+        val trailersArr = obj.optJSONArray("trailers") ?: return emptyList()
+        val list = mutableListOf<KitsugiVideoItem>()
+        for (i in 0 until trailersArr.length()) {
+            val item = trailersArr.optJSONObject(i) ?: continue
+            val ytId = item.optString("youtube", "").trim().takeIf { it.isNotBlank() && it != "null" }
+            val directUrl = item.optString("url", "").trim().takeIf { it.isNotBlank() && it != "null" }
+            val videoUrl = when {
+                ytId != null && ytId.startsWith("http", ignoreCase = true) -> ytId
+                ytId != null -> "https://www.youtube.com/watch?v=$ytId"
+                directUrl != null -> directUrl
+                else -> continue
+            }
+            val rawName = item.optString("name", "").trim()
+            val title = rawName.ifBlank { if (isTurkish()) "Fragman ${i + 1}" else "Trailer ${i + 1}" }
+            val size = item.optInt("size", 0).takeIf { it > 0 }
+            val thumb = ytId?.takeIf { !it.startsWith("http", ignoreCase = true) }
+                ?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+            list.add(
+                KitsugiVideoItem(
+                    id = "simkl-trailer-$i-${ytId ?: i}",
+                    title = title,
+                    videoUrl = videoUrl,
+                    category = KitsugiVideoCategory.TRAILER,
+                    source = "simkl",
+                    thumbnailUrl = thumb,
+                    subtitle = size?.let { "${it}p" }
+                )
+            )
+        }
+        return list
     }
 
     /**

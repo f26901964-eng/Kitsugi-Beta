@@ -3,7 +3,9 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -136,8 +138,10 @@ object KitsugiApiBase {
     private const val ANILIST_SHORT_COOLDOWN_WAIT_MS = 6_000L
 
     private val aniListSlotLock = Any()
+    private val aniListBucketMutex = Mutex()
     private val aniListSemaphore = Semaphore(ANILIST_MAX_CONCURRENCY)
-    private var nextAniListSlotAtMs: Long = 0L
+    private var aniListTokens: Double = ANILIST_MAX_CONCURRENCY.toDouble()
+    private var aniListRefilledAtMs: Long = System.currentTimeMillis()
 
     @Volatile
     private var aniListDegradedMode: Boolean = false
@@ -157,16 +161,39 @@ object KitsugiApiBase {
 
     private var consecutiveAniListGatewayFailures: Int = 0
 
-    private fun reserveAniListSlotMs(): Long = synchronized(aniListSlotLock) {
-        val now = System.currentTimeMillis()
-        val intervalMs = if (aniListDegradedMode) {
-            ANILIST_MIN_INTERVAL_DEGRADED_MS
-        } else {
-            ANILIST_MIN_INTERVAL_NORMAL_MS
+    private suspend fun awaitAniListRatePermit() {
+        val isBackground = kotlin.coroutines.coroutineContext[
+            com.kitsugi.animelist.data.auth.BangumiApiClient.BackgroundTraffic.Key
+        ] != null
+        while (true) {
+            val waitMs = aniListBucketMutex.withLock {
+                val now = System.currentTimeMillis()
+                val ratePerSec = if (aniListDegradedMode) {
+                    1000.0 / ANILIST_MIN_INTERVAL_DEGRADED_MS
+                } else {
+                    1000.0 / ANILIST_MIN_INTERVAL_NORMAL_MS
+                }
+                val maxBurst = if (aniListDegradedMode) 1.0 else ANILIST_MAX_CONCURRENCY.toDouble()
+                val elapsed = (now - aniListRefilledAtMs).coerceAtLeast(0L)
+                if (elapsed > 0L) {
+                    aniListTokens = (aniListTokens + (elapsed * ratePerSec / 1000.0)).coerceAtMost(maxBurst)
+                    aniListRefilledAtMs = now
+                } else {
+                    aniListTokens = aniListTokens.coerceAtMost(maxBurst)
+                }
+                val required = if (isBackground && maxBurst >= 2.0) 1.8 else 1.0
+                if (aniListTokens >= required) {
+                    aniListTokens -= 1.0
+                    0L
+                } else {
+                    (((required - aniListTokens) * 1000.0) / ratePerSec)
+                        .toLong()
+                        .coerceAtLeast(25L)
+                }
+            }
+            if (waitMs <= 0L) return
+            delay(waitMs)
         }
-        val slotAt = maxOf(now, nextAniListSlotAtMs)
-        nextAniListSlotAtMs = slotAt + intervalMs
-        slotAt - now
     }
 
     /** AniList şu anda kapalı, 429 limitinde ya da gateway kesintisinde mi? */
@@ -466,8 +493,7 @@ object KitsugiApiBase {
 
             val currentToken = if (tokenFailed) null else token
             val result = aniListSemaphore.withPermit {
-                val waitMs = reserveAniListSlotMs()
-                if (waitMs > 0L) delay(waitMs)
+                awaitAniListRatePermit()
                 performAniListRequest(requestBody, currentToken)
             }
 

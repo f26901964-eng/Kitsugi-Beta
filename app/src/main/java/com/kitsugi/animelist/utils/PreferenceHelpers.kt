@@ -183,21 +183,44 @@ object PreferenceHelpers {
         )
     }
 
-    fun formatScore(score: Int?, scoreFormat: String, hideScores: Boolean): String {
+    fun formatScore(
+        score: Int?,
+        scoreFormat: String,
+        hideScores: Boolean,
+        rawScoreDouble: Double? = null
+    ): String {
         val context = KitsugiApplication.getInstance()
         if (hideScores) {
             return context?.getString(R.string.label_unknown) ?: "-"
         }
-        if (score == null || score == 0) {
+        val decimalScore = rawScoreDouble?.takeIf { !it.isNaN() && it > 0.0 }?.let {
+            if (it > 10.0) (it / 10.0).coerceIn(0.1, 10.0) else it.coerceIn(0.1, 10.0)
+        }
+        val effectiveScore10 = when {
+            score != null && score > 10 -> kotlin.math.round(score / 10.0).toInt().coerceIn(1, 10)
+            score != null && score > 0 -> score.coerceIn(1, 10)
+            decimalScore != null -> kotlin.math.round(decimalScore).toInt().coerceIn(1, 10)
+            else -> null
+        }
+        if (effectiveScore10 == null || effectiveScore10 == 0) {
             return context?.getString(R.string.score_unrated) ?: "unrated"
         }
+        val effectiveScore100 = when {
+            decimalScore != null -> kotlin.math.round(decimalScore * 10.0).toInt().coerceIn(1, 100)
+            score != null && score > 10 -> score.coerceIn(1, 100)
+            else -> (effectiveScore10 * 10).coerceIn(1, 100)
+        }
         return when (scoreFormat) {
-            "POINT_100" -> "${score * 10}"
-            "POINT_10_DECIMAL" -> "${score}.0/10"
+            "POINT_100" -> "$effectiveScore100"
+            "POINT_10_DECIMAL" -> {
+                val displayDecimal = decimalScore
+                    ?: if (score != null && score > 10) (score / 10.0) else effectiveScore10.toDouble()
+                String.format(java.util.Locale.US, "%.1f/10", displayDecimal)
+            }
             "POINT_5" -> {
-                val fullStars = score / 2
-                val hasHalf = (score % 2) != 0
-                val emptyStars = 5 - fullStars - (if (hasHalf) 1 else 0)
+                val fullStars = (effectiveScore10 / 2).coerceIn(0, 5)
+                val hasHalf = (effectiveScore10 % 2) != 0 && fullStars < 5
+                val emptyStars = (5 - fullStars - (if (hasHalf) 1 else 0)).coerceAtLeast(0)
                 buildString {
                     repeat(fullStars) { append("★") }
                     if (hasHalf) append("½")
@@ -206,18 +229,18 @@ object PreferenceHelpers {
             }
             "POINT_3" -> {
                 when {
-                    score >= 8 -> "😊"
-                    score >= 5 -> "😐"
+                    effectiveScore10 >= 8 -> "😊"
+                    effectiveScore10 >= 5 -> "😐"
                     else -> "🙁"
                 }
             }
             "STARS" -> {
                 buildString {
-                    repeat(score) { append("★") }
-                    repeat(10 - score) { append("☆") }
+                    repeat(effectiveScore10) { append("★") }
+                    repeat((10 - effectiveScore10).coerceAtLeast(0)) { append("☆") }
                 }
             }
-            else -> "$score/10"
+            else -> "$effectiveScore10/10"
         }
     }
 
@@ -226,6 +249,6 @@ object PreferenceHelpers {
     }
 
     fun JikanSearchResult.getDisplayScore(scoreFormat: String, hideScores: Boolean): String {
-        return formatScore(score, scoreFormat, hideScores)
+        return formatScore(score, scoreFormat, hideScores, rawScoreDouble)
     }
 }

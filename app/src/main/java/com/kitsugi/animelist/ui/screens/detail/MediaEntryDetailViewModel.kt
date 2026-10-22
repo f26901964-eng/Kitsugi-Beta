@@ -89,6 +89,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val _detailLoading = MutableStateFlow(true)
     val detailLoading: StateFlow<Boolean> = _detailLoading.asStateFlow()
 
+    private val _videosLoading = MutableStateFlow(false)
+    val videosLoading: StateFlow<Boolean> = _videosLoading.asStateFlow()
+
     /**
      * Detay alınamadığında kaynağın `KTS-…` hata kodu (yoksa null). Başarılı detayda sıfırlanır;
      * yeniden denemede son hata yüklenme ekranında görünmeye devam eder.
@@ -597,27 +600,54 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val expectedFetchKey = currentFetchKey
 
         if (detail != null) {
-            val detailSynopsis = detail.synopsis
+            val enriched = try {
+                kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+                    withContext(Dispatchers.IO) {
+                        apiClient.enrichDetail(
+                            source = entry.source,
+                            externalId = effectiveExternalId,
+                            mediaType = entry.type,
+                            detail = detail,
+                            tmdbId = entry.tmdbId,
+                            realMalId = realMalIdOf(entry),
+                            title = entry.title
+                        )
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaEntry enrichDetail skipped: ${e.message}")
+                null
+            }
+            val finalDetail = enriched ?: detail
+            if (enriched != null && enriched !== detail && currentFetchKey == expectedFetchKey) {
+                _detailState.value = enriched
+                DetailCache.putMediaDetail(entry.source, stableId, enriched, entry.type.name)
+                if (effectiveExternalId > 0 && effectiveExternalId != stableId) {
+                    DetailCache.putMediaDetail(entry.source, effectiveExternalId, enriched, entry.type.name)
+                }
+            }
+
+            val detailSynopsis = finalDetail.synopsis
             if (!detailSynopsis.isNullOrBlank()) {
                 applyAndTranslateSynopsis(entry, detailSynopsis, expectedFetchKey)
             }
 
             val determinedSeason = KitsugiEpisodeRatingsRepository.determineTargetSeason(
-                tmdbSeason = detail.tmdbSeason,
+                tmdbSeason = finalDetail.tmdbSeason,
                 title = entry.title,
-                titleEnglish = detail.titleEnglish,
-                synonyms = detail.synonyms.orEmpty()
+                titleEnglish = finalDetail.titleEnglish,
+                synonyms = finalDetail.synonyms.orEmpty()
             )
             _targetSeason.value = determinedSeason
 
-            // Detaydan gelen TMDB ID veya resimler varsa ve galeri henüz kısıtlıysa galeriyi zenginleştir.
-            // Bangumi'de çapraz kimlikler detayla birlikte çözüldüğü için galeri her zaman bir kez yenilenir.
             val movieForGallery = KitsugiEpisodeRatingsRepository.prefersMovieLogo(
-                type = detail.type ?: entry.type,
-                format = detail.format,
-                rawFormat = detail.rawFormat,
+                type = finalDetail.type ?: entry.type,
+                format = finalDetail.format,
+                rawFormat = finalDetail.rawFormat,
                 subtitle = entry.subtitle,
-                title = listOfNotNull(detail.title, entry.title, entry.titleEnglish).joinToString(" | ")
+                title = listOfNotNull(finalDetail.title, entry.title, finalDetail.titleEnglish).joinToString(" | ")
             )
             if (_galleryItems.value.size <= 2 || entry.source.equals("bangumi", ignoreCase = true) || movieForGallery) {
                 val refreshToken = galleryTracker.begin()
@@ -633,34 +663,46 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
 
             // Fetch episode ratings
-            fetchEpisodeRatings(entry, detail)
+            fetchEpisodeRatings(entry, finalDetail)
 
-            // ── Fragman yedek zinciri ─────────────────────────────────────────
-            // Kaynağın kendisi YouTube fragmanı vermediyse (trailerUrl boş), arka planda
-            // sırayla TMDB → diğer metadata kaynakları → Cloudstream eklentileri denenir.
-            // Bulunan fragman detay durumuna ve önbelleğe yazılır; kart kendiliğinden belirir.
-            if (detail.trailerUrl.isNullOrBlank()) {
-                viewModelScope.launch {
-                    try {
-                        val trailer = com.kitsugi.animelist.data.trailer.DetailTrailerFallback.resolve(
+            // ── Ortak Çapraz Kaynak Video Toplayıcısı ─────────────────────────
+            _videosLoading.value = true
+            viewModelScope.launch {
+                try {
+                    val enrichedVideosDetail = com.kitsugi.animelist.data.remote.KitsugiCrossSourceVideoAggregator
+                        .enrichDetailWithCrossSourceVideos(
                             context = getApplication(),
-                            title = detail.title ?: entry.title,
-                            year = detail.year ?: entry.year,
-                            type = entry.type,
-                            tmdbId = detail.tmdbId ?: entry.tmdbId,
-                            malId = detail.realMalId ?: entry.malId,
-                            sourceName = entry.source
+                            source = entry.source,
+                            externalId = effectiveExternalId,
+                            mediaType = entry.type,
+                            detail = finalDetail,
+                            hintTmdbId = finalDetail.tmdbId ?: entry.tmdbId,
+                            hintMalId = finalDetail.realMalId ?: realMalIdOf(entry),
+                            hintSimklId = entry.simklId,
+                            title = finalDetail.title ?: entry.title,
+                            year = finalDetail.year ?: entry.year
                         )
-                        if (!trailer.isNullOrBlank()) {
-                            val current = _detailState.value
-                            if (current != null && current.trailerUrl.isNullOrBlank()) {
-                                val updated = current.copy(trailerUrl = trailer)
-                                _detailState.value = updated
-                                DetailCache.putMediaDetail(entry.source, stableId, updated)
-                            }
+                    if (currentFetchKey == expectedFetchKey) {
+                        val latest = _detailState.value ?: finalDetail
+                        val mergedWithVideos = latest.copy(
+                            trailerUrl = latest.trailerUrl?.takeIf { it.isNotBlank() } ?: enrichedVideosDetail.trailerUrl,
+                            openings = enrichedVideosDetail.openings.ifEmpty { latest.openings },
+                            endings = enrichedVideosDetail.endings.ifEmpty { latest.endings },
+                            unifiedVideos = enrichedVideosDetail.unifiedVideos
+                        )
+                        _detailState.value = mergedWithVideos
+                        DetailCache.putMediaDetail(entry.source, stableId, mergedWithVideos, entry.type.name)
+                        if (effectiveExternalId > 0 && effectiveExternalId != stableId) {
+                            DetailCache.putMediaDetail(entry.source, effectiveExternalId, mergedWithVideos, entry.type.name)
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Fallback trailer resolution failed: ${e.message}")
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Cross-source video aggregation failed: ${e.message}")
+                } finally {
+                    if (currentFetchKey == expectedFetchKey) {
+                        _videosLoading.value = false
                     }
                 }
             }

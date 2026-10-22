@@ -43,6 +43,37 @@ data class KitsugiTheme(
     val videoUrl: String?    // animethemes.moe direkt .webm linki (yoksa null → YouTube araması)
 )
 
+/** Birleşik (çok kaynaklı) video sekmesi kategorileri. */
+enum class KitsugiVideoCategory {
+    TRAILER,
+    OPENING,
+    ENDING,
+    MUSIC_VIDEO,
+    FEATURETTE
+}
+
+/**
+ * Tüm kaynaklardan (MAL/Jikan, AniList, TMDB, AnimeThemes, Shikimori, Simkl, Kitsu, eklentiler)
+ * toplanıp tekilleştirilen ortak video öğesi.
+ */
+data class KitsugiVideoItem(
+    val id: String,
+    val title: String,
+    val videoUrl: String?,
+    val category: KitsugiVideoCategory = KitsugiVideoCategory.TRAILER,
+    /** Birincil kaynak kimliği ("mal", "anilist", "tmdb", "animethemes", "shikimori", "simkl", "kitsu"). */
+    val source: String = "",
+    /** Aynı videoyu sağlayan ek platform kimlikleri (çapraz kaynak rozetleri için). */
+    val extraSources: List<String> = emptyList(),
+    val thumbnailUrl: String? = null,
+    val subtitle: String? = null,
+    val language: String? = null
+) {
+    val allSources: List<String>
+        get() = (listOfNotNull(source.takeIf { it.isNotBlank() }) + extraSources.filter { it.isNotBlank() })
+            .distinctBy { it.lowercase() }
+}
+
 enum class StudioRole {
     STUDIO, PRODUCER, MAGAZINE, PUBLISHER, NETWORK, LICENSOR,
     /** Manga/roman yazarı (Jikan `authors` / MAL v2 `authors[].node`) — stüdyo değil, kişidir. */
@@ -115,6 +146,8 @@ data class KitsugiMediaDetail(
     val openings: List<KitsugiTheme> = emptyList(),
     val endings: List<KitsugiTheme> = emptyList(),
     val trailerUrl: String? = null,
+    /** Tüm kaynaklardan birleştirilmiş ortak video listesi (Videolar sekmesi). */
+    val unifiedVideos: List<KitsugiVideoItem> = emptyList(),
     val title: String? = null,
     val imageUrl: String? = null,
     val bannerImage: String? = null,

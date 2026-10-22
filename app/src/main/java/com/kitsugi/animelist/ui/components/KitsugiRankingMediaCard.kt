@@ -205,9 +205,18 @@ fun KitsugiRankingMediaCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        if (mediaEntry.score != null) {
+                        val fallbackCommunityScore = result.rawScoreDouble
+                            ?: result.score?.let { if (it > 10) it / 10.0 else it.toDouble() }
+                        if (mediaEntry.score != null && mediaEntry.score > 0) {
                             Text(
                                 text = "• ★${mediaEntry.score}",
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else if (!hideScores && fallbackCommunityScore != null && fallbackCommunityScore > 0.0) {
+                            Text(
+                                text = String.format(Locale.US, "• ★%.2f", fallbackCommunityScore),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
@@ -227,7 +236,7 @@ fun KitsugiRankingMediaCard(
                     // Score Line
                     if (!hideScores) {
                         val scoreVal = result.rawScoreDouble
-                            ?: result.score?.let { it.toDouble() }
+                            ?: result.score?.let { if (it > 10) it / 10.0 else it.toDouble() }
                         if (scoreVal != null && scoreVal > 0) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,

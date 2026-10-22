@@ -286,6 +286,21 @@ fun FullScreenMediaGridPage(
         }
     }
 
+    LaunchedEffect(platform, loadedResults) {
+        if (platform != ExplorePlatform.BANGUMI) return@LaunchedEffect
+        val snapshot = loadedResults
+        if (snapshot.isEmpty()) return@LaunchedEffect
+        val hydrated = com.kitsugi.animelist.data.remote.KitsugiBangumiClient.hydrateSearchResultTitles(
+            snapshot,
+            thorough = true
+        )
+        if (hydrated == snapshot) return@LaunchedEffect
+        val hydratedMap = hydrated.associateBy { it.exploreIdentity() }
+        val current = loadedResults
+        val merged = current.map { cur -> hydratedMap[cur.exploreIdentity()] ?: cur }
+        if (merged != current) loadedResults = merged
+    }
+
     suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
         ExplorePlatform.AniList -> apiClient.aniListSeasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
         ExplorePlatform.MAL -> apiClient.seasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
@@ -300,26 +315,27 @@ fun FullScreenMediaGridPage(
             order = when (seasonalSort) { "SCORE_DESC" -> "ranked"; "START_DATE_DESC" -> "aired_on"; else -> "popularity" },
             censored = !showAdultContent
         )
-        ExplorePlatform.BANGUMI -> {
-            // Bangumi'de sezon "yıl+ay" ile ifade edilir; mevsim adını temsil ayına çevir.
-            val bangumiMonth = when (seasonalSeason.uppercase()) {
-                "WINTER" -> 1
-                "SPRING" -> 4
-                "SUMMER" -> 7
-                else -> 10
+            ExplorePlatform.BANGUMI -> {
+                val bangumiMonth = when (seasonalSeason.uppercase()) {
+                    "WINTER" -> 1
+                    "SPRING" -> 4
+                    "SUMMER" -> 7
+                    else -> 10
+                }
+                com.kitsugi.animelist.data.remote.KitsugiBangumiClient.seasonFor(
+                    year = seasonalYear, month = bangumiMonth, limit = 20,
+                    offset = (page - 1).coerceAtLeast(0) * 20,
+                    cacheOnlyTitles = true
+                )
             }
-            com.kitsugi.animelist.data.remote.KitsugiBangumiClient.seasonFor(
-                year = seasonalYear, month = bangumiMonth, limit = 20,
-                offset = (page - 1).coerceAtLeast(0) * 20
-            )
+            else -> emptyList()
         }
-        else -> emptyList()
-    }
 
     /**
      * Bangumi "Tümünü Gör" sayfalaması. `limit/offset` tabanlıdır; kategori → Bangumi
      * şeridi eşlemesi ExploreViewModel.loadBangumiData() ile birebir aynıdır ki ilk sayfa
-     * ve devam sayfaları aynı sıralamayı kullansın.
+     * ve devam sayfaları aynı sıralamayı kullansın. Başlıklar `cacheOnlyTitles = true` ile
+     * anında çizilir, ardından `LaunchedEffect` arka planda eksik İngilizce/romaji adları çözer.
      */
     suspend fun bangumiPage(page: Int): List<JikanSearchResult> {
         val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
@@ -327,21 +343,21 @@ fun FullScreenMediaGridPage(
         val offset = (page - 1).coerceAtLeast(0) * limit
         val adult = showAdultContent
         return when (categoryType) {
-            ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset)
-            ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset)
-            ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset)
-            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit)
-            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit)
-            ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset)
-            ExploreCategoryType.BANGUMI_TV -> bangumi.realTvShows(limit, offset = offset)
-            ExploreCategoryType.BANGUMI_MOVIES -> bangumi.realMovies(limit, offset = offset)
+            ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit, cacheOnlyTitles = true)
+            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit, cacheOnlyTitles = true)
+            ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.BANGUMI_TV -> bangumi.realTvShows(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.BANGUMI_MOVIES -> bangumi.realMovies(limit, offset = offset, cacheOnlyTitles = true)
             ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(page)
-            ExploreCategoryType.NEWLY_ADDED_ANIME -> bangumi.newlyAddedAnime(limit, offset = offset)
-            ExploreCategoryType.TOP_MANGA -> bangumi.topManga(limit, offset = offset)
-            ExploreCategoryType.TOP_RATED_MANGA -> bangumi.topRatedManga(limit, offset = offset)
-            ExploreCategoryType.PUBLISHING_MANGA -> bangumi.publishingManga(limit, offset = offset)
-            ExploreCategoryType.TRENDING_MANGA -> bangumi.trendingManga(limit, offset = offset)
-            ExploreCategoryType.NEWLY_ADDED_MANGA -> bangumi.publishingManga(limit, offset = offset)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> bangumi.newlyAddedAnime(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.TOP_MANGA -> bangumi.topManga(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.TOP_RATED_MANGA -> bangumi.topRatedManga(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.PUBLISHING_MANGA -> bangumi.publishingManga(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.TRENDING_MANGA -> bangumi.trendingManga(limit, offset = offset, cacheOnlyTitles = true)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> bangumi.publishingManga(limit, offset = offset, cacheOnlyTitles = true)
             else -> emptyList()
         }.filter { adult || !it.isAdult }
     }

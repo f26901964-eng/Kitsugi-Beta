@@ -187,15 +187,17 @@ object BangumiApiClient {
     suspend fun <T> runAsBackground(block: suspend () -> T): T =
         withContext(BackgroundTraffic) { block() }
 
+    private fun monotonicNowMs(): Long = System.nanoTime() / 1_000_000L
+
     private val throttleMutex = Mutex()
     private var throttleTokens = THROTTLE_BURST
-    private var throttleRefilledAt = android.os.SystemClock.elapsedRealtime()
+    private var throttleRefilledAt = monotonicNowMs()
 
     private suspend fun awaitBangumiThrottle() {
         val background = kotlin.coroutines.coroutineContext[BackgroundTraffic.Key] != null
         while (true) {
             val waitMs = throttleMutex.withLock {
-                val now = android.os.SystemClock.elapsedRealtime()
+                val now = monotonicNowMs()
                 val elapsed = (now - throttleRefilledAt).coerceAtLeast(0L)
                 if (elapsed > 0L) {
                     throttleTokens = (throttleTokens + elapsed * THROTTLE_REQUESTS_PER_SECOND / 1000.0)

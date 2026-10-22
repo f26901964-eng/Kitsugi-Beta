@@ -29,7 +29,7 @@ object MediaTitleResolver {
      * kendini yeniliyor. v2 anahtarıyla diske yazılmış eski/yanlış dil başlıkları bu
      * sayede bir daha servis edilmez.
      */
-    const val VERSION = 3
+    const val VERSION = 4
 
     fun hasCjk(text: String?): Boolean = PreferenceHelpers.hasCjkCharacters(text)
 

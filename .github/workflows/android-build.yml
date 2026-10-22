@@ -98,6 +98,11 @@ jobs:
             --tests 'com.kitsugi.animelist.data.remote.BangumiTitleCacheTest' \
             --tests 'com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClientTest' \
             --tests 'com.kitsugi.animelist.data.remote.KitsugiBangumiClientTitleTest' \
+            --tests 'com.kitsugi.animelist.data.remote.SimklExploreParsingTest' \
+            --tests 'com.kitsugi.animelist.data.remote.SimklScoreAndFormattingTest' \
+            --tests 'com.kitsugi.animelist.data.remote.BangumiTitleVerificationAndPerfTest' \
+            --tests 'com.kitsugi.animelist.data.remote.CrossSourceVideoAggregatorTest' \
+            --tests 'com.kitsugi.animelist.data.remote.LiveThreeFixesVerificationTest' \
             --tests 'com.kitsugi.animelist.ui.screens.explore.HeroSelectionTest' \
             --tests 'com.kitsugi.animelist.ui.screens.explore.AllSourcesExploreTest' \
             --tests 'com.kitsugi.animelist.ui.components.HomeHeroPolicyTest' \

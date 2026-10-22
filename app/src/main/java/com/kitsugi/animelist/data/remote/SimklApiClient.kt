@@ -7,6 +7,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
@@ -98,6 +99,175 @@ internal fun simklOptionalId(ids: JSONObject?, vararg keys: String): Int? {
  * kimliği yerine kullanılmaz (çağıranlar yalnızca `realMalId`/`tmdbId` alanlarını
  * kaynak kimliği kabul eder).
  */
+internal data class SimklScoreInfo(
+    val score100: Int?,
+    val rawScoreDouble: Double?,
+    val votes: Int? = null,
+    val rank: Int? = null,
+    val totalEpisodes: Int? = null
+)
+
+private val SIMKL_RATING_PROVIDER_PRIORITY = listOf(
+    "simkl", "mal", "imdb", "tmdb", "anilist", "trakt"
+)
+
+private val simklScoreCache = com.kitsugi.animelist.core.memory.BoundedCache<String, SimklScoreInfo>(
+    "simkl.score",
+    4096
+)
+private val simklUnratedUntil = com.kitsugi.animelist.core.memory.BoundedCache<String, Long>(
+    "simkl.unrated",
+    2048
+)
+private const val SIMKL_UNRATED_TTL_MS = 30 * 60 * 1000L
+private val simklHydrationSemaphore = kotlinx.coroutines.sync.Semaphore(5)
+
+internal fun extractSimklScoreInfo(
+    obj: JSONObject,
+    entryObj: JSONObject? = null
+): SimklScoreInfo {
+    fun normalizeRating(raw: Double): Double? {
+        if (raw.isNaN() || raw <= 0.0) return null
+        return if (raw > 10.0) (raw / 10.0).coerceIn(0.1, 10.0) else raw.coerceIn(0.1, 10.0)
+    }
+
+    val ratings = obj.optJSONObject("ratings") ?: entryObj?.optJSONObject("ratings")
+    var chosenRating: Double? = null
+    var totalVotes = 0
+    if (ratings != null) {
+        for (provider in SIMKL_RATING_PROVIDER_PRIORITY) {
+            val sub = ratings.optJSONObject(provider) ?: continue
+            val r = normalizeRating(sub.optDouble("rating", 0.0))
+            if (chosenRating == null && r != null) {
+                chosenRating = r
+            }
+            val v = sub.optInt("votes", 0)
+            if (v > 0) totalVotes += v
+        }
+        val iter = ratings.keys()
+        while (iter.hasNext()) {
+            val key = iter.next()
+            if (key in SIMKL_RATING_PROVIDER_PRIORITY) continue
+            val sub = ratings.optJSONObject(key)
+            if (sub != null) {
+                val r = normalizeRating(sub.optDouble("rating", 0.0))
+                if (chosenRating == null && r != null) chosenRating = r
+                val v = sub.optInt("votes", 0)
+                if (v > 0) totalVotes += v
+            } else if (chosenRating == null) {
+                chosenRating = normalizeRating(ratings.optDouble(key, 0.0))
+            }
+        }
+    }
+
+    if (chosenRating == null) {
+        chosenRating = normalizeRating(obj.optDouble("rating", 0.0))
+            ?: normalizeRating(entryObj?.optDouble("user_rating", 0.0) ?: 0.0)
+            ?: normalizeRating(entryObj?.optDouble("rating", 0.0) ?: 0.0)
+    }
+
+    val rankVal = obj.optInt("rank", 0).takeIf { it > 0 }
+        ?: ratings?.optJSONObject("mal")?.optInt("rank", 0)?.takeIf { it > 0 }
+        ?: ratings?.optJSONObject("simkl")?.optInt("rank", 0)?.takeIf { it > 0 }
+
+    val epCount = obj.optInt("ep_count", 0).takeIf { it > 0 }
+        ?: obj.optInt("total_episodes", 0).takeIf { it > 0 }
+        ?: entryObj?.optInt("total_episodes_count", 0)?.takeIf { it > 0 }
+
+    val score100 = chosenRating?.let { kotlin.math.round(it * 10.0).toInt().coerceIn(1, 100) }
+    return SimklScoreInfo(
+        score100 = score100,
+        rawScoreDouble = chosenRating,
+        votes = totalVotes.takeIf { it > 0 },
+        rank = rankVal,
+        totalEpisodes = epCount
+    )
+}
+
+private fun simklScoreCacheKey(mediaType: MediaType, simklId: Int): String =
+    "${mediaType.name}:$simklId"
+
+private fun recordAndApplySimklScoreCache(
+    simklId: Int,
+    mediaType: MediaType,
+    parsed: SimklScoreInfo
+): SimklScoreInfo {
+    if (simklId <= 0) return parsed
+    val key = simklScoreCacheKey(mediaType, simklId)
+    if (parsed.score100 != null && parsed.rawScoreDouble != null) {
+        simklScoreCache[key] = parsed
+        return parsed
+    }
+    return simklScoreCache[key] ?: parsed
+}
+
+internal suspend fun hydrateSimklScores(items: List<JikanSearchResult>): List<JikanSearchResult> {
+    if (items.isEmpty()) return items
+    val cacheApplied = items.map { item ->
+        if (!item.source.equals("simkl", ignoreCase = true) || item.score != null) return@map item
+        val cached = simklScoreCache[simklScoreCacheKey(item.type, item.malId)] ?: return@map item
+        item.copy(
+            score = cached.score100 ?: item.score,
+            rawScoreDouble = cached.rawScoreDouble ?: item.rawScoreDouble,
+            members = item.members ?: cached.votes,
+            rank = item.rank ?: cached.rank,
+            total = item.total ?: cached.totalEpisodes
+        )
+    }
+
+    val now = System.currentTimeMillis()
+    val candidates = cacheApplied.filter { item ->
+        item.source.equals("simkl", ignoreCase = true) &&
+            item.score == null &&
+            item.malId > 0 &&
+            (simklUnratedUntil[simklScoreCacheKey(item.type, item.malId)] ?: 0L) <= now
+    }.distinctBy { simklScoreCacheKey(it.type, it.malId) }.take(20)
+
+    if (candidates.isEmpty()) return cacheApplied
+
+    kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+        coroutineScope {
+            candidates.map { candidate ->
+                async(Dispatchers.IO) {
+                    val key = simklScoreCacheKey(candidate.type, candidate.malId)
+                    runCatching {
+                        simklHydrationSemaphore.withPermit {
+                            val raw = KitsugiSimklDetailClient.fetchSimklRawJson(candidate.malId, candidate.type)
+                            if (raw != null) {
+                                val info = extractSimklScoreInfo(raw)
+                                val ids = raw.optJSONObject("ids")
+                                val extraMal = simklOptionalId(ids, "mal")
+                                val extraTmdb = simklOptionalId(ids, "tmdb", "tmdb_id")
+                                if (info.score100 != null && info.rawScoreDouble != null) {
+                                    simklScoreCache[key] = info
+                                } else {
+                                    // Gerçekten puansız (örn. henüz yayınlanmamış yeni duyuru): kısa süreli negatif önbellek
+                                    simklUnratedUntil[key] = System.currentTimeMillis() + SIMKL_UNRATED_TTL_MS
+                                }
+                                Triple(key, extraMal, extraTmdb)
+                            } else {
+                                null
+                            }
+                        }
+                    }.getOrNull()
+                }
+            }.forEach { it.await() }
+        }
+    }
+
+    return cacheApplied.map { item ->
+        if (!item.source.equals("simkl", ignoreCase = true) || item.score != null) return@map item
+        val cached = simklScoreCache[simklScoreCacheKey(item.type, item.malId)] ?: return@map item
+        item.copy(
+            score = cached.score100 ?: item.score,
+            rawScoreDouble = cached.rawScoreDouble ?: item.rawScoreDouble,
+            members = item.members ?: cached.votes,
+            rank = item.rank ?: cached.rank,
+            total = item.total ?: cached.totalEpisodes
+        )
+    }
+}
+
 internal fun parseBestMediaArray(
     responseText: String,
     defaultType: MediaType,
@@ -110,6 +280,7 @@ internal fun parseBestMediaArray(
         val title = resolveSimklTitle(obj)
         if (title.isBlank()) continue
         val ids = obj.optJSONObject("ids")
+        val hasRealId = simklOptionalId(ids, "simkl_id", "simkl") != null
         val simklId = simklOptionalId(ids, "simkl_id", "simkl") ?: (i + 1)
         val tmdbId = simklOptionalId(ids, "tmdb", "tmdb_id")
         val malId = simklOptionalId(ids, "mal") ?: 0
@@ -118,11 +289,12 @@ internal fun parseBestMediaArray(
         val fanart = obj.optString("fanart", "")
         val backdropUrl = if (fanart.isNotBlank()) "https://simkl.in/fanart/${fanart}_medium.webp" else null
         val year = obj.optInt("year", 0).takeIf { it > 0 }
-        val ratings = obj.optJSONObject("ratings")
-        val ratingDouble = ratings?.optJSONObject("simkl")?.optDouble("rating", 0.0)
-            ?: ratings?.optJSONObject("mal")?.optDouble("rating", 0.0)
-            ?: 0.0
-        val score = if (ratingDouble > 0.0) (ratingDouble * 10).toInt() else null
+        val parsedScore = extractSimklScoreInfo(obj)
+        val scoreInfo = if (hasRealId) {
+            recordAndApplySimklScoreCache(simklId, defaultType, parsedScore)
+        } else {
+            parsedScore
+        }
 
         val subtitleParts = buildList {
             when (defaultType) {
@@ -145,8 +317,8 @@ internal fun parseBestMediaArray(
                 title = title,
                 subtitle = subtitle,
                 type = defaultType,
-                total = null,
-                score = score,
+                total = scoreInfo.totalEpisodes,
+                score = scoreInfo.score100,
                 isAdult = SimklAdultFlags.isAdult(obj),
                 imageUrl = imageUrl,
                 year = year,
@@ -155,7 +327,10 @@ internal fun parseBestMediaArray(
                 titleEnglish = title,
                 titleJapanese = simklNativeTitle(obj),
                 backdropUrl = backdropUrl,
-                tmdbId = tmdbId
+                tmdbId = tmdbId,
+                rank = scoreInfo.rank,
+                members = scoreInfo.votes,
+                rawScoreDouble = scoreInfo.rawScoreDouble
             )
         )
     }
@@ -172,12 +347,14 @@ class SimklApiClient(
     // POST aşımı token/client_id'i GEÇİCİ THROTLE-BLOĞUNA alır, tekrarlayan
     // aşım bloğu uzatır; sürekli aşım uyarı-sız askıya almaya kadar gider.
     // Gönderim öncesi aralık burada zorlanır; günlük kota/429 kuyruk olarak işlenir.
+    private fun monotonicNowMs(): Long = System.nanoTime() / 1_000_000L
+
     private val simklRateLock = Any()
     private var lastSimklGetAt = 0L
     private var lastSimklPostAt = 0L
     private fun awaitSimklRateLimit(request: Request) {
         val waitMs = synchronized(simklRateLock) {
-            val now = android.os.SystemClock.elapsedRealtime()
+            val now = monotonicNowMs()
             if (request.method == "GET") {
                 val earliest = lastSimklGetAt + 120L
                 lastSimklGetAt = if (earliest > now) earliest else now
@@ -230,7 +407,7 @@ class SimklApiClient(
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         val rawQuery = query.trim()
         if (rawQuery.isBlank()) return@withContext emptyList()
-        if (type == null || type == "all") {
+        val combined = if (type == null || type == "all") {
             coroutineScope {
                 val animeDef = async { searchType(rawQuery, "anime", limit, page) }
                 val tvDef = async { searchType(rawQuery, "tv", limit, page) }
@@ -240,6 +417,7 @@ class SimklApiClient(
         } else {
             searchType(rawQuery, type, limit, page)
         }
+        hydrateSimklScores(combined)
     }
 
     private fun searchType(query: String, type: String, limit: Int, page: Int): List<JikanSearchResult> {
@@ -250,7 +428,7 @@ class SimklApiClient(
             "tv", "shows", "series" -> "tv"
             else -> "anime"
         }
-        val url = "https://api.simkl.com/search/$endpoint?q=$encoded&$requiredQueryParams&page=${page.coerceAtLeast(1)}&limit=$limit"
+        val url = "https://api.simkl.com/search/$endpoint?q=$encoded&extended=full&$requiredQueryParams&page=${page.coerceAtLeast(1)}&limit=$limit"
         val request = jsonRequest(url)
 
         return try {
@@ -261,58 +439,7 @@ class SimklApiClient(
                     return emptyList()
                 }
                 val responseText = response.body?.string().orEmpty()
-                if (responseText.isBlank() || responseText.trim() == "null") return emptyList()
-                val jsonArray = JSONArray(responseText)
-                val results = mutableListOf<JikanSearchResult>()
-
-                for (i in 0 until minOf(jsonArray.length(), limit)) {
-                    val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
-                    val ids = obj.optJSONObject("ids") ?: continue
-
-                    val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
-                        ?: ids.optInt("simkl", 0)
-                    if (simklId <= 0) continue
-
-                    val tmdbId = ids.optInt("tmdb_id", 0).takeIf { it > 0 } ?: ids.optInt("tmdb", 0)
-                    val malId = ids.optInt("mal", 0)
-                    val poster = obj.optString("poster", "")
-                    val year = obj.optInt("year", 0)
-                    val itemType = obj.optString("type", type)
-
-                    val ratingsObj = obj.optJSONObject("ratings")
-                    val simklRating = ratingsObj?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: 0.0
-                    val imdbRating = ratingsObj?.optJSONObject("imdb")?.optDouble("rating", 0.0) ?: 0.0
-                    val score = if (simklRating > 0.0) (simklRating * 10).toInt()
-                    else if (imdbRating > 0.0) (imdbRating * 10).toInt()
-                    else null
-
-                    val mediaType = when (itemType.lowercase()) {
-                        "movie", "movies" -> MediaType.Movie
-                        "tv", "series", "shows" -> MediaType.TvShow
-                        else -> MediaType.Anime
-                    }
-
-                    results.add(
-                        JikanSearchResult(
-                            malId = simklId,
-                            title = title,
-                            subtitle = if (year > 0) year.toString() else "",
-                            type = mediaType,
-                            total = null,
-                            score = score,
-                            isAdult = SimklAdultFlags.isAdult(obj),
-                            imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
-                            year = if (year > 0) year else null,
-                            source = "simkl",
-                            realMalId = if (malId > 0) malId else null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
-                            tmdbId = if (tmdbId > 0) tmdbId else null
-                        )
-                    )
-                }
-                results
+                parseSimklArray(responseText, endpoint, limit)
             }
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "search $endpoint failed: ${e.message}", e)
@@ -366,9 +493,10 @@ class SimklApiClient(
     ): List<JikanSearchResult> {
         val safePage = page.coerceAtLeast(1)
         val safePageSize = pageSize.coerceAtLeast(1)
-        return getTrendingPeriod(typePath, period)
+        val slice = getTrendingPeriod(typePath, period)
             .drop((safePage - 1) * safePageSize)
             .take(safePageSize)
+        return hydrateSimklScores(slice)
     }
 
     suspend fun searchAdvanced(
@@ -412,18 +540,19 @@ class SimklApiClient(
             "anime" -> "$g/$st/${network ?: country ?: "all"}/$y/$s"
             else -> "$g/$st/$c/$y/$s"
         }
-        val url = "https://api.simkl.com/$safeType/genres/$path?$requiredQueryParams&page=${page.coerceAtLeast(1)}&limit=$limit"
+        val url = "https://api.simkl.com/$safeType/genres/$path?extended=full&$requiredQueryParams&page=${page.coerceAtLeast(1)}&limit=$limit"
         val request = jsonRequest(url)
-        try {
+        val parsed = try {
             awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
+                if (!response.isSuccessful) return@use emptyList()
                 val responseText = response.body?.string().orEmpty()
                 parseSimklArray(responseText, safeType, limit)
             }
         } catch (e: Exception) {
             emptyList()
         }
+        hydrateSimklScores(parsed)
     }
 
     /** Page through Simkl's documented genre/discovery endpoints. */
@@ -446,18 +575,19 @@ class SimklApiClient(
         }
         val safePage = page.coerceAtLeast(1)
         val safeLimit = limit.coerceAtLeast(1)
-        val url = "https://api.simkl.com/$safeType/genres/$path?$requiredQueryParams&page=$safePage&limit=$safeLimit"
+        val url = "https://api.simkl.com/$safeType/genres/$path?extended=full&$requiredQueryParams&page=$safePage&limit=$safeLimit"
         val request = jsonRequest(url)
-        try {
+        val parsed = try {
             awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
+                if (!response.isSuccessful) return@use emptyList()
                 parseSimklArray(response.body?.string().orEmpty(), safeType, safeLimit)
             }
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "getExploreGenrePage $safeType page=$safePage failed", e)
             emptyList()
         }
+        hydrateSimklScores(parsed)
     }
 
     /** Simkl exposes paginated `new` and `soon` premiere lists for TV and anime. */
@@ -474,79 +604,81 @@ class SimklApiClient(
         val safePremiere = if (premiere.equals("new", true)) "new" else "soon"
         val safePage = page.coerceAtLeast(1)
         val safeLimit = limit.coerceAtLeast(1)
-        val url = "https://api.simkl.com/$safeType/premieres/$safePremiere?$requiredQueryParams&page=$safePage&limit=$safeLimit"
+        val url = "https://api.simkl.com/$safeType/premieres/$safePremiere?extended=full&$requiredQueryParams&page=$safePage&limit=$safeLimit"
         val request = jsonRequest(url)
-        try {
+        val parsed = try {
             awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
+                if (!response.isSuccessful) return@use emptyList()
                 parseSimklArray(response.body?.string().orEmpty(), safeType, safeLimit)
             }
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "getPremieresPage $safeType/$safePremiere page=$safePage failed", e)
             emptyList()
         }
+        hydrateSimklScores(parsed)
     }
 
     /** The official airing endpoint returns the complete current schedule, not numbered pages. */
     suspend fun getAiringMedia(type: String): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         val safeType = if (type.equals("tv", true) || type.equals("shows", true)) "tv" else "anime"
-        val url = "https://api.simkl.com/$safeType/airing?$requiredQueryParams&sort=rank"
+        val url = "https://api.simkl.com/$safeType/airing?extended=full&$requiredQueryParams&sort=rank"
         val request = jsonRequest(url)
-        try {
+        val parsed = try {
             awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
+                if (!response.isSuccessful) return@use emptyList()
                 parseSimklArray(response.body?.string().orEmpty(), safeType, Int.MAX_VALUE)
             }
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "getAiringMedia $safeType failed", e)
             emptyList()
         }
+        hydrateSimklScores(parsed.take(40)) + parsed.drop(40)
     }
 
-    private fun parseSimklArray(responseText: String, defaultType: String, limit: Int): List<JikanSearchResult> {
+    internal fun parseSimklArray(responseText: String, defaultType: String, limit: Int): List<JikanSearchResult> {
         if (responseText.isBlank() || responseText.trim() == "null") return emptyList()
         val jsonArray = JSONArray(responseText)
         val results = mutableListOf<JikanSearchResult>()
         for (i in 0 until minOf(jsonArray.length(), limit)) {
-            val obj = jsonArray.getJSONObject(i)
+            val obj = jsonArray.optJSONObject(i) ?: continue
             val title = resolveSimklTitle(obj)
+            if (title.isBlank()) continue
             val ids = obj.optJSONObject("ids") ?: continue
-            val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 } ?: ids.optInt("simkl", 0)
-            if (simklId <= 0) continue
-            val tmdbId = ids.optInt("tmdb_id", 0).takeIf { it > 0 } ?: ids.optInt("tmdb", 0)
-            val malId = ids.optInt("mal", 0)
+            val simklId = simklOptionalId(ids, "simkl_id", "simkl") ?: continue
+            val tmdbId = simklOptionalId(ids, "tmdb_id", "tmdb")
+            val malId = simklOptionalId(ids, "mal")
             val poster = obj.optString("poster", "")
+            val fanart = obj.optString("fanart", "")
             val year = obj.optInt("year", 0)
-            val itemType = obj.optString("type", defaultType)
-            val ratingsObj = obj.optJSONObject("ratings")
-            val simklRating = ratingsObj?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: 0.0
-            val imdbRating = ratingsObj?.optJSONObject("imdb")?.optDouble("rating", 0.0) ?: 0.0
-            val score = if (simklRating > 0.0) (simklRating * 10).toInt()
-            else if (imdbRating > 0.0) (imdbRating * 10).toInt()
-            else null
+            val itemType = obj.optString("endpoint_type", "").ifBlank { obj.optString("type", defaultType) }
             val mediaType = when (itemType.lowercase()) {
                 "movie", "movies" -> MediaType.Movie
-                "tv", "series", "shows" -> MediaType.TvShow
+                "tv", "series", "shows", "show" -> MediaType.TvShow
                 else -> MediaType.Anime
             }
+            val scoreInfo = recordAndApplySimklScoreCache(simklId, mediaType, extractSimklScoreInfo(obj))
             results.add(
                 JikanSearchResult(
                     malId = simklId,
                     title = title,
                     subtitle = if (year > 0) year.toString() else "",
                     type = mediaType,
-                    total = null,
-                    score = score,
+                    total = scoreInfo.totalEpisodes,
+                    score = scoreInfo.score100,
                     isAdult = SimklAdultFlags.isAdult(obj),
                     imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                     year = if (year > 0) year else null,
                     source = "simkl",
-                    realMalId = if (malId > 0) malId else null,
+                    realMalId = malId,
                     titleEnglish = title,
                     titleJapanese = simklNativeTitle(obj),
-                    tmdbId = if (tmdbId > 0) tmdbId else null
+                    tmdbId = tmdbId,
+                    backdropUrl = if (fanart.isNotBlank()) "https://simkl.in/fanart/${fanart}_medium.webp" else null,
+                    rank = scoreInfo.rank,
+                    members = scoreInfo.votes,
+                    rawScoreDouble = scoreInfo.rawScoreDouble
                 )
             )
         }
@@ -560,200 +692,26 @@ class SimklApiClient(
             "anime" -> "anime"
             else -> "tv"
         }
-        val cdnUrl = "https://data.simkl.in/discover/trending/$cdnType/today_500.json?$requiredQueryParams"
-        val request = jsonRequest(cdnUrl)
-
-        try {
-            awaitSimklRateLimit(request)
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    android.util.Log.e("SimklApiClient", "getTrending $cdnType HTTP ${response.code}")
-                    return@withContext emptyList()
-                }
-                val responseText = response.body?.string().orEmpty()
-                val jsonArray = JSONArray(responseText)
-                val results = mutableListOf<JikanSearchResult>()
-
-                for (i in 0 until minOf(jsonArray.length(), 500)) {
-                    val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
-                    val ids = obj.optJSONObject("ids") ?: continue
-
-                    // CDN response'unda ids iÃ§inde "simkl_id" veya "simkl" olabilir (NyanTV referans)
-                    val simklId = ids.optInt("simkl_id", 0)
-                        .takeIf { it > 0 }
-                        ?: ids.optInt("simkl", 0)
-                    if (simklId <= 0) continue
-
-                    val tmdbId = ids.optInt("tmdb_id", 0)
-                        .takeIf { it > 0 }
-                        ?: ids.optInt("tmdb", 0)
-                    val malId = ids.optInt("mal", 0)
-                    val poster = obj.optString("poster", "")
-                    val year = obj.optInt("year", 0)
-
-                    // CDN ratingsObj: ratings â†’ simkl â†’ {rating, votes}
-                    val ratingsObj = obj.optJSONObject("ratings")
-                    val simklRating = ratingsObj?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: 0.0
-                    val imdbRating = ratingsObj?.optJSONObject("imdb")?.optDouble("rating", 0.0) ?: 0.0
-                    val score = if (simklRating > 0.0) (simklRating * 10).toInt()
-                                else if (imdbRating > 0.0) (imdbRating * 10).toInt()
-                                else null
-
-                    val mediaType = when (cdnType) {
-                        "movies" -> MediaType.Movie
-                        "tv" -> MediaType.TvShow
-                        "anime" -> MediaType.Anime
-                        else -> MediaType.TvShow
-                    }
-
-                    results.add(
-                        JikanSearchResult(
-                            malId = simklId,
-                            title = title,
-                            subtitle = if (year > 0) year.toString() else "",
-                            type = mediaType,
-                            total = null,
-                            score = score,
-                            isAdult = SimklAdultFlags.isAdult(obj),
-                            imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
-                            year = if (year > 0) year else null,
-                            source = "simkl",
-                            realMalId = if (malId > 0) malId else null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
-                            tmdbId = if (tmdbId > 0) tmdbId else null
-                        )
-                    )
-                }
-                results
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("SimklApiClient", "getTrending $cdnType failed: ${e.message}", e)
-            emptyList()
-        }
+        getTrendingPeriod(cdnType, "today")
     }
 
-
     suspend fun getDvdMovies(): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("https://api.simkl.com/discover/dvd/week.json?client_id=$clientId")
-            .header("Accept", "application/json")
-            .build()
-
-        try {
+        val request = jsonRequest("https://api.simkl.com/discover/dvd/week.json?extended=full&$requiredQueryParams")
+        val parsed = try {
             awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
-                val responseText = response.body?.string().orEmpty()
-                val jsonArray = JSONArray(responseText)
-                val results = mutableListOf<JikanSearchResult>()
-
-                for (i in 0 until minOf(jsonArray.length(), 20)) {
-                    val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
-                    val ids = obj.optJSONObject("ids") ?: continue
-                    val simklId = ids.optInt("simkl", 0)
-                    val tmdbId = ids.optInt("tmdb", 0)
-                    val poster = obj.optString("poster", "")
-                    val year = obj.optInt("year", 0)
-
-                    results.add(
-                        JikanSearchResult(
-                            malId = simklId,
-                            title = title,
-                            subtitle = if (year > 0) year.toString() else "",
-                            type = MediaType.Movie,
-                            total = null,
-                            score = null,
-                            isAdult = SimklAdultFlags.isAdult(obj),
-                            imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
-                            year = if (year > 0) year else null,
-                            source = "simkl",
-                            realMalId = null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
-                            tmdbId = if (tmdbId > 0) tmdbId else null
-                        )
-                    )
-                }
-                results
+                if (!response.isSuccessful) return@use emptyList()
+                parseSimklArray(response.body?.string().orEmpty(), "movie", 20)
             }
         } catch (e: Exception) {
-            // T3-05: printStackTrace → Log.e
             android.util.Log.e("SimklApiClient", "getDvdMovies failed: ${e.message}", e)
             emptyList()
         }
+        hydrateSimklScores(parsed)
     }
 
-    suspend fun search(query: String): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        val encodedQuery = URLEncoder.encode(query, "UTF-8")
-        val request = Request.Builder()
-            .url("https://api.simkl.com/search/mixed?q=$encodedQuery&client_id=$clientId")
-            .header("Accept", "application/json")
-            .build()
-
-        try {
-            awaitSimklRateLimit(request)
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
-                val responseText = response.body?.string().orEmpty()
-                if (responseText.trim().startsWith("{")) {
-                    android.util.Log.w("SimklApiClient", "Search returned JSON object instead of array: $responseText")
-                    return@withContext emptyList()
-                }
-                val jsonArray = try {
-                    JSONArray(responseText)
-                } catch (e: Exception) {
-                    android.util.Log.e("SimklApiClient", "Failed to parse Simkl search response: ${e.message}")
-                    return@withContext emptyList()
-                }
-                val results = mutableListOf<JikanSearchResult>()
-
-                for (i in 0 until jsonArray.length()) {
-                    val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
-                    val typeStr = obj.optString("type", "")
-                    val ids = obj.optJSONObject("ids") ?: continue
-                    val simklId = ids.optInt("simkl", 0)
-                    val tmdbId = ids.optInt("tmdb", 0)
-                    val poster = obj.optString("poster", "")
-                    val year = obj.optInt("year", 0)
-
-                    val mediaType = when (typeStr) {
-                        "movie" -> MediaType.Movie
-                        "show", "tv" -> MediaType.TvShow
-                        "anime" -> MediaType.Anime
-                        else -> MediaType.Anime
-                    }
-
-                    results.add(
-                        JikanSearchResult(
-                            malId = simklId,
-                            title = title,
-                            subtitle = if (year > 0) year.toString() else "",
-                            type = mediaType,
-                            total = null,
-                            score = null,
-                            isAdult = SimklAdultFlags.isAdult(obj),
-                            imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
-                            year = if (year > 0) year else null,
-                            source = "simkl",
-                            realMalId = ids.optInt("mal", 0).takeIf { it > 0 },
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
-                            tmdbId = if (tmdbId > 0) tmdbId else null
-                        )
-                    )
-                }
-                results
-            }
-        } catch (e: Exception) {
-            // T3-05: printStackTrace → Log.e
-            android.util.Log.e("SimklApiClient", "search failed: ${e.message}", e)
-            emptyList()
-        }
-    }
+    suspend fun search(query: String): List<JikanSearchResult> =
+        search(query = query, type = "all", limit = 20, page = 1)
 
     suspend fun updateWatchlistStatus(
         token: String,
@@ -867,6 +825,11 @@ class SimklApiClient(
                         "anime" -> MediaType.Anime
                         else -> MediaType.TvShow
                     }
+                    val scoreInfo = recordAndApplySimklScoreCache(
+                        simklId,
+                        mediaType,
+                        extractSimklScoreInfo(mediaObj, entry)
+                    )
 
                     results.add(
                         JikanSearchResult(
@@ -874,8 +837,8 @@ class SimklApiClient(
                             title = title,
                             subtitle = simklStatusToDisplayString(status),
                             type = mediaType,
-                            total = if (totalEps > 0) totalEps else null,
-                            score = null,
+                            total = if (totalEps > 0) totalEps else scoreInfo.totalEpisodes,
+                            score = scoreInfo.score100,
                             isAdult = SimklAdultFlags.isAdult(mediaObj),
                             imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                             year = if (year > 0) year else null,
@@ -883,11 +846,14 @@ class SimklApiClient(
                             realMalId = if (malId > 0) malId else null,
                             titleEnglish = title,
                             titleJapanese = simklNativeTitle(mediaObj),
-                            tmdbId = if (tmdbId > 0) tmdbId else null
+                            tmdbId = if (tmdbId > 0) tmdbId else null,
+                            rank = scoreInfo.rank,
+                            members = scoreInfo.votes,
+                            rawScoreDouble = scoreInfo.rawScoreDouble
                         )
                     )
                 }
-                results
+                hydrateSimklScores(results.take(30)) + results.drop(30)
             }
         } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
             throw e
@@ -905,23 +871,21 @@ class SimklApiClient(
      * gelebildiği için hepsi okunur — vitrin logosu ve detay eşlemesi bu kimliklere bağlı.
      */
     suspend fun getBestMedia(endpoint: String, defaultType: MediaType, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        val url = "https://api.simkl.com/$endpoint?client_id=$clientId&limit=$limit"
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .build()
-        try {
+        val url = "https://api.simkl.com/$endpoint?extended=full&$requiredQueryParams&limit=$limit"
+        val request = jsonRequest(url)
+        val parsed = try {
             awaitSimklRateLimit(request)
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
+                if (!response.isSuccessful) return@use emptyList()
                 val responseText = response.body?.string().orEmpty()
-                if (responseText.isBlank()) return@withContext emptyList()
+                if (responseText.isBlank()) return@use emptyList()
                 parseBestMediaArray(responseText, defaultType, limit)
             }
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "getBestMedia $endpoint failed", e)
             emptyList()
         }
+        hydrateSimklScores(parsed)
     }
 
     /**
