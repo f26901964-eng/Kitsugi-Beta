@@ -756,7 +756,13 @@ private fun MdbListSettingsTab(
                         onSave = { key ->
                             onApiKeyChanged(key)
                             showApiKeyDialog = false
-                            if (key.isBlank()) MdbListQuotaCenter.clear()
+                            // Anahtar değişti: panelin ilk karesinde eski anahtarın kotası
+                            // görünmesin diye merkez hemen yeni anahtara bağlanır.
+                            if (key.isBlank()) {
+                                MdbListQuotaCenter.clear()
+                            } else {
+                                MdbListQuotaCenter.bind(null, key)
+                            }
                         },
                         onDismiss = { showApiKeyDialog = false },
                         accentColor = accentColor
