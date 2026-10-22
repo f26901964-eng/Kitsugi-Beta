@@ -426,7 +426,7 @@ class MediaEntryRepository(
 
             if (messages.isNotEmpty()) drainPendingQueue()
         } else {
-            enqueuePending("UPDATE", entry)
+            enqueuePending("UPDATE", entry, fields)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
             val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
             // KISMİ BAŞARI: en az bir kaynak yazıldıysa "çevrimdışı" demek yanıltıcıydı —
@@ -485,9 +485,15 @@ class MediaEntryRepository(
         }
     }
 
-    private suspend fun enqueuePending(operation: String, entry: MediaEntry) {
+    private suspend fun enqueuePending(
+        operation: String,
+        entry: MediaEntry,
+        fields: Set<SyncField> = SyncField.ALL
+    ) {
         val queueDao = pendingSyncDao ?: return
-        PendingSyncDrainer.enqueue(queueDao, operation, entry)
+        // Alan kümesi kuyruğa birlikte yazılır: bağlantı gelince yalnız bu alanlar yazılır,
+        // böylece bekleyen bir iş hedeflerdeki diğer değerleri EZMEZ.
+        PendingSyncDrainer.enqueue(queueDao, operation, entry, fields)
     }
 
     /**

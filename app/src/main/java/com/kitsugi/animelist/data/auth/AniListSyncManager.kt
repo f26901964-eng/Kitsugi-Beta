@@ -92,7 +92,24 @@ object AniListSyncManager {
         // (atlanacak kayıt). Mutasyonun başarısız olması aşağıda istisna ile bildirilir.
         if (existingEntryId == null && mediaId == null) return null
 
-        val scoreRaw = SyncScores.tenPoint(entry.score)?.times(10)
+        // Yeni kayıt: hedefte korunacak veri yok → tam yazım. Mevcut kayıt: yalnız değişen alanlar.
+        val writeAll = existingEntryId == null || fields == SyncField.ALL
+
+        /**
+         * Gönderilecek HAM puan (`scoreRaw`, 0..100) — `null` ise alan sorguya HİÇ girmez.
+         *
+         * GraphQL'de değişken hem dokümanda tanımlı hem de gönderilmiş olmalıdır; bu yüzden
+         * "puan temizleme" (0) kararı, mutasyon metni kurulmadan ÖNCE verilir. `scoreRaw: null`
+         * AniList tarafından reddedildiği için (`"The score raw must be an integer"`) hiçbir
+         * durumda `null` gönderilmez.
+         */
+        val scoreRaw: Int? = when {
+            !(writeAll || SyncField.SCORE in fields) -> null
+            entry.score != null && entry.score > 0 -> SyncScores.tenPoint(entry.score)?.times(10)
+            // Kullanıcı puanı SİLDİ (diff bunu söylüyor) → 0 gönder, hedefte temizlensin.
+            !writeAll -> 0
+            else -> null
+        }
         val scoreVariableDefinition = if (scoreRaw != null) "${'$'}scoreRaw: Int," else ""
         val scoreArgument = if (scoreRaw != null) "scoreRaw: ${'$'}scoreRaw," else ""
         val query = """
@@ -134,9 +151,6 @@ object AniListSyncManager {
             }
         """.trimIndent()
 
-        // Yeni kayıt: hedefte korunacak veri yok → tam yazım. Mevcut kayıt: yalnız değişen alanlar.
-        val writeAll = existingEntryId == null || fields == SyncField.ALL
-
         val variables = JSONObject()
         if (existingEntryId != null) {
             variables.put("id", existingEntryId)
@@ -151,13 +165,8 @@ object AniListSyncManager {
         if (writeAll || SyncField.REWATCH_COUNT in fields) variables.put("repeat", entry.repeatCount)
         if (writeAll) variables.put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
 
-        // `scoreRaw: null` AniList tarafından reddedilir → yalnız gerçekten değer varken gönder.
-        // Puan temizlendiyse 0 gönderilir (AniList'te 0 = puan yok).
-        if ((writeAll || SyncField.SCORE in fields) && scoreRaw != null) {
-            variables.put("scoreRaw", scoreRaw)
-        } else if (!writeAll && SyncField.SCORE in fields) {
-            variables.put("scoreRaw", 0)
-        }
+        // Değişken yalnız dokümanda tanımlıysa gönderilir (yukarıdaki `scoreRaw` kararı).
+        scoreRaw?.let { variables.put("scoreRaw", it) }
 
         // FuzzyDate alanları: gönderilmezse AniList'teki tarih korunur. Temizlemek için
         // {year: null, month: null, day: null} gerekir.
@@ -177,7 +186,8 @@ object AniListSyncManager {
             }
         }
 
-        if (advancedScores != null) {
+        // Gelişmiş puanlar da yalnız puan değiştiğinde (ya da ilk yazımda) gönderilir.
+        if (advancedScores != null && (writeAll || SyncField.SCORE in fields)) {
             val jsonArray = org.json.JSONArray()
             advancedScores.forEach { jsonArray.put(it) }
             variables.put("advancedScores", jsonArray)

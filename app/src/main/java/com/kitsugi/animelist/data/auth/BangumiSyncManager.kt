@@ -147,6 +147,18 @@ object BangumiSyncManager {
             )
         } else null
 
+        // Yazılacak tek bir değer bile yoksa (ör. yalnız not değişti ama not boş) istek atılmaz:
+        // boş gövde Bangumi'de 400 üretir, ardından gereksiz bir tam upsert tetiklenirdi.
+        val hasAnyArg = listOf(rateArg, epArg, volArg, commentArg, privateArg, tagsArg).any { it != null }
+        if (!writeAll && !hasAnyArg) {
+            // Sessiz yalan söylememek için görünür bilgi: hedefte değişecek değer yok.
+            return@withContext SyncResult(
+                messages = listOf(context.getString(R.string.account_sync_no_changes_to_write, "Bangumi")),
+                errors = emptyList(),
+                subjectId = subjectId
+            )
+        }
+
         val writeError = writeWithAuthRetry(context, subjectId) { activeToken ->
             if (writeAll) {
                 BangumiApiClient.upsertCollection(
@@ -204,7 +216,10 @@ object BangumiSyncManager {
         }
 
         // 2) Video subject'lerinde ilerleme bölüm bazlı işaretlenir (anime ve REAL dizi/film).
-        if (!isBook && progress > 0 && collectionUpdated) {
+        //    Yalnızca ilerleme/durum değiştiğinde: aksi hâlde not düzenlemesi bile tüm bölümleri
+        //    yeniden işaretler (N istek, gereksiz yük).
+        val progressDirty = writeAll || SyncField.PROGRESS in fields || SyncField.STATUS in fields
+        if (!isBook && progress > 0 && collectionUpdated && progressDirty) {
             val progressError = writeWithAuthRetry(context, subjectId) { activeToken ->
                 val subject = BangumiApiClient.getSubject(subjectId, activeToken)
                 BangumiApiClient.setProgress(activeToken, subject, progress)

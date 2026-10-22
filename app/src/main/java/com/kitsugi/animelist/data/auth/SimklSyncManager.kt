@@ -440,7 +440,10 @@ object SimklSyncManager {
         // ilerlemesi sezon kataloğu olmadan gönderilmez (toplu hatla aynı kural, sessiz atlama).
         val progress = entry.progress
         val writeAll = fields == SyncField.ALL
-        if (progress > 0 && entry.type == MediaType.Anime && (writeAll || SyncField.PROGRESS in fields)) {
+        // İlerleme değişmediyse geçmiş yazımı atlanır; ancak DURUM değiştiyse (ör. "Tamamlandı")
+        // Simkl'in kendi geçmişini tutarlı tutmak için bölümler yine işaretlenir.
+        val progressDirty = writeAll || SyncField.PROGRESS in fields || SyncField.STATUS in fields
+        if (progress > 0 && entry.type == MediaType.Anime && progressDirty) {
             runCatching {
                 simklApiClient.historyBatchReceipt(
                     token,
@@ -510,7 +513,15 @@ object SimklSyncManager {
         // durum son sözü söyler (toplu hatla aynı sıra). Makbuz ayrıştırılır: `not_found`
         // (medya Simkl kataloğunda yok) hata değil atlamadır; yalnızca taşıma/HTTP
         // başarısızlıkları gerçek hatadır ve yeniden denemeyi haklı çıkarır.
-        val listWriteSkipped = !(writeAll || SyncField.STATUS in fields)
+        // Not Simkl'de liste kaydının alanıdır (`private_memo`) → not değiştiyse add-to-list gerekir.
+        // Kullanıcı notu SİLDİYSE boş string gönderilir (Simkl'de not temizlenir); tam yazımda
+        // ise yalnız dolu not gönderilir — mevcut not kazara silinmesin.
+        val memoArg = when {
+            writeAll -> entry.notes?.takeIf { it.isNotBlank() }
+            SyncField.NOTES in fields -> entry.notes ?: ""
+            else -> null
+        }
+        val listWriteSkipped = !(writeAll || SyncField.STATUS in fields || memoArg != null)
         if (!listWriteSkipped) runCatching {
             simklApiClient.addToListBatchDetailed(
                 token = token,
@@ -525,7 +536,8 @@ object SimklSyncManager {
                         kitsuId = rawKitsuId,
                         title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
                         year = entry.year,
-                        titleMatchingAllowed = type != "anime" || effectiveSimklId > 0 || realMalId != null
+                        titleMatchingAllowed = type != "anime" || effectiveSimklId > 0 || realMalId != null,
+                        privateMemo = memoArg
                     )
                 )
             )

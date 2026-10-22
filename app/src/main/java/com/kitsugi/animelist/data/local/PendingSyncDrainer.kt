@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.local
 import com.kitsugi.animelist.data.auth.runSyncCatching
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
+import com.kitsugi.animelist.data.auth.SyncField
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -31,10 +32,16 @@ object PendingSyncDrainer {
     // Kuyruğa Ekleme
     // ────────────────────────────────────────────────
 
+    /**
+     * @param fields kuyruğa alınan işin taşıdığı ALANLAR. Yeniden denemede yalnızca bu alanlar
+     * yazılır; aksi hâlde çevrimdışıyken kuyruğa giren bir "ilerleme" işi, bağlantı gelince
+     * satırın TAMAMINI yazıp hedeflerdeki puan/not/tarihi ezebilirdi.
+     */
     suspend fun enqueue(
         dao: PendingSyncDao,
         operation: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        fields: Set<SyncField> = SyncField.ALL
     ) = withContext(Dispatchers.IO) {
         drainMutex.withLock {
             val older = dao.getAll().filter { pending ->
@@ -45,7 +52,7 @@ object PendingSyncDrainer {
                 }.getOrDefault(false)
             }
             // Insert first: a failed insert must not destroy the previous recoverable job.
-            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson()))
+            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(fields)))
             older.forEach { dao.deleteById(it.id) }
         }
     }
@@ -78,7 +85,8 @@ object PendingSyncDrainer {
         var successCount = 0
 
         for (item in pending) {
-            val entry = runSyncCatching { item.entryJson.toMediaEntry() }.getOrNull()
+            val decoded = runSyncCatching { item.entryJson.decodeJob() }.getOrNull()
+            val entry = decoded?.first
             if (entry == null) {
                 // Preserve malformed jobs for recovery rather than destroying them.
                 dao.incrementRetry(item.id)
@@ -86,8 +94,9 @@ object PendingSyncDrainer {
             }
 
             val result = runSyncCatching {
+                val fields = decoded?.second ?: SyncField.ALL
                 when (item.operation) {
-                    "UPDATE" -> ExternalListSyncManager.syncEntry(context, entry)
+                    "UPDATE" -> ExternalListSyncManager.syncEntry(context, entry, fields = fields)
                     "DELETE" -> ExternalListSyncManager.deleteEntry(context, entry)
                     else -> null
                 }
@@ -122,13 +131,35 @@ object PendingSyncDrainer {
     // JSON Serializasyon / Deserializasyon
     // ────────────────────────────────────────────────
 
-    private fun MediaEntry.toJson(): String = JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
-        .getJSONArray("entries").getJSONObject(0).put("id", id).toString()
+    /** İşin kendi alan kümesi JSON'a `_syncFields` olarak gömülür (şema değişikliği gerekmez). */
+    private fun MediaEntry.toJson(fields: Set<SyncField>): String {
+        val names = org.json.JSONArray()
+        fields.forEach { names.put(it.name) }
+        return JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
+            .getJSONArray("entries").getJSONObject(0)
+            .put("id", id)
+            .put(KEY_FIELDS, names)
+            .toString()
+    }
 
-    private fun String.toMediaEntry(): MediaEntry {
+    /**
+     * Kuyruk kaydını (satır, alanlar) çiftine çevirir. `_syncFields` yoksa (eski kayıtlar)
+     * tam yazım kabul edilir.
+     */
+    private fun String.decodeJob(): Pair<MediaEntry, Set<SyncField>> {
         val item = JSONObject(this)
+        val fields = item.optJSONArray(KEY_FIELDS)?.let { names ->
+            (0 until names.length()).mapNotNull { index ->
+                runSyncCatching { SyncField.valueOf(names.getString(index)) }.getOrNull()
+            }.toSet()
+        }?.takeIf { it.isNotEmpty() } ?: SyncField.ALL
+        item.remove(KEY_FIELDS)
         val backup = JSONObject().put("schemaVersion", 2)
             .put("entries", org.json.JSONArray().put(item))
-        return MediaEntryBackup.importFromJson(backup.toString()).single().copy(id = item.optInt("id", 0))
+        val entry = MediaEntryBackup.importFromJson(backup.toString()).single()
+            .copy(id = item.optInt("id", 0))
+        return entry to fields
     }
+
+    private const val KEY_FIELDS = "_syncFields"
 }

@@ -40,7 +40,7 @@ object MalSyncManager {
         entry: MediaEntry,
         context: Context,
         fields: Set<SyncField> = SyncField.ALL
-    ) {
+    ): Boolean {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_mal_type_unsupported)
         }
@@ -125,7 +125,8 @@ object MalSyncManager {
         }
 
         // Değişen alan yoksa istek atılmaz (boş PATCH 400 döner).
-        if (postData.isEmpty()) return
+        // `false` = "hiçbir şey yazılmadı": çağıran bunu "eşitlendi" diye raporlamamalı.
+        if (postData.isEmpty()) return false
 
         val request = Request.Builder()
             .url(url)
@@ -151,6 +152,7 @@ object MalSyncManager {
                 e
             )
         }
+        return true
     }
 
     fun deleteMalEntry(

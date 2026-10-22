@@ -460,7 +460,12 @@ object ExternalListSyncManager {
             PlatformRateLimiter.acquire("mal")
             MalSyncManager.updateMalEntry(token = token, entry = run.remoteEntry, context = context, fields = fields)
         }.fold(
-            onSuccess = { SourceResult(MAL, OUTCOME_SYNCED, synced = true) },
+            // `false` = gönderilecek geçerli alan yok (ör. yalnız parsiyel tarih değişti) →
+            // "eşitlendi" demek yalan olurdu.
+            onSuccess = { wrote ->
+                if (wrote) SourceResult(MAL, OUTCOME_SYNCED, synced = true)
+                else SourceResult(MAL, OUTCOME_UP_TO_DATE)
+            },
             onFailure = { error ->
                 SourceResult(MAL, OUTCOME_FAILED, errors = listOf(context.sourceFailure("MAL", error)))
             }
@@ -491,6 +496,9 @@ object ExternalListSyncManager {
         }.fold(
             onSuccess = { result ->
                 when {
+                    // Simkl'de desteklenmeyen alanlar (ör. yalnız cilt) süzüldüğünde hiçbir istek
+                    // atılmamış olabilir: mesaj yoksa "eşitlendi" demeyiz.
+                    result.isSuccess && result.messages.isEmpty() -> SourceResult(SIMKL, OUTCOME_UP_TO_DATE)
                     result.isSuccess -> SourceResult(SIMKL, OUTCOME_SYNCED, synced = true)
                     // Katalog eşleşmesi üretilemedi (medya Simkl'de yok / kimlik yok):
                     // hata değil atlandı — "Çevrimdışı kaydedildi" kuyruğuna düşmemeli.

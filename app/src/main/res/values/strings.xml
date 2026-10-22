@@ -6038,6 +6038,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="account_sync_source_timeout">%1$s: zaman aşımı (yanıt gelmedi), sonra yeniden denenecek</string>
     <string name="account_sync_partial_synced">Kısmen eşitlendi — kalan kaynaklar bağlantıda yeniden denenecek</string>
     <string name="account_sync_sources_skipped">Atlanan: %1$s</string>
+    <!-- Alan bazlı eşitleme: hedefte yazılacak geçerli bir değer yok (ör. yalnız boşaltılmış not). -->
+    <string name="account_sync_no_changes_to_write">%1$s: yazılacak değişiklik yok</string>
     <string name="account_sync_fanout_blocked_bangumi">Bangumi kaydı için doğrulanmış MAL/AniList kimliği çözülemedi; diğer kaynaklara yazılmadı</string>
     <string name="account_sync_offline_identity_pending">Çevrimdışı: kimlik doğrulanamadı, bağlantıda yeniden denenecek</string>
     <string name="simkl_sync_untitled">(başlıksız)</string>

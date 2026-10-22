@@ -972,7 +972,12 @@ class SimklApiClient(
          * Anime için Simkl/MAL kimliği yokken başlıkla eşleştirme, aynı adlı dizileri/filmleri
          * kullanıcının listesine ekleyebildiği için kapatılır. Başlık rapor/teşhis için yine taşınır.
          */
-        val titleMatchingAllowed: Boolean = true
+        val titleMatchingAllowed: Boolean = true,
+        /**
+         * Simkl liste kaydının özel notu (`private_memo`). Yalnız `null` DEĞİLSE gönderilir;
+         * `add-to-list` gövdesinde taşınır (Simkl notu liste kaydının parçası olarak tutar).
+         */
+        val privateMemo: String? = null
     )
 
     /**
@@ -1049,6 +1054,7 @@ class SimklApiClient(
                     itemObj.put("year", entry.year)
                 }
             }
+            entry.privateMemo?.let { itemObj.put("private_memo", it) }
             if (idObj.length() > 0 || titleAllowed) {
                 when (SimklSyncContract.writeKey(entry.type)) {
                     "movies" -> moviesArray.put(itemObj)
