@@ -25,6 +25,8 @@ import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -128,6 +130,14 @@ fun KitsugiIntegrationsSettingsDialog(
     LaunchedEffect(initialPage) {
         val targetPage = initialPage.coerceIn(0, 3)
         if (pagerState.currentPage != targetPage) pagerState.animateScrollToPage(targetPage)
+    }
+
+    // API anahtarı silinirse akıştaki son kota değeri de temizlenir; aksi hâlde detay
+    // sayfasındaki rozet, artık geçerli olmayan bir anahtarın kalan hakkını göstermeye devam ederdi.
+    LaunchedEffect(mdbListApiKey) {
+        if (mdbListApiKey.isBlank()) {
+            com.kitsugi.animelist.data.remote.MdbListClient.loadCachedQuota("")
+        }
     }
 
     val tmdbScrollState = rememberScrollState()
@@ -735,6 +745,9 @@ private fun MdbListSettingsTab(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                } else {
+                    KitsugiSettingsDivider()
+                    MdbListQuotaBlock(apiKey = apiKey, accentColor = accentColor)
                 }
 
                 if (showApiKeyDialog) {
@@ -830,6 +843,253 @@ private fun MdbListSettingsTab(
             }
         }
     }
+}
+
+/**
+ * MDBList API kotası bloğu.
+ *
+ * Ekranda **her zaman gerçek veri** görünür: değer, MDBList yanıtlarındaki
+ * `X-RateLimit-*` başlıklarından ve `GET api.mdblist.com/user` uç noktasından okunur.
+ * Sabit bir "1.000 / 1.000" yazılmaz; sunucu değeri henüz yoksa tahmini olduğu açıkça
+ * belirtilir, yenile düğmesi değeri kesinleştirir.
+ */
+@Composable
+private fun MdbListQuotaBlock(
+    apiKey: String,
+    accentColor: Color
+) {
+    val scope = rememberCoroutineScope()
+    val quotaFlowValue by com.kitsugi.animelist.data.remote.MdbListClient.quotaFlow.collectAsState()
+    val quota = if (com.kitsugi.animelist.data.remote.MdbListClient.quotaBelongsTo(apiKey)) quotaFlowValue else null
+
+    var refreshing by remember(apiKey) { mutableStateOf(false) }
+    var loadFailed by remember(apiKey) { mutableStateOf(false) }
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    val refresh: () -> Unit = {
+        if (!refreshing) {
+            scope.launch {
+                refreshing = true
+                loadFailed = false
+                val fresh = com.kitsugi.animelist.data.remote.MdbListClient.refreshQuota(apiKey, force = true)
+                refreshing = false
+                loadFailed = fresh == null
+                nowMillis = System.currentTimeMillis()
+            }
+        }
+    }
+
+    // Sekme açıldığında: önce diskteki son değer gösterilir, eskiyse sunucudan tazelenir.
+    LaunchedEffect(apiKey) {
+        loadFailed = false
+        val cached = com.kitsugi.animelist.data.remote.MdbListClient.loadCachedQuota(apiKey)
+        if (com.kitsugi.animelist.data.remote.MdbListClient.isQuotaStale(cached)) {
+            refreshing = true
+            val fresh = com.kitsugi.animelist.data.remote.MdbListClient.refreshQuota(apiKey, force = false)
+            refreshing = false
+            loadFailed = fresh == null
+        }
+        nowMillis = System.currentTimeMillis()
+    }
+
+    // Geri sayım: sıfırlanma süresi ekranda canlı kalsın.
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000L)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
+
+    val current = quota?.updatedFor(nowMillis)
+    val secondsToReset = current
+        ?.let { (it.resetAtEpochSeconds - nowMillis / 1000L).coerceAtLeast(0L) }
+        ?: 0L
+    val barColor = when {
+        current == null -> accentColor.copy(alpha = 0.35f)
+        current.remainingFraction <= 0.15f -> Color(0xFFFF5B5B)
+        current.remainingFraction <= 0.35f -> Color(0xFFFFC14D)
+        else -> Color(0xFF4CD964)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(accentColor.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Speed,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.mdblist_quota_title),
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = when {
+                        current != null -> stringResource(
+                            R.string.mdblist_quota_remaining,
+                            formatQuotaCount(current.remaining),
+                            formatQuotaCount(current.dailyLimit)
+                        )
+                        refreshing -> stringResource(R.string.mdblist_quota_loading)
+                        else -> stringResource(R.string.mdblist_quota_unavailable)
+                    },
+                    color = if (current != null) KitsugiColors.TextPrimary else KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            IconButton(
+                onClick = refresh,
+                enabled = !refreshing,
+                modifier = Modifier.size(36.dp)
+            ) {
+                if (refreshing) {
+                    KitsugiPlasmaLoader(modifier = Modifier.size(18.dp), size = 18.dp, color = accentColor)
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.mdblist_quota_refresh),
+                        tint = KitsugiColors.TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // Kalan hakkın oranı: çubuk "kalan"ı gösterir, doldukça hak azalır.
+        val remainingFraction = current?.remainingFraction ?: 0f
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(KitsugiColors.Border.copy(alpha = 0.35f))
+        ) {
+            if (remainingFraction > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(remainingFraction)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(barColor)
+                )
+            }
+        }
+
+        if (current != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = if (current.isExhausted) {
+                        stringResource(R.string.mdblist_quota_exhausted, quotaDurationText(secondsToReset))
+                    } else {
+                        stringResource(R.string.mdblist_quota_resets_in, quotaDurationText(secondsToReset))
+                    },
+                    color = if (current.isExhausted) Color(0xFFFF5B5B) else KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = stringResource(
+                        R.string.mdblist_quota_updated,
+                        formatQuotaTimestamp(current.observedAtMillis)
+                    ),
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
+            }
+
+            current.plan?.let { plan ->
+                Text(
+                    text = stringResource(
+                        R.string.mdblist_quota_plan,
+                        plan,
+                        formatQuotaCount(current.dailyLimit)
+                    ),
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (!current.isExact) {
+                Text(
+                    text = stringResource(R.string.mdblist_quota_estimated),
+                    color = Color(0xFFFFC14D),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        if (loadFailed) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.mdblist_quota_error),
+                    color = Color(0xFFFF5B5B),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = refresh, enabled = !refreshing) {
+                    Text(
+                        text = stringResource(R.string.mdblist_quota_refresh),
+                        color = accentColor,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatQuotaCount(value: Int): String =
+    java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()).format(value.toLong())
+
+/**
+ * Sıfırlanmaya kalan süreyi kısa biçimde yazar ("4 sa 12 dk").
+ * Metinler dilden bağımsız olsun diye kaynak dizesi kullanılır.
+ */
+@Composable
+private fun quotaDurationText(totalSeconds: Long): String {
+    val safe = totalSeconds.coerceAtLeast(0L)
+    val hours = safe / 3_600L
+    val minutes = (safe % 3_600L) / 60L
+    return when {
+        hours > 0L -> stringResource(R.string.mdblist_quota_duration_hm, hours.toInt(), minutes.toInt())
+        minutes > 0L -> stringResource(R.string.mdblist_quota_duration_m, minutes.toInt())
+        else -> stringResource(R.string.mdblist_quota_duration_s, safe.coerceAtLeast(1L).toInt())
+    }
+}
+
+private fun formatQuotaTimestamp(millis: Long): String = try {
+    java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(millis))
+} catch (t: Throwable) {
+    "--:--"
 }
 
 @Composable

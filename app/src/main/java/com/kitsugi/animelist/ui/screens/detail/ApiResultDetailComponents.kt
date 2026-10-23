@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.MdbListClient
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.utils.toTurkishGenre
 import com.kitsugi.animelist.utils.toEnglishGenreForSearch
@@ -924,6 +926,10 @@ private fun mdbMetacriticAccent(score: Int): Color = when {
     else -> Color(0xFFFF4D4D)
 }
 
+/** MDBList kota sayılarını yerel ayraçla yazar (TR: 1.000, EN: 1,000). */
+private fun formatMdbQuotaCount(value: Int): String =
+    java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()).format(value.toLong())
+
 /**
  * Seçili kaynaklardan gösterilecek puanları üretir.
  *
@@ -1086,6 +1092,11 @@ internal fun ApiMdbListRatingCard(
     val accentColor = LocalKitsugiAccent.current
     val uriHandler = LocalUriHandler.current
 
+    // MDBList kotası: puan isteğiyle birlikte okunan X-RateLimit-* değerleri.
+    // Sabit "1.000/1.000" yerine gerçek kalan istek sayısı gösterilir.
+    val quotaState by MdbListClient.quotaFlow.collectAsState()
+    val quota = quotaState?.updatedFor(System.currentTimeMillis())
+
     val ratingItems = buildMdbRatingItems(
         ratings = ratings,
         mediaTitle = mediaTitle,
@@ -1138,6 +1149,18 @@ internal fun ApiMdbListRatingCard(
                         color = accentColor,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black
+                    )
+                }
+
+                // Gerçek kalan kota (ör. "987/1.000"). Sunucudan henüz değer okunmadıysa gizlenir;
+                // tahmini bir sayı kesinmiş gibi gösterilmez.
+                val knownQuota = quota
+                if (knownQuota != null && knownQuota.authoritative) {
+                    Text(
+                        text = "${formatMdbQuotaCount(knownQuota.remaining)}/${formatMdbQuotaCount(knownQuota.dailyLimit)}",
+                        color = if (knownQuota.isExhausted) Color(0xFFFF5B5B) else KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 

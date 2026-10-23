@@ -2,12 +2,20 @@ package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.core.memory.BoundedCache
 
+import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.Request
+import okhttp3.Response
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -55,8 +63,180 @@ object MdbListClient {
     private const val MAX_CACHE_ENTRIES = 500
     private val imdbIdPattern = Regex("^tt\\d{5,12}$", RegexOption.IGNORE_CASE)
 
+    /** MDBList isteklerinde kullanılan tanımlayıcı (bazı uç noktalar UA ister). */
+    private const val USER_AGENT = "KitsugiAnimeList/1.0"
+
+    /** Ayarlar sekmesi açıldığında kota bu yaştan eskiyse sunucudan yeniden okunur. */
+    private const val QUOTA_STALE_AFTER_MS = 15L * 60L * 1_000L
+
+    /** Yenile düğmesine art arda basıldığında boşa istek harcanmasını engeller. */
+    private const val QUOTA_MIN_REFRESH_INTERVAL_MS = 5L * 1_000L
+
+    /** Sunucudan değer alınamadıysa otomatik yeniden deneme aralığı. */
+    private const val QUOTA_RETRY_INTERVAL_MS = 60L * 1_000L
+
     private data class CacheEntry(val ratings: MdbListRatings, val expiresAt: Long)
     private val cache = BoundedCache<String, CacheEntry>("mdbList", 300)
+
+    /** Son okunan MDBList kotası (ayarlar ve detay sayfası bu akışı dinler). */
+    private val _quota = MutableStateFlow<MdbListQuota?>(null)
+    val quotaFlow: StateFlow<MdbListQuota?> = _quota.asStateFlow()
+
+    @Volatile
+    private var quotaFingerprint: String? = null
+
+    private val lastQuotaRefreshAt = ConcurrentHashMap<String, Long>()
+
+    /** Puan isteğini bekletmeden kotayı tazelemek için (yalnızca gerektiğinde 1 istek). */
+    private val quotaScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Uygulama açılışında kalıcı kota deposunu bağlar (bkz. KitsugiApplication). */
+    fun initialize(context: Context) = MdbListQuotaStore.initialize(context)
+
+    /**
+     * Kayıtlı API anahtarı için son bilinen kotayı akışa yükler.
+     * Ağ isteği yapmaz; ayarlar ekranı ilk karede gerçek (son okunan) değeri gösterir.
+     */
+    fun loadCachedQuota(apiKey: String): MdbListQuota? {
+        val trimmed = apiKey.trim()
+        if (trimmed.isEmpty()) {
+            quotaFingerprint = null
+            _quota.value = null
+            return null
+        }
+        val fingerprint = MdbListQuotaStore.fingerprint(trimmed)
+        if (fingerprint != quotaFingerprint) {
+            quotaFingerprint = fingerprint
+            _quota.value = MdbListQuotaStore.load(trimmed, System.currentTimeMillis())
+        }
+        return _quota.value
+    }
+
+    /**
+     * Kotayı `GET https://api.mdblist.com/user` üzerinden okur.
+     *
+     * Yanıtın `X-RateLimit-*` başlıkları tek başına yeterlidir; gövde yalnızca başlık
+     * gelmediğinde ve HTTP 2xx ise ayrıştırılır. Not: bu istek de günlük kotadan 1 düşer,
+     * bu yüzden otomatik çağrılar [QUOTA_STALE_AFTER_MS] ile sınırlandırılır.
+     */
+    suspend fun refreshQuota(apiKey: String, force: Boolean = true): MdbListQuota? =
+        withContext(Dispatchers.IO) {
+            val trimmed = apiKey.trim()
+            if (trimmed.isEmpty()) return@withContext null
+            val fingerprint = MdbListQuotaStore.fingerprint(trimmed)
+            val now = System.currentTimeMillis()
+            // Her kota okuması da günlük kotadan 1 düşer. Bu yüzden:
+            //  - kullanıcı düğmeye bassa bile 5 sn'lik taban uygulanır,
+            //  - otomatik yenileme kesin bir değer varken 15 dk'da bir,
+            //    değer yoksa/başarısız olduysa 60 sn'de bir denenir.
+            val last = lastQuotaRefreshAt[fingerprint] ?: 0L
+            val minInterval = when {
+                force -> QUOTA_MIN_REFRESH_INTERVAL_MS
+                _quota.value?.authoritative == true -> QUOTA_STALE_AFTER_MS
+                else -> QUOTA_RETRY_INTERVAL_MS
+            }
+            if (now - last < minInterval) {
+                return@withContext loadCachedQuota(trimmed)
+            }
+            lastQuotaRefreshAt[fingerprint] = now
+
+            val url = try {
+                buildUserUrl(trimmed)
+            } catch (e: Exception) {
+                Log.w(TAG, "Kota URL'i oluşturulamadı (${e.javaClass.simpleName})")
+                null
+            } ?: return@withContext null
+            val request = Request.Builder()
+                .url(url)
+                .header("Accept", "application/json")
+                .header("User-Agent", USER_AGENT)
+                .build()
+
+            try {
+                KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                    val observedAt = System.currentTimeMillis()
+                    // 401/403'te başlıklar olsa bile anahtar geçersizdir; kota yayınlanmaz.
+                    var quota = if (response.isSuccessful || response.code == 429) {
+                        MdbListQuotaParser.fromHeaders(response.headers, observedAt)
+                    } else {
+                        null
+                    }
+                    if (quota == null && response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (!body.isNullOrBlank()) {
+                            quota = MdbListQuotaParser.fromUserJson(body, observedAt)
+                        }
+                    }
+                    val resolved = quota
+                    when {
+                        resolved != null -> publishQuota(trimmed, resolved)
+                        response.code == 429 -> publishQuota(
+                            trimmed,
+                            MdbListQuotaStore.base(trimmed, observedAt).onRateLimited(
+                                observedAt,
+                                response.header("Retry-After")?.toLongOrNull()
+                            )
+                        )
+                        else -> Log.w(TAG, "MDBList kota okunamadı: HTTP ${response.code}")
+                    }
+                    quota
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "MDBList kota isteği başarısız (${e.javaClass.simpleName})")
+                null
+            }
+        }
+
+    /** Kotanın sunucudan yenilenmesi gerekip gerekmediğini söyler (ağ isteği yapmaz). */
+    fun isQuotaStale(quota: MdbListQuota?, nowMillis: Long = System.currentTimeMillis()): Boolean =
+        quota == null || nowMillis - quota.observedAtMillis > QUOTA_STALE_AFTER_MS
+
+    /**
+     * Akıştaki değerin verilen anahtara ait olup olmadığını söyler.
+     * Ayarlarda anahtar değiştirildiği anda eski anahtarın kotası gösterilmesin diye.
+     */
+    fun quotaBelongsTo(apiKey: String): Boolean {
+        val trimmed = apiKey.trim()
+        if (trimmed.isEmpty()) return false
+        return quotaFingerprint == MdbListQuotaStore.fingerprint(trimmed)
+    }
+
+    private fun publishQuota(apiKey: String, quota: MdbListQuota) {
+        MdbListQuotaStore.save(apiKey, quota)
+        quotaFingerprint = MdbListQuotaStore.fingerprint(apiKey)
+        _quota.value = quota
+    }
+
+    /**
+     * Eski (`mdblist.com/api`) uç noktası `X-RateLimit-*` başlığı döndürmezse kota yalnızca
+     * yerel sayaçla tahmin edilir. Bu durumda puan isteğini bekletmeden, arka planda tek bir
+     * `/user` çağrısıyla gerçek değer alınır (15 dakikada en fazla bir kez).
+     */
+    private fun maybeRefreshQuotaInBackground(apiKey: String) {
+        val current = _quota.value
+        if (current?.authoritative == true && !isQuotaStale(current)) return
+        quotaScope.launch { refreshQuota(apiKey, force = false) }
+    }
+
+    /**
+     * Her MDBList yanıtından kotayı günceller: başlık varsa değer kesinleşir,
+     * yoksa yerel sayaç bir azalır (arayüz bunu "tahmini" olarak etiketler).
+     */
+    private fun recordQuotaResponse(apiKey: String, response: Response) {
+        val trimmed = apiKey.trim()
+        if (trimmed.isEmpty()) return
+        val now = System.currentTimeMillis()
+        // Kimlik doğrulama hatasında istek işlenmediği için kotadan düşülmez.
+        if (response.code == 401 || response.code == 403) return
+        val fromHeaders = MdbListQuotaParser.fromHeaders(response.headers, now)
+        val next: MdbListQuota = when {
+            fromHeaders != null -> fromHeaders
+            response.code == 429 -> MdbListQuotaStore.base(trimmed, now)
+                .onRateLimited(now, response.header("Retry-After")?.toLongOrNull())
+            else -> MdbListQuotaStore.base(trimmed, now).afterRequest(now)
+        }
+        publishQuota(trimmed, next)
+    }
 
     /**
      * API anahtarını Matrix'in bilinen IMDb ID'si ile sınar.
@@ -73,7 +253,9 @@ object MdbListClient {
             .build()
 
         try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            val valid = KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                // Doğrulama isteği de kotadan düşer; başlıklar geldiyse kalan hak hemen görünür.
+                recordQuotaResponse(apiKey, response)
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList key validation failed: HTTP ${response.code}")
                     return@withContext false
@@ -88,6 +270,8 @@ object MdbListClient {
                     parseRatings(body, "tt0133093")?.isEmpty == false
                 }
             }
+            if (valid) maybeRefreshQuotaInBackground(apiKey)
+            valid
         } catch (e: Exception) {
             Log.w(TAG, "MDBList key validation failed (${e.javaClass.simpleName})")
             false
@@ -113,6 +297,9 @@ object MdbListClient {
             return@withContext null
         }
 
+        // Detay sayfasındaki kota rozeti, puan isteğiyle aynı anahtarın kotasını göstersin.
+        loadCachedQuota(apiKey)
+
         val identity = normalizedImdbId?.let { "imdb:$it" } ?: "tmdb:$normalizedTmdbId"
         val cacheKey = "${fingerprint(apiKey.trim())}:$identity"
         val now = System.currentTimeMillis()
@@ -130,7 +317,9 @@ object MdbListClient {
             .build()
 
         val parsed = try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                // Gerçek kota: X-RateLimit-* başlıkları varsa bu yanıttan okunur.
+                recordQuotaResponse(apiKey, response)
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList request failed: HTTP ${response.code} for $identity")
                     return@withContext null
@@ -152,7 +341,19 @@ object MdbListClient {
             if (cache.size >= MAX_CACHE_ENTRIES) cache.keys.firstOrNull()?.let(cache::remove)
         }
         cache[cacheKey] = CacheEntry(parsed, now + CACHE_TTL_MS)
+        maybeRefreshQuotaInBackground(apiKey)
         parsed
+    }
+
+    /** `/user` kota uç noktası; birim testlerinde ağ olmadan doğrulanır. */
+    internal fun buildUserUrl(apiKey: String): HttpUrl? {
+        if (apiKey.isBlank()) return null
+        return HttpUrl.Builder()
+            .scheme("https")
+            .host("api.mdblist.com")
+            .addPathSegment("user")
+            .addQueryParameter("apikey", apiKey.trim())
+            .build()
     }
 
     internal fun buildLookupUrl(apiKey: String, imdbId: String?, tmdbId: Int?): HttpUrl? {

@@ -256,6 +256,23 @@
     <string name="mdblist_service_trakt">Trakt</string>
     <string name="mdblist_service_trakt_desc">Shows the Trakt.tv user rating.</string>
 
+    <!-- MDBList API quota: the real remaining request count read from MDBList's
+         X-RateLimit-* headers and the /user endpoint, never a hard-coded 1,000/1,000. -->
+    <string name="mdblist_quota_title">API Quota</string>
+    <string name="mdblist_quota_remaining">%1$s / %2$s requests remaining</string>
+    <string name="mdblist_quota_loading">Reading quota…</string>
+    <string name="mdblist_quota_unavailable">Quota has not been read yet</string>
+    <string name="mdblist_quota_refresh">Refresh quota</string>
+    <string name="mdblist_quota_resets_in">Resets in %1$s</string>
+    <string name="mdblist_quota_duration_hm">%1$dh %2$dm</string>
+    <string name="mdblist_quota_duration_m">%1$d min</string>
+    <string name="mdblist_quota_duration_s">%1$d sec</string>
+    <string name="mdblist_quota_exhausted">Daily quota exhausted · resets in %1$s</string>
+    <string name="mdblist_quota_updated">Last updated: %1$s</string>
+    <string name="mdblist_quota_plan">%1$s plan · %2$s requests/day</string>
+    <string name="mdblist_quota_estimated">Estimated: only this app\'s requests were subtracted. Refresh for the exact remaining quota.</string>
+    <string name="mdblist_quota_error">Could not read quota. Check the API key and connection, then refresh.</string>
+
     <string name="aniskip_title">AniSkip Automation</string>
     <string name="aniskip_desc">Automatically skip opening (OP) and ending (ED) credits.</string>
     <string name="aniskip_auto_skip">Auto Skip</string>

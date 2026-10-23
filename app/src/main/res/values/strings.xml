@@ -256,6 +256,23 @@
     <string name="mdblist_service_trakt">Trakt</string>
     <string name="mdblist_service_trakt_desc">Trakt.tv kullanıcı puanını gösterir.</string>
 
+    <!-- MDBList API kotası: sabit 1.000/1.000 yerine MDBList'in X-RateLimit-* başlıklarından
+         ve /user uç noktasından okunan gerçek kalan istek sayısı gösterilir. -->
+    <string name="mdblist_quota_title">API Kotası</string>
+    <string name="mdblist_quota_remaining">%1$s / %2$s istek kaldı</string>
+    <string name="mdblist_quota_loading">Kota bilgisi alınıyor…</string>
+    <string name="mdblist_quota_unavailable">Kota bilgisi henüz alınmadı</string>
+    <string name="mdblist_quota_refresh">Kotayı yenile</string>
+    <string name="mdblist_quota_resets_in">%1$s sonra yenilenir</string>
+    <string name="mdblist_quota_duration_hm">%1$d sa %2$d dk</string>
+    <string name="mdblist_quota_duration_m">%1$d dk</string>
+    <string name="mdblist_quota_duration_s">%1$d sn</string>
+    <string name="mdblist_quota_exhausted">Günlük kota doldu · %1$s sonra yenilenir</string>
+    <string name="mdblist_quota_updated">Son güncelleme: %1$s</string>
+    <string name="mdblist_quota_plan">%1$s planı · günlük %2$s istek</string>
+    <string name="mdblist_quota_estimated">Tahmini değer: yalnızca bu uygulamanın istekleri düşüldü. Kesin kalan hak için yenileyin.</string>
+    <string name="mdblist_quota_error">Kota okunamadı. API anahtarını ve bağlantıyı kontrol edip yenileyin.</string>
+
     <string name="aniskip_title">AniSkip Otomasyonu</string>
     <string name="aniskip_desc">Bölüm açılış (OP) ve kapanış (ED) jeneriklerini atlama özelliği.</string>
     <string name="aniskip_auto_skip">Otomatik Atlama (Auto Skip)</string>
