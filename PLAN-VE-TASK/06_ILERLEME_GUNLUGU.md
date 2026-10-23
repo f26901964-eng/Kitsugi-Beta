@@ -1,5 +1,29 @@
-# 06 · İLERLEME GÜNLÜĞÜ
+# 06 · İLERLEME GÜNLÜĞÜ (en yeni üstte)
 
+## 2026-10-23 · Geçiş 16 (`arena/86b99c20-kitsugi-beta` — E96–E105 + Tam CI/JUnit/R8 DEX Kanıtı)
+
+### Özet
+- Kullanıcının `Listem` ekran görüntüsünde (`kaiju no 8`, `AL` kartı: `Tamamlandı · 12/12 bölüm · ★ 9/10`, yalnızca `Simkl`, `Kitsu`, `MAL` rozetleri var; **Shikimori** ve **Bangumi** eksik) ve Kitsu yeniden giriş gözleminde ortaya çıkan **tüm uçtan uca çapraz eşitleme, kümeleme, kimlik köprüsü, yerel yansıtma, alan adı yedekliliği ve oturum yenileme** kök nedenleri tespit edilip eksiksiz kapatıldı (`E96`–`E105`).
+- Önceki tüm turlarda eksik olan **gerçek JDK 17 + Android SDK 36 Gradle derleme, tüm JUnit birim test paketleri, FOSS Debug APK, R8 tam küçültmeli Release APK ve `verify_apk_dex_bytecode.py` DEX doğrulaması** GitHub Actions üzerinde çalıştırılıp **üç iş akışının tamamında (`🏗️ Android Derleme Doğrulama`, `🎌 Bangumi MASTER Doğrulama`, `🧩 Ortak Taksonomi Doğrulama`) %100 yeşil** kanıtlandı:
+  - **Debug APK DEX kanıtı:** `22` DEX dosyası, `409.633` metot gövdesi, `11.261.566` talimat doğrulandı, `max invoke register words = 176/255`, **`VerifyError = 0`**.
+  - **R8 Release APK DEX kanıtı:** `5` DEX dosyası, `254.610` metot gövdesi, `7.266.213` talimat doğrulandı, `max invoke register words = 176/255`, **`VerifyError = 0`**.
+
+### Kapatılan Hatalar (`E96`–`E105`)
+- **E96 (`AuthViewModel.kt`, `CrossSyncIdentityGuard.kt`, `CrossSyncClusterEngine.kt`)**: `syncPlatforms` içindeki `identityVerdict?.allowsAdditions ?: true` kilidi kaldırılıp tekil eşitlemeyle aynı `CrossSyncIdentityGuard.allowsBulkAddition(verdict)` (`!blocksCrossWrite`) sözleşmesine bağlandı; `extractCrosswalkOrCandidateMalId` ile crosswalk üzerinden gelen gerçek MAL kimliği çıkarıldı.
+- **E97 (`CrossSyncClusterEngine.kt`, `CrossSyncCandidateIndex.kt`, `CrossSyncIdentityGuard.kt`)**:
+  1. `CrossSyncCandidateIndex` içindeki birbirini görmeyen iki ayrı harita (`groupsByTitleAlias` vs `groupsByJapaneseTitle`) `groupsByAnyTitle` altında birleştirildi (`Bangumi` `title = "怪獣8号"` ↔ `AniList` `titleJapanese = "怪獣８号"` doğrudan bulunur).
+  2. Küme birleşmelerinde eski grubun indeks kovalarında hayalet olarak kalmasını önleyen `index.replaceGroup(secondary, primary)` eklendi.
+  3. `"gou"` yapısal belirteci, sıra ekli rakam ayrıştırıcısı (`digitRunRegex`: `"2nd Season"` ≠ 1. sezon), `clusterYearsCompatible`, CJK↔Latin çapraz alfabe havuz kontrolü ve `assignClusterRowIds` (`1..N`) eklendi. **6 sağlayıcının tüm `6! = 720` permütasyonunda tek küme garantisi gerçek JUnit koşusunda kanıtlandı.**
+- **E98 (`ExternalListSyncManager.kt`)**: Canlı ve toplu eşitlemede `OUTCOME_SYNCED` dönen her hedef platform için yerel `media_entries` tablosuna anında yansıtma satırı (`buildLocalProviderMirrorEntry` + `upsertSyncedLocalMirrors`) yazılması sağlandı; artık manuel içe aktarma beklemeden `Listem` kart rozetlerinde ve platform sekmelerinde Shikimori ve Bangumi anında görünür.
+- **E99 (`AuthViewModel.kt`, `ShikimoriApiClient.kt`, `ShikimoriImportManager.kt`)**: Birleşik kayda (`mergedEntry`) kümedeki tüm kardeş satırlardan İngilizce/Japonca başlıklar ve gerçek `malId` taşındı; Shikimori içe aktarmasında `japanese` başlığı korundu.
+- **E100 (`BangumiIdNamespace.kt`, `BangumiSyncManager.kt`)**: Tam genişlikli rakamlar için NFKC arama normalizasyonu (`"怪獣８号"` → `"怪獣8号"`), `infobox` takma adları + `expectedYear` (`2024`) ile eşadlı yapım ayrımı, `MediaIdentity.realMalId` koruması ve CJK başlık yokken AniList/Jikan resmî `native` Japonca başlık köprüsü eklendi.
+- **E101 (`MediaIdentity.kt`)**: `MediaIdentity.titleMatch` içinde `title`, `titleEnglish` ve `titleJapanese` alanlarının tamamı çapraz alan olarak karşılaştırıldı (`Bangumi` `title = "怪獣8号", titleJapanese = null` ↔ `AniList` `title = "Kaijuu 8-gou", titleJapanese = "怪獣８号"`).
+- **E102 (`ShikimoriApiClient.kt`, `ShikimoriPosterResolver.kt`)**: Tüm REST ve GraphQL kapak istekleri `shikimori.io` → `shikimori.one` → `shikimori.tv` yedekli ayna geçişine (`executeShikimori`: bağlantı hatası, HTML engel sayfası `peekBody`, HTTP `502..504`/`520..529`/`451`) bağlandı ve 2 yerel soketli canlı JUnit testiyle doğrulandı.
+- **E103 (`AuthViewModel.kt`, `ExternalListSyncManager.kt`, `AppRoot.kt`)**: Bayat Kitsu statik token okumaları `getOrRefreshKitsuToken` ile değiştirildi, süresi dolmuş oturumlar toplu eşitlemede görünür raporlandı ve yeniden girişte ilgili sağlayıcının bekleyen kuyruk işlerine taze deneme bütçesi + anında drain verildi.
+- **E104 (`MyListIdentityCrosswalk.kt`, `BangumiSubjectTitleResolver.kt`, `KitsugiBangumiDetailClient.kt`)**: `MyListIdentityCrosswalk.build` artık `AniList`/`MAL` satırları dahil tüm satırlarda `CrossProviderIdentityCache` ve `bgm_detail_xref_v1` önbelleklerini okur; Bangumi başlık/detay çözümleyicileri buldukları AniList `idMal` değerini otomatik olarak `BangumiLocalMappingCache` içine yazar.
+- **E105 (`diag/bangumi_master/`, `TaxonomyLabelsTest.kt`, `BangumiMasterDictionaryTest.kt`, `KitsugiTranslationsTest.kt`, `KitsugiBangumiDetailClientTest.kt`, `.github/workflows/*.yml`)**: `v2.4.340`/`v2.4.342` taksonomi değişikliklerinden kalan 5 eski test/harness beklentisi ve CI Android SDK 36 kurulum adımları düzeltilerek 3 GitHub Actions iş akışının tamamı birlikte %100 yeşile çıkarıldı.
+
+---
 Her turda tek satır/blok eklenir. En yeni en üstte. Amaç: "ne zaman ne değişti, hangi kanıtla"
 sorusunun tek yerden cevaplanması.
 

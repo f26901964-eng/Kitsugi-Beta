@@ -172,8 +172,8 @@ class TaxonomyLabelsTest {
 
     @Test
     fun `tur sinirlari asilmaz`() {
-        val many = (1..40).map { "Genre $it" }
-        assertEquals(24, KitsugiTaxonomyMerge.mergeGenres(many))
+        val many = (1..200).map { "Genre $it" }
+        assertEquals(160, KitsugiTaxonomyMerge.mergeGenres(many).size)
     }
 
     // ── Kurum birleştirme ve temizlik ────────────────────────────────────────
