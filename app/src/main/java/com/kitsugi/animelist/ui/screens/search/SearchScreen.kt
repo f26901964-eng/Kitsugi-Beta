@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.*
@@ -117,6 +118,9 @@ fun SearchScreen(
     onOpenPluginPicker: () -> Unit = {},
     // Eklenti Keşfet tam ekran navigasyonu
     onOpenAddonExplore: (String) -> Unit = {},
+    // Akıllı bildirim butonu — seçili kaynağın bildirimleri doğrudan açılır
+    isNotificationsVisible: Boolean = false,
+    onOpenNotifications: () -> Unit = {},
     // AniHyou Karakter ve Personel detay yönlendirmeleri
     onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
     onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
@@ -285,12 +289,42 @@ fun SearchScreen(
             item {
                 if (pageTitle != null) {
                     Spacer(modifier = Modifier.height(28.dp))
-                    Text(
-                        text = pageTitle,
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = pageTitle,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (isNotificationsVisible) {
+                            Spacer(modifier = Modifier.width(10.dp))
+                            // 🔔 Bildirim butonu (Keşfet / Listem ile aynı görünüm)
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(KitsugiColors.SurfaceElevated)
+                                    .border(
+                                        1.dp,
+                                        KitsugiColors.SurfaceElevated.copy(alpha = 0.6f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onOpenNotifications),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Notifications,
+                                    contentDescription = stringResource(R.string.notif_title),
+                                    tint = KitsugiColors.TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(18.dp))
                 } else {
                     Spacer(modifier = Modifier.height(12.dp))

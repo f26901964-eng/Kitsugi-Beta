@@ -126,6 +126,15 @@ fun KitsugiNotificationsScreen(
     onOpenMalAccountSettings: () -> Unit = {},
     /** MAL tek oturum kurulduğunda artan sayaç — bildirimler kendiliğinden tazelenir. */
     malSessionRefreshToken: Int = 0,
+    /**
+     * Akıllı bildirim butonu: kullanıcı bildirim butonuna hangi sekmeden bastıysa
+     * (Listem / Keşfet / Arama / Profil) orada seçili olan kaynağın kimliği.
+     * Sayfa doğrudan o kaynağın sekmesiyle açılır.
+     *
+     * `null` (veya "Tümü" / bildirimi olmayan bir kaynak) ise eski davranış korunur:
+     * bağlı olan ilk hesabın bildirimleri gösterilir.
+     */
+    preferredSource: String? = null,
     viewModel: KitsugiNotificationsViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -150,18 +159,35 @@ fun KitsugiNotificationsScreen(
     val resolvingMediaTitle by viewModel.resolvingMedia.collectAsState()
 
     // ── Sayfa + filtre state ──
+    //
+    // AKILLI BİLDİRİM BUTONU: butona basılan sekmede (Listem / Keşfet / Arama / Profil)
+    // hangi kaynak seçiliyse bildirimler doğrudan o kaynağın sekmesinde açılır.
+    // Kaynak "Tümü" ise ya da bildirim sekmesi yoksa eski davranış korunur
+    // (bağlı olan ilk hesabın bildirimleri).
+    val requestedPage = remember(preferredSource) { notificationPageForSource(preferredSource) }
+    val fallbackPage = when {
+        isAniListConnected   -> NOTIF_PAGE_ANILIST
+        isMalConnected       -> NOTIF_PAGE_MAL
+        isSimklConnected     -> NOTIF_PAGE_TMDB_SIMKL
+        isKitsuConnected     -> NOTIF_PAGE_KITSU
+        isShikimoriConnected -> NOTIF_PAGE_SHIKIMORI
+        isBangumiConnected   -> NOTIF_PAGE_BANGUMI
+        else                 -> NOTIF_PAGE_ANILIST
+    }
+
     val pagerState = rememberPagerState(
-        initialPage = when {
-            isAniListConnected   -> 0
-            isMalConnected       -> 1
-            isSimklConnected     -> 2
-            isKitsuConnected     -> 3
-            isShikimoriConnected -> 4
-            isBangumiConnected   -> 5
-            else                 -> 0
-        },
+        initialPage = requestedPage ?: fallbackPage,
         pageCount = { 6 }
     )
+
+    // Kaynak kimliği değişirse (ör. arkada farklı bir kaynakla açılmış sayfa yeniden
+    // kullanılırsa) sayfa seçili kaynağa kaydırılır. Kullanıcı sayfa içinde kaynağı elle
+    // değiştirdiğinde bu efekt tetiklenmez — seçimi korunur.
+    LaunchedEffect(requestedPage) {
+        if (requestedPage != null && pagerState.currentPage != requestedPage) {
+            pagerState.scrollToPage(requestedPage)
+        }
+    }
 
     val aniListPagerState = rememberPagerState(
         initialPage = 0,

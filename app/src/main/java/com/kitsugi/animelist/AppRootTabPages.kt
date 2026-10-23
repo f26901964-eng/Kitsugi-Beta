@@ -30,6 +30,9 @@ import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.ui.navigation.MainTab
 import com.kitsugi.animelist.ui.screens.explore.ExploreScreen
+import com.kitsugi.animelist.ui.screens.notifications.notificationSourceId
+import com.kitsugi.animelist.ui.screens.notifications.notificationSourceIdForMyListTab
+import com.kitsugi.animelist.ui.screens.notifications.notificationSourceIdForProfileTab
 import com.kitsugi.animelist.ui.screens.mylist.MyListScreen
 import com.kitsugi.animelist.ui.screens.search.SearchScreen
 import com.kitsugi.animelist.ui.components.BackupImportMode
@@ -223,7 +226,15 @@ fun AppRootTabPages(
                         ctx.navState.navigateToDetail(DetailScreen.Stats)
                     },
                     isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
-                    onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
+                    // AKILLI BİLDİRİM: profilde hangi kaynak seçiliyse (AniList / MAL / Simkl /
+                    // Kitsu / Shikimori / Bangumi) bildirimler doğrudan o kaynakla açılır.
+                    onOpenNotifications = {
+                        ctx.navState.navigateToDetail(
+                            DetailScreen.Notifications(
+                                preferredSource = notificationSourceIdForProfileTab(ctx.kitsugiProfileViewModel.activeSubTab)
+                            )
+                        )
+                    },
                     onGenreClick = ctx.onSearchByGenre,
                     onTagClick = ctx.onSearchByTag,
                     onUserProfileClick = { userId, username, avatarUrl ->
@@ -291,7 +302,15 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         scoreFormat = ctx.appSettings.scoreFormat,
         hideScores = ctx.appSettings.hideScores,
         separateNovelsManga = ctx.appSettings.separateNovelsManga,
-        onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
+        // AKILLI BİLDİRİM: keşfet sayfasında seçili kaynak hangisiyse (Tümü / AniList / MAL /
+        // TMDB / Kitsu / Shikimori / Simkl / Bangumi) bildirimler doğrudan o kaynakla açılır.
+        onOpenNotifications = {
+            ctx.navState.navigateToDetail(
+                DetailScreen.Notifications(
+                    preferredSource = ctx.exploreViewModel.selectedPlatform.notificationSourceId()
+                )
+            )
+        },
         isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
         showAnimeLogos = ctx.appSettings.showAnimeLogos,
         isSimklConnected = ctx.authViewModel.isSimklConnected,
@@ -353,6 +372,16 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         onAddonExploreOpenChange = { open -> ctx.navState.addonExploreOpen = open },
         onOpenPluginPicker = { ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.PluginPicker) },
         onOpenAddonExplore = { apiName -> ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.AddonExplore(apiName)) },
+        // AKILLI BİLDİRİM: arama sayfasında seçili kaynak hangisiyse (Tümü / AniList / MAL /
+        // TMDB / Shikimori / Kitsu / Simkl / Bangumi) bildirimler doğrudan o kaynakla açılır.
+        isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
+        onOpenNotifications = {
+            ctx.navState.navigateToDetail(
+                com.kitsugi.animelist.DetailScreen.Notifications(
+                    preferredSource = ctx.searchViewModel.uiState.value.selectedEngine.id
+                )
+            )
+        },
         onOpenCharacterDetail = { characterId, name, imageUrl ->
             ctx.navState.navigateToDetail(
                 com.kitsugi.animelist.DetailScreen.CharacterDetail(
@@ -521,6 +550,15 @@ private fun MyListTabPageWrapper(
         isBottomBarVisible = isBottomBarVisible,
         onScrollReset = onScrollReset,
         isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected,
-        onOpenNotifications = { navState.navigateToDetail(DetailScreen.Notifications) }
+        // AKILLI BİLDİRİM: listem sayfasında seçili kaynak sekmesi hangisiyse (AniList / MAL /
+        // Simkl / Kitsu / Shikimori / Bangumi) bildirimler doğrudan o kaynakla açılır.
+        // "Tümü" (birleşik liste) seçiliyse tek bir kaynak yoktur → varsayılan seçim.
+        onOpenNotifications = {
+            navState.navigateToDetail(
+                DetailScreen.Notifications(
+                    preferredSource = notificationSourceIdForMyListTab(appViewModel.myListTabIndex)
+                )
+            )
+        }
     )
 }
