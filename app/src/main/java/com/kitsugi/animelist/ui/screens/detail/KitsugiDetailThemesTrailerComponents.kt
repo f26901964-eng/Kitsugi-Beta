@@ -30,7 +30,6 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ButtonDefaults
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -39,6 +38,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -225,6 +225,36 @@ fun ThemePlayerContainer(
 
     if (videoId != null) {
         KitsugiYouTubePlayer(videoId = videoId, modifier = modifier)
+    } else if (isYouTubePageUrl(url)) {
+        // YouTube sayfası ama video kimliği yok (arama sonucu, kanal veya oynatma
+        // listesi). Eskiden bu adres doğrudan Media3'e veriliyor, oynatıcı bir HTML
+        // sayfasını indirmeye çalışıp hata veriyordu. Artık dürüst bir yönlendirme var.
+        Box(
+            modifier = modifier.background(Color.Black).padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.inline_video_unsupported_title),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                KitsugiButton(
+                    onClick = { runCatching { uriHandler.openUri(url) } },
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                ) {
+                    Text(
+                        stringResource(R.string.inline_open_in_browser_eed20ab),
+                        color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor)
+                    )
+                }
+            }
+        }
     } else {
         val dataStore = remember { com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext) }
         val appSettingsState = dataStore.settingsFlow.collectAsState(initial = null)
@@ -245,7 +275,10 @@ fun ThemePlayerContainer(
             mutableStateOf(preferredEngineType)
         }
         var didTryAlternateEngine by remember(url) { mutableStateOf(false) }
-        val playerEngine = remember(context, activeEngineType, url) {
+        // Her yeniden deneme TAZE motor örneği kurar: hata sonrası serbest bırakılmış
+        // çözücü/yüzey kalıntıları aynı örnekte yeni denemeyi de bozabiliyordu.
+        var engineAttempt by remember(url) { mutableIntStateOf(0) }
+        val playerEngine = remember(context, activeEngineType, url, engineAttempt) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
                 else -> Media3PlayerEngine(context, safeSettings)
@@ -265,6 +298,13 @@ fun ThemePlayerContainer(
                 didTryAlternateEngine = true
                 val alternate = failedEngine.alternateInlineEngine()
                 Log.w("ThemePlayerContainer", "$failedEngine did not start ($reason); trying $alternate")
+                // Yeni motor ilk kareyi üretene kadar tampon göstergesi görünmeli;
+                // önceki motorun "oynatma başladı" bilgisi taşınmamalı.
+                hasStartedPlayback = false
+                // Eski motorun "oynatıyor" bilgisi yeni motora taşınmamalı; aksi hâlde
+                // düğme duraklat ikonu gösterip ilk dokunuşta `pause()` çağırıyordu.
+                isPlayingState = false
+                isPlayerLoading = true
                 activeEngineType = alternate
             } else {
                 Log.e("ThemePlayerContainer", "Both inline engines failed for $url ($reason)")
@@ -281,6 +321,18 @@ fun ThemePlayerContainer(
                     playerState = state
                     isPlayingState = playerEngine.isPlaying
                     isPlayerLoading = state == PlayerEngine.State.BUFFERING
+                }
+
+                /**
+                 * MPV motorunda duraklat/oynat geçişi yalnızca `onPlayingChanged` ile
+                 * bildirilir; `onStateChanged` READY olarak kalır. Bu geri çağrı
+                 * uygulanmadığı için arayüzdeki `isPlayingState` eski değerinde donuyor,
+                 * kullanıcı duraklattıktan sonra oynat düğmesine bastığında tekrar
+                 * `pause()` çağrılıyor ve video "açılmıyor" gibi görünüyordu.
+                 */
+                override fun onPlayingChanged(isPlaying: Boolean) {
+                    if (released) return
+                    isPlayingState = isPlaying
                 }
 
                 override fun onPlaybackError(errorCode: Int, errorMsg: String, cause: Throwable?) {
@@ -318,7 +370,7 @@ fun ThemePlayerContainer(
             }
         }
 
-        LaunchedEffect(url, retryTrigger, activeEngineType) {
+        LaunchedEffect(url, retryTrigger, activeEngineType, engineAttempt) {
             val attemptedEngine = engineTypeForPlayer
             isPlayerError = false
             isPlayerLoading = true
@@ -352,11 +404,15 @@ fun ThemePlayerContainer(
                 if (!reachedReady) return@LaunchedEffect
 
                 // Doğrudan OP/ED dosyaları çoğunlukla VP9 `.webm`. Cihazın VP9 çözücüsü
-                // yoksa Media3 hata vermez; ses çalar, görüntü hiç gelmez. MPV yazılım
-                // çözücüyle aynı dosyayı oynatabildiği için bekçi motoru değiştirir.
+                // yoksa Media3 hata vermez; ses çalar, görüntü hiç gelmez. Bekçi motoru
+                // değiştirmeden önce çözücüyü 1 ms'lik bir seek ile dürtmeyi dener;
+                // birçok donanım/GPU sürücüsü ilk kareyi ancak bu şekilde üretiyor.
                 val audioOnly = waitForInlineVideoTrack(
                     engine = playerEngine,
-                    isResumed = { resumedState.value }
+                    isResumed = { resumedState.value },
+                    nudgeRenderer = {
+                        playerEngine.seekTo(playerEngine.currentPosition + 1L)
+                    }
                 )
                 Log.i(
                     "ThemePlayerContainer",
@@ -446,8 +502,10 @@ fun ThemePlayerContainer(
                         }
                         KitsugiButton(
                             onClick = {
+                                // Taze motor örneği + baştan hazırlık.
                                 didTryAlternateEngine = false
                                 activeEngineType = preferredEngineType
+                                engineAttempt++
                                 retryTrigger++
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -455,6 +513,24 @@ fun ThemePlayerContainer(
                             )
                         ) {
                             Text(stringResource(R.string.action_retry), color = Color.White)
+                        }
+                    }
+                    // MPV SurfaceView, kırpılmış/ölçüsü animasyonla değişen bir Compose
+                    // kabında görüntü üretemeyebilir. Bu yüzden aynı dosya için tek
+                    // çare motor değiştirmek değil; kullanıcıya elle de seçim sunulur.
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KitsugiButton(
+                            onClick = {
+                                activeEngineType = activeEngineType.alternateInlineEngine()
+                                didTryAlternateEngine = false
+                                engineAttempt++
+                                retryTrigger++
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Text(stringResource(R.string.inline_try_other_engine), color = Color.White)
                         }
                     }
                 }
@@ -470,6 +546,10 @@ fun ThemePlayerContainer(
                         playerEngine.seekTo(target)
                     },
                     modifier = Modifier.fillMaxSize(),
+                    isBuffering = !hasStartedPlayback && !isPlayerError,
+                    doubleTapSeekSeconds = safeSettings.doubleTapSeekSeconds,
+                    controlsAutoHideMs = com.kitsugi.animelist.core.player.PlayerUiPolicy
+                        .clampOsdHideDelayMs(safeSettings.playerTimeToDisappearMs),
                     onFullscreen = {
                         playerEngine.pause()
                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
@@ -491,10 +571,9 @@ fun ThemePlayerContainer(
                         )
                     }
                 }
-                
-                if (isPlayerLoading && !hasStartedPlayback) {
-                    CircularProgressIndicator(color = accentColor)
-                }
+                // Tampon göstergesi artık kontrol katmanının merkez durumunda
+                // (`InlineCenterOverlay.Buffering`) çiziliyor; burada ikinci bir halka
+                // çizmek animasyonların üst üste binmesine yol açıyordu.
             }
         }
     }

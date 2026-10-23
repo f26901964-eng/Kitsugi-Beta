@@ -1278,10 +1278,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             // çapraz kimlik + takvim); çözümleyici burada ÖN PLAN modunda (background=false)
             // çalıştırılır ki ilk açılışta da doğru dil görünsün, sonraki ziyaretler önbellekten
             // anında gelir.
-            // `listMode`: yalnızca kalıcı önbellek + AniList toplu araması. Bildirim listesi
-            // satır başına Bangumi infobox isteği beklemez; bulunamayan başlık özgün adıyla
-            // gösterilir, detay açıldığında kalıcı önbelleğe yazılır.
-            runCatching { BangumiSubjectTitleResolver.resolve(pendingRequests, listMode = true) }
+            runCatching { BangumiSubjectTitleResolver.resolve(pendingRequests, background = false) }
             for (w in uniqueWatching) {
                 val rawId = BangumiIdNamespace.rawIdOrNull(w.stableId)
                 val base = resolvedTitles[w.stableId] ?: w.title

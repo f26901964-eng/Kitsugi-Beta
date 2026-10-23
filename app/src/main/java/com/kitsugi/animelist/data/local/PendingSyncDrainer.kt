@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.local
 import com.kitsugi.animelist.data.auth.runSyncCatching
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
+import com.kitsugi.animelist.data.auth.SyncField
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -21,32 +22,112 @@ import org.json.JSONObject
  *  2. Uygulama açılışı / her başarılı işlem sonrası → [drain] çağır
  *  3. [drain]: kuyruktaki her işlemi dene, başarılıysa sil, değilse retry++ yap
  *  4. retryCount >= MAX_RETRIES olanları silmeden beklet
+ *
+ * Karar kuralları (hangi iş düşer, hangi sayaç artar, hangi alanlar birleşir/düşülür)
+ * SAF olarak [PendingSyncPolicy] içindedir ve birim testleriyle sabitlenmiştir (T02);
+ * bu nesne yalnızca JSON/Room/ağ kablolamasını yapar.
  */
 object PendingSyncDrainer {
 
-    private const val MAX_RETRIES = 5
     private val drainMutex = Mutex()
 
     // ────────────────────────────────────────────────
     // Kuyruğa Ekleme
     // ────────────────────────────────────────────────
 
+    /**
+     * @param fields kuyruğa alınan işin taşıdığı ALANLAR. Yeniden denemede yalnızca bu alanlar
+     * yazılır; aksi hâlde çevrimdışıyken kuyruğa giren bir "ilerleme" işi, bağlantı gelince
+     * satırın TAMAMINI yazıp hedeflerdeki puan/not/tarihi ezebilirdi.
+     */
     suspend fun enqueue(
         dao: PendingSyncDao,
         operation: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        fields: Set<SyncField> = SyncField.ALL
     ) = withContext(Dispatchers.IO) {
         drainMutex.withLock {
-            val older = dao.getAll().filter { pending ->
-                runSyncCatching {
+            // Aynı satır için bekleyen işler bulunur. Yeni iş eskileri EZER (satır en güncel
+            // hâliyle yazılır) — ama ALAN KÜMELERİ BİRLEŞTİRİLİR: aksi hâlde çevrimdışıyken
+            // önce "ilerleme", sonra "not" değiştirilirse ikinci iş birincisini siler ve
+            // ilerleme güncellemesi sessizce kaybolurdu.
+            val older = mutableListOf<PendingSyncEntity>()
+            val olderFieldSets = mutableListOf<Set<SyncField>>()
+            dao.getAll().forEach { pending ->
+                val sameRow = runSyncCatching {
                     val previous = JSONObject(pending.entryJson)
-                    entry.id > 0 && previous.optInt("id", 0) == entry.id &&
-                        previous.optString("source") == entry.source && previous.optString("type") == entry.type.name
+                    PendingSyncPolicy.sameRow(
+                        entryId = entry.id,
+                        entrySource = entry.source,
+                        entryTypeName = entry.type.name,
+                        queuedId = previous.optInt("id", 0),
+                        queuedSource = previous.optString("source"),
+                        queuedTypeName = previous.optString("type")
+                    ).also { matched ->
+                        if (matched) olderFieldSets += previous.readFields()
+                    }
                 }.getOrDefault(false)
+                if (sameRow) older += pending
             }
+            val mergedFields = PendingSyncPolicy.mergedFields(fields, olderFieldSets)
             // Insert first: a failed insert must not destroy the previous recoverable job.
-            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson()))
+            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(mergedFields)))
             older.forEach { dao.deleteById(it.id) }
+        }
+    }
+
+    /**
+     * Doğrudan (çevrimiçi) yazım başarılı olduktan sonra aynı satırın bekleyen işlerinden
+     * **yalnızca az önce gönderildiği bilinen alanları** düşer (E73).
+     *
+     * Eski davranış işi bütün olarak siliyordu: çevrimdışıyken kuyruğa giren bir not
+     * değişikliği (`{NOTES}`), çevrimiçiyken yalnız ilerleme (`{PROGRESS}`) içeren
+     * başarılı bir düzenlemeden sonra siliniyor ve not hedeflere hiç gitmiyordu.
+     * Artık alan kümesi küçültülür; küme boşalırsa iş silinir, kalırsa işin JSON'ındaki
+     * `_syncFields` geri kalan alanlarla güncellenir. Anlık görüntü olduğu gibi kalır:
+     * geri kalan alanların değerleri arada değişseydi o değişiklik ya doğrudan
+     * gönderilmiş (ve buradan düşülmüş) ya da yeni bir [enqueue] ile görüntüyü
+     * tazelemiş olurdu.
+     *
+     * `DELETE` için çağıran [SyncField.ALL] geçirir: başarılı bir doğrudan silmenin
+     * ardından bekleyen `DELETE` işi bütünüyle gereksizdir.
+     */
+    suspend fun removeSyncedFields(
+        dao: PendingSyncDao,
+        operation: String,
+        entry: MediaEntry,
+        syncedFields: Set<SyncField>
+    ) = withContext(Dispatchers.IO) {
+        if (syncedFields.isEmpty()) return@withContext
+        drainMutex.withLock {
+            dao.getAll().filter { it.operation == operation }.forEach { pending ->
+                runSyncCatching {
+                    val json = JSONObject(pending.entryJson)
+                    val sameRow = PendingSyncPolicy.sameRow(
+                        entryId = entry.id,
+                        entrySource = entry.source,
+                        entryTypeName = entry.type.name,
+                        queuedId = json.optInt("id", 0),
+                        queuedSource = json.optString("source"),
+                        queuedTypeName = json.optString("type")
+                    )
+                    if (sameRow) {
+                        val queuedFields = json.readFields()
+                        val remaining = PendingSyncPolicy.remainingFields(queuedFields, syncedFields)
+                        when {
+                            remaining.isEmpty() -> dao.deleteById(pending.id)
+                            remaining != queuedFields -> {
+                                val names = org.json.JSONArray()
+                                remaining.forEach { field -> names.put(field.name) }
+                                // REPLACE ile aynı id'ye yazılır: createdAt / retryCount korunur.
+                                dao.insert(
+                                    pending.copy(entryJson = json.put(KEY_FIELDS, names).toString())
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -67,18 +148,44 @@ object PendingSyncDrainer {
         context: Context,
         dao: PendingSyncDao,
         freshBudget: Boolean = false
+    ): Int = drain(dao, freshBudget) { operation, entry, fields ->
+        when (operation) {
+            "UPDATE" -> ExternalListSyncManager.syncEntry(context, entry, fields = fields)
+            "DELETE" -> ExternalListSyncManager.deleteEntry(context, entry)
+            else -> null
+        }
+    }
+
+    /**
+     * Boşaltma döngüsünün çalıştırıcıdan ayrılmış çekirdeği (T02): `Context` ve ağ
+     * yazıcıları olmadan, sahte DAO + sahte çalıştırıcıyla JVM birim testinde koşulur.
+     *
+     * [execute] tanınmayan işlemler için ÇAĞRILMAZ (sonuç `null` sayılır ve iş bütçe
+     * yakarak korunur — bilinmeyen iş sessizce silinmez). `CancellationException`
+     * asla bir "başarısız deneme" sayılmaz: `runSyncCatching` onu yeniden fırlatır ve
+     * boşaltma bütçe yakmadan yarıda kalır (kilit `finally` ile bırakılır).
+     */
+    internal suspend fun drain(
+        dao: PendingSyncDao,
+        freshBudget: Boolean = false,
+        execute: suspend (
+            operation: String,
+            entry: MediaEntry,
+            fields: Set<SyncField>
+        ) -> ExternalListSyncManager.SyncResult?
     ): Int = withContext(Dispatchers.IO) {
         // Exhausted jobs remain inspectable/recoverable; never silently delete user intent.
         if (!drainMutex.tryLock()) return@withContext 0
         try {
         if (freshBudget) dao.resetRetries()
-        val pending = dao.getAll().filter { it.retryCount < MAX_RETRIES }
+        val pending = dao.getAll().filter { PendingSyncPolicy.isEligible(it.retryCount) }
         if (pending.isEmpty()) return@withContext 0
 
         var successCount = 0
 
         for (item in pending) {
-            val entry = runSyncCatching { item.entryJson.toMediaEntry() }.getOrNull()
+            val decoded = runSyncCatching { item.entryJson.decodeJob() }.getOrNull()
+            val entry = decoded?.first
             if (entry == null) {
                 // Preserve malformed jobs for recovery rather than destroying them.
                 dao.incrementRetry(item.id)
@@ -86,29 +193,34 @@ object PendingSyncDrainer {
             }
 
             val result = runSyncCatching {
+                val fields = decoded?.second ?: SyncField.ALL
                 when (item.operation) {
-                    "UPDATE" -> ExternalListSyncManager.syncEntry(context, entry)
-                    "DELETE" -> ExternalListSyncManager.deleteEntry(context, entry)
+                    "UPDATE", "DELETE" -> execute(item.operation, entry, fields)
                     else -> null
                 }
             }
 
             result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             val syncResult = result.getOrNull()
-            // Yalnızca gerçek hata yeniden denemeyi haklı çıkarır; "kimlik çözülemedi"
-            // (atlandı) durumları kuyrukta sonsuza kadar dönmez.
-            val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty() &&
-                (syncResult.messages.isNotEmpty() || syncResult.skipped.isNotEmpty())
-
-            if (success) {
-                dao.deleteById(item.id)
-                successCount++
-            } else {
-                val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
-                val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
-                if (!isAuthError) {
-                    dao.incrementRetry(item.id)
+            // Yalnızca GERÇEK hata (ağ/HTTP) yeniden denemeyi haklı çıkarır. "Kimlik çözülemedi"
+            // ya da "değişiklik yok" gibi sonuçlar hatasız olduğu için iş kuyruktan düşer;
+            // aksi hâlde bu işler 5 kez denenip sonsuza kadar kuyrukta kalıyordu.
+            // Yetki hatası — sonuçtaki hata metninde de fırlatılan istisnada da (E74) —
+            // deneme sayacını artırmaz; kararın tamamı PendingSyncPolicy'dedir.
+            when (
+                PendingSyncPolicy.decision(
+                    hasResult = result.isSuccess && syncResult != null,
+                    needsRetry = syncResult?.needsRetry ?: true,
+                    errorTexts = syncResult?.errors.orEmpty(),
+                    thrownMessage = result.exceptionOrNull()?.message
+                )
+            ) {
+                PendingSyncPolicy.RetryDecision.DROP -> {
+                    dao.deleteById(item.id)
+                    successCount++
                 }
+                PendingSyncPolicy.RetryDecision.KEEP_INCREMENT -> dao.incrementRetry(item.id)
+                PendingSyncPolicy.RetryDecision.KEEP_WITHOUT_INCREMENT -> Unit
             }
         }
 
@@ -122,13 +234,42 @@ object PendingSyncDrainer {
     // JSON Serializasyon / Deserializasyon
     // ────────────────────────────────────────────────
 
-    private fun MediaEntry.toJson(): String = JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
-        .getJSONArray("entries").getJSONObject(0).put("id", id).toString()
+    /** İşin kendi alan kümesi JSON'a `_syncFields` olarak gömülür (şema değişikliği gerekmez). */
+    private fun MediaEntry.toJson(fields: Set<SyncField>): String {
+        val names = org.json.JSONArray()
+        fields.forEach { names.put(it.name) }
+        return JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
+            .getJSONArray("entries").getJSONObject(0)
+            .put("id", id)
+            .put(KEY_FIELDS, names)
+            .toString()
+    }
 
-    private fun String.toMediaEntry(): MediaEntry {
+    /**
+     * Kuyruk kaydını (satır, alanlar) çiftine çevirir. `_syncFields` yoksa (eski kayıtlar)
+     * tam yazım kabul edilir.
+     */
+    private fun String.decodeJob(): Pair<MediaEntry, Set<SyncField>> {
         val item = JSONObject(this)
+        val fields = item.optJSONArray(KEY_FIELDS)?.let { names ->
+            (0 until names.length()).mapNotNull { index ->
+                runSyncCatching { SyncField.valueOf(names.getString(index)) }.getOrNull()
+            }.toSet()
+        }?.takeIf { it.isNotEmpty() } ?: SyncField.ALL
+        item.remove(KEY_FIELDS)
         val backup = JSONObject().put("schemaVersion", 2)
             .put("entries", org.json.JSONArray().put(item))
-        return MediaEntryBackup.importFromJson(backup.toString()).single().copy(id = item.optInt("id", 0))
+        val entry = MediaEntryBackup.importFromJson(backup.toString()).single()
+            .copy(id = item.optInt("id", 0))
+        return entry to fields
     }
+
+    /** Kayıttaki alan kümesini okur (yoksa tam yazım). */
+    private fun JSONObject.readFields(): Set<SyncField> = optJSONArray(KEY_FIELDS)?.let { names ->
+        (0 until names.length()).mapNotNull { index ->
+            runSyncCatching { SyncField.valueOf(names.getString(index)) }.getOrNull()
+        }.toSet()
+    }?.takeIf { it.isNotEmpty() } ?: SyncField.ALL
+
+    private const val KEY_FIELDS = "_syncFields"
 }

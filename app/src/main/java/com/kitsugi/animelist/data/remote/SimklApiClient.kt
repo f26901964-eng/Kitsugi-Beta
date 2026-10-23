@@ -165,7 +165,7 @@ internal fun parseBestMediaArray(
 class SimklApiClient(
     private val clientMap: Map<String, String>? = null
 ) {
-    private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
+    private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient
 
     // ── Resmî saniyelik limitler (api.simkl.org/resources/rate-limits) ─────────
     // 10 GET/sn ve 1 POST/sn (client_id + kullanıcı token'ı). GET aşımı 429;
@@ -927,7 +927,9 @@ class SimklApiClient(
     /**
      * Listeye iÃ§erik ekler veya durumunu gÃ¼nceller.
      * type: "shows" veya "movies" veya "anime"
-     * status: "watching", "plantowatch", "completed", "hold", "dropped"
+     * status: "watching", "plantowatch", "completed", "hold", "notinteresting"
+     * ("dropped" Simkl sözleşmesinde GEÇERSİZDİR — bkz. E81;
+     *  SimklSyncContract.normalizeListStatus son emniyet olarak çevirir.)
      * NyanTV referans: POST /sync/add-to-list
      */
     suspend fun addToList(
@@ -972,7 +974,12 @@ class SimklApiClient(
          * Anime için Simkl/MAL kimliği yokken başlıkla eşleştirme, aynı adlı dizileri/filmleri
          * kullanıcının listesine ekleyebildiği için kapatılır. Başlık rapor/teşhis için yine taşınır.
          */
-        val titleMatchingAllowed: Boolean = true
+        val titleMatchingAllowed: Boolean = true,
+        /**
+         * Simkl liste kaydının özel notu (`private_memo`). Yalnız `null` DEĞİLSE gönderilir;
+         * `add-to-list` gövdesinde taşınır (Simkl notu liste kaydının parçası olarak tutar).
+         */
+        val privateMemo: String? = null
     )
 
     /**
@@ -1038,7 +1045,9 @@ class SimklApiClient(
 
         entries.forEach { entry ->
             val idObj = buildSimklIds(entry)
-            val itemObj = JSONObject().put("to", entry.status)
+            // (E81) Son emniyet: `to` alanına geçersiz `dropped` enum'u hiç gitmez
+            // (asıl sözleşme çağıranda — bkz. SimklSyncContract.normalizeListStatus).
+            val itemObj = JSONObject().put("to", SimklSyncContract.normalizeListStatus(entry.status))
             if (idObj.length() > 0) {
                 itemObj.put("ids", idObj)
             }
@@ -1049,6 +1058,7 @@ class SimklApiClient(
                     itemObj.put("year", entry.year)
                 }
             }
+            entry.privateMemo?.let { itemObj.put("private_memo", it) }
             if (idObj.length() > 0 || titleAllowed) {
                 when (SimklSyncContract.writeKey(entry.type)) {
                     "movies" -> moviesArray.put(itemObj)

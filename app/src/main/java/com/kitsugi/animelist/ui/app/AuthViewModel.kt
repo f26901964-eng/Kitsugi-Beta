@@ -1219,45 +1219,34 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         continue
                     }
 
-                    val newest = candidates.maxByOrNull { it.updatedAt } ?: candidates.first()
+                    // (E75/E78) Birleşik kaydın tabanı aday sırasına bağlı seçilemez:
+                    // "en yeni" kararı tek kaynaktan gelir (`CrossSyncMergePolicy.NEWEST_FIRST`).
+                    val newest = com.kitsugi.animelist.data.auth.CrossSyncMergePolicy
+                        .newestOrNull(candidates) ?: candidates.first()
                     val isAnimeOrManga = newest.type == MediaType.Anime || newest.type == MediaType.Manga
 
-                    // 1. En yüksek ilerleme (bölüm sayısı asla gerilemez)
-                    val maxProgress = candidates.maxOf { it.progress }
-                    val maxVolumeProgress = candidates.maxOf { it.volumeProgress }
+                    // ── BİRLEŞTİRME (tek ve test edilebilir kural) ──────────────────────
+                    // Tüm alan kararları `CrossSyncMergePolicy` içinde: ilerleme gerilemez,
+                    // ilerleme toplamı yakaladıysa durum Completed, çelişen durumlarda en son
+                    // güncellenen kayıt kazanır, tarihler deterministik (başlangıç=en erken,
+                    // bitiş=en geç), puan=en güncel geçerli puan. Birim testleri:
+                    // `CrossSyncMergePolicyTest`.
+                    val merge = com.kitsugi.animelist.data.auth.CrossSyncMergePolicy.merge(candidates)
+                    val totalCount = merge.total
+                    val bestStatus = merge.status
+                    val maxProgress = merge.rawMaxProgress
+                    val bestScore = merge.score
+                    val bestStartDate = merge.startDate
+                    val bestEndDate = merge.endDate
+                    val bestRepeat = merge.repeatCount
+                    val isFav = merge.isFavorite
 
-                    // 2. En gelişmiş izleme durumu
-                    // Simkl'in `total` değeri "yayınlanmış bölüm sayısı"dır (devam eden dizilerde toplam değil);
-                    // bu sayıdan context.getString(R.string.cross_sync_log_category_complete) çıkarımı yapmak devam eden yapımları yanlışlıkla bitmiş gösteriyordu.
-                    // Çıkarım için yalnızca MAL/AniList/Kitsu/Shikimori toplamları kullanılır.
-                    val totalCount = candidates
-                        .filter { com.kitsugi.animelist.model.MediaIdentity.canonicalSource(it.source) != "simkl" }
-                        .firstNotNullOfOrNull { it.total?.takeIf { t -> t > 0 } }
-                    val singleSourceGroup = candidates.size == 1
-                    val bestStatus = when {
-                        totalCount != null && maxProgress >= totalCount -> WatchStatus.Completed
-                        candidates.any { it.status == WatchStatus.Completed } && (totalCount == null || maxProgress >= (totalCount ?: 0)) -> WatchStatus.Completed
-                        candidates.any { it.status == WatchStatus.Repeating } -> WatchStatus.Repeating
-                        candidates.any { it.status == WatchStatus.Watching } -> WatchStatus.Watching
-                        candidates.any { it.status == WatchStatus.Paused } -> WatchStatus.Paused
-                        candidates.any { it.status == WatchStatus.Dropped } -> WatchStatus.Dropped
-                        else -> newest.status
-                    }
-
-                    // 3. Puan (Eksik puanlar doldurulur, en güncel geçerli puan korunur)
-                    val bestScore = candidates.filter { (it.score ?: 0) > 0 }.maxByOrNull { it.updatedAt }?.score
-                        ?: newest.score
-
-                    // 4. Başlangıç ve bitiş tarihleri (Eksik olanlar tamamlanır)
-                    val bestStartDate = candidates.firstNotNullOfOrNull { it.startDate?.takeIf { d -> d.isNotBlank() } }
-                    val bestEndDate = candidates.firstNotNullOfOrNull { it.endDate?.takeIf { d -> d.isNotBlank() } }
-
-                    // 5. Notlar ve etiketler
-                    val bestNotes = candidates.firstNotNullOfOrNull { it.notes?.takeIf { n -> n.isNotBlank() } }
-                    val bestTags = candidates.firstNotNullOfOrNull { it.tags?.takeIf { t -> t.isNotBlank() } }
-                    val bestPriority = candidates.firstNotNullOfOrNull { it.priority?.takeIf { p -> p > 0 } }
-                    val bestRepeat = candidates.maxOf { it.repeatCount }
-                    val isFav = candidates.any { it.isFavorite }
+                    // Not/etiket/öncelik BİLİNÇLİ OLARAK birleştirilmez: metin biçimleri ve
+                    // öncelik ölçekleri sağlayıcıya göre farklıdır (MAL 0..2, AniList 0..255,
+                    // Bangumi yok). Birleştirme, bir kaynağın notunu diğeriyle ezerdi.
+                    val bestNotes = newest.notes
+                    val bestTags = newest.tags
+                    val bestPriority = newest.priority
 
                     // 6. Harici ID çözümlemeleri
                     val realMalId = candidates.firstNotNullOfOrNull { it.malId?.takeIf { id -> id.isRealMalId() } }
@@ -1337,8 +1326,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         titleEnglish = bestTitleEnglish ?: newest.titleEnglish,
                         titleJapanese = bestTitleJapanese ?: newest.titleJapanese,
                         status = bestStatus,
-                        progress = maxProgress,
-                        volumeProgress = maxVolumeProgress,
+                        // Toplam biliniyorsa toplama kırpılmış ilerleme yazılır (MAL/Kitsu
+                        // toplamı aşan değeri reddeder ve yazımın tamamı düşerdi).
+                        progress = merge.progress,
+                        volumeProgress = merge.volumeProgress,
+                        isRepeating = merge.isRepeating,
                         score = bestScore,
                         startDate = bestStartDate,
                         endDate = bestEndDate,
@@ -1353,6 +1345,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         tmdbId = tmdbId ?: newest.tmdbId,
                         aniListEntryId = aniListEntryId ?: newest.aniListEntryId
                     )
+
+                    /**
+                     * Bu sağlayıcıya yazılacak alanlar: yalnızca gerçekten değişenler ve
+                     * yalnızca sağlayıcının desteklediği alanlar. Tam yazım YAPILMAZ; aksi
+                     * hâlde bir kaynağın notu/etiketi/önceliği başka kaynağınkiyle ezilirdi.
+                     */
+                    // NOT: tek kaynaklı grupta da yazım yapılır. "Grup tek kaynaklıysa
+                    // dokunma" kuralı, ilerleme toplamı yakalamış ama durumu "izliyorum"
+                    // kalmış satırların (ve toplamı aşan ilerlemenin) sonsuza kadar
+                    // düzeltilmemesine yol açıyordu. Kural artık tek yerde: `dirtyFields`
+                    // yalnızca gerçekten geride kalan alanı döner.
+                    fun dirtyFor(provider: String, current: com.kitsugi.animelist.model.MediaEntry):
+                        Set<com.kitsugi.animelist.data.auth.SyncField> =
+                        com.kitsugi.animelist.data.auth.CrossSyncMergePolicy
+                            .dirtyFieldsFor(current, merge, provider)
 
                     if (realMalId != null && item.bangumi != null) {
                         com.kitsugi.animelist.data.remote.BangumiIdNamespace.rawIdFromStable(item.bangumi?.malId)?.let { subjectId ->
@@ -1417,24 +1424,50 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 logEvent("AniList", context.getString(R.string.cross_sync_log_failed_add, "AniList", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                             }
                         } else {
-                            val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
-                                    (current.progress < maxProgress) ||
-                                    (bestScore != null && current.score != bestScore) ||
-                                    (current.startDate.isNullOrBlank() && !bestStartDate.isNullOrBlank()) ||
-                                    (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank()))
-                            if (needsUpdate) {
+                            val dirty = dirtyFor("anilist", current)
+                            // Favori `SaveMediaListEntry`'nin parçası DEĞİLDİR: ayrı bir
+                            // `ToggleFavourite` mutasyonudur. Yalnız favori değiştiyse liste
+                            // kaydına içi boş bir mutasyon göndermek anlamsızdır (E42/E48).
+                            val listFields = dirty - com.kitsugi.animelist.data.auth.SyncField.FAVORITE
+                            val target = mergedEntry.copy(aniListEntryId = current.aniListEntryId)
+                            var writeOk = true
+                            if (listFields.isNotEmpty()) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
-                                val target = mergedEntry.copy(aniListEntryId = current.aniListEntryId)
-                                val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, target, context = context) }
-                                if (res.isSuccess && res.getOrNull() != null) {
-                                    statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                    logEvent("AniList", context.getString(R.string.cross_sync_log_updated, "AniList", mergedEntry.title), isUpdate = true, details = mappingDetails)
-                                } else {
+                                val res = runSyncCatching {
+                                    AniListSyncManager.updateAniListEntry(
+                                        aniListToken!!, target, context = context, fields = listFields
+                                    )
+                                }
+                                writeOk = res.isSuccess && res.getOrNull() != null
+                                if (!writeOk) {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
                                     val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
                                         ?: context.getString(R.string.cross_sync_api_anilist_update_not_confirmed)
                                     logEvent("AniList", context.getString(R.string.cross_sync_log_failed_update, "AniList", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
+                            }
+                            if (writeOk && com.kitsugi.animelist.data.auth.SyncField.FAVORITE in dirty) {
+                                // Toggle TERSİNE dönebilir bir işlemdir: yazmadan önce uzak
+                                // durum okunur, yalnız farklıysa çağrılır. Hiçbir kaynakta
+                                // favori alanı yoksa kaldırma yönünde yazım YAPILMAZ.
+                                runSyncCatching {
+                                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(
+                                        aniListToken!!, target, context,
+                                        knownAniListMediaId = target.aniListEntryId,
+                                        knownMalId = realMalId
+                                    )
+                                    if (remoteFav != null && remoteFav != mergedEntry.isFavorite) {
+                                        AniListSyncManager.toggleAniListFavourite(
+                                            aniListToken!!, target, context,
+                                            knownAniListMediaId = target.aniListEntryId,
+                                            knownMalId = realMalId
+                                        )
+                                    }
+                                }
+                            }
+                            if (writeOk) {
+                                statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
+                                logEvent("AniList", context.getString(R.string.cross_sync_log_updated, "AniList", mergedEntry.title), isUpdate = true, details = mappingDetails)
                             }
                         }
                     }
@@ -1461,15 +1494,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_failed_add, "MAL", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
                             } else {
-                                val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
-                                        (current.progress < maxProgress) ||
-                                        (bestScore != null && current.score != bestScore) ||
-                                        (current.startDate.isNullOrBlank() && !bestStartDate.isNullOrBlank()) ||
-                                        (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank()))
-                                if (needsUpdate) {
+                                val dirty = dirtyFor("mal", current)
+                                if (dirty.isNotEmpty()) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target, context = context) }
+                                    val res = runSyncCatching {
+                                        MalSyncManager.updateMalEntry(
+                                            malToken!!, target, context = context, fields = dirty
+                                        )
+                                    }
                                     if (res.isSuccess) {
                                         statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                         logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_updated, "MAL", mergedEntry.title), isUpdate = true, details = mappingDetails)
@@ -1501,10 +1534,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         } else if (current == null) {
                             simklEntriesToSync.add(mergedEntry)
                         } else {
-                            val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
-                                    (current.progress < maxProgress) ||
-                                    (bestScore != null && current.score != bestScore))
-                            if (needsUpdate) {
+                            val dirty = dirtyFor("simkl", current)
+                            if (dirty.isNotEmpty()) {
                                 simklEntriesToSync.add(mergedEntry.copy(simklId = current.simklId))
                             }
                         }
@@ -1543,12 +1574,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 logEvent("Kitsu", context.getString(R.string.cross_sync_log_error, "Kitsu", mergedEntry.title, errMsg), isError = true, details = "$mappingDetails\n$errMsg")
                             }
                         } else {
-                            val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
-                                    (current.progress < maxProgress) ||
-                                    (bestScore != null && current.score != bestScore))
-                            if (needsUpdate) {
+                            val dirty = dirtyFor("kitsu", current)
+                            if (dirty.isNotEmpty()) {
                                 val outcome = runSyncCatching {
-                                    KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = knownKitsuId)
+                                    KitsuSyncManager.syncEntryToKitsu(
+                                        context, mergedEntry,
+                                        knownKitsuMediaId = knownKitsuId,
+                                        fields = dirty
+                                    )
                                 }
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
@@ -1597,13 +1630,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     logEvent("Shikimori", context.getString(R.string.cross_sync_log_error, "Shikimori", mergedEntry.title, errMsg), isError = true, details = "$mappingDetails\n$errMsg")
                                 }
                             } else {
-                                val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
-                                        (current.progress < maxProgress) ||
-                                        (bestScore != null && current.score != bestScore))
-                                if (needsUpdate) {
+                                val dirty = dirtyFor("shikimori", current)
+                                if (dirty.isNotEmpty()) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target, knownMalId = realMalId) }
+                                    val outcome = runSyncCatching {
+                                        ShikimoriSyncManager.syncEntryToShikimori(
+                                            context, target, knownMalId = realMalId, fields = dirty
+                                        )
+                                    }
                                     val res = outcome.getOrNull()
                                     if (res != null && res.errors.isEmpty()) {
                                         statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
@@ -1659,16 +1694,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 logEvent("Bangumi", context.getString(R.string.cross_sync_log_error, "Bangumi", mergedEntry.title, errMsg), isError = true, details = "$mappingDetails\n$errMsg")
                             }
                         } else {
-                            val needsUpdate = !singleSourceGroup && (
-                                (current.status != bestStatus) ||
-                                (current.progress < maxProgress) ||
-                                (current.volumeProgress < maxVolumeProgress) ||
-                                (bestScore != null && current.score != bestScore)
-                            )
-                            if (needsUpdate) {
+                            val dirty = dirtyFor("bangumi", current)
+                            if (dirty.isNotEmpty()) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("bangumi")
                                 val target = mergedEntry.copy(malId = current.malId ?: (guardedMalId ?: realMalId))
-                                val outcome = runSyncCatching { BangumiSyncManager.syncEntryToBangumi(context, target) }
+                                val outcome = runSyncCatching {
+                                    BangumiSyncManager.syncEntryToBangumi(
+                                        context, target, fields = dirty
+                                    )
+                                }
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }

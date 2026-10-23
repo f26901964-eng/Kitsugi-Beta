@@ -326,59 +326,55 @@ fun MyListScreen(
             viewModel.rememberCombinedLibrary(computed)
         }
     }
-    val allLibraryItems = combinedLibrary.items
-    val allLibraryEntries = combinedLibrary.entries
+    // The combined library can still be the previous snapshot while its worker runs.
+    // Apply the current visibility preference before using that snapshot for search/pages.
+    val allLibraryEntries = remember(combinedLibrary.entries, showAdultContent) {
+        if (showAdultContent) combinedLibrary.entries else combinedLibrary.entries.filterNot { it.isAdult }
+    }
     val allSourceBadgesByEntryId = combinedLibrary.sourceBadgesByEntryId
 
+    val hasSearchQuery = searchQuery.isNotBlank()
     val selectedTabEntries = remember(
         entriesAfterAdultFilter,
         allLibraryEntries,
         selectedTabIndex,
-        searchQuery
+        hasSearchQuery
     ) {
         when {
             selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
             // Preserve the existing cross-provider search behavior everywhere except Bangumi:
             // Bangumi must never surface an unrelated provider's row, even during search.
-            searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> entriesAfterAdultFilter
+            hasSearchQuery && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> entriesAfterAdultFilter
             else -> entriesAfterAdultFilter.filter { entry ->
                 myListSourceMatchesTab(selectedTabIndex, entry.source, entry.malId)
             }
         }
     }
 
-    val filteredEntries = remember(
-        selectedTabEntries,
-        searchQuery,
-        selectedStatusFilterId,
-        selectedTypeFilterId,
-        selectedFavoriteFilterId,
-        selectedScoreFilterId,
-        selectedYearFilterId,
-        selectedExtraFilterId
-    ) {
-        filterMyListEntries(
-            entries = selectedTabEntries,
-            searchQuery = searchQuery,
-            selectedStatusFilterId = selectedStatusFilterId,
-            selectedTypeFilterId = selectedTypeFilterId,
-            selectedFavoriteFilterId = selectedFavoriteFilterId,
-            selectedScoreFilterId = selectedScoreFilterId,
-            selectedYearFilterId = selectedYearFilterId,
-            selectedExtraFilterId = selectedExtraFilterId
-        )
-    }
-
-    val visibleEntries = remember(filteredEntries, selectedSortId) {
-        applySort(
-            entries = filteredEntries,
-            sortId = selectedSortId
-        )
-    }
-
-    val groupedVisibleEntries = remember(visibleEntries) {
-        groupMyListEntriesByStatus(visibleEntries)
-    }
+    // Keep raw text confined to the header. Filtering/fuzzy matching/grouping run on
+    // Default after a short typing debounce; prepared titles and sorted order are reused.
+    val searchState = rememberMyListSearchState(
+        entries = selectedTabEntries,
+        scope = MyListSearchScope(
+            selectedTabIndex, selectedSortId, showAdultContent,
+            localeTag = LocalConfiguration.current.locales.toLanguageTags()
+        ),
+        request = MyListSearchRequest(
+            query = searchQuery,
+            status = selectedStatusFilterId,
+            type = selectedTypeFilterId,
+            favorite = selectedFavoriteFilterId,
+            score = selectedScoreFilterId,
+            year = selectedYearFilterId,
+            extra = selectedExtraFilterId,
+            fuzzySearchEnabled = appSettings.fuzzySearchEnabled
+        ),
+        viewModel = viewModel
+    )
+    val searchResult = searchState.result
+    val visibleEntries = searchResult.entries
+    val groupedVisibleEntries = searchResult.groupedEntries
+    val activeContentReady = searchState.contentReady
 
     val listStats = remember(selectedTabEntries) {
         ListStats.from(selectedTabEntries)
@@ -479,7 +475,7 @@ fun MyListScreen(
                 onTabIndexChange = onTabIndexChange,
                 visibleEntries = visibleEntries,
                 allEntries = entriesAfterAdultFilter,
-                allLibraryEntryCount = allLibraryItems.size,
+                allLibraryEntryCount = allLibraryEntries.size,
                 isAniListConnected = isAniListConnected,
                 isMalConnected = isMalConnected,
                 isSimklConnected = isSimklConnected,
@@ -507,11 +503,11 @@ fun MyListScreen(
 
         // activeTabScrollState is declared at composable top level (tabScrollStates[selectedTabIndex])
 
-        LaunchedEffect(activeTabScrollState) {
+        LaunchedEffect(activeTabScrollState, activeContentReady) {
             snapshotFlow {
                 activeTabScrollState.firstVisibleItemIndex to activeTabScrollState.firstVisibleItemScrollOffset
             }.collect { (index, offset) ->
-                if (selectedTabIndex in restoredTabs && entries.isNotEmpty()) {
+                if (activeContentReady && selectedTabIndex in restoredTabs && entries.isNotEmpty()) {
                     onScrollPositionChange(index, offset)
                 }
                 val scrollingDown = index > prevIndex || (index == prevIndex && offset > prevOffset + 15)
@@ -573,9 +569,15 @@ fun MyListScreen(
                     }
                 }
 
-                // Wait until this page has actual items before restoring a deep position.
-                // A loading/empty LazyColumn would otherwise reset the saved index to zero.
-                LaunchedEffect(pageTabIndex, pageEntries.isNotEmpty()) {
+                // Source rows can arrive before the asynchronous search/index is ready.
+                // Don't restore/save against its temporary empty LazyColumn: it would
+                // clamp a deep saved position to zero on cold load or a source change.
+                val pageContentReady = pageTabIndex != selectedTabIndex || activeContentReady
+                LaunchedEffect(pageTabIndex, pageEntries.isNotEmpty(), pageContentReady) {
+                    if (!pageContentReady) {
+                        if (pageTabIndex in restoredTabs) restoredTabs = restoredTabs - pageTabIndex
+                        return@LaunchedEffect
+                    }
                     if (pageEntries.isNotEmpty() && pageTabIndex !in restoredTabs) {
                         val savedIndex = savedTabIndices[pageTabIndex]
                         val savedOffset = savedTabOffsets[pageTabIndex]
@@ -592,10 +594,13 @@ fun MyListScreen(
                         restoredTabs = restoredTabs + pageTabIndex
                     }
                 }
-                LaunchedEffect(pageScrollState, pageTabIndex, pageEntries.isNotEmpty(), restoredTabs.contains(pageTabIndex)) {
+                LaunchedEffect(
+                    pageScrollState, pageTabIndex, pageEntries.isNotEmpty(),
+                    pageContentReady, restoredTabs.contains(pageTabIndex)
+                ) {
                     snapshotFlow { pageScrollState.firstVisibleItemIndex to pageScrollState.firstVisibleItemScrollOffset }
                         .collect { (index, offset) ->
-                            if (pageTabIndex in restoredTabs && pageEntries.isNotEmpty()) {
+                            if (pageContentReady && pageTabIndex in restoredTabs && pageEntries.isNotEmpty()) {
                                 // PERF: düz IntArray yazımı — Compose state yazımı DEĞİL.
                                 // Eski sürüm burada her kaydırma karesinde iki MutableList
                                 // tahsis edip MutableState yazıyordu; bu da tüm ekranın
@@ -615,8 +620,8 @@ fun MyListScreen(
                     sourceBadgesByEntryId = if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) allSourceBadgesByEntryId else emptyMap(),
                     visibleEntries = visibleEntries,
                     groupedVisibleEntries = groupedVisibleEntries,
-                    searchQuery = searchQuery,
-                    selectedStatusFilterId = selectedStatusFilterId,
+                    searchQuery = searchResult.request.query,
+                    selectedStatusFilterId = searchResult.request.status,
                     selectedListLayoutId = selectedListLayoutId,
                     appSettings = appSettings,
                     pageScrollState = pageScrollState,

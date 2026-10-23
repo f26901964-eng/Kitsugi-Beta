@@ -56,9 +56,7 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.ui.components.KitsugiOriginalToggleChip
 import com.kitsugi.animelist.ui.components.KitsugiTranslateIconButton
-import com.kitsugi.animelist.ui.components.rememberAutoTranslatedText
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 @Composable
@@ -306,8 +304,6 @@ fun ShikimoriProfileContent(
                         0 -> ShikimoriAboutTab(
                             state = state,
                             accentColor = accentColor,
-                            autoTranslateEnabled = appSettings.autoTranslateEnabled,
-                            preferredTranslator = appSettings.preferredTranslator,
                             onFavoriteMediaClick = onFavoriteMediaClick,
                             onOpenFavoriteSheet = onOpenFavoriteSheet
                         )
@@ -337,14 +333,10 @@ fun ShikimoriProfileContent(
 private fun ShikimoriAboutTab(
     state: ShikimoriProfileState,
     accentColor: Color,
-    autoTranslateEnabled: Boolean = false,
-    preferredTranslator: String = "DEFAULT",
     onFavoriteMediaClick: (mediaId: Int, mediaType: MediaType, source: String, title: String, imageUrl: String?) -> Unit,
     onOpenFavoriteSheet: (title: String, items: List<ProfileFavoriteItem>, onClick: (ProfileFavoriteItem) -> Unit) -> Unit
 ) {
     val context = LocalContext.current
-    // Wiki mantığı: otomatik çeviri açıksa biyografi uygulama içinde çevrilir.
-    val bioTranslation = rememberAutoTranslatedText(state.bio, autoTranslateEnabled)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -380,27 +372,19 @@ private fun ShikimoriAboutTab(
                             ) {
                                 Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.action_copy), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
                             }
-                            if (bioTranslation.hasTranslation) {
-                                KitsugiOriginalToggleChip(
-                                    showingOriginal = bioTranslation.showingOriginal,
-                                    onClick = bioTranslation.toggleOriginal,
-                                    tint = KitsugiColors.TextMuted
-                                )
-                            }
                             KitsugiTranslateIconButton(
-                                onClick = { context.openTranslator(state.bio, preferredTranslator) },
+                                onClick = { context.openTranslator(state.bio) },
                                 modifier = Modifier.size(32.dp),
                                 tint = KitsugiColors.TextMuted,
                                 contentDescription = stringResource(R.string.cevir),
                                 iconSize = 16.dp,
-                                ringSize = 26.dp,
-                                isLoading = bioTranslation.isLoading
+                                ringSize = 26.dp
                             )
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = bioTranslation.displayText,
+                        text = state.bio,
                         color = KitsugiColors.TextSecondary,
                         fontSize = 14.sp,
                         lineHeight = 20.sp

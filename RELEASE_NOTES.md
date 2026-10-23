@@ -1,97 +1,310 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-# Kitsugi Beta v2.4.340
+# Kitsugi Beta v2.4.348
 
 ## 🇹🇷 Türkçe
 
-### ⚡ Bangumi Performansı — "Veri 5 Dakika Gelmiyor" Kök Düzeltmesi
-- **4,5 dk'lık gecikmenin kaynağı çözüldü:** Bangumi isteği başına 450 ms rezervasyon yapan eski hız sınırlayıcı saati ileriye taşıyordu. Yerine **5 istek/sn + 5 patlama** jeton kovası (token bucket) getirildi; iptal edilen istekler kredi tüketmez.
-- **Fail-fast Bangumi HTTP istemcisi:** 10/12/12 sn + 14 sn toplam tavan, gereksiz yeniden denemeler kaldırıldı.
-- **İstek seli sonlandırıldı:** Keşfet, arama şeritleri ve kütüphane artık liste modunda çalışır; yüzlerce tekil istek yerine kalıcı önbellek ve tek AniList toplu araması kullanılır.
-- **p1 (`next.bgm.tv`) dayanıklılığı:** Tek uçuş (single-flight) paylaşımı, 8 sn tavan, 60 sn geri çekilme ve 4 ağ hatasında devre kesici.
-
-### 🌐 Dil Seçeneği Artık Her Yerde Uygulanıyor
-- **Sekmelerde aşamalı boyama:** Karakterler, Ekip, Öneriler ve İlişkiler sekmeleri ham veriyi anında gösterir; Latin isim ve başlıklar arka planda çözülerek dinamik olarak güncellenir.
-- **Önbellekten açılan sekmeler de zenginleştirilir:** Önbellekteki Japonca/kanji listeler sekmeye her girişte Latin karşılıklarıyla tamamlanır.
-- **Karakter ve kişi adları kalıcı önbellekte:** `bangumi_entity_names_v1` deposu ile çözülen adlar diske kaydedilir; oturumlar ve yapımlar arasında tekrar ağ isteği yapılmaz.
-- **Karakter/kişi adı çözümü yarış modunda:** v0 API ve p1 eşzamanlı sorgulanır; ilk yanıt veren kullanılır, yavaş kalan iptal edilir.
-- **getIdentifier fırtınası bitti:** ~40.000 `bangumi_*` kaynak dizesi ve görev etiketleri önbellekli taranır; `Locale.ROOT` ile Türkçe `I/ı` uyumsuzlukları giderildi.
-
-### 🎭 TMDB Karakter Portreleri & Biyografi Çevirileri
-- TMDB kredilerinde anime karakterleri için doğru görsel ataması sağlandı; seslendirme sanatçısı görselinin karakter portresi sanılması önlendi.
-- Biyografi ve HTML içerik çevirilerinde güvenli ayrıştırma ve otomatik dil uyarlaması pekiştirildi.
+### 🔄 Liste Kaynakları Arası Çapraz Senkronizasyon ve Alan-Bazlı Eşitleme Motoru (Full Cross-Sync Engine)
+- **Shikimori - MAL Kimlik Birleşimi:** Shikimori ve MyAnimeList kimlikleri (`myanimelist_id = object.id`) tekil kimlik havuzunda birleştirildi. Artık Shikimori kayıtları tekil grupta izole kalmıyor; MAL, AniList, Kitsu, Bangumi ve Simkl ile ortak eşitleme grubunda senkronize ediliyor.
+- **Alan-Bazlı Akıllı Yazım (`SyncField`):** Her eşitlemede tüm kaydı körlemesine karşıya yazmak yerine, yalnızca yerelde değişen alanlar (`STATUS`, `PROGRESS`, `SCORE`, `DATES`, `NOTES`, `REWATCH`) tespit edilerek hedefe iletiliyor. Ağ trafiği ve gereksiz API istekleri en aza indirildi.
+- **Son Kullanıcı Hareketi Önceliği (`CrossSyncMergePolicy`):** Bir serviste bölüm ilerlettiğinizde veya bir yapımı bıraktığınızda (`Dropped`/`Paused`), diğer servislerdeki bayat verilerin bunu geriye çekmesi engellendi. Deterministik `NEWEST_FIRST` kuralı ile en güncel işlem daima kazanıyor.
+- **Tekrar İzleme (Rewatch) ve Döngü Koruması:** MAL ve Kitsu'nun bayrak modeli (`is_rewatching=true`) ile AniList'in durum modeli (`REPEATING`) ayrıştırıldı. MAL'de dizilerin yanlışlıkla "Tamamlandı"ya dönmesi ve sonsuz yazım döngüleri giderildi.
+- **Kardeş Satır Aynalama (`SiblingMirrorPolicy`):** Yerel veritabanında aynı yapımın farklı kaynaklardaki kopyaları güncellenirken ilerleme gerilemesi, tarih kayıpları ve gereksiz yazımlar önlendi.
+- **Simkl Çift Yönlü Senkronizasyon & Notlar:** Simkl'de silinen kayıtların doğru listeye çekilmesi (`notinteresting`), `?memos=yes` parametresiyle iki yönlü not senkronizasyonu ve durum normalizasyonu tamamlandı.
+- **Çevrimdışı Kuyruk ve Güvenli Tahliye (`PendingSyncDrainer`):** İnternet yokken yapılan değişiklikler yerel kuyrukta saklanıyor ve bağlantı kurulduğunda platform hız limitlerine uygun olarak sırayla hedeflere işleniyor.
+- **256 Senkronizasyon Birim Testi:** MAL, AniList, Shikimori, Kitsu, Bangumi ve Simkl sağlayıcıları arasındaki tüm çapraz durumlar ve geriye-yazım testleri firesiz doğrulandı.
 
 ---
 
 ## 🇬🇧 English
 
-### ⚡ Bangumi Performance — Root Cause Fix for Delays
-- **4.5-minute delay eliminated:** Replaced the legacy reservation limiter with a **5 req/s + 5 burst** token bucket; cancelled requests no longer drain credit.
-- **Fail-fast Bangumi HTTP client:** 10/12/12 s + 14 s call timeout with zero redundant retries.
-- **Request storm eliminated:** Explore, search rails, and library hydration operate in list mode with persistent caching and batched AniList lookups.
-- **p1 (`next.bgm.tv`) resilience:** Single-flight per path, 8 s timeout ceiling, backoff on failure, and circuit breaker.
-
-### 🌐 Universal Language Preference & Progressive Tab Painting
-- **Instant tab rendering:** Characters, Staff, Recommendations, and Relations display raw data instantly, while Latin names/titles resolve asynchronously in the background.
-- **Persistent name cache (`bangumi_entity_names_v1`):** Resolved Latin names are stored on disk and reused across media entries and restarts.
-- **Raced name resolution:** Queries v0 and p1 in parallel, using the fastest response and cancelling the slower request.
-- **Optimized resource lookups:** Eliminated thread contention in `getIdentifier` scans and secured keys against locale-specific casing (`Locale.ROOT`).
-
-### 🎭 TMDB Character Portraits & Content Translation
-- Fixed TMDB credits enrichment for anime titles, ensuring character portraits match without falling back to voice actor imagery.
-- Improved biography translation formatting and HTML parsing stability across detail tabs.
+### 🔄 Multi-Provider Cross-Sync & Field-Level Synchronization Engine
+- **Shikimori - MAL Identity Unification:** Unified Shikimori and MyAnimeList entry identities (`myanimelist_id = object.id`). Shikimori entries no longer remain isolated in single-source groups and now cross-sync seamlessly across MAL, AniList, Kitsu, Bangumi, and Simkl.
+- **Field-Level Diffing (`SyncField`):** Replaced blind full-object writes with granular field diffing (`STATUS`, `PROGRESS`, `SCORE`, `DATES`, `NOTES`, `REWATCH`). Only dirty fields are dispatched to target APIs, eliminating redundant requests and server throttling.
+- **Newest Action Priority (`CrossSyncMergePolicy`):** Prevented stale tracker states from rolling back recent progress or overriding `Dropped`/`Paused` statuses. Deterministic `NEWEST_FIRST` resolution ensures the latest user update always wins.
+- **Rewatch Semantics & Loop Prevention:** Decoupled flag-based rewatch models (MAL/Kitsu `is_rewatching`) from status-based models (AniList `REPEATING`), eliminating infinite synchronization loops and premature "Completed" transitions on MAL.
+- **Deterministic Sibling Mirroring (`SiblingMirrorPolicy`):** Guaranteed monotonic progress and non-destructive metadata propagation across multi-source siblings in local storage.
+- **Simkl Two-Way Sync & Memos:** Added bidirectional note synchronization via `?memos=yes` and normalized list status handling (`notinteresting`).
+- **Offline Sync Queue & Safe Drain (`PendingSyncDrainer`):** Offline mutations are safely persisted in Room and drained with rate-limiter backoff upon reconnection.
+- **256 Unit Tests Passing:** Validated read-back idempotence, merge policies, and cross-provider conversions across all 6 supported platforms.
 
 ---
 
-# Kitsugi Beta v2.4.339
+# Kitsugi Beta v2.4.347
 
 ## 🇹🇷 Türkçe
 
-### 🎭 TMDB Karakter Görselleri, ARM v2 & Çoklu Kaynak Yedek Zinciri
-- **ARM v2 Uç Noktası & Önbellek Zehirlenmesi (`KitsugiIdResolver.kt`, `KitsugiEpisodeRatingsRepository.kt`):** `arm.haglund.dev` üzerinde `HTTP 400 Bad Request` dönen `/api/v2/ids?source=themoviedb` sorgusu yerine resmî sözleşmeye uygun `/api/v2/themoviedb?id=`, `/api/v2/thetvdb?id=`, `/api/v2/imdb?id=` ve Simkl `POST /api/v2/ids` uç noktalarına geçildi. `MOVIE` ile `TV` kayıtları ayrıştırılarak ID çakışması önlendi; Wikidata (`P4086/P8729/P11495/P12095`) köprüsü eklendi ve önbellek zehirlenmesi giderildi.
-- **Seslendirmen Kopya Görsellerinin Temizlenmesi (`TmdbCreditsClient.kt`, `KitsugiCharacterClient.kt`):** TV dizilerinde seslendirmen fotoğraflarının karakter portresi olarak atanması engellendi. Karakterler sekmesi, detay yüklemesinden önce açılsa bile seslendirme sinyalleriyle zenginleştirilerek gerçek kurgusal portrelerle doldurulur.
-- **Çoklu Kaynak Yedek Zinciri & Doraemon Seri Filmleri:** AniList kesintilerinde Jikan, hızlı Shikimori `/roles`, Kitsu, Bangumi, Simkl ve Fandom paralel yedek zinciri devreye alınır. Seri filmlerindeki ilk 8 popüler yapım elemesi ve tek kelimeli isimlerin düşürülmesi hatası düzeltildi; karakter detayında yüklenen görseller sekme önbelleğine geri yayılır.
+### ⚡ Listem Arama ve Yazarken Donma Optimizasyonu (MyList Search Pipeline & Index)
+- **Arka Planda Arama:** Binlerce kaydı içeren Listem ekranında her harf girişinde ana iş parçacığında (UI) çalışan ağır filtreleme, NFKC/regex normalizasyonu ve Levenshtein hesaplaması kaldırıldı. Arama `Dispatchers.Default` üzerine taşındı.
+- **Yazma Gecikmesi & İptal:** Tuş vuruşları için 180 ms yazma gecikmesi (`debounce`) eklendi; `transformLatest` ile yeni bir harf yazıldığında eski arama işlemi derhal iptal ediliyor. Temizleme ve filtre değişimleri ise beklemeden anında çalışıyor.
+- **Arama İndeksi (`MyListSearchIndex`):** Başlıklar, alternatif adlar ve fuzzy normalizasyonları önbelleğe alınıyor; ızgara çiziminde tüm listeyi tekrar tekrar kopyalayan `chunked()` yerine dinamik satır hesabı (`items(count = ...)`) getirildi.
+- **Kısa Sorgu Koruması:** 1–2 harfli kısa aramalarda listeyi gereksiz yere şişiren toleranslı eşleşmeler sınırlandırıldı; 2.603 kayıtlı testler dahil 46 birim testiyle doğrulandı.
 
-### 🗑️ Aktivite Silme: Açılır Panel Kaldırıldı
-- **Tek dokunuş silme (`ProfileActivityComponents.kt`):** Kendi AniList profilindeki aktivite kartlarında üç nokta (⋮) düğmesi ve tek satırlık "Sil" açılır menüsü kaldırıldı. Yerine doğrudan, kartın sağ üstünde duran kırmızı çöp kutusu düğmesi getirildi.
-- **Onay korundu:** Düğme, çağrı yerindeki mevcut `KitsugiConfirmDialog` penceresini açar; kazara silme koruması aynen korunur.
+### 🛡️ LazyVerticalGrid Sonsuz Yükseklik Çökmesi Düzeltmesi (Infinite Max Height Fix)
+- **Kök Neden Giderildi:** `java.lang.IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints` çökme hatası çözüldü.
+- **Kesin Yükseklik Hesabı (`GridHomeContent`):** `wrapContentHeight()` yerine satır sayısından sonlu yükseklik hesaplayan `rememberGridHomeEmbedHeight` getirildi; `LazyColumn.item` içinde sonlu `height(...)` ile güvenli ölçüm sağlandı.
+- **Profil Seçim Izgarası (`ProfileSelection`):** Olası sonsuz yükseklik ölçümünü engellemek için `heightIn(max = 520.dp)` sınırı eklendi.
+- **Teşhis Sistemi (`KitsugiApplication`):** `:crash` sürecinin `StartupStage` iz dosyasını ezmesi engellendi; çökme anındaki gerçek aşama raporlara doğru yansıtılıyor.
 
-### 🌐 Kullanıcı Biyografilerinde Otomatik Çeviri (Wiki Mantığı)
-- **Ortak altyapı (`KitsugiAutoTranslation.kt`, `KitsugiHtmlTranslation.kt`):** Wiki çeviri kuralları profillere taşındı: ayar açıksa çeviri uygulama içinde yapılır ve bellekte tutulur. Çeviri ikonu nabız animasyonu gösterir ve kompakt "Orijinal / Çeviri" çipi sunulur.
-- **HTML güvenli çeviri:** Biyografi HTML'i yalnızca metin düğümleri üzerinden çevrilir. Etiketler, resimler ve bağlantılar korunur; `<script>`, `<code>` bloklarına dokunulmaz.
-- **Kapsam:** AniList, Kitsu, Shikimori, Simkl ve MAL profilleri; WebView yeniden yaratılmadan güncellenir.
-- **Takip butonu metni (`profile_following_button`):** Yanlış anlam veren "Takip Ediliyorsun" yerine doğru "Takiptesin" yapıldı.
-
-### 🏷️ Listem Rozetleri: Köşelere Yapışık ve Kompakt
-- **Poster köşe rozetleri (`KitsugiMediaEntryCard.kt`):** Durum ve puan rozetleri posterin köşelerine tam yapışık yerleştirildi (`TopEndCornerShape` / `BottomEndCornerShape`).
-- **Kompakt stil:** 9sp etiket boyutu, daraltılmış iç boşluk, taşmaları önleyen `widthIn(max = 108.dp)` sınırı.
-
-### 📖 Kompakt Wiki Araç Çubuğu & Oynatıcı Fallback
-- **Kompakt Wiki Çubuğu (`WikiPageTools.kt`, `WikiChromeComponents.kt`):** Çeviri ve reklam engeli durumu tek satırlık modern araç çubuğunda gösterilir; sayfa görünümü rahatlatıldı.
-- **Satır İçi Video Oynatıcı Fallback (`InlinePlayerSupport.kt`):** Detay/Fragman bölümünde cihaz donanımının çözemediği kodeklerle karşılaşıldığında tam ekran yazılımsal oynatıcıya geçiş kartı sunulur.
+### 📋 Hakkında Ekranı Sürüm Notları ve Önbellek Düzeltmesi (`ReleaseNotesCache`)
+- **Sürüme Bağlı Önbellek:** Sürüm notu önbelleği kurulu uygulama sürümüne (`VERSION_NAME`) bağlandı. Eski uygulama sürümünden kalan bayat kayıtlar ve geleceğe ait zaman damgaları reddediliyor.
+- **Kanonik GitHub Kaynağı:** Hakkında ekranındaki sürüm notları doğrudan GitHub Releases API'sinden okunuyor; gecikebilen Codeberg aynasından eski sürüm bilgisi çekilmesi önlendi. Güncelleme denetiminde ise Codeberg yedeği korunuyor.
 
 ---
 
 ## 🇬🇧 English
 
-### 🎭 TMDB Character Portraits, ARM v2 & Multi-Source Fallback Chain
-- **ARM v2 Endpoint & Cache Poisoning (`KitsugiIdResolver.kt`, `KitsugiEpisodeRatingsRepository.kt`):** Replaced `/api/v2/ids?source=themoviedb` (which returned `HTTP 400 Bad Request`) with the official ARM endpoints `/api/v2/themoviedb?id=`, `/api/v2/thetvdb?id=`, `/api/v2/imdb?id=`, and Simkl `POST /api/v2/ids`. Differentiated `MOVIE` from `TV` records to prevent ID collision; integrated Wikidata (`P4086/P8729/P11495/P12095`) bridge and resolved cache poisoning.
-- **Voice Actor Duplicate Image Cleanup (`TmdbCreditsClient.kt`, `KitsugiCharacterClient.kt`):** Prevented actor portrait propagation into character slots for TV series. The characters tab populates genuine fictional character artwork even when opened prior to media detail resolution.
-- **Multi-Source Fallback & Franchise Fixes:** Activated parallel fallbacks via Jikan, fast Shikimori `/roles`, Kitsu, Bangumi, Simkl, and Fandom during AniList downtime. Fixed franchise filters dropping single-word character names (e.g. *Doraemon*) beyond the top 8 popular titles; cached character portraits backpropagate to the tab view.
+### ⚡ MyList Search Pipeline & Keystroke Freeze Optimization
+- **Background Search Execution:** Offloaded heavy search filtering, NFKC/regex normalization, and fuzzy string distance calculations from the main UI thread to `Dispatchers.Default`.
+- **Typing Debounce & Instant Cancellation:** Added a 180 ms typing debounce with `transformLatest`, ensuring in-flight searches are immediately cancelled upon new keystrokes. Clear actions and filter toggles respond immediately.
+- **Search Pre-Indexing (`MyListSearchIndex`):** Precomputed title aliases and metadata keys. Replaced full-list `chunked()` collection copying in grid views with dynamic count-based row rendering (`items(count = ...)`).
+- **Short Query Guard:** Constrained broad fuzzy matching for 1–2 character queries to avoid over-matching large lists, fully verified across 46 unit tests.
 
-### 🗑️ Activity Delete: Direct Action Button
-- **One-tap delete (`ProfileActivityComponents.kt`):** Removed the redundant three-dot menu on personal AniList profile activities in favor of a direct red trash button, preserving the confirmation dialog.
+### 🛡️ LazyVerticalGrid Infinite Height Crash Fix
+- **Root Cause Resolved:** Fixed `java.lang.IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints` when embedding vertical grids inside LazyLists.
+- **Deterministic Grid Height (`GridHomeContent`):** Replaced unbounded `wrapContentHeight()` with row-count-based finite height calculation (`rememberGridHomeEmbedHeight`) inside `LazyColumn.item`.
+- **Profile Selection (`ProfileSelection`):** Bounded grid height via `heightIn(max = 520.dp)`.
+- **Crash Diagnostics (`KitsugiApplication`):** Prevented the `:crash` process from overwriting the `StartupStage` trace file, preserving the true crash stage in reports.
 
-### 🌐 User Bio Automatic Translation
-- **Shared infrastructure (`KitsugiAutoTranslation.kt`, `KitsugiHtmlTranslation.kt`):** Brings wiki-style in-memory translation, pulsing indicators, and compact original/translated chips to user biographies across AniList, Kitsu, Shikimori, Simkl, and MAL without destroying WebView instances.
-- **Follow button fix:** Corrected Turkish label from "Takip Ediliyorsun" to "Takiptesin" (Following).
+### 📋 About Screen Release Notes & Cache Fix (`ReleaseNotesCache`)
+- **Version-Scoped Cache:** Tied release notes cache invalidation directly to installed app version (`VERSION_NAME`). Stale records from older versions and future-dated timestamps are discarded.
+- **Canonical GitHub Source:** About screen fetches release notes strictly from GitHub Releases API, preventing stale mirror data from Codeberg from appearing as the latest release. Codeberg fallback remains active for APK update checks.
 
-### 🏷️ My List Badges: Corner-Glued & Compact
-- **Flush corner placement (`KitsugiMediaEntryCard.kt`):** Status and score badges clip tightly to poster corners with compact 9sp typography and single-line constraints.
+---
 
-### 📖 Compact Wiki Toolbar & Player Fallback
-- **Streamlined Wiki Bar (`WikiPageTools.kt`, `WikiChromeComponents.kt`):** Unified translation and ad blocking indicators into a clean single-row bar.
-- **Inline Video Player Fallback (`InlinePlayerSupport.kt`):** Provides a seamless one-tap card to open high-profile or unsupported video codecs directly in the fullscreen player.
+# Kitsugi Beta v2.4.346
+
+## 🇹🇷 Türkçe
+
+### 🔄 Shikimori Çapraz Eşitleme (Cross-Sync) ve Durum Önceliği
+- **Ortak MAL Kimlik Eşlemesi:** Shikimori anime/manga `target_id` değerinin resmî API sözleşmesine uygun olarak MAL kimlik ekseninde çözümlenmesi sağlandı. Romaji ve İngilizce farklı başlıklara sahip yapımlar (ör. Zom 100) artık aynı eşitleme grubuna dahil ediliyor.
+- **Akıllı Durum Birleştirme (`CrossSyncMergePolicy`):** Tamamlanma güvenceleri korunurken, eski kuralın bayat bir "İzleniyor" kaydını daha yeni "Bırakıldı" veya "Duraklatıldı" kararlarına kalıcı olarak tercih etmesi düzeltildi. En güncel kullanıcı kararı tüm platformlara doğru yayılıyor.
+
+### 🌸 Shikimori Detay, Bilgi Kartı ve Topluluk İyileştirmeleri
+- **Zenginleştirilmiş Bilgi Bölümü:** Format, sezon, yayınlanan bölüm sayısı, sonraki bölüm tarihi/saati, manga cilt ve yayıncı bilgileri eklendi.
+- **Çok Dilli Başlıklar & Temizlik:** İngilizce, Japonca, Romaji, Rusça adlar ayrıştırıldı; `[null]` veya boş dizelerin metin olarak görünmesi engellendi.
+- **Lisanslayanlar & Fansub/Fandub Grupları:** İlgili çeviri ve lisans grupları Bilgi sekmesine bağlandı. Film ve dizilerde stüdyo, süre ve yaş sınırının yanlışlıkla gizlenmesi önlendi.
+- **Yerel Topluluk İstatistikleri:** Shikimori'nin kendi puan ve liste-durumu dağılım istatistikleri harici yedeklerden önce önceliklendirildi. Boş alanların kutu kirliliği yaratmaması için dinamik istatistik kartı getirildi.
+- **Forum ve Harici Bağlantılar:** Shikimori konuları forum sekmesine taşındı ve `/api/comments` yanıt akışı bağlandı. Manga harici bağlantıları etkinleştirildi; Vikipedi linklerine dil etiketi eklendi.
+
+### 🎬 Detay Sayfası Küçük Oynatıcı & MPV / Media3 İyileştirmeleri
+- **Gelişmiş Satır İçi Oynatıcı:** Fragman ve açılış/kapanış (OP/ED) temaları için küçük oynatıcı arayüzü pürüzsüzleştirildi. Ses açma/kapama, tam ekran geçişi ve oynatma durumu kontrolleri optimize edildi.
+- **MPV ve Media3 Yüzey Desteği:** `PlayerEngine`, `MpvPlayerEngine`, `Media3PlayerEngine` ve `KitsugiMpvSurfaceView` üzerinde küçük oynatıcı yüzey entegrasyonu güçlendirildi; oynatıcı değişimlerinde donma veya kaynak çakışması önlendi.
+- **YouTube Bağlantı Tanıma:** Standart watch, embed, shorts, youtu.be ve zaman damgalı video URL'lerinin tamamını hatasız ayrıştıran Regex motoru güncellendi; `YouTubeUrlParsingTest` ve `InlinePlayerSupportTest` ile doğrulandı.
+
+### 🦊 Kitsu Bilgi Kapsamı & Yayın Detayları
+- **Eksiksiz Kitsu Yayın Bilgileri:** Kitsu API detaylarında bölüm sayısı, yayın durumu, yayınlandığı sezon/yıl, yaş derecelendirmesi ve içerik uyarıları detay sayfasına tam uyumlu hâle getirildi.
+- **Çoklu Dil Etiket Desteği:** Yayın durumu ve yaş etiketleri Türkçe ve İngilizce yerelleştirme kaynaklarıyla senkronize edildi.
+
+### 📝 Ani-Sub Altyazı Eşleme & İyileştirmeler
+- **Akıllı Altyazı Eşleştirici (`AniSubSubtitleMatcher`):** Zip paketleri ve arşivlerdeki altyazı dosyaları için bölüm numarası ve başlık benzerlik skoru hesaplama motoru eklendi.
+- **Türkçe Altyazı Önceliği:** Ani-Sub üzerinden gelen altyazılarda Türkçe varyantlar (`.srt`, `.ass`) doğru sıra ve zamanlama ile akış istemcisine bağlandı.
+
+---
+
+## 🇬🇧 English
+
+### 🔄 Shikimori Cross-Sync & Status Merging Fix
+- **Shared MAL Identity Resolution:** Harmonized Shikimori anime/manga target IDs with the official MAL identity contract. Different localized/Romaji titles (e.g. Zom 100) now cleanly converge into the same cross-sync group.
+- **Dynamic Status Merge Policy (`CrossSyncMergePolicy`):** Fixed stale "Watching" records overriding newer "Dropped" or "Paused" statuses, while preserving completion safeguards.
+
+### 🌸 Shikimori Details, Info Card & Community Enhancements
+- **Comprehensive Info Fields:** Added format, broadcast season, episodes aired, next episode countdown/date, manga volume count, and publishers.
+- **Multi-Language Titles & Cleanups:** Parsed English, Japanese, Romaji, and Russian aliases while stripping any `[null]` artifacts.
+- **Licensors & Fansub/Fandub Groups:** Connected licensor and fansub groups to the Info card. Fixed studio, runtime, and age ratings being hidden on movies/TV specials.
+- **Native Statistics Priority:** Prioritized Shikimori native rating and list distribution stats over fallback providers, with a dynamic clean statistics card.
+- **Forum & External Links:** Connected Shikimori topics to the forum feed with `/api/comments` reply loading. Activated manga external links and added language tags for Wikipedia.
+
+### 🎬 Detail Screen Mini Player & MPV / Media3 Enhancements
+- **Enhanced Inline Player:** Smoother playback experience for trailers and opening/ending (OP/ED) themes. Optimized mute/unmute, fullscreen toggle, and playback controls.
+- **MPV and Media3 Surface Support:** Strengthened inline player surface integration across `PlayerEngine`, `MpvPlayerEngine`, `Media3PlayerEngine`, and `KitsugiMpvSurfaceView`, preventing freezes or surface collisions during stream transitions.
+- **Robust YouTube URL Parsing:** Upgraded regex pattern matching across all YouTube formats (standard watch, shorts, embed, shortlinks, timestamped links), verified via `YouTubeUrlParsingTest` and `InlinePlayerSupportTest`.
+
+### 🦊 Kitsu Information Scope & Airing Details
+- **Comprehensive Kitsu Metadata:** Enhanced Kitsu details mapping with full coverage of episode count, airing status, broadcast season/year, age ratings, and content advisories.
+- **Localized Badges:** Airing status and age classifications are fully harmonized with Turkish and English locale strings.
+
+### 📝 Ani-Sub Subtitle Matching Engine
+- **Smart Subtitle Matcher (`AniSubSubtitleMatcher`):** Introduced title similarity and episode numbering heuristics for matching extracted subtitle streams from zip archives.
+- **Turkish Subtitle Priority:** Streamlined Turkish subtitle matching (`.srt`, `.ass`) with prioritized scoring for seamless playback.
+
+---
+
+# Kitsugi Beta v2.4.345
+
+## 🇹🇷 Türkçe
+
+### 📱 Wiki Açılır Sayfası Artık Mobil Düzende Açılıyor
+- **Varsayılan görünüm mobil:** Özgün wiki sayfası artık masaüstü düzeniyle değil, sitenin kendi mobil/duyarlı düzeniyle açılır. Metinler okunaklı boyutta gelir, yatay kaydırma gerekmez.
+- **Seçim hatırlanıyor:** Menüden "Masaüstü düzeni" veya "Mobil düzen" seçildiğinde tercih kalıcı olarak kaydedilir (`wiki_desktop_layout`). Yeni sekmeler, yeni wiki sayfaları ve uygulama yeniden başlatıldıktan sonra da **en son ne seçildiyse o düzen** açılır.
+- **Sekmeler arası tutarlılık:** Yeni sekme ve sekme değişimlerinde düzen tercihi korunur.
+
+### ↔️ Sayfa Kendini Ekrana Sığdırıyor
+- **Mobilde site viewport'u korunur:** Yalnızca ekrandan geniş, sabit piksel genişliği dayatan belgeler `width=device-width`'e çevrilir; diğer sayfaların düzenine dokunulmaz.
+- **Masaüstü düzeninde otomatik ölçekleme:** 1200 px'lik masaüstü düzeni `initial-scale` ile cihaz genişliğine oturtulur; sayfa 1:1 oranda taşmaz.
+- **Taşan öğeler tek tek düzeltilir:** Ekrandan geniş görsel, tablo, `pre` ve geniş bloklar **yalnızca gerçekten taşıyorsa** işaretlenip kendi içinde kaydırılabilir hâle getirilir. Metin, bağlantı, nitelik ve site betikleri değiştirilmez; içerik hiçbir zaman kırpılmaz (`overflow-x: hidden` kullanılmaz).
+- **Geç gelen görseller / çeviri sonrası genişleme:** Yerleşim `resize`, `load` ve çeviri yazımlarından sonra yeniden ölçülür; kaydırma konumu bozulmaz.
+
+### ⚡️ Otomatik Çeviri Ciddi Biçimde Hızlandı
+- **Paralel boru hattı (pipeline):** Önceden her parti için "iste → bekle → yaz" sırası vardı; artık **aynı anda 3 çeviri partisi** uçuşta olur ve sonuçlar geldikçe yazılır. Ağ beklemesi sayfayı kilitlemez.
+- **Daha büyük partiler:** DOM köprüsü tur başına 8 düğüm yerine **12 düğüm** (1200 karaktere kadar) toplar; daha az istek, daha çok metin.
+- **Tekrarlar tek istekte:** Aynı metin sayfada birden çok geçiyorsa (gezinme etiketleri, tekrar eden satırlar) **tek** ağ isteği yapılır, sonuç tüm düğümlere dağıtılır.
+- **Kaydırırken çeviri durmuyor:** Kaydırma olayları artık tarayıcıyı her karede baştan başlatmıyor (gecikmeli yeniden tarama). Yazma 120 ms'lik kısa bir pencereyle ertelenir ve kaybolmaz, sürekli yeniden denenir.
+- **Hata artık boru hattını durdurmuyor:** Tek bir partinin/isteğin hatası yalnızca o partiyi etkiler; düğümler sonra yeniden denenir. Zaman aşımında "bekliyor" işaretleri temizlenir, metin bir daha hiç istenmeyen durumda kalmaz.
+- **Boşta daha az yoklama:** Çevrilecek metin kalmadığında 450 ms, tarama sürerken 90 ms yoklama; gereksiz JS çağrıları azaltıldı.
+
+---
+
+## 🇬🇧 English
+
+### 📱 Wiki Page Opens in Mobile Layout
+- **Mobile by default:** The original wiki page no longer opens in a cramped desktop layout; it uses the site's own responsive/mobile layout with readable text and no horizontal scrolling.
+- **Choice is remembered:** Toggling "Desktop layout"/"Mobile layout" is persisted (`wiki_desktop_layout`). New tabs, new wiki pages and app restarts open in **the last selected layout**.
+- **Consistent across tabs:** Layout preference survives tab switches and duplicated tabs.
+
+### ↔️ The Page Fits the Screen Automatically
+- **Site viewport preserved on mobile:** Only documents that hard-code a fixed pixel width wider than the device are rewritten to `width=device-width`; untouched pages keep their own layout.
+- **Desktop mode is auto-scaled:** The 1200 px desktop layout is fitted with `initial-scale`, so it no longer overflows at 1:1.
+- **Only overflowing elements are corrected:** Wide images, tables, `<pre>` and wide blocks are marked **only when they actually overflow** and become scrollable within themselves. Text, links, attributes and site scripts are never rewritten and content is never clipped (no `overflow-x: hidden`).
+- **Late images / translated layout changes:** Layout is re-measured on `resize`, `load` and after translation writes without disturbing the scroll position.
+
+### ⚡️ Automatic Translation Is Much Faster
+- **Pipelined:** Up to **three DOM batches in flight** at once, applied as they arrive, instead of a strict "request → wait → write" loop.
+- **Larger batches:** The DOM bridge now returns up to **12 nodes** (~1200 chars) per round, cutting the number of requests.
+- **Repeated text is requested once:** Identical strings are translated with a single request and fanned out to every matching node.
+- **Translation keeps flowing while scrolling:** Scroll events no longer restart the scanner on every frame (debounced rescan); writes are briefly deferred (120 ms) and retried, never dropped.
+- **Failures are isolated:** A slow or failing batch no longer stalls the pipeline; a time-out clears "pending" flags so text can be retried instead of being stuck forever.
+- **Leaner idle polling:** 450 ms idle / 90 ms while scanning, with the cosmetic ad layer refreshed at most once per second.
+
+---
+
+# Kitsugi Beta v2.4.344
+
+## 🇹🇷 Türkçe
+
+### 🎭 Simkl & TMDB Kurgusal Karakter Portre ve Biyografi Ayrımı Düzeltmesi
+- **Seslendirmen Profili İzolasyonu:** The Simpsons gibi Batı animasyonlarında TMDB jeneriğinden çekilen kurgusal karakterlerin (Homer, Marge, Bart vb.) seslendirmen (Dan Castellaneta, Julie Kavner, Nancy Cartwright) fotoğrafı, biyografisi ve takma adlarıyla doldurulması tamamen engellendi. Seslendirmen yalnızca *Seslendirmenler* listesine atanır.
+- **Detay ve Önbellek Sızıntısı Koruması (`DetailCache`):** Seslendirmen fotoğraflarının karakter portresi olarak `resolvedCharacterPortraits` ve `mediaCharacters` önbelleklerine sızması engellendi. TMDB URL'lerindeki boyut segmentlerini (`/w185/`, `/w300/`, `/w500/`) normalize eden `DetailCache.isSameImageResource` ile aynı aktör fotoğrafı kopyaları yakalanıp elenir.
+- **Fandom & Vikipedi Kurgusal Karakter Çözümlemesi:** Kurgusal karakterler için AniList/Jikan/Bangumi kataloglarına ek olarak Fandom ve Vikipedi (`wikipedia.tr`, `wikipedia.en`) portre ve biyografi çözümleme zinciri eklendi.
+- **Vikipedi Adil Kullanım (Fair-Use) Portre Desteği (`FandomApi`):** MediaWiki `PageImages` sorgularına `pilicense=any` eklenerek Vikipedi'deki adil kullanım lisanslı kurgusal karakter görsellerinin (`Homer_Simpson_2006.png`, `Marge_Simpson.png`, `Bart_Simpson_200px.png`) API tarafından thumbnail olarak dönmesi sağlandı. Toplu sorgulara `pilimit=50` ve `exlimit=20` limitleri eklendi.
+- **Çoklu Rol Adı Ayrıştırma (`/`):** Tek seslendirmenin canlandırdığı birleşik karakter adları ("Homer Simpson / Abe Simpson / Barney Gumble") `/` üzerinden ayrıştırıldı; birincil ad ana karakter, ikincil adlar ise alternatif roller olarak korundu.
+- **Menşe Ülke Filtresi:** Simkl `country` alanı `countryOfOrigin` olarak modele bağlandı; Batı animasyonlarının Asya anime kataloglarında boşuna aranması önlendi.
+- **Seslendirmenler Sekmesi:** TMDB kurgusal karakterleri (`!isRealMediaRole`) için Karakter Detay sayfasında *Seslendirmenler* sekmesi görünür kılındı.
+- **Wiki Sekmesi Canlı Entegrasyonu:** Wiki sekmesi karakter sayfasını çözdüğünde ana detaydaki eksik portre ve biyografi otomatik olarak tamamlanır.
+
+### 📊 MDBList Canlı API Kotası Takibi ve Kota Aşımı Koruması
+- **Gerçek Zamanlı ve Dinamik Kota (`MdbListQuotaCenter`):** API kotası artık sabit 1.000 varsayımı yerine `https://api.mdblist.com/user` ve `X-RateLimit-*` başlıklarından dinamik olarak okunur. Ücretsiz (1.000) ve Destekçi (10.000 / 25.000 / 100.000 / 250.000) planlarının tamamı otomatik tanınır.
+- **Ayarlar Paneli:** Ayarlar → Harici Entegrasyonlar → MDBList sekmesine kalan istek sayısı, doluluk çubuğu, yerel saat diliminde sıfırlanma zamanı ve yenileme butonu eklendi.
+- **Detay Sayfası Harici Puanlar Kartı:** Rozet yanında küçük kota göstergesi (`998/1.000`, %10 altında turuncu, bitince kırmızı "Kota doldu").
+- **Kota Aşımı Koruması & Sessiz Önbellek:** Günlük kota dolduğunda ağa çıkılmadan önbellekteki son puanlar gösterilir (429 döngüsü önlenir), kartta bilgilendirici uyarı gösterilir ve tek seferlik bildirim sağlanır. HTTP 429 artık anahtar geçersiz hatası değil kota dolumu olarak ele alınır.
+- **Birim Testleri:** `TmdbAnimeCharacterPortraitEnrichmentTest`, `FandomApiParsersTest`, `FandomCharacterQueriesTest`, `MdbListClientTest` ve `MdbListQuotaTest` ile doğrulandı.
+
+---
+
+## 🇬🇧 English
+
+### 🎭 Simkl & TMDB Fictional Character Portrait and Biography Isolation Fix
+- **Voice Actor Profile Separation:** For Western animations (e.g. *The Simpsons*) sourced via TMDB credits, fictional character records (Homer, Marge, Bart, etc.) are strictly prevented from inheriting voice actor (Dan Castellaneta, Julie Kavner, Nancy Cartwright) photographs, biographies, or aliases. Voice actors remain cleanly positioned in the *Voice Actors* roster.
+- **Detail & Cache Poisoning Prevention (`DetailCache`):** Voice actor headshots are barred from leaking into `resolvedCharacterPortraits` and `mediaCharacters` caches. `DetailCache.isSameImageResource` normalizes TMDB image URL resolution prefixes (`/w185/`, `/w300/`, `/w500/`) to detect duplicate actor photos across different sizes.
+- **Fandom & Wikipedia Fictional Fallback Pipeline:** Fictional characters missing in anime databases (AniList, Jikan, Bangumi) now query Fandom and Wikipedia (`wikipedia.en`, `wikipedia.tr`) for portraits, biographies, and infobox metadata.
+- **Wikipedia Non-Free / Fair-Use Image Support (`FandomApi`):** Added `pilicense=any` to MediaWiki `prop=pageimages` requests so Wikipedia non-free character portraits (`Homer_Simpson_2006.png`, etc.) return thumbnails correctly. Batch limits (`pilimit=50`, `exlimit=20`) were also expanded.
+- **Multi-Role Slash Splitting (`/`):** Compound role strings (e.g. "Homer Simpson / Abe Simpson / Barney Gumble") are split by `/`; the primary role becomes the main character name while secondary roles are preserved as alternatives.
+- **Origin Country Attribution:** Simkl's `country` field is mapped to `countryOfOrigin`, skipping redundant East Asian anime catalog searches for Western animations.
+- **Voice Actors Tab Visibility:** The *Voice Actors* tab is now displayed on the Character Detail screen for fictional TMDB roles (`!isRealMediaRole`).
+- **Live Wiki Tab Sync:** Resolving character wiki pages dynamically completes missing character portraits and summaries in the main detail page.
+
+### 📊 MDBList Live API Quota Tracking & Exhaustion Guard
+- **Dynamic Real-Time Quota (`MdbListQuotaCenter`):** API quota is now dynamically tracked from `https://api.mdblist.com/user` responses and `X-RateLimit-*` headers instead of hardcoded limits, supporting all Free (1,000) and Supporter tiers (10,000+).
+- **Settings Dashboard:** Integrations → MDBList displays remaining requests, progress bar, localized daily reset time, and manual refresh controls.
+- **Detail Screen External Ratings Card:** Live quota badge (`998/1,000`, orange under 10%, red "Quota used up").
+- **Exhaustion Guard & Cached Fallback:** Prevents 429 cascades by serving cached ratings when quota is depleted, accompanied by inline recovery times and deduplicated notifications. HTTP 429 is treated as quota exhaustion rather than an invalid API key.
+- **Unit Tests:** Validated via `TmdbAnimeCharacterPortraitEnrichmentTest`, `FandomApiParsersTest`, `FandomCharacterQueriesTest`, `MdbListClientTest`, and `MdbListQuotaTest`.
+
+---
+
+# Kitsugi Beta v2.4.343
+
+## 🇹🇷 Türkçe
+
+### 🎵 Detay Sayfası Açılış / Kapanış (OP/ED) Müzikleri Küçük Oynatıcı & Açılma Animasyonu
+- **Uygulama İçi Küçük Oynatıcı Deneyimi:** Açılış (OP) ve kapanış (ED) satırlarına dokunulduğunda doğrudan video bağlantısı olmasa bile harici YouTube aramasına çıkılmaz. Video arka planda çözülerek doğrudan fragmandaki gibi satır içi küçük oynatıcıda oynatılır.
+- **Arka Planda Video Çözümleme (`InAppYouTubeExtractor`):** Bağlantısız müzik etiketleri için uygulama içi YouTube araması yapılarak ilk gerçek video kimliği (`videoRenderer`) çözülür ve bellek önbelleğinde saklanır.
+- **Bağımsız Arama Ayrıştırıcısı (`YouTubeSearchResultParser`):** Kanal veya oynatma listesi sonuçlarını atlayıp doğrudan oynatılabilir video kimliğini ayıklayan, süslü parantez ve kaçışlı metinlere dayanıklı hafif ayrıştırıcı eklendi.
+- **Ortak `KitsugiDetailReveal` Açılma Animasyonu:** Oynatıcı, ilgili satırın altında fragmandaki gibi aşağıya doğru yumuşak animasyonla açılır.
+- **Anında Oynatıcı Temizliği:** Başka bir müziğe geçişte veya kapatmada eski oynatıcı motoru anında kaldırılır; iki oynatıcının aynı anda bellekte kalması veya ses çakışması yaşanması engellenir.
+- **Hata Durumu ve Yedek Seçenek:** Çözümleme başarısız olursa küçük oynatıcı alanı içinde "Yeniden Dene" ve yalnızca isteğe bağlı yedek seçenek olarak "YouTube'da ara" eylemleri gösterilir.
+- **Birim Testleri:** `YouTubeSearchResultParserTest` ile video ayıklama, kanal/playlist eleme ve eksik veri durumları doğrulandı.
+
+---
+
+## 🇬🇧 English
+
+### 🎵 Detail Screen Opening / Ending (OP/ED) In-App Mini Player & Reveal Animation
+- **Seamless Inline Playback:** Tapping Opening (OP) or Ending (ED) theme rows no longer redirects to an external YouTube search when a direct video link is missing. The video is resolved in the background and played directly inside the inline mini-player.
+- **Background Video Resolution (`InAppYouTubeExtractor`):** Unlinked theme labels resolve to playable video IDs via in-app YouTube queries and are cached in bounded memory.
+- **Robust Search Parser (`YouTubeSearchResultParser`):** Extracts authentic playable `videoRenderer` results while skipping channels and playlists, resilient against nested braces and escaped quotes.
+- **Unified `KitsugiDetailReveal` Animation:** The player expands smoothly downwards below the selected row using the exact same reveal transition as trailers.
+- **Immediate Engine Disposal:** Switching rows or collapsing the player immediately tears down the previous player instance to eliminate duplicate audio and heavyweight leaks.
+- **Inline Retry & Fallback:** Displays inline "Retry" and fallback "Search on YouTube" buttons if resolution fails.
+- **Unit Tests:** Verified via `YouTubeSearchResultParserTest` (renderer selection, playlist filtering, and malformed data handling).
+
+---
+
+# Kitsugi Beta v2.4.342
+
+## 🇹🇷 Türkçe
+
+### 🔞 Bangumi +18 (R18) Görsellerinde Bulanıklık ve Yetişkin İçerik Düzeltmesi
+- **Koleksiyon İçe Aktarımında NSFW Bayrağı Çözümlemesi:** Bangumi kullanıcı koleksiyonu yanıtındaki kısaltılmış `subject` nesnesi `nsfw` alanını taşımadığı için kayıtlar `isAdult=false` olarak ekleniyor ve +18 bulanıklık ayarı açık olsa bile afişler bulanıklaşmıyordu. Yeni `BangumiAdultResolver` ile `GET /v0/subjects/{id}` detayından gerçek `nsfw` değeri çözümlenerek içe aktarıma dahil edildi.
+- **Arka Plan Taraması (Migration v2):** Mevcut yerel Bangumi kayıtları için göç sürümü 2'ye yükseltildi. Stable ID → Bangumi `subject_id` dönüşümü yapılarak mevcut yerel kayıtların yetişkin bayrakları arka planda taranır ve güncellenir.
+- **Güvenli Önbellekleme & Sağlayıcı İzolasyonu:** Başarılı pozitif/negatif sonuçlar sınırlı bellek önbelleğinde tutulur; ağ hataları önbelleğe alınmaz ve yeniden denenebilir. Bangumi, MAL ve TMDB kimlik alanlarının birbirine karışması önlendi.
+- **Birim Testleri:** `AdultFlagBackfillMigrationTest` ile stable ID dönüşümü ve sağlayıcı ad alanı izolasyonu doğrulandı (9 testin tamamı geçti).
+
+### 🌐 Bangumi Başlık Dili Sözleşmesi Tüm Yüzeylerde (İlişkiler, Karakterler, Yapımlar, Kişi Adları)
+- **Seçili Dil Artık Her Bangumi Yüzeyinde:** İngilizce / Romaji / Özgün dil tercihi; Detay → İlişkiler & Öneriler, Kişi detayı → Karakterler & Yapımlar & Seslendirenler, Karakter detayı → Yapımlar & Seslendirenler ve Detay → Karakterler & Ekip sekmelerinde aynı zincirle uygulanır (İngilizce → Romaji → Özgün / Romaji → İngilizce → Özgün / Özgün).
+- **Yeni `BangumiEntityNameResolver`:** Bangumi karakter ve kişi (seiyuu/staff) adları için AniList GraphQL üzerinde aliased toplu arama + **birebir (normalize) ad eşleşmesi** (`name.native / name.full / name.alternative`). Kısmi eşleşme kesinlikle reddedilir, yanlış kişi adı asla gösterilmez. Çözülen adlar disk önbelleğine (`bangumi_entity_name_cache_v1`) kaydedilir.
+- **İlişkiler/Öneriler Ortak Çözümleyiciye Bağlandı:** p1 slim subject listeleri artık `BangumiSubjectTitleResolver` (önbellek → AniList toplu arama → subject infobox → TMDB) ile çözülür; eski yavaş infobox döngüsü kaldırıldı.
+- **Arka Plan Isınma Deseni:** İlişkiler, öneriler ve kadro sekmeleri için senkron bütçeyi aşan CJK kayıtlar arka planda çözülerek sekme ve `DetailCache` anında güncellenir; ikinci ziyarette liste tamamen seçili dilde açılır.
+- **Birim Testleri:** `BangumiEntityNameResolverTest` (10 testin tamamı geçti).
+
+### 🛠️ Derleme ve Kararlılık
+- Android AAPT kaynak derleyicisinde kaçışsız apostroflardan kaynaklanan derleme hataları (`values/strings.xml` ve `values-en/strings.xml`) giderildi.
+
+---
+
+## 🇬🇧 English
+
+### 🔞 Bangumi R18 Image Blur & NSFW Flag Resolution
+- **NSFW Resolution on Collection Import:** Bangumi collection responses return slim subject objects lacking the `nsfw` property, causing imported items to remain `isAdult=false` and bypassing user blur settings. With `BangumiAdultResolver`, subject details (`GET /v0/subjects/{id}`) are queried to properly detect adult flags on import.
+- **Background Backfill Migration (v2):** Upgraded migration version to 2 for existing local Bangumi records. Resolves Bangumi stable IDs to raw `subject_id`s and backfills adult flags in background batches.
+- **Safe Caching & Provider Isolation:** Positive and negative adult lookups are cached in-memory with bounded capacity; network failures remain retryable. Stable namespaces prevent collisions between Bangumi, MAL, and TMDB IDs.
+- **Unit Tests:** Validated via `AdultFlagBackfillMigrationTest` (all 9 unit tests passed).
+
+### 🌐 Universal Bangumi Title & Entity Language Contract Across All Surfaces
+- **Language Preference Honored Universally:** English / Romaji / Native title language preference is consistently applied across Detail → Relations & Recommendations, Person detail → Characters & Works & Voice actors, Character detail → Works & Voice actors, and Detail → Characters & Staff tabs.
+- **New `BangumiEntityNameResolver`:** Implements AniList GraphQL aliased batch queries with **strict normalized name matching** (`name.native / name.full / name.alternative`). Partial matches are strictly rejected. Results are cached persistently on disk (`bangumi_entity_name_cache_v1`).
+- **Unified Relations & Recommendations Resolution:** Connected p1 slim subject rows to `BangumiSubjectTitleResolver` (persistent cache → AniList batch → infobox → TMDB fallback).
+- **Background Warm Pattern:** Names and titles exceeding the synchronous display budget are resolved in the background and dynamically pushed to tab state and `DetailCache`. Subsequent visits open instantly in the preferred language.
+- **Unit Tests:** Validated via `BangumiEntityNameResolverTest` (all 10 unit tests passed).
+
+### 🛠️ Build & Stability
+- Fixed AAPT resource compilation errors caused by unescaped ASCII apostrophes across localized string resources.
+
+---
+
+# Kitsugi Beta v2.4.341 — Arama taksonomi kataloğu / Search taxonomy catalog
+
+TR: Arama filtresi artık 114 tür, 1.325 etiket ve 9.457 Latin kurum adını ortak
+katalogdan okur. TR/EN/Rusça alias arama, kurum rol seçimi ve son seçimler
+hazır. **Kurumun kaynak sonuçlarını süzmesi henüz etkin değil (T55–T60);**
+arayüz bunu açıkça bildirir. Ayrıntılar: `release_notes_v2.4.341.md`.
+
+EN: Search facets now use a generated catalog with 114 genres, 1,325 tags,
+and 9,457 Latin organization names. Turkish/English/Russian aliases and role
+picker are available. **Provider-side organization filtering is not active
+until T55–T60**; the UI discloses this. See `release_notes_v2.4.341.md`.
+
+v2.4.340 kurum/etiket Latin ad notları: `release_notes_v2.4.340.md`.
 
 ---
 

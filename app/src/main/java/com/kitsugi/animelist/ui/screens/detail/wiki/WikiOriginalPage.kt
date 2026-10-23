@@ -44,12 +44,17 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.kitsugi.animelist.R
 
 /** One lightweight history per tab, but only ONE live WebView for the whole reader. */
-internal class WikiOriginalSession(initialUrl: String, var readerLocation: FandomReaderLocation) {
+internal class WikiOriginalSession(
+    initialUrl: String,
+    var readerLocation: FandomReaderLocation,
+    /** Son seçilen düzen; varsayılan mobil (false). Kullanıcı seçimi kalıcıdır. */
+    initialDesktop: Boolean = false
+) {
     var url by mutableStateOf(initialUrl)
     var title by mutableStateOf<String?>(null)
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
-    var desktop by mutableStateOf(true)
+    var desktop by mutableStateOf(initialDesktop)
     var progress by mutableStateOf(0)
     var failed by mutableStateOf(false)
     var pageCommitted by mutableStateOf(false)
@@ -112,7 +117,8 @@ internal class WikiOriginalSession(initialUrl: String, var readerLocation: Fando
  * CSS variables, relative links and lazy-loaded media, including future wiki changes.
  * No JS/native bridge, element replacement or global dark-mode filter. Optional tools
  * change text node values in place and hide narrow advertising containers. Desktop mode
- * overrides viewport metadata, like requesting a desktop site.
+ * requests a desktop user agent and a fitted 1200 px viewport; mobile is the default and
+ * keeps the site's own responsive viewport.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -129,8 +135,6 @@ internal fun WikiOriginalPage(
      * mevcut sekmede normal şekilde yüklenir.
      */
     onOpenLinkInNewTab: (String) -> Boolean = { false },
-    /** Üst şeritteki `⋮` menüsünden sayfa araçları sayfasını açan köprü. */
-    toolsController: WikiPageToolsController? = null,
     modifier: Modifier = Modifier
 ) {
     val currentLocationChanged by rememberUpdatedState(onLocationChanged)
@@ -194,7 +198,6 @@ internal fun WikiOriginalPage(
 
     Column(modifier) {
         WikiPageTools(session, preferences, assets, config, savingPreference || preferenceReadFailed, preferenceFailed,
-            controller = toolsController,
             onSaveAppearance = { mode, zoom ->
                 scope.launch {
                     savingPreference = true
@@ -417,11 +420,9 @@ internal fun WikiOriginalPage(
                                     session.progress = 100
                                     session.pageCommitted = true
                                     update(view, url)
-                                    if (desktopAtCreation && url != null &&
-                                        WikiOriginalPagePolicy.destination(url) == WikiOriginalPagePolicy.Destination.WIKI
-                                    ) {
-                                        view.evaluateJavascript(WikiOriginalPagePolicy.DESKTOP_VIEWPORT_SCRIPT, null)
-                                    }
+                                    // Görünüm düzeni (viewport + ekrana sığdırma) WikiPageEnhancements
+                                    // içinde, belge görünür olduğu anda uygulanır; burada ikinci kez
+                                    // dokunulmaz. Böylece sayfa 1200 px düzende yatay kaydırmaya düşmez.
                                     tools.documentAvailable(url)
                                     if (restoreScroll || session.restoreAfterReload) {
                                         restoreScroll = false

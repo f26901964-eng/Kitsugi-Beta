@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.ui.res.stringResource
@@ -23,8 +24,11 @@ import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.data.remote.MdbListPlan
+import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import kotlinx.coroutines.launch
 
 data class TmdbLanguage(val code: String, val displayName: String)
@@ -735,6 +741,13 @@ private fun MdbListSettingsTab(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                } else {
+                    // Kota, anahtara özgüdür: anahtar değişince panel kendini yeniden bağlar.
+                    KitsugiSettingsDivider()
+                    MdbListQuotaPanel(
+                        apiKey = apiKey,
+                        accentColor = accentColor
+                    )
                 }
 
                 if (showApiKeyDialog) {
@@ -743,6 +756,13 @@ private fun MdbListSettingsTab(
                         onSave = { key ->
                             onApiKeyChanged(key)
                             showApiKeyDialog = false
+                            // Anahtar değişti: panelin ilk karesinde eski anahtarın kotası
+                            // görünmesin diye merkez hemen yeni anahtara bağlanır.
+                            if (key.isBlank()) {
+                                MdbListQuotaCenter.clear()
+                            } else {
+                                MdbListQuotaCenter.bind(null, key)
+                            }
                         },
                         onDismiss = { showApiKeyDialog = false },
                         accentColor = accentColor
@@ -828,6 +848,247 @@ private fun MdbListSettingsTab(
                     onCheckedChange = onShowTraktChanged
                 )
             }
+        }
+    }
+}
+
+/** Kota sayılarını yerel binlik ayırıcısıyla yazar (kurallı: 1.000 / 25.000). */
+private fun formatQuotaCount(value: Int): String =
+    java.text.NumberFormat.getIntegerInstance().format(value)
+
+/** Sıfırlanma anını (epoch saniye) kullanıcının yerel saat diliminde kısa biçimde yazar. */
+private fun formatQuotaReset(epochSeconds: Long?): String? {
+    val epoch = epochSeconds?.takeIf { it > 0L } ?: return null
+    return runCatching {
+        java.time.Instant.ofEpochSecond(epoch)
+            .atZone(java.time.ZoneId.systemDefault())
+            .format(
+                java.time.format.DateTimeFormatter.ofPattern(
+                    "d MMM HH:mm",
+                    java.util.Locale.getDefault()
+                )
+            )
+    }.getOrNull()
+}
+
+/**
+ * MDBList API anahtarının günlük istek kotasını gösterir.
+ *
+ * Tasarım notları:
+ * - Limit **API'den** okunur; ücretsiz (1.000) ve ücretli (10.000+) hesaplar aynı kodla
+ *   çalışır, hiçbir yerde sabit sayı varsayılmaz.
+ * - Anahtar değişirse panel yeni anahtarın kaydını yükler; eski anahtarın sayısı gösterilmez.
+ * - Kota bitince yüzde çubuğu yerine kırmızı bir uyarı bloğu çizilir ve puanların ne zaman
+ *   yeniden yükleneceği yerel saatle söylenir.
+ */
+@Composable
+private fun MdbListQuotaPanel(
+    apiKey: String,
+    accentColor: Color
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val storedQuota by MdbListQuotaCenter.quota.collectAsState()
+    // Günlük sıfırlanma geçtiyse eski "0" değeri değil, yenilenmiş kota gösterilir.
+    val quota = remember(storedQuota) { storedQuota?.rolledOver() }
+    var refreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(apiKey) {
+        if (apiKey.isBlank()) return@LaunchedEffect
+        MdbListQuotaCenter.bind(context, apiKey)
+        refreshing = true
+        // Tazeleme isteğinin kendisi de kotadan düşer: otomatik doğrulama seyrek tutulur,
+        // kullanıcı isterse yenile düğmesiyle anında günceller.
+        MdbListQuotaCenter.refresh(apiKey, maxAgeMillis = 5L * 60_000L)
+        refreshing = false
+    }
+
+    val exhausted = quota?.isExhausted == true
+    val known = quota?.isKnown == true
+
+    // Kota dolduğu anda tek seferlik uyarı: detay kartı ve bu panel aynı bayrağı paylaştığı
+    // için iki ayrı balon çıkmaz.
+    LaunchedEffect(exhausted, quota?.resetAtEpochSeconds) {
+        if (exhausted && MdbListQuotaCenter.consumeExhaustedNotice()) {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.mdblist_quota_exhausted_toast),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    val statusColor = when {
+        exhausted -> KitsugiColors.AccentRed
+        quota?.isLow == true -> KitsugiColors.AccentOrange
+        else -> accentColor
+    }
+    val resetLabel = formatQuotaReset(quota?.resetAtEpochSeconds)
+
+    val refreshQuota: () -> Unit = {
+        scope.launch {
+            refreshing = true
+            MdbListQuotaCenter.refresh(apiKey, maxAgeMillis = 0L)
+            refreshing = false
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Speed,
+                contentDescription = null,
+                tint = statusColor,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.mdblist_quota_title),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.width(8.dp))
+            QuotaPlanBadge(plan = quota?.plan ?: MdbListPlan.UNKNOWN, accentColor = accentColor)
+            Spacer(Modifier.weight(1f))
+            if (refreshing) {
+                KitsugiPlasmaLoader(size = 16.dp)
+            } else {
+                IconButton(
+                    onClick = refreshQuota,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.mdblist_quota_refresh),
+                        tint = KitsugiColors.TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
+        when {
+            exhausted -> MdbListQuotaExhaustedNotice(resetLabel = resetLabel)
+
+            known -> {
+                Text(
+                    text = stringResource(
+                        R.string.mdblist_quota_remaining,
+                        formatQuotaCount(quota?.remaining ?: 0),
+                        formatQuotaCount(quota?.limit ?: 0)
+                    ),
+                    color = statusColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                LinearProgressIndicator(
+                    progress = { quota?.remainingFraction ?: 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = statusColor,
+                    trackColor = KitsugiColors.SurfaceStrong
+                )
+                if (resetLabel != null) {
+                    Text(
+                        text = stringResource(R.string.mdblist_quota_reset, resetLabel),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            refreshing -> Text(
+                text = stringResource(R.string.mdblist_quota_loading),
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.mdblist_quota_unknown),
+                    color = KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = refreshQuota) {
+                    Text(
+                        text = stringResource(R.string.mdblist_quota_refresh),
+                        color = accentColor,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuotaPlanBadge(plan: MdbListPlan, accentColor: Color) {
+    if (plan == MdbListPlan.UNKNOWN) return
+    val label = stringResource(
+        if (plan == MdbListPlan.SUPPORTER) R.string.mdblist_quota_plan_supporter
+        else R.string.mdblist_quota_plan_free
+    )
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(accentColor.copy(alpha = 0.15f))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            color = accentColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+/** Günlük kota bittiğinde gösterilen kırmızı uyarı bloğu. */
+@Composable
+private fun MdbListQuotaExhaustedNotice(resetLabel: String?) {
+    val warningColor = KitsugiColors.AccentRed
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(warningColor.copy(alpha = 0.14f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.WarningAmber,
+            contentDescription = null,
+            tint = warningColor,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.mdblist_quota_exhausted_title),
+                color = warningColor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (resetLabel != null) {
+                    stringResource(R.string.mdblist_quota_exhausted_desc, resetLabel)
+                } else {
+                    stringResource(R.string.mdblist_quota_exhausted_desc_unknown)
+                },
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

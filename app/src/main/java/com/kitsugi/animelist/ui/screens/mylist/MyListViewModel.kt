@@ -67,6 +67,11 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         cachedCombinedLibrary = value
     }
 
+    // Plain caches, not Compose state: retain the last complete search and prepared
+    // documents across detail navigation without invalidating the screen per keystroke.
+    internal var cachedPreparedSearch: PreparedMyListSearch? = null
+    internal var cachedSearchResult: MyListSearchUiCache? = null
+
     init {
         // Bozuk Simkl subtitle'larını ve kaynak etiketlerini tek seferlik onar
         viewModelScope.launch {
@@ -77,9 +82,9 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // bu alana gerçek MAL ID yazıyordu → ayrıntı sayfası alakasız veri açıyordu)
             KitsuIdentityMigration.runIfNeeded(context, dao)
             // +18 blur'unun TÜM kaynaklarda uygulanması için eksik yetişkin işaretlerini
-            // kimlik üzerinden tamamla: Simkl/Shikimori/Bangumi liste API'leri `adult`
-            // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
-            // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
+            // kimlik üzerinden tamamla: Simkl/Shikimori listeleri ve Bangumi kısa subject
+            // yanıtı `adult`/`nsfw` alanını taşımadığından bayraklar eksik kalabiliyordu.
+            // Bangumi stable ID'leri subject ayrıntısından doğrulanır.
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
         }
 

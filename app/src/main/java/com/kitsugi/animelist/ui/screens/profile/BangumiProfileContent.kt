@@ -200,11 +200,7 @@ fun BangumiProfileContent(
             )
         }
         if (pending.isEmpty()) return@LaunchedEffect
-        runCatching {
-            com.kitsugi.animelist.data.auth.BangumiApiClient.runAsBackground {
-                BangumiSubjectTitleResolver.resolve(pending, background = true, tabMode = true)
-            }
-        }
+        runCatching { BangumiSubjectTitleResolver.resolve(pending, background = true) }
         // Çözülen adları yayınla → satırlar yeniden çizilir (önbellek zaten kalıcı).
         for (collection in state.collections) {
             val subject = collection.subject ?: continue

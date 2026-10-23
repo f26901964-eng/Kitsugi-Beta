@@ -1123,23 +1123,16 @@ fun KitsugiFullscreenPlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     // Video View
-                    //
-                    // `key(playerEngine)`: motor değiştiğinde (ör. Media3 → MPV özellik
-                    // geçişi) AndroidView'ın `factory`'si yeniden çalışmalı. Aksi hâlde
-                    // aynı düğüm eski, serbest bırakılmış motorun görünümünü tutuyor;
-                    // yeni motorun yüzeyi hiç oluşmadığı için ses çalıp görüntü gelmiyordu.
-                    key(playerEngine) {
-                        androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx ->
-                                playerEngine.createVideoView(ctx)
-                            },
-                            update = { _ ->
-                                playerEngine.setAspectMode(currentAspectMode)
-                                playerEngine.setSubtitleStyle(subtitleStyle)
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    androidx.compose.ui.viewinterop.AndroidView(
+                        factory = { ctx ->
+                            playerEngine.createVideoView(ctx)
+                        },
+                        update = { view ->
+                            playerEngine.setAspectMode(currentAspectMode)
+                            playerEngine.setSubtitleStyle(subtitleStyle)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
 
                     BrightnessOverlay(
                         brightness = currentBrightness,

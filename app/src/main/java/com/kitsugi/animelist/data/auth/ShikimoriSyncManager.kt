@@ -76,7 +76,11 @@ object ShikimoriSyncManager {
          * Çapraz kimlik katmanının önceden çözdüğü doğrulanmış MAL kimliği (`target_id` ile
          * aynı uzay). Verildiğinde satır kaynak uzayına göre yeniden yorumlanmaz.
          */
-        knownMalId: Int? = null
+        knownMalId: Int? = null,
+        /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField]). */
+        fields: Set<SyncField> = SyncField.ALL,
+        /** Tam yazım mı? Süzme sonrası kümeden anlaşılamaz. */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): SyncResult = withContext(Dispatchers.IO) {
         if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
@@ -120,16 +124,82 @@ object ShikimoriSyncManager {
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        // Official v2 create is an upsert by user_id + target_type + target_id.
-        // It recovers safely from stale cached rate IDs without assuming a failed PATCH means absence.
-        // Not / tekrar sayısı / cilt: boş ya da sıfır değerler uzaktaki kaydı silmesin diye gönderilmez.
-        val rateId = ShikimoriApiClient.createUserRate(
-            token = token, userId = userId, targetId = targetId, targetType = targetType,
-            status = status, score = score, progress = progress,
-            text = entry.notes?.takeIf { it.isNotBlank() },
-            rewatches = entry.repeatCount.takeIf { it > 0 },
-            volumes = if (targetType == "Manga") entry.volumeProgress.takeIf { it > 0 } else null
-        )
+        // ── Alan bazlı yazım ────────────────────────────────────────────────────────
+        // Kayıt kimliği biliniyorsa PATCH: yalnız değişen alanlar gönderilir, diğerleri korunur.
+        // [SyncField.SCORE] yoksa `score` HİÇ gönderilmez (0 göndermek puanı siler).
+        // Önce yerel önbellek; yoksa Shikimori'ye "bu kayıt var mı?" diye sorulur.
+        // Bu adım olmadan, kayıt Shikimori web'inde oluşturulmuşsa `POST /user_rates`
+        // "zaten var" hatası veriyor ve satır Shikimori'ye HİÇ eşitlenmiyordu (sessiz kayıp).
+        val knownRateId: Int? = runSyncCatching {
+            ExternalAuthManager.getShikimoriRateId(context, targetId, targetType)
+        }.getOrNull() ?: runSyncCatching {
+            ShikimoriApiClient.fetchUserRateId(
+                token = token, userId = userId, targetId = targetId, targetType = targetType
+            )
+        }.getOrNull()?.also { found ->
+            runSyncCatching {
+                ExternalAuthManager.saveShikimoriRateId(context, targetId, targetType, found)
+            }
+        }
+        // Kayıt KESİN varsa her zaman PATCH: `POST` "zaten var" davranışına bağımlı kalmayız.
+        // Tam yazımda (yeni yerel satır) tüm alanlar gönderilir; kısmi yazımda yalnız diff.
+        val patched = if (knownRateId != null) {
+            val attributes = org.json.JSONObject()
+            if (fullWrite || SyncField.STATUS in fields) attributes.put("status", status)
+            if (fullWrite || SyncField.SCORE in fields) attributes.put("score", score.coerceIn(0, 10))
+            if (fullWrite || SyncField.PROGRESS in fields) {
+                if (targetType == "Anime") attributes.put("episodes", progress)
+                else attributes.put("chapters", progress)
+            }
+            if (targetType == "Manga" && (fullWrite || SyncField.VOLUME_PROGRESS in fields)) {
+                attributes.put("volumes", entry.volumeProgress.coerceAtLeast(0))
+            }
+            // Tam yazımda uzaktaki metni/tekrar sayısını KORU (boş/0 göndermek siler).
+            if (SyncField.NOTES in fields) attributes.put("text", entry.notes.orEmpty())
+            else if (fullWrite && !entry.notes.isNullOrBlank()) attributes.put("text", entry.notes!!)
+            if (SyncField.REWATCH_COUNT in fields) {
+                attributes.put("rewatches", entry.repeatCount.coerceAtLeast(0))
+            } else if (fullWrite && entry.repeatCount > 0) {
+                attributes.put("rewatches", entry.repeatCount)
+            }
+            ShikimoriApiClient.patchUserRate(token, knownRateId, attributes)
+        } else false
+
+        val rateId = if (patched) {
+            knownRateId
+        } else {
+            // Kayıt YOK: `POST /api/v2/user_rates` **create-only** (resmî v2 dokümanı ve
+            // bağımsız istemciler bunu doğruluyor; upsert DEĞİL). Bu yüzden yalnız
+            // "kayıt bulunamadı" sonucundan sonra çağrılır. Puan yalnız diff'te varsa gider.
+            val created = ShikimoriApiClient.createUserRate(
+                token = token, userId = userId, targetId = targetId, targetType = targetType,
+                status = status,
+                score = if (SyncField.SCORE in fields || fullWrite) score else null,
+                progress = progress,
+                text = entry.notes?.takeIf { it.isNotBlank() },
+                rewatches = entry.repeatCount.takeIf { it > 0 },
+                volumes = if (targetType == "Manga") entry.volumeProgress.takeIf { it > 0 } else null
+            )
+            if (created != null) {
+                created
+            } else {
+                // Yarış durumu: kayıt aramadan sonra (başka cihaz/sekme) oluşmuş olabilir.
+                // ID'yi bir kez daha sorup PATCH'e düşeriz — POST'u tekrarlamayız.
+                val lateId = runSyncCatching {
+                    ShikimoriApiClient.fetchUserRateId(
+                        token = token, userId = userId, targetId = targetId, targetType = targetType
+                    )
+                }.getOrNull()
+                lateId?.let { id ->
+                    val attributes = org.json.JSONObject().apply {
+                        put("status", status)
+                        if (targetType == "Anime") put("episodes", progress) else put("chapters", progress)
+                        if (SyncField.SCORE in fields || fullWrite) put("score", score.coerceIn(0, 10))
+                    }
+                    if (ShikimoriApiClient.patchUserRate(token, id, attributes)) id else null
+                }
+            }
+        }
         if (rateId != null) {
             ExternalAuthManager.saveShikimoriRateId(context, targetId, targetType, rateId)
             messages.add(context.getString(R.string.account_sync_shikimori_entry_confirmed, entry.title))

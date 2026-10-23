@@ -449,6 +449,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 genres = filters.genres,
                 excludedGenres = filters.excludedGenres,
                 tags = filters.tags,
+                organizations = filters.organizations,
                 startYear = filters.minYear,
                 endYear = filters.maxYear,
                 season = filters.season?.let { s -> KitsugiMediaSeason.entries.find { e -> e.apiValue == s } },
@@ -459,12 +460,22 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         search(resetPage = true)
     }
 
+    /** UI-only selection (v2.4.341); do not start an unfiltered provider search. */
+    fun updateOrganizations(organizations: List<OrgFilter>) {
+        _uiState.update { it.copy(organizations = organizations.distinctBy { org -> org.canonicalKey }) }
+        val filters = _uiState.value
+        android.util.Log.d("KitsugiSearch", "Arama filtreleri: tür=${filters.genres.size} " +
+            "etiket=${filters.tags.size} kurum=${filters.organizations.size} | " +
+            "kurum sağlayıcı eşlemesi henüz etkin değil")
+    }
+
     fun resetFilters() {
         _uiState.update { current ->
             val cleared = current.copy(
                 genres = emptyList(),
                 excludedGenres = emptyList(),
                 tags = emptyList(),
+                organizations = emptyList(),
                 selectedFormats = emptyList(),
                 selectedStatuses = emptyList(),
                 country = null,

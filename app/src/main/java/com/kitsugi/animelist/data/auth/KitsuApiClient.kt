@@ -30,7 +30,7 @@ object KitsuApiClient {
      */
     private fun executeWithHostFallback(request: Request): Response {
         return try {
-            KitsugiHttpClient.client.newCall(request).execute()
+            KitsugiHttpClient.syncClient.newCall(request).execute()
         } catch (e: java.io.IOException) {
             val alt = when (request.url.host) {
                 "kitsu.app" -> "kitsu.io"
@@ -48,7 +48,7 @@ object KitsuApiClient {
             val swapped = request.newBuilder()
                 .url(request.url.newBuilder().host(alt).build())
                 .build()
-            KitsugiHttpClient.client.newCall(swapped).execute()
+            KitsugiHttpClient.syncClient.newCall(swapped).execute()
         }
     }
     private const val TAG = "KitsuApiClient"
@@ -126,7 +126,15 @@ object KitsuApiClient {
         /** Başlangıç tarihi, yyyy-MM-dd (`startedAt`). */
         val startedAt: String? = null,
         /** Bitiş tarihi, yyyy-MM-dd (`finishedAt`). */
-        val finishedAt: String? = null
+        val finishedAt: String? = null,
+        /**
+         * Tekrar izleme/okuma sürüyor mu (`reconsuming`). Kitsu'da ayrı bir "rewatching"
+         * durumu yoktur: kayıt `current` kalır ve bu bayrak set edilir (MAL-Sync
+         * `_provider/Kitsu/single.ts` ile aynı model).
+         */
+        val reconsuming: Boolean = false,
+        /** Tamamlanmış tekrar sayısı (`reconsumeCount`). */
+        val reconsumeCount: Int = 0
     )
 
     /**
@@ -137,7 +145,14 @@ object KitsuApiClient {
         val startedAt: String? = null,
         val finishedAt: String? = null,
         val notes: String? = null,
-        val isPrivate: Boolean? = null
+        val isPrivate: Boolean? = null,
+        /**
+         * Kitsu'da "tekrar izleniyor" AYRI bir durum değildir: `status = current` +
+         * `reconsuming = true` + `reconsumeCount = n`. (MAL-Sync `_provider/Kitsu/single.ts`
+         * ile aynı sözleşme.) Eksik bırakılırsa tekrar bilgisi Kitsu'ya hiç yazılmıyordu.
+         */
+        val reconsuming: Boolean? = null,
+        val reconsumeCount: Int? = null
     )
 
     /** `yyyy-MM-dd` → Kitsu'nun beklediği ISO-8601 datetime (`yyyy-MM-ddT00:00:00.000Z`). */
@@ -410,6 +425,8 @@ object KitsuApiClient {
                     val isPrivate = attrs.optBoolean("private", false)
                     val startedAt = fromKitsuDateTime(if (attrs.isNull("startedAt")) null else attrs.optString("startedAt"))
                     val finishedAt = fromKitsuDateTime(if (attrs.isNull("finishedAt")) null else attrs.optString("finishedAt"))
+                    val reconsuming = attrs.optBoolean("reconsuming", false)
+                    val reconsumeCount = attrs.optInt("reconsumeCount", 0).coerceAtLeast(0)
 
                     val rels = item.optJSONObject("relationships")
                     val animeData = rels?.optJSONObject("anime")?.optJSONObject("data")
@@ -445,7 +462,9 @@ object KitsuApiClient {
                             notes = notes,
                             isPrivate = isPrivate,
                             startedAt = startedAt,
-                            finishedAt = finishedAt
+                            finishedAt = finishedAt,
+                            reconsuming = reconsuming,
+                            reconsumeCount = reconsumeCount
                         )
                     )
                 }
@@ -540,6 +559,8 @@ object KitsuApiClient {
         extras.finishedAt?.let { put("finishedAt", it) }
         extras.notes?.let { put("notes", it) }
         extras.isPrivate?.let { put("private", it) }
+        extras.reconsuming?.let { put("reconsuming", it) }
+        extras.reconsumeCount?.let { put("reconsumeCount", it) }
     }
 
     /**
@@ -695,20 +716,45 @@ object KitsuApiClient {
         ratingTwenty: Int?,
         extras: KitsuEntryExtras? = null
     ): KitsuWriteResult = withContext(Dispatchers.IO) {
+        val attributes = JSONObject().apply {
+            put("status", status)
+            put("progress", progress)
+            if (ratingTwenty != null && ratingTwenty > 0) {
+                put("ratingTwenty", ratingTwenty)
+            } else {
+                put("ratingTwenty", JSONObject.NULL)
+            }
+            applyKitsuExtras(extras)
+        }
+        patchAttributes(token, entryId, attributes)
+    }
+
+    /**
+     * Kitsu kütüphane kaydına YALNIZCA verilen alanları yazar (`PATCH`).
+     *
+     * Alan bazlı eşitlemenin temeli: gönderilmeyen attribute Kitsu'da değişmez. Böylece
+     * yerel satırda puan yokken `ratingTwenty: null` gönderip **Kitsu'daki puanı silme**
+     * hatası ortadan kalkar (eskiden `updateLibraryEntryDetailed` her çağrıda null yazıyordu).
+     */
+    suspend fun patchLibraryEntry(
+        token: String,
+        entryId: String,
+        attributes: JSONObject
+    ): KitsuWriteResult = withContext(Dispatchers.IO) {
+        if (attributes.length() == 0) return@withContext KitsuWriteResult(success = true, entryId = entryId)
+        patchAttributes(token, entryId, attributes)
+    }
+
+    private suspend fun patchAttributes(
+        token: String,
+        entryId: String,
+        attributes: JSONObject
+    ): KitsuWriteResult = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("data", JSONObject().apply {
                 put("id", entryId)
                 put("type", "libraryEntries")
-                put("attributes", JSONObject().apply {
-                    put("status", status)
-                    put("progress", progress)
-                    if (ratingTwenty != null && ratingTwenty > 0) {
-                        put("ratingTwenty", ratingTwenty)
-                    } else {
-                        put("ratingTwenty", JSONObject.NULL)
-                    }
-                    applyKitsuExtras(extras)
-                })
+                put("attributes", attributes)
             })
         }
 

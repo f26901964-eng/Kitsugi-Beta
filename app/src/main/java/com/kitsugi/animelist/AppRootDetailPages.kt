@@ -150,7 +150,6 @@ fun AppRootDetailPages(
                     name = key.name,
                     imageUrl = key.imageUrl,
                     titleLanguage = appSettings.titleLanguage,
-                    staffNameLanguage = appSettings.staffNameLanguage,
                     preferredTranslator = appSettings.preferredTranslator
                 )
             }
@@ -201,7 +200,6 @@ fun AppRootDetailPages(
                     name = key.name,
                     imageUrl = key.imageUrl,
                     titleLanguage = appSettings.titleLanguage,
-                    staffNameLanguage = appSettings.staffNameLanguage,
                     preferredTranslator = appSettings.preferredTranslator
                 )
             }
@@ -280,7 +278,6 @@ fun AppRootDetailPages(
                         )
                     },
                     titleLanguage = appSettings.titleLanguage,
-                    staffNameLanguage = appSettings.staffNameLanguage,
                     scoreFormat = appSettings.scoreFormat,
                     hideScores = appSettings.hideScores,
                     showAnimeLogos = appSettings.showAnimeLogos,
@@ -456,7 +453,6 @@ fun AppRootDetailPages(
                             )
                         },
                         titleLanguage = appSettings.titleLanguage,
-                        staffNameLanguage = appSettings.staffNameLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
                         showAnimeLogos = appSettings.showAnimeLogos,

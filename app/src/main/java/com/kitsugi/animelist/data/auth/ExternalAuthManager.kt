@@ -713,10 +713,43 @@ object ExternalAuthManager {
         }
     }
 
+    /**
+     * Bu sağlayıcıya ait **daha önce kurulmuş bir hesabın izi** duruyor mu?
+     *
+     * Amaç: "bağlı değil" sonucunun gerçek bir değişiklik kaybı mı (oturum/token süresi
+     * dolmuş, hesap hâlâ bağlı) yoksa kullanıcının hiç kullanmadığı bir servis mi olduğunu
+     * ayırmak. [disconnectAccount] token'ları **ve** kullanıcı kimliklerini temizlediği için
+     * kalan bir yenileme token'ı / kullanıcı kimliği "hesap bağlıydı, oturum düştü" demektir.
+     *
+     * Yalnız bu durumda değişiklik yeniden deneme kuyruğuna yazılır; hiç bağlanmamış
+     * servisler için gereksiz uyarı/kuyruk üretilmez.
+     */
+    fun hasStoredAccount(context: Context, serviceName: String): Boolean {
+        val p = prefs(context)
+        return when (serviceName.lowercase()) {
+            "mal", "myanimelist" ->
+                !p.getString(KEY_MAL_REFRESH_TOKEN, null).isNullOrBlank() ||
+                    !p.getString(KEY_MAL_TOKEN, null).isNullOrBlank()
+            "kitsu" ->
+                !p.getString(KEY_KITSU_REFRESH_TOKEN, null).isNullOrBlank() ||
+                    !p.getString(KEY_KITSU_USER_ID, null).isNullOrBlank()
+            "shikimori" ->
+                !p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null).isNullOrBlank() ||
+                    (p.getInt(KEY_SHIKIMORI_USER_ID, 0) > 0)
+            // AniList / Simkl: yalnız erişim token'ı tutulur; bağlantı kesilince silinir.
+            // Kalan bir token yoksa "hiç bağlanmamış" sayılır (gürültü üretmemek için).
+            else -> false
+        }
+    }
+
     fun disconnectAccount(
         context: Context,
         serviceName: String
     ) {
+        // Çapraz kimlik önbelleği hesap bağlantısına göre "tamam/eksik" işaretlenir
+        // (bkz. CrossProviderIdentity.isCompleteFor). Bağlantı kesildiğinde bu işaretler
+        // bayatlar; temizlenmezse yeniden bağlanan hesapta kimlikler eksik kalabilir.
+        com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.clear(context)
         val editor = prefs(context).edit()
         when (serviceName.lowercase()) {
             "anilist" -> editor.remove(KEY_ANILIST_TOKEN)
