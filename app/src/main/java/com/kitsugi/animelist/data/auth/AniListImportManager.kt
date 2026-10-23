@@ -115,6 +115,7 @@ object AniListImportManager {
                         repeat
                         priority
                         hiddenFromStatusLists
+                        createdAt
                         updatedAt
                         startedAt {
                             year
@@ -261,6 +262,11 @@ object AniListImportManager {
                 val volumeProgress = item.optInt("progressVolumes", 0)
                 val isHiddenFromStatusLists = item.optBoolean("hiddenFromStatusLists", false)
                 val updatedAt = item.optLong("updatedAt", 0L)
+                // "Son eklenen" sıralamasının asıl anahtarı: kaydın AniList listesine
+                // eklendiği an (epoch sn). Yerel DB id'si bu iş için kullanılamaz —
+                // bu sorgu MEDIA_ID sırasıyla sayfaladığı için id sırası ekleme
+                // sırasıyla tamamen alakasızdır.
+                val addedAt = item.optLong("createdAt", 0L)
                 val titleEnglish = english
                 val titleJapanese = native
 
@@ -302,6 +308,7 @@ object AniListImportManager {
                     repeatCount = repeatCount,
                     volumeProgress = volumeProgress,
                     updatedAt = updatedAt,
+                    addedAt = addedAt,
                     titleEnglish = titleEnglish,
                     titleJapanese = titleJapanese,
                     aniListEntryId = aniListEntryId

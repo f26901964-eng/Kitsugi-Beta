@@ -342,10 +342,11 @@ fun MyListScreen(
         )
     }
 
-    val visibleEntries = remember(filteredEntries, selectedSortId) {
+    val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
         applySort(
             entries = filteredEntries,
-            sortId = selectedSortId
+            sortId = selectedSortId,
+            titleLanguage = appSettings.titleLanguage
         )
     }
 
@@ -396,7 +397,7 @@ fun MyListScreen(
                 selectedScoreFilterId != "all" ||
                 selectedYearFilterId != "all" ||
                 selectedExtraFilterId != "all" ||
-                (selectedSortId.isNotBlank() && selectedSortId != "newest" && selectedSortId != "added")
+                isExplicitMyListSort(selectedSortId)
 
         // ── Sabit üst bar (başlık + arama + filtreleme) ──
         androidx.compose.material3.Surface(
@@ -557,10 +558,11 @@ fun MyListScreen(
                         searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
                     )
                 }
-                val pageVisibleEntries = remember(pageFilteredEntries, selectedSortId) {
+                val pageVisibleEntries = remember(pageFilteredEntries, selectedSortId, appSettings.titleLanguage) {
                     applySort(
                         entries = pageFilteredEntries,
-                        sortId = selectedSortId
+                        sortId = selectedSortId,
+                        titleLanguage = appSettings.titleLanguage
                     )
                 }
                 val pageGroupedEntries = remember(pageVisibleEntries) {

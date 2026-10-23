@@ -169,6 +169,14 @@ object SimklImportManager {
                         val score = item.optInt("user_rating", 0).takeIf { it > 0 }
                             ?: item.optInt("rating", 0).takeIf { it > 0 }
 
+                        // Simkl liste API'si eklenme zamanı vermez; son izleme zamanı
+                        // son aktivitenin en iyi vekilidir. Bugüne kadar Simkl satırları
+                        // updatedAt=0 ile yazılıyordu — "Son Güncelleme" sıralamasında
+                        // hep sona düşüyor, eklenme vekili olarak da kullanılamıyordu.
+                        val lastWatchedAt = item.optNullableString("last_watched_at")?.let { raw ->
+                            runCatching { java.time.Instant.parse(raw).epochSecond }.getOrDefault(0L)
+                        } ?: 0L
+
                         // malId SADECE ve SADECE Simkl API'sinin gerçekten 'mal' olarak döndüğü gerçek MAL ID'dir.
                         // Asla simklId veya uydurma ID malId yerine konulmaz! Aksi halde CrossSync rastgele MAL animeleriyle eşleştirir!
                         val realMalId = if (mediaType == MediaType.Anime && malId != null && malId > 0 && malId < 100_000_000) malId else null
@@ -199,6 +207,7 @@ object SimklImportManager {
                                 year = year,
                                 synopsis = null,
                                 notes = simklMemoText(item),
+                                updatedAt = lastWatchedAt,
                                 tmdbId = tmdbId,
                                 simklId = simklId
                             )

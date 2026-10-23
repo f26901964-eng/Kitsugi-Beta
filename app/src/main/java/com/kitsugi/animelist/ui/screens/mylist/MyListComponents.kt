@@ -260,7 +260,7 @@ fun MyListHeaderSection(
                     onScoreFilterChange("all")
                     onYearFilterChange("all")
                     onExtraFilterChange("all")
-                    onSortChange("newest")
+                    onSortChange(MY_LIST_SORT_DEFAULT)
                 },
                 onDismiss = onHideFilters
             )
@@ -351,7 +351,7 @@ fun MyListHeaderSection(
                                     onScoreFilterChange("all")
                                     onYearFilterChange("all")
                                     onExtraFilterChange("all")
-                                    onSortChange("newest")
+                                    onSortChange(MY_LIST_SORT_DEFAULT)
                                 }
                                 .padding(horizontal = 10.dp, vertical = 7.dp)
                         ) {
@@ -855,7 +855,7 @@ fun MyListContentPage(
     selectedScoreFilterId: String = "all",
     selectedYearFilterId: String = "all",
     selectedExtraFilterId: String = "all",
-    selectedSortId: String = "newest",
+    selectedSortId: String = MY_LIST_SORT_DEFAULT,
     selectedListLayoutId: String,
     appSettings: com.kitsugi.animelist.data.settings.AppSettings,
     pageScrollState: LazyListState,
@@ -918,6 +918,38 @@ fun MyListContentPage(
                 item { MyListSyncPromptState() }
             }
         } else {
+            val isActivePage = pageTabIndex == selectedTabIndex
+            // Aktif olmayan komşu sayfa da AYNI sıralamayı uygular. Önceden ham
+            // (sırasız, DB düzeni) pageEntries çiziliyordu: kaydırırken görülen
+            // sıra, sekme yerleştiği anda sıçrıyordu — "sıralama bozuk"
+            // izleniminin bir kaynağı da buydu.
+            val sortedPageEntries = remember(pageEntries, selectedSortId, appSettings.titleLanguage) {
+                applySort(pageEntries, selectedSortId, appSettings.titleLanguage)
+            }
+            val displayEntries = if (isActivePage) visibleEntries else sortedPageEntries
+            // Düz akış mı durum bölümleri mi? Karar tek yerden:
+            // myListUsesFlatSortedLayout — kullanıcı sıralama seçtiyse sıralama
+            // globaldir ve KAZANIR; durum bölümleri ancak varsayılan gezinmededir.
+            // Komşu sayfada durum filtresi uygulanmadığı için karar da "all" ile verilir.
+            val useFlatLayout = myListUsesFlatSortedLayout(
+                sortId = selectedSortId,
+                selectedStatusFilterId = if (isActivePage) selectedStatusFilterId else "all",
+                separatedListStyle = appSettings.separatedListStyle
+            )
+            // "Son eklenen / İlk eklenen" düz akışta dönem başlıklarıyla çizilir.
+            val displayAddedPeriods = remember(displayEntries, selectedSortId, useFlatLayout) {
+                if (useFlatLayout && myListSortUsesAddedDateSections(selectedSortId)) {
+                    groupMyListEntriesByAddedPeriod(displayEntries)
+                } else {
+                    emptyList()
+                }
+            }
+            val displayGrouped = if (isActivePage) {
+                groupedVisibleEntries
+            } else {
+                remember(sortedPageEntries) { groupMyListEntriesByStatus(sortedPageEntries) }
+            }
+
             LazyColumn(
                 state = pageScrollState,
                 modifier = Modifier
@@ -929,14 +961,14 @@ fun MyListContentPage(
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "${visibleEntries.size} sonuç",
+                        text = "${displayEntries.size} sonuç",
                         color = KitsugiColors.textMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
                     )
                 }
-                if (visibleEntries.isEmpty()) {
+                if (displayEntries.isEmpty()) {
                     item {
                         EmptyListResultCard(
                             searchQuery = searchQuery,
@@ -950,10 +982,27 @@ fun MyListContentPage(
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
-                } else if (selectedStatusFilterId == "completed" || !appSettings.separatedListStyle) {
-                    // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
+                } else if (useFlatLayout && displayAddedPeriods.isNotEmpty()) {
+                    // "Son eklenen / İlk eklenen": global tarih sırası + dönem başlıkları.
+                    MyListAddedPeriodContent(
+                        sections = displayAddedPeriods,
+                        selectedListLayoutId = selectedListLayoutId,
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        blurAdultMedia = appSettings.blurAdultMedia,
+                        gridColumns = gridColumns,
+                        sourceBadgesByEntryId = sourceBadgesByEntryId,
+                        onEntryClick = onEntryClick,
+                        onIncrementProgress = onIncrementProgress,
+                        onPosterLongClick = onPosterLongClick
+                    )
+                } else if (useFlatLayout) {
+                    // Kullanıcının seçtiği sıralama global olarak uygulanır; durum
+                    // bölümleri sırayı EZMEZ (AniHyou paritesi: "Ayrılmış liste
+                    // tarzını kullan" kapalıysa da aynı düz akış).
                     MyListFlatContent(
-                        visibleEntries = visibleEntries,
+                        visibleEntries = displayEntries,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
@@ -967,7 +1016,7 @@ fun MyListContentPage(
                     )
                 } else {
                     MyListGroupedContent(
-                        groupedEntries = groupedVisibleEntries,
+                        groupedEntries = displayGrouped,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,

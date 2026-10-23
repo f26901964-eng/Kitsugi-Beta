@@ -42,6 +42,8 @@ data class SortMenuItem(
 )
 
 val myListSortMenuItems = listOf(
+    // Varsayılan gezinme (yönsüz: descId == ascId → ok gösterilmez, tekrar dokunmak seçimde kalır)
+    SortMenuItem("default", "default", KitsugiStrings.get(R.string.mylist_sort_default)),
     SortMenuItem("title", "title_desc", KitsugiStrings.get(R.string.ui_account_title)),
     SortMenuItem("score", "score_asc", "Puan"),
     SortMenuItem("progress", "progress_asc", "İlerleme"),
@@ -113,7 +115,7 @@ fun KitsugiMyListSortMenu(
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
-                    if (isSelected) {
+                    if (isSelected && item.descId != item.ascId) {
                         Icon(
                             imageVector = if (isAscActive) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
                             contentDescription = if (isAscActive) "Artan" else "Azalan",

@@ -69,5 +69,30 @@ data class MediaEntry(
     val aniListEntryId: Int? = null,
     val malListId: Long? = null,
     val tmdbId: Int? = null,
-    val simklId: Int? = null
+    val simklId: Int? = null,
+    /**
+     * Kaydın listeye EKLENME zamanı (epoch saniye; 0 = bilinmiyor).
+     *
+     * "Son eklenen / İlk eklenen" sıralamasının tek doğru kaynağı budur: yerel
+     * satır `id`'si yalnızca DB'ye yazım sırasıdır (toplu içe aktarımda API'nin
+     * sayfa sırası!), `updatedAt` ise her ilerleme/puan değişiminde kayar.
+     * Kaynak API eklenme zamanı veriyorsa (AniList `createdAt`, Kitsu
+     * `createdAt`, Shikimori `created_at`) o yazılır; vermiyorsa ilk
+     * görüldüğü an yerel olarak sabitlenir ve sonraki eşitlemelerde korunur.
+     * Bilinçli olarak kurucunun SON parametresidir (konumsal kurulumlar kaymasın).
+     */
+    val addedAt: Long = 0L
 )
+
+/**
+ * Zaman damgasını epoch SANİYEYE normalize eder.
+ *
+ * Tarihsel tutarsızlık: Bangumi içe aktarımı `updatedAt`'yi milisaniye,
+ * diğer tüm kaynaklar saniye yazıyor. Sıralama/karşılaştırma anahtarları
+ * normalize edilmezse Bangumi satırları (×1000 büyük değerleriyle) her
+ * tarih sıralamasında haksız yere en üste/en alta yerleşir. Eşik: 10^11 —
+ * saniye cinsinden 5138 yılı, milisaniye cinsinden 1973; iki birimi de
+ * güvenle ayırır. 0 (bilinmiyor) aynen kalır.
+ */
+fun normalizeToEpochSeconds(value: Long): Long =
+    if (value > 100_000_000_000L) value / 1000L else value

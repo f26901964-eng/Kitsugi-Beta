@@ -383,13 +383,19 @@ internal fun buildMyListLibrarySnapshot(
             addAlias(cached.native)
         }
 
+        val earliestAddedAt = group.members
+            .map { com.kitsugi.animelist.model.normalizeToEpochSeconds(it.entry.addedAt) }
+            .filter { it > 0L }
+            .minOrNull()
+            ?: group.representative.addedAt
+
         val enrichedRepresentative = enrichEntryFromGroup(
             entry = group.representative,
             bestLatinTitle = bestLatinTitle,
             bestEnglishTitle = bestEnglishTitle,
             bestNativeTitle = bestNativeTitle,
             groupIsAdult = groupIsAdult
-        )
+        ).copy(addedAt = earliestAddedAt)
         val badges = group.sourceIds.toList()
         combinedItems += MyListLibraryItem(
             entry = enrichedRepresentative,
