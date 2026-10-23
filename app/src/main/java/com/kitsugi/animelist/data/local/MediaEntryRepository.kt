@@ -164,16 +164,19 @@ class MediaEntryRepository(
         val refreshStartedAtSec = System.currentTimeMillis() / 1000L
 
         if (importedEntries.isEmpty()) {
-            // Boş yanıt TEK BAŞINA "kütüphane temizlendi" demek değildir: kimlik doğrulama
-            // sorunu, kota veya yarım yanıt da boş liste döndürebilir. Bekleyen yerel iş
-            // varsa ya da otomatik turdaysak hiçbir şey silinmez.
-            val safeToWipe = allowDelete && existing.isNotEmpty() &&
-                pendingLocalIdsEarly.isEmpty() && !guardAgainstPartialPayload
-            if (safeToWipe) {
-                clearPendingJobsFor(source = source)
-                dao.deleteBySource(source)
-                return ImportStats(source = source, deleted = existing.size)
-            }
+            // BOŞ YANIT KÜTÜPHANEYİ ASLA TEMİZLEMEZ.
+            //
+            // Eski davranış (allowDelete + boş liste → deleteBySource) tek bir 401/kota/kesik
+            // yanıtta kullanıcının tüm kaynak listesini siliyordu. Boş liste gerçekten
+            // "kullanıcı hepsini kaldırdı" anlamına gelse bile bunu yapmanın doğru yolu,
+            // satır satır silmeyi üç kapıdan geçiren normal yoldur; boş yanıt ise kanıt
+            // değildir. Bu turda hiçbir şey yazılmaz, defter de bozulmaz; kullanıcı
+            // gerçekten listesini boşalttıysa bir sonraki (boş olmayan) yanıtta satırlar
+            // normal kurallarla düşer.
+            android.util.Log.w(
+                "MediaEntryRepository",
+                "$source: boş liste yanıtı yok sayıldı (yerelde ${existing.size} satır korunuyor)"
+            )
             return ImportStats(source = source)
         }
 

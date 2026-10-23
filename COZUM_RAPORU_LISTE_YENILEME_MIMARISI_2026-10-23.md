@@ -214,7 +214,7 @@ uzlaştırmada yakalanır.
 | 6 | Telefondan **sildim** (çevrimiçi) | Satır + kardeş kaynak kopyaları yerelden gider, tüm kaynaklara DELETE gider | anında |
 | 7 | Telefondan sildim ama **çevrimdışıyım** | Satır gider, `DELETE` kuyruğa girer. Liste yenilenirse sunucu kaydı hâlâ döner → **diriliş koruması** (tombstone) geri eklemez. Tombstone'lar **çapraz sağlayıcı** anahtarlarla üretilir: katalog satırı (`source=jikan`) silinse bile AniList/MAL kopyası geri gelmez | — |
 | 8 | **Web'de sildim** | Delta turunda görülmez (yok sayılır); **günde bir tam uzlaştırmada** silinir (kapı 1+3) | ≤24 saat |
-| 9 | Sunucu **boş/hatalı** yanıt verdi (401, kota, 5xx) | Boş yanıtla kütüphane **silinmez** (bekleyen iş varsa veya otomatik turdaysa temizleme yok) | — |
+| 9 | Sunucu **boş/hatalı** yanıt verdi (401, kota, 5xx) | Boş yanıt **hiçbir koşulda** kütüphaneyi silmez; tur "⚠️ sunucu boş liste döndürdü, yerel liste korundu" diye bildirilir ve deftere başarı yazılmaz (6 saatlik pencere bunu önbelleklemez) | — |
 | 10 | MAL'da `nsfw=false`, +18 kayıtlarım var | Bu satırlar yanıtta yok ama **silme adayı değil** | — |
 | 11 | Kaynağın bağlantısını kestim | O kaynağın defteri **ve** sunucu anlık görüntüsü sıfırlanır; diğer kaynaklar etkilenmez | — |
 | 12 | Aynı yapım 3 kaynakta; birinden sildim | Kardeş satırlar da yerelden silinir ve diğer kaynaklara da DELETE gider (hayalet satır kalmaz) | anında |

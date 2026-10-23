@@ -168,6 +168,18 @@ object SourceListSynchronizer {
                 fetchFull()
             }
 
+            // Boş yanıt + yerelde veri var → bu "güncel" değil, şüpheli bir yanıttır
+            // (401, kota, kesik sayfa). Repository hiçbir şey silmez; biz de deftere
+            // "başarılı senkron" yazmayız ki kullanıcı tekrar deneyebilsin ve 6 saatlik
+            // tazelik penceresi bu boş yanıtı önbelleğe almasın.
+            if (entries.isEmpty() && localRowCount > 0) {
+                store.recordFailure(source, "sunucu boş liste döndürdü")
+                return ListRefreshOutcome.Failed(
+                    source = source,
+                    message = "sunucu boş liste döndürdü; yerel liste korundu"
+                )
+            }
+
             // Silme yalnızca TAM uzlaştırmada mümkündür: delta yanıtı "uzakta silinmiş"
             // satırları hiç içermez, o yüzden delta turunda eşleşmeyen satır silinemez.
             // Yarım/kesik yanıt koruması, kullanıcı açıkça "baştan yenile" demediği sürece
