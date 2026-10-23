@@ -76,8 +76,11 @@ object SourceListSynchronizer {
      *        fonksiyon. `null` ise delta hiç denenmez.
      * @param revisionProbe uzak revizyon imzası (ucuz bir uç nokta). Aynı imza dönerse
      *        liste çekilmeden "değişiklik yok" denir.
-     * @param allowDelete sunucuda olmayan satırlar silinsin mi. Liste uçları eksik/yarım
-     *        dönebildiği için varsayılan `false`: yerel kütüphane ağ hatasında silinmez.
+     * @param allowDelete TAM çekimde, sunucuda artık olmayan satırlar silinsin mi?
+     *        **Delta turunda yok sayılır**: delta yanıtı silinenleri göremez, bu yüzden
+     *        "eşleşmeyen = silinmiş" çıkarımı orada yanlış olur. Silme yalnızca tam
+     *        uzlaştırmada, [keepAdultRows] ve yarım-yanıt korumasıyla birlikte yapılır.
+     * @param keepAdultRows `true` ise +18 satırlar silme adayı sayılmaz (MAL `nsfw=false`).
      */
     suspend fun refresh(
         context: Context,
@@ -88,7 +91,8 @@ object SourceListSynchronizer {
         fetchFull: suspend () -> List<MediaEntry>,
         fetchDelta: (suspend (sinceEpochSeconds: Long) -> List<MediaEntry>)? = null,
         revisionProbe: (suspend () -> String?)? = null,
-        allowDelete: Boolean = false
+        allowDelete: Boolean = false,
+        keepAdultRows: Boolean = false
     ): ListRefreshOutcome {
         val store = ListSyncStateStore(context)
         val state = store.read(source)
@@ -155,7 +159,21 @@ object SourceListSynchronizer {
                 fetchFull()
             }
 
-            val stats = repository.smartImport(source = source, importedEntries = entries, allowDelete = allowDelete)
+            // Silme yalnızca TAM uzlaştırmada mümkündür: delta yanıtı "uzakta silinmiş"
+            // satırları hiç içermez, o yüzden delta turunda eşleşmeyen satır silinemez.
+            // Yarım/kesik yanıt koruması, kullanıcı açıkça "baştan yenile" demediği sürece
+            // açıktır (ImportReconciler.coverageAllowsDeletion).
+            val allowDeleteThisRound = allowDelete && !usedDelta
+            val stats = repository.smartImport(
+                source = source,
+                importedEntries = entries,
+                allowDelete = allowDeleteThisRound,
+                keepAdultRows = keepAdultRows,
+                guardAgainstPartialPayload = allowDeleteThisRound && mode != ListRefreshMode.USER_FORCE,
+                // Delta yanıtı tüm listeyi temsil etmez → "sunucuda ne vardı" defteri
+                // yalnızca tam turda tazelenir.
+                isFullPull = !usedDelta
+            )
             val now = System.currentTimeMillis()
             store.recordSuccess(
                 source = source,
@@ -182,9 +200,16 @@ object SourceListSynchronizer {
         }
     }
 
-    /** Test/teşhis: kaynağın defterini sıfırlar (ör. hesap değişince). */
+    /**
+     * Test/teşhis: kaynağın defterini sıfırlar (ör. hesap değişince).
+     *
+     * "Sunucuda en son ne vardı" defteri de temizlenir: yeni hesabın listesi eski hesabın
+     * kimlikleriyle karşılaştırılırsa, ilk tam çekimde eski hesaba ait hiçbir satır
+     * "sunucuda görülmüş" sayılmaz — yani yanlışlıkla silme olmaz.
+     */
     fun resetState(context: Context, source: String? = null) {
         ListSyncStateStore(context).clear(source)
+        ServerSnapshotStore(context).clear(source)
     }
 
     /** Teşhis: kaynağın son senkron zamanı (ms). */

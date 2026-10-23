@@ -129,12 +129,14 @@ Tek bir `last_list_sync_ms` vardı:
 | `data/sync/ListSyncStateStore.kt` | Kaynak başına yenileme defteri (SharedPreferences + JSON; Room şeması büyümedi) |
 | `data/sync/ListRefreshPolicy.kt` | **Saf** karar fonksiyonu: `SKIP_UP_TO_DATE` / `DELTA` / `FULL` |
 | `data/sync/SourceListSynchronizer.kt` | Tek giriş noktası: single-flight kilit, revizyon kontrolü, delta→tam düşüş, fark-tabanlı yazım, defter kaydı |
+| `data/sync/ImportReconciler.kt` | **Saf** silme kuralları: sunucu kökeni, yarım yanıt koruması, +18 koruması, diriliş (tombstone) engeli |
+| `data/sync/ServerSnapshotStore.kt` | "Sunucuda en son ne vardı?" kimlik defteri (SharedPreferences `StringSet`); silme yalnızca burada görülmüş satırlara uygulanır |
 
 ### Değişen dosyalar
 
 | Dosya | Değişiklik |
 |---|---|
-| `data/local/MediaEntryRepository.kt` | `smartImport` → `ImportStats` döner, fark-tabanlı, bekleyen düzenlemeleri korur; `mergeSourcePreservingAdultFlags` eklendi, sil-yeniden-yaz kaldırıldı |
+| `data/local/MediaEntryRepository.kt` | `smartImport` → `ImportStats` döner, fark-tabanlı, bekleyen düzenlemeleri korur; **silme artık üç kapıdan geçer** (`keepAdultRows`, `guardAgainstPartialPayload`, `isFullPull`); boş yanıtta kütüphane silinmez; `mergeSourcePreservingAdultFlags` eklendi, sil-yeniden-yaz kaldırıldı |
 | `data/auth/AniListImportManager.kt` | `fetchListsSince(...)` (delta) + `mediaList(updatedAt_greater:)` |
 | `data/auth/SimklImportManager.kt` | `fetchActivitiesRevision(...)` (ucuz değişiklik imzası) |
 | `data/auth/KitsuApiClient.kt` | `fetchLibraryEntries(sinceIso:)` + `fetchLibraryEntriesSince(...)`: `filter[since]` deltası |
@@ -180,11 +182,59 @@ Tek bir `last_list_sync_ms` vardı:
 
 ---
 
+## 5.5. "Listeye bir şey ekledim / çıkardım — ne olacak?" (senaryo matrisi)
+
+Yenileme iki yönlü bir uzlaştırmadır ve **ekleme** ile **silme** simetrik değildir:
+
+- Ekleme/değişiklik **görülebilir**: kayıt yanıtta vardır (`updatedAt`/`since` süzgeciyle ya da tam listede).
+- Silme **görülemez**: delta yanıtı yalnızca hâlâ var olan satırları içerir. "Yanıtta yok" tek başına
+  "sunucudan silinmiş" demek değildir (yerelde eklenmiş, gönderilememiş, filtrelenmiş ya da yarım
+  gelmiş olabilir).
+
+Bu yüzden silme üç bağımsız kapıdan geçer (`ImportReconciler` + `ServerSnapshotStore`):
+
+| Kapı | Kural | Ne engeller |
+|---|---|---|
+| 1. **Sunucu kökeni** | Satır, geçmiş bir **tam** çekimde sunucuda görülmüş olmalı (`snapshot_<kaynak>` defteri) | Yerelde eklenip sunucuya henüz gitmemiş / gönderimi "atlandı" kayıtların silinmesi |
+| 2. **Bekleyen iş** | Satırın bekleyen `UPDATE`'i varsa ne ezilir ne silinir | Çevrimdışı yapılan düzenlemenin kaybı |
+| 3. **Tam yanıt** | Çekilen satır sayısı yerelin %30'undan azsa silme yapılmaz (+ MAL `nsfw=false` iken +18 satırlar aday değil) | Yarım/kesik yanıt, kasıtlı süzgeç kaynaklı toplu silme |
+
+Delta turunda **hiç silme yapılmaz** (`allowDelete && !usedDelta`); silmeler günde bir yapılan tam
+uzlaştırmada yakalanır.
+
+### Senaryolar
+
+| # | Senaryo | Ne olur | Ne kadar sürer |
+|---|---|---|---|
+| 1 | Telefondan **yeni kayıt** ekledim (çevrimiçi) | Anında yazılır, uzaklara gönderilir; sonraki yenilemede sunucu da döndürür → `aynı` sayılır, silinmez | anında |
+| 2 | Telefondan ekledim ama **çevrimdışıyım** | `UPDATE` kuyruğa girer; yenileme bu satırı **ezmez ve silmez** (kapı 2); bağlantı gelince gönderilir | bağlantı gelince |
+| 3 | Gönderim **"atlandı"** (kimlik çözülemedi) | Sunucu listesinde görünmediği için kapı 1 devreye girer → silinmez; kimlik çözülünce gönderilir | — |
+| 4 | Web'de / başka uygulamada **yeni kayıt** ekledim | AniList: `updatedAt_greater`, Kitsu: `filter[since]`, Simkl: activities imzası → **1 küçük istek**; MAL/Shikimori/Bangumi: tam liste (yalnızca yeni satır yazılır) | ≤1 saat (delta) / ≤6 saat |
+| 5 | **İlerleme/puan** değiştirdim ve çevrimdışıyım, sonra yenileme oldu | Yerel değer korunur (kapı 2), `+n bekleyen düzenleme korundu` mesajı çıkar | — |
+| 6 | Telefondan **sildim** (çevrimiçi) | Satır + kardeş kaynak kopyaları yerelden gider, tüm kaynaklara DELETE gider | anında |
+| 7 | Telefondan sildim ama **çevrimdışıyım** | Satır gider, `DELETE` kuyruğa girer. Liste yenilenirse sunucu kaydı hâlâ döner → **diriliş koruması** (tombstone) geri eklemez | — |
+| 8 | **Web'de sildim** | Delta turunda görülmez (yok sayılır); **günde bir tam uzlaştırmada** silinir (kapı 1+3) | ≤24 saat |
+| 9 | Sunucu **boş/hatalı** yanıt verdi (401, kota, 5xx) | Boş yanıtla kütüphane **silinmez** (bekleyen iş varsa veya otomatik turdaysa temizleme yok) | — |
+| 10 | MAL'da `nsfw=false`, +18 kayıtlarım var | Bu satırlar yanıtta yok ama **silme adayı değil** | — |
+| 11 | Kaynağın bağlantısını kestim | O kaynağın defteri **ve** sunucu anlık görüntüsü sıfırlanır; diğer kaynaklar etkilenmez | — |
+| 12 | Aynı yapım 3 kaynakta; birinden sildim | Kardeş satırlar da yerelden silinir ve diğer kaynaklara da DELETE gider (hayalet satır kalmaz) | anında |
+| 13 | "Baştan yenile" dedim | Tam çekim + silme; yalnızca **kapı 3** atlanır (niyet net). Kapı 1 ve 2 **yine geçerli** | — |
+
+### Bilinen ve kabul edilen gecikmeler
+
+- **Web'den silme** en geç 24 saatte yansır (delta silmeyi göremez). Bu bilinçli bir tercih:
+  her yenilemede "eşleşmeyen = sil" demek, yarım yanıtta kütüphane kaybı riskidir.
+- **Kitsu/AniList delta turunda** silme yok; `filter[since]` yalnızca değişenleri döndürür.
+- Uygulama yeni kurulduysa **ilk tam çekime kadar** hiçbir satır silinmez (defter boş).
+
+---
+
 ## 6. Doğrulama
 
 ### Birim testleri (saf JVM)
 ```
 app/src/test/java/com/kitsugi/animelist/data/sync/ListRefreshPolicyTest.kt
+app/src/test/java/com/kitsugi/animelist/data/sync/ImportReconcilerTest.kt
 app/src/test/java/com/kitsugi/animelist/data/local/MediaEntryPayloadDiffTest.kt
 ```
 - Tazelik penceresi, delta/tam kararı, tam uzlaştırma periyodu, hata geri çekilmesi, `force` davranışı, delta başlangıç damgası, defter JSON gidiş-dönüşü.

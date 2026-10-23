@@ -12,6 +12,13 @@
 - **Dürüst geri bildirim:** "823 kayıt aktarıldı" yerine gerçek sonuç: `+3 yeni, 2 güncellendi`, `liste zaten güncel`, `sunucuda değişiklik yok`, `az önce yenilendi`.
 - **Pull-to-refresh göstergesi** artık gerçek senkron durumuna bağlı; bir kare yanıp sönmüyor.
 
+### ➕➖ Ekleme ve Silme Ne Olacak? (senaryolar)
+- **Listeden çıkardığın kayıt artık gerçekten gidiyor:** silme, günde bir yapılan tam uzlaştırmada uygulanır. Yalnızca **daha önce sunucuda görülmüş** satırlar silinir — çevrimdışı eklediğin, gönderimi "atlandı" denen ya da MAL'da `nsfw=false` yüzünden yanıtta olmayan kayıtlar **asla** silinmez.
+- **Yarım yanıt koruması:** sunucu listenin %30'undan azını döndürürse (kota, sayfa kesintisi, oturum sorunu) hiçbir şey silinmez. Boş yanıt da kütüphaneyi temizlemez.
+- **"Sildiğim şey geri geldi" bitti:** çevrimdışı silinen kaydın `DELETE` işi kuyrukta beklerken liste yenilenirse, sunucudan gelen eski kayıt geri eklenmez (tombstone koruması).
+- **Çevrimdışı eklediğim kayıt kaybolmuyor:** bekleyen `UPDATE`'i olan satır ne ezilir ne silinir; mesajda `· n bekleyen düzenleme korundu` yazar.
+- **Web'den sildiğin kayıt** en geç 24 saat içinde (günlük tam turda) yerelde de silinir; delta turları silmeyi göremez — bu bilinçli bir veri güvenliği tercihi.
+
 ### 📊 Kaynak Yenileme Davranışı (özet)
 | Kaynak | Arka planda | Elle yenileme | Tam uzlaştırma |
 |---|---|---|---|
@@ -38,3 +45,10 @@
 - **Pending local edits are preserved:** Offline edits still waiting in the outbox are never overwritten by a server pull.
 - **Honest feedback:** Real diffs (`+3 new, 2 updated`, `already up to date`, `no server changes`) instead of "823 entries imported".
 - **Pull-to-refresh indicator** now reflects actual sync state instead of flashing for a single frame.
+
+### ➕➖ What Happens When You Add or Remove Something?
+- **Removed entries are actually removed now:** deletions apply during the once-a-day full reconciliation, and only to rows **previously seen on the server** — locally added rows, rows whose push was "skipped", and MAL adult rows hidden by `nsfw=false` are never deleted.
+- **Partial-response guard:** if the server returns less than 30% of the local row count (quota, truncated page, auth issue), nothing is deleted; an empty response never wipes the library.
+- **"Deleted items came back" is fixed:** if a list refresh runs while an offline `DELETE` is still queued, the stale server row is not re-inserted (tombstone guard).
+- **Offline additions survive:** rows with a queued `UPDATE` are neither overwritten nor deleted, and the toast says `· n pending edits kept`.
+- **Entries deleted on the web** disappear locally within 24 hours (next full round); delta rounds cannot detect deletions — a deliberate data-safety trade-off.

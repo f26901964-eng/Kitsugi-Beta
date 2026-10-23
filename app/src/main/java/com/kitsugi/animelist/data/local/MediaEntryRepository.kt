@@ -114,12 +114,36 @@ class MediaEntryRepository(
     suspend fun smartImport(
         source: String,
         importedEntries: List<MediaEntry>,
-        allowDelete: Boolean = true
+        allowDelete: Boolean = true,
+        /**
+         * `true` ise +18 satırlar silme adayı SAYILMAZ. MAL'da `nsfw=false` iken +18
+         * kayıtlar yanıta hiç girmez; bunlar "uzakta yok" sanılıp silinmemeli.
+         */
+        keepAdultRows: Boolean = false,
+        /**
+         * `true` ise yarım/kesik yanıt koruması uygulanır (bkz.
+         * [com.kitsugi.animelist.data.sync.ImportReconciler.coverageAllowsDeletion]).
+         * Otomatik yenilemede `true`, kullanıcının "baştan yenile"sinde `false`.
+         */
+        guardAgainstPartialPayload: Boolean = false,
+        /**
+         * `true` ise bu tur TAM çekimdir: sunucuda görülen kimlikler deftere yazılır ve
+         * silme kararı yalnızca "daha önce sunucuda görülmüş" satırlarla sınırlanır
+         * (bkz. [ServerSnapshotStore]). Delta turunda `false` bırakılmalıdır; delta
+         * yanıtı tüm listeyi temsil etmediği için defteri küçültürdü.
+         */
+        isFullPull: Boolean = false
     ): ImportStats {
         val existing = dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
+        val pendingLocalIdsEarly = pendingLocalEntryIdsFor(source)
 
         if (importedEntries.isEmpty()) {
-            if (allowDelete && existing.isNotEmpty()) {
+            // Boş yanıt TEK BAŞINA "kütüphane temizlendi" demek değildir: kimlik doğrulama
+            // sorunu, kota veya yarım yanıt da boş liste döndürebilir. Bekleyen yerel iş
+            // varsa ya da otomatik turdaysak hiçbir şey silinmez.
+            val safeToWipe = allowDelete && existing.isNotEmpty() &&
+                pendingLocalIdsEarly.isEmpty() && !guardAgainstPartialPayload
+            if (safeToWipe) {
                 clearPendingJobsFor(source = source)
                 dao.deleteBySource(source)
                 return ImportStats(source = source, deleted = existing.size)
@@ -134,7 +158,10 @@ class MediaEntryRepository(
         // taze uzak veriyle ezilmez (outbox / pending-safe uzlaştırma). Aksi halde
         // çevrimdışı girilen bölüm/puan, bağlantı gelip liste çekilince sessizce geri
         // alınıyordu. Bu satırlar bir sonraki kuyruk boşaltmasında zaten gönderilecek.
-        val pendingLocalIds = pendingLocalEntryIdsFor(source)
+        val pendingLocalIds = pendingLocalIdsEarly
+        // Yerelde silinmiş ama DELETE'i henüz uzaklara ulaşmamış kayıtlar: liste yenilendiğinde
+        // sunucu onları hâlâ döndürür, "yeni" sanılıp geri eklenmemeleri gerekir.
+        val pendingDeleteKeys = pendingDeleteKeysFor(source)
         var unchanged = 0
         var deferred = 0
         for (entry in importedEntries) {
@@ -192,6 +219,15 @@ class MediaEntryRepository(
                     updates[match.id] = candidate
                 }
             } else {
+                if (com.kitsugi.animelist.data.sync.ImportReconciler.isResurrection(
+                        importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported),
+                        pendingDeleteKeys = pendingDeleteKeys
+                    )
+                ) {
+                    // Kullanıcı bu kaydı sildi, silme işi kuyrukta bekliyor → diriltme.
+                    deferred++
+                    continue
+                }
                 val prior = inserts.indexOfFirst {
                     com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
                 }
@@ -199,7 +235,37 @@ class MediaEntryRepository(
             }
         }
         // allowDelete=false must really mean NO deletion, including alleged title duplicates.
-        val deletions = if (allowDelete) existing.filter { it.id !in matchedIds }.map { it.id } else emptyList()
+        // Silme kararı tek yerden verilir: eşleşmeyen + bekleyen düzenlemesi olmayan satırlar,
+        // yarım yanıt korumasından geçtikten sonra. +18 süzgeçli kaynaklarda (MAL nsfw=false)
+        // o satırlar hiç aday olmaz.
+        // "Sunucuda en son ne vardı?" defteri: yalnızca orada görülmüş satırlar silinebilir.
+        // Böylece yerelde eklenmiş ama sunucuya henüz gönderilememiş (ya da gönderimi
+        // "atlandı" denen) kayıtlar, hiçbir süzgeç kombinasyonunda silinemez.
+        val snapshotKeys = if (allowDelete) snapshotStore()?.read(source).orEmpty() else emptySet()
+        val eligibleForDeletion = existing
+            .filter { !(keepAdultRows && it.isAdult) }
+            .filter { row ->
+                com.kitsugi.animelist.data.sync.ImportReconciler.serverOriginConfirmed(
+                    keys = com.kitsugi.animelist.model.MediaIdentity.keys(row.toDomain()),
+                    previousSnapshot = snapshotKeys
+                )
+            }
+            .map { it.id }
+        val deletions = if (
+            allowDelete && com.kitsugi.animelist.data.sync.ImportReconciler.coverageAllowsDeletion(
+                existingCount = eligibleForDeletion.size,
+                fetchedCount = importedEntries.size,
+                enforce = guardAgainstPartialPayload
+            )
+        ) {
+            com.kitsugi.animelist.data.sync.ImportReconciler.deletionCandidateIds(
+                eligibleIds = eligibleForDeletion,
+                matchedIds = matchedIds,
+                protectedIds = pendingLocalIds
+            )
+        } else {
+            emptyList()
+        }
 
         // PERF: hiçbir şey değişmediyse transaction AÇILMAZ. Room yalnızca yazım olduğunda
         // invalidation yayar; boş bir updateAll bile tüm kütüphanenin yeniden
@@ -213,6 +279,13 @@ class MediaEntryRepository(
                 updates.values.toList(),
                 deletions
             )
+        }
+
+        // Tam çekim başarıyla uygulandı → "sunucuda ne vardı" defteri tazelenir.
+        // Yarım yanıt koruması devredeyken (silme yapılmayan tur) defter yine yazılır:
+        // yanıt eksikse defter küçülür, bu yalnızca silmeyi GECİKTİRİR, veri kaybı yaratmaz.
+        if (isFullPull) {
+            snapshotStore()?.write(source, importedEntries)
         }
 
         val stats = ImportStats(
@@ -573,6 +646,45 @@ class MediaEntryRepository(
      * Bekleyen senkron kuyruğundaki (henüz uzak sunucuya gönderilememiş) yerel
      * satırların id'leri. Bu satırlar liste içe aktarımında EZİLMEZ.
      */
+    /**
+     * Kaynağa ait **bekleyen DELETE** işlerinin kimlik anahtarları (tombstone).
+     *
+     * [pendingLocalEntryIdsFor] yalnızca satır id'lerini verir; silinen satır artık tabloda
+     * olmadığı için o liste dirilişi engelleyemez. Bu yüzden işin JSON'undan kaydın kendisi
+     * çözülüp [com.kitsugi.animelist.model.MediaIdentity.keys] anahtarları çıkarılır.
+     */
+    private var cachedSnapshotStore: com.kitsugi.animelist.data.sync.ServerSnapshotStore? = null
+
+    private fun snapshotStore(): com.kitsugi.animelist.data.sync.ServerSnapshotStore? {
+        val ctx = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            ?: return null
+        return cachedSnapshotStore ?: com.kitsugi.animelist.data.sync.ServerSnapshotStore(ctx)
+            .also { cachedSnapshotStore = it }
+    }
+
+    private suspend fun pendingDeleteKeysFor(source: String): Set<String> {
+        val queueDao = pendingSyncDao ?: return emptySet()
+        return runSyncCatching {
+            queueDao.getAll()
+                .asSequence()
+                .filter { it.operation.equals("DELETE", ignoreCase = true) }
+                .mapNotNull { job ->
+                    runSyncCatching {
+                        // Kuyruktaki JSON tek bir nesnedir (yedek dosyası gibi `entries`
+                        // dizisi değil) → ters dönüşüm için sarmalanır.
+                        val item = org.json.JSONObject(job.entryJson)
+                        val wrapped = org.json.JSONObject()
+                            .put("schemaVersion", 2)
+                            .put("entries", org.json.JSONArray().put(item))
+                        MediaEntryBackup.importFromJson(wrapped.toString()).firstOrNull()
+                    }.getOrNull()
+                }
+                .filter { it.source.equals(source, ignoreCase = true) }
+                .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it).asSequence() }
+                .toSet()
+        }.getOrDefault(emptySet())
+    }
+
     private suspend fun pendingLocalEntryIdsFor(source: String): Set<Int> {
         val queueDao = pendingSyncDao ?: return emptySet()
         return runSyncCatching {

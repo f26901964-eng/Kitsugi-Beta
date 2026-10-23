@@ -2333,6 +2333,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 source = SourceListSynchronizer.ANILIST,
                 mode = mode,
                 supportsDelta = true,
+                // Tam turda uzakta artık olmayan satırlar silinir; delta turunda yok sayılır.
+                allowDelete = true,
                 fetchFull = { AniListImportManager.fetchAllLists(token) },
                 fetchDelta = { since -> AniListImportManager.fetchListsSince(token, since) }
             )
@@ -2371,6 +2373,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 mode = mode,
                 // MAL API v2 "değişenler" süzgeci sunmuyor: delta yok, TTL + fark yazımı var.
                 supportsDelta = false,
+                // Tam turda uzakta artık olmayan satırlar silinir; delta turunda yok sayılır.
+                allowDelete = true,
+                // `nsfw=false` iken MAL +18 kayıtları yanıta hiç koymaz: bunlar silme adayı
+                // olmamalı, yoksa kullanıcının +18 listesi her yenilemede silinirdi.
+                keepAdultRows = !showAdult,
                 fetchFull = { MalImportManager.fetchAllLists(token, showAdult) }
             )
             if (outcome is ListRefreshOutcome.Completed) {
@@ -2404,6 +2411,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 source = SourceListSynchronizer.SIMKL,
                 mode = mode,
                 supportsDelta = true,
+                // Tam turda uzakta artık olmayan satırlar silinir; delta turunda yok sayılır.
+                allowDelete = true,
                 fetchFull = { SimklImportManager.fetchAllLists(token) },
                 // Simkl'de "son N tarihten sonra değişenler" yok; onun yerine ucuz
                 // activities imzası kullanılır: imza aynıysa liste hiç çekilmez.
@@ -2441,6 +2450,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 mode = mode,
                 // Kitsu `library-entries?filter[since]=…` destekliyor → delta mümkün.
                 supportsDelta = true,
+                // Tam turda uzakta artık olmayan satırlar silinir; delta turunda yok sayılır.
+                allowDelete = true,
                 fetchFull = { KitsuImportManager.fetchAllLists(context, token, userId) },
                 fetchDelta = { since ->
                     KitsuImportManager.fetchAllListsSince(context, token, userId, since)
@@ -2480,6 +2491,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 source = SourceListSynchronizer.SHIKIMORI,
                 mode = mode,
                 supportsDelta = false,
+                // Tam turda uzakta artık olmayan satırlar silinir; delta turunda yok sayılır.
+                allowDelete = true,
                 fetchFull = { ShikimoriImportManager.fetchAllLists(context, token, resolvedUserId) }
             )
             if (outcome is ListRefreshOutcome.Completed) {
@@ -2509,6 +2522,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 source = SourceListSynchronizer.BANGUMI,
                 mode = mode,
                 supportsDelta = false,
+                // Tam turda uzakta artık olmayan satırlar silinir; delta turunda yok sayılır.
+                allowDelete = true,
                 fetchFull = { BangumiImportManager.fetchAllLists(context, token) }
             )
             if (outcome is ListRefreshOutcome.Completed) {
@@ -2542,15 +2557,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val message = when (outcome) {
             is ListRefreshOutcome.Completed -> {
                 val stats = outcome.stats
+                // Bekleyen (henüz sunucuya gitmemiş) yerel düzenlemeler uzak veriyle
+                // ezilmediyse bunu söylemek gerekir; aksi halde kullanıcı "güncelledim ama
+                // eski değer görünüyor" diye düşünür.
+                val deferredNote = if (stats.deferred > 0) {
+                    " · ${stats.deferred} bekleyen düzenleme korundu"
+                } else {
+                    ""
+                }
                 if (!stats.hasChanges) {
-                    "✅ $displayName: liste zaten güncel (${stats.fetched} kayıt denetlendi)"
+                    "✅ $displayName: liste zaten güncel (${stats.fetched} kayıt denetlendi)$deferredNote"
                 } else {
                     val parts = buildList {
                         if (stats.added > 0) add("${stats.added} yeni")
                         if (stats.updated > 0) add("${stats.updated} güncellendi")
                         if (stats.deleted > 0) add("${stats.deleted} kaldırıldı")
                     }
-                    "✅ $displayName: " + parts.joinToString(", ")
+                    "✅ $displayName: " + parts.joinToString(", ") + deferredNote
                 }
             }
             is ListRefreshOutcome.Skipped -> when (outcome.reason) {

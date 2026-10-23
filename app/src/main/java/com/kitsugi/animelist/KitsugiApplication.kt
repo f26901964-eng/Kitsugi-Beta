@@ -321,7 +321,8 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     supportsDelta: Boolean,
                     fetchFull: suspend () -> List<com.kitsugi.animelist.model.MediaEntry>,
                     fetchDelta: (suspend (Long) -> List<com.kitsugi.animelist.model.MediaEntry>)? = null,
-                    revisionProbe: (suspend () -> String?)? = null
+                    revisionProbe: (suspend () -> String?)? = null,
+                    keepAdultRows: Boolean = false
                 ) {
                     val outcome = com.kitsugi.animelist.data.sync.SourceListSynchronizer.refresh(
                         context = app,
@@ -331,7 +332,12 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                         supportsDelta = supportsDelta,
                         fetchFull = fetchFull,
                         fetchDelta = fetchDelta,
-                        revisionProbe = revisionProbe
+                        revisionProbe = revisionProbe,
+                        // Arka planda TAM turda, uzakta artık olmayan satırlar silinir
+                        // (kullanıcı listeden çıkardı → yerelde de kalmasın). Yarım yanıt
+                        // koruması SourceListSynchronizer içinde uygulanır.
+                        allowDelete = true,
+                        keepAdultRows = keepAdultRows
                     )
                     when (outcome) {
                         is com.kitsugi.animelist.data.sync.ListRefreshOutcome.Completed ->
@@ -368,6 +374,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     runSource(
                         source = "mal",
                         supportsDelta = false,
+                        // `nsfw=false` iken MAL +18 kayıtları yanıta hiç koymaz → bunlar
+                        // silme adayı olmamalı, yoksa +18 listesi her yenilemede silinirdi.
+                        keepAdultRows = !showAdult,
                         fetchFull = { com.kitsugi.animelist.data.auth.MalImportManager.fetchAllLists(malToken, showAdult) }
                     )
                 }
