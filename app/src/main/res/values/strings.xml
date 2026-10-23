@@ -7054,6 +7054,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="mylist_empty_search_query">"%1$s" için içerik bulunamadı.</string>
     <string name="gallery_tab_details">Detaylar</string>
     <string name="gallery_tab_other_images">Diğer Resimler</string>
+    <string name="gallery_source_all">Tümü</string>
+    <string name="gallery_clear_source_filter">Kaynak filtresini temizle</string>
     <string name="gallery_field_source">Kaynak</string>
     <string name="gallery_field_language">Dil</string>
     <string name="gallery_textless">✨ Metinsiz</string>

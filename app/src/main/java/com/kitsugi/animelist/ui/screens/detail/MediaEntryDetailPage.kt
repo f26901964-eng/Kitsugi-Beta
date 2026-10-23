@@ -297,6 +297,8 @@ fun MediaEntryDetailPage(
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
     var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
+    // Kaynak seçicisinden açıldığında galeri bu kaynağa filtrelenir (kapatınca sıfırlanır).
+    var activeGallerySource by remember { mutableStateOf<String?>(null) }
     var activeEpisodeForOptions by remember { mutableStateOf<KitsugiStreamingEpisode?>(null) }
 
     // ── STABİL CALLBACK'LER (2026-10-23 kaydırma perf fix) ──────────────────
@@ -388,8 +390,11 @@ fun MediaEntryDetailPage(
         { source ->
             val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
             if (sourceItems.isNotEmpty()) {
-                activeGalleryCategory = sourceItems.first().category
-                if (!viewModel.galleryLoading.value) activeGalleryItems = sourceItems
+                // Tüm galeri verilir; galeri içindeki "Kaynak" listesinden
+                // başka kaynaklara geçilebildiği için liste daraltılmaz.
+                activeGalleryCategory = null
+                activeGallerySource = source
+                if (!viewModel.galleryLoading.value) activeGalleryItems = galleryItems
                 activeGalleryIndex = 0
             }
         }
@@ -769,12 +774,15 @@ fun MediaEntryDetailPage(
             KitsugiImageGalleryDialog(
                 galleryItems = activeGalleryItems,
                 initialIndex = activeGalleryIndex,
-                initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
+                initialCategory = if (activeGallerySource != null) null
+                    else activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
+                initialSource = activeGallerySource,
                 title = displayEntry.title,
                 isAdult = displayEntry.isAdult,
-                onDismiss = { 
+                onDismiss = {
                     activeGalleryItems = emptyList()
                     activeGalleryCategory = null
+                    activeGallerySource = null
                 }
             )
         }
