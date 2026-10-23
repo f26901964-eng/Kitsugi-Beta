@@ -161,7 +161,7 @@ class MediaEntryRepository(
         val pendingLocalIds = pendingLocalIdsEarly
         // Yerelde silinmiş ama DELETE'i henüz uzaklara ulaşmamış kayıtlar: liste yenilendiğinde
         // sunucu onları hâlâ döndürür, "yeni" sanılıp geri eklenmemeleri gerekir.
-        val pendingDeleteKeys = pendingDeleteKeysFor(source)
+        val pendingDeleteKeys = deletionTombstones()
         var unchanged = 0
         var deferred = 0
         for (entry in importedEntries) {
@@ -220,7 +220,7 @@ class MediaEntryRepository(
                 }
             } else {
                 if (com.kitsugi.animelist.data.sync.ImportReconciler.isResurrection(
-                        importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported),
+                        importedKeys = identityKeysFor(imported),
                         pendingDeleteKeys = pendingDeleteKeys
                     )
                 ) {
@@ -642,17 +642,6 @@ class MediaEntryRepository(
         }
     }
 
-    /**
-     * Bekleyen senkron kuyruğundaki (henüz uzak sunucuya gönderilememiş) yerel
-     * satırların id'leri. Bu satırlar liste içe aktarımında EZİLMEZ.
-     */
-    /**
-     * Kaynağa ait **bekleyen DELETE** işlerinin kimlik anahtarları (tombstone).
-     *
-     * [pendingLocalEntryIdsFor] yalnızca satır id'lerini verir; silinen satır artık tabloda
-     * olmadığı için o liste dirilişi engelleyemez. Bu yüzden işin JSON'undan kaydın kendisi
-     * çözülüp [com.kitsugi.animelist.model.MediaIdentity.keys] anahtarları çıkarılır.
-     */
     private var cachedSnapshotStore: com.kitsugi.animelist.data.sync.ServerSnapshotStore? = null
 
     private fun snapshotStore(): com.kitsugi.animelist.data.sync.ServerSnapshotStore? {
@@ -662,7 +651,19 @@ class MediaEntryRepository(
             .also { cachedSnapshotStore = it }
     }
 
-    private suspend fun pendingDeleteKeysFor(source: String): Set<String> {
+    /**
+     * **Bekleyen DELETE işlerinin** kimlik anahtarları (tombstone kümesi).
+     *
+     * Silinen satır artık tabloda olmadığı için [pendingLocalEntryIdsFor] dirilişi
+     * engelleyemez; işin JSON'undan kaydın kendisi çözülür.
+     *
+     * Kaynak süzgeci BİLİNÇLİ olarak yoktur: yerelden silinen kayıt çoğu zaman katalog
+     * kaynaklıdır (`source = "jikan"`/`"tmdb"`) ama uzak kopyası AniList/MAL satırı olarak
+     * geri gelebilir ("sildiğim şey geri geldi"). Bu yüzden anahtarlar **çapraz sağlayıcı**
+     * kimliklerden üretilir ve tür önekiyle ayrılır (`Anime:mal:21`), böylece anime/manga
+     * karışmaz.
+     */
+    private suspend fun deletionTombstones(): Set<String> {
         val queueDao = pendingSyncDao ?: return emptySet()
         return runSyncCatching {
             queueDao.getAll()
@@ -679,12 +680,48 @@ class MediaEntryRepository(
                         MediaEntryBackup.importFromJson(wrapped.toString()).firstOrNull()
                     }.getOrNull()
                 }
-                .filter { it.source.equals(source, ignoreCase = true) }
-                .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it).asSequence() }
+                .flatMap { identityKeysFor(it).asSequence() }
                 .toSet()
         }.getOrDefault(emptySet())
     }
 
+    /**
+     * Bir kaydın **tüm sağlayıcı uzaylarındaki** kimlik anahtarları (tür önekli).
+     *
+     * [com.kitsugi.animelist.model.MediaIdentity.keys] yalnızca satırın kendi kaynak uzayını
+     * görür; diriliş karşılaştırmasında silinen yerel satır ile sunucudan gelen satırın
+     * kaynakları farklı olabilir. [com.kitsugi.animelist.data.auth.CrossProviderIds.decode]
+     * depolanan kimliği (offset'li stable ID dahil) her sağlayıcıya açar.
+     */
+    private fun identityKeysFor(entry: MediaEntry): Set<String> {
+        val prefix = entry.type.name
+        val decoded = com.kitsugi.animelist.data.auth.CrossProviderIds.decode(
+            storedId = entry.malId,
+            source = entry.source,
+            type = entry.type,
+            entrySimklId = entry.simklId,
+            entryTmdbId = entry.tmdbId
+        )
+        // Kalıcı çapraz kimlik önbelleği (ağ yok): silinen katalog satırı ile sunucudan gelen
+        // AniList/MAL satırı çoğu zaman yalnızca bu köprü üzerinden eşleşir.
+        val ids = context?.let { ctx -> decoded.mergedWith(resolvedIdsFor(ctx, entry)) } ?: decoded
+        return buildSet {
+            addAll(com.kitsugi.animelist.model.MediaIdentity.keys(entry))
+            ids.malId?.let { add("$prefix:mal:$it") }
+            ids.aniListId?.let { add("$prefix:anilist:$it") }
+            ids.kitsuId?.let { add("$prefix:kitsu:$it") }
+            ids.shikimoriId?.let { add("$prefix:shikimori:$it") }
+            ids.bangumiSubjectId?.let { add("$prefix:bangumi:$it") }
+            ids.tmdbId?.let { add("$prefix:tmdb:$it") }
+            ids.simklId?.let { add("$prefix:simkl:$it") }
+            entry.aniListEntryId?.takeIf { it > 0 }?.let { add("$prefix:anilist-entry:$it") }
+        }
+    }
+
+    /**
+     * Bekleyen senkron kuyruğundaki (henüz uzak sunucuya gönderilememiş) yerel
+     * satırların id'leri. Bu satırlar liste içe aktarımında EZİLMEZ.
+     */
     private suspend fun pendingLocalEntryIdsFor(source: String): Set<Int> {
         val queueDao = pendingSyncDao ?: return emptySet()
         return runSyncCatching {

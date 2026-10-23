@@ -212,7 +212,7 @@ uzlaştırmada yakalanır.
 | 4 | Web'de / başka uygulamada **yeni kayıt** ekledim | AniList: `updatedAt_greater`, Kitsu: `filter[since]`, Simkl: activities imzası → **1 küçük istek**; MAL/Shikimori/Bangumi: tam liste (yalnızca yeni satır yazılır) | ≤1 saat (delta) / ≤6 saat |
 | 5 | **İlerleme/puan** değiştirdim ve çevrimdışıyım, sonra yenileme oldu | Yerel değer korunur (kapı 2), `+n bekleyen düzenleme korundu` mesajı çıkar | — |
 | 6 | Telefondan **sildim** (çevrimiçi) | Satır + kardeş kaynak kopyaları yerelden gider, tüm kaynaklara DELETE gider | anında |
-| 7 | Telefondan sildim ama **çevrimdışıyım** | Satır gider, `DELETE` kuyruğa girer. Liste yenilenirse sunucu kaydı hâlâ döner → **diriliş koruması** (tombstone) geri eklemez | — |
+| 7 | Telefondan sildim ama **çevrimdışıyım** | Satır gider, `DELETE` kuyruğa girer. Liste yenilenirse sunucu kaydı hâlâ döner → **diriliş koruması** (tombstone) geri eklemez. Tombstone'lar **çapraz sağlayıcı** anahtarlarla üretilir: katalog satırı (`source=jikan`) silinse bile AniList/MAL kopyası geri gelmez | — |
 | 8 | **Web'de sildim** | Delta turunda görülmez (yok sayılır); **günde bir tam uzlaştırmada** silinir (kapı 1+3) | ≤24 saat |
 | 9 | Sunucu **boş/hatalı** yanıt verdi (401, kota, 5xx) | Boş yanıtla kütüphane **silinmez** (bekleyen iş varsa veya otomatik turdaysa temizleme yok) | — |
 | 10 | MAL'da `nsfw=false`, +18 kayıtlarım var | Bu satırlar yanıtta yok ama **silme adayı değil** | — |
