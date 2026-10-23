@@ -508,6 +508,18 @@
     <string name="notif_notice_bangumi_no_list">Bangumi izleme listenizde kayıt bulunmuyor.</string>
     <string name="notif_notice_bangumi_not_connected">Bangumi hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Bangumi\'nin genel API\'sinde bildirim ucu yoktur.</string>
 
+    <!-- Bildirimler ortak görünüm: tarih grupları + birleşik tarih biçimi + özet -->
+    <string name="notif_group_upcoming">Yaklaşan</string>
+    <string name="notif_group_today">Bugün</string>
+    <string name="notif_group_yesterday">Dün</string>
+    <string name="notif_group_this_week">Bu Hafta</string>
+    <string name="notif_group_older">Daha Eski</string>
+    <string name="notif_group_other">Diğer</string>
+    <string name="notif_date_today">Bugün %1$s</string>
+    <string name="notif_date_yesterday">Dün %1$s</string>
+    <string name="notif_items_count">%1$d bildirim</string>
+    <string name="notif_empty_subtitle">Yeni bir gelişme olduğunda burada görünecek.</string>
+
     <!-- Explore Categories -->
     <string name="explore_top_anime">Popüler Anime</string>
     <string name="explore_top_rated_anime">En Yüksek Puanlı Animeler</string>

@@ -508,6 +508,18 @@
     <string name="notif_notice_bangumi_no_list">Your Bangumi watch list is empty.</string>
     <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
 
+    <!-- Notifications unified view: date groups + unified date format + summary -->
+    <string name="notif_group_upcoming">Upcoming</string>
+    <string name="notif_group_today">Today</string>
+    <string name="notif_group_yesterday">Yesterday</string>
+    <string name="notif_group_this_week">This Week</string>
+    <string name="notif_group_older">Older</string>
+    <string name="notif_group_other">Other</string>
+    <string name="notif_date_today">Today %1$s</string>
+    <string name="notif_date_yesterday">Yesterday %1$s</string>
+    <string name="notif_items_count">%1$d notifications</string>
+    <string name="notif_empty_subtitle">New activity will appear here.</string>
+
     <!-- Explore Categories -->
     <string name="explore_top_anime">Popular Anime</string>
     <string name="explore_top_rated_anime">Top Rated Anime</string>

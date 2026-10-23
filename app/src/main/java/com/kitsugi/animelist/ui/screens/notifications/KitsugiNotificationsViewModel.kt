@@ -255,9 +255,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             .filter { (retainOldWhere == null || retainOldWhere(it)) && it.id !in liveIds }
             .map { it.toNotifItem() }
 
-        val merged = live + fromArchive
-        return if (fromArchive.isEmpty()) merged
-        else merged.sortedWith(
+        // Ortak sözleşme: TÜM kaynaklar yeni → eski sıralanır; tarihi olmayanlar
+        // (örn. Kitsu "listede" kayıtları) en sonda kalır. Eskiden sıralama yalnızca
+        // arşiv doluyken uygulanıyordu; ilk açılışta kaynak sırası neyse o görünüyordu.
+        return (live + fromArchive).sortedWith(
             compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE }
         )
     }
@@ -396,7 +397,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             imageUrl = mediaCoverUrl ?: userAvatarUrl,
             title = mediaTitle ?: userName ?: threadTitle ?: "AniList",
             body = body,
-            dateText = dateText,
+            // Ortak tarih sözleşmesi: AniList de artık tsMs taşır ve diğer
+            // kaynaklarla aynı birleşik biçimde ("Bugün 14:32" vb.) gösterilir.
+            dateText = createdAt?.let { formatNotifTimestamp(it * 1000L) } ?: dateText,
+            tsMs = createdAt?.times(1000L),
             mediaId = mediaId,
             activityId = activityId,
             mediaType = mediaType?.lowercase(),
@@ -928,7 +932,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     ctx.getString(R.string.notif_mal_episode_released, entry.episode)
                 else
                     ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode),
-                dateText = formatEpochSec(entry.airingAt),
+                dateText = formatNotifTimestamp(entry.airingAt * 1000L),
                 tsMs = entry.airingAt * 1000L,
                 mediaId = entry.malId,
                 mediaType = "anime",
@@ -970,9 +974,11 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             imageUrl = resolvedImage,
             title = cardTitle,
             body = cardBody,
-            dateText = createdAtForDisplay?.takeIf(String::isNotBlank)
-                ?: date?.takeIf(String::isNotBlank)
-                ?: createdAtMs?.let(::formatEpochMs),
+            // Birleşik biçim önceliklidir; sunucu metni yalnızca tarih
+            // çözülemediğinde yedek olarak kalır (tüm kaynaklarda aynı görünüm).
+            dateText = createdAtMs?.let(::formatNotifTimestamp)
+                ?: createdAtForDisplay?.takeIf(String::isNotBlank)
+                ?: date?.takeIf(String::isNotBlank),
             isUnread = !isRead,
             mediaId = mediaId,
             mediaType = mediaType,
@@ -1060,7 +1066,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                 )
                                 if (entry.isFinale) append(" • ").append(ctx.getString(R.string.notif_badge_finale))
                             },
-                            dateText = formatEpochMs(entry.airingAtMs),
+                            dateText = formatNotifTimestamp(entry.airingAtMs),
                             tsMs = entry.airingAtMs,
                             mediaId = entry.simklId,
                             mediaType = if (entry.isMovie) "movie" else "tv",
@@ -1124,7 +1130,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                     else R.string.notif_kitsu_episode_upcoming,
                                     entry.progress + 1
                                 ),
-                                dateText = formatEpochMs(releaseMs),
+                                dateText = formatNotifTimestamp(releaseMs),
                                 tsMs = releaseMs,
                                 mediaId = entry.animeId ?: entry.mangaId,
                                 mediaType = if (entry.animeId != null) "anime" else "manga",
@@ -1278,6 +1284,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             // çapraz kimlik + takvim); çözümleyici burada ÖN PLAN modunda (background=false)
             // çalıştırılır ki ilk açılışta da doğru dil görünsün, sonraki ziyaretler önbellekten
             // anında gelir.
+            // Bangumi infobox isteği yerine öncelikle önbellek ve AniList toplu araması kullanılır.
             runCatching { BangumiSubjectTitleResolver.resolve(pendingRequests, background = false) }
             for (w in uniqueWatching) {
                 val rawId = BangumiIdNamespace.rawIdOrNull(w.stableId)
@@ -1398,7 +1405,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                 ctx.getString(R.string.notif_mal_episode_released, entry.episode)
                             else
                                 ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode),
-                            dateText = formatEpochSec(entry.airingAt),
+                            dateText = formatNotifTimestamp(entry.airingAt * 1000L),
                             tsMs = entry.airingAt * 1000L,
                             mediaId = entry.malId?.let { malToStable[it] },
                             mediaType = "anime",
@@ -1420,7 +1427,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                     ctx.getString(R.string.notif_kitsu_progress, w.progress)
                                 else
                                     ctx.getString(R.string.notif_bangumi_in_list),
-                                dateText = w.updatedAtMs?.let { formatEpochMs(it) },
+                                dateText = w.updatedAtMs?.let { formatNotifTimestamp(it) },
                                 tsMs = w.updatedAtMs,
                                 mediaId = w.stableId,
                                 mediaType = "anime",
@@ -1513,12 +1520,16 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 // Gerçek bildirim yok / izin yok → izleme geçmişi (history) akışına düş.
                 val history = ShikimoriApiClient.fetchUserHistory(token, userId, limit = 40)
                 val historyItems = history.map { h ->
+                    val historyTsMs = parseIsoToEpochMs(h.createdAt)
                     NotifItem(
                         id = "shikimori_${h.id}",
                         imageUrl = h.targetImageUrl,
                         title = h.targetTitle,
                         body = h.description.ifBlank { ctx.getString(R.string.notif_shikimori_activity_fallback) },
-                        dateText = h.createdAt.take(10),
+                        // Eskiden ham "2026-10-21" metni gösteriliyordu; artık
+                        // diğer kaynaklarla aynı birleşik biçim + tsMs sıralaması.
+                        dateText = historyTsMs?.let { formatNotifTimestamp(it) } ?: h.createdAt.take(10),
+                        tsMs = historyTsMs,
                         mediaId = h.targetId?.toInt(),
                         mediaType = h.targetType ?: "anime",
                         source = "Shikimori"
@@ -1531,7 +1542,9 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     ctx.getString(R.string.notif_notice_shikimori_history_only)
 
                 _shikimori.value = NotifUiState(
-                    items = historyItems,
+                    items = historyItems.sortedWith(
+                        compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE }
+                    ),
                     isLoading = false,
                     hasMore = false,
                     notice = notice
@@ -1553,6 +1566,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             else -> ctx.getString(R.string.notif_shikimori_kind_generic)
         }
         val text = stripBbcode(body).ifBlank { stripHtml(htmlBody) }
+        val messageTsMs = parseIsoToEpochMs(createdAt)
         return NotifItem(
             id = "shikimori_msg_${type}_${id}",
             imageUrl = targetImageUrl ?: fromAvatarUrl,
@@ -1561,7 +1575,8 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 append(kindLabel)
                 if (text.isNotBlank()) append(" • ").append(text.take(160))
             },
-            dateText = parseIsoToEpochMs(createdAt)?.let { formatEpochMs(it) } ?: createdAt.take(10),
+            dateText = messageTsMs?.let { formatNotifTimestamp(it) } ?: createdAt.take(10),
+            tsMs = messageTsMs,
             isUnread = !read,
             mediaId = linkedId?.toInt(),
             mediaType = linkedType?.lowercase(),
@@ -1574,10 +1589,32 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
 
     // ─── Yardımcılar ─────────────────────────────────────────────────────────
 
-    private fun formatEpochMs(ms: Long): String =
-        SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()).format(Date(ms))
-
-    private fun formatEpochSec(sec: Long): String = formatEpochMs(sec * 1000L)
+    /**
+     * Tum kaynaklarda tek tarih bicimi: bugun -> "Bugun 14:32", dun -> "Dun 09:10",
+     * ayni yil -> "12 Eki 14:32", daha eski -> "12 Eki 2025 14:32".
+     * Eskiden her kaynak kendi bicimini kullaniyordu (MAL sunucu metni, Shikimori
+     * ham "2026-10-21", digerleri "dd MMM yyyy HH:mm").
+     */
+    private fun formatNotifTimestamp(ms: Long): String {
+        val nowCal = java.util.Calendar.getInstance()
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+        fun startOfDay(c: java.util.Calendar): Long =
+            (c.clone() as java.util.Calendar).apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        val dayDiff = (startOfDay(nowCal) - startOfDay(cal)) / 86_400_000L
+        val timeText = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
+        return when {
+            dayDiff == 0L -> ctx.getString(R.string.notif_date_today, timeText)
+            dayDiff == 1L -> ctx.getString(R.string.notif_date_yesterday, timeText)
+            cal.get(java.util.Calendar.YEAR) == nowCal.get(java.util.Calendar.YEAR) ->
+                SimpleDateFormat("dd MMM HH:mm", Locale.getDefault()).format(Date(ms))
+            else -> SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()).format(Date(ms))
+        }
+    }
 
     private fun parseIsoToEpochMs(raw: String?): Long? {
         if (raw.isNullOrBlank()) return null
