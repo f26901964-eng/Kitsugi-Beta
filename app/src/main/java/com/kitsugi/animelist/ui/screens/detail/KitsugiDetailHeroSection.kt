@@ -103,7 +103,11 @@ internal fun DetailHero(
     // Eşlerden biri yoksa diğeri gösterilir; görsel alanı yine Crop ile TAM kaplanır.
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
-    val isLandscapeScreen = configuration.screenWidthDp > configuration.screenHeightDp
+    // Keşfet detayıyla ORTAK kural: yatay -> poster, dikey -> arka plan.
+    val isLandscapeScreen = remember(configuration.screenWidthDp, configuration.screenHeightDp) {
+        resolveHeroArtworkPreference(configuration.screenWidthDp, configuration.screenHeightDp) ==
+            HeroArtworkPreference.POSTER
+    }
 
     val posterUrl = remember(entry.imageUrl) { KitsugiHeroArtworkResolver.upgradeNativePosterUrl(entry.imageUrl) }
     val wideGalleryUrls = remember(galleryItems) {
@@ -135,12 +139,14 @@ internal fun DetailHero(
         // şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
         //  - YATAY mod → 2:3 DİKEY poster kutusu (uzun-dar).
         //  - DİKEY mod → 16:9 YATAY arka plan bandı (geniş-kısa).
-        val defaultBoxAspect = if (isLandscapeScreen) 2f / 3f else 16f / 9f
+        // Kutu TERCİHE değil GÖSTERİLEN gerçek görsele göre şekillenir:
+        // yatay aday yoksa postere düşülür; poster 16:9 aralığına sıkıştırılırsa bozulur.
+        val defaultBoxAspect = if (isVerticalArtwork) 2f / 3f else 16f / 9f
         val boxAspect = (loadedImageAspect ?: defaultBoxAspect).coerceIn(
-            minimumValue = if (isLandscapeScreen) 0.5f else 1.0f,
-            maximumValue = if (isLandscapeScreen) 1.6f else 2.2f
+            minimumValue = if (isVerticalArtwork) 0.5f else 1.0f,
+            maximumValue = if (isVerticalArtwork) 1.6f else 2.2f
         )
-        val bannerCapDp = if (isLandscapeScreen) screenHeightDp else screenHeightDp * 0.62f
+        val bannerCapDp = if (isVerticalArtwork) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
 
         // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine
