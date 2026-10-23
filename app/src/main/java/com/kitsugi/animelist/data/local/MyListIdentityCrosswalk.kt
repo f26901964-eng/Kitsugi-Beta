@@ -51,16 +51,22 @@ object MyListIdentityCrosswalk {
     suspend fun build(context: Context, entries: List<MediaEntry>): Map<Int, Set<String>> {
         if (entries.isEmpty()) return emptyMap()
         return withContext(Dispatchers.IO) {
-            val pending = entries.filter { needsCrosswalk(it) }
-            if (pending.isEmpty()) return@withContext emptyMap()
+            // `needsCrosswalk` en az bir satırda köprü gerekiyorsa tüm satırlardaki
+            // doğrulanmış `CrossProviderIdentityCache` + `bgm_detail_xref_v1` + `bangumi_id_mapping`
+            // anahtarlarını topla (`E101`/`E104`): örn. `AniList`/`MAL` satırında önbelleklenmiş
+            // `bangumiSubjectId`/`kitsuId`/`simklId`, henüz kendi önbelleği olmayan `Bangumi`/`Kitsu`
+            // satırıyla doğrudan kimlik üzerinden birleşsin. `extraKeysFor` satırın kendi uzayını asla ezmez.
+            if (entries.none { needsCrosswalk(it) }) return@withContext emptyMap()
 
-            val bangumiSubjectToMal = runCatching { BangumiLocalMappingCache.snapshot(context) }
-                .getOrNull()
-                ?.let { reverseBangumiMapping(it) }
-                .orEmpty()
+            val bangumiSubjectToMal = buildMap {
+                runCatching { BangumiLocalMappingCache.snapshot(context) }
+                    .getOrNull()
+                    ?.let { putAll(reverseBangumiMapping(it)) }
+                putAll(readDetailXrefBangumiToMal(context))
+            }
 
-            val result = LinkedHashMap<Int, Set<String>>(pending.size)
-            pending.forEach { entry ->
+            val result = LinkedHashMap<Int, Set<String>>(entries.size)
+            entries.forEach { entry ->
                 val extras = extraKeysFor(entry, cachedIds(context, entry), bangumiSubjectToMal)
                 if (extras.isNotEmpty()) result[entry.id] = extras
             }
@@ -164,4 +170,24 @@ object MyListIdentityCrosswalk {
             malIds.singleOrNull()?.let { subjectKey to it }
         }.toMap()
     }
+
+    /** `KitsugiBangumiDetailClient` (`bgm_detail_xref_v1`: `s<id> -> "al=...;mal=...;"`) köprüsü. */
+    private fun readDetailXrefBangumiToMal(context: Context): Map<String, Int> = runCatching {
+        val prefs = context.getSharedPreferences("bgm_detail_xref_v1", Context.MODE_PRIVATE)
+        val out = HashMap<String, Int>()
+        prefs.all.forEach { (key, value) ->
+            if (!key.startsWith("s")) return@forEach
+            val subjectId = key.drop(1).toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
+            val encoded = value as? String ?: return@forEach
+            val malId = encoded.split(';')
+                .firstOrNull { it.startsWith("mal=") }
+                ?.removePrefix("mal=")
+                ?.toIntOrNull()
+                ?.takeIf { it in CrossProviderIds.REAL_MAL_MIN..CrossProviderIds.REAL_MAL_MAX }
+                ?: return@forEach
+            out["${MediaType.Anime.name}:$subjectId"] = malId
+            out["${MediaType.Manga.name}:$subjectId"] = malId
+        }
+        out
+    }.getOrDefault(emptyMap())
 }

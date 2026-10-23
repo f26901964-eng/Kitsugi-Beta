@@ -8,13 +8,19 @@ import com.kitsugi.animelist.model.MediaIdentity
  * The caller still applies MediaIdentity.sameMedia() to each candidate, so the index never
  * makes a match decision by itself. This avoids scanning every previous group for every entry.
  */
-internal class CrossSyncCandidateIndex<Group : Any> {
+internal class CrossSyncCandidateIndex<Group : Any>(
+    private val identityExtras: Map<Int, Set<String>> = emptyMap()
+) {
     private val groupsByIdentityKey = mutableMapOf<String, LinkedHashSet<Group>>()
     private val groupsByTitleAlias = mutableMapOf<String, LinkedHashSet<Group>>()
     private val groupsByJapaneseTitle = mutableMapOf<String, LinkedHashSet<Group>>()
 
+    fun keysOf(entry: MediaEntry): Set<String> =
+        if (identityExtras.isEmpty()) MediaIdentity.keys(entry)
+        else MediaIdentity.keys(entry, identityExtras[entry.id].orEmpty())
+
     fun add(group: Group, entry: MediaEntry) {
-        MediaIdentity.keys(entry).forEach { key ->
+        keysOf(entry).forEach { key ->
             groupsByIdentityKey.getOrPut(key) { linkedSetOf() }.add(group)
         }
         titleAliases(entry).forEach { alias ->
@@ -27,7 +33,7 @@ internal class CrossSyncCandidateIndex<Group : Any> {
 
     /** Returns a small superset of groups that may satisfy MediaIdentity.sameMedia(). */
     fun possibleMatches(entry: MediaEntry): Set<Group> = LinkedHashSet<Group>().apply {
-        MediaIdentity.keys(entry).forEach { key -> addAll(groupsByIdentityKey[key].orEmpty()) }
+        keysOf(entry).forEach { key -> addAll(groupsByIdentityKey[key].orEmpty()) }
         titleAliases(entry).forEach { alias -> addAll(groupsByTitleAlias[titleKey(entry, alias)].orEmpty()) }
         japaneseAlias(entry)?.let { alias -> addAll(groupsByJapaneseTitle[titleKey(entry, alias)].orEmpty()) }
     }

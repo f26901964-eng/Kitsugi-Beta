@@ -183,6 +183,15 @@ object ExternalListSyncManager {
             }
         }
 
+        // Uzak hesaba GERÇEKTEN yazıldığı teyit edilen (`OUTCOME_SYNCED`) her sağlayıcı için
+        // yerel `media_entries` yansıma satırını oluştur/güncelle (`E98`).
+        // Böylece Listem > Tümü kartındaki rozetler (`AL`, `MAL`, `S`, `Kitsu`, `Shikimori`,
+        // `Bangumi`) ve sağlayıcı sekmeleri tam liste içe aktarmasını beklemeden anında güncellenir;
+        // kanonik kimlik uzayı kullanıldığı için sonraki `smartImport` aynı satırı birebir bulur.
+        runSyncCatching {
+            upsertSyncedLocalMirrors(context, run, results)
+        }
+
         aggregate(context, prepared, results, isDelete = false)
     }
 
@@ -213,7 +222,7 @@ object ExternalListSyncManager {
         val aniListToken = ExternalAuthManager.getAniListToken(context)
         val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
         val simklToken = ExternalAuthManager.getSimklToken(context)
-        val kitsuToken = ExternalAuthManager.getKitsuToken(context)
+        val kitsuToken = ExternalAuthManager.getOrRefreshKitsuToken(context)
         val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
         val bangumiToken = if (enabled["bangumi"] == true) BangumiAuthStore.getValidToken(context) else null
 
@@ -1017,6 +1026,192 @@ object ExternalListSyncManager {
             simklId = entry.simklId ?: ids.simklId,
             tmdbId = entry.tmdbId ?: ids.tmdbId
         )
+    }
+
+    /**
+     * Builds the canonical local `media_entries` mirror row for a provider whose remote write
+     * just succeeded (`OUTCOME_SYNCED`).
+     *
+     * Every provider receives the EXACT ID namespace expected by `MyListLibraryGrouping`,
+     * `MyListIdentityCrosswalk`, and `MediaEntryRepository.smartImport` so later list imports
+     * match and update the same row 1-to-1 without creating duplicates.
+     */
+    internal fun buildLocalProviderMirrorEntry(
+        sourceKey: String,
+        baseEntry: MediaEntry,
+        identity: CrossProviderIds,
+        aniListEntryId: Int? = null,
+        learnedBangumiSubjectId: Int? = null,
+        fallbackKitsuMediaId: Int? = null
+    ): MediaEntry? {
+        val realMalId = CrossProviderIds.realMalIdOf(identity.malId)
+        val simklId = (identity.simklId ?: baseEntry.simklId)?.takeIf { it > 0 }
+        val tmdbId = (identity.tmdbId ?: baseEntry.tmdbId)?.takeIf { it > 0 }
+
+        return when (sourceKey.lowercase()) {
+            "mal" -> {
+                val id = realMalId ?: return null
+                baseEntry.copy(
+                    id = 0,
+                    source = "mal",
+                    malId = id,
+                    aniListEntryId = null,
+                    simklId = null
+                )
+            }
+            "anilist" -> {
+                val id = realMalId
+                    ?: identity.aniListId?.takeIf { it in 1..99_999_999 }?.let { 100_000_000 + it }
+                    ?: return null
+                baseEntry.copy(
+                    id = 0,
+                    source = "anilist",
+                    malId = id,
+                    aniListEntryId = aniListEntryId ?: baseEntry.aniListEntryId,
+                    simklId = null
+                )
+            }
+            "simkl" -> {
+                if (realMalId == null && simklId == null && tmdbId == null) return null
+                baseEntry.copy(
+                    id = 0,
+                    source = "simkl",
+                    malId = realMalId,
+                    aniListEntryId = null,
+                    simklId = simklId,
+                    tmdbId = tmdbId
+                )
+            }
+            "kitsu" -> {
+                val kitsuId = (identity.kitsuId ?: fallbackKitsuMediaId)
+                    ?.takeIf { it in 1..99_999_999 } ?: return null
+                baseEntry.copy(
+                    id = 0,
+                    source = "kitsu",
+                    malId = 300_000_000 + kitsuId,
+                    aniListEntryId = null,
+                    simklId = null
+                )
+            }
+            "shikimori" -> {
+                val targetId = (realMalId ?: identity.shikimoriId?.takeIf { it in 1..99_999_999 })
+                    ?: return null
+                baseEntry.copy(
+                    id = 0,
+                    source = "shikimori",
+                    malId = targetId,
+                    aniListEntryId = null,
+                    simklId = null
+                )
+            }
+            "bangumi" -> {
+                val subjectId = (learnedBangumiSubjectId ?: identity.bangumiSubjectId)
+                    ?.takeIf { it in 1..99_999_999 } ?: return null
+                baseEntry.copy(
+                    id = 0,
+                    source = "bangumi",
+                    malId = BangumiIdNamespace.toStableId(subjectId),
+                    aniListEntryId = null,
+                    simklId = null
+                )
+            }
+            else -> null
+        }
+    }
+
+    private suspend fun upsertSyncedLocalMirrors(
+        context: Context,
+        run: Run,
+        results: List<SourceResult>
+    ) = withContext(Dispatchers.IO) {
+        val syncedResults = results.filter { it.outcome == OUTCOME_SYNCED }
+        if (syncedResults.isEmpty()) return@withContext
+
+        val dao = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context).mediaEntryDao()
+        val allRows = dao.getAll().map { it.toDomain() }
+        val crosswalk = com.kitsugi.animelist.data.local.MyListIdentityCrosswalk.build(
+            context,
+            allRows + listOf(run.entry)
+        )
+        val realMalId = CrossProviderIds.realMalIdOf(run.identity.malId)
+        val learnedSubjectId = results.firstOrNull { it.source == BANGUMI }?.learnedSubjectId
+            ?: run.identity.bangumiSubjectId
+        val fallbackKitsuId = realMalId?.let {
+            runCatching {
+                ExternalAuthManager.getKitsuMediaIdForMal(context, it, run.entry.type != MediaType.Manga)
+            }.getOrNull()
+        }
+        val typePrefix = run.entry.type.name
+        val explicitKeys = buildSet {
+            realMalId?.let {
+                add("$typePrefix:mal:$it")
+                add("$typePrefix:shikimori:$it")
+            }
+            run.identity.aniListId?.takeIf { it > 0 }?.let { add("$typePrefix:anilist:$it") }
+            (run.identity.kitsuId ?: fallbackKitsuId)?.takeIf { it > 0 }?.let { add("$typePrefix:kitsu:$it") }
+            run.identity.shikimoriId?.takeIf { it > 0 }?.let { add("$typePrefix:shikimori:$it") }
+            learnedSubjectId?.takeIf { it > 0 }?.let { add("$typePrefix:bangumi:$it") }
+            run.identity.simklId?.takeIf { it > 0 }?.let { add("$typePrefix:simkl:$it") }
+            if (run.entry.type == MediaType.Movie || run.entry.type == MediaType.TvShow) {
+                run.identity.tmdbId?.takeIf { it > 0 }?.let { add("$typePrefix:tmdb:$it") }
+            }
+        }
+        val originKeys = com.kitsugi.animelist.model.MediaIdentity.keys(
+            run.entry,
+            crosswalk[run.entry.id].orEmpty() + explicitKeys
+        )
+        val rowProviderKey = providerKeyOf(run.rowSource)
+        val now = System.currentTimeMillis()
+
+        for (res in syncedResults) {
+            val targetKey = providerKeyOf(res.source)
+            if (targetKey == rowProviderKey) continue
+
+            val existing = allRows.firstOrNull { candidate ->
+                providerKeyOf(canonicalMediaSourceId(candidate.source)) == targetKey &&
+                    com.kitsugi.animelist.model.MediaIdentity.sameMedia(
+                        a = candidate,
+                        b = run.entry,
+                        keysA = com.kitsugi.animelist.model.MediaIdentity.keys(
+                            candidate,
+                            crosswalk[candidate.id].orEmpty()
+                        ),
+                        keysB = originKeys
+                    )
+            }
+
+            if (existing != null) {
+                val updated = existing.copy(
+                    status = run.entry.status,
+                    progress = run.entry.progress,
+                    volumeProgress = run.entry.volumeProgress,
+                    score = run.entry.score,
+                    notes = run.entry.notes,
+                    startDate = run.entry.startDate,
+                    endDate = run.entry.endDate,
+                    repeatCount = run.entry.repeatCount,
+                    isRepeating = run.entry.isRepeating,
+                    isFavorite = if (targetKey == "anilist") run.entry.isFavorite else existing.isFavorite,
+                    aniListEntryId = if (targetKey == "anilist" && res.aniListEntryId != null) {
+                        res.aniListEntryId
+                    } else {
+                        existing.aniListEntryId
+                    },
+                    updatedAt = now
+                )
+                dao.update(updated.toEntity())
+            } else {
+                val mirror = buildLocalProviderMirrorEntry(
+                    sourceKey = targetKey,
+                    baseEntry = run.entry.copy(updatedAt = now),
+                    identity = run.identity,
+                    aniListEntryId = res.aniListEntryId,
+                    learnedBangumiSubjectId = res.learnedSubjectId,
+                    fallbackKitsuMediaId = fallbackKitsuId
+                ) ?: continue
+                dao.insert(mirror.toEntity())
+            }
+        }
     }
 
     /**

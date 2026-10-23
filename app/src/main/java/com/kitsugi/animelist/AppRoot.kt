@@ -599,7 +599,7 @@ fun AppRoot(
                     }
 
                     launch {
-                        val count = mediaRepository.drainPendingQueue()
+                        val count = mediaRepository.drainPendingQueue(freshBudget = true)
                         if (count > 0) {
                             appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.cevrimdisi_kaydedilen_x_islem_senkronize_edildi, count))
                         }

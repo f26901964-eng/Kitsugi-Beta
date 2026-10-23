@@ -86,7 +86,7 @@ object CrossSyncIdentityGuard {
      */
     private val structuralTokens = setOf(
         "the", "a", "an", "of", "and", "or", "in", "on", "at", "for", "with", "from", "by",
-        "no", "wa", "ga", "to", "ni", "de", "wo", "o", "e", "ha", "mo", "ya", "da", "na", "ne", "yo", "ka",
+        "no", "gou", "wa", "ga", "to", "ni", "de", "wo", "o", "e", "ha", "mo", "ya", "da", "na", "ne", "yo", "ka",
         "x", "vs", "feat",
         "season", "seasons", "part", "parts", "cour", "arc", "chapter", "chapters", "volume",
         "movie", "movies", "film", "films", "gekijouban", "gekijou", "ban", "hen",
@@ -126,6 +126,14 @@ object CrossSyncIdentityGuard {
 
     /** Cross-sync writes require two known, positive, exactly matching release years. */
     fun yearsCompatible(a: Int?, b: Int?): Boolean = a != null && a > 0 && b != null && b > 0 && a == b
+
+    /**
+     * Cluster-level year compatibility: an unknown year (`null` / `<= 0`) on one provider (e.g.
+     * Simkl or Kitsu entries without air year) or a ±1 calendar-year boundary (Winter anime / JP-CN
+     * release date split) is NOT a contradiction; only two known years > 1 apart conflict.
+     */
+    fun clusterYearsCompatible(a: Int?, b: Int?): Boolean =
+        a == null || a <= 0 || b == null || b <= 0 || kotlin.math.abs(a - b) <= 1
 
     /** A catalog result from another MAL media namespace can never authorize a write. */
     fun mediaTypesCompatible(local: MediaType, remoteType: String?): Boolean {
@@ -226,6 +234,7 @@ object CrossSyncIdentityGuard {
         val ka = compactKey(a)
         val kb = compactKey(b)
         if (ka.isEmpty() || kb.isEmpty()) return false
+        if (ka == kb) return true
 
         // (1) Sayısal başlık + İngilizce açılımı: "86" ↔ "86 Eighty Six" (tüm kelimeler sırayla bulunmalı)
         val ta = rawTokens(a)
@@ -296,6 +305,57 @@ object CrossSyncIdentityGuard {
     /** Same-ID cluster relation; unlike the UI/detail heuristic this never accepts one shared word. */
     fun entriesLookRelated(a: MediaEntry, b: MediaEntry): Boolean =
         titlesAreIdentityEquivalent(aliasesOf(a), aliasesOf(b))
+
+    /**
+     * Evaluates whether [incoming] can join an existing cluster ([existingCandidates]) without
+     * triggering `identityReviewRequired`.
+     *
+     * Key invariant (`E97`):
+     * - Previously, `clusterEntry` compared `incoming` against each candidate pairwise using only
+     *   `title` + `titleEnglish` and strict non-null `yearsCompatible`. For `Kaiju No. 8`
+     *   (`MAL 52588`), AniList carries `("Kaijuu 8-gou", "Kaiju No. 8", "怪獣８号")`, Simkl carries
+     *   `("Kaiju No. 8")` only, Shikimori carries `("Kaijuu 8-gou")` only, and Bangumi carries
+     *   `("怪獣8号")` only. Comparing Shikimori or Bangumi pairwise against Simkl ignored AniList's
+     *   bridge inside the very same cluster and poisoned the entire group as `identityReviewRequired`.
+     * - A cluster's combined alias pool (`existingCandidates.flatMap(::aliasesOf)`) represents the
+     *   known names of that single production. An incoming row sharing a provider ID is accepted when
+     *   its years do not conflict (`clusterYearsCompatible`) AND at least one alias connects to the
+     *   cluster's alias pool via `titlesAreIdentityEquivalent` or `titlesVariantRelated` (which still
+     *   rejects unrelated titles like `"Koi wo Shita no wa"` vs `"Koe no Katachi Specials"` and
+     *   mismatched season numbers like `"Re:Zero Part 2"` vs `"Re:Zero Part 3"`).
+     *
+     * @return empty list when safe to merge; otherwise the conflicting candidates for diagnostics.
+     */
+    fun findSuspiciousSharedIdCandidates(
+        existingCandidates: List<MediaEntry>,
+        incoming: MediaEntry,
+        sharedIdCandidates: List<MediaEntry>
+    ): List<MediaEntry> {
+        val yearConflicts = existingCandidates.filter { candidate ->
+            !clusterYearsCompatible(candidate.year, incoming.year)
+        }
+        if (yearConflicts.isNotEmpty()) return yearConflicts
+
+        if (sharedIdCandidates.isEmpty()) return emptyList()
+
+        val clusterAliases = existingCandidates.flatMap(::aliasesOf)
+        val incomingAliases = aliasesOf(incoming)
+        if (clusterAliases.isEmpty() || incomingAliases.isEmpty()) return emptyList()
+
+        val matchesClusterPool = titlesAreIdentityEquivalent(clusterAliases, incomingAliases) ||
+            clusterAliases.any { ca -> incomingAliases.any { ia -> titlesVariantRelated(ca, ia) } }
+
+        return if (matchesClusterPool) emptyList() else sharedIdCandidates
+    }
+
+    /**
+     * Bulk cross-sync (`AuthViewModel.syncPlatforms`) addition gate (`E96`):
+     * matches single-entry live sync (`ExternalListSyncManager`) — only a catalog contradiction
+     * ([Verdict.Rejected]) blocks additions, whereas native/multi-provider/verified/uncontradicted
+     * entries proceed to each target platform's own official ID/title verification.
+     */
+    fun allowsBulkAddition(verdict: Verdict?): Boolean =
+        verdict == null || !blocksCrossWrite(verdict)
 
     // ───────────────────────────── MAL kimlik doğrulama ─────────────────────────────
 

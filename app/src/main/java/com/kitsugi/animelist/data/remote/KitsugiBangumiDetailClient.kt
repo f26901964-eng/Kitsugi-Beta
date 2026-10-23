@@ -747,7 +747,7 @@ object KitsugiBangumiDetailClient {
                     }
                     if (resolved.hasAnyId) {
                         crossCache[rawId] = resolved
-                        persistCross(rawId, resolved)
+                        persistCross(rawId, resolved, mediaType)
                     } else {
                         crossMissAt[rawId] = System.currentTimeMillis()
                     }
@@ -1049,7 +1049,7 @@ object KitsugiBangumiDetailClient {
         return ids.takeIf { it.hasAnyId }
     }
 
-    private fun persistCross(rawId: Int, ids: CrossIds) {
+    private fun persistCross(rawId: Int, ids: CrossIds, mediaType: MediaType = MediaType.Anime) {
         val context = KitsugiApplication.getInstance()?.applicationContext ?: return
         val encoded = buildString {
             ids.aniListId?.let { append("al=").append(it).append(';') }
@@ -1062,6 +1062,20 @@ object KitsugiBangumiDetailClient {
         runCatching {
             context.getSharedPreferences(XREF_PREFS, android.content.Context.MODE_PRIVATE)
                 .edit().putString("s$rawId", encoded).apply()
+        }
+        // Detay sayfasında doğrulanan MAL ↔ Bangumi köprüsünü `BangumiLocalMappingCache`
+        // içine de yaz (`E99`) ki `Listem > Tümü` (`MyListIdentityCrosswalk`) aynı yapımı
+        // anında tek kartta birleştirsin.
+        val malId = ids.malId?.takeIf { it > 0 }
+        if (malId != null && (mediaType == MediaType.Anime || mediaType == MediaType.Manga)) {
+            runCatching {
+                BangumiLocalMappingCache.put(
+                    context,
+                    malId,
+                    BangumiIdNamespace.subjectTypeFor(mediaType),
+                    rawId
+                )
+            }
         }
     }
 

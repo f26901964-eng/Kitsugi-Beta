@@ -560,8 +560,26 @@ object BangumiSyncManager {
             }
         }
 
-        val resolverStoredId = if (isLegacyRawBangumiId) null else stored
-        val candidateTitles = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
+        val resolverStoredId = if (isLegacyRawBangumiId) {
+            null
+        } else {
+            com.kitsugi.animelist.model.MediaIdentity.realMalId(entry) ?: stored
+        }
+        val baseTitles = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
+            .filter { it.isNotBlank() }
+            .distinct()
+
+        // Eğer yerel satırda hiç CJK/Kana özgün ad yoksa (ör. Simkl veya Kitsu satırı yalnızca
+        // "Kaiju No. 8" İngilizce adını taşıyorsa), gerçek MAL/AniList kimliğinden resmî özgün
+        // Japonca adı ("怪獣8号") çekip en başa koyarız (`E99`). Böylece Bangumi CJK araması tek
+        // istekte kesin subject'i (`395378`) bulur ve önbelleğe yazar.
+        val realMalId = com.kitsugi.animelist.model.MediaIdentity.realMalId(entry)
+        val officialNativeTitle = if (realMalId != null && !baseTitles.any(::containsCjkOrKana)) {
+            fetchOfficialNativeTitle(realMalId, entry.type)
+        } else null
+
+        val candidateTitles = (listOfNotNull(officialNativeTitle) + baseTitles)
+            .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
 
@@ -577,5 +595,48 @@ object BangumiSyncManager {
             if (resolved != null) return resolved
         }
         return null
+    }
+
+    private fun containsCjkOrKana(text: String): Boolean = text.any { ch ->
+        val script = Character.UnicodeScript.of(ch.code)
+        script == Character.UnicodeScript.HAN ||
+            script == Character.UnicodeScript.HIRAGANA ||
+            script == Character.UnicodeScript.KATAKANA
+    }
+
+    private suspend fun fetchOfficialNativeTitle(malId: Int, mediaType: MediaType): String? {
+        val anilistType = if (mediaType == MediaType.Manga) "MANGA" else "ANIME"
+        val query = """
+            query (${'$'}idMal: Int, ${'$'}type: MediaType) {
+              Media(idMal: ${'$'}idMal, type: ${'$'}type) {
+                title { native }
+              }
+            }
+        """.trimIndent()
+        val fromAniList = runCatching {
+            val body = com.kitsugi.animelist.data.remote.KitsugiApiBase.executeAniListQuery(
+                query,
+                org.json.JSONObject().put("idMal", malId).put("type", anilistType)
+            )
+            if (body != null) {
+                org.json.JSONObject(body)
+                    .optJSONObject("data")
+                    ?.optJSONObject("Media")
+                    ?.optJSONObject("title")
+                    ?.optString("native")
+                    ?.takeIf { it.isNotBlank() }
+            } else null
+        }.getOrNull()
+        if (!fromAniList.isNullOrBlank()) return fromAniList
+
+        val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
+        return runCatching {
+            val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$malId")
+            val raw = com.kitsugi.animelist.data.remote.KitsugiApiBase.executeGetRequestResilient(url)
+            org.json.JSONObject(raw)
+                .optJSONObject("data")
+                ?.optString("title_japanese")
+                ?.takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 }

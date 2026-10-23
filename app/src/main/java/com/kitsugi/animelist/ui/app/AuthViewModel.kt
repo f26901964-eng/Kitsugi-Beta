@@ -283,8 +283,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         isShikimoriConnected = state.isShikimoriConnected
         isBangumiConnected = state.isBangumiConnected
 
-        isSimklSessionExpired = context.getSharedPreferences("MyWebViewPrefs", Context.MODE_PRIVATE)
-            .getBoolean("simkl_session_expired", false)
+        isSimklSessionExpired = ExternalAuthManager.isSessionExpired(context, "simkl")
+        isAniListSessionExpired = ExternalAuthManager.isSessionExpired(context, "anilist")
+        isMalSessionExpired = ExternalAuthManager.isSessionExpired(context, "mal")
+        isKitsuSessionExpired = ExternalAuthManager.isSessionExpired(context, "kitsu")
+        isShikimoriSessionExpired = ExternalAuthManager.isSessionExpired(context, "shikimori")
+        isBangumiSessionExpired = ExternalAuthManager.isSessionExpired(context, "bangumi")
     }
 
     /** Starts MAL OAuth inside the app so its authenticated MAL cookies are shared with notifications. */
@@ -818,7 +822,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
             val simklToken = ExternalAuthManager.getSimklToken(context)
-            val kitsuToken = ExternalAuthManager.getKitsuToken(context)
+            val kitsuToken = ExternalAuthManager.getOrRefreshKitsuToken(context)
             val kitsuUserId = ExternalAuthManager.getKitsuUserId(context)
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
             var shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
@@ -928,209 +932,112 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     unit = context.getString(R.string.cross_sync_vm_source_entry_unit)
                 )
 
-                val unifiedItems = mutableListOf<UnifiedSyncItem>()
-                val candidateIndex = com.kitsugi.animelist.data.auth.CrossSyncCandidateIndex<UnifiedSyncItem>()
-                // Japanese franchise titles can be shared by distinct movies/sequels, so only
-                // primary and English title aliases participate in the cross-sync safety check.
-                fun titleAliases(entry: MediaEntry): Set<String> = listOfNotNull(
-                    entry.title,
-                    entry.titleEnglish
-                ).map { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
-                    .filter { it.length >= 2 }
-                    .toSet()
+                val rawBatches = listOf(
+                    com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Slot.ANILIST to aniListEntries,
+                    com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Slot.MAL to malEntries,
+                    com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Slot.SIMKL to simklEntries,
+                    com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Slot.KITSU to kitsuEntries,
+                    com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Slot.SHIKIMORI to shikimoriEntries,
+                    com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Slot.BANGUMI to bangumiEntries
+                )
+                val indexedBatches = com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.assignClusterRowIds(rawBatches)
+                val allIndexedEntries = indexedBatches.flatMap { it.second }
+                val identityExtras = com.kitsugi.animelist.data.local.MyListIdentityCrosswalk.build(context, allIndexedEntries)
 
                 fun describeIdentityCandidate(entry: MediaEntry): String = entry.crossSyncIdentityDiagnostic(context).trimEnd()
 
-                fun clusterEntry(entry: MediaEntry, assignToPlatform: (UnifiedSyncItem) -> Unit) {
-                    val identity = com.kitsugi.animelist.model.MediaIdentity
-                    val entryKeys = identity.keys(entry)
-                    val entryTitles = titleAliases(entry)
-                    val matches = candidateIndex.possibleMatches(entry).filter { item ->
-                        item.candidates.isNotEmpty() && item.candidates.all { identity.sameMedia(it, entry) }
-                    }
-
-                    val sameTitleIdConflicts = candidateIndex.sharingTitleAlias(entry).filter { item ->
-                        item.candidates.any { candidate ->
-                            candidate.type == entry.type &&
-                                identity.conflictingIdentityKeys(candidate, entry).isNotEmpty() &&
-                                titleAliases(candidate).intersect(entryTitles).isNotEmpty()
-                        }
-                    }
-
-                    // Aynı başlık, farklı sağlayıcı kimliği (ör. 1999 ve 2011 Hunter x Hunter, remake'ler, aynı adlı
-                    // sezonlar): `sameMedia` çelişen kimlikleri zaten birleştirmez; bu kayıtlar ayrı gruplar olarak
-                    // kendi kimlikleriyle güvenle eşitlenebilir. Eskiden tüm kayıt "kimlik doğrulaması gerekli" diye
-                    // izole edilip hiçbir hesaba yazılmıyordu; bu, Simkl/MAL/Shikimori'deki yüzlerce "atlandı"
-                    // kaydının ana kaynağıydı. Artık yalnızca bilgi amaçlı rapora not düşülür.
-                    if (sameTitleIdConflicts.isNotEmpty() && matches.isEmpty()) {
-                        val conflictKeys = sameTitleIdConflicts.flatMap { group ->
-                            group.candidates.flatMap { candidate -> identity.conflictingIdentityKeys(candidate, entry) }
-                        }.distinct()
-                        logEvent(
-                            context.getString(R.string.cross_sync_log_category_matching),
-                            context.getString(R.string.cross_sync_log_same_title_conflict, entry.title),
-                            details = buildString {
-                                appendLine(context.getString(R.string.cross_sync_detail_source_identity_conflict))
-                                appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
-                                appendLine(describeIdentityCandidate(entry))
-                                appendLine(context.getString(R.string.cross_sync_detail_existing_same_title))
-                                sameTitleIdConflicts.flatMap { it.candidates }.distinct().forEach { candidate ->
-                                    appendLine(describeIdentityCandidate(candidate))
-                                }
-                                appendLine(
-                                    context.getString(
-                                        R.string.cross_sync_detail_different_identity_fields,
-                                        conflictKeys.joinToString().ifBlank { KitsugiStrings.get(R.string.cross_sync_diag_no_value) }
-                                    )
-                                )
-                            },
-                            includeInLiveLog = false
-                        )
-                    }
-
-                    val item = when {
-                        matches.isEmpty() -> UnifiedSyncItem().also { unifiedItems.add(it) }
-                        matches.size == 1 -> {
-                            val match = matches.single()
-                            val sharedIds = match.candidates.flatMap { identity.keys(it).intersect(entryKeys) }.distinct()
-                            val unrelatedTitleIds = if (sharedIds.isNotEmpty()) {
-                                match.candidates.filter { candidate ->
-                                    identity.keys(candidate).intersect(entryKeys).isNotEmpty() &&
-                                        titleAliases(candidate).isNotEmpty() && entryTitles.isNotEmpty() &&
-                                        titleAliases(candidate).intersect(entryTitles).isEmpty()
-                                }
-                            } else emptyList()
-                            if (unrelatedTitleIds.isNotEmpty()) {
-                                // Aynı sağlayıcı kimliği (ör. aynı MAL ID) paylaşan kayıtlar normalde aynı yapımdır;
-                                // alias farkı çoğunlukla dil/çeviri farkıdır (Simkl İngilizce, Shikimori romaji, Kitsu
-                                // kanonik). Birleştirme için iki koşul birden aranır: (a) yıllar uyumlu (bilinmiyor ya da
-                                // en fazla 1 yıl fark) ve (b) başlıklar akraba (ortak ayırt edici kelime / ön ek / EN-JP
-                                // alias). Aksi halde sağlayıcı eşlemesi hatalı kabul edilir ve yazma durdurulur — böylece
-                                // yanlış eşlenmiş bir kimlik üzerinden kullanıcının eklemediği içerik hesaplara yazılmaz.
-                                val suspiciousMatches = unrelatedTitleIds.filter { candidate ->
-                                    !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.yearsCompatible(candidate.year, entry.year) ||
-                                        !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.entriesLookRelated(candidate, entry)
-                                }
-                                if (suspiciousMatches.isNotEmpty()) {
-                                    val details = buildString {
-                                        appendLine(context.getString(R.string.cross_sync_detail_unrelated_shared_ids))
-                                        appendLine(context.getString(R.string.cross_sync_detail_shared_ids, sharedIds.joinToString()))
-                                        appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
-                                        appendLine(describeIdentityCandidate(entry))
-                                        appendLine(context.getString(R.string.cross_sync_detail_matching_records))
-                                        suspiciousMatches.forEach { appendLine(describeIdentityCandidate(it)) }
+                val clusterSession = com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.Session(
+                    identityExtras = identityExtras
+                ) { diag ->
+                    when (diag) {
+                        is com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.DiagnosticEvent.SameTitleIdConflict -> {
+                            logEvent(
+                                context.getString(R.string.cross_sync_log_category_matching),
+                                context.getString(R.string.cross_sync_log_same_title_conflict, diag.entry.title),
+                                details = buildString {
+                                    appendLine(context.getString(R.string.cross_sync_detail_source_identity_conflict))
+                                    appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
+                                    appendLine(describeIdentityCandidate(diag.entry))
+                                    appendLine(context.getString(R.string.cross_sync_detail_existing_same_title))
+                                    diag.conflictingCandidates.forEach { candidate ->
+                                        appendLine(describeIdentityCandidate(candidate))
                                     }
-                                    match.identityReviewRequired = true
-                                    match.identityReviewDetails = details
-                                } else {
-                                    logEvent(
-                                        context.getString(R.string.cross_sync_log_category_matching),
-                                        context.getString(R.string.cross_sync_log_shared_identity_merged, entry.title),
-                                        details = buildString {
-                                            appendLine(context.getString(R.string.cross_sync_detail_shared_ids, sharedIds.joinToString()))
-                                            appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
-                                            appendLine(describeIdentityCandidate(entry))
-                                            appendLine(context.getString(R.string.cross_sync_detail_matching_records))
-                                            unrelatedTitleIds.forEach { appendLine(describeIdentityCandidate(it)) }
-                                        },
-                                        includeInLiveLog = false
-                                    )
-                                }
-                            }
-                            match
-                        }
-                        else -> {
-                            val keyMatches = matches.filter { candidateGroup ->
-                                candidateGroup.candidates.any { identity.keys(it).intersect(entryKeys).isNotEmpty() }
-                            }
-                            val normalizedEntryTitle = identity.normalizedTitle(entry.title)
-                            val exactTitleMatches = matches.filter { candidateGroup ->
-                                candidateGroup.candidates.any { candidate ->
-                                    val normalizedCandidateTitle = identity.normalizedTitle(candidate.title)
-                                    normalizedCandidateTitle.isNotBlank() && normalizedCandidateTitle == normalizedEntryTitle
-                                }
-                            }
-                            val resolvedMatch = when {
-                                keyMatches.size == 1 -> keyMatches.single()
-                                keyMatches.isEmpty() && exactTitleMatches.size == 1 -> exactTitleMatches.single()
-                                else -> null
-                            }
-                            // Tekil seçim de tek aday dalındaki güvenlik kontrolünden geçmeli: seçilen grubun herhangi bir
-                            // kaydı yıl olarak uyuşmuyorsa veya ortak kimlikli kayıt başlıkça akraba değilse grup birleştirilmez.
-                            // Güncellemeler de grup doğruluğuna bağlı olduğu için bu durumda hiçbir hesaba yazılmaz.
-                            val identityConflictedCandidates = resolvedMatch?.candidates.orEmpty().filter { candidate ->
-                                val sharesId = identity.keys(candidate).intersect(entryKeys).isNotEmpty()
-                                !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.yearsCompatible(candidate.year, entry.year) ||
-                                    (sharesId && titleAliases(candidate).intersect(entryTitles).isEmpty() &&
-                                        !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.entriesLookRelated(candidate, entry))
-                            }
-                            if (resolvedMatch != null && identityConflictedCandidates.isEmpty()) {
-                                val details = buildString {
                                     appendLine(
                                         context.getString(
-                                            R.string.cross_sync_detail_multiple_candidates,
-                                            context.getString(if (keyMatches.size == 1) R.string.cross_sync_detail_unique_shared_id else R.string.cross_sync_detail_exact_title)
+                                            R.string.cross_sync_detail_different_identity_fields,
+                                            diag.conflictKeys.joinToString().ifBlank { KitsugiStrings.get(R.string.cross_sync_diag_no_value) }
                                         )
                                     )
+                                },
+                                includeInLiveLog = false
+                            )
+                        }
+                        is com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.DiagnosticEvent.SharedIdentityMerged -> {
+                            logEvent(
+                                context.getString(R.string.cross_sync_log_category_matching),
+                                context.getString(R.string.cross_sync_log_shared_identity_merged, diag.entry.title),
+                                details = buildString {
+                                    appendLine(context.getString(R.string.cross_sync_detail_shared_ids, diag.sharedIds.joinToString()))
                                     appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
-                                    appendLine(describeIdentityCandidate(entry))
-                                    appendLine(context.getString(R.string.cross_sync_detail_selected_candidate, matches.indexOf(resolvedMatch) + 1))
-                                    appendLine(context.getString(R.string.cross_sync_detail_candidate_groups))
-                                    matches.forEachIndexed { index, group ->
-                                        appendLine(context.getString(R.string.cross_sync_detail_candidate, index + 1))
-                                        group.candidates.forEach { appendLine(describeIdentityCandidate(it)) }
-                                    }
-                                }
-                                logEvent(
-                                    context.getString(R.string.cross_sync_log_category_matching),
+                                    appendLine(describeIdentityCandidate(diag.entry))
+                                    appendLine(context.getString(R.string.cross_sync_detail_matching_records))
+                                    diag.bridgedAgainst.forEach { appendLine(describeIdentityCandidate(it)) }
+                                },
+                                includeInLiveLog = false
+                            )
+                        }
+                        is com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.DiagnosticEvent.DisambiguatedFromMultipleCandidates -> {
+                            val details = buildString {
+                                appendLine(
                                     context.getString(
                                         R.string.cross_sync_detail_multiple_candidates,
-                                        context.getString(if (keyMatches.size == 1) R.string.cross_sync_detail_unique_shared_id else R.string.cross_sync_detail_exact_title)
-                                    ) + " " + entry.title,
-                                    isWarning = true,
-                                    details = details
-                                )
-                                resolvedMatch
-                            } else {
-                                val details = buildString {
-                                    appendLine(
-                                        if (resolvedMatch != null)
-                                            context.getString(R.string.cross_sync_detail_rejected_title_year)
-                                        else
-                                            context.getString(R.string.cross_sync_detail_ambiguous_candidates)
+                                        context.getString(
+                                            if (diag.byUniqueSharedId) R.string.cross_sync_detail_unique_shared_id
+                                            else R.string.cross_sync_detail_exact_title
+                                        )
                                     )
-                                    appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
-                                    appendLine(describeIdentityCandidate(entry))
-                                    appendLine(context.getString(R.string.cross_sync_detail_candidate_groups))
-                                    matches.forEachIndexed { index, group ->
-                                        appendLine(context.getString(R.string.cross_sync_detail_candidate, index + 1))
-                                        group.candidates.forEach { appendLine(describeIdentityCandidate(it)) }
-                                    }
+                                )
+                                appendLine(context.getString(R.string.cross_sync_detail_incoming_record))
+                                appendLine(describeIdentityCandidate(diag.entry))
+                                appendLine(context.getString(R.string.cross_sync_detail_selected_candidate, diag.selectedGroupIndex))
+                                appendLine(context.getString(R.string.cross_sync_detail_candidate_groups))
+                                diag.candidateGroups.forEachIndexed { index, group ->
+                                    appendLine(context.getString(R.string.cross_sync_detail_candidate, index + 1))
+                                    group.forEach { appendLine(describeIdentityCandidate(it)) }
                                 }
-                                UnifiedSyncItem(
-                                    identityReviewRequired = true,
-                                    identityReviewDetails = details
-                                ).also { unifiedItems.add(it) }
                             }
+                            logEvent(
+                                context.getString(R.string.cross_sync_log_category_matching),
+                                context.getString(
+                                    R.string.cross_sync_detail_multiple_candidates,
+                                    context.getString(
+                                        if (diag.byUniqueSharedId) R.string.cross_sync_detail_unique_shared_id
+                                        else R.string.cross_sync_detail_exact_title
+                                    )
+                                ) + " " + diag.entry.title,
+                                isWarning = true,
+                                details = details
+                            )
                         }
+                        is com.kitsugi.animelist.data.auth.CrossSyncClusterEngine.DiagnosticEvent.MarkedIdentityReview -> Unit
                     }
-                    assignToPlatform(item)
-                    candidateIndex.add(item, entry)
                 }
 
                 var sourceEntriesProcessed = 0
-                suspend fun clusterEntries(
-                    entries: List<MediaEntry>,
-                    assignToPlatform: (UnifiedSyncItem, MediaEntry) -> Unit
-                ) {
+                for ((slot, entries) in indexedBatches) {
                     for (entry in entries) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                        clusterEntry(entry) { item -> assignToPlatform(item, entry) }
+                        clusterSession.addEntry(slot, entry)
                         sourceEntriesProcessed++
                         if (sourceEntriesProcessed % 25 == 0 || sourceEntriesProcessed == sourceEntryTotal) {
                             updateProgress(
                                 step = context.getString(R.string.cross_sync_vm_matching_entries),
-                                detail = context.getString(R.string.cross_sync_vm_source_scan_progress, sourceEntriesProcessed, sourceEntryTotal, unifiedItems.size),
+                                detail = context.getString(
+                                    R.string.cross_sync_vm_source_scan_progress,
+                                    sourceEntriesProcessed,
+                                    sourceEntryTotal,
+                                    clusterSession.groupsSnapshot().size
+                                ),
                                 processed = sourceEntriesProcessed,
                                 total = sourceEntryTotal,
                                 unit = context.getString(R.string.cross_sync_vm_source_entry_unit)
@@ -1140,12 +1047,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                clusterEntries(aniListEntries) { item, entry -> item.aniList = entry }
-                clusterEntries(malEntries) { item, entry -> item.mal = entry }
-                clusterEntries(simklEntries) { item, entry -> item.simkl = entry }
-                clusterEntries(kitsuEntries) { item, entry -> item.kitsu = entry }
-                clusterEntries(shikimoriEntries) { item, entry -> item.shikimori = entry }
-                clusterEntries(bangumiEntries) { item, entry -> item.bangumi = entry }
+                val unifiedItems = clusterSession.groupsSnapshot().map { group ->
+                    UnifiedSyncItem(
+                        aniList = group.aniList,
+                        mal = group.mal,
+                        simkl = group.simkl,
+                        kitsu = group.kitsu,
+                        shikimori = group.shikimori,
+                        bangumi = group.bangumi,
+                        identityReviewRequired = group.identityReviewRequired,
+                        identityReviewDetails = group.identityReviewDetails
+                    )
+                }
 
                 logEvent(context.getString(R.string.cross_sync_log_category_analysis), context.getString(R.string.cross_sync_log_match_summary, unifiedItems.size))
                 updateProgress(
@@ -1261,19 +1174,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val bestPriority = newest.priority
 
                     // 6. Harici ID çözümlemeleri
-                    val realMalId = candidates.firstNotNullOfOrNull { it.malId?.takeIf { id -> id.isRealMalId() } }
+                    val realMalId = com.kitsugi.animelist.data.auth.CrossSyncClusterEngine
+                        .extractCrosswalkOrCandidateMalId(candidates, clusterSession::keysOf)
                         ?: resolveRealMalId(newest, aniListToken)
                     val simklId = candidates.firstNotNullOfOrNull { it.simklId?.takeIf { id -> id > 0 } }
                     val tmdbId = candidates.firstNotNullOfOrNull { it.tmdbId?.takeIf { id -> id > 0 } }
                     val aniListEntryId = candidates.firstNotNullOfOrNull { it.aniListEntryId }
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
 
-                    // 6b. Kimlik güvencesi — yanlış içerik EKLENMESİNE karşı son savunma hattı.
+                    // 6b. Kimlik güvencesi — yanlış içerik EKLENMESİNE karşı son savunma hattı (`E96`).
                     // Güncellemeler platformun kendi kayıt kimliğiyle yapıldığı için güvenlidir; risk yalnızca
-                    // "bu platformda yok → ekle" yolundadır. Grubun MAL kimliği doğal kaynaktan (MAL/Shikimori)
-                    // gelmiyorsa ve en az iki bağımsız platform tarafından doğrulanmıyorsa, kataloğa karşı
-                    // başlık + yıl doğrulaması yapılır. Reddedilen/doğrulanamayan kimlikle hiçbir platforma
-                    // yeni kayıt eklenmez; mevcut kayıtların güncellenmesi etkilenmez.
+                    // "bu platformda yok → ekle" yolundadır.
+                    // ÖNEMLİ: Eski kod `Verdict.Trusted` döndürüp ardından `identityVerdict?.allowsAdditions`
+                    // okuyordu; oysa `Verdict.Trusted.allowsAdditions == false` olduğundan MAL'da veya 2+
+                    // platformda bulunan kayıtlarda %100 ekleme kilitlenmesi (deadlock) oluşuyordu!
+                    // Doğru kapı: doğal MAL kaydı varsa doğrudan izin verilir; aksi halde MAL kataloğuna karşı
+                    // doğrulama yapılır ve YALNIZCA açık katalog çelişkisi (`Verdict.Rejected`) eklemeyi durdurur
+                    // (`CrossSyncIdentityGuard.allowsBulkAddition`).
                     val needsAnyAddition =
                         (isAniList && isAnimeOrManga && item.aniList == null) ||
                         (isMal && isAnimeOrManga && item.mal == null) ||
@@ -1284,14 +1201,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val identityVerdict: com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict? =
                         if (realMalId != null && needsAnyAddition) {
                             val holderSources = candidates
-                                .filter { it.malId == realMalId }
+                                .filter { com.kitsugi.animelist.model.MediaIdentity.realMalId(it) == realMalId }
                                 .map { it.source.lowercase() }
                                 .distinct()
                             when {
                                 holderSources.any { it in com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.NATIVE_MAL_SOURCES } ->
                                     com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted(context.getString(R.string.cross_sync_identity_native_mal))
-                                holderSources.size >= 2 ->
-                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted(context.getString(R.string.cross_sync_identity_multiple_platforms, holderSources.joinToString("+")))
                                 else -> com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.verifyMalId(
                                     malId = realMalId,
                                     mediaType = newest.type,
@@ -1300,7 +1215,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 )
                             }
                         } else null
-                    val additionsAllowed = identityVerdict?.allowsAdditions ?: true
+                    val additionsAllowed = com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.allowsBulkAddition(identityVerdict)
                     // Eklemelerde kullanılacak MAL kimliği: doğrulanmadıysa yok sayılır.
                     val guardedMalId: Int? = realMalId?.takeIf { additionsAllowed }
                     val identitySkipReason = context.getString(R.string.cross_sync_reason_identity_unverified, realMalId?.toString() ?: "?")
@@ -1904,13 +1819,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 if (isKitsu) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Kitsu"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false) }
+                    val freshKitsuToken = ExternalAuthManager.getOrRefreshKitsuToken(context) ?: kitsuToken!!
+                    runSyncCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, freshKitsuToken, kitsuUserId!!), allowDelete = false) }
                         .onFailure { logEvent("Kitsu", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isShikimori) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Shikimori"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false) }
+                    val freshShikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context) ?: shikimoriToken!!
+                    runSyncCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, freshShikimoriToken, shikimoriUserId!!), allowDelete = false) }
                         .onFailure { logEvent("Shikimori", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                 }
                 if (isSimkl) {
@@ -1923,7 +1840,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 if (isBangumi) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "Bangumi"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
-                    runSyncCatching { repository.smartImport("bangumi", BangumiImportManager.fetchAllLists(context, bangumiToken!!), allowDelete = false) }
+                    val freshBangumiToken = BangumiAuthStore.getValidToken(context) ?: bangumiToken!!
+                    runSyncCatching { repository.smartImport("bangumi", BangumiImportManager.fetchAllLists(context, freshBangumiToken), allowDelete = false) }
                         .onFailure { logEvent("Bangumi", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
                     // Doğrulama aktarımından sonra eksik Latin/İngilizce adları tamamla
                     // (çapraz senkron beklenmez; tarama arka planda, kilitle sıralanarak çalışır).
@@ -2164,7 +2082,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         onShowMessage?.invoke(context.getString(R.string.account_sync_import_fetching, "Kitsu"))
 
         viewModelScope.launch(Dispatchers.IO) {
-            val token = ExternalAuthManager.getKitsuToken(context)
+            val token = ExternalAuthManager.getOrRefreshKitsuToken(context)
             val userId = ExternalAuthManager.getKitsuUserId(context)
 
             if (token.isNullOrBlank() || userId.isNullOrBlank()) {

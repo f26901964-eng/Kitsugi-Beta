@@ -194,17 +194,29 @@ object MediaIdentity {
         val bTitles = listOfNotNull(b.title, b.titleEnglish).map(::normalizedTitle).filter { it.length >= 2 }.toSet()
         if (aTitles.intersect(bTitles).isNotEmpty()) return true
 
-        // Yalnızca Japonca başlık eşleştiğinde, iki kaydın ana başlıkları tamamen farklı ise
-        // (örneğin Date A Bullet: Dead or Bullet vs Nightmare or Queen), farklı yapımlar say
+        // Yalnızca Japonca başlık eşleştiğinde, iki kaydın ana başlıkları tamamen farklı Latin
+        // adlar ise (örneğin Date A Bullet: Dead or Bullet vs Nightmare or Queen), farklı yapımlar say.
+        // Ancak kaynaklardan biri CJK/Latin-dışı birincil ad taşıyorsa (ör. Bangumi "怪獣8号" / "命运石之门"
+        // ↔ AniList/MAL "Kaijuu 8-gou" / "Steins;Gate"), ortak normalize özgün Japonca başlık +
+        // uyumlu yıl + çelişmeyen bölüm sayısı aynı yapımı güvenle kanıtlar.
         val aJp = a.titleJapanese?.let(::normalizedTitle)?.takeIf { it.length >= 2 }
         val bJp = b.titleJapanese?.let(::normalizedTitle)?.takeIf { it.length >= 2 }
         if (aJp != null && aJp == bJp) {
             if (normA.isBlank() || normB.isBlank() || normA.contains(normB) || normB.contains(normA)) {
                 return true
             }
+            val bothLatin = hasLatinLetters(a.title) && hasLatinLetters(b.title)
+            val totalsConflict = a.total != null && b.total != null &&
+                a.total > 0 && b.total > 0 && a.total != b.total
+            if (!bothLatin && !totalsConflict) {
+                return true
+            }
         }
         return false
     }
+
+    private fun hasLatinLetters(text: String?): Boolean =
+        text?.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.LATIN } == true
 
     fun sameLibraryRecord(a: MediaEntry, b: MediaEntry): Boolean =
         canonicalSource(a.source) == canonicalSource(b.source) && sameMedia(a, b)
