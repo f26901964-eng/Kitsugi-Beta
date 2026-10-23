@@ -945,7 +945,10 @@ fun KitsugiFullscreenPlayerScreen(
                 val prepareKey = remember(source?.videoUrl, currentHeaders, currentSubtitles) {
                     Triple(source?.videoUrl, currentHeaders.hashCode(), currentSubtitles.map { it.url }.hashCode())
                 }
-                LaunchedEffect(playerEngine, prepareKey) {
+                LaunchedEffect(playerEngine, prepareKey, appSettings != null) {
+                    // Bekle: Kayıtlı tercihler diskten okunana kadar varsayılan AppSettings() ile
+                    // erken hazırlık yapma. Aksi halde MPV/EXTERNAL tercihi varken Media3 başlar.
+                    if (appSettings == null) return@LaunchedEffect
                     // EXTERNAL tercihinde Activity kapanmadan dahili motoru hazırlamaya
                     // çalışmak kısa süreliğine ikinci bir oynatma başlatabiliyordu.
                     if (activeEngineType == PlayerEngineType.EXTERNAL) return@LaunchedEffect
@@ -985,6 +988,48 @@ fun KitsugiFullscreenPlayerScreen(
                         qualityValue = activeSource?.qualityValue
                     )
                     Log.d("KitsugiPlayer", "prepare() ÇAĞRILDI: url=$safeVideoUrl addon=${currentAddonName} startPos=$startPos")
+                }
+
+                // Silent audio-only recovery for the normal/fullscreen player as well.
+                // A non-zero position alone is not proof of progress (engine fallback can
+                // resume at 5:14, as in the reported black screen). The detector requires
+                // fresh position deltas and a real video output frame before calling the
+                // shared engine/source recovery pipeline.
+                //
+                // Does NOT exit after the first healthy frame; continues monitoring throughout
+                // playback so mid-playback frame loss is also caught and recovered.
+                LaunchedEffect(playerEngine, prepareKey, isBufferingState) {
+                    if (isBufferingState || activeEngineType == PlayerEngineType.EXTERNAL) {
+                        return@LaunchedEffect
+                    }
+                    val detector = com.kitsugi.animelist.core.player.engine.AudioOnlyPlaybackDetector()
+                    while (true) {
+                        val hasTrack = playerEngine.hasVideoTrack
+                        val hasFrame = playerEngine.hasRenderedVideoFrame
+
+                        val shouldRecover = detector.shouldRecover(
+                            nowMs = android.os.SystemClock.elapsedRealtime(),
+                            isPlaying = playerEngine.isPlaying,
+                            state = playerEngine.currentState,
+                            positionMs = playerEngine.currentPosition,
+                            hasVideoTrack = hasTrack,
+                            hasRenderedVideoFrame = hasFrame
+                        )
+                        if (shouldRecover) {
+                            val message = "Oynatma sesli ilerliyor ancak video karesi oluşmuyor (audio-only)"
+                            Log.w(
+                                "KitsugiPlayerDebug",
+                                "$message; engine=$activeEngineType position=${playerEngine.currentPosition} " +
+                                    "track=$hasTrack rendered=$hasFrame"
+                            )
+                            viewModel.orchestrator.errorRecovery.onPlaybackError(
+                                com.kitsugi.animelist.core.player.engine.AUDIO_ONLY_PLAYBACK_ERROR_CODE,
+                                message
+                            )
+                            return@LaunchedEffect
+                        }
+                        delay(500L)
+                    }
                 }
 
                 LaunchedEffect(savedPos, isEngineReady) {

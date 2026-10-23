@@ -32,6 +32,20 @@ object SubtitleFileCache {
 
     suspend fun cacheSubtitle(context: Context, url: String, headers: Map<String, String>? = null): File? = withContext(Dispatchers.IO) {
         try {
+            // Yerel Dosya ("file:///..." veya "/data/...") çoktan bu cihazda:
+            // OkHttp bu şemaları indiremez; dosyayı olduğu gibi kabul et.
+            // (AniSub cihazda açılan RAR/ZIP paketleri bu yoldan gelir.)
+            val localFile = resolveLocalSubtitleFile(url)
+            if (localFile != null) {
+                if (localFile.isFile && localFile.length() > 0) {
+                    localFile.setLastModified(System.currentTimeMillis())
+                    Log.d("SubtitleFileCache", "Yerel altyazı kullanılıyor: ${localFile.absolutePath}")
+                    return@withContext localFile
+                }
+                Log.w("SubtitleFileCache", "Yerel altyazı bulunamadı/boş: $url")
+                return@withContext null
+            }
+
             val existing = getCachedFile(context, url)
             if (existing != null && existing.length() > 0) {
                 Log.d("SubtitleFileCache", "Cache hit: ${existing.name}")
@@ -78,6 +92,24 @@ object SubtitleFileCache {
             Log.e("SubtitleFileCache", "Error caching subtitle: $url", e)
         }
         null
+    }
+
+    /**
+     * "file:///..." veya mutlak yol biçimindeki yerel altyazı adresini
+     * [File] olarak çözer; uzak adreslerde null döner.
+     */
+    private fun resolveLocalSubtitleFile(url: String): File? {
+        val trimmed = url.trim()
+        return when {
+            trimmed.startsWith("file://", ignoreCase = true) -> {
+                val path = trimmed.substring("file://".length)
+                if (path.isBlank()) null else File(path)
+            }
+            trimmed.startsWith("file:/", ignoreCase = true) ->
+                File(trimmed.substring("file:".length))
+            trimmed.startsWith("/") -> File(trimmed.substringBefore('?'))
+            else -> null
+        }
     }
 
     fun guessExtension(url: String, contentType: String? = null): String {

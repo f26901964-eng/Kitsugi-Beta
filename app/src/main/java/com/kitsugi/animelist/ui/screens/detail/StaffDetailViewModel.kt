@@ -473,9 +473,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private fun warmBangumiStaffTitles(detail: KitsugiStaffDetail) {
         viewModelScope.launch {
             val updated = withContext(Dispatchers.IO) {
-                runCatching {
-                    KitsugiBangumiDetailClient.enrichStaffDetailNames(detail, tabMode = true)
-                }
+                runCatching { KitsugiBangumiDetailClient.enrichStaffDetailNames(detail, background = true) }
                     .getOrNull()
             } ?: return@launch
             if (updated == detail) return@launch

@@ -239,8 +239,10 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
-    val wikiPageTheme: String = "SITE",
+    val wikiPageTheme: String = "APP",
     val wikiTextZoom: Int = 100,
+    /** Wiki açılır sayfası son seçilen düzeni hatırlar; varsayılan MOBİL düzendir. */
+    val wikiDesktopLayout: Boolean = false,
     val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
     val autoTranslateEnabled: Boolean = false,
     val preferredTranslator: String = "DEFAULT",
@@ -389,6 +391,7 @@ data class AppSettings(
     val animeSkipClientId: String get() = gestures.animeSkipClientId
     val wikiPageTheme: String get() = integrations.wikiPageTheme
     val wikiTextZoom: Int get() = integrations.wikiTextZoom
+    val wikiDesktopLayout: Boolean get() = integrations.wikiDesktopLayout
     val wikiAdBlockDisabledHosts: Set<String> get() = integrations.wikiAdBlockDisabledHosts
     val autoTranslateEnabled: Boolean get() = integrations.autoTranslateEnabled
     val preferredTranslator: String get() = integrations.preferredTranslator

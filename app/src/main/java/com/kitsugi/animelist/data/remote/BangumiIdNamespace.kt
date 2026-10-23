@@ -128,8 +128,11 @@ object BangumiIdNamespace {
 
         if (!allowNetwork) return null
 
-        // 3) Sıkı başlık araması — yalnızca tek ve net eşleşmede güvenli
-        val query = title?.trim().orEmpty()
+        // 3) Sıkı başlık araması — NFKC normalize anahtar + infobox takma adları + yıl ayrıştırması
+        val query = java.text.Normalizer.normalize(
+            title?.trim().orEmpty(),
+            java.text.Normalizer.Form.NFKC
+        ).trim()
         if (query.isBlank()) return null
         val token = runCatching { BangumiAuthStore.getValidToken(context) }.getOrNull()
         val page = runCatching {
@@ -144,25 +147,66 @@ object BangumiIdNamespace {
             Log.w(TAG, "Bangumi title lookup failed for '$query': ${error.message}")
             return null
         }
-        val candidates = page.data.filter { subject ->
-            subject.type == expectedSubjectType && (
-                expectedYear == null || subject.date?.take(4)?.toIntOrNull() == expectedYear ||
-                    matchesTitle(subject.name, query) || matchesTitle(subject.nameCn, query)
-                )
-        }
-        val exact = candidates.filter {
-            matchesTitle(it.name, query) || matchesTitle(it.nameCn, query)
-        }
-        val unique = when {
-            exact.size == 1 -> exact.first()
-            candidates.size == 1 -> candidates.first()
-            else -> null
-        } ?: return null
+        val unique = selectUniqueSubjectMatch(
+            subjects = page.data,
+            query = query,
+            expectedYear = expectedYear,
+            expectedSubjectType = expectedSubjectType
+        ) ?: return null
 
         if (malId != null) {
             runCatching { BangumiLocalMappingCache.put(context, malId, expectedSubjectType, unique.id) }
         }
         return unique.id
+    }
+
+    /**
+     * Picks the single unambiguous subject match for [query] (`E99`):
+     *  - checks `name`, `nameCn`, AND `infobox` alias values,
+     *  - when multiple subjects share the same base title in different years (e.g. a manga PV
+     *    vs the 2024 TV anime, or 1999 vs 2011 remake), disambiguates by [expectedYear] instead
+     *    of failing with `null`.
+     */
+    internal fun selectUniqueSubjectMatch(
+        subjects: List<BangumiApiClient.BangumiSubject>,
+        query: String,
+        expectedYear: Int?,
+        expectedSubjectType: Int
+    ): BangumiApiClient.BangumiSubject? {
+        fun subjectYear(s: BangumiApiClient.BangumiSubject): Int? =
+            s.date?.take(4)?.toIntOrNull()?.takeIf { it > 0 }
+
+        fun matchesSubjectAnyName(s: BangumiApiClient.BangumiSubject): Boolean {
+            if (matchesTitle(s.name, query) || matchesTitle(s.nameCn, query)) return true
+            return s.infobox.values.asSequence().flatten().any { alias -> matchesTitle(alias, query) }
+        }
+
+        val typeFiltered = subjects.filter { it.type == expectedSubjectType }
+        val exact = typeFiltered.filter(::matchesSubjectAnyName)
+
+        if (exact.size == 1) {
+            val single = exact.first()
+            val y = subjectYear(single)
+            if (expectedYear == null || y == null || kotlin.math.abs(y - expectedYear) <= 1) {
+                return single
+            }
+            return null
+        }
+        if (exact.size > 1 && expectedYear != null) {
+            val exactYearHits = exact.filter { subjectYear(it) == expectedYear }
+            if (exactYearHits.size == 1) return exactYearHits.first()
+            val nearYearHits = exact.filter {
+                val y = subjectYear(it)
+                y != null && kotlin.math.abs(y - expectedYear) <= 1
+            }
+            if (nearYearHits.size == 1) return nearYearHits.first()
+            return null
+        }
+
+        val candidates = typeFiltered.filter { subject ->
+            expectedYear == null || subjectYear(subject) == expectedYear
+        }
+        return candidates.singleOrNull()
     }
 
     /** Boşluk/noktalama duyarsız başlık karşılaştırması (`MediaIdentity.normalizedTitle` ile aynı ruh). */

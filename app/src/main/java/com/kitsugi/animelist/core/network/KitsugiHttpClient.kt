@@ -57,24 +57,25 @@ object KitsugiHttpClient {
     }
 
     /**
-     * Bangumi (`api.bgm.tv` + `next.bgm.tv/p1`) istemcisi.
-     *
-     * Neden ayrı: ana [client] içindeki [RetryInterceptor] her denemeyi 3'e katlıyordu.
-     * `next.bgm.tv` yavaşladığında tek bir p1 isteği 20 sn × 3 = 60 sn'ye çıkıyor, detay
-     * sekmeleri bu yüzden dakikalarca skeleton'da kalıyordu ("Bangumi verisi 5 dakika
-     * gelmiyor" raporu). Bangumi istekleri idempotent GET'lerdir; kullanıcıya dönük
-     * ekranlarda hızlı başarısız olup v0 yedeğine geçmek, dakikalarca beklemekten iyidir.
-     * Yeniden deneme gerektiğinde çağıran katman (tek-uçuş + kısa devre) karar verir.
+     * Bangumi istemcisi: [RetryInterceptor] YOK ve 14 sn toplam çağrı tavanı uygulanır.
      */
     val bangumiClient: OkHttpClient by lazy {
         client.newBuilder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(12, TimeUnit.SECONDS)
-            .writeTimeout(12, TimeUnit.SECONDS)
             .callTimeout(14, TimeUnit.SECONDS)
             .apply { interceptors().removeAll { it is RetryInterceptor } }
             .build()
     }
+
+    /**
+     * Çapraz liste eşitleme yazımları için istemci (MAL, Kitsu, Shikimori, Simkl).
+     * 25 sn toplam çağrı tavanı ile asılı kalan istekleri keser.
+     */
+    val syncClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(25, TimeUnit.SECONDS)
+            .build()
+    }
+
 
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()

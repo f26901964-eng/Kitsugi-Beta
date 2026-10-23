@@ -400,26 +400,18 @@ object SearchTranslation {
     // ─────────────────────────────────────────────────────────────────────────
 
     fun String.normalizeToResourceKey(): String {
-        // ROOT yerel: Türkçe "I" harfi "ı"ya dönüşüp `genre_*`/`tag_*` anahtarlarını bozuyordu.
-        return this.lowercase(java.util.Locale.ROOT)
+        return this.lowercase()
             .replace(Regex("[^a-z0-9_]"), "_")
             .replace(Regex("__+"), "_")
             .trim('_')
     }
 
-    /**
-     * `genre_*` / `tag_*` / `staff_role_*` dil dosyası karşılığı.
-     *
-     * Uygulamada ~40.000 `bangumi_*` dizesi bulunduğu için `getIdentifier` pahalıdır
-     * (kaynak tablosunun tamamı taranır). Sonuç [cachedStringResourceByName] ile
-     * önbelleğe alınır — bulunmayanlar da önbelleğe yazılır. Önceden Keşfet'teki her
-     * kartın her etiketi için üç ayrı tarama yapılıyor, Bangumi şeritleri dakikalarca
-     * bekliyordu. Çince/Japonca etiketlerde türetilen anahtar boş olur; hiç aranmaz.
-     */
     private fun getLocalizedStringFromResource(prefix: String, label: String): String? {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance() ?: return null
         val normalized = label.normalizeToResourceKey()
-        if (normalized.isEmpty()) return null
-        return com.kitsugi.animelist.utils.cachedStringResourceByName("${prefix}_$normalized")
+        val key = "${prefix}_$normalized"
+        val resId = context.resources.getIdentifier(key, "string", context.packageName)
+        return if (resId != 0) context.getString(resId) else null
     }
 
     fun translateToTurkishForDisplay(label: String): String {
@@ -430,6 +422,11 @@ object SearchTranslation {
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
         // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
         cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
+        // Shikimori (Rusça) tür/etiketleri — `taxonomy_tag_*` override'ı varsa o kullanılır.
+        com.kitsugi.animelist.utils.RussianTaxonomyDictionary.entryFor(cleaned)?.let { entry ->
+            com.kitsugi.animelist.utils.taxonomyStringOverride(entry.key)?.let { return it }
+            return entry.turkish
+        }
 
         val exact = englishToTurkish[cleaned]
         if (exact != null) return exact
@@ -443,6 +440,8 @@ object SearchTranslation {
         if (englishToTurkish.containsKey(cleaned)) return cleaned
         // Bangumi Çince/Japonca etiket → İngilizce arama terimi
         com.kitsugi.animelist.utils.bangumiTagEnglishOrNull(cleaned)?.let { return it }
+        // Shikimori (Rusça) etiket → İngilizce arama terimi
+        com.kitsugi.animelist.utils.RussianTaxonomyDictionary.entryFor(cleaned)?.let { return it.english }
         val lower = cleaned.lowercase()
         aliases[lower]?.let { return it }
         turkishToEnglish[lower]?.let { return it }
@@ -458,6 +457,11 @@ object SearchTranslation {
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
         // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
         cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
+        // Shikimori (Rusça) tür/etiketleri
+        com.kitsugi.animelist.utils.RussianTaxonomyDictionary.entryFor(cleaned)?.let { entry ->
+            com.kitsugi.animelist.utils.taxonomyStringOverride(entry.key)?.let { return it }
+            return if (isTurkish()) entry.turkish else entry.english
+        }
         if (!isTurkish()) return translateToEnglishForSearch(cleaned)
 
         val exact = englishToTurkish[cleaned]

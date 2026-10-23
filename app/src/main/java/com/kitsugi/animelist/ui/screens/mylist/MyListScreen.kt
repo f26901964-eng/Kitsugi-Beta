@@ -67,9 +67,11 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.local.MyListIdentityCrosswalk
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.ui.components.KitsugiApiSearchDialog
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
@@ -90,21 +92,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-
-/**
- * "Tümü" (birleşik kütüphane) sekmesinin tek seferde, arka planda üretilen sonucu.
- * Dört alanın birlikte üretilip yayınlanması, aradaki karelerde eski liste + yeni rozet
- * gibi uyuşmayan ara görünüm oluşmasını imkânsız kılar.
- */
-internal data class CombinedMyListLibrary(
-    val items: List<MyListLibraryItem>,
-    val entries: List<MediaEntry>,
-    val sourceBadgesByEntryId: Map<Int, List<String>>
-) {
-    companion object {
-        val EMPTY = CombinedMyListLibrary(emptyList(), emptyList(), emptyMap())
-    }
-}
 
 /**
  * [IntArray] için açık Saver: IntArray, Android Bundle tarafından yerel olarak desteklenir
@@ -243,7 +230,7 @@ fun MyListScreen(
     var activeZoomTitle by rememberSaveable { mutableStateOf("") }
     var activeZoomIsAdult by rememberSaveable { mutableStateOf(false) }
 
-    // Five provider tabs plus a combined, deduplicated library tab.
+    // Six provider tabs plus a combined, deduplicated library tab.
     val tabPagerState = rememberPagerState(
         initialPage = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1),
         pageCount = { MY_LIST_TAB_COUNT }
@@ -251,24 +238,36 @@ fun MyListScreen(
 
     // Pager page change -> notify parent
     // İLK çalıştırmada settledPage yalnızca pager'ın kurulum anındaki sayfasıdır; bu an
-    // bir "değişiklik" DEĞİLDİR. selectedTabIndex ilk karede henüz geri yüklenmemiş olabilir
-    // (açılışta loadFilters ile yarış) ve pager 0'da kurulmuş olabilir; bu ilk anı
-    // bildirirsek kurulum değeri (0 = Tümü) updateMyListTabIndex ile geri yazılarak
-    // kullanıcının son seçimi silinirdi — uygulama her açılışta "Tümü"'ye dönerdi.
-    // Yalnızca sonraki değişiklikler, yani gerçek kullanıcı kaydırmaları raporlanır.
+    // bir "değişiklik" DEĞİLDİR. Ayrıca açılır menüden uzak bir kaynağa atlanırken ara
+    // settledPage emisyonlarının seçimi geri çevirmemesi için hedef sayfa izlenir.
     var pagerInitialPageAnnounced by remember { mutableStateOf(false) }
-    LaunchedEffect(tabPagerState.settledPage) {
-        if (!pagerInitialPageAnnounced) {
-            pagerInitialPageAnnounced = true
-        } else if (tabPagerState.settledPage != selectedTabIndex) {
-            onTabIndexChange(tabPagerState.settledPage)
+    var programmaticTargetPage by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(selectedTabIndex) {
+        val target = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
+        if (tabPagerState.currentPage != target) {
+            programmaticTargetPage = target
+            try {
+                if (kotlin.math.abs(tabPagerState.currentPage - target) > 1) {
+                    tabPagerState.scrollToPage(target)
+                } else {
+                    tabPagerState.animateScrollToPage(target)
+                }
+            } finally {
+                if (programmaticTargetPage == target) {
+                    programmaticTargetPage = -1
+                }
+            }
         }
     }
 
-    // Parent tab change (chip click) -> animate pager
-    LaunchedEffect(selectedTabIndex) {
-        if (tabPagerState.currentPage != selectedTabIndex) {
-            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1))
+    LaunchedEffect(tabPagerState.settledPage) {
+        if (!pagerInitialPageAnnounced) {
+            pagerInitialPageAnnounced = true
+        } else if (programmaticTargetPage >= 0 && tabPagerState.settledPage != programmaticTargetPage) {
+            // Uzak sekmeye programatik geçiş tamamlanana dek ara sayfa bildirimlerini yok say.
+        } else if (tabPagerState.settledPage != selectedTabIndex) {
+            onTabIndexChange(tabPagerState.settledPage)
         }
     }
 
@@ -291,64 +290,37 @@ fun MyListScreen(
         mutableStateOf(false)
     }
 
-    val entriesAfterAdultFilter = remember(entries, showAdultContent) {
-        entries.filter { entry ->
-            showAdultContent || !entry.isAdult
-        }
-    }
-
-    // Birleşik kütüphane yalnızca satırın KENDİ kaynak uzayındaki kimliğiyle kurulabilir;
-    // Bangumi/Kitsu/Shikimori satırlarında MAL ekseni olmadığı için Çince/Rusça katalog
-    // başlıkları hiç eşmez ve aynı yapım "Tümü" sekmesinde ikinci bir kart olur (1502/786
-    // şişkinliğinin kök nedeni). Çapraz eşitlemenin çözüp kalıcı yazdığı kimlik köprüsü
-    // burada okunur — ağa çıkılmaz.
-    //
-    // PERF (2026-10-20): kimlik köprüsü + gruplama (groupMyListEntries: satır başına kimlik
-    // anahtarları + union-find birleştirme) + rozet/entry haritaları TEK bir arka plan
-    // hesabında üretilir. Eski sürüm bunu kompozisyon içinde senkron (ana iş parçacığında)
-    // yapıyordu: her veritabanı emisyonu (senkron yazımları, kardeş satır aynalama, +18
-    // geri yazma…) 1000+ kayıtta Listem'i yüzlerce ms kilitliyordu. Sonuç yayınlanana
-    // kadar önceki değer gösterilir (produceState davranışı), ilk hesaplamaya kadar liste
-    // boş görünür.
-    val combinedLibrary by produceState(viewModel.cachedCombinedLibrary, entriesAfterAdultFilter) {
-        val entriesForLibrary = entriesAfterAdultFilter
+    // Kimlik köprüsü + gruplama + kardeş başlık tamamlama + sekme bazlı kütüphane bölümlendirmesi
+    // TEK bir arka plan hesabında üretilir; hiçbir kaynak sekmesi başka bir kaynağın kaydını sızdırmaz.
+    val librarySnapshot by produceState(viewModel.cachedLibrarySnapshot, entries, showAdultContent) {
+        val entriesForLibrary = entries
+        val includeAdult = showAdultContent
         val appContext = context.applicationContext
         value = withContext(Dispatchers.Default) {
             val extras = MyListIdentityCrosswalk.build(appContext, entriesForLibrary)
-            val items = groupMyListEntries(entriesForLibrary, extras)
-            CombinedMyListLibrary(
-                items = items,
-                entries = items.map { it.entry },
-                sourceBadgesByEntryId = items.associate { it.entry.id to it.sourceIds }
+            buildMyListLibrarySnapshot(
+                entries = entriesForLibrary,
+                identityExtras = extras,
+                includeAdult = includeAdult,
+                bangumiTitleLookup = { rawId -> BangumiTitleCache.get(rawId) }
             )
         }.also { computed ->
             // Detay dönüşünde ilk karede eski sonuç hazır olsun diye ViewModel'de sakla.
-            viewModel.rememberCombinedLibrary(computed)
+            viewModel.rememberLibrarySnapshot(computed)
         }
     }
-    val allLibraryItems = combinedLibrary.items
-    val allLibraryEntries = combinedLibrary.entries
-    val allSourceBadgesByEntryId = combinedLibrary.sourceBadgesByEntryId
+    val isLibraryComputing = entries.isNotEmpty() && !librarySnapshot.isComputed
+    val allSourceBadgesByEntryId = librarySnapshot.sourceBadgesByEntryId
+    val tabCounts = remember(librarySnapshot) {
+        List(MY_LIST_TAB_COUNT) { tabIdx -> librarySnapshot.countForTab(tabIdx) }
+    }
 
-    val selectedTabEntries = remember(
-        entriesAfterAdultFilter,
-        allLibraryEntries,
-        selectedTabIndex,
-        searchQuery
-    ) {
-        when {
-            selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
-            // Preserve the existing cross-provider search behavior everywhere except Bangumi:
-            // Bangumi must never surface an unrelated provider's row, even during search.
-            searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> entriesAfterAdultFilter
-            else -> entriesAfterAdultFilter.filter { entry ->
-                myListSourceMatchesTab(selectedTabIndex, entry.source, entry.malId)
-            }
-        }
-    }
+    val safeSelectedTabIndex = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
+    val selectedTabEntries = librarySnapshot.entriesForTab(safeSelectedTabIndex)
 
     val filteredEntries = remember(
         selectedTabEntries,
+        librarySnapshot.searchAliasesByEntryId,
         searchQuery,
         selectedStatusFilterId,
         selectedTypeFilterId,
@@ -365,19 +337,17 @@ fun MyListScreen(
             selectedFavoriteFilterId = selectedFavoriteFilterId,
             selectedScoreFilterId = selectedScoreFilterId,
             selectedYearFilterId = selectedYearFilterId,
-            selectedExtraFilterId = selectedExtraFilterId
+            selectedExtraFilterId = selectedExtraFilterId,
+            searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
         )
     }
 
-    val visibleEntries = remember(filteredEntries, selectedSortId) {
+    val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
         applySort(
             entries = filteredEntries,
-            sortId = selectedSortId
+            sortId = selectedSortId,
+            titleLanguage = appSettings.titleLanguage
         )
-    }
-
-    val groupedVisibleEntries = remember(visibleEntries) {
-        groupMyListEntriesByStatus(visibleEntries)
     }
 
     val listStats = remember(selectedTabEntries) {
@@ -427,7 +397,7 @@ fun MyListScreen(
                 selectedScoreFilterId != "all" ||
                 selectedYearFilterId != "all" ||
                 selectedExtraFilterId != "all" ||
-                (selectedSortId.isNotBlank() && selectedSortId != "newest" && selectedSortId != "added")
+                isExplicitMyListSort(selectedSortId)
 
         // ── Sabit üst bar (başlık + arama + filtreleme) ──
         androidx.compose.material3.Surface(
@@ -475,11 +445,12 @@ fun MyListScreen(
             color = KitsugiColors.background
         ) {
             MyListTabBar(
-                selectedTabIndex = selectedTabIndex,
+                selectedTabIndex = safeSelectedTabIndex,
                 onTabIndexChange = onTabIndexChange,
                 visibleEntries = visibleEntries,
-                allEntries = entriesAfterAdultFilter,
-                allLibraryEntryCount = allLibraryItems.size,
+                allEntries = librarySnapshot.combinedEntries,
+                allLibraryEntryCount = librarySnapshot.combinedItems.size,
+                tabCounts = tabCounts,
                 isAniListConnected = isAniListConnected,
                 isMalConnected = isMalConnected,
                 isSimklConnected = isSimklConnected,
@@ -563,14 +534,39 @@ fun MyListScreen(
                     else -> false
                 }
                 val pageScrollState = tabScrollStates[pageTabIndex]
-                val pageEntries = remember(entriesAfterAdultFilter, allLibraryEntries, pageTabIndex) {
-                    if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) {
-                        allLibraryEntries
-                    } else {
-                        entriesAfterAdultFilter.filter { entry ->
-                            myListSourceMatchesTab(pageTabIndex, entry.source, entry.malId)
-                        }
-                    }
+                val pageEntries = librarySnapshot.entriesForTab(pageTabIndex)
+                val pageFilteredEntries = remember(
+                    pageEntries,
+                    librarySnapshot.searchAliasesByEntryId,
+                    searchQuery,
+                    selectedStatusFilterId,
+                    selectedTypeFilterId,
+                    selectedFavoriteFilterId,
+                    selectedScoreFilterId,
+                    selectedYearFilterId,
+                    selectedExtraFilterId
+                ) {
+                    filterMyListEntries(
+                        entries = pageEntries,
+                        searchQuery = searchQuery,
+                        selectedStatusFilterId = selectedStatusFilterId,
+                        selectedTypeFilterId = selectedTypeFilterId,
+                        selectedFavoriteFilterId = selectedFavoriteFilterId,
+                        selectedScoreFilterId = selectedScoreFilterId,
+                        selectedYearFilterId = selectedYearFilterId,
+                        selectedExtraFilterId = selectedExtraFilterId,
+                        searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
+                    )
+                }
+                val pageVisibleEntries = remember(pageFilteredEntries, selectedSortId, appSettings.titleLanguage) {
+                    applySort(
+                        entries = pageFilteredEntries,
+                        sortId = selectedSortId,
+                        titleLanguage = appSettings.titleLanguage
+                    )
+                }
+                val pageGroupedEntries = remember(pageVisibleEntries) {
+                    groupMyListEntriesByStatus(pageVisibleEntries)
                 }
 
                 // Wait until this page has actual items before restoring a deep position.
@@ -608,15 +604,22 @@ fun MyListScreen(
 
                 MyListContentPage(
                     pageTabIndex = pageTabIndex,
-                    selectedTabIndex = selectedTabIndex,
+                    selectedTabIndex = safeSelectedTabIndex,
                     isConnected = pageIsConnected,
                     isSimklSessionExpired = isSimklSessionExpired,
+                    isLibraryComputing = isLibraryComputing,
                     pageEntries = pageEntries,
                     sourceBadgesByEntryId = if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) allSourceBadgesByEntryId else emptyMap(),
-                    visibleEntries = visibleEntries,
-                    groupedVisibleEntries = groupedVisibleEntries,
+                    visibleEntries = pageVisibleEntries,
+                    groupedVisibleEntries = pageGroupedEntries,
                     searchQuery = searchQuery,
                     selectedStatusFilterId = selectedStatusFilterId,
+                    selectedTypeFilterId = selectedTypeFilterId,
+                    selectedFavoriteFilterId = selectedFavoriteFilterId,
+                    selectedScoreFilterId = selectedScoreFilterId,
+                    selectedYearFilterId = selectedYearFilterId,
+                    selectedExtraFilterId = selectedExtraFilterId,
+                    selectedSortId = selectedSortId,
                     selectedListLayoutId = selectedListLayoutId,
                     appSettings = appSettings,
                     pageScrollState = pageScrollState,
@@ -663,9 +666,11 @@ fun MyListScreen(
                     onIncrementProgress = { incrementEntryProgress(it) },
                     onPosterLongClick = { imageUrl ->
                         activeZoomImageUrl = imageUrl
-                        val zoomEntry = visibleEntries.find { it.imageUrl == imageUrl }
+                        val zoomEntry = pageVisibleEntries.find { it.imageUrl == imageUrl }
                             ?: pageEntries.find { it.imageUrl == imageUrl }
-                        activeZoomTitle = zoomEntry?.title ?: ""
+                        activeZoomTitle = zoomEntry?.getDisplayTitle(appSettings.titleLanguage)
+                            ?: zoomEntry?.title
+                            ?: ""
                         activeZoomIsAdult = zoomEntry?.isAdult == true
                     },
                     accentColor = accentColor,

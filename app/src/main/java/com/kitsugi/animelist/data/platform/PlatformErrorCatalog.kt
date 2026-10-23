@@ -168,11 +168,19 @@ object PlatformErrorCatalog {
         }
 
         ListPlatform.KITSU -> when {
-            t.contains("kitsu.app") || t.contains("kitsu.io") ||
-                (t.contains("host") && (t.contains("changed") || t.contains("değiş"))) ->
+            // "Kitsu API adresi değişti" yalnızca GERÇEK bir host taşınması/yönlendirmesi
+            // şüphesinde gösterilir. Ham kayıt her zaman host adını taşıdığı için
+            // ("HTTP 404 · kitsu.app/anime") host adının geçmesi tek başına imza DEĞİLDİR;
+            // eski kod bu yüzden her Kitsu hatasını (404, 429, 5xx) yanıltıcı biçimde
+            // "adres değişti" olarak sınıflandırıyordu.
+            isKitsuHostMigrationText(t) && (http == null || http == 301 || http == 308) ->
                 PlatformErrorCode.KIT_4001
-            t.contains("relationship") || t.contains("ilişki") -> PlatformErrorCode.KIT_4004
-            http == 429 || t.contains("429") -> PlatformErrorCode.KIT_4002
+            t.contains("relationship") || t.contains("ilişki") ->
+                PlatformErrorCode.KIT_4004
+            http == 429 || t.contains("429") || t.contains("rate limit") ->
+                PlatformErrorCode.KIT_4002
+            // 404 / 5xx ve diğer durumlar ortak HTTP eşlemesine bırakılır
+            // (COM_1009 "Kayıt bulunamadı", COM_1007 "Sunucu hatası"...).
             else -> null
         }
 
@@ -186,6 +194,25 @@ object PlatformErrorCatalog {
         }
 
         else -> null
+    }
+
+    /**
+     * Kitsu host taşınması (kitsu.io ↔ kitsu.app) belirtisi arar.
+     *
+     * Yalnızca taşınma/yönlendirme ifadeleri ya da eski host'a ulaşılamaması
+     * (DNS/bağlantı/TLS) imza sayılır. Sadece "kitsu.app" geçmesi yeterli değildir;
+     * aksi hâlde her HTTP hata kaydı KIT_4001'e dönüşüyordu.
+     */
+    private fun isKitsuHostMigrationText(t: String): Boolean {
+        val migrationMarkers = listOf(
+            "host changed", "host değiş", "api adresi değiş", "adres değiş",
+            "domain değiş", "moved permanently", "yönlendir",
+        )
+        if (migrationMarkers.any { t.contains(it) }) return true
+        val hostUnreachable = t.contains("unknownhost") || t.contains("unable to resolve") ||
+            t.contains("no address associated with hostname") || t.contains("sslhandshake") ||
+            t.contains("certificate")
+        return hostUnreachable && (t.contains("kitsu.io") || t.contains("kitsu.app"))
     }
 
     private fun isAniListServiceDownText(t: String): Boolean =

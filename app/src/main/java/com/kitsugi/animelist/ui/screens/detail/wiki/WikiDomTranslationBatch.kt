@@ -5,8 +5,16 @@ internal data class WikiDomResult(val item: WikiDomText, val translated: String?
 
 /** Batches nearby text slots for context; validates every delimiter before assigning a
  * result. A damaged/reordered delimiter can never put text into a different link/node.
+ *
+ * Aynı metin bir sayfada birden çok kez geçebilir (gezinme etiketleri, tekrarlanan
+ * tablo satırları, "devamını oku" gibi kalıplar). Bu durumda ağ isteği metin başına
+ * BİR kez yapılır ve sonuç tüm eşleşen düğümlere dağıtılır; çeviri belirgin biçimde
+ * hızlanır, Google'a giden gereksiz istek sayısı düşer.
  */
 internal object WikiDomTranslationBatch {
+    /** dom-translator.js `take()` ile aynı üst sınır. */
+    const val MAX_ROWS = 12
+
     private val marker = Regex("⟪(/?)K([0-9]+)⟫")
 
     fun pack(rows: List<WikiDomText>): String = rows.mapIndexed { index, row ->
@@ -32,17 +40,27 @@ internal object WikiDomTranslationBatch {
     }
 
     suspend fun translate(rows: List<WikiDomText>, translate: suspend (String) -> String?): List<WikiDomResult> {
-        require(rows.size in 1..8)
+        require(rows.size in 1..MAX_ROWS)
         require(rows.all { it.text.length in 1..8000 })
-        if (rows.size == 1) return listOf(WikiDomResult(rows[0], translate(rows[0].text)))
-        // Literal marker text must not be confused with our transport markers.
-        if (rows.none { marker.containsMatchIn(it.text) }) {
-            val response = translate(pack(rows))
-                ?: return rows.map { WikiDomResult(it, null) } // outage: do not fan out eight more requests
-            val values = unpack(response, rows.size)
-            if (values != null) return rows.mapIndexed { i, row -> WikiDomResult(row, values[i]) }
+        // Aynı kaynak metin → aynı çeviri. Tekrarları istekten önce ele.
+        val unique = LinkedHashMap<String, WikiDomText>()
+        rows.forEach { unique.putIfAbsent(it.text, it) }
+        val uniqueRows = unique.values.toList()
+        val translations = when {
+            uniqueRows.size == 1 -> mapOf(uniqueRows[0].text to translate(uniqueRows[0].text))
+            // Literal marker text must not be confused with our transport markers.
+            uniqueRows.none { marker.containsMatchIn(it.text) } -> {
+                val response = translate(pack(uniqueRows))
+                val values = response?.let { unpack(it, uniqueRows.size) }
+                if (values != null) {
+                    uniqueRows.mapIndexed { index, row -> row.text to values[index] }.toMap()
+                } else {
+                    // Provider changed delimiters: bounded, individual fallback, never positional guessing.
+                    uniqueRows.associate { it.text to translate(it.text) }
+                }
+            }
+            else -> uniqueRows.associate { it.text to translate(it.text) }
         }
-        // Provider changed delimiters: bounded, individual fallback, never positional guessing.
-        return rows.map { WikiDomResult(it, translate(it.text)) }
+        return rows.map { row -> WikiDomResult(row, translations[row.text]) }
     }
 }

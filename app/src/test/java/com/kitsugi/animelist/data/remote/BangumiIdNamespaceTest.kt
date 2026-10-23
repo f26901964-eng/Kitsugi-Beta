@@ -4,10 +4,40 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.model.MediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BangumiIdNamespaceTest {
+
+    private fun sampleAnimeSubject(
+        id: Int,
+        name: String,
+        nameCn: String,
+        date: String?,
+        eps: Int,
+        infobox: Map<String, List<String>> = emptyMap()
+    ) = BangumiApiClient.BangumiSubject(
+        id = id,
+        type = BangumiApiClient.SubjectType.ANIME,
+        name = name,
+        nameCn = nameCn,
+        summary = "",
+        date = date,
+        platform = "TV",
+        nsfw = false,
+        locked = false,
+        eps = eps,
+        totalEpisodes = eps,
+        volumes = 0,
+        images = null,
+        rating = null,
+        collection = null,
+        tags = emptyList(),
+        metaTags = emptyList(),
+        infobox = infobox
+    )
+
     @Test
     fun `Bangumi subject types and platform map to supported Kitsugi types`() {
         assertEquals(MediaType.Anime, BangumiIdNamespace.mediaTypeFor(BangumiApiClient.SubjectType.ANIME, "TV"))
@@ -37,5 +67,86 @@ class BangumiIdNamespaceTest {
         assertTrue(BangumiIdNamespace.isMoviePlatform("电影"))
         assertTrue(BangumiIdNamespace.isMoviePlatform("劇場版"))
         assertFalse(BangumiIdNamespace.isMoviePlatform("电视剧"))
+    }
+
+    @Test
+    fun `selectUniqueSubjectMatch normalizes NFKC fullwidth digits and matches infobox aliases`() {
+        val kaijuSubject = sampleAnimeSubject(
+            id = 400_602,
+            name = "怪獣8号",
+            nameCn = "怪兽8号",
+            date = "2024-04-13",
+            eps = 12,
+            infobox = mapOf(
+                "别名" to listOf("Kaiju No. 8", "Kaijuu 8-gou")
+            )
+        )
+
+        // Fullwidth `８` from AniList `title.native = "怪獣８号"`
+        assertEquals(
+            400_602,
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(kaijuSubject),
+                query = "怪獣８号",
+                expectedYear = 2024,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME
+            )?.id
+        )
+        // Infobox English alias
+        assertEquals(
+            400_602,
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(kaijuSubject),
+                query = "Kaiju No. 8",
+                expectedYear = 2024,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME
+            )?.id
+        )
+    }
+
+    @Test
+    fun `selectUniqueSubjectMatch disambiguates homonyms using expectedYear`() {
+        val hxh1999 = sampleAnimeSubject(
+            id = 1704,
+            name = "HUNTER×HUNTER",
+            nameCn = "全职猎人",
+            date = "1999-10-16",
+            eps = 62
+        )
+        val hxh2011 = sampleAnimeSubject(
+            id = 10357,
+            name = "HUNTER×HUNTER",
+            nameCn = "全职猎人",
+            date = "2011-10-02",
+            eps = 148
+        )
+
+        assertEquals(
+            10357,
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(hxh1999, hxh2011),
+                query = "HUNTER×HUNTER",
+                expectedYear = 2011,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME
+            )?.id
+        )
+        assertEquals(
+            1704,
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(hxh1999, hxh2011),
+                query = "HUNTER×HUNTER",
+                expectedYear = 1999,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME
+            )?.id
+        )
+        // Without expectedYear, two distinct homonyms remain safely ambiguous (null)
+        assertNull(
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(hxh1999, hxh2011),
+                query = "HUNTER×HUNTER",
+                expectedYear = null,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME
+            )
+        )
     }
 }

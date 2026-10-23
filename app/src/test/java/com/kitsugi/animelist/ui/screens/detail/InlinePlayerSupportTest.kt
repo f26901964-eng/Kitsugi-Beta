@@ -101,6 +101,84 @@ class InlinePlayerSupportTest {
     }
 
     @Test
+    fun videoFrameVerdictNudgesTheRendererBeforeSwitchingEngines() {
+        // Ses ilerliyor ama kare yok: önce çözücüyü dürt (motoru değiştirme).
+        assertEquals(
+            InlineVideoVerdict.NUDGE_RENDERER,
+            inlineVideoVerdict(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS,
+                state = PlayerEngine.State.READY,
+                positionMs = 2_000L,
+                hasVisibleVideo = false,
+                nudgeUsed = false
+            )
+        )
+        // Dürtmeden sonra tanınan ek süre doldu: artık yedek motora geçilir.
+        assertEquals(
+            InlineVideoVerdict.SWITCH_ENGINE,
+            inlineVideoVerdict(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS + INLINE_NUDGE_GRACE_MS,
+                state = PlayerEngine.State.READY,
+                positionMs = 4_000L,
+                hasVisibleVideo = false,
+                nudgeUsed = true
+            )
+        )
+    }
+
+    @Test
+    fun videoFrameVerdictWaitsBeforeTheGracePeriod() {
+        assertEquals(
+            InlineVideoVerdict.WAITING,
+            inlineVideoVerdict(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS - 1L,
+                state = PlayerEngine.State.READY,
+                positionMs = 1_000L,
+                hasVisibleVideo = false,
+                nudgeUsed = false
+            )
+        )
+        // Zaman çizgisi hiç ilerlemiyorsa (henüz tampon) hüküm verilmez.
+        assertEquals(
+            InlineVideoVerdict.WAITING,
+            inlineVideoVerdict(
+                elapsedMs = INLINE_AUDIO_ONLY_GRACE_MS * 4,
+                state = PlayerEngine.State.BUFFERING,
+                positionMs = 0L,
+                hasVisibleVideo = false,
+                nudgeUsed = false
+            )
+        )
+    }
+
+    @Test
+    fun videoFrameVerdictStopsWatchingOnlyWhenAFrameIsActuallyDrawn() {
+        assertEquals(
+            InlineVideoVerdict.HEALTHY,
+            inlineVideoVerdict(
+                elapsedMs = INLINE_VIDEO_FRAME_MAX_WAIT_MS,
+                state = PlayerEngine.State.READY,
+                positionMs = 10_000L,
+                hasVisibleVideo = true,
+                nudgeUsed = true
+            )
+        )
+        // Eski bekçi 10. saniyede pes ediyordu; yavaş açılan dosya sonsuza kadar
+        // siyah kalıyordu. Yeni bekçi üst sınıra kadar izler, sonra motoru değiştirir.
+        assertEquals(
+            InlineVideoVerdict.SWITCH_ENGINE,
+            inlineVideoVerdict(
+                elapsedMs = INLINE_VIDEO_FRAME_MAX_WAIT_MS,
+                state = PlayerEngine.State.READY,
+                positionMs = 30_000L,
+                hasVisibleVideo = false,
+                nudgeUsed = true
+            )
+        )
+        assertTrue(INLINE_VIDEO_FRAME_MAX_WAIT_MS > INLINE_AUDIO_ONLY_GRACE_MS + 4_000L)
+    }
+
+    @Test
     fun healthyVideoPlaybackNeverTriggersTheAudioOnlyGuard() {
         assertFalse(
             audioOnlyPlaybackDetected(

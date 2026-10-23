@@ -97,6 +97,7 @@ class Media3PlayerEngine(
      */
     @Volatile private var renderedFirstVideoFrame = false
 
+
     /**
      * Zaman çizgisi darbesi. Media3 konum değişimlerini `Player.Listener` üzerinden
      * bildirmediği için detay sayfasındaki küçük oynatıcı sayacı 00:00'da donmuş
@@ -199,6 +200,7 @@ class Media3PlayerEngine(
      */
     override val hasRenderedVideoFrame: Boolean
         get() = renderedFirstVideoFrame
+
         
     override val currentSpeed: Float
         get() = exoPlayer?.playbackParameters?.speed ?: settings.playerSpeed

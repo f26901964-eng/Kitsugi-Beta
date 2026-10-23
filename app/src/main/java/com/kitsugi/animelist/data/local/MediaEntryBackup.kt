@@ -51,6 +51,7 @@ object MediaEntryBackup {
                 .put("isPrivate", entry.isPrivate)
                 .put("isHiddenFromStatusLists", entry.isHiddenFromStatusLists)
                 .put("updatedAt", entry.updatedAt)
+                .put("addedAt", entry.addedAt)
                 .put("titleEnglish", entry.titleEnglish)
                 .put("titleJapanese", entry.titleJapanese)
                 .put("malListId", entry.malListId)
@@ -129,6 +130,8 @@ object MediaEntryBackup {
                 isPrivate = item.optBoolean("isPrivate", false),
                 isHiddenFromStatusLists = item.optBoolean("isHiddenFromStatusLists", false),
                 updatedAt = item.optLong("updatedAt", 0L),
+                // Eski yedeklerde alan yok → 0; replaceAll vekil olarak updatedAt kullanır.
+                addedAt = item.optLong("addedAt", 0L),
                 titleEnglish = item.optionalString("titleEnglish"),
                 titleJapanese = item.optionalString("titleJapanese"),
                 malListId = if (item.has("malListId") && !item.isNull("malListId")) item.getLong("malListId") else null,
@@ -189,7 +192,10 @@ object MediaEntryBackup {
                         val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
                         !engLocal.isNullOrBlank() && engLocal == engImp
                     }
-                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+                    // (E78) "En yeni eşleşme" aday sırasına bağlı seçilemez: tek kaynak sıra.
+                    keyMatch ?: exactTitleMatch ?: exactEngMatch
+                        ?: com.kitsugi.animelist.data.auth.CrossSyncMergePolicy.newestOrNull(matches)
+                        ?: matches.first()
                 }
             }
 
@@ -226,6 +232,8 @@ object MediaEntryBackup {
                     aniListEntryId = imported.aniListEntryId ?: existing.aniListEntryId,
                     malListId = imported.malListId ?: existing.malListId,
                     updatedAt = imported.updatedAt,
+                    // Yedekteki eklenme zamanı (varsa) kazanır; yoksa yereldeki korunur.
+                    addedAt = resolveAddedAt(imported, existingAddedAt = existing.addedAt),
                     titleEnglish = imported.titleEnglish ?: existing.titleEnglish,
                     titleJapanese = imported.titleJapanese ?: existing.titleJapanese,
                     isPrivate = imported.isPrivate,

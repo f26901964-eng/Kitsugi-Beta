@@ -3,6 +3,9 @@ package com.kitsugi.animelist.data.local
 import com.kitsugi.animelist.data.auth.runSyncCatching
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
+import com.kitsugi.animelist.data.auth.SiblingMirrorPolicy
+import com.kitsugi.animelist.data.auth.SyncField
+import com.kitsugi.animelist.data.auth.SyncFieldDiff
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -47,27 +50,38 @@ class MediaEntryRepository(
         syncExternal: Boolean = true,
         skipBangumiWrite: Boolean = false
     ) {
-        val entryWithTime = if (entry.updatedAt == 0L) {
-            entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+        val nowSeconds = System.currentTimeMillis() / 1000L
+        val withUpdated = if (entry.updatedAt == 0L) {
+            entry.copy(updatedAt = nowSeconds)
         } else {
             entry
         }
+        // Tekil (kullanıcı aksiyonuyla) eklemede "şimdi" gerçek eklenme anıdır.
+        val entryWithTime = withUpdated.copy(
+            addedAt = resolveAddedAt(withUpdated, nowSeconds = nowSeconds)
+        )
         val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
         // Aynı yapımın başka kaynaklardaki yerel satırları da aynı kullanıcı değerlerini alsın.
-        mirrorUserFieldsToSiblings(persistedEntry)
+        // Yeni satır eklendiği için "tam yazım" kümesi geçilir; ayna yine de monoton ve
+        // yapışkan kurallara uyar (kardeş satırın 12 ilerlemesi 0'a çekilmez — E57).
+        mirrorUserFieldsToSiblings(persistedEntry, SyncField.ALL)
         if (syncExternal) syncEntryIfPossible(persistedEntry, skipBangumiWrite = skipBangumiWrite)
     }
 
     suspend fun insertAll(entries: List<MediaEntry>) {
         if (entries.isEmpty()) return
         val entriesWithTime = entries.map { entry ->
-            if (entry.updatedAt == 0L) {
+            val withUpdated = if (entry.updatedAt == 0L) {
                 entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
             } else {
                 entry
             }
+            // Toplu yazımda "şimdi" UYDURULMAZ: yüzlerce tarihi kayıt aynı saniyeye
+            // damgalanıp "Son eklenen"in tepesine yığılırdı. Bu yüzden resolveAddedAt
+            // burada nowSeconds almaz; özgün (güncellenmemiş) satır üzerinden çözer.
+            withUpdated.copy(addedAt = resolveAddedAt(entry))
         }
         dao.insertAll(entriesWithTime.map { it.copy(id = 0).toEntity() })
     }
@@ -123,7 +137,14 @@ class MediaEntryRepository(
                         val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
                         !engLocal.isNullOrBlank() && engLocal == engImp
                     }
-                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+                    // (E78) "En yeni eşleşme" aday sırasına bağlı seçilemez: anahtarlar
+                    // CrossSyncMergePolicy.NEWEST_FIRST ile aynıdır (burada entity üzerinde).
+                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.sortedWith(
+                        compareByDescending<MediaEntryEntity> { it.updatedAt }
+                            .thenByDescending { it.progress }
+                            .thenBy { it.source }
+                            .thenBy { it.id }
+                    ).firstOrNull() ?: matches.first()
                 }
             }
             if (match != null) {
@@ -138,7 +159,12 @@ class MediaEntryRepository(
                 // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüyordu (v2.4.315).
                 updates[match.id] = preserveResolvedTitles(match, imported).copy(
                     id = match.id,
-                    isAdult = imported.isAdult || match.isAdult
+                    isAdult = imported.isAdult || match.isAdult,
+                    // Eklenme zamanı GERİ ALINMAZ: kaynağın gerçek `createdAt`'i varsa
+                    // o kazanır (ilk içe aktarım tahminini düzeltir); yoksa yerelde
+                    // sabitlenmiş ilk-görülme değeri korunur. Aksi halde her eşitleme
+                    // "Son eklenen" sırasını yeniden karıştırırdı.
+                    addedAt = resolveAddedAt(imported, existingAddedAt = match.addedAt)
                 ).toEntity()
             } else {
                 val prior = inserts.indexOfFirst {
@@ -152,7 +178,11 @@ class MediaEntryRepository(
         // İçe aktarımda listeden DÜŞEN satırların bayat kuyruk işleri de düşürülür:
         // eski kopya sonradan uzaklara geri yazılsa import taze veriyi silerdi.
         if (deletions.isNotEmpty()) clearPendingJobsFor(entryIds = deletions)
-        dao.smartImportTransaction(inserts.map { it.copy(id = 0).toEntity() }, updates.values.toList(), deletions)
+        dao.smartImportTransaction(
+            inserts.map { it.copy(id = 0, addedAt = resolveAddedAt(it)).toEntity() },
+            updates.values.toList(),
+            deletions
+        )
 
         if (sourceNeedsAdultRescan(source)) {
             // Liste yeni çekildi → +18 işaretlerini kimliklerden tamamla.
@@ -176,18 +206,42 @@ class MediaEntryRepository(
      * üzerinden yeni listeye geri yazar.
      */
     suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
-        val preservedKeys = runCatching {
-            dao.getAll()
-                .filter { it.source.equals(source, ignoreCase = true) && it.isAdult }
-                .map { it.toDomain() }
-                .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
-                .toSet()
-        }.getOrDefault(emptySet())
+        val existingRows = runCatching {
+            dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
+        }.getOrDefault(emptyList())
+        val preservedKeys = existingRows
+            .filter { it.isAdult }
+            .map { it.toDomain() }
+            .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
+            .toSet()
+        // Sil-yeniden-yaz, satır `id`'leriyle birlikte yerel eklenme zamanlarını da
+        // uçurur; kaynak eklenme zamanı vermeyen kaynaklarda (Simkl/Bangumi/MAL)
+        // "Son eklenen" her gece senkronunda baştan karışırdı. +18 işaretleri gibi
+        // eklenme zamanları da kimlik üzerinden yeni satırlara geri yazılır.
+        val preservedAddedAtByKey = mutableMapOf<String, Long>()
+        existingRows.forEach { row ->
+            if (row.addedAt > 0L) {
+                val seconds = com.kitsugi.animelist.model.normalizeToEpochSeconds(row.addedAt)
+                com.kitsugi.animelist.model.MediaIdentity.keys(row.toDomain()).forEach { key ->
+                    val current = preservedAddedAtByKey[key]
+                    if (current == null || seconds < current) preservedAddedAtByKey[key] = seconds
+                }
+            }
+        }
 
-        val enriched = if (preservedKeys.isEmpty()) entries else entries.map { entry ->
-            if (entry.isAdult ||
-                com.kitsugi.animelist.model.MediaIdentity.keys(entry).any { it in preservedKeys }
-            ) entry.copy(isAdult = true) else entry
+        val enriched = entries.map { entry ->
+            val keys = com.kitsugi.animelist.model.MediaIdentity.keys(entry)
+            val withAdult = if (entry.isAdult || keys.any { it in preservedKeys }) {
+                entry.copy(isAdult = true)
+            } else {
+                entry
+            }
+            if (withAdult.addedAt > 0L) {
+                withAdult
+            } else {
+                val preserved = keys.firstNotNullOfOrNull { preservedAddedAtByKey[it] }
+                if (preserved != null) withAdult.copy(addedAt = preserved) else withAdult
+            }
         }
 
         // Kaynak BAŞTAN yeniden yazılıyor: o kaynağın bayat bekleyen işleri (eski satır
@@ -217,16 +271,65 @@ class MediaEntryRepository(
         advancedScores: List<Double>? = null,
         skipBangumiWrite: Boolean = false
     ) {
-        val entryWithTime = entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+        // Güncelleme eklenme zamanı DEĞİLDİR: çağran taraf addedAt taşımıyorsa
+        // (eski düzenleme yolları) satırın mevcut değerini koru, asla "şimdi" yazma.
+        val preservedAddedAt = if (entry.addedAt > 0L) {
+            com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.addedAt)
+        } else {
+            runCatching { dao.getById(entry.id)?.addedAt ?: 0L }.getOrDefault(0L)
+        }
+        val entryWithTime = entry.copy(
+            updatedAt = System.currentTimeMillis() / 1000L,
+            addedAt = preservedAddedAt
+        )
+        // ── Alan bazlı fark ────────────────────────────────────────────────────────
+        // Hangi alanların gerçekten değiştiğini DB'deki ÖNCEKİ hâlle karşılaştırarak buluruz.
+        // Uzak hedeflere yalnızca bu alanlar yazılır; hedefte uygulama dışında girilmiş
+        // puan/not/tarih böylece EZİLMEZ (bkz. [SyncField], [SyncFieldDiff]).
+        // ── ÖNCEKİ HÂL OKUMASI (E56) ────────────────────────────────────────────────
+        // Alan farkı bu okumaya bağlıdır. Okuma başarısız olduğunda `previous = null`
+        // bırakmak, `SyncFieldDiff`in TÜM alanları değişmiş saymasına ve altı hedefe tam
+        // yazım gitmesine yol açıyordu — yani bir DB aksaklığı, kullanıcının başka
+        // sağlayıcıda elle girdiği puan/not/tarihi ezebilirdi.
+        // 1) Room'un geçici hataları (kapanan imleç, "database is locked") tek seferde
+        //    geçebildiği için okuma BİR KEZ tekrarlanır.
+        // 2) Hâlâ okunamıyorsa TAM yazım bilinçli olarak seçilir: bu yolda `fullWrite`
+        //    semantiği geçerlidir (boş puan/not/tarih GÖNDERİLMEZ), yani uzak değerler
+        //    korunur; buna karşılık kullanıcının bu düzenlemesi sessizce kaybolmaz.
+        //    (Ağa hiç çıkmamak, E56'nın "diğer yarısı" olan veri kaybını üretirdi.)
+        var previousRead = if (entry.id > 0) {
+            runSyncCatching { dao.getById(entry.id)?.toDomain() }
+        } else {
+            Result.success(null)
+        }
+        if (previousRead.isFailure && entry.id > 0) {
+            previousRead = runSyncCatching { dao.getById(entry.id)?.toDomain() }
+        }
+        val previousUnreadable = previousRead.isFailure
+        val previous = previousRead.getOrNull()
+        val changedFields = if (previousUnreadable) {
+            SyncField.ALL
+        } else {
+            SyncFieldDiff.between(previous, entryWithTime)
+        }
+
         dao.update(
             entryWithTime.toEntity()
         )
 
         // Kardeş satırlar (aynı yapımın diğer kaynak kopyaları) anında aynı değerleri görür.
-        mirrorUserFieldsToSiblings(entryWithTime)
+        // Yalnızca GERÇEKTEN değişen alanlar aynalanır: puan düzenlemesi kardeş satırın
+        // durumunu/tekrar bayrağını değiştirmez (E57/2).
+        mirrorUserFieldsToSiblings(entryWithTime, changedFields)
 
         if (syncExternal) {
-            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite)
+            // Hiçbir kullanıcı alanı değişmediyse AĞA ÇIKILMAZ: altı hedefte de yazılacak
+            // bir şey yok, kullanıcıya da gereksiz "değişiklik yok" bildirimi gitmez.
+            // (Başarısız bir yazımın telafisi bekleyen-senkron kuyruğu + açılış/bağlantı
+            // tetikleyicileriyle yapılır.)
+            if (changedFields.isNotEmpty()) {
+                syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields)
+            }
         }
     }
 
@@ -264,7 +367,13 @@ class MediaEntryRepository(
 
     suspend fun replaceAll(entries: List<MediaEntry>) {
         val now = System.currentTimeMillis() / 1000L
-        val entities = entries.map { it.copy(id = 0, updatedAt = it.updatedAt.takeIf { value -> value > 0 } ?: now).toEntity() }
+        val entities = entries.map {
+            it.copy(
+                id = 0,
+                updatedAt = it.updatedAt.takeIf { value -> value > 0 } ?: now,
+                addedAt = resolveAddedAt(it)
+            ).toEntity()
+        }
         dao.replaceAllTransaction(entities)
         // Yedek geri yükleme_REPLACE: önceden başarısız olmuş bayat işler, TAZE veriyi
         // eski yerel kopyayla ezerek geri sürerdi — kuyruk temizlenir.
@@ -331,33 +440,20 @@ class MediaEntryRepository(
     }
 
     /**
-     * Kullanıcı değerlerini (durum/puan/ilerleme/tarih/not/etiket/favori/gizlilik/tekrar)
-     * kardeş satırlara yerel olarak yansıtır. Kimlik/başlık/görsel alanlarına dokunulmaz;
-     * uzak eşitleme ayrıca çalışır (bu yalnızca yerel önbellek tutarlılığıdır).
+     * Kullanıcı değerlerini kardeş satırlara **yerel önbellek** olarak yansıtır. Kimlik/başlık/
+     * görsel alanlarına dokunulmaz; uzak eşitleme ayrıca çalışır.
+     *
+     * Kurallar [SiblingMirrorPolicy] içinde (saf, test edilebilir): yalnız [fields] ile bildirilen
+     * alanlar taşınır, ilerleme/cilt/tekrar sayısı asla düşürülmez, `Dropped`/`Paused` yapışkan
+     * durumlar ve `updatedAt` korunur (E57).
      */
-    private suspend fun mirrorUserFieldsToSiblings(entry: MediaEntry) {
+    private suspend fun mirrorUserFieldsToSiblings(entry: MediaEntry, fields: Set<SyncField>) {
         runSyncCatching {
             findSiblingRows(entry).forEach { sibling ->
-                dao.update(
-                    sibling.copy(
-                        status = entry.status,
-                        score = entry.score,
-                        progress = entry.progress,
-                        volumeProgress = entry.volumeProgress,
-                        startDate = entry.startDate,
-                        endDate = entry.endDate,
-                        notes = entry.notes,
-                        tags = entry.tags,
-                        isFavorite = entry.isFavorite,
-                        isPrivate = entry.isPrivate,
-                        isHiddenFromStatusLists = entry.isHiddenFromStatusLists,
-                        priority = entry.priority,
-                        isRepeating = entry.isRepeating,
-                        repeatCount = entry.repeatCount,
-                        repeatValue = entry.repeatValue,
-                        updatedAt = entry.updatedAt
-                    ).toEntity()
-                )
+                val mirrored = SiblingMirrorPolicy.mirrored(sibling, entry, fields)
+                // Değişmeyen satırı yazmak gereksiz akış yenilemesi (ve gereksiz Room yazımı)
+                // üretirdi.
+                if (mirrored != sibling) dao.update(mirrored.toEntity())
             }
         }
     }
@@ -369,7 +465,9 @@ class MediaEntryRepository(
     private suspend fun syncEntryIfPossible(
         entry: MediaEntry,
         advancedScores: List<Double>? = null,
-        skipBangumiWrite: Boolean = false
+        skipBangumiWrite: Boolean = false,
+        /** Uzak hedeflere yazılacak alanlar; boş küme "hiçbir şey değişmedi" demektir. */
+        fields: Set<SyncField> = SyncField.ALL
     ) {
         val appContext = context ?: return
         // Senkronizasyon için geçerli koşullar:
@@ -389,18 +487,36 @@ class MediaEntryRepository(
                 context = appContext,
                 entry = entry,
                 advancedScores = advancedScores,
-                skipBangumiWrite = skipBangumiWrite
+                skipBangumiWrite = skipBangumiWrite,
+                fields = fields
             )
         }
 
         val syncResult = result.getOrNull()
         // "Atlandı" (kimlik güvenle çözülemedi) başarısızlık sayılmaz: kaynak listeye göre
         // katalogda hiç karşılığı olmayan yapımlar kuyrukta birikip her açılışta tekrar denenirdi.
-        val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
+        //
+        // ANCAK bir kaynağın "bağlı değil" (token yok / süresi dolmuş) demesi BAŞARI DEĞİLDİR:
+        // o hedefe yazılacak değişiklik kaybolurdu. Böyle bir tur kuyruğa yazılır ve hesap
+        // yeniden bağlanınca gönderilir (bkz. SyncResult.needsRetry / hasConnectionGap).
+        val success = result.isSuccess && syncResult != null && !syncResult.needsRetry
 
         if (success) {
-            val messages = syncResult?.messages.orEmpty()
-            if (messages.isNotEmpty()) removeFromQueueIfPresent(entry, "UPDATE")
+            val messages = syncResult?.messages.orEmpty().toMutableList()
+            // (E73) Kuyruktaki işten yalnız BU turda gönderilen alanlar düşülür; çevrimdışıyken
+            // kuyruğa girmiş başka alanlar (ör. not) bu tur gitmediyse kuyrukta yaşamaya devam eder.
+            if (messages.isNotEmpty()) removeFromQueueIfPresent(entry, "UPDATE", fields)
+            // BAŞARI yolunda da hangi kaynağın ne yaptığı görünmeli: "eşitlendi" dışında bir
+            // sonuç varsa (kapalı / bağlı değil / tür desteklenmiyor / kimlik çözülemedi /
+            // değişiklik yok) özet eklenir. Eskiden bu bilgi yalnız HATA yolunda gösteriliyordu
+            // ve kullanıcı "Simkl'e neden yazmadı?" sorusunun cevabını hiç göremiyordu.
+            val allSynced = syncResult?.outcomes.orEmpty().values.all {
+                it == ExternalListSyncManager.OUTCOME_SYNCED ||
+                    it == ExternalListSyncManager.OUTCOME_WRITTEN_BY_CALLER
+            }
+            if (!allSynced) {
+                syncOutcomeNote(syncResult?.outcomes)?.let { messages.add(it) }
+            }
             notifySyncResult(messages)
 
             // Dual-write: AniList'ten dönen list entry ID'yi yerel DB'ye kaydet
@@ -412,13 +528,22 @@ class MediaEntryRepository(
 
             if (messages.isNotEmpty()) drainPendingQueue()
         } else {
-            enqueuePending("UPDATE", entry)
+            enqueuePending("UPDATE", entry, fields)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
-            val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
-            val displayMessage = if (isAuthError) {
-                "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
-            } else {
-                "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
+            // (E74) Yetki kontrolü tek yerden ve fırlatılan istisna mesajını da kapsar;
+            // aksi hâlde istisna yolu kullanıcıya yanlışlıkla "çevrimdışı" gösteriyordu.
+            val isAuthError = PendingSyncPolicy.isAuthError(
+                listOf(allErrors, result.exceptionOrNull()?.message)
+            )
+            // KISMİ BAŞARI: en az bir kaynak yazıldıysa "çevrimdışı" demek yanıltıcıydı —
+            // kullanıcı "hiçbir yere gitmiyor" sanıyordu. Gerçekte yalnızca bazı kaynaklar
+            // yeniden denenecek; hangileri olduğu kaynak özetinde görünür.
+            val displayMessage = when {
+                isAuthError -> "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
+                syncResult?.hasConnectionGap == true ->
+                    "🔑 Bir hesap bağlı değil; bağlandığında bu değişiklik gönderilecek"
+                syncResult?.anySynced == true -> "🔄 " + appContext.getString(com.kitsugi.animelist.R.string.account_sync_partial_synced)
+                else -> "📵 Çevrimdışı kaydedildi, bağlantı gelince gönderilecek"
             }
             notifySyncResult(
                 syncResult?.messages.orEmpty() + listOf(displayMessage) +
@@ -445,7 +570,9 @@ class MediaEntryRepository(
         }
 
         val syncResult = result.getOrNull()
-        val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
+        // Silmede de aynı kural: "bağlı değil" bir sonraki oturuma ertelenmeli, yoksa
+        // kullanıcının silme niyeti o sağlayıcıda hayalet kayıt olarak kalır.
+        val success = result.isSuccess && syncResult != null && !syncResult.needsRetry
 
         if (success) {
             val messages = syncResult?.messages.orEmpty()
@@ -455,7 +582,9 @@ class MediaEntryRepository(
         } else {
             enqueuePending("DELETE", entry)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
-            val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
+            val isAuthError = PendingSyncPolicy.isAuthError(
+                listOf(allErrors, result.exceptionOrNull()?.message)
+            )
             val displayMessage = if (isAuthError) {
                 "🔑 Oturum süresi doldu, lütfen ayarlardan tekrar bağlanın"
             } else {
@@ -468,9 +597,15 @@ class MediaEntryRepository(
         }
     }
 
-    private suspend fun enqueuePending(operation: String, entry: MediaEntry) {
+    private suspend fun enqueuePending(
+        operation: String,
+        entry: MediaEntry,
+        fields: Set<SyncField> = SyncField.ALL
+    ) {
         val queueDao = pendingSyncDao ?: return
-        PendingSyncDrainer.enqueue(queueDao, operation, entry)
+        // Alan kümesi kuyruğa birlikte yazılır: bağlantı gelince yalnız bu alanlar yazılır,
+        // böylece bekleyen bir iş hedeflerdeki diğer değerleri EZMEZ.
+        PendingSyncDrainer.enqueue(queueDao, operation, entry, fields)
     }
 
     /**
@@ -503,18 +638,20 @@ class MediaEntryRepository(
         }
     }
 
-    private suspend fun removeFromQueueIfPresent(entry: MediaEntry, operation: String) {
+    /**
+     * Doğrudan yazımın gönderdiği alanları aynı satırın bekleyen işinden düşer (E73).
+     *
+     * Kuyruk JSON'unun biçimi (`_syncFields`) [PendingSyncDrainer]'a aittir; satır
+     * eşleştirme + alan düşme kararı orada ([PendingSyncPolicy]) tek yerden yapılır.
+     * `DELETE` çağrıları varsayılan [SyncField.ALL] ile işi bütünüyle düşürür.
+     */
+    private suspend fun removeFromQueueIfPresent(
+        entry: MediaEntry,
+        operation: String,
+        syncedFields: Set<SyncField> = SyncField.ALL
+    ) {
         val queueDao = pendingSyncDao ?: return
-        val all = queueDao.getAll()
-        all.filter { it.operation == operation }.forEach { pending ->
-            // Bare MAL IDs are not unique across anime, manga, or platform libraries.
-            runSyncCatching {
-                val json = org.json.JSONObject(pending.entryJson)
-                val sameLocalRecord = entry.id > 0 && json.optInt("id", 0) == entry.id &&
-                    json.optString("type") == entry.type.name && json.optString("source") == entry.source
-                if (sameLocalRecord) queueDao.deleteById(pending.id)
-            }
-        }
+        PendingSyncDrainer.removeSyncedFields(queueDao, operation, entry, syncedFields)
     }
 
     /**
@@ -618,6 +755,38 @@ internal fun preserveResolvedTitles(existing: MediaEntryEntity, imported: MediaE
         titleEnglish = titleEnglish,
         titleJapanese = titleJapanese
     )
+}
+
+/**
+ * Bir satırın yazılacak eklenme zamanını tek yerden çözer (epoch saniye).
+ *
+ * Öncelik sırası:
+ * 1. Gelen kaydın kendi `addedAt`'i — kaynağın gerçek oluşturma zamanı
+ *    (AniList/Kitsu/Shikimori `createdAt`) her zaman kazanır; böylece ilk
+ *    içe aktarımda yapılan tahminler sonraki eşitlemede kendiliğinden düzelir.
+ * 2. Yerel satırda daha önce sabitlenmiş değer ([existingAddedAt]) — eklenme
+ *    zamanı vermeyen kaynaklarda (MAL/Simkl/Bangumi) ilk görülme anı korunur.
+ * 3. Kaydın güncelleme zamanı — yalnızca ilk yazımda en iyi vekil olarak.
+ * 4. [nowSeconds] — YALNIZCA kullanıcının o an tekil kayıt eklediği yol
+ *    verir; toplu içe aktarım asla vermez (yüzlerce kayıt aynı saniyeye
+ *    damgalanıp "Son eklenen"in tepesine yığılmasın diye).
+ *
+ * Hiçbiri yoksa 0 (bilinmiyor) döner; sıralama bilinmeyenleri bilinenlerin
+ * arkasına koyar. Değerler milisaniye yazılmış eski satırlar için saniyeye
+ * normalize edilir.
+ */
+internal fun resolveAddedAt(
+    entry: MediaEntry,
+    existingAddedAt: Long = 0L,
+    nowSeconds: Long? = null
+): Long {
+    val incoming = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.addedAt)
+    if (incoming > 0L) return incoming
+    val existing = com.kitsugi.animelist.model.normalizeToEpochSeconds(existingAddedAt)
+    if (existing > 0L) return existing
+    val updated = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.updatedAt)
+    if (updated > 0L) return updated
+    return nowSeconds ?: 0L
 }
 
 /**
