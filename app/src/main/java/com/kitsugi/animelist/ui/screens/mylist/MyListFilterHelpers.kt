@@ -51,7 +51,19 @@ internal fun filterMyListEntries(
     selectedScoreFilterId: String,
     selectedYearFilterId: String,
     selectedExtraFilterId: String,
-    searchAliasesByEntryId: Map<Int, Set<String>> = emptyMap()
+    searchAliasesByEntryId: Map<Int, Set<String>> = emptyMap(),
+    /**
+     * Bulanık (yazım hatası/kısaltma) aramayı zorlar. `null` → kullanıcı ayarı
+     * ([KitsugiContentPrefs.fuzzySearchEnabled]) kullanılır. Arama hattı isteğin kendi
+     * `fuzzySearchEnabled` alanını geçirir; aksi hâlde istekteki tercih yok sayılıyordu.
+     */
+    fuzzySearchOverride: Boolean? = null,
+    /**
+     * Tarama sırasında iptal kontrolü. 2.600+ kayıtlık kütüphanede eski bir arama, yeni
+     * tuşa basıldığında ancak tarama BİTİNCE duruyordu (kare atlaması). Checkpoint her 32
+     * kayıtta bir `ensureActive()` çağırır.
+     */
+    checkActive: () -> Unit = {}
 ): List<MediaEntry> {
     val selectedStatus = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.status
     val selectedType = typeFilters.firstOrNull { it.id == selectedTypeFilterId }?.type
@@ -66,9 +78,11 @@ internal fun filterMyListEntries(
         foldedQuery.split(SEARCH_TOKEN_SPLIT_REGEX).filter { it.isNotEmpty() }
     }
     val exactYearQuery = foldedQuery.takeIf { it.length == 4 && it.all(Char::isDigit) }
-    val fuzzyEnabled = KitsugiContentPrefs.fuzzySearchEnabled
+    val fuzzyEnabled = fuzzySearchOverride ?: KitsugiContentPrefs.fuzzySearchEnabled
+    var scanned = 0
 
     return entries.asSequence()
+        .onEach { if (scanned++ % 32 == 0) checkActive() }
         .filter { entry -> selectedStatus == null || entry.status == selectedStatus }
         .filter { entry -> selectedType == null || entry.type == selectedType }
         .filter { entry -> !favoritesOnly || entry.isFavorite }
