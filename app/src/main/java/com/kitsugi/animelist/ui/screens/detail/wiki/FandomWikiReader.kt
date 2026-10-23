@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Tune
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text

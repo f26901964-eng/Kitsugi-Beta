@@ -293,7 +293,7 @@ private fun WikiPageToolsDialog(
                         checked = keepScreenOn,
                         enabled = canKeepScreenOn,
                         accentColor = accentColor,
-                        onCheckedChange = onToggleKeepScreenOn
+                        onCheckedChange = { onToggleKeepScreenOn(!keepScreenOn) }
                     )
                 }
                 Spacer(Modifier.height(10.dp))
