@@ -1,0 +1,219 @@
+# Liste Yenileme Mimarisi — Kök Neden Analizi ve Düzeltme Raporu
+**Tarih:** 2026-10-23 · **Sürüm:** v2.4.341 · **Kapsam:** Listem (Tümü + 6 platform sekmesi), arka plan otomatik yenileme, ayarlardaki içe aktarma, bildirim işçisi, çapraz senkron doğrulama turu
+
+---
+
+## 1. Şikâyetin çözümlenmesi
+
+> "Artık elle de Listem sayfasını yenilesek, kendi kendine otomatik yenilense de veriler baştan sona tamamı yenilenmemeli. Verilerin her kaynağa özgü şekilde, uygun şekilde yenilenmesi lazım. Sürekli tak diye baştan tüm veriyi çekip durması doğru mu? Uygulamamın desteklediği tüm kaynakların ve bu kaynakları kullanan açık kaynak uygulamaların bu yenilemeleri nasıl ele aldığına bakman lazım."
+
+Üç ayrı iddia var, üçü de kodda doğrulandı:
+
+| # | İddia | Kodda karşılığı |
+|---|---|---|
+| A | Her yenilemede **listenin tamamı** ağdan çekiliyor | `importAniListAnimeList` → `AniListImportManager.fetchAllLists()` → tüm sayfalar (50'lik dilimler) |
+| B | Her yenilemede **veritabanı baştan yazılıyor** | `MediaEntryRepository.smartImport()` eşleşen **her** satırı `updates` listesine koyuyordu (içerik aynı olsa bile) |
+| C | Yenileme **kaynak bazlı değil**, global | `KitsugiApplication` içinde tek bir `kitsugi_auto_sync.last_list_sync_ms` damgası; yalnızca AniList/MAL/Simkl |
+
+---
+
+## 2. Kök nedenler (öncesi → sonrası)
+
+### 2.1. `smartImport`: "tek transaction" yeterli değildi
+
+Eski kod:
+
+```kotlin
+for (entry in importedEntries) {
+    ...
+    updates[match.id] = preserveResolvedTitles(match, imported).copy(...).toEntity()
+}
+dao.smartImportTransaction(inserts, updates.values.toList(), deletions)
+```
+
+Eşleşme bulunduğu anda satır **koşulsuz** `updates`'e ekleniyordu. Yani:
+
+1. Uzak liste hiç değişmemiş olsa bile N satır `updateAll` ile yeniden yazılıyor,
+2. Room `media_entries` tablosu için invalidation yayıyor,
+3. `MediaEntryRepository.entriesFlow` yeni bir `List<MediaEntry>` üretiyor,
+4. `MyListScreen` içindeki `produceState` **birleşik kütüphaneyi** (kimlik köprüsü + union-find gruplama + rozet haritaları) 1000+ satırda **baştan** hesaplıyor,
+5. Liste yeniden çiziliyor → "tak diye baştan yükleniyor" hissi.
+
+**Düzeltme:** satırlar `updatedAt` dışındaki tüm alanlarda karşılaştırılıyor (`samePayloadAs`). Fark yoksa yazım yok, transaction yok, emisyon yok.
+
+```kotlin
+val candidate = preserveResolvedTitles(match, imported).copy(...).toEntity()
+if (candidate.samePayloadAs(match)) unchanged++ else updates[match.id] = candidate
+...
+if (inserts.isNotEmpty() || updates.isNotEmpty() || deletions.isNotEmpty()) { /* transaction */ }
+```
+
+Ayrıca **bekleyen yerel düzenlemeler korunuyor**: çevrimdışı yapılmış ve kuyrukta (`pending_syncs`) bekleyen bir satır, liste yenilenirken uzak veriyle ezilmiyor (outbox / pending-safe reconciliation).
+
+### 2.2. Arka plan yenilemesi "sil-yeniden-yaz" yapıyordu
+
+`KitsugiApplication` (eski):
+
+```kotlin
+val entries = AniListImportManager.fetchAllLists(aniListToken)
+repo.replaceSourcePreservingAdultFlags("anilist", entries)   // deleteBySource + insertAll
+```
+
+`replaceSourcePreservingAdultFlags` kaynağın **tüm satırlarını silip** yeni id'lerle geri yazıyordu. Sonuçları:
+
+- Room iki kez invalidation (sil + ekle) → liste bir-iki kare boşalıp doluyor,
+- satır id'leri değişiyor → bekleyen senkron işleri, kaydırma konumu ve seçim referansları anlamsızlaşıyor,
+- okuma sırasında kütüphane yarım görünüyor.
+
+**Düzeltme:** `mergeSourcePreservingAdultFlags()` — fark-tabanlı birleştirme, silme yok, +18 işaretleri korunuyor. `AiringNotificationWorker` da bu yola taşındı.
+
+### 2.3. Tazelik "global"di
+
+Tek bir `last_list_sync_ms` vardı:
+
+- AniList'i elle yenilemek MAL/Simkl'in de "taze" görünmesine yol açmıyordu ama **tek global damga** üç kaynağı birlikte yönetiyordu,
+- Kitsu, Shikimori ve Bangumi **hiç** otomatik yenilenmiyordu (bağlı olsalar bile),
+- her yenilemede liste tamamen çekiliyordu.
+
+**Düzeltme:** `ListSyncStateStore` — kaynak başına `lastSuccessAt`, `lastFullSyncAt`, `lastAttemptAt`, `failureCount`, `remoteRevision`, `lastError`.
+
+### 2.4. "Tümü"yü yenile = 6 paralel tam çekim
+
+`MyListScreen` içindeki "Tümü" sekmesi yenilemesi altı `onSyncX()` çağrısını **aynı anda** başlatıyordu: altı bağımsız sayfalama döngüsü, altı tam liste, altı yazım dalgası → ağ doygunluğu + art arda yeniden çizim.
+
+**Düzeltme:** `AuthViewModel.syncAllLists()` — kaynaklar **sırayla**, aralarında 700 ms (arka planda 500 ms) bekleme ile; her kaynak kendi TTL'ine göre `atla / delta / tam` kararını veriyor.
+
+---
+
+## 3. Açık kaynak uygulamalar bunu nasıl yapıyor?
+
+### Mihon / Tachiyomi (kitaplık güncellemesi)
+- Kaynak başına **sıralı** güncelleme (aynı kaynağa paralel istek yok — oran sınırına saygı).
+- `lastUpdated` / `lastUpdatedTimestamp` ve **güncelleme aralığı** tercihi; aralık dolmadan ağa çıkılmaz.
+- "Smart update" kuralları: okunmamış bölümü olanları, başlamamışları, tamamlanmışları ve yayın penceresi dışındakileri **atla** — sunucuyu gereksiz dövmemek için.
+- Not: Tachiyomi v0.13.1'de 12 saatten kısa global aralıklar kaldırıldı; varsayılan "yalnızca devam eden + tamamen yakalanmış" başlıklar güncelleniyor.
+- Kaynaklar: [Mihon — Library Updates and Scheduled Jobs](https://deepwiki.com/mihonapp/mihon/10.1-library-updates-and-scheduled-jobs), [Mihon — Library FAQ](https://mihon.app/docs/faq/library), [Tachiyomi v0.13.1 sürüm notları](https://newreleases.io/project/github/tachiyomiorg/tachiyomi/release/v0.13.1)
+
+### Kotatsu
+- Kaynak başına TTL ve kaynaklar arasında **gecikmeli (staggered)** güncelleme; tüm kaynaklar aynı anda dövülmez.
+
+### AniList istemcileri (AniHyou / MoeList / Shouze)
+- Liste yerelde (Room) tutulur; ağ yalnızca tazelik gerektiğinde devreye girer.
+- **Outbox deseni:** çevrimdışı düzenlemeler kuyruğa girer, bağlantı gelince gönderilir; sunucudan çekim sırasında **gönderilmemiş düzenlemeler sunucu verisiyle ezilmez** (pending-safe reconciliation).
+- Kaynak: [Shouze — offline-first AniList tracker](https://github.com/ThatOn3Gu7/Shouze)
+
+### AniList API'sinin sunduğu imkân
+- `Page.mediaList(userId, type, updatedAt_greater: Int)` → **değişenleri** çekme.
+- `MediaListCollection` → tam liste (sayfa sayfa değil, tek yapıda).
+- Kaynak: [AniList Docs — Media List](https://docs.anilist.co/guide/graphql/queries/media-list), [Pagination](https://docs.anilist.co/guide/graphql/pagination)
+
+### Kaynak yetenek matrisi (uygulamada kullanılan)
+
+| Kaynak | Delta / değişiklik tespiti | Uygulamadaki yenileme stratejisi |
+|---|---|---|
+| **AniList** | `updatedAt_greater` süzgeci | Delta (uç reddederse sessizce tam listeye düşer) + günde bir tam uzlaştırma |
+| **Simkl** | `GET /sync/activities` (ucuz revizyon imzası) | İmza aynıysa liste hiç indirilmez; değiştiyse tam liste |
+| **MyAnimeList** | Liste uçlarında "değişenler" parametresi yok | TTL (arka planda 6 saat) + fark-tabanlı yazım |
+| **Kitsu** | JSON:API sayfalı liste | TTL + fark-tabanlı yazım |
+| **Shikimori** | `/users/:id/anime_rates` sayfalı | TTL + fark-tabanlı yazım |
+| **Bangumi** | `/users/:user/collections` sayfalı | TTL + fark-tabanlı yazım |
+
+---
+
+## 4. Uygulanan mimari
+
+### Yeni dosyalar
+
+| Dosya | Görev |
+|---|---|
+| `data/sync/ListSyncStateStore.kt` | Kaynak başına yenileme defteri (SharedPreferences + JSON; Room şeması büyümedi) |
+| `data/sync/ListRefreshPolicy.kt` | **Saf** karar fonksiyonu: `SKIP_UP_TO_DATE` / `DELTA` / `FULL` |
+| `data/sync/SourceListSynchronizer.kt` | Tek giriş noktası: single-flight kilit, revizyon kontrolü, delta→tam düşüş, fark-tabanlı yazım, defter kaydı |
+
+### Değişen dosyalar
+
+| Dosya | Değişiklik |
+|---|---|
+| `data/local/MediaEntryRepository.kt` | `smartImport` → `ImportStats` döner, fark-tabanlı, bekleyen düzenlemeleri korur; `mergeSourcePreservingAdultFlags` eklendi, sil-yeniden-yaz kaldırıldı |
+| `data/auth/AniListImportManager.kt` | `fetchListsSince(...)` (delta) + `mediaList(updatedAt_greater:)` |
+| `data/auth/SimklImportManager.kt` | `fetchActivitiesRevision(...)` (ucuz değişiklik imzası) |
+| `ui/app/AuthViewModel.kt` | 6 içe aktarma fonksiyonu ortak çekirdeğe bağlandı; `syncAllLists()` (staggered); `ListRefreshMode` parametresi; hesap değişince defter sıfırlama |
+| `KitsugiApplication.kt` | Global 24 saatlik blok → kaynak başına politika (6 kaynak, sıralı) |
+| `ui/screens/mylist/MyListScreen.kt` + `MyListComponents.kt` | "Tümü" yenilemesi tek akış; pull-to-refresh göstergesi gerçek senkron durumuna bağlı |
+| `AppRootTabPages.kt` / `AppRootSettingsExtras.kt` / `AppRoot.kt` | `onSyncAll`, sekme→kaynak senkron durumu haritası; ayarlardaki "içe aktar" ve giriş sonrası aktarım **tam** senkron |
+| `core/notifications/AiringNotificationWorker.kt` | Simkl arka plan senkronu fark-tabanlı birleştirmeye geçti |
+
+### Politika eşikleri (`ListRefreshPolicy`)
+
+| Sabit | Değer | Anlamı |
+|---|---|---|
+| `USER_FRESH_WINDOW_MS` | 45 sn | Elle yenilemede bundan yeni veri varsa ağa çıkılmaz |
+| `BACKGROUND_FRESH_WINDOW_MS` | 60 dk | Delta destekleyen kaynaklarda arka plan tazelik penceresi |
+| `BACKGROUND_FULL_ONLY_WINDOW_MS` | 6 saat | **Tam çekim gerektiren** kaynaklarda arka plan penceresi |
+| `DELTA_MAX_FULL_AGE_MS` | 24 saat | Son tam senkron bundan eskiyse delta yerine tam çekim |
+| `DELTA_MAX_AGE_MS` | 6 saat | Son başarılı senkron çok eskiyse delta yerine tam çekim |
+| `MAX_CONSECUTIVE_FAILURES` | 3 | Arka planda art arda hata sonrası geri çekilme |
+| `FAILURE_BACKOFF_MS` | 15 dk | Geri çekilme süresi |
+
+### Davranış matrisi
+
+| Kullanıcı eylemi | AniList | Simkl | MAL / Kitsu / Shikimori / Bangumi |
+|---|---|---|---|
+| Sekme yenile (45 sn içinde tekrar) | ağ yok → "az önce yenilendi" | ağ yok | ağ yok |
+| Sekme yenile | delta (`updatedAt_greater`) | activities imzası; aynıysa ağ yok | tam liste (fark yazımı) |
+| "Tümü"yü yenile | sırayla, her kaynak kendi kararıyla | ← | ← |
+| Uygulama açılışı | 1 saatten yeniyse atla, sonra delta | imza kontrolü | 6 saatten yeniyse atla |
+| Ayarlar → "listeyi içe aktar" / yeni giriş | **tam** senkron | **tam** | **tam** |
+
+---
+
+## 5. Kazanç (tahmini)
+
+1000+ kayıtlı, 6 kaynağı bağlı bir kütüphane için:
+
+- **Ağ:** AniList'te bir bölüm işaretlemesi sonrası ~N/50 sayfa yerine 1 sayfalık delta; Simkl'de değişiklik yoksa 1 küçük `activities` isteği.
+- **Veritabanı:** no-op yenilemede **0** yazım (eskiden ~N satır `updateAll`).
+- **UI:** no-op yenilemede Room emisyonu yok → birleşik kütüphane hesabı ve grid yeniden çizimi yok. Değişiklik varsa yalnızca etkilenen satırlar yazıldığı için tek emisyon.
+- **Arka plan:** altı kaynak aynı anda değil, sırayla; tam çekim gerektiren kaynaklar günde en fazla birkaç kez.
+
+---
+
+## 6. Doğrulama
+
+### Birim testleri (saf JVM)
+```
+app/src/test/java/com/kitsugi/animelist/data/sync/ListRefreshPolicyTest.kt
+app/src/test/java/com/kitsugi/animelist/data/local/MediaEntryPayloadDiffTest.kt
+```
+- Tazelik penceresi, delta/tam kararı, tam uzlaştırma periyodu, hata geri çekilmesi, `force` davranışı, delta başlangıç damgası, defter JSON gidiş-dönüşü.
+- `updatedAt` dışındaki alanlar aynıysa satır "değişmedi" sayılır; bölüm/puan/durum/başlık değişimi yakalanır.
+
+Çalıştırma: `./gradlew :app:testFossDebugUnitTest --tests "*ListRefreshPolicyTest" --tests "*MediaEntryPayloadDiffTest"`
+
+### Elle doğrulama (logcat)
+```
+adb logcat -s KitsugiAutoSync SourceListSynchronizer
+```
+- Açılış: `anilist: +0 yeni, ~0 güncellendi, 812 aynı (delta=true, ... ms)`
+- Simkl değişiklik yoksa: `simkl atlandı: unchanged`
+- İkinci kez yenile: `anilist atlandı: fresh`
+- Ağ trafiği (Charles/HttpToolkit): yenileme sonrası AniList'te yalnızca `updatedAt_greater` sorguları görünür.
+
+### Regresyon kontrol listesi
+1. Listem'de sekme değiştir → liste boşalmıyor, kaydırma konumu korunuyor.
+2. Detay sayfasına gir-çık → birleşik kütüphane yeniden hesaplanmıyor.
+3. Çevrimdışı bölüm işaretle → bağlantı gelince kuyruk gönderiliyor; bu sırada liste yenilemesi yerel değeri **ezmiyor**.
+4. Hesap değiştir (çıkış → farklı hesapla giriş) → liste tam çekiliyor (defter sıfırlandı).
+5. Bangumi yenilemesi sonrası başlıklar hâlâ Latin/İngilizce (CJK'ya dönmüyor).
+
+---
+
+## 7. Bilinçli olarak yapılmayanlar
+
+- **Otomatik silme:** Sunucudan kaldırılan kayıtlar, liste uçları eksik/yarım dönebildiği için varsayılan olarak yerelden **silinmez** (`allowDelete = false`). Bu, ağ hatasında kütüphanenin silinmesini engeller; silme yalnızca kullanıcı eylemleriyle olur. (İleride "tam turda sil" seçeneği politika sabitiyle açılabilir.)
+- **Delta silmeleri göremez:** Bu yüzden tam uzlaştırma 24 saatte bir korunuyor.
+- **Room şeması değişmedi:** Senkron defteri SharedPreferences'ta; migration riski yok.
+
+## 8. Geri alma
+
+Tek geri dönüş noktası politika eşikleridir: `ListRefreshPolicy` sabitlerini büyütmek (ör. `BACKGROUND_FULL_ONLY_WINDOW_MS` → 24 saat) davranışı eski "günde bir" ritmine yaklaştırır. `ListRefreshMode.USER_FORCE` her durumda tam listeyi çeker; acil durumda "Ayarlar → hesap → içe aktar" bu modu kullanır. Defteri sıfırlamak için `SourceListSynchronizer.resetState(context, source)` yeterlidir.

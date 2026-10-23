@@ -55,6 +55,33 @@ object AniListImportManager {
         }
     }
 
+    /**
+     * **Fark (delta) çekimi**: yalnızca [sinceEpochSeconds]'ten sonra değişen liste
+     * kayıtlarını getirir (AniList `mediaList(updatedAt_greater: ...)` süzgeci).
+     *
+     * Neden: liste yenilemesi her seferinde tüm sayfaları (kullanıcı başına yüzlerce
+     * kayıt, 50'lik sayfalar) baştan çekiyordu. Kullanıcı yalnızca 1 bölüm işaretlediyse
+     * değişen tek satırı almak yeterli; tam uzlaştırma (silinenleri de yakalamak için)
+     * periyodik olarak [ListRefreshPolicy] tarafından yapılır.
+     *
+     * NOT: Delta silmeleri GÖREMEZ. Bu yüzden çağıran taraf `allowDelete = false` ile
+     * birleştirmelidir; silme yalnızca tam senkron turunda ele alınır.
+     *
+     * @throws IllegalStateException şema/parametre reddederse (çağıran tam listeye düşer)
+     */
+    suspend fun fetchListsSince(
+        accessToken: String,
+        sinceEpochSeconds: Long
+    ): List<MediaEntry> {
+        return withContext(Dispatchers.IO) {
+            val viewer = fetchViewer(accessToken)
+            val since = sinceEpochSeconds.coerceAtLeast(1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            val anime = fetchMediaEntries(accessToken, viewer.userId, "ANIME", since)
+            val manga = fetchMediaEntries(accessToken, viewer.userId, "MANGA", since)
+            anime + manga
+        }
+    }
+
     private fun fetchViewer(
         accessToken: String
     ): ViewerInfo {
@@ -90,19 +117,33 @@ object AniListImportManager {
     private fun fetchMediaEntries(
         accessToken: String,
         userId: Int,
-        mediaType: String
+        mediaType: String,
+        updatedSinceSec: Int? = null
     ): List<MediaEntry> {
         val allEntries = mutableListOf<MediaEntry>()
         var page = 1
         var hasNextPage = true
 
+        // Delta çekiminde sorguya `updatedAt_greater` süzgeci eklenir; değişken de
+        // yalnızca o durumda gönderilir (tam çekim sorgusu birebir aynı kalır).
+        val deltaFilter = if (updatedSinceSec != null) {
+            ", updatedAt_greater: ${'$'}updatedSince"
+        } else {
+            ""
+        }
+        val deltaVariable = if (updatedSinceSec != null) {
+            ", ${'$'}updatedSince: Int"
+        } else {
+            ""
+        }
+
         val query = """
-            query (${'$'}userId: Int, ${'$'}page: Int) {
+            query (${'$'}userId: Int, ${'$'}page: Int$deltaVariable) {
                 Page(page: ${'$'}page, perPage: 50) {
                     pageInfo {
                         hasNextPage
                     }
-                    mediaList(userId: ${'$'}userId, type: $mediaType, sort: [MEDIA_ID]) {
+                    mediaList(userId: ${'$'}userId, type: $mediaType, sort: [MEDIA_ID]$deltaFilter) {
                         id
                         status
                         progress
@@ -159,6 +200,9 @@ object AniListImportManager {
             val variables = JSONObject()
                 .put("userId", userId)
                 .put("page", page)
+            if (updatedSinceSec != null) {
+                variables.put("updatedSince", updatedSinceSec)
+            }
 
             val response = postGraphQl(
                 accessToken = accessToken,

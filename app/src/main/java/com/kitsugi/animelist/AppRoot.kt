@@ -590,12 +590,14 @@ fun AppRoot(
                     )
 
                     when (event.serviceName) {
-                        "anilist"   -> authViewModel.importAniListAnimeList(latestMediaEntries, mediaRepository)
-                        "simkl"     -> authViewModel.importSimklList(latestMediaEntries, mediaRepository)
-                        "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository)
-                        "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository)
-                        "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository)
-                        else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
+                        // Yeni bağlanan hesabın listesi MUTLAKA taze çekilir (tam senkron):
+                        // "az önce senkron oldu" tazelik penceresi burada uygulanmaz.
+                        "anilist"   -> authViewModel.importAniListAnimeList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
+                        "simkl"     -> authViewModel.importSimklList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
+                        "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
+                        "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
+                        "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
+                        else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
                     }
 
                     launch {

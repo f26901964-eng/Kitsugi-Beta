@@ -847,6 +847,8 @@ fun MyListContentPage(
     pageScrollState: LazyListState,
     onLogin: () -> Unit,
     onRefresh: () -> Unit,
+    /** İlgili kaynağın yenilemesi gerçekten sürüyor mu? Spinner buna göre açık kalır. */
+    isSyncing: Boolean = false,
     onEntryClick: (MediaEntry) -> Unit,
     onIncrementProgress: (MediaEntry) -> Unit,
     onPosterLongClick: (String) -> Unit,
@@ -868,11 +870,17 @@ fun MyListContentPage(
     }
 
     PullToRefreshBox(
-        isRefreshing = pageIsRefreshing,
+        // Spinner, istek gerçekten sürdüğü sürece (kaynak senkronu) açık kalır; eskiden
+        // onRefresh() hemen döndüğü için bir kare yanıp sönüyordu ve yenileme
+        // "hiç olmamış" gibi görünüyordu.
+        isRefreshing = pageIsRefreshing || isSyncing,
         onRefresh = {
             coroutineScope.launch {
                 pageIsRefreshing = true
                 onRefresh()
+                // Veri zaten tazeyse ağa hiç çıkılmaz; en azından kısa bir geri bildirim
+                // gösterelim ki dokunuş "yutulmuş" hissi vermesin.
+                kotlinx.coroutines.delay(400)
                 pageIsRefreshing = false
             }
         },
