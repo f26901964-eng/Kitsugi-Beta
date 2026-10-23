@@ -57,6 +57,22 @@ object KitsugiHttpClient {
     }
 
     /**
+     * MDBList istemcisi: 429'da **yeniden deneme yok**.
+     *
+     * Neden: MDBList'te her istek hesabın günlük kotasından (Free: 1.000/gün) düşer ve
+     * ana [client] içindeki [RetryInterceptor] 429 aldığında aynı isteği 2 kez daha
+     * gönderiyordu. Bu hem kotayı boşa tüketiyor hem de `X-RateLimit-Remaining`
+     * değerinin uygulamada görünen değerden hızlı düşmesine yol açıyordu. Kota zaten
+     * 429 ile kesinleştiği için yeniden denemek yalnızca zarar verir.
+     */
+    val mdbListClient: OkHttpClient by lazy {
+        metadataClient.newBuilder()
+            .callTimeout(15, TimeUnit.SECONDS)
+            .apply { interceptors().removeAll { it is RetryInterceptor } }
+            .build()
+    }
+
+    /**
      * Bangumi istemcisi: [RetryInterceptor] YOK ve 14 sn toplam çağrı tavanı uygulanır.
      */
     val bangumiClient: OkHttpClient by lazy {

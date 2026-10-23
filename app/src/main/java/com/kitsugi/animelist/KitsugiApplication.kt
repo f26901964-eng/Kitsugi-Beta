@@ -191,6 +191,11 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         runCatching { KitsugiEpisodeRatingsRepository.init(this) }
             .onFailure { android.util.Log.e("KitsugiApplication", "RatingsRepository.init hatası: ${it.message}", it) }
 
+        // MDBList API kotası deposu: son okunan X-RateLimit-* değerleri süreçler arasında korunur.
+        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "MdbListClient.initialize")
+        runCatching { com.kitsugi.animelist.data.remote.MdbListClient.initialize(this) }
+            .onFailure { android.util.Log.e("KitsugiApplication", "MdbListClient.init hatası: ${it.message}", it) }
+
         // Bangumi Latin başlık önbelleğini arka planda belleğe al (disk okuması IO kapsamında).
         // "Listem", Bangumi profili ve listeler ilk çizimde kullanıcının seçtiği başlık diline
         // uyabilsin diye önbellek hazır tutulur; hiçbir ağ isteği yapılmaz.

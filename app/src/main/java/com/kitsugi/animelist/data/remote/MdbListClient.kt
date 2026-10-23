@@ -60,6 +60,9 @@ object MdbListClient {
     private data class CacheEntry(val ratings: MdbListRatings, val expiresAt: Long)
     private val cache = BoundedCache<String, CacheEntry>("mdbList", 300)
 
+    /** Uygulama açılışında kalıcı kota deposunu bağlar (bkz. KitsugiApplication). */
+    fun initialize(context: android.content.Context) = MdbListQuotaCenter.bind(context, "")
+
     /**
      * API anahtarını Matrix'in bilinen IMDb ID'si ile sınar.
      * Başarılı HTTP cevabına ek olarak MDBList'in response alanı da doğrulanır.
@@ -75,7 +78,7 @@ object MdbListClient {
             .build()
 
         try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
                 // Doğrulama da gerçek bir API çağrısıdır: dönen başlıklar kotayı günceller.
                 recordQuotaFromResponse(apiKey, response)
                 if (response.code == 429) {
@@ -145,7 +148,7 @@ object MdbListClient {
             .build()
 
         val parsed = try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
                 recordQuotaFromResponse(apiKey, response)
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList request failed: HTTP ${response.code} for $identity")
@@ -215,7 +218,7 @@ object MdbListClient {
             .build()
 
         try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
                 val headerQuota = parseQuotaHeaders(
                     limitHeader = response.header("X-RateLimit-Limit") ?: response.header("RateLimit-Limit"),
                     remainingHeader = response.header("X-RateLimit-Remaining") ?: response.header("RateLimit-Remaining"),

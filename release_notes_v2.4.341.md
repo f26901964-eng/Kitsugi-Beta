@@ -1,46 +1,34 @@
-# Kitsugi Beta v2.4.341 — Arama ortak taksonomi kataloğu
+# Kitsugi Beta v2.4.341
 
-**Tarih:** 2026-10-21 · **Dal:** `arena/dac8a4b1-kitsugi-beta`
+## 🇹🇷 Türkçe
 
-## Türkçe
+### 🔑 MDBList API Kotası Artık Gerçek
+- **Sabit "1.000 / 1.000" bitti:** Kota kutusu artık hesabın gerçek kalan istek sayısını gösteriyor. Değer, MDBList'in her yanıtta döndürdüğü `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` başlıklarından ve `GET https://api.mdblist.com/user` uç noktasından okunuyor.
+- **Yenile düğmesi:** Ayarlar → Entegrasyonlar → MDBList sekmesindeki "API Kotası" kartından tek dokunuşla sunucudan güncel değer alınır; sıfırlanmaya kalan süre canlı geri sayılır.
+- **Doğru plan bilgisi:** Ücretsiz (1.000/gün) ve destekçi kademeleri (10.000–1.500.000/gün) sunucudan gelen `plan` ve `rate_limit` alanlarıyla gösterilir.
+- **Detay sayfası rozeti:** "Harici Puanlar" başlığındaki MDBList rozeti artık gerçek kalan hakkı yazar (ör. `987/1.000`). Sunucudan doğrulanmış değer yoksa sayı uydurulmaz, rozet gizlenir.
+- **Kota dostu istekler:** 429 yanıtlarında yeniden deneme kaldırıldı; her yeniden deneme günlük kotadan bir istek daha harcıyordu. Kota yenileme istekleri 15 dakikada bir ile sınırlandırıldı.
 
-- Arama tür/etiket sayfasındaki sabit 24 tür ve ~170 etiket kaldırıldı. Ortak
-  katalogdan **114 tür, 1.325 etiket** yükleniyor; listeler tembel çiziliyor.
-  `aksiyon`, `action` ve `экшен` aynı `Action` çipini bulur. Seçili sayaç ve
-  **Tümünü temizle** eklendi.
-- **9.457 Latin kurum adı** için rol bazlı seçici: stüdyo, yapımcı, yayıncı,
-  kanal ve dergi. Takma adlar (CJK dâhil) yalnızca arama girdisinde kullanılır;
-  çipler TR/EN'de aynı Latin adla çizilir. Son seçimler yerel olarak hatırlanır.
-- `SearchFilters.organizations` varsayılan boş; önceki filtre ayarları korunur.
-  Kurum seçimi **henüz sonuçları filtrelemez** — kaynak bazlı eşleme sonraki
-  sürümün T55–T60 işidir. Arayüz beklemeyi görünür biçimde bildirir; yalnızca
-  kurum seçerek boş arama başlatılmaz.
-- Üretici: `scripts/gen_taxonomy_catalog.py` (`--check`),
-  `scripts/check_search_catalog.py --check`, Python regresyon testleri ve CI.
-  v2.4.340'ın tamamlanmış ad haritası mevcut Bangumi VAULT TSV mimarisiyle
-  eşitlendi; kurum/etiket senkronu artık Kotlin içi dev listelere bağlı değil.
-- Ham JSON **1.200.090 bayt**, gzip **272.692 bayt** (APK sıkıştırması cihazda
-  ayrıca doğrulanmalı). Cihaz derlemesi bu sandbox'ta JDK/Gradle olmadığı için
-  yapılmadı; Kotlin sözdizimi tree-sitter ve kaynak/parite denetimleriyle geçti.
+### 🧮 Sayım ve Kalıcılık
+- Kota; sunucudan okunan kesin değer + o okumadan sonra uygulamanın yaptığı istekler olarak izlenir. Uç nokta başlık döndürmezse değer "tahmini" olarak etiketlenir, kesin gibi gösterilmez.
+- Son değer API anahtarının SHA-256 parmak iziyle cihazda saklanır; uygulama yeniden açıldığında anında gösterilir. Anahtarın kendisi bu depoya yazılmaz.
+- Gece yarısı (UTC) geçişinde kota otomatik olarak günlük limite döner; kullanıcı hiçbir şey yapmak zorunda değildir.
 
-## English
+---
 
-- The search facet now reads **114 genres and 1,325 tags** from one generated,
-  lazily displayed taxonomy catalog instead of hardcoded lists. Turkish,
-  English, and Russian aliases resolve to the same chip. Selected counts and
-  Clear all are available.
-- A role-based picker searches **9,457 Latin organization names**. Original
-  source spellings are search-only aliases; proper names stay identical in
-  Turkish and English. Recent selections are remembered locally.
-- `SearchFilters.organizations` defaults to empty. **Provider-side organization
-  filtering is not active yet** (T55–T60); the UI explicitly says so and does
-  not launch a query for an organization selection alone.
-- Catalog generation and read-only CI checks added; the existing Bangumi VAULT
-  TSV sources were reconciled with the completed v2.4.340 Latin mappings.
-  1,200,090 raw JSON bytes compress to 272,692 gzip bytes. Android build and
-  device behavior remain unverified without JDK/Gradle in this environment.
+## 🇬🇧 English
 
-**Checks:** `gen_taxonomy_catalog.py --check`, `check_search_catalog.py --check`,
-`test_gen_taxonomy_catalog.py`, TR/EN parity, taxonomy master, 35 fields × 7
-sources audit, both tag sync `--check` commands, Latin-org sync `--check`, CJK
-UI check, tree-sitter Kotlin parse. Provider E2E tests are pending T55–T60.
+### 🔑 Real MDBList API Quota
+- **No more hard-coded "1,000 / 1,000":** the quota card now shows the account's actual remaining requests, read from MDBList's `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset` response headers and from `GET https://api.mdblist.com/user`.
+- **Refresh button:** one tap on the "API Quota" card (Settings → Integrations → MDBList) reads the live value; the time until reset counts down in real time.
+- **Correct plan information:** Free (1,000/day) and supporter tiers (10,000–1,500,000/day) are displayed from the server's `plan` and `rate_limit` fields.
+- **Detail page badge:** the MDBList chip next to "External Ratings" now shows the real remaining quota (e.g. `987/1,000`) and stays hidden until an authoritative value exists — no invented numbers.
+- **Quota-friendly requests:** retries on HTTP 429 were removed (each retry burned another daily request); quota refreshes are limited to once every 15 minutes.
+
+### 🧮 Accounting and Persistence
+- The quota combines the last authoritative server reading with the requests this app made afterwards. When an endpoint returns no rate-limit headers the value is labelled "estimated" instead of being presented as exact.
+- The last value is stored per SHA-256 API-key fingerprint on the device and shown immediately after a restart; the key itself is never written to that store.
+- At UTC midnight the quota rolls over to the daily limit automatically.
+
+### 🧪 Tests
+- `MdbListQuotaTest`: header parsing (including `RateLimit-*` variants, epoch-millis and delta-seconds resets), `/user` JSON parsing, local decrement, UTC rollover, 429 handling and the on-disk format.
