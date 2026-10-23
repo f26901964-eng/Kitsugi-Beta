@@ -24,61 +24,93 @@ object KitsuImportManager {
         }
     }
 
+    /** Kütüphanenin TAMAMINI çeker (tam uzlaştırma turu). */
     suspend fun fetchAllLists(context: Context, token: String, userId: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
-            val entries = KitsuApiClient.fetchAllLibraryEntries(token, userId)
-            val result = mutableListOf<MediaEntry>()
-
-            for (entry in entries) {
-                val isManga = entry.mangaId != null
-                val mediaId = (if (isManga) entry.mangaId else entry.animeId) ?: continue
-                val isAnime = !isManga
-
-                // Cache entry ID for later updates/deletes
-                ExternalAuthManager.saveKitsuLibraryEntryId(context, mediaId, isAnime, entry.id)
-
-                val kitsuStableId = KITSU_OFFSET + mediaId
-                // Gerçek MAL ID biliniyorsa eşleme tablosuna yazıyoruz (çapraz eşitleme ve
-                // Kitsu'ya geri yazım bunu kullanıyor) — ama kütüphane kaydının kimlik alanına
-                // ASLA gerçek MAL ID yazılmaz. `malId` alanı kaynak-bazlı offset'li stableId
-                // taşımak zorunda (MediaIdentity + 300M aralığı); aksi halde Kitsu kaydının
-                // malId'si bir MAL ID'si gibi yorumlanıp alakasız bir yapımın ayrıntısı açılıyor.
-                entry.realMalId?.takeIf { it in 1..99_999_999 }?.let {
-                    ExternalAuthManager.saveKitsuMediaIdForMal(context, it, isAnime, mediaId)
-                }
-                val malIdToStore = kitsuStableId
-                val status = KitsuSyncManager.kitsuStatusToWatchStatus(entry.status)
-                val score = entry.ratingTwenty?.let { kotlin.math.round(it / 2.0).toInt().coerceIn(1, 10) }
-
-                result.add(
-                    MediaEntry(
-                        id = 0,
-                        title = entry.title,
-                        subtitle = "",
-                        titleEnglish = entry.titleEnglish,
-                        titleJapanese = entry.titleJapanese,
-                        imageUrl = entry.imageUrl ?: "",
-                        type = if (isManga) MediaType.Manga else MediaType.Anime,
-                        status = status,
-                        progress = entry.progress,
-                        total = entry.total,
-                        score = score,
-                        isAdult = entry.isAdult,
-                        malId = malIdToStore, // her zaman Kitsu stableId (300M aralığı)
-                        aniListEntryId = null,
-                        source = "kitsu",
-                        notes = entry.notes,
-                        isPrivate = entry.isPrivate,
-                        startDate = entry.startedAt,
-                        endDate = entry.finishedAt,
-                        updatedAt = entry.updatedAt,
-                        // Yıl olmadan kimlik doğrulaması yapılamıyor; aynı isimli yapımlar
-                        // çapraz eşitlemede "inceleme gerekli" diye atlanıyordu.
-                        year = entry.startYear
-                    )
-                )
-            }
-            result
+            mapEntries(context, KitsuApiClient.fetchAllLibraryEntries(token, userId))
         }
+    }
+
+    /**
+     * **Delta (fark) çekimi**: yalnızca [sinceEpochSeconds]'ten sonra değişen kayıtlar.
+     *
+     * Kitsu `library-entries?filter[since]=…` süzgecini destekler (ISO-8601). Bu sayede
+     * tek bir bölüm işaretlemesi için 500'lük sayfaların tamamı çekilmez.
+     * Delta silmeleri göremez → çağıran `allowDelete = false` ile birleştirmelidir.
+     */
+    suspend fun fetchAllListsSince(
+        context: Context,
+        token: String,
+        userId: String,
+        sinceEpochSeconds: Long
+    ): List<MediaEntry> {
+        return withContext(Dispatchers.IO) {
+            // Kitsu tam ISO-8601 bekler; belgelerdeki örnek biçim milisaniyeli:
+            // "2013-03-25T00:00:00.000Z". `Instant.toString()` kesirli saniyeyi atabildiği
+            // için sabit biçimleyici kullanıyoruz (UTC).
+            val sinceIso = java.time.format.DateTimeFormatter
+                .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                .withZone(java.time.ZoneOffset.UTC)
+                .format(java.time.Instant.ofEpochSecond(sinceEpochSeconds.coerceAtLeast(1L)))
+            mapEntries(context, KitsuApiClient.fetchLibraryEntriesSince(token, userId, sinceIso))
+        }
+    }
+
+    private fun mapEntries(
+        context: Context,
+        entries: List<KitsuApiClient.KitsuLibraryEntry>
+    ): List<MediaEntry> {
+        val result = mutableListOf<MediaEntry>()
+
+        for (entry in entries) {
+            val isManga = entry.mangaId != null
+            val mediaId = (if (isManga) entry.mangaId else entry.animeId) ?: continue
+            val isAnime = !isManga
+
+            // Cache entry ID for later updates/deletes
+            ExternalAuthManager.saveKitsuLibraryEntryId(context, mediaId, isAnime, entry.id)
+
+            val kitsuStableId = KITSU_OFFSET + mediaId
+            // Gerçek MAL ID biliniyorsa eşleme tablosuna yazıyoruz (çapraz eşitleme ve
+            // Kitsu'ya geri yazım bunu kullanıyor) — ama kütüphane kaydının kimlik alanına
+            // ASLA gerçek MAL ID yazılmaz. `malId` alanı kaynak-bazlı offset'li stableId
+            // taşımak zorunda (MediaIdentity + 300M aralığı); aksi halde Kitsu kaydının
+            // malId'si bir MAL ID'si gibi yorumlanıp alakasız bir yapımın ayrıntısı açılıyor.
+            entry.realMalId?.takeIf { it in 1..99_999_999 }?.let {
+                ExternalAuthManager.saveKitsuMediaIdForMal(context, it, isAnime, mediaId)
+            }
+            val malIdToStore = kitsuStableId
+            val status = KitsuSyncManager.kitsuStatusToWatchStatus(entry.status)
+            val score = entry.ratingTwenty?.let { kotlin.math.round(it / 2.0).toInt().coerceIn(1, 10) }
+
+            result.add(
+                MediaEntry(
+                    id = 0,
+                    title = entry.title,
+                    subtitle = "",
+                    titleEnglish = entry.titleEnglish,
+                    titleJapanese = entry.titleJapanese,
+                    imageUrl = entry.imageUrl ?: "",
+                    type = if (isManga) MediaType.Manga else MediaType.Anime,
+                    status = status,
+                    progress = entry.progress,
+                    total = entry.total,
+                    score = score,
+                    isAdult = entry.isAdult,
+                    malId = malIdToStore, // her zaman Kitsu stableId (300M aralığı)
+                    aniListEntryId = null,
+                    source = "kitsu",
+                    notes = entry.notes,
+                    isPrivate = entry.isPrivate,
+                    startDate = entry.startedAt,
+                    endDate = entry.finishedAt,
+                    updatedAt = entry.updatedAt,
+                    // Yıl olmadan kimlik doğrulaması yapılamıyor; aynı isimli yapımlar
+                    // çapraz eşitlemede "inceleme gerekli" diye atlanıyordu.
+                    year = entry.startYear
+                )
+            )
+        }
+        return result
     }
 }

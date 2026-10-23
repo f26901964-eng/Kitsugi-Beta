@@ -387,8 +387,12 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                 if (!kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()) {
                     runSource(
                         source = "kitsu",
-                        supportsDelta = false,
-                        fetchFull = { com.kitsugi.animelist.data.auth.KitsuImportManager.fetchAllLists(app, kitsuToken, kitsuUserId) }
+                        supportsDelta = true,
+                        fetchFull = { com.kitsugi.animelist.data.auth.KitsuImportManager.fetchAllLists(app, kitsuToken, kitsuUserId) },
+                        fetchDelta = { since ->
+                            com.kitsugi.animelist.data.auth.KitsuImportManager
+                                .fetchAllListsSince(app, kitsuToken, kitsuUserId, since)
+                        }
                     )
                 }
 

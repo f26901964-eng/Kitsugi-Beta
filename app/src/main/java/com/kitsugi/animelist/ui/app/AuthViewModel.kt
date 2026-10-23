@@ -2439,8 +2439,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 repository = repository,
                 source = SourceListSynchronizer.KITSU,
                 mode = mode,
-                supportsDelta = false,
-                fetchFull = { KitsuImportManager.fetchAllLists(context, token, userId) }
+                // Kitsu `library-entries?filter[since]=…` destekliyor → delta mümkün.
+                supportsDelta = true,
+                fetchFull = { KitsuImportManager.fetchAllLists(context, token, userId) },
+                fetchDelta = { since ->
+                    KitsuImportManager.fetchAllListsSince(context, token, userId, since)
+                }
             )
             if (outcome is ListRefreshOutcome.Completed) {
                 runSyncCatching {

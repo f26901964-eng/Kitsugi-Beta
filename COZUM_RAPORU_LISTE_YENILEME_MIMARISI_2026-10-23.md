@@ -114,9 +114,9 @@ Tek bir `last_list_sync_ms` vardı:
 | **AniList** | `updatedAt_greater` süzgeci | Delta (uç reddederse sessizce tam listeye düşer) + günde bir tam uzlaştırma |
 | **Simkl** | `GET /sync/activities` (ucuz revizyon imzası) | İmza aynıysa liste hiç indirilmez; değiştiyse tam liste |
 | **MyAnimeList** | Liste uçlarında "değişenler" parametresi yok | TTL (arka planda 6 saat) + fark-tabanlı yazım |
-| **Kitsu** | JSON:API sayfalı liste | TTL + fark-tabanlı yazım |
-| **Shikimori** | `/users/:id/anime_rates` sayfalı | TTL + fark-tabanlı yazım |
-| **Bangumi** | `/users/:user/collections` sayfalı | TTL + fark-tabanlı yazım |
+| **Kitsu** | `filter[since]=<ISO-8601>` (yalnızca o tarihten sonra **değişen** kayıtlar) | Delta + günde bir tam uzlaştırma (delta silmeleri göremez) |
+| **Shikimori** | Yok — `/api/v2/user_rates` süzgeçleri: `user_id`, `target_id`, `target_type`, `status`, `page`; `updated_at` sıralaması/süzgeci upstream'de yok ("someday") | TTL (arka planda 6 saat) + fark-tabanlı yazım |
+| **Bangumi** | Yok — `/users/:user/collections` sayfalı, değişiklik parametresi yok | TTL (arka planda 6 saat) + fark-tabanlı yazım |
 
 ---
 
@@ -137,6 +137,8 @@ Tek bir `last_list_sync_ms` vardı:
 | `data/local/MediaEntryRepository.kt` | `smartImport` → `ImportStats` döner, fark-tabanlı, bekleyen düzenlemeleri korur; `mergeSourcePreservingAdultFlags` eklendi, sil-yeniden-yaz kaldırıldı |
 | `data/auth/AniListImportManager.kt` | `fetchListsSince(...)` (delta) + `mediaList(updatedAt_greater:)` |
 | `data/auth/SimklImportManager.kt` | `fetchActivitiesRevision(...)` (ucuz değişiklik imzası) |
+| `data/auth/KitsuApiClient.kt` | `fetchLibraryEntries(sinceIso:)` + `fetchLibraryEntriesSince(...)`: `filter[since]` deltası |
+| `data/auth/KitsuImportManager.kt` | `fetchAllListsSince(...)` (ISO-8601 biçimleme) — Kitsu artık gerçek delta kullanıyor |
 | `ui/app/AuthViewModel.kt` | 6 içe aktarma fonksiyonu ortak çekirdeğe bağlandı; `syncAllLists()` (staggered); `ListRefreshMode` parametresi; hesap değişince defter sıfırlama |
 | `KitsugiApplication.kt` | Global 24 saatlik blok → kaynak başına politika (6 kaynak, sıralı) |
 | `ui/screens/mylist/MyListScreen.kt` + `MyListComponents.kt` | "Tümü" yenilemesi tek akış; pull-to-refresh göstergesi gerçek senkron durumuna bağlı |
@@ -157,12 +159,12 @@ Tek bir `last_list_sync_ms` vardı:
 
 ### Davranış matrisi
 
-| Kullanıcı eylemi | AniList | Simkl | MAL / Kitsu / Shikimori / Bangumi |
-|---|---|---|---|
-| Sekme yenile (45 sn içinde tekrar) | ağ yok → "az önce yenilendi" | ağ yok | ağ yok |
-| Sekme yenile | delta (`updatedAt_greater`) | activities imzası; aynıysa ağ yok | tam liste (fark yazımı) |
+| Kullanıcı eylemi | AniList | Simkl | Kitsu | MAL / Shikimori / Bangumi |
+|---|---|---|---|---|
+| Sekme yenile (45 sn içinde tekrar) | ağ yok → "az önce yenilendi" | ağ yok | ağ yok | ağ yok |
+| Sekme yenile | delta (`updatedAt_greater`) | activities imzası; aynıysa ağ yok | delta (`filter[since]`) | tam liste (fark yazımı) |
 | "Tümü"yü yenile | sırayla, her kaynak kendi kararıyla | ← | ← |
-| Uygulama açılışı | 1 saatten yeniyse atla, sonra delta | imza kontrolü | 6 saatten yeniyse atla |
+| Uygulama açılışı | 1 saatten yeniyse atla, sonra delta | imza kontrolü | 1 saatten yeniyse atla, sonra delta | 6 saatten yeniyse atla |
 | Ayarlar → "listeyi içe aktar" / yeni giriş | **tam** senkron | **tam** | **tam** |
 
 ---
