@@ -312,7 +312,10 @@ class KitsugiBangumiDetailClientTest {
             detail.producers.map { it.name }
         )
         // Ana + diğer kanallar birleşir
-        assertEquals(listOf("TBS", "MBS", "RKB", "CBC", "BS-TBS"), detail.networks.map { it.name })
+        assertEquals(
+            listOf("TBS", "Mainichi Broadcasting", "RKB Mainichi Broadcasting", "CBC", "BS-TBS"),
+            detail.networks.map { it.name }
+        )
         assertEquals(9, detail.score)
         assertEquals(92, detail.meanScore)
         assertEquals(1, detail.rank)

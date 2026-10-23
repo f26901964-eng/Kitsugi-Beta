@@ -204,7 +204,7 @@ class BangumiMasterDictionaryTest {
             assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
             assertEquals("Monthly Wings", "月刊ウィングス".toLocalizedOrgName())
             assertEquals("CoMix Wave Films", "コミックス・ウェーブ・フィルム".toLocalizedOrgName())
-            assertEquals("森下勝司", "森下勝司".toLocalizedOrgName())
+            assertEquals("Morishita Katsuji", "森下勝司".toLocalizedOrgName())
             assertEquals("Clannad製作委員会", "Clannad製作委員会".toLocalizedOrgName())
 
             java.util.Locale.setDefault(java.util.Locale.ENGLISH)
@@ -220,7 +220,7 @@ class BangumiMasterDictionaryTest {
             assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
             assertEquals("Monthly Wings", "月刊ウィングス".toLocalizedOrgName())
             assertEquals("CoMix Wave Films", "コミックス・ウェーブ・フィルム".toLocalizedOrgName())
-            assertEquals("森下勝司", "森下勝司".toLocalizedOrgName())
+            assertEquals("Morishita Katsuji", "森下勝司".toLocalizedOrgName())
             assertEquals("Clannad製作委員会", "Clannad製作委員会".toLocalizedOrgName())
         } finally {
             java.util.Locale.setDefault(prev)
