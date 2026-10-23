@@ -445,6 +445,8 @@ fun ApiResultDetailPage(
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
     var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
+    // Kaynak seçicisinden açıldığında galeri bu kaynağa filtrelenir (kapatınca sıfırlanır).
+    var activeGallerySource by remember { mutableStateOf<String?>(null) }
     val galleryItems by viewModel.galleryItems.collectAsState()
 
     val listState = rememberLazyListState()
@@ -749,8 +751,11 @@ fun ApiResultDetailPage(
                                     onOpenSourceGallery = { source ->
                                         val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
                                         if (sourceItems.isNotEmpty()) {
-                                            activeGalleryCategory = sourceItems.first().category
-                                            if (!galleryLoading) activeGalleryItems = sourceItems
+                                            // Tüm galeri verilir; galeri içindeki "Kaynak" listesinden
+                                            // başka kaynaklara geçilebildiği için liste daraltılmaz.
+                                            activeGalleryCategory = null
+                                            activeGallerySource = source
+                                            if (!galleryLoading) activeGalleryItems = galleryItems
                                             activeGalleryIndex = 0
                                         }
                                     }
@@ -1052,12 +1057,15 @@ fun ApiResultDetailPage(
         KitsugiImageGalleryDialog(
             galleryItems = activeGalleryItems,
             initialIndex = activeGalleryIndex,
-            initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
+            initialCategory = if (activeGallerySource != null) null
+                else activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
+            initialSource = activeGallerySource,
             title = displayResult.title,
             isAdult = displayResult.isAdult,
             onDismiss = {
                 activeGalleryItems = emptyList()
                 activeGalleryCategory = null
+                activeGallerySource = null
             }
         )
     }
