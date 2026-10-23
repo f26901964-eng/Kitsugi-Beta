@@ -180,6 +180,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     var isSimklSessionExpired by mutableStateOf(false)
         private set
 
+    /** `E95`: sunucu tarafında düşen oturumlar (yeniden bağlanana kadar `true`). */
+    var isAniListSessionExpired by mutableStateOf(false)
+        private set
+    var isMalSessionExpired by mutableStateOf(false)
+        private set
+    var isKitsuSessionExpired by mutableStateOf(false)
+        private set
+    var isShikimoriSessionExpired by mutableStateOf(false)
+        private set
+    var isBangumiSessionExpired by mutableStateOf(false)
+        private set
+
     var isAniListImportRunning by mutableStateOf(false)
         private set
 
@@ -583,7 +595,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
                 val showAdult = settingsDataStore.settingsFlow.first().showAdultContent
-                MalImportManager.fetchAllLists(token, showAdult)
+                MalImportManager.fetchAllLists(token, showAdult, context)
             }.onSuccess { importedEntries ->
                 val importResult = runCatching {
                     repository.smartImport("mal", importedEntries, allowDelete = false)

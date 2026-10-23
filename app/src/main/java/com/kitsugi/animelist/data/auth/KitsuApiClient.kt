@@ -169,6 +169,12 @@ object KitsuApiClient {
 
     private val KITSU_DATE_REGEX = Regex("""\d{4}-\d{2}-\d{2}""")
 
+    class KitsuTokenException(
+        val status: Int,
+        val errorCode: String?,
+        message: String
+    ) : Exception(message)
+
     /**
      * Kullanıcı adı / e-posta ve şifre ile Kitsu OAuth Bearer token alır.
      */
@@ -212,6 +218,50 @@ object KitsuApiClient {
             KitsuTokenResponse(
                 accessToken = json.getString("access_token"),
                 refreshToken = json.optString("refresh_token", ""),
+                expiresIn = json.optLong("expires_in", 2592000L)
+            )
+        }
+    }
+
+    /**
+     * Kitsu OAuth `refresh_token` ile yeni bir Bearer `access_token` alır (`E85`).
+     * Kitsu access token ömrü varsayılan olarak 30 gündür (2592000 sn); süre dolduğunda
+     * veya sunucu HTTP 401 döndürdüğünde oturumu düşürmek yerine sessizce yenilenir.
+     */
+    suspend fun refreshToken(
+        refreshToken: String,
+        clientId: String = DEFAULT_CLIENT_ID,
+        clientSecret: String = DEFAULT_CLIENT_SECRET
+    ): KitsuTokenResponse = withContext(Dispatchers.IO) {
+        val formBody = okhttp3.FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken.trim())
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
+            .build()
+
+        val request = Request.Builder()
+            .url(OAUTH_URL)
+            .addHeader("Accept", "application/json")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .post(formBody)
+            .build()
+
+        executeWithHostFallback(request).use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val errorType = runCatching { JSONObject(body).optString("error", "") }.getOrDefault("")
+                val errorDesc = runCatching { JSONObject(body).optString("error_description", "") }.getOrDefault("")
+                throw KitsuTokenException(
+                    status = response.code,
+                    errorCode = errorType.ifBlank { null },
+                    message = "Kitsu token yenileme hatası (HTTP ${response.code}): ${errorDesc.ifBlank { errorType }}"
+                )
+            }
+            val json = JSONObject(body)
+            KitsuTokenResponse(
+                accessToken = json.getString("access_token"),
+                refreshToken = json.optString("refresh_token", "").ifBlank { refreshToken.trim() },
                 expiresIn = json.optLong("expires_in", 2592000L)
             )
         }
@@ -799,9 +849,13 @@ object KitsuApiClient {
     }
 
     /**
-     * Kitsu kütüphanesinden kaydı siler (DELETE).
+     * Kitsu kütüphanesinden kaydı siler (DELETE) ve ayrıntılı HTTP sonucu döndürür.
+     *
+     * Not: Kitsu Rails sunucusu zaten silinmiş bir `entryId` için 404 yanında
+     * `500 Couldn't find LibraryEntry` döndürebilir (Mihon/Aniyomi Kitsu davranışı);
+     * her iki durum da idempotent başarı kabul edilir.
      */
-    suspend fun deleteLibraryEntry(token: String, entryId: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun deleteLibraryEntryDetailed(token: String, entryId: String): KitsuWriteResult = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("$BASE_URL/library-entries/$entryId")
             .addHeader("Accept", "application/vnd.api+json")
@@ -811,9 +865,28 @@ object KitsuApiClient {
             .build()
 
         executeWithHostFallback(request).use { response ->
-            response.isSuccessful || response.code == 404
+            val body = response.body?.string().orEmpty()
+            val alreadyGone = response.code == 404 ||
+                (response.code == 500 && body.contains("Couldn't find LibraryEntry", ignoreCase = true))
+            if (response.isSuccessful || alreadyGone) {
+                KitsuWriteResult(success = true, entryId = entryId, httpCode = response.code)
+            } else {
+                val snippet = errorSnippet(body)
+                KitsuWriteResult(
+                    success = false,
+                    errorMessage = "HTTP ${response.code}${if (snippet.isNotBlank()) ": $snippet" else ""}",
+                    rateLimited = response.code == 429,
+                    httpCode = response.code
+                )
+            }
         }
     }
+
+    /**
+     * Kitsu kütüphanesinden kaydı siler (DELETE).
+     */
+    suspend fun deleteLibraryEntry(token: String, entryId: String): Boolean =
+        deleteLibraryEntryDetailed(token, entryId).success
 
     /**
      * Kitsu'nun resmi `mappings` tablosu üzerinden harici bir kimliği (MAL/AniList) Kitsu medya ID'sine çevirir.

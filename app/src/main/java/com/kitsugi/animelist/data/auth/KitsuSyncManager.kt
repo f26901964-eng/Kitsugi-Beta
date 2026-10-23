@@ -126,6 +126,52 @@ object KitsuSyncManager {
         return null
     }
 
+    private fun isKitsuUnauthorized(text: String?): Boolean {
+        val msg = text?.lowercase() ?: return false
+        return msg.contains("http 401") ||
+            msg.contains("unauthorized") ||
+            msg.contains("invalid token") ||
+            msg.contains("access token is invalid") ||
+            msg.contains("access token expired")
+    }
+
+    /**
+     * Kitsu işlemini geçerli (gerekirse yenilenmiş) token ile çalıştırır; sunucu HTTP 401
+     * döndürürse zorla yeni bir `access_token` alıp işlemi **bir kez** yeniden dener (`E85`).
+     */
+    private suspend fun executeWithKitsuAuthRetry(
+        context: Context,
+        block: suspend (activeToken: String) -> SyncResult
+    ): SyncResult {
+        val initialToken = ExternalAuthManager.getOrRefreshKitsuToken(context)
+        if (initialToken.isNullOrBlank()) {
+            return SyncResult(
+                messages = emptyList(),
+                errors = listOf("Kitsu: HTTP 401 — Kitsu oturumu sona erdi, Ayarlar > Kitsu bölümünden tekrar giriş yapın")
+            )
+        }
+        suspend fun runOnce(activeToken: String): Result<SyncResult> = runSyncCatching {
+            block(activeToken)
+        }
+        val firstAttempt = runOnce(initialToken)
+        val firstUnauthorized = firstAttempt.fold(
+            onSuccess = { res -> res.errors.any { isKitsuUnauthorized(it) } },
+            onFailure = { err -> isKitsuUnauthorized(err.message) }
+        )
+        if (!firstUnauthorized) {
+            return firstAttempt.getOrThrow()
+        }
+        val refreshed = ExternalAuthManager.forceRefreshKitsuToken(context)
+        if (refreshed.isNullOrBlank()) {
+            ExternalAuthManager.markSessionExpired(context, "kitsu")
+            return SyncResult(
+                messages = emptyList(),
+                errors = listOf("Kitsu: HTTP 401 — Kitsu oturumu sona erdi, Ayarlar > Kitsu bölümünden tekrar giriş yapın")
+            )
+        }
+        return runOnce(refreshed).getOrThrow()
+    }
+
     /**
      * Bir MediaEntry'yi kullanıcının Kitsu kütüphanesine senkronize eder.
      */
@@ -142,10 +188,8 @@ object KitsuSyncManager {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
-        val token = ExternalAuthManager.getKitsuToken(context)
         val userId = ExternalAuthManager.getKitsuUserId(context)
-
-        if (token.isNullOrBlank() || userId.isNullOrBlank()) {
+        if (userId.isNullOrBlank()) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Kitsu")))
         }
 
@@ -185,14 +229,9 @@ object KitsuSyncManager {
         fun changedAttributes(): org.json.JSONObject = org.json.JSONObject().apply {
             if (SyncField.STATUS in fields) {
                 put("status", status)
-                // `reconsuming` yalnızca `current` durumuyla anlamlıdır. Kitsu'da
-                // `completed` + `reconsuming=true` çelişkili bir kayıttır ve bayrak
-                // "tekrar izleniyor" göstergesini kalıcı olarak açık bırakabilir.
                 put("reconsuming", reconsuming && status == "current")
             }
             if (SyncField.PROGRESS in fields) put("progress", entry.progress)
-            // PUAN: Kitsu aralığı 2..20 (0/1 geçersiz). Temizleme yalnızca kullanıcı puanı
-            // gerçekten SİLDİĞİNDE (diff) yapılır; tam yazımda (ALL) boş puan uzaktaki puanı silmez.
             if (SyncField.SCORE in fields) {
                 when {
                     ratingTwenty != null -> put("ratingTwenty", ratingTwenty)
@@ -200,7 +239,6 @@ object KitsuSyncManager {
                 }
             }
             if (SyncField.REWATCH_COUNT in fields) put("reconsumeCount", entry.repeatCount)
-            // Tarih/not: aynı kural — ALL'da boş değer gönderilmez, diff'te gönderilir (temizler).
             if (SyncField.START_DATE in fields) {
                 val startedAt = KitsuApiClient.toKitsuDateTime(entry.startDate)
                 when (SyncDates.action(entry.startDate, startedAt, fullWrite)) {
@@ -227,109 +265,93 @@ object KitsuSyncManager {
             if (SyncField.PRIVATE in fields) put("private", entry.isPrivate)
         }
 
-        val messages = mutableListOf<String>()
-        val errors = mutableListOf<String>()
+        executeWithKitsuAuthRetry(context) { token ->
+            val messages = mutableListOf<String>()
+            val errors = mutableListOf<String>()
 
-        // Birleştirilmiş ilerleme (ör. AniList 13/13) Kitsu'daki bölüm sayısından (12) büyük olabilir;
-        // Kitsu bunu 422 "cannot exceed length of media" ile reddeder. Böyle bir hatada medya uzunluğunu
-        // alıp ilerlemeyi o sınıra indirerek bir kez daha yazarız. Kayıt ve durum değişmez.
-        var cappedProgressTo: Int? = null
-        suspend fun writeWithLengthGuard(
-            write: suspend (Int) -> KitsuApiClient.KitsuWriteResult
-        ): KitsuApiClient.KitsuWriteResult {
-            val first = write(entry.progress)
-            if (first.success || !KitsuApiClient.isMediaLengthError(first.errorMessage)) return first
-            val cap = KitsuApiClient.fetchMediaLength(kitsuMediaId, isAnime) ?: return first
-            if (cap >= entry.progress) return first
-            val capped = write(cap)
-            if (capped.success) cappedProgressTo = cap
-            return capped
-        }
-
-        // A stale cached library-entry ID is not evidence that a remote record exists.
-        val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
-        if (existingEntryId != null) {
-            ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, existingEntryId)
-        }
-
-        val cappedNote = {
-            cappedProgressTo?.let { context.getString(R.string.kitsu_sync_progress_capped, entry.progress, it) }.orEmpty()
-        }
-
-        if (existingEntryId != null) {
-            val attributes = changedAttributes()
-            // Uzunluk sınırı yalnızca ilerleme yazarken tetiklenebilir; attributes'ı o an kopyalarız.
-            if (SyncField.PROGRESS in fields) attributes.put("progress", entry.progress)
-            // Hiçbir attribute kalmadıysa (ör. yalnız Kitsu'nun desteklemediği bir alan değişti)
-            // istek ATILMAZ ve "Kitsu güncellendi" mesajı da verilmez: boş PATCH göndermek
-            // yerine "değişiklik yok" demek doğrudur.
-            if (attributes.length() == 0) {
-                return@withContext SyncResult(messages = emptyList(), errors = emptyList())
+            var cappedProgressTo: Int? = null
+            suspend fun writeWithLengthGuard(
+                write: suspend (Int) -> KitsuApiClient.KitsuWriteResult
+            ): KitsuApiClient.KitsuWriteResult {
+                val first = write(entry.progress)
+                if (first.success || !KitsuApiClient.isMediaLengthError(first.errorMessage)) return first
+                val cap = KitsuApiClient.fetchMediaLength(kitsuMediaId, isAnime) ?: return first
+                if (cap >= entry.progress) return first
+                val capped = write(cap)
+                if (capped.success) cappedProgressTo = cap
+                return capped
             }
-            val result = writeWithLengthGuard { p ->
-                if (SyncField.PROGRESS in fields) attributes.put("progress", p)
-                KitsuApiClient.patchLibraryEntry(
-                    token = token,
-                    entryId = existingEntryId,
-                    attributes = attributes
-                )
+
+            val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
+            if (existingEntryId != null) {
+                ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, existingEntryId)
             }
-            if (result.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
-            else errors.add(context.getString(R.string.account_sync_entry_update_failed, "Kitsu", entry.title, result.errorMessage ?: context.getString(R.string.account_sync_unknown_error)))
-        } else {
-            val created = writeWithLengthGuard { p ->
-                KitsuApiClient.createLibraryEntryDetailed(
-                    token = token,
-                    userId = userId,
-                    kitsuMediaId = kitsuMediaId,
-                    isAnime = isAnime,
-                    status = status,
-                    progress = p,
-                    ratingTwenty = ratingTwenty,
-                    extras = kitsuExtras
-                )
+
+            val cappedNote = {
+                cappedProgressTo?.let { context.getString(R.string.kitsu_sync_progress_capped, entry.progress, it) }.orEmpty()
             }
-            if (created.success && created.entryId != null) {
-                ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, created.entryId)
-                messages.add(context.getString(R.string.account_sync_entry_added, "Kitsu", entry.title) + cappedNote())
+
+            if (existingEntryId != null) {
+                val attributes = changedAttributes()
+                if (SyncField.PROGRESS in fields) attributes.put("progress", entry.progress)
+                if (attributes.length() == 0) {
+                    return@executeWithKitsuAuthRetry SyncResult(messages = emptyList(), errors = emptyList())
+                }
+                val result = writeWithLengthGuard { p ->
+                    if (SyncField.PROGRESS in fields) attributes.put("progress", p)
+                    KitsuApiClient.patchLibraryEntry(
+                        token = token,
+                        entryId = existingEntryId,
+                        attributes = attributes
+                    )
+                }
+                if (result.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
+                else errors.add(context.getString(R.string.account_sync_entry_update_failed, "Kitsu", entry.title, result.errorMessage ?: context.getString(R.string.account_sync_unknown_error)))
             } else {
-                // Kayıt zaten Kitsu'da var olabilir (HTTP 422 "already exists") -> ID'yi bulup güncellemeyi dene
-                val fallbackId = runSyncCatching {
-                    KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
-                }.getOrNull()
-                if (fallbackId != null) {
-                    ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, fallbackId)
-                    val fallbackAttributes = changedAttributes()
-                    val updated = writeWithLengthGuard { p ->
-                        if (SyncField.PROGRESS in fields) fallbackAttributes.put("progress", p)
-                        KitsuApiClient.patchLibraryEntry(
-                            token = token,
-                            entryId = fallbackId,
-                            attributes = fallbackAttributes
-                        )
-                    }
-                    if (updated.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
-                    else errors.add(context.getString(R.string.account_sync_entry_update_failed, "Kitsu", entry.title, updated.errorMessage ?: context.getString(R.string.account_sync_unknown_error)))
+                val created = writeWithLengthGuard { p ->
+                    KitsuApiClient.createLibraryEntryDetailed(
+                        token = token,
+                        userId = userId,
+                        kitsuMediaId = kitsuMediaId,
+                        isAnime = isAnime,
+                        status = status,
+                        progress = p,
+                        ratingTwenty = ratingTwenty,
+                        extras = kitsuExtras
+                    )
+                }
+                if (created.success && created.entryId != null) {
+                    ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, created.entryId)
+                    messages.add(context.getString(R.string.account_sync_entry_added, "Kitsu", entry.title) + cappedNote())
                 } else {
-                    errors.add(context.getString(R.string.account_sync_entry_add_failed, "Kitsu", entry.title, created.errorMessage ?: context.getString(R.string.account_sync_unknown_error), kitsuMediaId, resolved.via))
+                    val fallbackId = runSyncCatching {
+                        KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
+                    }.getOrNull()
+                    if (fallbackId != null) {
+                        ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, fallbackId)
+                        val fallbackAttributes = changedAttributes()
+                        val updated = writeWithLengthGuard { p ->
+                            if (SyncField.PROGRESS in fields) fallbackAttributes.put("progress", p)
+                            KitsuApiClient.patchLibraryEntry(
+                                token = token,
+                                entryId = fallbackId,
+                                attributes = fallbackAttributes
+                            )
+                        }
+                        if (updated.success) messages.add(context.getString(R.string.account_sync_entry_updated, "Kitsu", entry.title) + cappedNote())
+                        else errors.add(context.getString(R.string.account_sync_entry_update_failed, "Kitsu", entry.title, updated.errorMessage ?: context.getString(R.string.account_sync_unknown_error)))
+                    } else {
+                        errors.add(context.getString(R.string.account_sync_entry_add_failed, "Kitsu", entry.title, created.errorMessage ?: context.getString(R.string.account_sync_unknown_error), kitsuMediaId, resolved.via))
+                    }
                 }
             }
-        }
 
-        SyncResult(messages = messages, errors = errors, resolvedVia = resolved.via)
+            SyncResult(messages = messages, errors = errors, resolvedVia = resolved.via)
+        }
     }
 
     /**
      * Kitsu kütüphanesinden kaydı siler.
-     *
-     * Medya kimliği [syncEntryToKitsu] ile AYNI güvenilirlik zincirinden çözülür (bilinen
-     * kimlik → yerel eşleme önbelleği → Kitsu mappings → ARM → sıkı başlık araması). Eski
-     * davranış yalnızca satırın kendi namespace'ini ve MAL önbelleğini kontrol ediyordu;
-     * çapraz eşitlemede [CrossProviderIdentityResolver]'ın çözdüğü Kitsu kimliği yok sayılıyor
-     * ve "medya kimliği bulunamadı" bir **hata** olarak raporlanıyordu — silme işlemi haksız
-     * yere "Çevrimdışı kaydedildi" kuyruğuna düşüyordu.
-     *
-     * @param knownKitsuMediaId Çapraz kimlik katmanının önceden çözdüğü Kitsu medya kimliği.
      */
     suspend fun deleteEntryFromKitsu(
         context: Context,
@@ -340,17 +362,14 @@ object KitsuSyncManager {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
-        val token = ExternalAuthManager.getKitsuToken(context)
-        if (token.isNullOrBlank()) {
+        val isAnime = entry.type != MediaType.Manga
+        val userId = ExternalAuthManager.getKitsuUserId(context)
+        if (userId.isNullOrBlank()) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Kitsu")))
         }
 
-        val isAnime = entry.type != MediaType.Manga
-
         val resolved = resolveKitsuMediaId(context, entry, knownKitsuMediaId, isAnime)
         if (resolved == null) {
-            // Eşleştirilemedi: katalogda karşılığı olmayan ya da hiçbir güvenilir kimlikle
-            // bulunamayan kayıt. Hata değil atlandı — kuyrukta yeniden denenmeyecek.
             return@withContext SyncResult(
                 messages = emptyList(),
                 errors = listOf(context.getString(R.string.account_sync_media_id_not_found, "Kitsu")),
@@ -359,19 +378,20 @@ object KitsuSyncManager {
         }
         val kitsuMediaId = resolved.id
 
-        val userId = ExternalAuthManager.getKitsuUserId(context)
-            ?: error(context.getString(R.string.account_sync_kitsu_user_id_missing))
-        val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
-
-        if (existingEntryId != null) {
-            val success = KitsuApiClient.deleteLibraryEntry(token, existingEntryId)
-            if (success) ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId, isAnime)
-            if (success) SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_deleted, "Kitsu", entry.title)))
-            else SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_entry_delete_failed, "Kitsu")))
-        } else {
-            // Medya bulunuyor ama kullanıcının kütüphanesinde kayıt yok: silme zaten amaca
-            // ulaştı (idempotent başarı sayılır).
-            SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_already_missing, "Kitsu", entry.title)))
+        executeWithKitsuAuthRetry(context) { token ->
+            val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
+            if (existingEntryId != null) {
+                val deleted = KitsuApiClient.deleteLibraryEntryDetailed(token, existingEntryId)
+                if (deleted.success) {
+                    ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId, isAnime)
+                    SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_deleted, "Kitsu", entry.title)))
+                } else {
+                    val detail = deleted.errorMessage ?: context.getString(R.string.account_sync_entry_delete_failed, "Kitsu")
+                    SyncResult(messages = emptyList(), errors = listOf("Kitsu: $detail"))
+                }
+            } else {
+                SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_already_missing, "Kitsu", entry.title)))
+            }
         }
     }
 }

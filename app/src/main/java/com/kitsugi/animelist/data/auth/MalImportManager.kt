@@ -38,32 +38,60 @@ object MalImportManager {
 
     suspend fun fetchAnimeList(
         accessToken: String,
-        showAdultContent: Boolean = false
+        showAdultContent: Boolean = false,
+        context: android.content.Context? = null
     ): List<MediaEntry> {
         val url = buildAnimeListUrl(showAdultContent)
         return withContext(Dispatchers.IO) {
-            fetchPaginatedList(accessToken, url)
+            fetchWithOptionalAuthRetry(accessToken, context) { active ->
+                fetchPaginatedList(active, url)
+            }
         }
     }
 
     suspend fun fetchMangaList(
         accessToken: String,
-        showAdultContent: Boolean = false
+        showAdultContent: Boolean = false,
+        context: android.content.Context? = null
     ): List<MediaEntry> {
         val url = buildMangaListUrl(showAdultContent)
         return withContext(Dispatchers.IO) {
-            fetchPaginatedList(accessToken, url)
+            fetchWithOptionalAuthRetry(accessToken, context) { active ->
+                fetchPaginatedList(active, url)
+            }
         }
     }
 
     suspend fun fetchAllLists(
         accessToken: String,
-        showAdultContent: Boolean = false
+        showAdultContent: Boolean = false,
+        context: android.content.Context? = null
     ): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
-            val anime = fetchAnimeList(accessToken, showAdultContent)
-            val manga = fetchMangaList(accessToken, showAdultContent)
-            anime + manga
+            fetchWithOptionalAuthRetry(accessToken, context) { active ->
+                val anime = fetchPaginatedList(active, buildAnimeListUrl(showAdultContent))
+                val manga = fetchPaginatedList(active, buildMangaListUrl(showAdultContent))
+                anime + manga
+            }
+        }
+    }
+
+    private suspend fun <T> fetchWithOptionalAuthRetry(
+        accessToken: String,
+        context: android.content.Context?,
+        block: (String) -> T
+    ): T {
+        return try {
+            block(accessToken)
+        } catch (e: Exception) {
+            val is401 = e.message?.contains("401") == true || e.message?.contains("invalid_token", ignoreCase = true) == true
+            if (!is401 || context == null) throw e
+            val refreshed = ExternalAuthManager.forceRefreshMalToken(context)
+            if (refreshed.isNullOrBlank()) {
+                ExternalAuthManager.markSessionExpired(context, "mal")
+                throw IllegalStateException("MyAnimeList oturumu sona erdi (HTTP 401)", e)
+            }
+            block(refreshed)
         }
     }
 
