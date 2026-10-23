@@ -81,7 +81,7 @@ object ShikimoriImportManager {
                         title = rate.title,
                         subtitle = "",
                         titleEnglish = rate.titleEnglish,
-                        titleJapanese = null,
+                        titleJapanese = rate.titleJapanese,
                         imageUrl = rate.imageUrl ?: "",
                         type = if (isManga) MediaType.Manga else MediaType.Anime,
                         status = status,
