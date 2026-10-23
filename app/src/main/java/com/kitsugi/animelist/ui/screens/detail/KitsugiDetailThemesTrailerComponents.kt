@@ -3,6 +3,7 @@ import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.util.Log
 import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +94,7 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(KitsugiColors.Surface)
+            .animateDetailContentSize()
             .padding(16.dp)
     ) {
         Text(
@@ -629,7 +631,9 @@ fun KitsugiMediaVideosTab(
 
     val hasVideos = trailerUrl != null || openingItems.isNotEmpty() || endingItems.isNotEmpty()
     Column(
-        modifier = Modifier.padding(top = 12.dp, bottom = 16.dp),
+        modifier = Modifier
+            .padding(top = 12.dp, bottom = 16.dp)
+            .animateDetailContentSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (!hasVideos) {
@@ -742,6 +746,7 @@ private fun DetailVideoGroup(
             // olası bir SurfaceView (MPV yedeği) kırpma katmanına takılmaz.
             .background(KitsugiColors.Surface, cardShape)
             .border(1.dp, KitsugiColors.Border.copy(alpha = 0.35f), cardShape)
+            .animateDetailContentSize()
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
         Row(
@@ -820,7 +825,11 @@ private fun DetailVideoGroup(
         items.forEachIndexed { index, item ->
             key(item.key) {
                 KitsugiDetailReveal(visible = expanded || index < initialCount) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateDetailContentSize()
+                    ) {
                         Spacer(modifier = Modifier.height(8.dp))
                         val isSelected = activeVideoKey == item.key && !item.videoUrl.isNullOrBlank()
                         DetailVideoRow(
@@ -835,46 +844,53 @@ private fun DetailVideoGroup(
                         )
 
                         // Oynatıcı aynı kartın içinde, satırın hemen altında açılır.
-                        if (isSelected) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            // Kırpma burada YAPILMAZ: MPV yedeği bir SurfaceView kullanır ve
-                            // kırpılmış bir Compose kabında görüntü üretemeyebilir. Yuvarlak
-                            // köşe/kırpma sorumluluğu `ThemePlayerContainer`'ın içinde, yalnızca
-                            // Media3 (TextureView) dalında.
-                            Box(
+                        // Animasyon: aşağı doğru expand + fade + slide, kapanırken yukarı doğru shrink + slideUp
+                        KitsugiDetailReveal(visible = isSelected) {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(16f / 9f)
+                                    .animateDetailContentSize()
                             ) {
-                                ThemePlayerContainer(
-                                    url = item.videoUrl!!,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Row(
+                                Spacer(modifier = Modifier.height(8.dp))
+                                // Kırpma burada YAPILMAZ: MPV yedeği bir SurfaceView kullanır ve
+                                // kırpılmış bir Compose kabında görüntü üretemeyebilir. Yuvarlak
+                                // köşe/kırpma sorumluluğu `ThemePlayerContainer`'ın içinde, yalnızca
+                                // Media3 (TextureView) dalında.
+                                Box(
                                     modifier = Modifier
-                                        .padding(top = 4.dp)
-                                        .clip(RoundedCornerShape(9.dp))
-                                        .tvClickable(shape = RoundedCornerShape(9.dp)) { onVideoSelected(item.key) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                        .fillMaxWidth()
+                                        .aspectRatio(16f / 9f)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.KeyboardArrowUp,
-                                        contentDescription = null,
-                                        tint = KitsugiColors.TextMuted,
-                                        modifier = Modifier.size(14.dp)
+                                    ThemePlayerContainer(
+                                        url = item.videoUrl!!,
+                                        modifier = Modifier.fillMaxSize()
                                     )
-                                    Text(
-                                        text = stringResource(R.string.kapat),
-                                        color = KitsugiColors.TextMuted,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(top = 4.dp)
+                                            .clip(RoundedCornerShape(9.dp))
+                                            .tvClickable(shape = RoundedCornerShape(9.dp)) { onVideoSelected(item.key) }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.KeyboardArrowUp,
+                                            contentDescription = null,
+                                            tint = KitsugiColors.TextMuted,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.kapat),
+                                            color = KitsugiColors.TextMuted,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -983,6 +999,7 @@ fun KitsugiThemesList(
             // `clip()` kullanılsaydı MPV yedeğinin SurfaceView'ı kırpma katmanına takılıp
             // ses çalarken görüntüyü hiç çizmeyebilirdi (2026-10-21 saha raporu).
             .background(KitsugiColors.Surface, RoundedCornerShape(22.dp))
+            .animateDetailContentSize()
             .padding(16.dp)
     ) {
         if (openings.isNotEmpty()) {
@@ -1049,7 +1066,11 @@ private fun ThemeVideoSection(
     val initialCount = 3
     val hasMore = themes.size > initialCount
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateDetailContentSize()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1091,7 +1112,11 @@ private fun ThemeVideoSection(
         themes.forEachIndexed { index, theme ->
             key("${title}_${index}_${theme.label}") {
                 KitsugiDetailReveal(visible = expanded || index < initialCount) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateDetailContentSize()
+                    ) {
                         Spacer(modifier = Modifier.height(10.dp))
                         ThemeRow(
                             theme = theme,
@@ -1103,7 +1128,12 @@ private fun ThemeVideoSection(
                             visible = activeVideoUrl == theme.videoUrl && activeVideoUrl != null
                         ) {
                             theme.videoUrl?.let { url ->
-                                Column(modifier = Modifier.padding(top = 8.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateDetailContentSize()
+                                        .padding(top = 8.dp)
+                                ) {
                                     ThemePlayerContainer(
                                         url = url,
                                         modifier = Modifier

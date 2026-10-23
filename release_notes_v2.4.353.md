@@ -11,6 +11,11 @@
 - **Kullanıcı Listesi & TV Uyumu:** Başka kullanıcıların profil listesi ekranına ve komşu sayfa geçişlerine de aynı sıralama sözleşmesi uygulandı.
 - **Not:** Güncellemeden sonra bir kez senkronizasyon yapmak eklenme tarihlerini kaynaklardaki gerçek değerlerle netleştirir. Mevcut görünümünüzün aniden bozulmaması için kayıtlı eski "Son eklenen" seçimi bir kerelik "Varsayılan"a alınır; dilediğiniz an Sıralama menüsünden tekrar seçebilirsiniz.
 
+### 🎬 Fragman & OP/ED Video Oynatıcı Aşağı Kayarak Açılma & Yukarı Kapanma Animasyonu
+- **Akıcı slide & expand:** `KitsugiDetailReveal` geçişine dikey kayma animasyonu (`slideInVertically(-h/8)` / `slideOutVertically(-h/8)`) eklendi; fragman ve tema kartları artık aniden açılmak yerine aşağı doğru akıcı şekilde genişleyip yukarı doğru büzülerek kapanır.
+- **Videolar sekmesi entegrasyonu:** `DetailVideoGroup` içerisindeki oynatıcı alanı `KitsugiDetailReveal(visible = isSelected)` ile sarılarak kapatma butonu ile birlikte animasyona dahil edildi.
+- **İçerik boyutu senkronizasyonu:** `KitsugiTrailerCard`, `DetailVideoGroup`, `KitsugiMediaVideosTab`, `KitsugiThemesList` ve `ThemeVideoSection` alanlarına `animateDetailContentSize()` eklenerek oynatıcı açılıp kapanırken alt içeriklerin zıplamadan yumuşakça kayması sağlandı.
+
 ---
 
 ## 🇬🇧 English
@@ -23,3 +28,8 @@
 - **Timestamp & Provider Normalization:** Normalized millisecond (Bangumi) and second-based timestamps; Simkl imports now carry `last_watched_at`.
 - **User Profile & TV Parity:** Applied the identical global sorting contract to other users' list view screens and horizontal page transitions.
 - **Note:** Running a sync after updating backfills exact add dates from supporting providers. Previously saved "Recently added" selections are safely reset to "Default" once to prevent unexpected layout jumps.
+
+### 🎬 Smooth Slide & Expand Animation for Trailer and OP/ED Players
+- **Fluid slide & expand:** Added vertical slide transitions (`slideInVertically(-h/8)` / `slideOutVertically(-h/8)`) to `KitsugiDetailReveal`, ensuring inline video players and music themes glide smoothly downward on open and retract upward on close.
+- **Videos tab parity:** Wrapped inline players in `DetailVideoGroup` with `KitsugiDetailReveal(visible = isSelected)`, integrating the inline dismiss button into the shared animation.
+- **Content size interpolation:** Applied `animateDetailContentSize()` across `KitsugiTrailerCard`, `DetailVideoGroup`, `KitsugiMediaVideosTab`, `KitsugiThemesList`, and `ThemeVideoSection`, preventing layout jumps when players reveal or collapse.
