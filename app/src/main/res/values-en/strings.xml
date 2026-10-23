@@ -17759,6 +17759,8 @@
     <string name="wiki_tools_section_content">Translation and privacy</string>
     <string name="wiki_tools_section_view">Appearance</string>
     <string name="wiki_tools_section_page">Page</string>
+    <string name="wiki_reading_appearance_desc">Theme and text size for wiki pages. Default: follow the app theme.</string>
+    <string name="wiki_reading_appearance_value">%1$s · %2$d%%</string>
     <!-- v2.4.337: compact wiki bar and video player fallback -->
     <string name="wiki_more_actions">More actions</string>
     <string name="wiki_tools_translate_on">Translation on</string>

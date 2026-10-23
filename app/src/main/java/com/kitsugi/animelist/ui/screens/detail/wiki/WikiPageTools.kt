@@ -140,7 +140,11 @@ internal fun WikiPageTools(
     }
 
     if (showAppearance && preferences != null) {
-        WikiReadingSettingsDialog(preferences, onDismiss = { showAppearance = false }) { mode, zoom ->
+        WikiReadingSettingsDialog(
+            mode = preferences.pageTheme,
+            zoom = preferences.textZoom,
+            onDismiss = { showAppearance = false }
+        ) { mode, zoom ->
             showAppearance = false
             onSaveAppearance(mode, zoom)
         }
@@ -502,14 +506,25 @@ private fun wikiStatusLines(
     return lines
 }
 
+/**
+ * Okuma görünümü penceresi: tema modu + yazı boyutu.
+ *
+ * 2026-10-23: yalnızca okuyucunun ⋮ menüsünden değil, **Ayarlar → Fandom Wiki**
+ * bölümünden de açılabilsin diye `internal` yapıldı ve tercih nesnesi yerine düz
+ * değerler alıyor. Böylece aynı pencere iki yerden de tek kaynakla çiziliyor.
+ */
 @Composable
-private fun WikiReadingSettingsDialog(
-    preferences: WikiPagePreferences,
+internal fun WikiReadingSettingsDialog(
+    mode: String,
+    zoom: Int,
     onDismiss: () -> Unit,
     onApply: (String, Int) -> Unit
 ) {
-    var mode by remember { mutableStateOf(WikiReadingAppearance.normalize(preferences.pageTheme)) }
-    var zoom by remember { mutableStateOf(WikiReadingAppearance.textPercent(preferences.textZoom).toFloat()) }
+    val accentColor = LocalKitsugiAccent.current
+    var selectedMode by remember { mutableStateOf(WikiReadingAppearance.normalize(mode)) }
+    var selectedZoom by remember {
+        mutableStateOf(WikiReadingAppearance.textPercent(zoom).toFloat())
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = KitsugiColors.Surface,
@@ -525,10 +540,11 @@ private fun WikiReadingSettingsDialog(
                 Column(Modifier.selectableGroup()) {
                     WikiReadingAppearance.modes.forEach { value ->
                         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .selectable(selected = mode == value, role = Role.RadioButton, onClick = { mode = value }),
+                            .selectable(selected = selectedMode == value, role = Role.RadioButton,
+                                onClick = { selectedMode = value }),
                             verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = mode == value, onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = KitsugiColors.TextPrimary,
+                            RadioButton(selected = selectedMode == value, onClick = null,
+                                colors = RadioButtonDefaults.colors(selectedColor = accentColor,
                                     unselectedColor = KitsugiColors.TextSecondary))
                             Text(stringResource(when (value) {
                                 "APP" -> R.string.wiki_theme_app
@@ -540,16 +556,18 @@ private fun WikiReadingSettingsDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.wiki_text_percent, zoom.toInt()), color = KitsugiColors.TextPrimary)
-                Slider(value = zoom, onValueChange = { zoom = WikiReadingAppearance.textPercent(it.toInt()).toFloat() },
+                Text(stringResource(R.string.wiki_text_percent, selectedZoom.toInt()), color = KitsugiColors.TextPrimary)
+                Slider(value = selectedZoom,
+                    onValueChange = { selectedZoom = WikiReadingAppearance.textPercent(it.toInt()).toFloat() },
                     valueRange = 80f..180f, steps = 9,
-                    colors = SliderDefaults.colors(thumbColor = KitsugiColors.TextPrimary,
-                        activeTrackColor = KitsugiColors.TextPrimary))
+                    colors = SliderDefaults.colors(thumbColor = accentColor,
+                        activeTrackColor = accentColor))
                 Text(stringResource(R.string.wiki_text_scale_hint), style = MaterialTheme.typography.bodySmall)
-                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { mode = "SITE"; zoom = 100f }) { Text(stringResource(R.string.wiki_reading_reset)) }
+                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary),
+                    onClick = { selectedMode = "APP"; selectedZoom = 100f }) { Text(stringResource(R.string.wiki_reading_reset)) }
             }
         },
-        confirmButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { onApply(mode, zoom.toInt()) }) { Text(stringResource(R.string.wiki_reading_apply)) } },
+        confirmButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { onApply(selectedMode, selectedZoom.toInt()) }) { Text(stringResource(R.string.wiki_reading_apply)) } },
         dismissButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = onDismiss) { Text(stringResource(R.string.kapat)) } }
     )
 }

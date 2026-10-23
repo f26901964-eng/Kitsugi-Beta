@@ -17764,6 +17764,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_tools_section_content">Çeviri ve gizlilik</string>
     <string name="wiki_tools_section_view">Görünüm</string>
     <string name="wiki_tools_section_page">Sayfa</string>
+    <string name="wiki_reading_appearance_desc">Wiki sayfalarının teması ve yazı boyutu. Varsayılan: uygulama temasını izle.</string>
+    <string name="wiki_reading_appearance_value">%1$s · %2$d%%</string>
     <!-- v2.4.337: kompakt wiki şeridi ve video oynatıcı hata durumu -->
     <string name="wiki_more_actions">Diğer işlemler</string>
     <string name="wiki_tools_translate_on">Çeviri açık</string>

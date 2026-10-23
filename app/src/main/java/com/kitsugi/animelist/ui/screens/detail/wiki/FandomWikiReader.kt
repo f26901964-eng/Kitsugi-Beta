@@ -1326,7 +1326,9 @@ private fun ReaderContent(
         androidx.compose.material3.FloatingActionButton(
             onClick = { readerScrollScope.launch { scrollState.animateScrollTo(0) } },
             containerColor = accentColor,
-            contentColor = Color.White,
+            // Açık vurgu renklerinde (sarı, mint) beyaz ikon okunmuyordu; kontrast
+            // rengi vurguya göre hesaplanıyor.
+            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
             shape = CircleShape,
             modifier = Modifier.size(56.dp)
         ) {

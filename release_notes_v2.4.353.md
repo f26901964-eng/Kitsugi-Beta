@@ -15,6 +15,7 @@
 - **Yazıyı büyüt / küçült:** 80–180 aralığında 10’luk adımlarla doğrudan uygulanır; her seferinde görünüm penceresini açmak gerekmez.
 - **Okurken ekranı açık tut:** Yalnızca o sekme için geçerli okuma oturumu anahtarı; ayarlara yazılmaz.
 - **Menü başlığı:** Kilit ikonu + alan adı ve kısa mod bilgisi (`Özgün sayfa · Masaüstü düzeni`), eski sürümde ekranın üçte birini kaplayan açıklama satırının yerini alır.
+- **Ayarlardan erişim:** Ayarlar → Fandom Wiki bölümüne **Okuma görünümü** satırı eklendi (tema + yazı boyutu). Okuyucudaki pencereyle aynı ayarı yönetir; okuyucuyu açmadan değiştirilebilir.
 
 ---
 
@@ -33,3 +34,4 @@
 - **Increase / decrease text size:** Immediate 10-point steps within 80–180, no dialog round-trip.
 - **Keep screen on while reading:** A session-scoped switch applied to that tab's WebView only; never written to settings.
 - **Menu header:** Lock icon + host with a short mode line (`Original page · Desktop layout`), replacing the old full-width caption row.
+- **Settings entry:** A new **Reading appearance** row (theme + text size) in Settings → Fandom Wiki, sharing the same preference and dialog as the reader.

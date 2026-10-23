@@ -82,13 +82,23 @@ aynı dilde **başlıklı gruplar**:
   sıçramaz. Material bileşenin 4 dp yüksekliği taşacağı için çubuk elle çizilir.
 - Sayfada bul alanı yuvarlatıldı; odak/işaretçi rengi uygulama vurgusuna bağlandı.
 
+### 2.6 Ayarlardan okuma görünümü
+
+- **Ayarlar → Tercihler → Fandom Wiki** bölümüne `Okuma görünümü` satırı eklendi; değer
+  olarak etkin tema ve yüzde gösterilir (ör. `Uygulama temasını izle · %100`).
+- Aynı pencere (`WikiReadingSettingsDialog`) hem okuyucudan hem ayarlardan açılır; iki yol
+  da `SettingsDataStore.setWikiReadingAppearance` üzerinden aynı anahtarları yazar.
+  Önceki sürümde bu ayara yalnızca okuyucunun ⋮ menüsünden ulaşılabiliyordu.
+- Penceredeki seçim vurguları artık uygulama vurgu rengini kullanır.
+
 ## 3. Eklenen metinler
 
 Türkçe ve İngilizce kaynaklara eklendi (`values`, `values-en`):
 
 `wiki_share_link`, `wiki_copy_link`, `wiki_link_copied`, `wiki_tabs_title`,
 `wiki_keep_screen_on`, `wiki_keep_screen_on_desc`, `wiki_text_larger`, `wiki_text_smaller`,
-`wiki_tools_section_content`, `wiki_tools_section_view`, `wiki_tools_section_page`.
+`wiki_tools_section_content`, `wiki_tools_section_view`, `wiki_tools_section_page`,
+`wiki_reading_appearance_desc`, `wiki_reading_appearance_value`.
 
 `wiki_theme_explanation` ve `wiki_original_hint` yeni varsayılanı anlatacak şekilde
 güncellendi. İki dil dosyası anahtar sayısı ve adları bakımından eşittir.
