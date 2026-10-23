@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.data.auth.BangumiApiClient
-import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -40,13 +39,8 @@ internal object BangumiOrgResolver {
     /** Bangumi 人物 kayıt türü: 1 = 个人 (kişi), 2 = 公司 (şirket), 3 = 组合 (grup). */
     private const val TYPE_COMPANY = 2
 
-    /**
-     * Detay sayfası bu adıma takılmasın diye toplam süre tavanı.
-     *
-     * Yalnızca **CJK** kurum adları çözülür; zaten Latin olan adlar için istek atılmaz.
-     * Ekranı açan çağrı bu adımı beklediği için tavan 2,5 sn'den 1,2 sn'ye indirildi.
-     */
-    private const val TIMEOUT_MS = 1_200L
+    /** Detay sayfası bu adıma takılmasın diye toplam süre tavanı. */
+    private const val TIMEOUT_MS = 2_500L
 
     /** Kurum başına istek tavanı (çözüm bulunamazsa tekrar denenmez). */
     private const val SEARCH_LIMIT = 5
@@ -65,7 +59,7 @@ internal object BangumiOrgResolver {
         coroutineScope {
             val targets = (detail.studios + detail.producers + detail.networks + detail.serializations)
                 .map { it.name }
-                .filter { it.isNotBlank() && PreferenceHelpers.hasCjkCharacters(it) }
+                .filter { it.isNotBlank() }
                 .distinct()
             val pending = targets.filter { cache[cacheKey(it)] == null }
             if (pending.isEmpty()) return@coroutineScope applyCache(detail)

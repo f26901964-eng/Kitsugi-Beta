@@ -201,10 +201,12 @@ internal fun EntryDetailOverviewTab(
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
-                networks = detail.networks + detail.serializations,
+                networks = detail.networks,
                 onStudioClick = studioChipClick,
                 onProducerClick = studioChipClick,
-                onNetworkClick = studioChipClick
+                onNetworkClick = studioChipClick,
+                serializations = detail.serializations,
+                onSerializationClick = studioChipClick
             )
         }
 

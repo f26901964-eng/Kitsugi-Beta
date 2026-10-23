@@ -58,6 +58,13 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     private var lastMediaRequestKey: String? = null
     private var pendingInitialMediaUrl: String? = null
     private var pendingInitialStartOption: String? = null
+    /**
+     * BaseMPVView attaches the native Android surface in surfaceCreated(). A fallback can
+     * queue media after that callback, so we sometimes invoke the same path manually.
+     * Remember the attached instance to avoid attaching one Surface twice (which can leave
+     * mpv with audio but a stale/black video output).
+     */
+    private var attachedSurface: android.view.Surface? = null
     private var hardwareDecodeMode: MpvHardwareDecodeMode = MpvHardwareDecodeMode.AUTO_SAFE
 
     /**
@@ -125,22 +132,28 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        super.surfaceCreated(holder)
+        val surface = holder.surface
+        if (surface != null && attachedSurface !== surface) {
+            // Let BaseMPVView attach the surface and restore its saved VO. Do this once per
+            // actual Surface, including PiP/fullscreen recreation, not once per loadfile.
+            super.surfaceCreated(holder)
+            attachedSurface = surface
+        }
+
         val url = pendingInitialMediaUrl
         if (url != null) {
             val startOption = pendingInitialStartOption
             pendingInitialMediaUrl = null
             pendingInitialStartOption = null
-            if (startOption != null) {
-                loadMedia(url, startOption)
-            } else {
-                loadMedia(url, null)
-            }
-        } else {
-            runCatching {
-                mpv.command("video-reconfig")
-            }
+            loadMedia(url, startOption)
         }
+        // No extra video-reconfig here: BaseMPVView already restores `vo` on a recreated
+        // surface. Reconfiguring a second time can tear down the just-created video output.
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        attachedSurface = null
+        super.surfaceDestroyed(holder)
     }
 
     fun setMediaUsingLoadfile(url: String, headers: Map<String, String>) {
@@ -248,7 +261,31 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     fun hasVisibleVideoSurface(): Boolean {
         if (!initialized) return false
         if (!isShown || width <= 0 || height <= 0) return false
-        return runCatching { holder.surface?.isValid == true }.getOrDefault(false)
+        return runCatching {
+            val surface = holder.surface
+            surface?.isValid == true && attachedSurface === surface
+        }.getOrDefault(false)
+    }
+
+    /**
+     * libmpv produced a real video-output configuration, not merely demuxer metadata.
+     *
+     * `video-params` becomes available as soon as a stream is recognized, even when its
+     * decoder later fails. `video-out-params` is populated by the video output chain and
+     * therefore distinguishes actual video output from an audio-only session. Some mpv
+     * builds expose only dw/dh, so both representations are accepted.
+     */
+    fun hasVideoOutputFrameNow(): Boolean {
+        if (!initialized || !isVideoOutputActiveNow()) return false
+        val width = runCatching {
+            mpv.getPropertyInt("video-out-params/w")?.takeIf { it > 0 }
+                ?: mpv.getPropertyInt("video-out-params/dw")?.takeIf { it > 0 }
+        }.getOrNull()
+        val height = runCatching {
+            mpv.getPropertyInt("video-out-params/h")?.takeIf { it > 0 }
+                ?: mpv.getPropertyInt("video-out-params/dh")?.takeIf { it > 0 }
+        }.getOrNull()
+        return width != null && height != null
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -722,6 +759,7 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         contentDescriptors.values.forEach { runCatching { it.close() } }
         contentDescriptors.clear()
         initialized = false
+        attachedSurface = null
         hasQueuedInitialMedia = false
         lastMediaRequestKey = null
         pendingInitialMediaUrl = null

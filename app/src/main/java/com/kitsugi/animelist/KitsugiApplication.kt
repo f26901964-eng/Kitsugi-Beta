@@ -61,7 +61,13 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // çökmeler daha önce hiçbir rapora girmiyordu.
         // Açılış aşaması izi ilk satırda yazılır: süreç buradan sonra ölürse rapor
         // "attachBaseContext" aşamasında olduğunu söyler.
-        try { com.kitsugi.animelist.core.diagnostics.StartupStage.mark(base, "attachBaseContext") } catch (_: Throwable) {}
+        //
+        // NOT: :crash süreci bu dosyayı kendi attachBaseContext'i ile EZİYORDU; çökme
+        // ekranı raporu okurken ("Son aşama" bloğu okuma anında eklenir) her zaman
+        // "attachBaseContext" görünüyordu — yanlış kanıt. Artık :crash süreci yazmıyor.
+        if (!detectCrashProcess()) {
+            try { com.kitsugi.animelist.core.diagnostics.StartupStage.mark(base, "attachBaseContext") } catch (_: Throwable) {}
+        }
         try { com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(base) } catch (_: Throwable) {}
         try { com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor.install(base) } catch (_: Throwable) {}
         // Dil dosyası metinlerinin Composable olmayan bağlamlardan (ViewModel,
@@ -69,19 +75,22 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         try { com.kitsugi.animelist.utils.KitsugiStrings.install(base) } catch (_: Throwable) {}
     }
 
+    /** Bu süreç çökme ekranı (:crash) için mi başlatıldı? */
+    private fun detectCrashProcess(): Boolean = runCatching {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            android.app.Application.getProcessName().endsWith(":crash")
+        } else {
+            val pid = android.os.Process.myPid()
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            am?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName?.endsWith(":crash") == true
+        }
+    }.getOrDefault(false)
+
     override fun onCreate() {
         // ── 0. :crash Süreci Koruması ────────────────────────────────────────────────
         // Eğer bu süreç çökme ekranı (:crash) için başlatılmışsa, arka plan işçilerini,
         // WorkManager'ı ve Room veritabanı senkronizasyonunu çalıştırma!
-        val isCrashProcess = runCatching {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                Application.getProcessName().endsWith(":crash")
-            } else {
-                val pid = android.os.Process.myPid()
-                val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-                am?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName?.endsWith(":crash") == true
-            }
-        }.getOrDefault(false)
+        val isCrashProcess = detectCrashProcess()
 
         if (isCrashProcess) {
             instance = this

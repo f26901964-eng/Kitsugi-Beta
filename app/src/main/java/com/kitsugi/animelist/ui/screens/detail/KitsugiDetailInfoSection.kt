@@ -68,6 +68,9 @@ import com.kitsugi.animelist.utils.toEnglishGenreForSearch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.toLocalizedOrgName
+import com.kitsugi.animelist.utils.toLocalizedMediaTypeString
+import com.kitsugi.animelist.utils.NextAiringFormat
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -392,8 +395,17 @@ internal fun DetailOverviewStatsCard(
     val scoredBy = detail.scoredBy
     val members = detail.members ?: detail.popularity
     val popularityRank = detail.popularityRank
+    val accent = LocalKitsugiAccent.current
+    val items = buildList {
+        rank?.let { add(Triple(stringResource(R.string.detail_stat_rank), "#$it", accent)) }
+        scoredBy?.let { add(Triple(stringResource(R.string.detail_stat_votes), formatCompactNumber(it), KitsugiColors.AccentGreen)) }
+        members?.let { add(Triple(stringResource(R.string.detail_stat_members), formatCompactNumber(it), KitsugiColors.AccentBlue)) }
+        popularityRank?.let { add(Triple(stringResource(R.string.detail_stat_popularity), "#$it", KitsugiColors.AccentOrange)) }
+    }
 
-    if (rank == null && scoredBy == null && members == null && popularityRank == null) return
+    // Shikimori gibi sağlayıcılar sıralama vermeyip yalnızca oy/üye sayısı verebilir.
+    // Bilinmeyen değerlerle boş kutular üretmek yerine yalnızca gerçek istatistikleri göster.
+    if (items.isEmpty()) return
 
     Column(
         modifier = Modifier
@@ -416,33 +428,14 @@ internal fun DetailOverviewStatsCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatOverviewItem(
-                label = stringResource(R.string.detail_stat_rank),
-                value = rank?.let { "#$it" } ?: stringResource(R.string.label_unknown),
-                accentColor = LocalKitsugiAccent.current,
-                modifier = Modifier.weight(1f)
-            )
-
-            StatOverviewItem(
-                label = stringResource(R.string.detail_stat_votes),
-                value = scoredBy?.let { formatCompactNumber(it) } ?: stringResource(R.string.label_unknown),
-                accentColor = KitsugiColors.AccentGreen,
-                modifier = Modifier.weight(1f)
-            )
-
-            StatOverviewItem(
-                label = stringResource(R.string.detail_stat_followers),
-                value = members?.let { formatCompactNumber(it) } ?: stringResource(R.string.label_unknown),
-                accentColor = KitsugiColors.AccentBlue,
-                modifier = Modifier.weight(1f)
-            )
-
-            StatOverviewItem(
-                label = stringResource(R.string.detail_stat_popularity),
-                value = popularityRank?.let { "#$it" } ?: stringResource(R.string.label_unknown),
-                accentColor = KitsugiColors.AccentOrange,
-                modifier = Modifier.weight(1f)
-            )
+            items.forEach { (label, value, color) ->
+                StatOverviewItem(
+                    label = label,
+                    value = value,
+                    accentColor = color,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -740,14 +733,38 @@ internal fun EntryInfoSection(
     onSearchQuery: (String) -> Unit = {},
     onSeasonClick: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {}
 ) {
+    // Kayıt arama sonucunda genel "Anime" olarak işaretlenmiş olsa bile detaydaki
+    // gerçek tür (Movie/TvShow/Manga) bilgi satırlarının görünürlüğünü belirler.
+    val effectiveMediaType = detail.type ?: mediaType
+    val isManga = effectiveMediaType == MediaType.Manga
     val seasonMetadata = com.kitsugi.animelist.ui.screens.search.resolveDetailSeasonMetadata(
         rawSeason = detail.rawSeason ?: detail.season,
         displayedSeason = detail.season,
         seasonYear = detail.seasonYear,
         startDate = detail.startDate,
         fallbackYear = detail.year ?: fallbackYear,
-        deriveFromDate = mediaType == MediaType.Anime
+        deriveFromDate = effectiveMediaType == MediaType.Anime
     )
+    val nextAiring = NextAiringFormat.parse(detail.nextAiringEpisode)
+    val nextAiringText = when {
+        nextAiring.isMachineFormat -> {
+            val episode = nextAiring.episode ?: NextAiringFormat.UNKNOWN_EPISODE
+            val date = NextAiringFormat.formatDate(nextAiring.epoch!!)
+            if (episode > 0) {
+                stringResource(R.string.detail_info_next_episode_value, episode, date)
+            } else {
+                date
+            }
+        }
+        else -> nextAiring.legacyText
+    }
+    val knownTitles = listOfNotNull(
+        detail.title, detail.titleEnglish, detail.titleJapanese,
+        detail.titleRomaji, detail.titleRussian
+    ).map { it.trim().lowercase(Locale.ROOT) }.toSet()
+    val synonymNames = cleanDetailSynonyms(detail.synonyms)
+        .filterNot { it.lowercase(Locale.ROOT) in knownTitles }
+
     SelectionContainer {
         Column(
             modifier = Modifier
@@ -762,23 +779,61 @@ internal fun EntryInfoSection(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
             )
-            val synonymNames = cleanDetailSynonyms(detail.synonyms)
             val aliasesLabel = stringResource(R.string.detail_info_aliases)
+            val nameRows = mutableMapOf<String, List<String>>()
             val rows = buildList {
+                fun addNames(label: String, values: List<String>) {
+                    if (values.isEmpty()) return
+                    add(label to values.joinToString(", "))
+                    nameRows[label] = values
+                }
+
                 if (!detail.status.isNullOrBlank()) add(stringResource(R.string.detail_info_status) to detail.status)
                 seasonMetadata.displayLabel?.let { add(stringResource(R.string.detail_info_season) to it) }
+                if (!detail.format.isNullOrBlank()) {
+                    add(stringResource(R.string.detail_info_format) to detail.format.toLocalizedMediaTypeString())
+                }
                 if (!detail.startDate.isNullOrBlank()) add(stringResource(R.string.detail_date_start) to detail.startDate)
                 if (!detail.endDate.isNullOrBlank()) add(stringResource(R.string.detail_date_end) to detail.endDate)
+                if (!nextAiringText.isNullOrBlank()) {
+                    add(stringResource(R.string.detail_info_next_episode) to nextAiringText)
+                }
                 if (!detail.sourceMaterial.isNullOrBlank()) add(stringResource(R.string.detail_info_source) to detail.sourceMaterial)
-                if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name.toLocalizedOrgName() })
+
+                if (isManga) {
+                    detail.total?.let { add(stringResource(R.string.detail_info_chapters) to it.toString()) }
+                    detail.volumes?.let { add(stringResource(R.string.detail_info_volumes) to it.toString()) }
+                } else {
+                    detail.total?.let { add(stringResource(R.string.detail_info_episodes) to it.toString()) }
+                    detail.episodesAired?.let { aired ->
+                        // Tamamlanmış yapımda toplam sayının aynısını ikinci kez gösterme.
+                        if (detail.total == null || aired != detail.total) {
+                            val value = detail.total?.let { total -> "$aired / $total" } ?: aired.toString()
+                            add(stringResource(R.string.detail_info_episodes_aired) to value)
+                        }
+                    }
+                    if (detail.studios.isNotEmpty()) {
+                        add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name.toLocalizedOrgName() })
+                    }
                     if (!detail.episodeDuration.isNullOrBlank()) add(stringResource(R.string.detail_info_duration) to detail.episodeDuration)
                     if (!detail.broadcast.isNullOrBlank()) add(stringResource(R.string.detail_info_broadcast) to detail.broadcast)
                     if (!detail.rating.isNullOrBlank()) add(stringResource(R.string.detail_info_rating) to detail.rating)
                 }
+
+                addNames(stringResource(R.string.detail_section_publishers), detail.publishers.orEmpty())
+                addNames(stringResource(R.string.detail_info_licensors), detail.licensors.orEmpty())
+
                 if (!detail.titleEnglish.isNullOrBlank()) add(stringResource(R.string.detail_info_english) to detail.titleEnglish)
                 if (!detail.titleJapanese.isNullOrBlank()) add(stringResource(R.string.detail_info_japanese) to detail.titleJapanese)
-                if (synonymNames.isNotEmpty()) add(aliasesLabel to synonymNames.joinToString(", "))
+                if (!detail.titleRomaji.isNullOrBlank() &&
+                    !detail.titleRomaji.trim().equals(detail.title?.trim(), ignoreCase = true)
+                ) {
+                    add(stringResource(R.string.detail_info_romaji) to detail.titleRomaji)
+                }
+                if (!detail.titleRussian.isNullOrBlank()) add(stringResource(R.string.detail_info_russian) to detail.titleRussian)
+                addNames(aliasesLabel, synonymNames)
+                addNames(stringResource(R.string.detail_info_fansubbers), detail.fansubbers.orEmpty())
+                addNames(stringResource(R.string.detail_info_fandubbers), detail.fandubbers.orEmpty())
             }
             rows.forEachIndexed { index, (label, value) ->
                 val onValueClick: (() -> Unit)? = if (
@@ -791,7 +846,7 @@ internal fun EntryInfoSection(
                 DetailInfoValueRow(
                     label = label,
                     value = value,
-                    names = if (label == aliasesLabel) synonymNames else emptyList(),
+                    names = nameRows[label].orEmpty(),
                     onValueClick = onValueClick
                 )
                 if (index < rows.lastIndex) {

@@ -44,6 +44,15 @@ object KitsugiContentPrefs {
     var separateNovelsManga: Boolean = false
         private set
 
+    /**
+     * Wiki açılır sayfasının son seçilen düzeni (false = mobil, varsayılan).
+     * Oturumlar bileşim sırasında oluşturulduğu için DataStore akışını bekleyemez;
+     * senkron okunabilen bu önbellek "en son ne seçildiyse onu aç" davranışını sağlar.
+     */
+    @Volatile
+    var wikiDesktopLayout: Boolean = false
+        private set
+
     /** Liste ekleme otomasyonu: duruma göre otomatik başlangıç/bitiş tarihi. */
     @Volatile
     var autoDateOnStatusChange: Boolean = true
@@ -67,6 +76,7 @@ object KitsugiContentPrefs {
         priorityColorsJson = settings.priorityColorsJson
         fuzzySearchEnabled = settings.fuzzySearchEnabled
         separateNovelsManga = settings.separateNovelsManga
+        wikiDesktopLayout = settings.wikiDesktopLayout
         autoDateOnStatusChange = settings.autoDateOnStatusChange
         autoProgressOnComplete = settings.autoProgressOnComplete
         defaultAddStatus = settings.defaultAddStatus

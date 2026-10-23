@@ -55,7 +55,7 @@ object ShikimoriApiClient {
      * elle takip edilir.
      */
     private val shikimoriHttpClient: OkHttpClient by lazy {
-        KitsugiHttpClient.client.newBuilder()
+        KitsugiHttpClient.syncClient.newBuilder()
             .followRedirects(false)
             .followSslRedirects(false)
             .build()
@@ -301,7 +301,9 @@ object ShikimoriApiClient {
         val isInvalidGrant: Boolean = false,
         /** Sunucunun döndürdüğü HTTP durum kodu (0 = ağ/istemci kaynaklı hata). */
         val status: Int = 0
-    ) : Exception(message)
+    ) : Exception(message) {
+        constructor(status: Int, message: String) : this(message, false, status)
+    }
 
     /**
      * OAuth yetki kodunu (authorization code) access token ile takas eder.
@@ -832,7 +834,8 @@ object ShikimoriApiClient {
         targetId: Int, // MAL ID
         targetType: String, // "Anime" veya "Manga"
         status: String,
-        score: Int,
+        /** `null` = puana DOKUNMA (0 göndermek Shikimori'deki puanı siler). */
+        score: Int?,
         progress: Int,
         text: String? = null,
         rewatches: Int? = null,
@@ -844,7 +847,7 @@ object ShikimoriApiClient {
                 put("target_id", targetId)
                 put("target_type", targetType)
                 put("status", status)
-                put("score", score.coerceIn(0, 10))
+                score?.let { put("score", it.coerceIn(0, 10)) }
                 if (targetType == "Anime") put("episodes", progress)
                 else put("chapters", progress)
                 text?.takeIf { it.isNotBlank() }?.let { put("text", it) }
@@ -863,12 +866,88 @@ object ShikimoriApiClient {
 
         executeShikimori(request).use { response ->
             val body = response.body?.string().orEmpty()
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
             if (response.isSuccessful) {
                 JSONObject(body).optInt("id", 0).takeIf { it > 0 }
             } else {
                 Log.e(TAG, "createUserRate failed: ${response.code} $body")
                 null
             }
+        }
+    }
+
+    /**
+     * Kullanıcının bu yapı için VAR OLAN liste kaydının kimliğini bulur.
+     *
+     * Neden gerekli: yerel önbellekte rate kimliği yokken (kayıt Shikimori web'inde
+     * oluşturulmuş, satır başka bir kaynaktan gelmiş) doğrudan `POST /user_rates` göndermek
+     * "zaten var" hatasına düşerse kayıt **hiç eşitlenmez**. MAL-Sync de her yazımdan önce
+     * bu sorguyu yapar (`_update` → `v2/user_rates?target_id=..&user_id=..&target_type=..`).
+     *
+     * @return kayıt varsa `rate id`, yoksa `null` (ağ hatası da `null`).
+     */
+    suspend fun fetchUserRateId(
+        token: String,
+        userId: Int,
+        targetId: Int,
+        targetType: String
+    ): Int? = withContext(Dispatchers.IO) {
+        val url = "$BASE_URL/api/v2/user_rates?user_id=$userId&target_id=$targetId" +
+            "&target_type=$targetType&limit=1"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
+        try {
+            executeShikimori(request).use { response ->
+                if (response.code == 401) {
+                    throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+                }
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                if (body.isBlank()) return@use null
+                val array = org.json.JSONArray(body)
+                if (array.length() == 0) null
+                else array.getJSONObject(0).optInt("id", 0).takeIf { it > 0 }
+            }
+        } catch (authErr: ShikimoriTokenException) {
+            throw authErr
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Shikimori liste kaydına YALNIZCA verilen alanları yazar (`PATCH /api/v2/user_rates/{id}`).
+     *
+     * Alan bazlı eşitlemenin temeli: gönderilmeyen alan Shikimori'de değişmez. `score` 0
+     * göndermek kayıtlı puanı siler; bu yüzden puan yalnızca kullanıcı gerçekten
+     * değiştirdiğinde gönderilir.
+     */
+    suspend fun patchUserRate(
+        token: String,
+        rateId: Int,
+        attributes: JSONObject
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (attributes.length() == 0) return@withContext true
+        val payload = JSONObject().put("user_rate", attributes)
+        val request = Request.Builder()
+            .url("$BASE_URL/api/v2/user_rates/$rateId")
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", "Bearer $token")
+            .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+
+        executeShikimori(request).use { response ->
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
+            response.isSuccessful
         }
     }
 
@@ -901,6 +980,9 @@ object ShikimoriApiClient {
             .build()
 
         executeShikimori(request).use { response ->
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
             response.isSuccessful
         }
     }
@@ -917,6 +999,9 @@ object ShikimoriApiClient {
             .build()
 
         executeShikimori(request).use { response ->
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
             response.isSuccessful || response.code == 404
         }
     }

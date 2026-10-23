@@ -14,8 +14,10 @@ object MediaIdentity {
 
     /**
      * `malId` is a legacy field name: for several providers it stores that provider's own ID.
-     * The source is part of the ID namespace. In particular, Shikimori `target_id` is a
-     * Shikimori ID, not a MAL ID, even when its numeric value happens to be below 100 million.
+     * The source is part of the ID namespace. Shikimori is the exception that must share the
+     * MAL axis: its anime/manga `target_id` is the MAL ID (the official API exposes the same
+     * value as `myanimelist_id`). Keeping it in an isolated Shikimori-only namespace splits
+     * localized copies of the same production into different cross-sync groups.
      */
     // PERF: keys() her tablo emisyonunda satır başına çağrılır; aşağıdaki sabit koleksiyonlar
     // eskiden çağrı başına yeniden tahsis ediliyordu (2000 satır × emisyon = binlerce
@@ -27,13 +29,23 @@ object MediaIdentity {
         val source = canonicalSource(entry.source)
         entry.malId?.let { id ->
             when {
-                source == "shikimori" && id in 1..99_999_999 -> add("$prefix:shikimori:$id")
+                source == "shikimori" && id in 1..99_999_999 && entry.type in identityCapableTypes -> {
+                    // Shikimori anime/manga IDs and MAL IDs are the same catalog identity.
+                    // Retain the provider key as an alias for legacy crosswalk data, but also
+                    // expose the shared MAL key so Romaji and English library rows can meet.
+                    add("$prefix:mal:$id")
+                    add("$prefix:shikimori:$id")
+                }
                 source == "bangumi" && id in 1..99_999_999 -> add("$prefix:bangumi:$id")
                 id in 1..99_999_999 && isRealMalIdSource(source) && entry.type in identityCapableTypes ->
                     add("$prefix:mal:$id")
                 id in 100_000_001..299_999_999 && source == "anilist" -> add("$prefix:anilist:${id - 100_000_000}")
                 id in 300_000_001..399_999_999 && source == "kitsu" -> add("$prefix:kitsu:${id - 300_000_000}")
-                id in 400_000_001..499_999_999 && source == "shikimori" -> add("$prefix:shikimori:${id - 400_000_000}")
+                id in 400_000_001..499_999_999 && source == "shikimori" && entry.type in identityCapableTypes -> {
+                    val targetId = id - 400_000_000
+                    add("$prefix:mal:$targetId")
+                    add("$prefix:shikimori:$targetId")
+                }
                 id in 500_000_001..599_999_999 && source == "bangumi" -> add("$prefix:bangumi:${id - 500_000_000}")
                 // Legacy Kitsu rows sometimes stored the raw Kitsu ID without its 300M offset.
                 // Keep those in the Kitsu namespace; never reinterpret them as MAL IDs.
@@ -48,9 +60,9 @@ object MediaIdentity {
      * Canonical keys of [entry] plus [extras] — the cross-provider crosswalk keys learned for
      * this row elsewhere (see `MyListIdentityCrosswalk`).
      *
-     * A row only ever carries **its own** provider ID in `malId`, so an imported Bangumi/Kitsu/
-     * Shikimori record has no key in common with the AniList or MAL record of the same title.
-     * Extra keys close that gap without touching the stored row.
+     * Bangumi/Kitsu rows have no native key in common with AniList or MAL, so learned extra
+     * keys close that gap without touching the stored row. Shikimori already shares the MAL
+     * axis; its provider key remains only as a source-specific alias.
      */
     fun keys(entry: MediaEntry, extras: Set<String>): Set<String> =
         if (extras.isEmpty()) keys(entry) else keys(entry) + extras
@@ -58,11 +70,15 @@ object MediaIdentity {
     /** Returns the value only when this record's source contract says it is a real MAL ID. */
     fun realMalId(entry: MediaEntry): Int? {
         val source = canonicalSource(entry.source)
+        if (source == "shikimori") {
+            if (entry.type !in identityCapableTypes) return null
+            return shikimoriId(entry)
+        }
         if (!isRealMalIdSource(source)) return null
         return entry.malId?.takeIf { it in 1..99_999_999 }
     }
 
-    /** Provider-native Shikimori ID (supports old raw IDs and the 400M stable-ID form). */
+    /** Shikimori target ID, which is also the MAL ID (raw or 400M stable-ID form). */
     fun shikimoriId(entry: MediaEntry): Int? {
         if (canonicalSource(entry.source) != "shikimori") return null
         val id = entry.malId ?: return null

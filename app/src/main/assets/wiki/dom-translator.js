@@ -14,15 +14,27 @@
     var skip = 'script,style,noscript,textarea,input,select,option,button,form,pre,code,kbd,samp,svg,math,iframe,' +
         '[contenteditable]:not([contenteditable="false"]),[role="textbox"],[translate="no"],.notranslate,[hidden],[aria-hidden="true"],' +
         '.mw-editsection,.reference,.mw-cite-backlink,.countdown,.countdown-timer,[role="timer"],[aria-live],.wikia-ad,.gpt-ad,.ad-slot';
+    // Fandom masaüstü ve mobil ciltleri farklı sarmalayıcılar kullanır; makale kökü
+    // sırayla aranır. Hiçbiri yoksa sayfa gövdesine kadar inilir (çeviri tamamen durmasın).
     function findRoot() {
         return document.querySelector('#mw-content-text .mw-parser-output') ||
-            document.querySelector('.mw-parser-output') || document.querySelector('#mw-content-text');
+            document.querySelector('.mw-parser-output') || document.querySelector('#mw-content-text') ||
+            document.querySelector('.page-content') || document.querySelector('article') ||
+            document.querySelector('main') || document.querySelector('#content') || document.body;
     }
-    function input() { lastInput = performance.now(); rescan = true; }
+    // Kaydırma sırasında walker'ı her olayda baştan başlatmak, uzun sayfalarda çeviriyi
+    // fiilen durduruyordu (her tur belgenin başından yeniden tarıyordu). Bunun yerine
+    // tarama isteği geciktirilir; walker kaldığı yerden ilerlemeye devam eder.
+    var rescanTimer = 0;
+    function requestRescan(delay) {
+        if (rescanTimer) return;
+        rescanTimer = setTimeout(function () { rescanTimer = 0; rescan = true; }, delay);
+    }
+    function input() { lastInput = performance.now(); requestRescan(180); }
     window.addEventListener('wheel', input, { passive: true });
     window.addEventListener('touchmove', input, { passive: true });
     window.addEventListener('keydown', input, { passive: true });
-    window.addEventListener('scroll', function () { rescan = true; }, { passive: true });
+    window.addEventListener('scroll', function () { requestRescan(240); }, { passive: true });
     function anchor() {
         var x = Math.min(window.innerWidth - 1, Math.max(1, window.innerWidth / 2));
         var y = Math.min(window.innerHeight - 1, Math.max(1, window.innerHeight / 3));
@@ -152,7 +164,7 @@
             if (!root) return { items: [], status: status() };
             if (!walker && rescan) { walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); rescan = false; }
             var items = [], chars = 0, steps = 0, node, started = performance.now();
-            while (walker && steps++ < 500 && items.length < 8 && chars < 1000 && performance.now() - started < 8) {
+            while (walker && steps++ < 700 && items.length < 12 && chars < 1200 && performance.now() - started < 8) {
                 node = walker.nextNode();
                 if (!node) { walker = null; break; }
                 if (!eligible(node)) continue;
@@ -174,11 +186,19 @@
         },
         apply: function (id, values) {
             if (id !== docId || !enabled) return { stale: true };
-            if (performance.now() - lastInput < 250) return { deferred: true };
+            if (performance.now() - lastInput < 120) return { deferred: true };
+            var wrote = false;
             mutate(function () {
                 values.forEach(function (v) {
                     var r = records.get(v.id);
-                    if (!r || !r.pending || r.rev !== v.rev || r.original.trim() !== v.source || changed(r)) return;
+                    if (!r || !r.pending) return;
+                    // Düğüm biz istekte bulunurken değiştiyse sonucu yazmayız; ama "bekliyor"
+                    // işaretini MUTLAKA temizleriz, aksi hâlde o metin bir daha hiç istenmez.
+                    if (r.rev !== v.rev || r.original.trim() !== v.source || changed(r)) {
+                        r.pending = false;
+                        rescan = true;
+                        return;
+                    }
                     r.pending = false;
                     if (!r.node.isConnected || !root || !root.contains(r.node) ||
                         !r.node.parentElement || r.node.parentElement.closest(skip)) { rescan = true; return; }
@@ -187,8 +207,13 @@
                     }
                     r.translated = (r.original.match(/^\s*/)[0]) + v.text.trim() + (r.original.match(/\s*$/)[0]);
                     write(r, r.translated);
+                    wrote = true;
                 });
             });
+            // Çeviri metni uzunluğu değiştirebilir: "ekrana sığdır" katmanı yeniden ölçsün.
+            if (wrote) {
+                try { document.dispatchEvent(new Event('kitsugi:content-changed')); } catch (_) {}
+            }
             return { status: status() };
         },
         release: function (id) {

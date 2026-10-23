@@ -910,15 +910,7 @@ fun MyListContentPage(
             val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
                 groupedVisibleEntries
             } else {
-                remember(pageEntries) {
-                    val statusOrder = listOf(
-                        WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
-                        WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
-                    )
-                    statusOrder.map { status ->
-                        status to pageEntries.filter { it.status == status }
-                    }.filter { it.second.isNotEmpty() }
-                }
+                remember(pageEntries) { groupMyListEntriesByStatus(pageEntries) }
             }
 
             LazyColumn(

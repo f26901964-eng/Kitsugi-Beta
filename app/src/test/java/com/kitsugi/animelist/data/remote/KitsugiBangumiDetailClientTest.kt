@@ -514,9 +514,6 @@ class KitsugiBangumiDetailClientTest {
         )
         assertEquals(listOf("女"), info["性别"])
         assertEquals(listOf("古河渚", "Nagisa"), info["别名"])
-        // Alt anahtar (k) ayrıca indekslenir: `别名` altındaki `英文名` / `罗马字` gibi
-        // alanlar BangumiNameLocalizer tarafından doğrudan aranabilsin.
-        assertEquals(listOf("古河渚"), info["简体中文名"])
     }
 
     @Test

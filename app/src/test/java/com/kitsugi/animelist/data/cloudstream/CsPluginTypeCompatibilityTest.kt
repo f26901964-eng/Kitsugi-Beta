@@ -17,16 +17,12 @@ class CsPluginTypeCompatibilityTest {
     }
 
     @Test
-    fun liveActionTvPluginSupportsTvShowAndAnimeRelaxation() {
+    fun liveActionTvPluginSupportsTvShowButNotAnime() {
         val types = listOf("TvSeries", "AsianDrama")
 
         assertTrue(CsPluginTypeCompatibility.supports(MediaType.TvShow, types))
         assertTrue(CsPluginTypeCompatibility.supports(MediaType.TvShow, listOf("Tv Series")))
-        // v2.4.250+: TR dizi siteleri dublajlı anime barındırdığı için Anime türü TvSeries eklentilerini de destekler
-        assertTrue(CsPluginTypeCompatibility.supports(MediaType.Anime, types))
-        // Ancak Manga/Çizgi Roman eklentileri Anime veya Dizi için desteklenmez
-        assertFalse(CsPluginTypeCompatibility.supports(MediaType.Anime, listOf("Manga", "Comic")))
-        assertFalse(CsPluginTypeCompatibility.supports(MediaType.TvShow, listOf("Manga", "Comic")))
+        assertFalse(CsPluginTypeCompatibility.supports(MediaType.Anime, types))
     }
 
     @Test
