@@ -16,6 +16,12 @@
 - **Videolar sekmesi entegrasyonu:** `DetailVideoGroup` içerisindeki oynatıcı alanı `KitsugiDetailReveal(visible = isSelected)` ile sarılarak kapatma butonu ile birlikte animasyona dahil edildi.
 - **İçerik boyutu senkronizasyonu:** `KitsugiTrailerCard`, `DetailVideoGroup`, `KitsugiMediaVideosTab`, `KitsugiThemesList` ve `ThemeVideoSection` alanlarına `animateDetailContentSize()` eklenerek oynatıcı açılıp kapanırken alt içeriklerin zıplamadan yumuşakça kayması sağlandı.
 
+### ⚡ Detay Sayfası & Bilgi Sekmesi Akıcılık ve Kaydırma Performansı
+- **Recompose fırtınası engellendi:** `MediaEntryDetailPage` içindeki sekme akışları bağımsız slot composable'larına (`OverviewTabSlot`, `CharactersTabSlot`, vb.) ayrıştırıldı; arka planda bir sekmenin verisi geldiğinde tüm sayfanın yeniden kompoze olması önlendi.
+- **Jest & sayfa geçiş optimizasyonu:** `currentPage` okumaları izole yüklere alındı ve callback'ler `remember` ile stabilize edilerek yatay ve dikey kaydırmalardaki takılmalar giderildi.
+- **Layout fazı enterpolasyonu:** Portre moddaki ofset okumaları layout fazına taşınarak gereksiz kare başı çizimler sonlandırıldı.
+- **Galeri butonu nabız animasyonu:** `KitsugiGalleryIconButton` üzerindeki sonsuz nabız döngüsü yalnızca aktif yükleme anıyla sınırlandırılarak CPU ve pil yükü sıfırlandı.
+
 ---
 
 ## 🇬🇧 English
@@ -33,3 +39,9 @@
 - **Fluid slide & expand:** Added vertical slide transitions (`slideInVertically(-h/8)` / `slideOutVertically(-h/8)`) to `KitsugiDetailReveal`, ensuring inline video players and music themes glide smoothly downward on open and retract upward on close.
 - **Videos tab parity:** Wrapped inline players in `DetailVideoGroup` with `KitsugiDetailReveal(visible = isSelected)`, integrating the inline dismiss button into the shared animation.
 - **Content size interpolation:** Applied `animateDetailContentSize()` across `KitsugiTrailerCard`, `DetailVideoGroup`, `KitsugiMediaVideosTab`, `KitsugiThemesList`, and `ThemeVideoSection`, preventing layout jumps when players reveal or collapse.
+
+### ⚡ Detail Page & Overview Tab Scroll Smoothness & Performance Optimization
+- **Recomposition storm eliminated:** Refactored tab flows into isolated slot composables (`OverviewTabSlot`, `CharactersTabSlot`, etc.), ensuring background data arrivals only recompose their targeted tab instead of the entire page scaffold.
+- **Gesture & page transition decoupling:** Moved `currentPage` consumption into scoped effects and stabilized lambdas with `remember` to ensure fluid horizontal and vertical scrolling.
+- **Layout-phase offset interpolation:** Deferred portrait offset measurements to the layout phase, eliminating per-frame composition overhead.
+- **Gallery icon pulse bounded:** Restricted `KitsugiGalleryIconButton` pulse animations strictly to active image loading states, freeing idle CPU and GPU cycles.
