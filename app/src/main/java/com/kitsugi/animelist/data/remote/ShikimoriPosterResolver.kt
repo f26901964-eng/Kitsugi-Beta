@@ -266,7 +266,12 @@ object ShikimoriPosterResolver {
 
         return runCatching {
             PlatformRateLimiter.acquire("shikimori")
-            com.kitsugi.animelist.data.auth.ShikimoriApiClient.executeShikimori(request).use { response ->
+            val mirrors = hostOverride?.let { listOf(it) }
+                ?: com.kitsugi.animelist.data.auth.ShikimoriApiClient.baseUrlCandidates()
+            com.kitsugi.animelist.data.auth.ShikimoriApiClient.executeShikimori(
+                request = request,
+                candidateBaseUrls = mirrors
+            ).use { response ->
                 if (!response.isSuccessful) {
                     Log.w(TAG, "GraphQL poster isteği başarısız: HTTP ${response.code} (${kind.field}, ${ids.size} kimlik)")
                     return@use null

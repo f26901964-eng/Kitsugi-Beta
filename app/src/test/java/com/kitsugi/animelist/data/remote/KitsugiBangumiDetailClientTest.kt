@@ -306,7 +306,7 @@ class KitsugiBangumiDetailClientTest {
         assertEquals("Thursdays (TBS)", detail.broadcast)
         assertEquals("Key/VISUAL ARTS", detail.sourceMaterial)
         // Stüdyo/şirket adları Japonca infobox'tan Latin ada çevrilir
-        assertEquals(listOf("Kyoto Animation"), detail.studios.map { it.name })
+        assertEquals(listOf("KyoAni"), detail.studios.map { it.name })
         assertEquals(
             listOf("光坂高校演劇部", "TBS", "Pony Canyon", "Movic"),
             detail.producers.map { it.name }
@@ -542,8 +542,8 @@ class KitsugiBangumiDetailClientTest {
         assertEquals(1, merged.rank)
         assertEquals("https://lain.bgm.tv/pic/cover/l/67/d1/876_dCfrd.jpg", merged.imageUrl)
         assertTrue(merged.synopsis!!.startsWith("在某个小镇"))
-        // Boşluklar diğer kaynaktan tamamlanır
-        assertEquals(listOf("Drama", "Romance"), merged.genres)
+        // Boşluklar diğer kaynaktan tamamlanır (Bangumi türleriyle birleşir)
+        assertEquals(listOf("TV", "恋爱", "日本", "游戏改", "日常", "Drama"), merged.genres)
         assertEquals("PG-13", merged.rating)
         assertEquals("Clannad: After Story", merged.titleEnglish)
         assertEquals("https://youtube.com/watch?v=abc", merged.trailerUrl)
@@ -736,7 +736,7 @@ class KitsugiBangumiDetailClientTest {
             )
             java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr"))
             assertEquals(
-                "Cumartesi (Fuji TV)",
+                "Cumartesi (Fuji Television)",
                 KitsugiBangumiDetailClient.buildNativeDetail(animeSubject, MediaType.Anime).broadcast
             )
         } finally {

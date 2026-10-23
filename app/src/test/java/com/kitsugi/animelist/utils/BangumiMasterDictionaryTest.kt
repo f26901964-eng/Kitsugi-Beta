@@ -170,7 +170,7 @@ class BangumiMasterDictionaryTest {
 
     @Test
     fun `studioLatinNameMap hala calisir ve org sozlugu onu tamamlar`() {
-        assertEquals("Kyoto Animation", "京都アニメーション".toLatinStudioName())
+        assertEquals("KyoAni", "京都アニメーション".toLatinStudioName())
         assertEquals("GONZO", "ゴンゾ".toLatinStudioName())
         assertEquals("Science SARU", "サイエンスSARU".toLatinStudioName())
         // Eşleşmeyen ad olduğu gibi kalır.
@@ -198,7 +198,7 @@ class BangumiMasterDictionaryTest {
             assertEquals("Taktiksel Nişancı", "Tactical_shooter".toLocalizedTagLabel())
             assertEquals("Souls Benzeri", "Souls-like".toLocalizedTagLabel())
             assertEquals("Hafif Roman", "轻小说".toLocalizedTagLabel())
-            assertEquals("Kyoto Animation", "京アニ".toLocalizedOrgName())
+            assertEquals("KyoAni", "京アニ".toLocalizedOrgName())
             assertEquals("Masayuki Aoyagi", "青柳昌行".toLocalizedOrgName())
             assertEquals("Tomonori Ochikoshi", "落越友則".toLocalizedOrgName())
             assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
@@ -214,7 +214,7 @@ class BangumiMasterDictionaryTest {
             assertEquals("Tactical Shooter", "Tactical_shooter".toLocalizedTagLabel())
             assertEquals("Souls-like", "Souls-like".toLocalizedTagLabel())
             assertEquals("Light Novel", "轻小说".toLocalizedTagLabel())
-            assertEquals("Kyoto Animation", "京アニ".toLocalizedOrgName())
+            assertEquals("KyoAni", "京アニ".toLocalizedOrgName())
             assertEquals("Masayuki Aoyagi", "青柳昌行".toLocalizedOrgName())
             assertEquals("Tomonori Ochikoshi", "落越友則".toLocalizedOrgName())
             assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())

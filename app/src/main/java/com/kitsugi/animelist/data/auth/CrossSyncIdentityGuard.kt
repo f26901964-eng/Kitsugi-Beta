@@ -200,9 +200,11 @@ object CrossSyncIdentityGuard {
     private fun rawTokens(title: String): List<String> =
         tokenNormalize(title).split(' ').filter { it.isNotBlank() }
 
-    /** Sayısal kelimeler (sezon/bölüm numarası gibi): "Part 2" ↔ "Part 3" farkını yakalamak için. */
+    private val digitRunRegex = Regex("\\d+")
+
+    /** Sayısal belirteçler ("Part 2", "2nd Season", "8-gou"): sıra ekli sayılar dahil tüm rakam dizileri. */
     private fun numericTokens(title: String): Set<String> =
-        rawTokens(title).filter { tok -> tok.all { it.isDigit() } }.toSet()
+        digitRunRegex.findAll(tokenNormalize(title)).map { it.value }.toSet()
 
     /** Yapısal kelimeler atılmış, boşluksuz karşılaştırma anahtarı; Hepburn romanizasyon farklarını katlar. */
     private fun compactKey(title: String): String = rawTokens(title)
@@ -344,9 +346,27 @@ object CrossSyncIdentityGuard {
 
         val matchesClusterPool = titlesAreIdentityEquivalent(clusterAliases, incomingAliases) ||
             clusterAliases.any { ca -> incomingAliases.any { ia -> titlesVariantRelated(ca, ia) } }
+        if (matchesClusterPool) return emptyList()
 
-        return if (matchesClusterPool) emptyList() else sharedIdCandidates
+        // Cross-script crosswalk bridge (e.g. Bangumi Simplified Chinese `"怪兽8号"` paired with
+        // Shikimori/MAL/AniList Latin `"Kaijuu 8-gou"` via verified `bgm_a_<malId>` crosswalk):
+        // Simplified Chinese shares zero characters with romaji/English, whereas two poisoned rows
+        // in Latin script (`"Kaijuu 8-gou"` vs `"Unrelated Mystery Show"`) both have Latin letters.
+        val incomingHasLatin = incomingAliases.any(::hasLatinLetters)
+        val clusterHasLatin = clusterAliases.any(::hasLatinLetters)
+        if (incomingHasLatin != clusterHasLatin) {
+            val episodeConflict = existingCandidates.any { candidate ->
+                candidate.total != null && incoming.total != null &&
+                    candidate.total > 0 && incoming.total > 0 && candidate.total != incoming.total
+            }
+            if (!episodeConflict) return emptyList()
+        }
+
+        return sharedIdCandidates
     }
+
+    private fun hasLatinLetters(text: String): Boolean =
+        text.any { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.LATIN }
 
     /**
      * Bulk cross-sync (`AuthViewModel.syncPlatforms`) addition gate (`E96`):

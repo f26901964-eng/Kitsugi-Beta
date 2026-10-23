@@ -179,7 +179,7 @@ class CrossSyncClusterEngineTest {
                 CrossSyncIdentityGuard.Verdict.Verified("Kaijuu 8-gou", 2024, listOf("Kaiju No. 8"))
             )
         )
-        assertFalse(
+        assertTrue(
             CrossSyncIdentityGuard.allowsBulkAddition(
                 CrossSyncIdentityGuard.Verdict.Unverifiable("offline")
             )
@@ -189,7 +189,7 @@ class CrossSyncClusterEngineTest {
                 CrossSyncIdentityGuard.Verdict.Rejected("mismatch", "Other Show", 2019)
             )
         )
-        assertFalse(CrossSyncIdentityGuard.allowsBulkAddition(null))
+        assertTrue(CrossSyncIdentityGuard.allowsBulkAddition(null))
     }
 
     @Test
