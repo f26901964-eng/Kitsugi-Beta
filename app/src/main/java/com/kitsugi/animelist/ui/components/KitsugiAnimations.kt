@@ -77,7 +77,10 @@ private fun detailRevealEnterTransition(): EnterTransition =
     ) +
         fadeIn(
             animationSpec = tween(KitsugiMotion.detailRevealFadeMillis, easing = LinearOutSlowInEasing)
-        )
+        ) +
+        slideInVertically(
+            animationSpec = tween(KitsugiMotion.detailRevealMillis, easing = FastOutSlowInEasing)
+        ) { fullHeight -> -fullHeight / 8 }
 
 private fun detailRevealExitTransition(): ExitTransition =
     shrinkVertically(
@@ -86,7 +89,10 @@ private fun detailRevealExitTransition(): ExitTransition =
     ) +
         fadeOut(
             animationSpec = tween(KitsugiMotion.detailRevealFadeMillis, easing = FastOutLinearInEasing)
-        )
+        ) +
+        slideOutVertically(
+            animationSpec = tween(KitsugiMotion.detailCollapseMillis, easing = FastOutSlowInEasing)
+        ) { fullHeight -> -fullHeight / 8 }
 
 private fun stickyHeaderEnterTransition(): EnterTransition =
     expandVertically(
