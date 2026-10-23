@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.remote
 
 import android.util.Log
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -116,11 +117,11 @@ object KitsugiShikimoriClient {
                             year = year,
                             source = "shikimori",
                             realMalId = item.optInt("myanimelist_id").takeIf { it in 1..99_999_999 },
-                            titleEnglish = romajiTitle.ifBlank { null }
+                            titleRomaji = romajiTitle.ifBlank { null }
                         )
                     )
                 }
-                withResolvedPosters(ShikimoriPosterResolver.Kind.ANIME, results)
+                withResolvedMediaMetadata(ShikimoriPosterResolver.Kind.ANIME, results)
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori searchAnime exception: ${err.message}", err)
                 emptyList()
@@ -165,11 +166,11 @@ object KitsugiShikimoriClient {
                             year = year,
                             source = "shikimori",
                             realMalId = item.optInt("myanimelist_id").takeIf { it in 1..99_999_999 },
-                            titleEnglish = romajiTitle.ifBlank { null }
+                            titleRomaji = romajiTitle.ifBlank { null }
                         )
                     )
                 }
-                withResolvedPosters(ShikimoriPosterResolver.Kind.MANGA, results)
+                withResolvedMediaMetadata(ShikimoriPosterResolver.Kind.MANGA, results)
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori searchManga exception: ${err.message}", err)
                 emptyList()
@@ -259,11 +260,11 @@ object KitsugiShikimoriClient {
                         year = yr,
                         source = "shikimori",
                         realMalId = item.optInt("myanimelist_id").takeIf { it in 1..99_999_999 },
-                        titleEnglish = romajiTitle.ifBlank { null }
+                        titleRomaji = romajiTitle.ifBlank { null }
                     )
                 )
             }
-            withResolvedPosters(
+            withResolvedMediaMetadata(
                 if (mediaType == com.kitsugi.animelist.model.MediaType.Manga) ShikimoriPosterResolver.Kind.MANGA
                 else ShikimoriPosterResolver.Kind.ANIME,
                 results
@@ -1513,6 +1514,32 @@ object KitsugiShikimoriClient {
             if (current != null) return current
             if (kind == null || id <= 0) return null
             return resolved[kind]?.get(id)?.cardUrl
+        }
+    }
+
+    /**
+     * Shikimori REST araması yalnızca `name` (romaji) ve `russian` başlıklarını verir.
+     * İngilizce/Japonca varyantları GraphQL'den sayfa başına toplu çözüp eksik kapaklarla
+     * paralel tamamlarız; böylece arama ve keşfet kartları seçili başlık dilini kullanabilir.
+     */
+    private suspend fun withResolvedMediaMetadata(
+        kind: ShikimoriPosterResolver.Kind,
+        results: List<JikanSearchResult>
+    ): List<JikanSearchResult> {
+        if (results.isEmpty()) return results
+        return coroutineScope {
+            val posters = async { withResolvedPosters(kind, results) }
+            val names = async {
+                try {
+                    ShikimoriTitleResolver.resolve(kind, results.map { it.malId })
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w(TAG, "Shikimori başlıkları çözülemedi (${kind.field}): ${error.message}")
+                    emptyMap<Int, ShikimoriTitleResolver.Names>()
+                }
+            }
+            ShikimoriTitleResolver.applyToSearchResults(posters.await(), names.await())
         }
     }
 
