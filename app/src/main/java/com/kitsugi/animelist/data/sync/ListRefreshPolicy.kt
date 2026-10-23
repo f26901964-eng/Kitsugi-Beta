@@ -51,6 +51,12 @@ enum class ListRefreshPlan {
  */
 object ListRefreshPolicy {
 
+    /**
+     * Defterdeki damga bu kadar ilerideyse (cihaz saati değişmiş / yedekten eski-yeni karışık
+     * zaman damgası) defter güvenilmez sayılır ve tam çekim yapılır.
+     */
+    const val CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000L
+
     /** Elle yenilemede "zaten taze" sayılan pencere. */
     const val USER_FRESH_WINDOW_MS = 45_000L
 
@@ -93,6 +99,12 @@ object ListRefreshPolicy {
         if (mode == ListRefreshMode.USER_FORCE) return ListRefreshPlan.FULL
 
         if (!state.hasSyncedOnce) return ListRefreshPlan.FULL
+
+        // SAAT KAYMASI KORUMASI: cihaz saati geriye alındıysa (ya da defter gelecekteki bir
+        // damga taşıyorsa) `now - lastSuccessAt` negatif çıkar ve liste SONSUZA KADAR
+        // "taze" sayılırdı — kullanıcı elle yenilediğinde bile ağa çıkılmaz. Damga
+        // gelecekteyse hiç senkron olunmamış gibi davranılır.
+        if (state.lastSuccessAt > now + CLOCK_SKEW_TOLERANCE_MS) return ListRefreshPlan.FULL
 
         val sinceSuccess = (now - state.lastSuccessAt).coerceAtLeast(0L)
         val freshWindow = when {

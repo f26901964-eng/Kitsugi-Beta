@@ -229,6 +229,38 @@ uzlaştırmada yakalanır.
 
 ---
 
+## 5.6. Ek tur: yarış durumları ve "akla gelmeyen" kenar durumlar
+
+Senaryo matrisi çıktıktan sonra kalan riskler tek tek kapatıldı. Hepsi aynı sınıftandı:
+**iki şey aynı anda olurken** veri kaybı ya da kalıcı bayatlık.
+
+| # | Risk | Neden oluyordu | Kapatıldığı yer |
+|---|---|---|---|
+| 1 | **Yenileme sırasında yapılan düzenleme kayboluyordu** | Import, satırları turun başında okuyup saniyeler sonra yazıyor; arada girilen ilerleme/puan bayat kopyayla eziliyordu | `smartImport`: `refreshStartedAtSec` — tur başladıktan sonra değişen satır atlanır (`deferred`) |
+| 2 | **Çift kayıt** | Aynı kaynak için iki import eşzamanlı: sekme yenileme, çapraz eşitleme doğrulaması, bildirim işçisi, açılış senkronu. İkisi de "yerelde yok" sanıp ekliyordu | `MediaEntryRepository.importMutex` — karşılaştırma+yazma bloğu serileşti |
+| 3 | **Silinen kayıt import sürerken geri geliyordu** | Tombstone'lar turun başında okunuyordu; tur sırasında yapılan silme görülmüyordu | Yazma anında tombstone'lar tazelenir, o kayıtlar eklenmez |
+| 4 | **Saat kayması → liste sonsuza kadar "taze"** | Cihaz saati geri alınırsa `now - lastSuccessAt` negatif olur, tazelik penceresi hiç dolmaz | `ListRefreshPolicy.CLOCK_SKEW_TOLERANCE_MS` (5 dk) — damga gelecekteyse tam çekim |
+| 5 | **Kütüphane boşken "değişiklik yok" denmesi** | Simkl `activities` imzası aynı kaldığında liste hiç indirilmiyordu; yedek geri yükleme/temizlemeden sonra yerel boş kalıyordu | `countForSource(source) == 0` ise tam çekim zorunlu; imza kontrolü atlanır |
+| 6 | **Temizleme / yedek geri yükleme defteri kirletiyordu** | Tazelik defteri ve "sunucuda ne vardı" anlık görüntüsü eski kütüphaneye aitti | `deleteAll()` / `replaceAll()` → `SourceListSynchronizer.resetState(ctx, null)` |
+| 7 | **"Sildim, sonra tekrar ekledim" → uzaktan siliniyordu** | Yeniden eklenen kayıt **yeni yerel id** alır; kuyrukta kalan eski `DELETE` işi id eşleşmesine takılmaz | `PendingSyncDrainer.enqueue`: `UPDATE` yazılırken aynı yapımı hedefleyen bekleyen `DELETE` işleri düşürülür (`sameProduction`: tür + ortak kimlik, yoksa normalize başlık + yıl) |
+| 8 | **Her yenilemede tüm kütüphane okunuyordu** | `getAll()` + Kotlin süzgeci (1000+ satır) her turda kopyalanıyordu | Yeni DAO sorguları `getBySource` / `countBySource` (şema değişikliği yok, migration gerekmez) |
+
+### Bilinen sınırlar (bilinçli tercih, hata değil)
+
+1. **Web'de silme en geç 24 saatte yansır.** Delta yanıtı silinenleri göremez; her turda
+   "eşleşmeyen = sil" demek yarım yanıtta kütüphane kaybı riskidir. Silme yalnızca günlük
+   tam uzlaştırmada ve üç kapıdan geçtikten sonra yapılır.
+2. **Tek kaynakta eklenen kayıt diğerlerine otomatik yazılmaz.** Uygulamada bunun için
+   ayrı bir **çapraz eşitleme** akışı var; liste yenilemesi kullanıcının diğer hesaplarına
+   kendiliğinden yazmaz (istenmeyen toplu yazımı önlemek için).
+3. **Bekleyen yerel düzenleme uzak silmeden üstündür.** Çevrimdışıyken ilerleme girip aynı
+   kaydı web'den silersen, kuyruk boşaldığında kayıt uzakta yeniden oluşur (outbox semantiği).
+4. **Çok cihaz: son yazan kazanır.** Alan bazlı birleştirme yok; cihaz A'nın bekleyen
+   düzenlemesi, cihaz B'nin aynı kayıttaki yeni değerini ezebilir.
+5. **Uygulama yeni kurulduysa ilk tam çekime kadar hiçbir satır silinmez** (defter boş).
+
+---
+
 ## 6. Doğrulama
 
 ### Birim testleri (saf JVM)

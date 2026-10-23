@@ -97,11 +97,20 @@ object SourceListSynchronizer {
         val store = ListSyncStateStore(context)
         val state = store.read(source)
         val deltaAvailable = supportsDelta && fetchDelta != null
-        val plan = ListRefreshPolicy.plan(
-            state = state,
-            mode = mode,
-            supportsDelta = deltaAvailable
-        )
+        // Yerelde bu kaynağa ait HİÇ satır yoksa "zaten taze" ya da "uzak revizyon aynı"
+        // denemez: kütüphane temizlenmiş, yedek geri yüklenmiş ya da ilk kurulum yapılmış
+        // olabilir. Bu durumda tam çekim zorunludur, yoksa liste boş kalır.
+        val localRowCount = repository.countForSource(source)
+        val lostLocalData = localRowCount == 0 && state.lastSuccessAt > 0
+        val plan = if (lostLocalData) {
+            ListRefreshPlan.FULL
+        } else {
+            ListRefreshPolicy.plan(
+                state = state,
+                mode = mode,
+                supportsDelta = deltaAvailable
+            )
+        }
         if (plan == ListRefreshPlan.SKIP_UP_TO_DATE) {
             val backingOff = !mode.isUserInitiated &&
                 state.failureCount >= ListRefreshPolicy.MAX_CONSECUTIVE_FAILURES
@@ -127,7 +136,7 @@ object SourceListSynchronizer {
             } else {
                 null
             }
-            if (revision != null && revision == state.remoteRevision) {
+            if (revision != null && revision == state.remoteRevision && localRowCount > 0) {
                 val now = System.currentTimeMillis()
                 store.recordSuccess(
                     source = source,

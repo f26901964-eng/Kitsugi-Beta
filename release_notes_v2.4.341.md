@@ -18,6 +18,11 @@
 - **"Sildiğim şey geri geldi" bitti:** çevrimdışı silinen kaydın `DELETE` işi kuyrukta beklerken liste yenilenirse, sunucudan gelen eski kayıt geri eklenmez (tombstone koruması).
 - **Çevrimdışı eklediğim kayıt kaybolmuyor:** bekleyen `UPDATE`'i olan satır ne ezilir ne silinir; mesajda `· n bekleyen düzenleme korundu` yazar.
 - **Web'den sildiğin kayıt** en geç 24 saat içinde (günlük tam turda) yerelde de silinir; delta turları silmeyi göremez — bu bilinçli bir veri güvenliği tercihi.
+- **Yenileme sırasında yaptığın düzenleme artık kaybolmuyor:** tur başladıktan sonra değiştirdiğin satır bayat uzak kopyayla ezilmez.
+- **Çift kayıt bitti:** aynı kaynak için eşzamanlı çalışan iki içe aktarma (sekme yenileme + çapraz eşitleme + bildirim işçisi) artık sıraya giriyor.
+- **"Sildim, sonra tekrar ekledim" güvenli:** yeniden eklenen kaydı, kuyrukta kalan eski silme işi uzaktan silmiyor.
+- **Saat değişikliği listeyi kilitlemiyor:** cihaz saati geri alınsa bile liste "sonsuza kadar taze" sayılmıyor, ilk yenilemede tam çekim yapılıyor.
+- **Yedek geri yükleme / kütüphaneyi temizleme** sonrası yenileme defteri sıfırlanıyor; boş kütüphane "değişiklik yok" diye atlanmıyor.
 
 ### 📊 Kaynak Yenileme Davranışı (özet)
 | Kaynak | Arka planda | Elle yenileme | Tam uzlaştırma |
@@ -52,3 +57,8 @@
 - **"Deleted items came back" is fixed:** if a list refresh runs while an offline `DELETE` is still queued, the stale server row is not re-inserted (tombstone guard).
 - **Offline additions survive:** rows with a queued `UPDATE` are neither overwritten nor deleted, and the toast says `· n pending edits kept`.
 - **Entries deleted on the web** disappear locally within 24 hours (next full round); delta rounds cannot detect deletions — a deliberate data-safety trade-off.
+- **Edits made during a refresh are no longer lost:** rows modified after the round started are not overwritten by the stale remote copy.
+- **No more duplicates:** concurrent imports for the same source (tab refresh + cross-sync verification + notification worker) are serialized.
+- **"Deleted, then re-added" is safe:** a stale queued delete no longer removes the re-added entry remotely.
+- **Clock changes can't freeze the list:** a ledger timestamp in the future triggers a full sync instead of "always fresh".
+- **Backup restore / clear-library** resets the refresh ledger, and an empty library is never skipped as "no changes".

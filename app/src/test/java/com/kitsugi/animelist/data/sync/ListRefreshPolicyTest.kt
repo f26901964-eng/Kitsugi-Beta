@@ -187,6 +187,36 @@ class ListRefreshPolicyTest {
     }
 
     @Test
+    fun `clock skew in the ledger forces a full sync instead of skipping forever`() {
+        // Cihaz saati geriye alındı: defter gelecekte bir damga taşıyor. Eskiden
+        // `now - lastSuccessAt` negatif olduğu için liste sonsuza kadar "taze" sayılıyordu.
+        val future = now + 3 * hour
+        val plan = ListRefreshPolicy.plan(
+            state = state(lastSuccessAt = future, lastFullSyncAt = future, lastAttemptAt = future),
+            mode = ListRefreshMode.USER_REFRESH,
+            supportsDelta = true,
+            now = now
+        )
+        assertEquals(ListRefreshPlan.FULL, plan)
+    }
+
+    @Test
+    fun `small clock skew inside tolerance does not force a full sync`() {
+        val slightlyAhead = now + 60_000L
+        val plan = ListRefreshPolicy.plan(
+            state = state(
+                lastSuccessAt = slightlyAhead - 2 * hour,
+                lastFullSyncAt = now - 2 * hour,
+                lastAttemptAt = now - 2 * hour
+            ),
+            mode = ListRefreshMode.USER_REFRESH,
+            supportsDelta = true,
+            now = now
+        )
+        assertEquals(ListRefreshPlan.DELTA, plan)
+    }
+
+    @Test
     fun `delta start timestamp includes a safety margin and never goes below one`() {
         assertEquals(1_000L - 120L, ListRefreshPolicy.deltaSinceEpochSeconds(1_000_000L))
         assertEquals(1L, ListRefreshPolicy.deltaSinceEpochSeconds(0L))

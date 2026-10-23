@@ -37,7 +37,8 @@ object PendingSyncDrainer {
         entry: MediaEntry
     ) = withContext(Dispatchers.IO) {
         drainMutex.withLock {
-            val older = dao.getAll().filter { pending ->
+            val all = dao.getAll()
+            val older = all.filter { pending ->
                 runSyncCatching {
                     val previous = JSONObject(pending.entryJson)
                     entry.id > 0 && previous.optInt("id", 0) == entry.id &&
@@ -47,7 +48,45 @@ object PendingSyncDrainer {
             // Insert first: a failed insert must not destroy the previous recoverable job.
             dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson()))
             older.forEach { dao.deleteById(it.id) }
+
+            // ── "Sildim, sonra tekrar ekledim" koruması ────────────────────────────
+            // Yerel silme satırı kaldırdığı için yeniden eklenen kayıt YENİ bir yerel id
+            // alır; kuyrukta kalan eski DELETE işi yukarıdaki id eşleşmesine takılmaz ve
+            // bir sonraki boşaltmada yeni kaydı uzaktan SİLERDİ (kullanıcı: "tekrar
+            // ekledim ama yine silindi"). UPDATE kuyruğa girerken aynı yapımı hedefleyen
+            // bekleyen DELETE işleri düşürülür.
+            if (operation.equals("UPDATE", ignoreCase = true)) {
+                all.filter { it.operation.equals("DELETE", ignoreCase = true) }
+                    .filter { pending ->
+                        runSyncCatching { sameProduction(JSONObject(pending.entryJson), entry) }
+                            .getOrDefault(false)
+                    }
+                    .forEach { dao.deleteById(it.id) }
+            }
         }
+    }
+
+    /**
+     * İki kuyruk kaydı **aynı yapımı** mı gösteriyor?
+     *
+     * Yalnızca kanıt sayılan alanlara bakılır: tür + ortak dolu sağlayıcı kimliği; kimlik
+     * yoksa (nadiren) aynı normalize başlık + aynı yıl. Başlık benzerliği tek başına
+     * yetmez — aynı adı taşıyan remake'ler birbirinin işini silmemeli.
+     */
+    private fun sameProduction(previous: JSONObject, entry: MediaEntry): Boolean {
+        if (previous.optString("type") != entry.type.name) return false
+        val prevMalId = previous.optInt("malId", 0).takeIf { it > 0 }
+        val prevSimklId = previous.optInt("simklId", 0).takeIf { it > 0 }
+        val prevTmdbId = previous.optInt("tmdbId", 0).takeIf { it > 0 }
+        if (prevMalId != null && prevMalId == entry.malId) return true
+        if (prevSimklId != null && prevSimklId == entry.simklId) return true
+        if (prevTmdbId != null && prevTmdbId == entry.tmdbId) return true
+        val prevYear = previous.optInt("year", 0).takeIf { it > 0 }
+        if (prevYear != null && entry.year != null && prevYear != entry.year) return false
+        val prevTitle = com.kitsugi.animelist.model.MediaIdentity
+            .normalizedTitle(previous.optString("title"))
+        val entryTitle = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title)
+        return prevTitle.isNotBlank() && prevTitle == entryTitle
     }
 
     // ────────────────────────────────────────────────
