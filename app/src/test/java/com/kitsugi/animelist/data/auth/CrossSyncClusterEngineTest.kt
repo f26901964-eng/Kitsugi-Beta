@@ -6,7 +6,6 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,89 +15,101 @@ import org.junit.Test
  */
 class CrossSyncClusterEngineTest {
 
-    private fun kaijuSixPlatformEntries(): List<MediaEntry> = listOf(
+    private fun kaijuSixPlatformBatches(): List<Pair<CrossSyncClusterEngine.Slot, List<MediaEntry>>> = listOf(
         // AniList (primary card in user screenshot: AL, Completed, 12/12, 9/10)
-        MediaEntry(
-            id = 0,
-            title = "Kaijuu 8-gou",
-            titleEnglish = "Kaiju No. 8",
-            titleJapanese = "怪獣８号",
-            type = MediaType.Anime,
-            status = WatchStatus.Completed,
-            score = 9,
-            progress = 12,
-            total = 12,
-            source = "anilist",
-            malId = 52588,
-            year = 2024
+        CrossSyncClusterEngine.Slot.ANILIST to listOf(
+            MediaEntry(
+                id = 0,
+                title = "Kaijuu 8-gou",
+                titleEnglish = "Kaiju No. 8",
+                titleJapanese = "怪獣８号",
+                type = MediaType.Anime,
+                status = WatchStatus.Completed,
+                score = 9,
+                progress = 12,
+                total = 12,
+                source = "anilist",
+                malId = 52588,
+                year = 2024
+            )
         ),
         // MAL
-        MediaEntry(
-            id = 0,
-            title = "Kaijuu 8-gou",
-            titleEnglish = "Kaiju No. 8",
-            titleJapanese = "怪獣８号",
-            type = MediaType.Anime,
-            status = WatchStatus.Completed,
-            score = 9,
-            progress = 12,
-            total = 12,
-            source = "mal",
-            malId = 52588,
-            year = 2024
+        CrossSyncClusterEngine.Slot.MAL to listOf(
+            MediaEntry(
+                id = 0,
+                title = "Kaijuu 8-gou",
+                titleEnglish = "Kaiju No. 8",
+                titleJapanese = "怪獣８号",
+                type = MediaType.Anime,
+                status = WatchStatus.Completed,
+                score = 9,
+                progress = 12,
+                total = 12,
+                source = "mal",
+                malId = 52588,
+                year = 2024
+            )
         ),
         // Simkl (often missing year on list items)
-        MediaEntry(
-            id = 0,
-            title = "Kaiju No. 8",
-            type = MediaType.Anime,
-            status = WatchStatus.Completed,
-            score = 9,
-            progress = 12,
-            total = 12,
-            source = "simkl",
-            malId = 151_972_969,
-            year = null
+        CrossSyncClusterEngine.Slot.SIMKL to listOf(
+            MediaEntry(
+                id = 0,
+                title = "Kaiju No. 8",
+                type = MediaType.Anime,
+                status = WatchStatus.Completed,
+                score = 9,
+                progress = 12,
+                total = 12,
+                source = "simkl",
+                malId = 151_972_969,
+                year = null
+            )
         ),
         // Kitsu (300M + 46298)
-        MediaEntry(
-            id = 0,
-            title = "Kaiju No. 8",
-            titleJapanese = "怪獣8号",
-            type = MediaType.Anime,
-            status = WatchStatus.Completed,
-            score = 9,
-            progress = 12,
-            total = 12,
-            source = "kitsu",
-            malId = 300_046_298,
-            year = 2024
+        CrossSyncClusterEngine.Slot.KITSU to listOf(
+            MediaEntry(
+                id = 0,
+                title = "Kaiju No. 8",
+                titleJapanese = "怪獣8号",
+                type = MediaType.Anime,
+                status = WatchStatus.Completed,
+                score = 9,
+                progress = 12,
+                total = 12,
+                source = "kitsu",
+                malId = 300_046_298,
+                year = 2024
+            )
         ),
         // Shikimori (targetId == MAL ID == 52588, romaji title without English)
-        MediaEntry(
-            id = 0,
-            title = "Kaijuu 8-gou",
-            type = MediaType.Anime,
-            status = WatchStatus.Completed,
-            score = 9,
-            progress = 12,
-            total = 12,
-            source = "shikimori",
-            malId = 52588,
-            year = 2024
+        CrossSyncClusterEngine.Slot.SHIKIMORI to listOf(
+            MediaEntry(
+                id = 0,
+                title = "Kaijuu 8-gou",
+                type = MediaType.Anime,
+                status = WatchStatus.Completed,
+                score = 9,
+                progress = 12,
+                total = 12,
+                source = "shikimori",
+                malId = 52588,
+                year = 2024
+            )
         ),
         // Bangumi (500M + 400602, Simplified Chinese display title, null year)
-        MediaEntry(
-            id = 0,
-            title = "怪兽8号",
-            type = MediaType.Anime,
-            status = WatchStatus.Completed,
-            score = 9,
-            progress = 12,
-            total = 12,
-            source = "bangumi",
-            malId = 500_400_602,
-            year = null
+        CrossSyncClusterEngine.Slot.BANGUMI to listOf(
+            MediaEntry(
+                id = 0,
+                title = "怪兽8号",
+                type = MediaType.Anime,
+                status = WatchStatus.Completed,
+                score = 9,
+                progress = 12,
+                total = 12,
+                source = "bangumi",
+                malId = 500_400_602,
+                year = null
+            )
         )
     )
 
@@ -117,43 +128,68 @@ class CrossSyncClusterEngineTest {
 
     @Test
     fun kaijuNo8All720PlatformPermutationsMergeIntoSingleSixPlatformCluster() {
-        val rawEntries = kaijuSixPlatformEntries()
+        val rawBatches = kaijuSixPlatformBatches()
         val subjectToMal = MyListIdentityCrosswalk.reverseBangumiMapping(
             mapOf("bgm_a_52588" to 400_602)
         )
-        val perms = permutations(rawEntries)
+        val perms = permutations(rawBatches)
         assertEquals(720, perms.size)
 
         for (perm in perms) {
-            val assigned = CrossSyncClusterEngine.assignClusterRowIds(perm)
+            val assignedBatches = CrossSyncClusterEngine.assignClusterRowIds(perm)
+            val allAssigned = assignedBatches.flatMap { it.second }
             // Verify every row receives a distinct synthetic positive ID even when input id == 0
-            assertEquals(6, assigned.map { it.id }.toSet().size)
+            assertEquals(6, allAssigned.map { it.id }.toSet().size)
 
-            val extras = assigned.associate { entry ->
+            val extras = allAssigned.associate { entry ->
                 entry.id to MyListIdentityCrosswalk.extraKeysFor(entry, null, subjectToMal)
             }.filterValues { it.isNotEmpty() }
 
-            val clusters = CrossSyncClusterEngine.clusterEntries(assigned, extras)
+            val session = CrossSyncClusterEngine.Session(identityExtras = extras)
+            assignedBatches.forEach { (slot, list) ->
+                list.forEach { entry -> session.addEntry(slot, entry) }
+            }
+
+            val clusters = session.groupsSnapshot()
             assertEquals(
-                "Permutation ${perm.map { it.source }} split Kaiju No. 8 into ${clusters.size} clusters!",
+                "Permutation ${perm.map { it.first }} split Kaiju No. 8 into ${clusters.size} clusters!",
                 1,
                 clusters.size
             )
             val cluster = clusters.single()
-            assertEquals(6, cluster.size)
-            assertEquals(52588, CrossSyncClusterEngine.extractCrosswalkOrCandidateMalId(cluster, extras))
-
-            val verdict = CrossSyncIdentityGuard.evaluate(
-                winner = cluster.first(),
-                candidates = cluster,
-                crossResolvedMalId = 52588,
-                crossResolvedTmdbId = null
-            )
-            assertTrue(
-                "Verdict $verdict blocked bulk cross-sync addition for permutation ${perm.map { it.source }}",
-                CrossSyncIdentityGuard.allowsBulkAddition(verdict)
+            assertEquals(6, cluster.candidates.size)
+            assertFalse(cluster.identityReviewRequired)
+            assertEquals(
+                52588,
+                CrossSyncClusterEngine.extractCrosswalkOrCandidateMalId(cluster.candidates, session::keysOf)
             )
         }
+    }
+
+    @Test
+    fun allowsBulkAdditionUnblocksTrustedAndVerifiedWhileBlockingRejectedAndUnverifiable() {
+        // E96: Native MAL clusters return Verdict.Trusted, which previously blocked 100% of cross-account additions!
+        assertTrue(
+            CrossSyncIdentityGuard.allowsBulkAddition(
+                CrossSyncIdentityGuard.Verdict.Trusted("native MAL source")
+            )
+        )
+        assertTrue(
+            CrossSyncIdentityGuard.allowsBulkAddition(
+                CrossSyncIdentityGuard.Verdict.Verified("Kaijuu 8-gou", 2024, listOf("Kaiju No. 8"))
+            )
+        )
+        assertFalse(
+            CrossSyncIdentityGuard.allowsBulkAddition(
+                CrossSyncIdentityGuard.Verdict.Unverifiable("offline")
+            )
+        )
+        assertFalse(
+            CrossSyncIdentityGuard.allowsBulkAddition(
+                CrossSyncIdentityGuard.Verdict.Rejected("mismatch", "Other Show", 2019)
+            )
+        )
+        assertFalse(CrossSyncIdentityGuard.allowsBulkAddition(null))
     }
 
     @Test
@@ -165,6 +201,7 @@ class CrossSyncClusterEngineTest {
             title = "怪獣8号",
             type = MediaType.Anime,
             status = WatchStatus.Completed,
+            score = 9,
             progress = 12,
             total = 12,
             source = "bangumi",
@@ -176,6 +213,7 @@ class CrossSyncClusterEngineTest {
             title = "Kaiju No. 8",
             type = MediaType.Anime,
             status = WatchStatus.Completed,
+            score = 9,
             progress = 12,
             total = 12,
             source = "kitsu",
@@ -189,6 +227,7 @@ class CrossSyncClusterEngineTest {
             titleJapanese = "怪獣８号",
             type = MediaType.Anime,
             status = WatchStatus.Completed,
+            score = 9,
             progress = 12,
             total = 12,
             source = "anilist",
@@ -196,9 +235,17 @@ class CrossSyncClusterEngineTest {
             year = 2024
         )
 
-        val clusters = CrossSyncClusterEngine.clusterEntries(listOf(bangumi, kitsu, anilistBridge))
+        val session = CrossSyncClusterEngine.Session()
+        session.addEntry(CrossSyncClusterEngine.Slot.BANGUMI, bangumi)
+        session.addEntry(CrossSyncClusterEngine.Slot.KITSU, kitsu)
+        session.addEntry(CrossSyncClusterEngine.Slot.ANILIST, anilistBridge)
+
+        val clusters = session.groupsSnapshot()
         assertEquals(1, clusters.size)
-        assertEquals(setOf("bangumi", "kitsu", "anilist"), clusters.single().map { it.source }.toSet())
+        assertEquals(
+            setOf("bangumi", "kitsu", "anilist"),
+            clusters.single().candidates.map { it.source }.toSet()
+        )
     }
 
     @Test
@@ -208,6 +255,7 @@ class CrossSyncClusterEngineTest {
             title = "Hunter x Hunter",
             type = MediaType.Anime,
             status = WatchStatus.Completed,
+            score = 8,
             progress = 62,
             total = 62,
             source = "mal",
@@ -219,6 +267,7 @@ class CrossSyncClusterEngineTest {
             title = "Hunter x Hunter",
             type = MediaType.Anime,
             status = WatchStatus.Completed,
+            score = 9,
             progress = 148,
             total = 148,
             source = "kitsu",
@@ -226,18 +275,23 @@ class CrossSyncClusterEngineTest {
             year = 2011
         )
 
-        val clusters = CrossSyncClusterEngine.clusterEntries(listOf(hxh1999, hxh2011))
-        assertEquals(2, clusters.size)
+        val session = CrossSyncClusterEngine.Session()
+        session.addEntry(CrossSyncClusterEngine.Slot.MAL, hxh1999)
+        session.addEntry(CrossSyncClusterEngine.Slot.KITSU, hxh2011)
+
+        assertEquals(2, session.groupsSnapshot().size)
+        assertFalse(CrossSyncIdentityGuard.clusterYearsCompatible(listOf(hxh1999, hxh2011)))
     }
 
     @Test
-    fun suspiciousSharedIdCandidateWithUnrelatedTitleIsDetectedAndBlocked() {
+    fun suspiciousSharedIdCandidateWithUnrelatedTitleIsDetectedAndMarkedForReview() {
         val kaijuAl = MediaEntry(
             id = 1,
             title = "Kaijuu 8-gou",
             titleEnglish = "Kaiju No. 8",
             type = MediaType.Anime,
             status = WatchStatus.Completed,
+            score = 9,
             progress = 12,
             total = 12,
             source = "anilist",
@@ -246,9 +300,10 @@ class CrossSyncClusterEngineTest {
         )
         val poisonedEntry = MediaEntry(
             id = 2,
-            title = "Boku no Pico Academia Z",
+            title = "Unrelated Mystery Show",
             type = MediaType.Anime,
             status = WatchStatus.Watching,
+            score = null,
             progress = 3,
             total = 50,
             source = "shikimori",
@@ -257,17 +312,16 @@ class CrossSyncClusterEngineTest {
         )
 
         val suspicious = CrossSyncIdentityGuard.findSuspiciousSharedIdCandidates(
-            listOf(kaijuAl, poisonedEntry)
+            existingCandidates = listOf(kaijuAl),
+            incoming = poisonedEntry,
+            sharedIdCandidates = listOf(kaijuAl)
         )
         assertTrue(suspicious.isNotEmpty())
 
-        val verdict = CrossSyncIdentityGuard.evaluate(
-            winner = kaijuAl,
-            candidates = listOf(kaijuAl, poisonedEntry),
-            crossResolvedMalId = 52588,
-            crossResolvedTmdbId = null
-        )
-        assertFalse(CrossSyncIdentityGuard.allowsBulkAddition(verdict))
+        val session = CrossSyncClusterEngine.Session()
+        session.addEntry(CrossSyncClusterEngine.Slot.ANILIST, kaijuAl)
+        session.addEntry(CrossSyncClusterEngine.Slot.SHIKIMORI, poisonedEntry)
+        assertTrue(session.groupsSnapshot().single().identityReviewRequired)
     }
 
     @Test

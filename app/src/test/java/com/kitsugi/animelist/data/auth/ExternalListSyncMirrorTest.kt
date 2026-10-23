@@ -5,7 +5,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
-import com.kitsugi.animelist.ui.components.badgeSources
+import com.kitsugi.animelist.ui.components.additionalLibraryBadgeSources
 import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntries
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -15,7 +15,7 @@ import org.junit.Test
  * Verifies `E98`: after `ExternalListSyncManager.syncEntry(...)` succeeds (`OUTCOME_SYNCED`),
  * each synced platform gets a canonical local `media_entries` mirror row whose `source` and `malId`
  * match the exact provider ID namespace contract and merge into ONE unified `Listem` card with all
- * 6 synced provider badges (`AL`, `MAL`, `Simkl`, `Kitsu`, `Shikimori`, `Bangumi`).
+ * synced provider badges (`AL` primary + `mal`, `simkl`, `kitsu`, `shikimori`, `bangumi`).
  */
 class ExternalListSyncMirrorTest {
 
@@ -34,7 +34,7 @@ class ExternalListSyncMirrorTest {
             total = 12,
             source = "anilist",
             malId = 52588,
-            aniListId = 153288,
+            aniListEntryId = 415_328_800,
             year = 2024
         )
         val crossIds = CrossProviderIds(
@@ -49,13 +49,15 @@ class ExternalListSyncMirrorTest {
         val providers = listOf("anilist", "mal", "simkl", "kitsu", "shikimori", "bangumi")
         val mirrors = providers.mapIndexed { idx, provider ->
             val mirror = ExternalListSyncManager.buildLocalProviderMirrorEntry(
-                provider = provider,
-                sourceEntry = baseAniListCard,
-                crossIds = crossIds,
-                existingId = idx + 1
+                sourceKey = provider,
+                baseEntry = baseAniListCard,
+                identity = crossIds,
+                aniListEntryId = baseAniListCard.aniListEntryId,
+                learnedBangumiSubjectId = 400_602,
+                fallbackKitsuMediaId = 46298
             )
             assertNotNull("Expected non-null local mirror for $provider", mirror)
-            mirror!!
+            mirror!!.copy(id = idx + 1)
         }
 
         val byProvider = mirrors.associateBy { it.source }
@@ -63,10 +65,10 @@ class ExternalListSyncMirrorTest {
         assertEquals(52588, byProvider.getValue("shikimori").malId)
         assertEquals(300_046_298, byProvider.getValue("kitsu").malId)
         assertEquals(46298, MediaIdentity.kitsuId(byProvider.getValue("kitsu")))
-        assertEquals(BangumiIdNamespace.toStableId(400_602), byProvider.getValue("bangumi").malId)
+        assertEquals(BangumiIdNamespace.stableIdFromRaw(400_602), byProvider.getValue("bangumi").malId)
         assertEquals(400_602, MediaIdentity.bangumiId(byProvider.getValue("bangumi")))
 
-        // Group inside `Listem > Tümü` (same pipeline rendered by MyListScreen)
+        // Group inside `Listem > Tümü` (exact pipeline rendered by MyListScreen)
         val grouped = groupMyListEntries(mirrors)
         assertEquals(
             "All 6 provider mirrors must collapse into ONE Kaiju No. 8 card in Listem",
@@ -75,10 +77,11 @@ class ExternalListSyncMirrorTest {
         )
 
         val unifiedCard = grouped.single()
-        val badges = badgeSources(unifiedCard).toSet()
+        assertEquals("anilist", unifiedCard.entry.source)
+        val additionalBadges = additionalLibraryBadgeSources("AL", unifiedCard.sourceIds).toSet()
         assertEquals(
-            setOf("anilist", "mal", "simkl", "kitsu", "shikimori", "bangumi"),
-            badges
+            setOf("mal", "simkl", "kitsu", "shikimori", "bangumi"),
+            additionalBadges
         )
     }
 }

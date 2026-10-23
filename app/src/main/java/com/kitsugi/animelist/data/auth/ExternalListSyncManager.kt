@@ -1110,7 +1110,7 @@ object ExternalListSyncManager {
                 baseEntry.copy(
                     id = 0,
                     source = "bangumi",
-                    malId = BangumiIdNamespace.toStableId(subjectId),
+                    malId = BangumiIdNamespace.stableIdFromRaw(subjectId) ?: return null,
                     aniListEntryId = null,
                     simklId = null
                 )

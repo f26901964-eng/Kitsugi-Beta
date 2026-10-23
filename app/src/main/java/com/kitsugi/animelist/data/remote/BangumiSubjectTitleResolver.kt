@@ -212,7 +212,7 @@ internal object BangumiSubjectTitleResolver {
                     }.awaitAll().forEach { chunkResult ->
                         if (chunkResult == null) return@forEach
                         completedAniList.addAll(chunkResult.unmatched)
-                        val appCtx = KitsugiApplication.getInstance()?.applicationContext
+                        val appCtx = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
                         for ((rawId, latin) in chunkResult.resolved) {
                             completedAniList += rawId
                             BangumiTitleCache.put(rawId, latin.romaji, latin.english, latin.native)
@@ -220,8 +220,10 @@ internal object BangumiSubjectTitleResolver {
                             val malId = chunkResult.matchedMalIds[rawId]
                             val req = anilistPending.firstOrNull { it.rawId == rawId }
                             if (appCtx != null && malId != null && malId > 0 && req != null) {
+                                val resolvedSubjectType = req.subjectType
+                                    ?: BangumiIdNamespace.subjectTypeFor(req.mediaType)
                                 runCatching {
-                                    BangumiLocalMappingCache.put(appCtx, malId, req.subjectType, rawId)
+                                    BangumiLocalMappingCache.put(appCtx, malId, resolvedSubjectType, rawId)
                                 }
                             }
                         }

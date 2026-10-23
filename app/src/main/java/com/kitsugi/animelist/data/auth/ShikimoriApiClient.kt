@@ -143,15 +143,21 @@ object ShikimoriApiClient {
         val triedTargets = mutableSetOf("${current.url.scheme}://${current.url.host}:${current.url.port}")
         fun nextMirrorRequest(): Request? {
             val nextUrlObj = candidateBaseUrls.asSequence()
-                .mapNotNull { okhttp3.HttpUrl.parse(it) }
+                .mapNotNull { candidate -> runCatching { okhttp3.HttpUrl.Builder().run {
+                    val uri = java.net.URI(candidate)
+                    scheme(uri.scheme ?: "https")
+                    host(uri.host ?: return@mapNotNull null)
+                    if (uri.port > 0) port(uri.port)
+                    build()
+                } }.getOrNull() }
                 .firstOrNull { candidate ->
-                    "${candidate.scheme()}://${candidate.host()}:${candidate.port()}" !in triedTargets
+                    "${candidate.scheme}://${candidate.host}:${candidate.port}" !in triedTargets
                 } ?: return null
-            triedTargets += "${nextUrlObj.scheme()}://${nextUrlObj.host()}:${nextUrlObj.port()}"
+            triedTargets += "${nextUrlObj.scheme}://${nextUrlObj.host}:${nextUrlObj.port}"
             val rebuiltUrl = current.url.newBuilder()
-                .scheme(nextUrlObj.scheme())
-                .host(nextUrlObj.host())
-                .port(nextUrlObj.port())
+                .scheme(nextUrlObj.scheme)
+                .host(nextUrlObj.host)
+                .port(nextUrlObj.port)
                 .build()
             return current.newBuilder().url(rebuiltUrl).build()
         }
