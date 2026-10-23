@@ -14,6 +14,29 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/**
+ * Bir liste içe aktarımının sonucu.
+ *
+ * [unchanged] alanı kritik: hiçbir şey değişmemişse veritabanına YAZILMAZ, Room yeni bir
+ * emisyon üretmez ve Listem'in birleşik kütüphane hesabı boşuna baştan koşmaz.
+ * [deferred] ise yerelde düzenlenmiş ama henüz uzak sunucuya gönderilememiş (çevrimdışı
+ * kuyrukta bekleyen) satır sayısıdır — bu satırlar taze uzak veriyle ezilmez.
+ */
+data class ImportStats(
+    val source: String,
+    val fetched: Int = 0,
+    val added: Int = 0,
+    val updated: Int = 0,
+    val unchanged: Int = 0,
+    val deleted: Int = 0,
+    val deferred: Int = 0
+) {
+    /** Yerel veride görünür bir değişiklik oldu mu? */
+    val hasChanges: Boolean get() = added > 0 || updated > 0 || deleted > 0
+}
 
 class MediaEntryRepository(
     private val dao: MediaEntryDao,
@@ -21,6 +44,17 @@ class MediaEntryRepository(
     val context: Context? = null,
     private val onExternalSyncMessage: ((String) -> Unit)? = null
 ) {
+    /**
+     * Liste içe aktarımlarını SERİLEŞTİRİR.
+     *
+     * Aynı kaynak için iki import eşzamanlı çalışabilir: sekmeyi yenileme (synchronizer
+     * single-flight'ı yalnızca kendi yolunu korur), çapraz eşitleme doğrulama turu,
+     * bildirim işçisinin Simkl birleştirmesi ve açılış senkronu farklı yollardan gelir.
+     * İkisi de aynı "mevcut satırlar" anlık görüntüsünü okuyup aynı kaydı "yok" sanırsa
+     * **çift kayıt** oluşur. Kilit, karşılaştırma+yazma bloğunu atomik hâle getirir.
+     */
+    private val importMutex = Mutex()
+
     /**
      * PERF (2026-10-20): [withCrossSourceAdultFlags] tüm tabloyu entity→domain'e çevirip
      * satır başına kimlik anahtarları hesaplar; büyük kütüphanelerde onlarca-milisaniyelik
@@ -92,26 +126,87 @@ class MediaEntryRepository(
      * @Transaction içinde çalışır → Room Flow yalnızca 1 kez
      * tetiklenir ve Compose yalnızca değişen kartları yeniden çizer.
      *
+     * FAKAT (2026-10-23): "tek transaction" tek başına yeterli değildi — eski sürüm
+     * eşleşen HER satırı, içeriği birebir aynı olsa bile `updates` listesine koyuyordu.
+     * Yani hiçbir şey değişmemiş bir yenileme bile tüm tabloyu yeniden yazıp Room'un
+     * TÜM kütüphaneyi yeniden yayınlamasına, dolayısıyla Listem'in birleşik
+     * hesaplamasının (kimlik köprüsü + gruplama, 1000+ satır) baştan koşmasına yol
+     * açıyordu. Artık satırlar `updatedAt` dışındaki alanlarda karşılaştırılır; fark
+     * yoksa ne `updateAll` çağrılır ne de transaction açılır.
+     *
      * @param source  "anilist", "mal", "simkl" vb.
      * @param importedEntries  Uzak API'dan gelen güncel liste
+     * @return kaç kaydın eklendiği/güncellendiği/aynı kaldığı ([ImportStats])
      */
     suspend fun smartImport(
         source: String,
         importedEntries: List<MediaEntry>,
-        allowDelete: Boolean = true
-    ) {
+        allowDelete: Boolean = true,
+        keepAdultRows: Boolean = false,
+        guardAgainstPartialPayload: Boolean = false,
+        isFullPull: Boolean = false
+    ): ImportStats = importMutex.withLock {
+        smartImportInternal(
+            source = source,
+            importedEntries = importedEntries,
+            allowDelete = allowDelete,
+            keepAdultRows = keepAdultRows,
+            guardAgainstPartialPayload = guardAgainstPartialPayload,
+            isFullPull = isFullPull
+        )
+    }
+
+    /**
+     * Listenin kendisi: karşılaştırma, fark yazımı, silme kuralları.
+     * **Yalnızca [smartImport] üzerinden çağrılır** (kütüphane yazımları sırayla çalışsın).
+     */
+    private suspend fun smartImportInternal(
+        source: String,
+        importedEntries: List<MediaEntry>,
+        allowDelete: Boolean,
+        keepAdultRows: Boolean,
+        guardAgainstPartialPayload: Boolean,
+        isFullPull: Boolean
+    ): ImportStats {
+        // PERF: yalnızca bu kaynağın satırları okunur (getAll + Kotlin süzgeci tüm
+        // kütüphaneyi her yenilemede kopyalıyordu). Kaynak kapsamlı import için aynı sonuç.
+        val existing = dao.getBySource(source)
+        val pendingLocalIdsEarly = pendingLocalEntryIdsFor(source)
+        // Yarış koruması: bu turun BAŞLANGIÇ anı. Bundan sonra yerelde değiştirilen satır
+        // (kullanıcı ilerlemeyi güncelledi) taze uzak veriyle EZİLMEZ — okuma anındaki
+        // bayat kopyayla yazmak, aynı saniyelerde yapılan düzenlemeyi kaybettiriyordu.
+        val refreshStartedAtSec = System.currentTimeMillis() / 1000L
+
         if (importedEntries.isEmpty()) {
-            if (allowDelete) {
-                clearPendingJobsFor(source = source)
-                dao.deleteBySource(source)
-            }
-            return
+            // BOŞ YANIT KÜTÜPHANEYİ ASLA TEMİZLEMEZ.
+            //
+            // Eski davranış (allowDelete + boş liste → deleteBySource) tek bir 401/kota/kesik
+            // yanıtta kullanıcının tüm kaynak listesini siliyordu. Boş liste gerçekten
+            // "kullanıcı hepsini kaldırdı" anlamına gelse bile bunu yapmanın doğru yolu,
+            // satır satır silmeyi üç kapıdan geçiren normal yoldur; boş yanıt ise kanıt
+            // değildir. Bu turda hiçbir şey yazılmaz, defter de bozulmaz; kullanıcı
+            // gerçekten listesini boşalttıysa bir sonraki (boş olmayan) yanıtta satırlar
+            // normal kurallarla düşer.
+            android.util.Log.w(
+                "MediaEntryRepository",
+                "$source: boş liste yanıtı yok sayıldı (yerelde ${existing.size} satır korunuyor)"
+            )
+            return ImportStats(source = source)
         }
 
-        val existing = dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
         val updates = linkedMapOf<Int, MediaEntryEntity>()
         val inserts = mutableListOf<MediaEntry>()
         val matchedIds = mutableSetOf<Int>()
+        // Çevrimdışıyken yapılmış ve henüz uzak sunucuya GÖNDERİLEMEMİŞ düzenlemeler
+        // taze uzak veriyle ezilmez (outbox / pending-safe uzlaştırma). Aksi halde
+        // çevrimdışı girilen bölüm/puan, bağlantı gelip liste çekilince sessizce geri
+        // alınıyordu. Bu satırlar bir sonraki kuyruk boşaltmasında zaten gönderilecek.
+        val pendingLocalIds = pendingLocalIdsEarly
+        // Yerelde silinmiş ama DELETE'i henüz uzaklara ulaşmamış kayıtlar: liste yenilendiğinde
+        // sunucu onları hâlâ döndürür, "yeni" sanılıp geri eklenmemeleri gerekir.
+        val pendingDeleteKeys = deletionTombstones()
+        var unchanged = 0
+        var deferred = 0
         for (entry in importedEntries) {
             val imported = entry.copy(source = source)
             val matches = existing.filter {
@@ -149,6 +244,18 @@ class MediaEntryRepository(
             }
             if (match != null) {
                 matchedIds.add(match.id)
+                if (match.id in pendingLocalIds) {
+                    // Yerel düzenleme henüz uzak sunucuya gitmedi → taze uzak veri onu ezmez.
+                    deferred++
+                    continue
+                }
+                if (match.updatedAt > refreshStartedAtSec) {
+                    // Satır, bu yenileme BAŞLADIKTAN sonra yerelde değiştirildi (kullanıcı
+                    // ilerleme/puan girdi). Bayat uzak kopyayla ezilmez; bir sonraki turda
+                    // karşılaştırma zaten güncel yerel değerle yapılır.
+                    deferred++
+                    continue
+                }
                 // +18 işareti GERİ ALINMAZ: örneğin Simkl liste API'si yetişkin bayrağını
                 // taşımıyor; güncel kayıt `isAdult = false` getirse bile AniList/MAL gibi
                 // birinci elden bilgilendirilmiş satırın işaretini silmek bulanıklığı
@@ -157,7 +264,7 @@ class MediaEntryRepository(
                 // (Japonca/Çince) adı döndürdüğü için her yeniden içe aktarım, daha önce
                 // tamamlanmış Latin/İngilizce adları CJK adla eziyordu — liste, başlık dili
                 // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüyordu (v2.4.315).
-                updates[match.id] = preserveResolvedTitles(match, imported).copy(
+                val candidate = preserveResolvedTitles(match, imported).copy(
                     id = match.id,
                     isAdult = imported.isAdult || match.isAdult,
                     // Eklenme zamanı GERİ ALINMAZ: kaynağın gerçek `createdAt`'i varsa
@@ -166,7 +273,23 @@ class MediaEntryRepository(
                     // "Son eklenen" sırasını yeniden karıştırırdı.
                     addedAt = resolveAddedAt(imported, existingAddedAt = match.addedAt)
                 ).toEntity()
+                // `updatedAt` yerel defter zamanıdır; yalnızca o değiştiyse satır AYNI
+                // sayılır (yoksa her yenileme tüm tabloyu "değişmiş" gösterirdi).
+                if (candidate.samePayloadAs(match)) {
+                    unchanged++
+                } else {
+                    updates[match.id] = candidate
+                }
             } else {
+                if (com.kitsugi.animelist.data.sync.ImportReconciler.isResurrection(
+                        importedKeys = identityKeysFor(imported),
+                        pendingDeleteKeys = pendingDeleteKeys
+                    )
+                ) {
+                    // Kullanıcı bu kaydı sildi, silme işi kuyrukta bekliyor → diriltme.
+                    deferred++
+                    continue
+                }
                 val prior = inserts.indexOfFirst {
                     com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
                 }
@@ -174,14 +297,76 @@ class MediaEntryRepository(
             }
         }
         // allowDelete=false must really mean NO deletion, including alleged title duplicates.
-        val deletions = if (allowDelete) existing.filter { it.id !in matchedIds }.map { it.id } else emptyList()
-        // İçe aktarımda listeden DÜŞEN satırların bayat kuyruk işleri de düşürülür:
-        // eski kopya sonradan uzaklara geri yazılsa import taze veriyi silerdi.
-        if (deletions.isNotEmpty()) clearPendingJobsFor(entryIds = deletions)
-        dao.smartImportTransaction(
-            inserts.map { it.copy(id = 0, addedAt = resolveAddedAt(it)).toEntity() },
-            updates.values.toList(),
-            deletions
+        // Silme kararı tek yerden verilir: eşleşmeyen + bekleyen düzenlemesi olmayan satırlar,
+        // yarım yanıt korumasından geçtikten sonra. +18 süzgeçli kaynaklarda (MAL nsfw=false)
+        // o satırlar hiç aday olmaz.
+        // "Sunucuda en son ne vardı?" defteri: yalnızca orada görülmüş satırlar silinebilir.
+        // Böylece yerelde eklenmiş ama sunucuya henüz gönderilememiş (ya da gönderimi
+        // "atlandı" denen) kayıtlar, hiçbir süzgeç kombinasyonunda silinemez.
+        val snapshotKeys = if (allowDelete) snapshotStore()?.read(source).orEmpty() else emptySet()
+        val eligibleForDeletion = existing
+            .filter { !(keepAdultRows && it.isAdult) }
+            .filter { row ->
+                com.kitsugi.animelist.data.sync.ImportReconciler.serverOriginConfirmed(
+                    keys = com.kitsugi.animelist.model.MediaIdentity.keys(row.toDomain()),
+                    previousSnapshot = snapshotKeys
+                )
+            }
+            .map { it.id }
+        val deletions = if (
+            allowDelete && com.kitsugi.animelist.data.sync.ImportReconciler.coverageAllowsDeletion(
+                existingCount = eligibleForDeletion.size,
+                fetchedCount = importedEntries.size,
+                enforce = guardAgainstPartialPayload
+            )
+        ) {
+            com.kitsugi.animelist.data.sync.ImportReconciler.deletionCandidateIds(
+                eligibleIds = eligibleForDeletion,
+                matchedIds = matchedIds,
+                protectedIds = pendingLocalIds
+            )
+        } else {
+            emptyList()
+        }
+
+        // PERF: hiçbir şey değişmediyse transaction AÇILMAZ. Room yalnızca yazım olduğunda
+        // invalidation yayar; boş bir updateAll bile tüm kütüphanenin yeniden
+        // yayınlanmasına (ve Listem'in baştan hesaplanmasına) neden olurdu.
+        // Import sürerken kullanıcı bir kaydı SİLMİŞ olabilir: tombstone'lar turun başında
+        // okunduğu için o satır "yeni" sanılıp geri eklenebilirdi. Yazma anında tazelenir.
+        val freshTombstones = if (inserts.isNotEmpty()) deletionTombstones() else pendingDeleteKeys
+        val finalInserts = if (freshTombstones.isEmpty() || freshTombstones == pendingDeleteKeys) {
+            inserts
+        } else {
+            inserts.filterNot { identityKeysFor(it).any { key -> key in freshTombstones } }
+        }
+
+        if (finalInserts.isNotEmpty() || updates.isNotEmpty() || deletions.isNotEmpty()) {
+            // İçe aktarımda listeden DÜŞEN satırların bayat kuyruk işleri de düşürülür:
+            // eski kopya sonradan uzaklara geri yazılsa import taze veriyi silerdi.
+            if (deletions.isNotEmpty()) clearPendingJobsFor(entryIds = deletions)
+            dao.smartImportTransaction(
+                finalInserts.map { it.copy(id = 0, addedAt = resolveAddedAt(it)).toEntity() },
+                updates.values.toList(),
+                deletions
+            )
+        }
+
+        // Tam çekim başarıyla uygulandı → "sunucuda ne vardı" defteri tazelenir.
+        // Yarım yanıt koruması devredeyken (silme yapılmayan tur) defter yine yazılır:
+        // yanıt eksikse defter küçülür, bu yalnızca silmeyi GECİKTİRİR, veri kaybı yaratmaz.
+        if (isFullPull) {
+            snapshotStore()?.write(source, importedEntries)
+        }
+
+        val stats = ImportStats(
+            source = source,
+            fetched = importedEntries.size,
+            added = finalInserts.size,
+            updated = updates.size,
+            unchanged = unchanged,
+            deleted = deletions.size,
+            deferred = deferred
         )
 
         if (sourceNeedsAdultRescan(source)) {
@@ -193,31 +378,38 @@ class MediaEntryRepository(
                 }
             }
         }
+
+        return stats
     }
 
     /**
-     * Bir kaynağın listesini BAŞTAN yazarken +18 işaretlerini korur.
+     * Kaynağın taze listesini, +18 işaretlerini KORUYARAK yerelle birleştirir.
      *
-     * `deleteBySource(...) + insertAll(...)` kalıbı (gecelik arka plan senkronu ve
-     * bildirim işçisi bunu yapıyor) sil-yeniden-yaz döngüsüdür: Simkl/Shikimori/Kitsu
-     * liste API'leri `adult` alanını taşımadığından, daha önce kimlik üzerinden
-     * işaretlenmiş kayıtların bulanıklığı da o gece silinirdi — "bir düzeldi, sonra
-     * yine bozuldu" şikâyetinin kökü. Bu metot eski işaretleri kanonik kimlikler
-     * üzerinden yeni listeye geri yazar.
+     * Eski `replaceSourcePreservingAdultFlags` sil-yeniden-yaz yapıyordu
+     * (`deleteBySource` + `insertAll`): her arka plan yenilemesinde o kaynağın TÜM
+     * satırları silinip yeni id'lerle geri yazılıyordu. Sonuçları:
+     *  - Room iki kez invalidation yayıyor, Listem bir-iki kare boşalıp doluyordu,
+     *  - satır id'leri değiştiği için bekleyen senkron işleri ve kaydırma konumu
+     *    referansları anlamsızlaşıyordu,
+     *  - okuma sırasında kütüphane yarım görünüyordu.
+     * Artık fark-tabanlı [smartImport] kullanılır: yalnızca gerçekten değişen satırlar
+     * yazılır, silme yapılmaz. Simkl/Shikimori/Bangumi liste uçları `adult` alanını
+     * taşımadığı için eski +18 işaretleri kanonik kimlikler üzerinden geri yazılır.
      */
-    suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
+    suspend fun mergeSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>): ImportStats {
+        if (entries.isEmpty()) return ImportStats(source = source)
+
+        // PERF: kaynak kapsamlı sorgu (tüm kütüphaneyi okuyup süzmek yerine).
         val existingRows = runCatching {
-            dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
+            dao.getBySource(source)
         }.getOrDefault(emptyList())
+
         val preservedKeys = existingRows
             .filter { it.isAdult }
             .map { it.toDomain() }
             .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
             .toSet()
-        // Sil-yeniden-yaz, satır `id`'leriyle birlikte yerel eklenme zamanlarını da
-        // uçurur; kaynak eklenme zamanı vermeyen kaynaklarda (Simkl/Bangumi/MAL)
-        // "Son eklenen" her gece senkronunda baştan karışırdı. +18 işaretleri gibi
-        // eklenme zamanları da kimlik üzerinden yeni satırlara geri yazılır.
+
         val preservedAddedAtByKey = mutableMapOf<String, Long>()
         existingRows.forEach { row ->
             if (row.addedAt > 0L) {
@@ -244,21 +436,17 @@ class MediaEntryRepository(
             }
         }
 
-        // Kaynak BAŞTAN yeniden yazılıyor: o kaynağın bayat bekleyen işleri (eski satır
-        // id'leri) temizlenmezse drain'de taze içe aktarımı ESKİ kopyayla ezerekti.
-        clearPendingJobsFor(source = source)
-        dao.deleteBySource(source)
-        insertAll(enriched)
-
-        if (sourceNeedsAdultRescan(source)) {
-            val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
-            if (appContext != null) {
-                runCatching {
-                    com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration.requestRescan(appContext)
-                }
-            }
-        }
+        return smartImport(source = source, importedEntries = enriched, allowDelete = false)
     }
+
+    /** Eski çağrılar için uyumluluk köprüsü (artık sil-yeniden-yaz yapmaz, fark-tabanlı birleştirir). */
+    suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
+        mergeSourcePreservingAdultFlags(source, entries)
+    }
+
+    /** Bir kaynağın yereldeki satır sayısı (yenileme kararları için hafif sorgu). */
+    suspend fun countForSource(source: String): Int =
+        runSyncCatching { dao.countBySource(source) }.getOrDefault(0)
 
     suspend fun updateAllDirect(entries: List<MediaEntry>) {
         if (entries.isEmpty()) return
@@ -363,6 +551,7 @@ class MediaEntryRepository(
         // Tüm liste temizlendi: kuyrukta bayat UPDATE/DELETE işi kalırsa eski yerel
         // kopyalar uzaklara geri yazılmış (dirilmiş) olurdu — kullanıcı niyeti: hepsi gitsin.
         runSyncCatching { pendingSyncDao?.clearAll() }
+        resetRefreshLedgers()
     }
 
     suspend fun replaceAll(entries: List<MediaEntry>) {
@@ -378,6 +567,22 @@ class MediaEntryRepository(
         // Yedek geri yükleme_REPLACE: önceden başarısız olmuş bayat işler, TAZE veriyi
         // eski yerel kopyayla ezerek geri sürerdi — kuyruk temizlenir.
         runSyncCatching { pendingSyncDao?.clearAll() }
+        // Yedek geri yükleme farklı bir kütüphane getirir: "son senkron ne zamandı" defteri
+        // sıfırlanmazsa yeni veri "taze" sayılıp hiç çekilmeyebilirdi.
+        resetRefreshLedgers()
+    }
+
+    /**
+     * Yenileme defterlerini (tazelik + "sunucuda en son ne vardı" anlık görüntüsü) sıfırlar.
+     * Kütüphane tamamen değiştiğinde (temizleme, yedek geri yükleme) çağrılır; aksi halde
+     * yeni kütüphane eski defter yüzünden "zaten güncel" sanılıp hiç senkronlanmazdı.
+     */
+    private fun resetRefreshLedgers() {
+        val ctx = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            ?: return
+        runSyncCatching {
+            com.kitsugi.animelist.data.sync.SourceListSynchronizer.resetState(ctx, null)
+        }
     }
 
     /**
@@ -638,6 +843,100 @@ class MediaEntryRepository(
         }
     }
 
+    private var cachedSnapshotStore: com.kitsugi.animelist.data.sync.ServerSnapshotStore? = null
+
+    private fun snapshotStore(): com.kitsugi.animelist.data.sync.ServerSnapshotStore? {
+        val ctx = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            ?: return null
+        return cachedSnapshotStore ?: com.kitsugi.animelist.data.sync.ServerSnapshotStore(ctx)
+            .also { cachedSnapshotStore = it }
+    }
+
+    /**
+     * **Bekleyen DELETE işlerinin** kimlik anahtarları (tombstone kümesi).
+     *
+     * Silinen satır artık tabloda olmadığı için [pendingLocalEntryIdsFor] dirilişi
+     * engelleyemez; işin JSON'undan kaydın kendisi çözülür.
+     *
+     * Kaynak süzgeci BİLİNÇLİ olarak yoktur: yerelden silinen kayıt çoğu zaman katalog
+     * kaynaklıdır (`source = "jikan"`/`"tmdb"`) ama uzak kopyası AniList/MAL satırı olarak
+     * geri gelebilir ("sildiğim şey geri geldi"). Bu yüzden anahtarlar **çapraz sağlayıcı**
+     * kimliklerden üretilir ve tür önekiyle ayrılır (`Anime:mal:21`), böylece anime/manga
+     * karışmaz.
+     */
+    private suspend fun deletionTombstones(): Set<String> {
+        val queueDao = pendingSyncDao ?: return emptySet()
+        return runSyncCatching {
+            queueDao.getAll()
+                .asSequence()
+                .filter { it.operation.equals("DELETE", ignoreCase = true) }
+                .mapNotNull { job ->
+                    runSyncCatching {
+                        // Kuyruktaki JSON tek bir nesnedir (yedek dosyası gibi `entries`
+                        // dizisi değil) → ters dönüşüm için sarmalanır.
+                        val item = org.json.JSONObject(job.entryJson)
+                        val wrapped = org.json.JSONObject()
+                            .put("schemaVersion", 2)
+                            .put("entries", org.json.JSONArray().put(item))
+                        MediaEntryBackup.importFromJson(wrapped.toString()).firstOrNull()
+                    }.getOrNull()
+                }
+                .flatMap { identityKeysFor(it).asSequence() }
+                .toSet()
+        }.getOrDefault(emptySet())
+    }
+
+    /**
+     * Bir kaydın **tüm sağlayıcı uzaylarındaki** kimlik anahtarları (tür önekli).
+     *
+     * [com.kitsugi.animelist.model.MediaIdentity.keys] yalnızca satırın kendi kaynak uzayını
+     * görür; diriliş karşılaştırmasında silinen yerel satır ile sunucudan gelen satırın
+     * kaynakları farklı olabilir. [com.kitsugi.animelist.data.auth.CrossProviderIds.decode]
+     * depolanan kimliği (offset'li stable ID dahil) her sağlayıcıya açar.
+     */
+    private fun identityKeysFor(entry: MediaEntry): Set<String> {
+        val prefix = entry.type.name
+        val decoded = com.kitsugi.animelist.data.auth.CrossProviderIds.decode(
+            storedId = entry.malId,
+            source = entry.source,
+            type = entry.type,
+            entrySimklId = entry.simklId,
+            entryTmdbId = entry.tmdbId
+        )
+        // Kalıcı çapraz kimlik önbelleği (ağ yok): silinen katalog satırı ile sunucudan gelen
+        // AniList/MAL satırı çoğu zaman yalnızca bu köprü üzerinden eşleşir.
+        val ids = context?.let { ctx -> decoded.mergedWith(resolvedIdsFor(ctx, entry)) } ?: decoded
+        return buildSet {
+            addAll(com.kitsugi.animelist.model.MediaIdentity.keys(entry))
+            ids.malId?.let { add("$prefix:mal:$it") }
+            ids.aniListId?.let { add("$prefix:anilist:$it") }
+            ids.kitsuId?.let { add("$prefix:kitsu:$it") }
+            ids.shikimoriId?.let { add("$prefix:shikimori:$it") }
+            ids.bangumiSubjectId?.let { add("$prefix:bangumi:$it") }
+            ids.tmdbId?.let { add("$prefix:tmdb:$it") }
+            ids.simklId?.let { add("$prefix:simkl:$it") }
+            entry.aniListEntryId?.takeIf { it > 0 }?.let { add("$prefix:anilist-entry:$it") }
+        }
+    }
+
+    /**
+     * Bekleyen senkron kuyruğundaki (henüz uzak sunucuya gönderilememiş) yerel
+     * satırların id'leri. Bu satırlar liste içe aktarımında EZİLMEZ.
+     */
+    private suspend fun pendingLocalEntryIdsFor(source: String): Set<Int> {
+        val queueDao = pendingSyncDao ?: return emptySet()
+        return runSyncCatching {
+            queueDao.getAll().mapNotNull { job ->
+                val json = org.json.JSONObject(job.entryJson)
+                if (!json.optString("source").equals(source, ignoreCase = true)) {
+                    null
+                } else {
+                    json.optInt("id", 0).takeIf { it > 0 }
+                }
+            }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
     /**
      * Doğrudan yazımın gönderdiği alanları aynı satırın bekleyen işinden düşer (E73).
      *
@@ -798,3 +1097,14 @@ internal fun sourceNeedsAdultRescan(source: String): Boolean =
     source.equals("simkl", ignoreCase = true) ||
         source.equals("shikimori", ignoreCase = true) ||
         source.equals("bangumi", ignoreCase = true)
+
+/**
+ * İki satırın **içerik olarak** aynı olup olmadığını söyler.
+ *
+ * `updatedAt` bilinçli olarak dışlanır: yerel defter zamanı, uzak listenin her
+ * çekilişinde değişebilir; bunu "değişiklik" saymak her yenilemede tüm tabloyu
+ * yeniden yazdırırdı. Diğer tüm alanlar (yeni alanlar dâhil) data class eşitliğiyle
+ * karşılaştırılır, böylece ileride eklenecek alanlar da otomatik kapsanır.
+ */
+internal fun MediaEntryEntity.samePayloadAs(other: MediaEntryEntity): Boolean =
+    copy(updatedAt = 0L) == other.copy(updatedAt = 0L)

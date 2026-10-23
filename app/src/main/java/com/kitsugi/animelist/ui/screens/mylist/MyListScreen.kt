@@ -150,6 +150,17 @@ fun MyListScreen(
     onSyncKitsu: () -> Unit = {},
     onSyncShikimori: () -> Unit = {},
     onSyncBangumi: () -> Unit = {},
+    /** Bağlı tüm kaynakları SIRAYLA yeniler (tek tek ağa çıkmaz). */
+    onSyncAll: () -> Unit = {
+        if (isAniListConnected) onSyncAniList()
+        if (isMalConnected) onSyncMal()
+        if (isSimklConnected && !isSimklSessionExpired) onSyncSimkl()
+        if (isKitsuConnected) onSyncKitsu()
+        if (isShikimoriConnected) onSyncShikimori()
+        if (isBangumiConnected) onSyncBangumi()
+    },
+    /** Verilen sekme (MY_LIST_*_TAB_INDEX) için kaynak senkronu sürüyor mu? */
+    isTabSyncing: (Int) -> Boolean = { false },
     onKitsuAuthSubmit: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _ -> },
     onShikimoriAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
     onBangumiAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
@@ -623,6 +634,7 @@ fun MyListScreen(
                     selectedListLayoutId = selectedListLayoutId,
                     appSettings = appSettings,
                     pageScrollState = pageScrollState,
+                    isSyncing = isTabSyncing(pageTabIndex),
                     onLogin = {
                         when (pageTabIndex) {
                             MY_LIST_ANILIST_TAB_INDEX -> onLoginAniList()
@@ -650,16 +662,11 @@ fun MyListScreen(
                             MY_LIST_KITSU_TAB_INDEX -> onSyncKitsu()
                             MY_LIST_SHIKIMORI_TAB_INDEX -> onSyncShikimori()
                             MY_LIST_BANGUMI_TAB_INDEX -> onSyncBangumi()
-                            MY_LIST_ALL_TAB_INDEX -> {
-                                var startedSync = false
-                                if (isAniListConnected) { onSyncAniList(); startedSync = true }
-                                if (isMalConnected) { onSyncMal(); startedSync = true }
-                                if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
-                                if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
-                                if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
-                                if (isBangumiConnected) { onSyncBangumi(); startedSync = true }
-                                if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
-                            }
+                            // Birleşik liste: kaynaklar TEK çağrıda, sırayla ve kendi
+                            // TTL'lerine göre yenilenir (eskiden 6 içe aktarma aynı anda
+                            // başlatılıyordu → paralel ağ trafiği + ardışık tam yeniden
+                            // yazımlar → liste birkaç kez baştan çiziliyordu).
+                            MY_LIST_ALL_TAB_INDEX -> onSyncAll()
                         }
                     },
                     onEntryClick = onEntryClick,

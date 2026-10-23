@@ -31,6 +31,12 @@ import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.ui.navigation.MainTab
 import com.kitsugi.animelist.ui.screens.explore.ExploreScreen
 import com.kitsugi.animelist.ui.screens.mylist.MyListScreen
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_MAL_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_KITSU_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SHIKIMORI_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_BANGUMI_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.search.SearchScreen
 import com.kitsugi.animelist.ui.components.BackupImportMode
 import kotlinx.coroutines.CoroutineScope
@@ -486,6 +492,25 @@ private fun MyListTabPageWrapper(
         onSyncKitsu = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
         onSyncShikimori = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
         onSyncBangumi = { authViewModel.importBangumiList(mediaEntries, mediaRepository) },
+        // Birleşik liste yenilemesi: kaynaklar sırayla, tek akışta ve her kaynağın kendi
+        // TTL'ine göre. (Eskiden altı içe aktarma aynı anda tetikleniyordu.)
+        onSyncAll = { authViewModel.syncAllLists(mediaRepository) },
+        // Pull-to-refresh göstergesi gerçek senkron durumuna bağlanır: sekmenin kaynağı
+        // yenileniyorsa spinner görünür kalır ("Tümü" sekmesinde herhangi bir kaynak).
+        isTabSyncing = { tabIndex ->
+            when (tabIndex) {
+                MY_LIST_ANILIST_TAB_INDEX -> authViewModel.isAniListImportRunning
+                MY_LIST_MAL_TAB_INDEX -> authViewModel.isMalImportRunning
+                MY_LIST_SIMKL_TAB_INDEX -> authViewModel.isSimklImportRunning
+                MY_LIST_KITSU_TAB_INDEX -> authViewModel.isKitsuImportRunning
+                MY_LIST_SHIKIMORI_TAB_INDEX -> authViewModel.isShikimoriImportRunning
+                MY_LIST_BANGUMI_TAB_INDEX -> authViewModel.isBangumiImportRunning
+                else -> authViewModel.isSyncAllListsRunning ||
+                    authViewModel.isAniListImportRunning || authViewModel.isMalImportRunning ||
+                    authViewModel.isSimklImportRunning || authViewModel.isKitsuImportRunning ||
+                    authViewModel.isShikimoriImportRunning || authViewModel.isBangumiImportRunning
+            }
+        },
         onKitsuAuthSubmit = { username, password, onComplete ->
             authViewModel.loginKitsu(
                 username = username,

@@ -185,7 +185,7 @@ internal fun SettingsContext.buildSettingsParams() =
             kitsuUsername = appSettings.kitsuUsername,
             isKitsuImportRunning = authViewModel.isKitsuImportRunning,
             onKitsuAuthClick = { authViewModel.disconnectExternalAccount("kitsu") },
-            onKitsuImportClick = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
+            onKitsuImportClick = { authViewModel.importKitsuList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE) },
             syncEnabledKitsu = appSettings.syncEnabledKitsu,
             onSyncEnabledKitsuChanged = { onSyncEnabledKitsuChanged(it) },
             onLoginKitsu = { username, password, onComplete ->
@@ -200,7 +200,7 @@ internal fun SettingsContext.buildSettingsParams() =
             shikimoriUsername = appSettings.shikimoriUsername,
             isShikimoriImportRunning = authViewModel.isShikimoriImportRunning,
             onShikimoriAuthClick = { authViewModel.disconnectExternalAccount("shikimori") },
-            onShikimoriImportClick = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
+            onShikimoriImportClick = { authViewModel.importShikimoriList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE) },
             syncEnabledShikimori = appSettings.syncEnabledShikimori,
             onSyncEnabledShikimoriChanged = { onSyncEnabledShikimoriChanged(it) },
             onLoginShikimori = { clientId, clientSecret, authCode, onComplete ->
@@ -216,7 +216,7 @@ internal fun SettingsContext.buildSettingsParams() =
             bangumiUsername = appSettings.bangumiUsername,
             isBangumiImportRunning = authViewModel.isBangumiImportRunning,
             onBangumiAuthClick = { authViewModel.disconnectExternalAccount("bangumi") },
-            onBangumiImportClick = { authViewModel.importBangumiList(mediaEntries, mediaRepository) },
+            onBangumiImportClick = { authViewModel.importBangumiList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE) },
             syncEnabledBangumi = appSettings.syncEnabledBangumi,
             onSyncEnabledBangumiChanged = { onSyncEnabledBangumiChanged(it) },
             onLoginBangumi = { clientId, clientSecret, authCode, onComplete ->
@@ -782,15 +782,15 @@ internal fun SettingsContext.onOpenMangaSourceHealthScreen() {
 }
 
 internal fun SettingsContext.onAniListImportClick() {
-    authViewModel.importAniListAnimeList(mediaEntries, mediaRepository)
+    authViewModel.importAniListAnimeList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
 }
 
 internal fun SettingsContext.onMalImportClick() {
-    authViewModel.importMalAnimeList(mediaEntries, mediaRepository)
+    authViewModel.importMalAnimeList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
 }
 
 internal fun SettingsContext.onSimklImportClick() {
-    authViewModel.importSimklList(mediaEntries, mediaRepository)
+    authViewModel.importSimklList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
 }
 
 internal fun SettingsContext.onThemeSelected(themeId: String) {

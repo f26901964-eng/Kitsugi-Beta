@@ -357,13 +357,40 @@ object KitsuApiClient {
     /**
      * Kitsu kullanıcısının tüm kütüphanesini sayfalayarak çeker.
      */
-    suspend fun fetchAllLibraryEntries(token: String, userId: String): List<KitsuLibraryEntry> = withContext(Dispatchers.IO) {
+    suspend fun fetchAllLibraryEntries(token: String, userId: String): List<KitsuLibraryEntry> =
+        fetchLibraryEntries(token = token, userId = userId, sinceIso = null)
+
+    /**
+     * **Delta çekimi**: Kitsu'nun `filter[since]` süzgeci ile yalnızca [sinceIso]
+     * (ISO-8601) tarihinden sonra **değişen** kütüphane kayıtlarını getirir.
+     *
+     * Neden: kütüphane her yenilemede 500'lük sayfalar hâlinde baştan çekiliyordu.
+     * Kitsu, `library-entries?filter[since]=…` parametresini desteklediği için
+     * değişen birkaç satırı almak yeterli. Delta silmeleri göremez; çağıran taraf
+     * `allowDelete = false` ile birleştirmeli ve tam uzlaştırma periyodik yapılmalı.
+     */
+    suspend fun fetchLibraryEntriesSince(
+        token: String,
+        userId: String,
+        sinceIso: String
+    ): List<KitsuLibraryEntry> =
+        fetchLibraryEntries(token = token, userId = userId, sinceIso = sinceIso)
+
+    private suspend fun fetchLibraryEntries(
+        token: String,
+        userId: String,
+        sinceIso: String?
+    ): List<KitsuLibraryEntry> = withContext(Dispatchers.IO) {
         val result = mutableListOf<KitsuLibraryEntry>()
         var offset = 0
         val limit = 500
+        val sinceFilter = sinceIso?.takeIf { it.isNotBlank() }
+            ?.let { "&filter[since]=${java.net.URLEncoder.encode(it, "UTF-8")}" }
+            .orEmpty()
 
         while (true) {
-            val url = "$BASE_URL/library-entries?filter[userId]=$userId&page[limit]=$limit&page[offset]=$offset&include=anime,manga,anime.mappings,manga.mappings"
+            val url = "$BASE_URL/library-entries?filter[userId]=$userId&page[limit]=$limit&page[offset]=$offset" +
+                "$sinceFilter&include=anime,manga,anime.mappings,manga.mappings"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Accept", "application/vnd.api+json")

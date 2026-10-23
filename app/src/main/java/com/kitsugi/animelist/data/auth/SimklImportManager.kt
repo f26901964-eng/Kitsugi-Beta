@@ -73,6 +73,44 @@ object SimklImportManager {
         }
     }
 
+    /**
+     * Simkl'in **ucuz değişiklik imzası** (`/sync/activities`).
+     *
+     * Simkl'de `sync/all-items` uçları tam listeyi döndürür ve "şu tarihten sonra
+     * değişenler" parametresi yoktur. Bu yüzden yenileme öncesi tek küçük istekle
+     * kullanıcının film/dizi/anime listelerinde en son ne zaman bir şey değiştiği
+     * öğrenilir; imza son senkronla aynıysa tam liste HİÇ çekilmez.
+     *
+     * @return revizyon imzası; uç kullanılamıyorsa/boşsa `null` (çağıran tam çekime düşer)
+     */
+    suspend fun fetchActivitiesRevision(token: String): String? {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val request = Request.Builder()
+                    .url("https://api.simkl.com/sync/activities")
+                    .header("Authorization", "Bearer $token")
+                    .header("simkl-api-key", CLIENT_ID)
+                    .header("User-Agent", "KitsugiApp/2.4")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use null
+                    val body = response.body?.string().orEmpty()
+                    if (body.isBlank() || body.trim() == "null") return@use null
+                    val root = runCatching { JSONObject(body) }.getOrNull() ?: return@use null
+
+                    val parts = mutableListOf<String>()
+                    root.optString("all").takeIf { it.isNotBlank() && it != "null" }
+                        ?.let { parts.add("all=$it") }
+                    for (key in listOf("movies", "shows", "anime", "tv_shows")) {
+                        root.optJSONObject(key)?.let { parts.add("$key=$it") }
+                    }
+                    if (parts.isEmpty()) null else parts.joinToString("|")
+                }
+            }.getOrNull()
+        }
+    }
+
     suspend fun fetchAllLists(token: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
             val movies = fetchList(token, "movies")
