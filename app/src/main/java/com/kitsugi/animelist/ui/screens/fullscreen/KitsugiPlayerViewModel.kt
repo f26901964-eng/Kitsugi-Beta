@@ -48,6 +48,7 @@ import com.kitsugi.animelist.data.local.toDomain
 import com.kitsugi.animelist.data.local.CustomButton
 import kotlinx.coroutines.flow.update
 import com.kitsugi.animelist.core.player.PostPlayMode
+import com.kitsugi.animelist.core.player.EpisodeStreamPrefetcher
 import com.kitsugi.animelist.core.player.engine.PlayerEngineType
 import com.kitsugi.animelist.core.player.engine.PlayerEngineSelector
 import kotlinx.coroutines.async as asyncSkip
@@ -210,6 +211,17 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
     private val _nextEpisodeLoading = MutableStateFlow(false)
     val nextEpisodeLoading: StateFlow<Boolean> = _nextEpisodeLoading.asStateFlow()
+
+    // ── v2.4.341: Sonraki bölüm kaynak prefetch + önbellek ─────────────────────
+    // Bölüm listesi geldikten sonra, kullanıcı video izlerken sıradaki bölümlerin
+    // kaynak verisi SIRAYLA ve yalnızca İZLENEN KAYNAK üzerinden arka planda çekilip
+    // önbelleklenir. Bölüm geçişinde "Sonraki Bölüm Kaynakları Aranıyor..." fazı
+    // tümden atlanır; bölüm sonuna doğru URL de önceden çözümlenir → anında geçiş.
+    private val episodePrefetcher = EpisodeStreamPrefetcher(viewModelScope)
+    private var preResolveAttemptedForEp: Int? = null
+
+    /** Bölüm sonuna bu kadar ms kalınca sıradaki bölümün URL'si önceden çözümlenir. */
+    private val PRE_RESOLVE_WINDOW_MS = 120_000L
 
     private val _playbackSource = MutableStateFlow<TrailerPlaybackSource?>(null)
     val playbackSource: StateFlow<TrailerPlaybackSource?> = _playbackSource.asStateFlow()
@@ -785,6 +797,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         if (_isInitialized.value && lastInitializedKey == initKey) return
         _isInitialized.value = true
         lastInitializedKey = initKey
+        // v2.4.341: yeni seri/bölüm oturumu → önceki oturumun prefetch önbelleği geçersiz
+        episodePrefetcher.invalidateAll()
+        preResolveAttemptedForEp = null
 
         this.malId = malId
         this.aniListId = aniListId
@@ -1037,20 +1052,30 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     )
                 }
                 _episodesList.value = list
+                // v2.4.341: bölüm listesi hazır → kullanıcı video izlerken sıradaki
+                // bölümlerin kaynak verisi arka planda, sırayla önbelleğe alınsın.
+                restartEpisodePrefetch("bölüm listesi")
             } catch (e: Exception) {
                 Log.e("KitsugiPlayerViewModel", "Error fetching episodes", e)
             }
         }
     }
 
-    suspend fun fetchStreamsForEpisode(nextEp: Int): List<StreamSource> = withContext(kotlinx.coroutines.Dispatchers.IO) {
+    /**
+     * @param onlySourceName v2.4.341: null değilse arama YALNIZCA bu kaynak (izlenen
+     *   eklenti/addon) üzerinden yapılır — prefetch'in hızlı ve eksiksiz yolu.
+     */
+    suspend fun fetchStreamsForEpisode(nextEp: Int, onlySourceName: String? = null): List<StreamSource> = withContext(kotlinx.coroutines.Dispatchers.IO) {
         val repository = AddonStreamRepository(context)
+        val restrictToSource = !onlySourceName.isNullOrBlank()
 
         // ── CS3 direkt URL modu: cs3Url varsa tüm eklentileri aramak yerine
         // doğrudan o URL üzerinden ilgili bölümü çözümle. ─────────────────────────
         val localCs3Url = cs3Url
         val localCs3ApiName = cs3ApiName
-        if (!localCs3Url.isNullOrBlank() && !localCs3ApiName.isNullOrBlank()) {
+        if (!localCs3Url.isNullOrBlank() && !localCs3ApiName.isNullOrBlank() &&
+            (!restrictToSource || localCs3ApiName.equals(onlySourceName, ignoreCase = true))
+        ) {
             val db = KitsugiDatabase.getDatabase(context)
             val csPlugin = db.csPluginDao().getEnabledPlugins()
                 .firstOrNull { it.name.equals(localCs3ApiName, ignoreCase = true) }
@@ -1076,36 +1101,51 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             Log.w("KitsugiPlayerViewModel", "fetchStreamsForEpisode: CS3 URL modu 0 kaynak döndürdü, başlık bazlı aramaya düşülüyor")
         }
 
-        // 1. Stremio stream sources
-        val stremioJob = async {
-            try {
-                repository.getStreamsForEpisode(
-                    malId = malId,
-                    aniListId = aniListId,
-                    season = seasonNum,
-                    episode = nextEp,
-                    tmdbId = tmdbId,
-                    isMovie = _isMovie.value
-                )
-            } catch (e: Exception) {
-                Log.e("KitsugiPlayerViewModel", "Error fetching Stremio streams", e)
-                emptyList<StreamSource>()
-            }
-        }
-
-        // 2. CS3 plugin stream sources
+        // 2. CS3 plugin stream sources — v2.4.341: eklenti listesi ÖNDEN çekilir ki
+        // "izlenen kaynak hangi aileden" (CS eklentisi / Stremio addon'ı) bilinsin.
         val db = KitsugiDatabase.getDatabase(context)
         val enabledCsPlugins = try {
             db.csPluginDao().getEnabledPlugins()
         } catch (_: Exception) {
             emptyList()
         }
+        val restrictedToCsPlugin = restrictToSource &&
+            enabledCsPlugins.any { it.name.equals(onlySourceName, ignoreCase = true) }
+
+        // 1. Stremio stream sources
+        // v2.4.341: izlenen kaynak bir CS eklentisiyse Stremio araması tümden atlanır;
+        // değilse onlyAddonName ile yalnızca izlenen addon sorgulanır (prefetch yolu).
+        val stremioJob = if (restrictedToCsPlugin) {
+            null
+        } else {
+            async {
+                try {
+                    repository.getStreamsForEpisode(
+                        malId = malId,
+                        aniListId = aniListId,
+                        season = seasonNum,
+                        episode = nextEp,
+                        tmdbId = tmdbId,
+                        isMovie = _isMovie.value,
+                        onlyAddonName = onlySourceName
+                    )
+                } catch (e: Exception) {
+                    Log.e("KitsugiPlayerViewModel", "Error fetching Stremio streams", e)
+                    emptyList<StreamSource>()
+                }
+            }
+        }
 
         val alternativeTitles = (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
             .map { it.trim() }
             .filter { it.isNotBlank() && it != animeTitle }
             .distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
-        val csJobs = enabledCsPlugins.map { plugin ->
+        val pluginsForQuery = if (restrictToSource) {
+            enabledCsPlugins.filter { it.name.equals(onlySourceName, ignoreCase = true) }
+        } else {
+            enabledCsPlugins
+        }
+        val csJobs = pluginsForQuery.map { plugin ->
             async {
                 val csStreams = mutableListOf<StreamSource>()
                 try {
@@ -1134,11 +1174,89 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             }
         }
 
-        val stremioStreams = stremioJob.await()
+        val stremioStreams = stremioJob?.await() ?: emptyList()
         val csStreams = csJobs.map { it.await() }.flatten()
 
         val combined = stremioStreams + csStreams
         StreamSorter.sort(combined)
+    }
+
+    // ── v2.4.341: prefetch orkestrasyonu ────────────────────────────────────────
+
+    /** Bölüm listesine göre [current] sonrasında gelen ilk bölüm numarası. */
+    private fun nextEpisodeNumberAfter(current: Int): Int? =
+        _episodesList.value.map { it.episodeNumber }.firstOrNull { it > current }
+
+    /**
+     * Sıradaki bölümlerin kaynak prefetch kuyruğunu (izlenen kaynak üzerinden) kurar.
+     * Bölüm listesi geldiğinde, bölüm değişiminde ve kaynak değişiminde çağrılır.
+     */
+    private fun restartEpisodePrefetch(reason: String) {
+        if (_isMovie.value) {
+            episodePrefetcher.cancel()
+            return
+        }
+        val current = _currentEpisode.value
+        val upcoming = _episodesList.value.map { it.episodeNumber }.filter { it > current }.sorted()
+        if (upcoming.isEmpty()) {
+            episodePrefetcher.cancel()
+            return
+        }
+        val source = _currentAddonName.value
+        episodePrefetcher.start(
+            currentEpisode = current,
+            upcomingEpisodes = upcoming,
+            preferredSource = source
+        ) { ep, only ->
+            fetchStreamsForEpisode(ep, onlySourceName = only)
+        }
+        Log.d(
+            "KitsugiPlayerViewModel",
+            "Prefetch planlandı ($reason): mevcut E$current, kuyruk=${upcoming.take(EpisodeStreamPrefetcher.DEFAULT_PREFETCH_DEPTH)}, kaynak=${source ?: "-"}"
+        )
+    }
+
+    /**
+     * Bölümün sonuna yaklaşıldığında (kalan <= [PRE_RESOLVE_WINDOW_MS]) sıradaki bölümün
+     * tercih edilen kaynağı için URL'yi ARKA PLANDA çözümler; geçişte bekleme olmaz.
+     * Video oynatmasını asla engellemez — yalnızca mevcut prefetch önbelleği varsa koşar.
+     */
+    private fun maybePreResolveNextEpisode(positionMs: Long, durationMs: Long, isPlaying: Boolean) {
+        if (!isPlaying || durationMs <= 0L || _isMovie.value) return
+        val remaining = durationMs - positionMs
+        if (remaining <= 0L || remaining > PRE_RESOLVE_WINDOW_MS) return
+        val nextEp = nextEpisodeNumberAfter(_currentEpisode.value) ?: return
+        if (preResolveAttemptedForEp == nextEp) return
+        val cached = episodePrefetcher.peekStreams(nextEp) ?: return
+        preResolveAttemptedForEp = nextEp
+        viewModelScope.launch {
+            val preferred = cached.firstOrNull { it.addonName.equals(_currentAddonName.value, ignoreCase = true) }
+                ?: cached.firstOrNull { !it.url.isNullOrBlank() }
+                ?: cached.firstOrNull()
+            if (preferred == null) return@launch
+            val url = try {
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    AddonStreamRepository(context).resolveStreamUrl(preferred)
+                }
+            } catch (e: Exception) {
+                Log.w("KitsugiPlayerViewModel", "E$nextEp ön-çözümleme hatası", e)
+                null
+            }
+            if (!url.isNullOrBlank()) {
+                episodePrefetcher.putResolved(
+                    nextEp,
+                    EpisodeStreamPrefetcher.CachedResolved(
+                        streamKey = EpisodeStreamPrefetcher.streamKey(preferred),
+                        url = url,
+                        audioUrl = preferred.externalAudioUrl,
+                        headers = preferred.requestHeaders ?: emptyMap(),
+                        subtitles = preferred.subtitles,
+                        cachedAt = System.currentTimeMillis()
+                    )
+                )
+                Log.d("KitsugiPlayerViewModel", "E$nextEp kaynağı ÖNCEDEN çözümlendi (${preferred.addonName})")
+            }
+        }
     }
 
     fun playEpisode(targetEp: Int, activity: android.app.Activity?, onAlternativeRequired: () -> Unit, onResolutionFailed: () -> Unit) {
@@ -1146,11 +1264,21 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _showBingeCardState.value = false
         // DEEP-015 fix: Önceki bölümden kalan countdown coroutine'ini öldür ve session sayacını temizle
         orchestrator.autoplay.resetSession()
-        _nextEpisodeLoading.value = true
-        _isLoading.value = true
         viewModelScope.launch {
-            Log.d("KitsugiPlayerViewModel", "Fetching streams for episode: S${seasonNum}E${targetEp}")
-            val streams = fetchStreamsForEpisode(targetEp)
+            // v2.4.341: prefetch önbelleğinde bu bölümün kaynakları hazırsa arama fazı
+            // TÜMDEN atlanır — "Sonraki Bölüm Kaynakları Aranıyor..." hiç görünmez ve
+            // geçiş anında olur. Önbellek boşsa eski davranış (arama + çip) korunur.
+            val cachedStreams = episodePrefetcher.peekStreams(targetEp)
+            val streams = if (!cachedStreams.isNullOrEmpty()) {
+                Log.d("KitsugiPlayerViewModel", "playEpisode: S${seasonNum}E${targetEp} ÖNBELLEKTEN (${cachedStreams.size} kaynak)")
+                cachedStreams
+            } else {
+                _nextEpisodeLoading.value = true
+                Log.d("KitsugiPlayerViewModel", "Fetching streams for episode: S${seasonNum}E${targetEp}")
+                fetchStreamsForEpisode(targetEp).also {
+                    episodePrefetcher.putStreams(targetEp, it, _currentAddonName.value)
+                }
+            }
             if (streams.isNotEmpty()) {
                 _currentStreamSources.value = streams
                 orchestrator.errorRecovery.hasFallback = streams.size > 1
@@ -1161,18 +1289,28 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 val targetStream = sameProviderStream ?: streams.firstOrNull { !it.url.isNullOrBlank() } ?: streams.first()
                 val repository = AddonStreamRepository(context)
 
-                _isResolvingStream.value = true
-                val resolvedUrl = try {
-                    withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        repository.resolveStreamUrl(targetStream)
+                // v2.4.341: bölüm sonuna doğru arka planda çözümlenmiş URL önbellekteyse
+                // çözümleme fazı da atlanır → geçiş tek hamlede tamamlanır.
+                val preResolved = episodePrefetcher.peekResolved(targetEp)
+                val resolvedUrl = if (preResolved != null &&
+                    preResolved.streamKey == EpisodeStreamPrefetcher.streamKey(targetStream)
+                ) {
+                    Log.d("KitsugiPlayerViewModel", "playEpisode: E${targetEp} çözümlenmiş URL önbellekten")
+                    preResolved.url
+                } else {
+                    _isResolvingStream.value = true
+                    try {
+                        withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            repository.resolveStreamUrl(targetStream)
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.e("KitsugiPlayerViewModel", "playEpisode: akış çözümleme hatası", e)
+                        null
+                    } finally {
+                        isResolvingStream = false
                     }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e("KitsugiPlayerViewModel", "playEpisode: akış çözümleme hatası", e)
-                    null
-                } finally {
-                    isResolvingStream = false
                 }
 
                 if (resolvedUrl != null) {
@@ -1209,6 +1347,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     }
 
                     _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = targetStream.externalAudioUrl)
+
+                    // v2.4.341: tüketilen bölümün önbelleğini bırak ve sıradaki bölümler
+                    // için prefetch kuyruğunu yeniden kur (izlenen kaynak üzerinden).
+                    episodePrefetcher.invalidateEpisode(targetEp)
+                    preResolveAttemptedForEp = null
+                    restartEpisodePrefetch("playEpisode E$targetEp")
 
                     if (sameProviderStream == null) {
                         onAlternativeRequired()
@@ -1258,6 +1402,11 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentSourceIndex.value = index
         _currentAddonName.value = stream.addonName
         _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = stream.externalAudioUrl)
+        // v2.4.341: kaynak değişti → eski kaynağın prefetch önbelleği geçersiz,
+        // kuyruk YENİ izlenen kaynak üzerinden yeniden kurulur.
+        episodePrefetcher.invalidateAll()
+        preResolveAttemptedForEp = null
+        restartEpisodePrefetch("kaynak değişimi: ${stream.addonName}")
         // Kaynak değişti: motor fallback zinciri ve retry sayacı yeni kaynak için sıfırlanır.
         // (Eskiden bu sıfırlama yapılmıyor, ilk kaynakta tükenen zincir yüzünden yeni kaynakta
         // MPV'ye geçiş hiç denenmiyordu.)
@@ -1597,6 +1746,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         updateChapter(_chapters.value.lastOrNull { it.start <= positionMs / 1000f } ?: _chapters.value.firstOrNull())
         orchestrator.scrobble.onPositionUpdate(positionMs, durationMs)
         orchestrator.stillWatching.onPlaybackTick(positionMs, isPlaying)
+        // v2.4.341: bölüm sonuna yaklaşıldığında sıradaki bölümün URL'sini arka planda çözümle
+        maybePreResolveNextEpisode(positionMs, durationMs, isPlaying)
     }
 
     // ── Engine-delegate playback controls ─────────────────────────────────────
@@ -1688,6 +1839,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     override fun onCleared() {
         super.onCleared()
         orchestrator.stop()
+        episodePrefetcher.cancel()
     }
 
     fun updateSkipSettings(enabled: Boolean, autoSkip: Boolean, clientId: String) {

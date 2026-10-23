@@ -123,8 +123,12 @@ fun PlayerControls(
     val playbackSpeed     by viewModel.playbackSpeed.collectAsState()
     val context           = LocalContext.current
 
+    // v2.4.341: Ortadaki daire YALNIZCA gerçek oynatma arabelleğe almayı göstersin.
+    // Sonraki bölüm arama (isLoadingEpisode) ve görev yüklemesi (isLoading) ARKA PLANDA
+    // koşar; video oynamaya devam ederken ortada buffering dairesi belirmesi kullanıcıya
+    // "video engellendi" hissi veriyordu. Bu durumlar artık üstte küçük çiple gösteriliyor.
     val showLoadingCircle = settings.showLoadingCircle && (
-        isLoading || isLoadingEpisode || playerState is PlaybackState.Buffering
+        playerState is PlaybackState.Buffering
     )
     val seekBarShown by viewModel.seekBarShown.collectAsState()
     val gestureSeekAmount by viewModel.gestureSeekAmount.collectAsState()

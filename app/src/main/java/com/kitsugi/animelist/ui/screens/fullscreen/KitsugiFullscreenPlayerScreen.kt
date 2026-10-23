@@ -53,7 +53,7 @@ import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PauseOverlay
 import com.kitsugi.animelist.ui.screens.fullscreen.components.FeedbackBubble
-import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerInlineLoadingOverlay
+import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerNonBlockingLoadingChip
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerLoadingView
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerErrorView
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
@@ -1353,14 +1353,22 @@ fun KitsugiFullscreenPlayerScreen(
                             .padding(top = 70.dp, start = 24.dp)
                     )
 
-                    // Search/Fetch loading overlay for next episode
-                    if (nextEpisodeLoading && !isInPipMode) {
-                        PlayerInlineLoadingOverlay(message = KitsugiStrings.get(R.string.sonraki_bolum_kaynaklari_araniyor))
-                    }
-
-                    // Stream URL resolution loading overlay
-                    if (isResolvingStream && !isInPipMode) {
-                        PlayerInlineLoadingOverlay(message = KitsugiStrings.get(R.string.kaynak_baglantisi_cozumleniyor))
+                    // v2.4.341: Sonraki bölüm arama / bağlantı çözümleme ARKA PLANDA koşar.
+                    // Eskiden tam ekran PlayerInlineLoadingOverlay videoyu %85 siyahla
+                    // karartıyor ve oynatmayı engelliyormuş gibi hissettiriyordu (oysa video
+                    // oynamaya devam ediyor). Artık küçük, ENGELLEMEYEN bir çip gösterilir:
+                    // videoyu karartmaz, dokunmatik girdiyi yutmaz, oynatmayı kesmez.
+                    if (!isInPipMode && (nextEpisodeLoading || isResolvingStream)) {
+                        PlayerNonBlockingLoadingChip(
+                            message = if (nextEpisodeLoading) {
+                                KitsugiStrings.get(R.string.sonraki_bolum_kaynaklari_araniyor)
+                            } else {
+                                KitsugiStrings.get(R.string.kaynak_baglantisi_cozumleniyor)
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 76.dp)
+                        )
                     }
 
                     // Buffering is handled reactively by MiddlePlayerControls (single unified spinner)

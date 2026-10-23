@@ -45,7 +45,8 @@ class AddonStreamRepository(private val context: Context) {
         season: Int,
         episode: Int,
         tmdbId: Int? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        onlyAddonName: String? = null
     ): List<StreamSource> = coroutineScope {
         // Step 1: Resolve IMDb + Kitsu IDs in one ARM API call
         val resolvedIds = KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId, wikidataImdbFallback = true)
@@ -74,8 +75,15 @@ class AddonStreamRepository(private val context: Context) {
         // (kitsu / tt) kabul ediyorsa o ID ile sorgulanır ve istek yolunda addon'un KENDİ ilan ettiği
         // tür kullanılır (ör. yalnızca "anime" ilan eden addon /stream/anime/... ile sorgulanır).
         val allAddons = addonDao.getEnabledAddons()
+        // v2.4.341: Prefetch çağrıları yalnızca kullanıcının O AN izlediği eklentiyi
+        // sorgular (onlyAddonName) — diğer addon'lara gereksiz istek atılmaz.
+        val queriedAddons = if (onlyAddonName.isNullOrBlank()) {
+            allAddons
+        } else {
+            allAddons.filter { it.name.equals(onlyAddonName, ignoreCase = true) }
+        }
         val tasks = buildStremioStreamTasks(
-            routes = allAddons.map { it.toStreamRoute() },
+            routes = queriedAddons.map { it.toStreamRoute() },
             contentType = contentType,
             imdbVideoId = imdbVideoId,
             kitsuVideoId = kitsuVideoId

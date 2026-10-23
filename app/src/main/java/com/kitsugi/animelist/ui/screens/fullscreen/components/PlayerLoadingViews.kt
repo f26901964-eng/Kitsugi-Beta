@@ -94,6 +94,46 @@ fun PlayerInlineLoadingOverlay(message: String) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// v2.4.341: Engellemeyen arka plan görev çipi
+// "Sonraki Bölüm Kaynakları Aranıyor..." gibi ARKA PLAN görevleri eskiden tam ekran
+// %85 siyah PlayerInlineLoadingOverlay ile gösteriliyor ve oynayan videoyu
+// karartıp kullanıcıya "video durdu/engellendi" hissi veriyordu. Bu çip:
+//   - tam ekran kaplamaz, videoyu KARARTMAZ,
+//   - tıklanabilirlik taşımaz (dokunmatik girdiyi yutmaz),
+//   - küçük bir pill içinde durum mesajı + mini yüklenme göstergesi gösterir.
+// Oynatma bu çip görünürken kesintisiz devam eder.
+// ─────────────────────────────────────────────────────────────
+@Composable
+fun PlayerNonBlockingLoadingChip(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        color = Color.Black.copy(alpha = 0.55f),
+        contentColor = Color.White,
+        shape = RoundedCornerShape(percent = 50)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CircularProgressIndicator(
+                color = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = message,
+                color = Color.White.copy(alpha = 0.92f),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
 // Error screen
 // ─────────────────────────────────────────────────────────────
 @OptIn(ExperimentalLayoutApi::class)
