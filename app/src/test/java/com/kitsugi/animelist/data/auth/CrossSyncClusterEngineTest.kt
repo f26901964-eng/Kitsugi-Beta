@@ -280,7 +280,7 @@ class CrossSyncClusterEngineTest {
         session.addEntry(CrossSyncClusterEngine.Slot.KITSU, hxh2011)
 
         assertEquals(2, session.groupsSnapshot().size)
-        assertFalse(CrossSyncIdentityGuard.clusterYearsCompatible(listOf(hxh1999, hxh2011)))
+        assertFalse(CrossSyncIdentityGuard.clusterYearsCompatible(hxh1999.year, hxh2011.year))
     }
 
     @Test

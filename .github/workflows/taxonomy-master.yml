@@ -113,6 +113,11 @@ jobs:
       - name: 🤖 Gradle kur + önbellek
         uses: gradle/actions/setup-gradle@v4
 
+      - name: 📦 Eksik SDK paketlerini yükle
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0" 2>&1 | tail -n 5 || true
+
       - name: 🧪 Birim testleri
         run: |
           chmod +x gradlew
