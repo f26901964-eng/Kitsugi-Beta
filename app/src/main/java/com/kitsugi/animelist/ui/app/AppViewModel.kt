@@ -25,6 +25,7 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ALL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TAB_COUNT
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SORT_DEFAULT
 import com.kitsugi.animelist.ui.screens.mylist.duplicateListMessage
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
@@ -117,7 +118,7 @@ class AppViewModel : ViewModel() {
     var myListExtraFilterId by mutableStateOf("all")
         private set
 
-    var myListSortId by mutableStateOf("newest")
+    var myListSortId by mutableStateOf(MY_LIST_SORT_DEFAULT)
         private set
 
     // Scroll konumları bilinçli olarak Compose state'i DEĞİLDİR: bu değerler
@@ -200,7 +201,13 @@ class AppViewModel : ViewModel() {
         myListScoreFilterId = prefs.getString("score_filter", "all") ?: "all"
         myListYearFilterId = prefs.getString("year_filter", "all") ?: "all"
         myListExtraFilterId = prefs.getString("extra_filter", "all") ?: "all"
-        myListSortId = prefs.getString("sort", "newest") ?: "newest"
+        // Sıralama sözleşmesi değişti (2026-10-23): eskiden "newest" hem varsayılan
+        // hem de "Temizle" hedefiydi; kayıtlı değer kullanıcının bilinçli seçimi
+        // olmayabilir. Bir kez: kayıtlı "newest" gerçek varsayılana (durum bölümlü
+        // gezinme) taşınır ki güncelleme sonrası herkesin Listem görünümü aniden
+        // değişmesin — "Son eklenen"i isteyen tek dokunuşla yeniden seçer ve artık
+        // gerçek eklenme tarihine göre, global olarak çalışır.
+        myListSortId = migrateLegacyDefaultSort(prefs)
         // Kayıtlı sekme indeksi DOĞRUDAN geri yüklenir (mevcut sıra: 0 = Tümü … 6 = Bangumi).
         // Eski sıra göçü (migrateLegacyMyListTabIndex) bilinçli olarak kaldırıldı: koşulsuz
         // olarak her açılışta uygulanıyor ve son seçilen sekmeyi bir sıra kaydırıyordu
@@ -219,6 +226,29 @@ class AppViewModel : ViewModel() {
         if (restoredTabIndex != storedTabIndex) {
             prefs.edit().putInt("tab_index", restoredTabIndex).apply()
         }
+    }
+
+    /**
+     * Kayıtlı sıralama seçimini okur; eski varsayılan ("newest") yalnızca İLK
+     * okumada yeni varsayılana taşınır. Taşıma bayrağı yazıldıktan sonra kayıtlı
+     * değer (kullanıcının yeni sözleşmeyle bilinçli seçtiği "newest" dahil)
+     * aynen geri yüklenir — koşulsuz taşıma, sekme göçündeki hatanın aynısı olurdu.
+     */
+    private fun migrateLegacyDefaultSort(prefs: android.content.SharedPreferences): String {
+        // Kayıt yoksa yazma da yok: taze kurulum doğrudan yeni varsayılanla açılır.
+        val stored = prefs.getString("sort", null) ?: return MY_LIST_SORT_DEFAULT
+        val alreadyMigrated = prefs.getBoolean("sort_default_v2_done", false)
+        if (!alreadyMigrated && (stored == "newest" || stored == "added")) {
+            prefs.edit()
+                .putString("sort", MY_LIST_SORT_DEFAULT)
+                .putBoolean("sort_default_v2_done", true)
+                .apply()
+            return MY_LIST_SORT_DEFAULT
+        }
+        // Başka bir bilinçli seçim kayıtlı: dokunma. Bayrak, kullanıcı sıralamayı
+        // bir sonraki değiştirişinde updateMyListSort tarafından yazılır; o ana
+        // kadar kayıtlı değer "newest" olamayacağı için yanlış göç riski yoktur.
+        return stored.takeIf { it.isNotBlank() } ?: MY_LIST_SORT_DEFAULT
     }
 
     fun updateMyListTabIndex(context: Context, index: Int) {
@@ -302,7 +332,11 @@ class AppViewModel : ViewModel() {
         myListSortId = value
         resetMyListScroll()
         context.getSharedPreferences("Kitsugi_list_filters", Context.MODE_PRIVATE)
-            .edit().putString("sort", value).apply()
+            .edit()
+            .putString("sort", value)
+            // Bilinçli seçim işareti: eski varsayılan göçü bu değeri bir daha taşımasın.
+            .putBoolean("sort_default_v2_done", true)
+            .apply()
     }
 
     private fun resetMyListScroll() {

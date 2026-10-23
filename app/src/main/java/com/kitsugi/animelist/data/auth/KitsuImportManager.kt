@@ -72,6 +72,7 @@ object KitsuImportManager {
                         startDate = entry.startedAt,
                         endDate = entry.finishedAt,
                         updatedAt = entry.updatedAt,
+                        addedAt = entry.createdAt,
                         // Yıl olmadan kimlik doğrulaması yapılamıyor; aynı isimli yapımlar
                         // çapraz eşitlemede "inceleme gerekli" diye atlanıyordu.
                         year = entry.startYear

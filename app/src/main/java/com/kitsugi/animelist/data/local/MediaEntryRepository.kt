@@ -47,11 +47,16 @@ class MediaEntryRepository(
         syncExternal: Boolean = true,
         skipBangumiWrite: Boolean = false
     ) {
-        val entryWithTime = if (entry.updatedAt == 0L) {
-            entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+        val nowSeconds = System.currentTimeMillis() / 1000L
+        val withUpdated = if (entry.updatedAt == 0L) {
+            entry.copy(updatedAt = nowSeconds)
         } else {
             entry
         }
+        // Tekil (kullanıcı aksiyonuyla) eklemede "şimdi" gerçek eklenme anıdır.
+        val entryWithTime = withUpdated.copy(
+            addedAt = resolveAddedAt(withUpdated, nowSeconds = nowSeconds)
+        )
         val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
@@ -63,11 +68,15 @@ class MediaEntryRepository(
     suspend fun insertAll(entries: List<MediaEntry>) {
         if (entries.isEmpty()) return
         val entriesWithTime = entries.map { entry ->
-            if (entry.updatedAt == 0L) {
+            val withUpdated = if (entry.updatedAt == 0L) {
                 entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
             } else {
                 entry
             }
+            // Toplu yazımda "şimdi" UYDURULMAZ: yüzlerce tarihi kayıt aynı saniyeye
+            // damgalanıp "Son eklenen"in tepesine yığılırdı. Bu yüzden resolveAddedAt
+            // burada nowSeconds almaz; özgün (güncellenmemiş) satır üzerinden çözer.
+            withUpdated.copy(addedAt = resolveAddedAt(entry))
         }
         dao.insertAll(entriesWithTime.map { it.copy(id = 0).toEntity() })
     }
@@ -138,7 +147,12 @@ class MediaEntryRepository(
                 // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüyordu (v2.4.315).
                 updates[match.id] = preserveResolvedTitles(match, imported).copy(
                     id = match.id,
-                    isAdult = imported.isAdult || match.isAdult
+                    isAdult = imported.isAdult || match.isAdult,
+                    // Eklenme zamanı GERİ ALINMAZ: kaynağın gerçek `createdAt`'i varsa
+                    // o kazanır (ilk içe aktarım tahminini düzeltir); yoksa yerelde
+                    // sabitlenmiş ilk-görülme değeri korunur. Aksi halde her eşitleme
+                    // "Son eklenen" sırasını yeniden karıştırırdı.
+                    addedAt = resolveAddedAt(imported, existingAddedAt = match.addedAt)
                 ).toEntity()
             } else {
                 val prior = inserts.indexOfFirst {
@@ -152,7 +166,11 @@ class MediaEntryRepository(
         // İçe aktarımda listeden DÜŞEN satırların bayat kuyruk işleri de düşürülür:
         // eski kopya sonradan uzaklara geri yazılsa import taze veriyi silerdi.
         if (deletions.isNotEmpty()) clearPendingJobsFor(entryIds = deletions)
-        dao.smartImportTransaction(inserts.map { it.copy(id = 0).toEntity() }, updates.values.toList(), deletions)
+        dao.smartImportTransaction(
+            inserts.map { it.copy(id = 0, addedAt = resolveAddedAt(it)).toEntity() },
+            updates.values.toList(),
+            deletions
+        )
 
         if (sourceNeedsAdultRescan(source)) {
             // Liste yeni çekildi → +18 işaretlerini kimliklerden tamamla.
@@ -176,18 +194,42 @@ class MediaEntryRepository(
      * üzerinden yeni listeye geri yazar.
      */
     suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
-        val preservedKeys = runCatching {
-            dao.getAll()
-                .filter { it.source.equals(source, ignoreCase = true) && it.isAdult }
-                .map { it.toDomain() }
-                .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
-                .toSet()
-        }.getOrDefault(emptySet())
+        val existingRows = runCatching {
+            dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
+        }.getOrDefault(emptyList())
+        val preservedKeys = existingRows
+            .filter { it.isAdult }
+            .map { it.toDomain() }
+            .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
+            .toSet()
+        // Sil-yeniden-yaz, satır `id`'leriyle birlikte yerel eklenme zamanlarını da
+        // uçurur; kaynak eklenme zamanı vermeyen kaynaklarda (Simkl/Bangumi/MAL)
+        // "Son eklenen" her gece senkronunda baştan karışırdı. +18 işaretleri gibi
+        // eklenme zamanları da kimlik üzerinden yeni satırlara geri yazılır.
+        val preservedAddedAtByKey = mutableMapOf<String, Long>()
+        existingRows.forEach { row ->
+            if (row.addedAt > 0L) {
+                val seconds = com.kitsugi.animelist.model.normalizeToEpochSeconds(row.addedAt)
+                com.kitsugi.animelist.model.MediaIdentity.keys(row.toDomain()).forEach { key ->
+                    val current = preservedAddedAtByKey[key]
+                    if (current == null || seconds < current) preservedAddedAtByKey[key] = seconds
+                }
+            }
+        }
 
-        val enriched = if (preservedKeys.isEmpty()) entries else entries.map { entry ->
-            if (entry.isAdult ||
-                com.kitsugi.animelist.model.MediaIdentity.keys(entry).any { it in preservedKeys }
-            ) entry.copy(isAdult = true) else entry
+        val enriched = entries.map { entry ->
+            val keys = com.kitsugi.animelist.model.MediaIdentity.keys(entry)
+            val withAdult = if (entry.isAdult || keys.any { it in preservedKeys }) {
+                entry.copy(isAdult = true)
+            } else {
+                entry
+            }
+            if (withAdult.addedAt > 0L) {
+                withAdult
+            } else {
+                val preserved = keys.firstNotNullOfOrNull { preservedAddedAtByKey[it] }
+                if (preserved != null) withAdult.copy(addedAt = preserved) else withAdult
+            }
         }
 
         // Kaynak BAŞTAN yeniden yazılıyor: o kaynağın bayat bekleyen işleri (eski satır
@@ -217,7 +259,17 @@ class MediaEntryRepository(
         advancedScores: List<Double>? = null,
         skipBangumiWrite: Boolean = false
     ) {
-        val entryWithTime = entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+        // Güncelleme eklenme zamanı DEĞİLDİR: çağran taraf addedAt taşımıyorsa
+        // (eski düzenleme yolları) satırın mevcut değerini koru, asla "şimdi" yazma.
+        val preservedAddedAt = if (entry.addedAt > 0L) {
+            com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.addedAt)
+        } else {
+            runCatching { dao.getById(entry.id)?.addedAt ?: 0L }.getOrDefault(0L)
+        }
+        val entryWithTime = entry.copy(
+            updatedAt = System.currentTimeMillis() / 1000L,
+            addedAt = preservedAddedAt
+        )
         dao.update(
             entryWithTime.toEntity()
         )
@@ -264,7 +316,13 @@ class MediaEntryRepository(
 
     suspend fun replaceAll(entries: List<MediaEntry>) {
         val now = System.currentTimeMillis() / 1000L
-        val entities = entries.map { it.copy(id = 0, updatedAt = it.updatedAt.takeIf { value -> value > 0 } ?: now).toEntity() }
+        val entities = entries.map {
+            it.copy(
+                id = 0,
+                updatedAt = it.updatedAt.takeIf { value -> value > 0 } ?: now,
+                addedAt = resolveAddedAt(it)
+            ).toEntity()
+        }
         dao.replaceAllTransaction(entities)
         // Yedek geri yükleme_REPLACE: önceden başarısız olmuş bayat işler, TAZE veriyi
         // eski yerel kopyayla ezerek geri sürerdi — kuyruk temizlenir.
@@ -618,6 +676,38 @@ internal fun preserveResolvedTitles(existing: MediaEntryEntity, imported: MediaE
         titleEnglish = titleEnglish,
         titleJapanese = titleJapanese
     )
+}
+
+/**
+ * Bir satırın yazılacak eklenme zamanını tek yerden çözer (epoch saniye).
+ *
+ * Öncelik sırası:
+ * 1. Gelen kaydın kendi `addedAt`'i — kaynağın gerçek oluşturma zamanı
+ *    (AniList/Kitsu/Shikimori `createdAt`) her zaman kazanır; böylece ilk
+ *    içe aktarımda yapılan tahminler sonraki eşitlemede kendiliğinden düzelir.
+ * 2. Yerel satırda daha önce sabitlenmiş değer ([existingAddedAt]) — eklenme
+ *    zamanı vermeyen kaynaklarda (MAL/Simkl/Bangumi) ilk görülme anı korunur.
+ * 3. Kaydın güncelleme zamanı — yalnızca ilk yazımda en iyi vekil olarak.
+ * 4. [nowSeconds] — YALNIZCA kullanıcının o an tekil kayıt eklediği yol
+ *    verir; toplu içe aktarım asla vermez (yüzlerce kayıt aynı saniyeye
+ *    damgalanıp "Son eklenen"in tepesine yığılmasın diye).
+ *
+ * Hiçbiri yoksa 0 (bilinmiyor) döner; sıralama bilinmeyenleri bilinenlerin
+ * arkasına koyar. Değerler milisaniye yazılmış eski satırlar için saniyeye
+ * normalize edilir.
+ */
+internal fun resolveAddedAt(
+    entry: MediaEntry,
+    existingAddedAt: Long = 0L,
+    nowSeconds: Long? = null
+): Long {
+    val incoming = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.addedAt)
+    if (incoming > 0L) return incoming
+    val existing = com.kitsugi.animelist.model.normalizeToEpochSeconds(existingAddedAt)
+    if (existing > 0L) return existing
+    val updated = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.updatedAt)
+    if (updated > 0L) return updated
+    return nowSeconds ?: 0L
 }
 
 /**

@@ -126,7 +126,9 @@ object KitsuApiClient {
         /** Başlangıç tarihi, yyyy-MM-dd (`startedAt`). */
         val startedAt: String? = null,
         /** Bitiş tarihi, yyyy-MM-dd (`finishedAt`). */
-        val finishedAt: String? = null
+        val finishedAt: String? = null,
+        /** Kayıt zamanı (`createdAt`, epoch sn; 0 = bilinmiyor) — "Son eklenen" anahtarı. */
+        val createdAt: Long = 0L
     )
 
     /**
@@ -406,6 +408,10 @@ object KitsuApiClient {
                     val updatedAt = runCatching {
                         java.time.Instant.parse(updatedAtStr).epochSecond
                     }.getOrDefault(0L)
+                    val createdAtStr = attrs.optString("createdAt", "")
+                    val createdAt = runCatching {
+                        java.time.Instant.parse(createdAtStr).epochSecond
+                    }.getOrDefault(0L)
                     val notes = if (attrs.isNull("notes")) null else attrs.optString("notes").takeIf { it.isNotBlank() }
                     val isPrivate = attrs.optBoolean("private", false)
                     val startedAt = fromKitsuDateTime(if (attrs.isNull("startedAt")) null else attrs.optString("startedAt"))
@@ -433,6 +439,7 @@ object KitsuApiClient {
                             animeId = animeId,
                             mangaId = mangaId,
                             updatedAt = updatedAt,
+                            createdAt = createdAt,
                             title = info?.title ?: if (animeId != null) "Kitsu Anime #$animeId" else "Kitsu Manga #$mangaId",
                             titleEnglish = info?.titleEn,
                             titleJapanese = info?.titleJp,

@@ -268,7 +268,16 @@ internal fun groupMyListEntries(
             // Adult metadata from any linked provider is authoritative for the combined
             // tile: don't let a non-adult representative unblur a copy flagged +18 elsewhere.
             entry = group.representative.copy(
-                isAdult = group.members.any { it.entry.isAdult }
+                isAdult = group.members.any { it.entry.isAdult },
+                // Birleşik kartın eklenme zamanı, yapımın kütüphaneye İLK girdiği
+                // andır: herhangi bir kaynaktaki en erken bilinen eklenme. Temsilci
+                // satır kaynak önceliğiyle seçildiği için kendi addedAt'i (örn. sonradan
+                // eşitlenmiş kopyanın tarihi) "Son eklenen"de kartı yanlış yere koyardı.
+                addedAt = group.members
+                    .map { com.kitsugi.animelist.model.normalizeToEpochSeconds(it.entry.addedAt) }
+                    .filter { it > 0L }
+                    .minOrNull()
+                    ?: group.representative.addedAt
             ),
             sourceIds = group.sourceIds.toList()
         )

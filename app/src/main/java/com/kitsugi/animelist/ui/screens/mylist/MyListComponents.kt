@@ -260,7 +260,7 @@ fun MyListHeaderSection(
                     onScoreFilterChange("all")
                     onYearFilterChange("all")
                     onExtraFilterChange("all")
-                    onSortChange("newest")
+                    onSortChange(MY_LIST_SORT_DEFAULT)
                 },
                 onDismiss = onHideFilters
             )
@@ -351,7 +351,7 @@ fun MyListHeaderSection(
                                     onScoreFilterChange("all")
                                     onYearFilterChange("all")
                                     onExtraFilterChange("all")
-                                    onSortChange("newest")
+                                    onSortChange(MY_LIST_SORT_DEFAULT)
                                 }
                                 .padding(horizontal = 10.dp, vertical = 7.dp)
                         ) {
@@ -842,6 +842,7 @@ fun MyListContentPage(
     groupedVisibleEntries: List<Pair<WatchStatus, List<MediaEntry>>>,
     searchQuery: String,
     selectedStatusFilterId: String,
+    selectedSortId: String,
     selectedListLayoutId: String,
     appSettings: com.kitsugi.animelist.data.settings.AppSettings,
     pageScrollState: LazyListState,
@@ -903,22 +904,39 @@ fun MyListContentPage(
             }
         } else {
             val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX
-            val displayEntries = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) visibleEntries else pageEntries
+            val isActivePage = pageTabIndex == selectedTabIndex || useGlobalSearchResults
+            // Aktif olmayan komşu sayfa da AYNI sıralamayı uygular. Önceden ham
+            // (sırasız, DB düzeni) pageEntries çiziliyordu: kaydırırken görülen
+            // sıra, sekme yerleştiği anda sıçrıyordu — "sıralama bozuk"
+            // izleniminin bir kaynağı da buydu.
+            val sortedPageEntries = remember(pageEntries, selectedSortId, appSettings.titleLanguage) {
+                applySort(pageEntries, selectedSortId, appSettings.titleLanguage)
+            }
+            val displayEntries = if (isActivePage) visibleEntries else sortedPageEntries
+            // Düz akış mı durum bölümleri mi? Karar tek yerden:
+            // myListUsesFlatSortedLayout — kullanıcı sıralama seçtiyse sıralama
+            // globaldir ve KAZANIR; durum bölümleri ancak varsayılan gezinmededir.
+            // Komşu sayfada durum filtresi uygulanmadığı için karar da "all" ile verilir.
+            val useFlatLayout = myListUsesFlatSortedLayout(
+                sortId = selectedSortId,
+                selectedStatusFilterId = if (isActivePage) selectedStatusFilterId else "all",
+                separatedListStyle = appSettings.separatedListStyle
+            )
+            // "Son eklenen / İlk eklenen" düz akışta dönem başlıklarıyla çizilir.
+            val displayAddedPeriods = remember(displayEntries, selectedSortId, useFlatLayout) {
+                if (useFlatLayout && myListSortUsesAddedDateSections(selectedSortId)) {
+                    groupMyListEntriesByAddedPeriod(displayEntries)
+                } else {
+                    emptyList()
+                }
+            }
             // PERF: aktif olmayan pager sayfası için durum gruplaması her yeniden
             // kompozisyonda yeniden hesaplanıyordu (kompozisyon sırasında 6 × tam liste
             // taraması — kaydırma jesti sırasında komşu sayfalar da kompoze olur).
-            val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
+            val displayGrouped = if (isActivePage) {
                 groupedVisibleEntries
             } else {
-                remember(pageEntries) {
-                    val statusOrder = listOf(
-                        WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
-                        WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
-                    )
-                    statusOrder.map { status ->
-                        status to pageEntries.filter { it.status == status }
-                    }.filter { it.second.isNotEmpty() }
-                }
+                remember(sortedPageEntries) { groupMyListEntriesByStatus(sortedPageEntries) }
             }
 
             LazyColumn(
@@ -949,14 +967,29 @@ fun MyListContentPage(
                             selectedScoreFilterId = "all",
                             selectedYearFilterId = "all",
                             selectedExtraFilterId = "all",
-                            selectedSortId = "newest"
+                            selectedSortId = selectedSortId
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
-                } else if ((selectedStatusFilterId == "completed" && pageTabIndex == selectedTabIndex) ||
-                    !appSettings.separatedListStyle
-                ) {
-                    // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
+                } else if (useFlatLayout && displayAddedPeriods.isNotEmpty()) {
+                    // "Son eklenen / İlk eklenen": global tarih sırası + dönem başlıkları.
+                    MyListAddedPeriodContent(
+                        sections = displayAddedPeriods,
+                        selectedListLayoutId = selectedListLayoutId,
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        blurAdultMedia = appSettings.blurAdultMedia,
+                        gridColumns = gridColumns,
+                        sourceBadgesByEntryId = sourceBadgesByEntryId,
+                        onEntryClick = onEntryClick,
+                        onIncrementProgress = onIncrementProgress,
+                        onPosterLongClick = onPosterLongClick
+                    )
+                } else if (useFlatLayout) {
+                    // Kullanıcının seçtiği sıralama global olarak uygulanır; durum
+                    // bölümleri sırayı EZMEZ (AniHyou paritesi: "Ayrılmış liste
+                    // tarzını kullan" kapalıysa da aynı düz akış).
                     MyListFlatContent(
                         visibleEntries = displayEntries,
                         selectedListLayoutId = selectedListLayoutId,

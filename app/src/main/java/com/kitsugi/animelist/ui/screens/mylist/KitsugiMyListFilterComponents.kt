@@ -135,6 +135,10 @@ internal val extraFilters = listOf(
 )
 
 internal val sortOptions = listOf(
+    // Varsayılan: sıralama "seçilmiş" sayılmaz — durum bölümlü klasik gezinme kalır.
+    // Diğer HER seçim global sıralamadır ve durum bölümlerini devre dışı bırakır
+    // (bkz. myListUsesFlatSortedLayout).
+    SortOption(MY_LIST_SORT_DEFAULT, "Varsayılan", R.string.mylist_sort_default),
     SortOption("newest", "Son eklenen", R.string.mylist_sort_newest),
     SortOption("oldest", "İlk eklenen", R.string.mylist_sort_oldest),
     SortOption("title", "Ada göre", R.string.mylist_sort_title),
@@ -455,7 +459,7 @@ internal fun RichMyListFilterPanel(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
                             )
-                            if (isSelected) {
+                            if (isSelected && item.descId != item.ascId) {
                                 Icon(
                                     imageVector = if (isAscActive) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
                                     contentDescription = null,
