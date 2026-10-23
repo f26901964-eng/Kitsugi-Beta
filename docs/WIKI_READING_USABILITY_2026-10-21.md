@@ -12,7 +12,10 @@ Tarih: 2026-10-21
 
 ### 1. Kaynak görünümünü bozmayan tema tercihi
 
-- Varsayılan **Site teması / SITE**: kaynak wiki görünümü korunur. Uygulama koyu olsa bile açık bir kaynak sayfa açık kalabilir; bu bilinçli bir özgünlük tercihidir.
+- **2026-10-23 itibarıyla varsayılan değişti:** yeni kurulumda **Uygulama temasını izle / APP**
+  seçilidir; ayrıntı: [Wiki açılır sayfası — tema uyumu](WIKI_READER_CHROME_THEME_2026-10-23.md).
+- **Site teması / SITE** seçeneği korunur: kaynak wiki görünümü aynen kalır. Uygulama koyu olsa
+  bile açık bir kaynak sayfa açık kalır; bu bilinçli bir özgünlük tercihidir.
 - **Uygulamayı izle / APP**: sistemin açık/koyu bayrağını değil, Kitsugi'nin etkin arka plan paletini esas alır. Böylece uygulamanın bağımsız tema seçimi dikkate alınır.
 - **Açık / LIGHT**, **Koyu / DARK**: açık kullanıcı tercihi.
 - Fandom/Wikia'nın bilinen `theme-fandomdesktop-*` ve modern Wikipedia'nın `skin-theme-clientpref-*` sınıfları kullanılır. Bu sözleşmeleri taşımayan özel/eski görünümlere genel CSS zorlanmaz; kullanıcıya destek/uygulama sınırlaması gösterilir.

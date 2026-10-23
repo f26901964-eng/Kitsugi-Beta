@@ -661,7 +661,7 @@ class SettingsDataStore(
                     mdbListShowTrakt = preferences[Keys.MdbListShowTrakt] ?: false,
                     fanartTvApiKey = preferences[Keys.FanartTvApiKey] ?: "",
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
-                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "SITE",
+                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "APP",
                     wikiTextZoom = preferences[Keys.WikiTextZoom] ?: 100,
                     wikiAdBlockDisabledHosts = preferences[Keys.WikiAdBlockDisabledHosts] ?: emptySet(),
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,

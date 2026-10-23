@@ -17,6 +17,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,6 +51,11 @@ internal class WikiOriginalSession(initialUrl: String, var readerLocation: Fando
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var desktop by mutableStateOf(true)
+    /**
+     * Okurken ekranın kapanmaması. Oturumludur (uygulama yeniden başlarsa kapanır) ve
+     * yalnızca bu sekmenin WebView'ine uygulanır; ayarlara yazılmaz.
+     */
+    var keepScreenOn by mutableStateOf(false)
     var progress by mutableStateOf(0)
     var failed by mutableStateOf(false)
     var pageCommitted by mutableStateOf(false)
@@ -188,6 +194,7 @@ internal fun WikiOriginalPage(
         session.enhancements?.setAppearance(pageMode)
         session.view?.let { view ->
             if (view.settings.textZoom != textZoom) view.settings.textZoom = textZoom
+            if (view.keepScreenOn != session.keepScreenOn) view.keepScreenOn = session.keepScreenOn
             if (!session.pageCommitted) view.setBackgroundColor(currentBackground)
         }
     }
@@ -237,12 +244,23 @@ internal fun WikiOriginalPage(
             TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { session.generation++ }) { Text(stringResource(R.string.yenile)) }
         }
 
-        if (session.progress < 100 && !session.failed && !assetFailed) {
-            LinearProgressIndicator(
-                progress = { session.progress / 100f },
-                color = accentColor,
-                modifier = Modifier.fillMaxWidth()
-            )
+        // İlerleme çizgisi her zaman 2 dp yer kaplar: yükleme bitince çizgi kaybolurken
+        // WebView'in yukarı sıçraması (içerik kayması) engellenir. Material bileşenin
+        // 4 dp yüksekliği 2 dp'lik alandan taşacağı için ince çubuk elle çizilir.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(accentColor.copy(alpha = 0.16f))
+        ) {
+            if (session.progress < 100 && !session.failed && !assetFailed) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth((session.progress.coerceIn(0, 100)) / 100f)
+                        .background(accentColor)
+                )
+            }
         }
         if (session.failed) {
             // Keep the page under the message: a site-provided 403/404/challenge can still
@@ -268,6 +286,7 @@ internal fun WikiOriginalPage(
                         val engine = WebView(context).also { allocatedView = it }.apply {
                             val ownedView = this
                             setBackgroundColor(currentBackground)
+                            keepScreenOn = session.keepScreenOn
                             val tools = WikiPageEnhancements(context, this, session, loadedAssets, currentConfig)
                             session.enhancements = tools
                             tools.setAppearance(currentPageMode)

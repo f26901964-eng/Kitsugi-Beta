@@ -239,7 +239,7 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
-    val wikiPageTheme: String = "SITE",
+    val wikiPageTheme: String = "APP",
     val wikiTextZoom: Int = 100,
     val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
     val autoTranslateEnabled: Boolean = false,

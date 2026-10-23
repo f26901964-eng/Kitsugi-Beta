@@ -9,11 +9,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -121,6 +123,12 @@ internal fun WikiPageTools(
             canFind = session.view != null,
             statusLines = statusLines,
             retryAvailable = retryAvailable,
+            theme = preferences?.pageTheme ?: "APP",
+            zoom = WikiReadingAppearance.textPercent(preferences?.textZoom ?: 100),
+            keepScreenOn = session.keepScreenOn,
+            canKeepScreenOn = session.view != null,
+            onToggleKeepScreenOn = { session.keepScreenOn = it },
+            onSaveAppearance = onSaveAppearance,
             onToggleTranslate = { session.translationOverride = !config.translate },
             onToggleAds = onToggleAds,
             onOpenAppearance = { showTools = false; showAppearance = true },
@@ -196,6 +204,12 @@ private fun WikiPageToolsDialog(
     canFind: Boolean,
     statusLines: List<String>,
     retryAvailable: Boolean,
+    theme: String,
+    zoom: Int,
+    keepScreenOn: Boolean,
+    canKeepScreenOn: Boolean,
+    onToggleKeepScreenOn: (Boolean) -> Unit,
+    onSaveAppearance: (String, Int) -> Unit,
     onToggleTranslate: () -> Unit,
     onToggleAds: () -> Unit,
     onOpenAppearance: () -> Unit,
@@ -205,6 +219,8 @@ private fun WikiPageToolsDialog(
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val zoomLabel = stringResource(R.string.wiki_text_percent, zoom)
+    val canZoom = canOpenAppearance
     val retryAction: (@Composable () -> Unit)? = if (retryAvailable) {
         {
             TextButton(
@@ -227,57 +243,81 @@ private fun WikiPageToolsDialog(
             Column(
                 modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())
             ) {
-                WikiToolSwitchRow(
-                    icon = Icons.Rounded.Translate,
-                    title = stringResource(R.string.wiki_tools_translate_title),
-                    detail = translateDetail,
-                    checked = translateOn,
-                    enabled = translateEnabled,
-                    accentColor = accentColor,
-                    onCheckedChange = onToggleTranslate
-                )
-                WikiToolSwitchRow(
-                    icon = Icons.Rounded.Security,
-                    title = stringResource(R.string.wiki_tools_ad_block_title),
-                    detail = adsDetail,
-                    checked = adsOn,
-                    enabled = adsEnabled,
-                    accentColor = accentColor,
-                    onCheckedChange = onToggleAds
-                )
-                HorizontalDivider(
-                    color = KitsugiColors.Border.copy(alpha = 0.4f),
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-                WikiToolActionRow(
-                    icon = Icons.Rounded.Tune,
-                    title = stringResource(R.string.wiki_reading_appearance),
-                    enabled = canOpenAppearance,
-                    onClick = onOpenAppearance
-                )
-                WikiToolActionRow(
-                    icon = Icons.Rounded.Search,
-                    title = stringResource(R.string.wiki_find_in_page),
-                    enabled = canFind,
-                    onClick = onOpenFind
-                )
-                WikiToolActionRow(
-                    icon = Icons.Rounded.Info,
-                    title = stringResource(R.string.wiki_tools_info),
-                    enabled = true,
-                    onClick = onOpenInfo
-                )
-                if (statusLines.isNotEmpty()) {
-                    HorizontalDivider(
-                        color = KitsugiColors.Border.copy(alpha = 0.4f),
-                        modifier = Modifier.padding(vertical = 6.dp)
+                // 2026-10-23: satırlar tek sütun hâlinde yığılmıyor; uygulama temasındaki
+                // ayar grupları gibi başlıklı, yuvarlak yüzeylere ayrıldı.
+                WikiToolGroup(title = stringResource(R.string.wiki_tools_section_content)) {
+                    WikiToolSwitchRow(
+                        icon = Icons.Rounded.Translate,
+                        title = stringResource(R.string.wiki_tools_translate_title),
+                        detail = translateDetail,
+                        checked = translateOn,
+                        enabled = translateEnabled,
+                        accentColor = accentColor,
+                        onCheckedChange = onToggleTranslate
                     )
+                    WikiToolSwitchRow(
+                        icon = Icons.Rounded.Security,
+                        title = stringResource(R.string.wiki_tools_ad_block_title),
+                        detail = adsDetail,
+                        checked = adsOn,
+                        enabled = adsEnabled,
+                        accentColor = accentColor,
+                        onCheckedChange = onToggleAds
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                WikiToolGroup(title = stringResource(R.string.wiki_tools_section_view)) {
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.Tune,
+                        title = stringResource(R.string.wiki_reading_appearance),
+                        detail = zoomLabel,
+                        enabled = canOpenAppearance,
+                        onClick = onOpenAppearance
+                    )
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.FormatSize,
+                        title = stringResource(R.string.wiki_text_smaller),
+                        enabled = canZoom && zoom > 80,
+                        onClick = { onSaveAppearance(theme, (zoom - 10).coerceAtLeast(80)) }
+                    )
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.FormatSize,
+                        title = stringResource(R.string.wiki_text_larger),
+                        enabled = canZoom && zoom < 180,
+                        onClick = { onSaveAppearance(theme, (zoom + 10).coerceAtMost(180)) }
+                    )
+                    WikiToolSwitchRow(
+                        icon = Icons.Rounded.Visibility,
+                        title = stringResource(R.string.wiki_keep_screen_on),
+                        detail = stringResource(R.string.wiki_keep_screen_on_desc),
+                        checked = keepScreenOn,
+                        enabled = canKeepScreenOn,
+                        accentColor = accentColor,
+                        onCheckedChange = onToggleKeepScreenOn
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                WikiToolGroup(title = stringResource(R.string.wiki_tools_section_page)) {
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.Search,
+                        title = stringResource(R.string.wiki_find_in_page),
+                        enabled = canFind,
+                        onClick = onOpenFind
+                    )
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.Info,
+                        title = stringResource(R.string.wiki_tools_info),
+                        enabled = true,
+                        onClick = onOpenInfo
+                    )
+                }
+                if (statusLines.isNotEmpty()) {
                     Text(
                         text = stringResource(R.string.wiki_tools_status_title),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                        modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
                     )
                     statusLines.forEach { line ->
                         Row(
@@ -373,7 +413,8 @@ private fun WikiToolActionRow(
     icon: ImageVector,
     title: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    detail: String? = null
 ) {
     val shape = RoundedCornerShape(10.dp)
     Row(
@@ -392,14 +433,49 @@ private fun WikiToolActionRow(
             tint = if (enabled) KitsugiColors.TextSecondary else KitsugiColors.TextMuted.copy(alpha = 0.5f),
             modifier = Modifier.size(18.dp)
         )
-        Text(
-            text = title,
-            color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            if (!detail.isNullOrBlank()) {
+                Text(
+                    text = detail,
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
     }
+}
+
+/**
+ * Araç sayfasındaki gruplu bölüm: uygulama genelindeki ayar kartlarıyla aynı dil
+ * (yuvarlak yüzey + kısa başlık). Satırlar arasında ayırıcı çizgi yok; dokunma
+ * hedefleri tek tek yuvarlatılmış olduğu için çizgiye gerek kalmıyor.
+ */
+@Composable
+private fun WikiToolGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Text(
+        text = title,
+        color = KitsugiColors.TextMuted,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.45f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        content = content
+    )
 }
 
 /** Sayfa araçları sayfasında listelenecek kısa durum/uyarı satırları. */
