@@ -6,6 +6,7 @@ import com.kitsugi.animelist.data.auth.ExternalListSyncManager
 import com.kitsugi.animelist.data.auth.SiblingMirrorPolicy
 import com.kitsugi.animelist.data.auth.SyncField
 import com.kitsugi.animelist.data.auth.SyncFieldDiff
+import com.kitsugi.animelist.data.auth.RemoteListPresence
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -323,12 +324,38 @@ class MediaEntryRepository(
         mirrorUserFieldsToSiblings(entryWithTime, changedFields)
 
         if (syncExternal) {
-            // Hiçbir kullanıcı alanı değişmediyse AĞA ÇIKILMAZ: altı hedefte de yazılacak
-            // bir şey yok, kullanıcıya da gereksiz "değişiklik yok" bildirimi gitmez.
-            // (Başarısız bir yazımın telafisi bekleyen-senkron kuyruğu + açılış/bağlantı
-            // tetikleyicileriyle yapılır.)
+            // ── ONARIM TURU ─────────────────────────────────────────────────────────
+            // Hiçbir kullanıcı alanı değişmese bile hedef kaynaklarda KAYIT EKSİK olabilir
+            // (ör. Kitsu'dan içe aktarılmış satır Simkl/Shikimori/Bangumi'de hiç yoktur;
+            // veya daha önceki bir yazım başarısız olmuştur). Eski kod bu durumda hiç ağa
+            // çıkmıyor, kullanıcı ise "Simkl/Kitsu/Shikimori/Bangumi: değişiklik yok"
+            // mesajını görüp kayıtların eşitlenmediğine tanık oluyordu.
+            //
+            // `ExternalListSyncManager` her sağlayıcı için varlık kaydına bakar: kayıt VARSA
+            // ve yazılacak alan yoksa istek atmaz (hedefteki elle girilmiş değerler ezilmez);
+            // kayıt YOK/doğrulanmadıysa tam yazımla oluşturur. Aynı satır için onarım en
+            // fazla [com.kitsugi.animelist.data.auth.RemoteListPresence.REPAIR_THROTTLE_MS]
+            // sıklığında denenir — her kaydırmada ağa çıkılmaz.
+            val appContext = context
+                ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            val repairDue = changedFields.isEmpty() && appContext != null &&
+                RemoteListPresence.beginRepairIfDue(
+                    appContext,
+                    RemoteListPresence.keyFor(entryWithTime)
+                )
             if (changedFields.isNotEmpty()) {
                 syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields)
+            } else if (repairDue) {
+                // Onarım turu: yerelde değişen alan yok, ama hedefler arasında fark olabilir.
+                // TAM yazım gönderilir (boş yerel alanlar gönderilmez → hedefteki değer
+                // silinmez) ve altı kaynak aynı duruma getirilir. Kullanıcının şikâyeti tam
+                // buydu: "veriler diğer kaynaklarda var ama eşitlenmiyor".
+                syncEntryIfPossible(
+                    entryWithTime,
+                    advancedScores,
+                    skipBangumiWrite,
+                    SyncField.ALL
+                )
             }
         }
     }

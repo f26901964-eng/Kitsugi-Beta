@@ -914,6 +914,10 @@ object ExternalAuthManager {
         serviceName: String
     ) {
         com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.clear(context)
+        // Başka bir hesaba geçildiğinde "hedefte kayıt VAR" bilgisi geçersizdir: eski hesabın
+        // kayıtları yeni hesapta yoktur. Temizlenmezse yeni hesapta eksik kayıtlar hiç
+        // oluşturulmaz ("zaten eşit" denip geçilirdi).
+        RemoteListPresence.clear(context)
         val canonical = canonicalServiceKey(serviceName)
         val editor = prefs(context).edit()
             .remove(sessionExpiredKey(canonical))
