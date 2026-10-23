@@ -170,48 +170,101 @@ object BangumiSyncManager {
             (fullWrite || SyncField.PROGRESS in fields || statusChanged)
         val skipCollectionWrite = !writeAll && !hasAnyArg
 
-        val writeError = if (skipCollectionWrite) null else writeWithAuthRetry(context, subjectId) { activeToken ->
-            if (writeAll) {
-                BangumiApiClient.upsertCollection(
-                    token = activeToken,
-                    subjectId = subjectId,
-                    type = status,
-                    rate = rateArg,
-                    epStatus = epArg,
-                    volStatus = volArg,
-                    comment = commentArg,
-                    private = privateArg,
-                    tags = tagsArg
-                )
-            } else {
-                val patched = runSyncCatching {
-                    BangumiApiClient.patchCollection(
-                        token = activeToken,
-                        subjectId = subjectId,
-                        type = null,
-                        rate = rateArg,
-                        epStatus = epArg,
-                        volStatus = volArg,
-                        comment = commentArg,
-                        private = privateArg,
-                        tags = tagsArg
-                    )
-                }
-                // Koleksiyonda kayıt yoksa (404) tam upsert'e düş: kayıt oluşturulmalı.
-                if (patched.isFailure) {
+        val username = BangumiAuthStore.resolveUsername(context)
+
+        suspend fun upsertCollectionWithScopeFallback(
+            activeToken: String,
+            forceUpsertStatus: Boolean,
+            rate: Int? = null,
+            epStatus: Int? = null,
+            volStatus: Int? = null,
+            comment: String? = null,
+            private: Boolean? = null,
+            tags: List<String>? = null
+        ) {
+            try {
+                if (forceUpsertStatus) {
                     BangumiApiClient.upsertCollection(
                         token = activeToken,
                         subjectId = subjectId,
                         type = status,
-                        rate = rateArg,
-                        epStatus = epArg,
-                        volStatus = volArg,
-                        comment = commentArg,
-                        private = privateArg,
-                        tags = tagsArg
+                        rate = rate,
+                        epStatus = epStatus,
+                        volStatus = volStatus,
+                        comment = comment,
+                        private = private,
+                        tags = tags
+                    )
+                } else {
+                    val patched = runSyncCatching {
+                        BangumiApiClient.patchCollection(
+                            token = activeToken,
+                            subjectId = subjectId,
+                            type = null,
+                            rate = rate,
+                            epStatus = epStatus,
+                            volStatus = volStatus,
+                            comment = comment,
+                            private = private,
+                            tags = tags
+                        )
+                    }
+                    if (patched.isFailure) {
+                        val err = patched.exceptionOrNull()
+                        if (err is BangumiApiClient.BangumiApiException && err.isCollectionScopeForbidden) {
+                            throw err
+                        }
+                        BangumiApiClient.upsertCollection(
+                            token = activeToken,
+                            subjectId = subjectId,
+                            type = status,
+                            rate = rate,
+                            epStatus = epStatus,
+                            volStatus = volStatus,
+                            comment = comment,
+                            private = private,
+                            tags = tags
+                        )
+                    }
+                }
+            } catch (scopeError: BangumiApiClient.BangumiApiException) {
+                if (!scopeError.isCollectionScopeForbidden) throw scopeError
+                // `E87`: Go `/v0` yazma ucu normal OAuth token'ını `403 insufficient token scope`
+                // ile reddettiğinde resmî Legacy PHP API (`POST /collection/{id}/update`) ile yazılır.
+                Log.w(TAG, "Bangumi /v0 403 scope reddi (subject=$subjectId); Legacy PHP API ile yazılıyor")
+                BangumiApiClient.upsertCollectionLegacy(
+                    token = activeToken,
+                    subjectId = subjectId,
+                    username = username,
+                    type = if (forceUpsertStatus) status else null,
+                    rate = rate,
+                    comment = comment,
+                    private = private,
+                    tags = tags
+                )
+                if (isBook && (epStatus != null || volStatus != null)) {
+                    val bookSubject = BangumiApiClient.getSubject(subjectId, activeToken)
+                    BangumiApiClient.setProgressLegacy(
+                        token = activeToken,
+                        subject = bookSubject,
+                        watchedCount = epStatus ?: progress,
+                        volumeCount = volStatus
                     )
                 }
             }
+        }
+
+        val writeError = if (skipCollectionWrite) null else writeWithAuthRetry(context, subjectId) { activeToken ->
+            upsertCollectionWithScopeFallback(
+                activeToken = activeToken,
+                forceUpsertStatus = writeAll,
+                rate = rateArg,
+                epStatus = epArg,
+                volStatus = volArg,
+                comment = commentArg,
+                private = privateArg,
+                tags = tagsArg
+            )
         }
         val collectionUpdated = writeError == null
         if (collectionUpdated && !skipCollectionWrite) {
@@ -229,13 +282,32 @@ object BangumiSyncManager {
             )
         }
 
-        // 2) Video subject'lerinde ilerleme bölüm bazlı işaretlenir (anime ve REAL dizi/film).
-        //    Yalnızca ilerleme/durum değiştiğinde: aksi hâlde not düzenlemesi bile tüm bölümleri
-        //    yeniden işaretler (N istek, gereksiz yük).
+        // 2) Video subject'lerinde ilerleme bölüm bazlı işaretlenir (`E86` + `E87`):
+        //    - Yapıt henüz Bangumi koleksiyonunda yoksa (`400 you need to add subject to your collection first`),
+        //      önce koleksiyon kaydı [status] ile oluşturulur ve bölüm ilerlemesi hemen yeniden yazılır.
+        //    - `/v0` ucu `403 insufficient token scope` döndürürse resmî Legacy PHP API ile yazılır.
         if (episodeProgressPending && collectionUpdated) {
             val progressError = writeWithAuthRetry(context, subjectId) { activeToken ->
                 val subject = BangumiApiClient.getSubject(subjectId, activeToken)
-                BangumiApiClient.setProgress(activeToken, subject, progress)
+                suspend fun writeProgressOnce() {
+                    try {
+                        BangumiApiClient.setProgress(activeToken, subject, progress)
+                    } catch (scopeError: BangumiApiClient.BangumiApiException) {
+                        if (!scopeError.isCollectionScopeForbidden) throw scopeError
+                        if (skipCollectionWrite) {
+                            upsertCollectionWithScopeFallback(activeToken = activeToken, forceUpsertStatus = true)
+                        }
+                        BangumiApiClient.setProgressLegacy(activeToken, subject, progress)
+                    }
+                }
+                try {
+                    writeProgressOnce()
+                } catch (notCollected: BangumiApiClient.BangumiApiException) {
+                    if (!notCollected.isSubjectNotCollected) throw notCollected
+                    Log.i(TAG, "Bangumi subject=$subjectId henüz koleksiyonda değil; önce koleksiyon oluşturulup ilerleme yazılıyor")
+                    upsertCollectionWithScopeFallback(activeToken = activeToken, forceUpsertStatus = true)
+                    writeProgressOnce()
+                }
             }
             if (progressError == null) {
                 messages += context.getString(R.string.bangumi_sync_progress_written, progress, entry.title)
@@ -269,21 +341,28 @@ object BangumiSyncManager {
         subjectId: Int,
         block: suspend (token: String) -> Unit
     ): Throwable? {
+        val wasManualPat = BangumiAuthStore.isManualToken(context)
         val token = BangumiAuthStore.getValidToken(context)
-            ?: return IllegalStateException(context.getString(R.string.bangumi_oturumu_sona_erdi_lutfen_bangumi_hes))
+            ?: return IllegalStateException(
+                "Bangumi: HTTP 401 — " + context.getString(R.string.bangumi_oturumu_sona_erdi_lutfen_bangumi_hes)
+            )
         return try {
             block(token)
             null
         } catch (error: Throwable) {
             if (error is kotlinx.coroutines.CancellationException) throw error
             if (error !is BangumiApiClient.BangumiApiException || !error.isUnauthorized) return error
-            // 401 → zorla yenile. PAT oturumlarında yenileme yoktur; forceRefresh null döner
-            // ve kullanıcı 401 metniyle yeniden bağlanmaya yönlendirilir.
             Log.w(TAG, "yazma 401 aldı (subject=$subjectId); token yenilenip bir kez daha denenecek")
             val refreshed = BangumiAuthStore.forceRefresh(context)
             if (refreshed.isNullOrBlank()) {
-                Log.e(TAG, "token yenilenemedi (subject=$subjectId) — kullanıcı yeniden bağlanmalı")
-                return error
+                ExternalAuthManager.markSessionExpired(context, "bangumi")
+                val reason = if (wasManualPat) {
+                    "Bangumi kişisel erişim anahtarının (PAT) süresi doldu (HTTP 401) — Ayarlar > Bangumi bölümünden yeni anahtar yapıştırın veya OAuth ile giriş yapın"
+                } else {
+                    "Bangumi oturumu sona erdi (HTTP 401) — Ayarlar > Bangumi bölümünden tekrar bağlanın"
+                }
+                Log.e(TAG, "token yenilenemedi (subject=$subjectId) — $reason")
+                return IllegalStateException(reason, error)
             }
             try {
                 block(refreshed)
@@ -372,13 +451,32 @@ object BangumiSyncManager {
                 unresolvedSubject = true
             )
 
+        val username = BangumiAuthStore.resolveUsername(context)
         val writeError = writeWithAuthRetry(context, subjectId) { activeToken ->
-            BangumiApiClient.upsertCollection(
-                token = activeToken,
-                subjectId = subjectId,
-                type = BangumiApiClient.CollectionType.DROPPED,
-                rate = 0
-            )
+            // Yapıt zaten Bangumi koleksiyonunda yoksa sıfırdan `DROPPED` (抛弃) satırı
+            // OLUŞTURULMAZ: aksi hâlde silinen yapım bir sonraki çapraz eşitlemede
+            // Bangumi'den "Bırakıldı" olarak hortlayıp yerel listeye geri döner!
+            if (!username.isNullOrBlank()) {
+                val existing = BangumiApiClient.getUserCollection(activeToken, subjectId, username)
+                if (existing == null) return@writeWithAuthRetry
+            }
+            try {
+                BangumiApiClient.upsertCollection(
+                    token = activeToken,
+                    subjectId = subjectId,
+                    type = BangumiApiClient.CollectionType.DROPPED,
+                    rate = 0
+                )
+            } catch (scopeError: BangumiApiClient.BangumiApiException) {
+                if (!scopeError.isCollectionScopeForbidden) throw scopeError
+                BangumiApiClient.upsertCollectionLegacy(
+                    token = activeToken,
+                    subjectId = subjectId,
+                    username = username,
+                    type = BangumiApiClient.CollectionType.DROPPED,
+                    rate = 0
+                )
+            }
         }
         if (writeError == null) {
             SyncResult(

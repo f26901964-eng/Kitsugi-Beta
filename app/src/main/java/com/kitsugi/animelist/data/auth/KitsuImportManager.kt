@@ -26,7 +26,18 @@ object KitsuImportManager {
 
     suspend fun fetchAllLists(context: Context, token: String, userId: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
-            val entries = KitsuApiClient.fetchAllLibraryEntries(token, userId)
+            val entries = try {
+                KitsuApiClient.fetchAllLibraryEntries(token, userId)
+            } catch (e: Exception) {
+                val isAuth = e.message?.contains("HTTP 401", ignoreCase = true) == true
+                if (!isAuth) throw e
+                val refreshed = ExternalAuthManager.forceRefreshKitsuToken(context)
+                if (refreshed.isNullOrBlank()) {
+                    ExternalAuthManager.markSessionExpired(context, "kitsu")
+                    throw IllegalStateException("Kitsu oturumu sona erdi (HTTP 401)", e)
+                }
+                KitsuApiClient.fetchAllLibraryEntries(refreshed, userId)
+            }
             val result = mutableListOf<MediaEntry>()
 
             for (entry in entries) {

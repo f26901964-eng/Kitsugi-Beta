@@ -276,20 +276,46 @@ object MalSyncManager {
         .joinToString("&")
 
     private fun executePatch(url: URL, body: String, token: String, context: Context) {
-        val request = Request.Builder()
-            .url(url)
-            .patch(body.toRequestBody("application/x-www-form-urlencoded; charset=utf-8".toMediaTypeOrNull()))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .header("Authorization", "Bearer $token")
-            .build()
+        fun sendOnce(bearerToken: String): okhttp3.Response {
+            val request = Request.Builder()
+                .url(url)
+                .patch(body.toRequestBody("application/x-www-form-urlencoded; charset=utf-8".toMediaTypeOrNull()))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Authorization", "Bearer $bearerToken")
+                .build()
+            return com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute()
+        }
 
         try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val errorText = response.body?.string().orEmpty()
-                    throw IllegalStateException(
-                        context.getString(R.string.account_sync_api_error, "MAL", response.code, errorText)
-                    )
+            val unauthorizedFirst = sendOnce(token).use { response ->
+                if (response.code == 401) {
+                    true
+                } else {
+                    if (!response.isSuccessful) {
+                        val errorText = response.body?.string().orEmpty()
+                        throw IllegalStateException(
+                            context.getString(R.string.account_sync_api_error, "MAL", response.code, errorText)
+                        )
+                    }
+                    false
+                }
+            }
+            if (unauthorizedFirst) {
+                val refreshed = ExternalAuthManager.refreshMalTokenSync(context)
+                if (refreshed.isNullOrBlank()) {
+                    ExternalAuthManager.markSessionExpired(context, "mal")
+                    throw IllegalStateException("MyAnimeList oturumu sona erdi (HTTP 401)")
+                }
+                sendOnce(refreshed).use { retryResponse ->
+                    if (!retryResponse.isSuccessful) {
+                        val errorText = retryResponse.body?.string().orEmpty()
+                        if (retryResponse.code == 401) {
+                            ExternalAuthManager.markSessionExpired(context, "mal")
+                        }
+                        throw IllegalStateException(
+                            context.getString(R.string.account_sync_api_error, "MAL", retryResponse.code, errorText)
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -320,22 +346,46 @@ object MalSyncManager {
 
         val url = URL("https://api.myanimelist.net/v2/$endpointType/$malId/my_list_status")
 
-        val request = Request.Builder()
-            .url(url)
-            .delete()
-            .header("Authorization", "Bearer $token")
-            .build()
+        fun deleteOnce(bearerToken: String): okhttp3.Response {
+            val request = Request.Builder()
+                .url(url)
+                .delete()
+                .header("Authorization", "Bearer $bearerToken")
+                .build()
+            return com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute()
+        }
 
         try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient.newCall(request).execute().use { response ->
-                if (response.code == 404) {
-                    return
+            val unauthorizedFirst = deleteOnce(token).use { response ->
+                when {
+                    response.code == 404 -> false
+                    response.code == 401 -> true
+                    !response.isSuccessful -> {
+                        val errorText = response.body?.string().orEmpty()
+                        throw IllegalStateException(
+                            context.getString(R.string.account_sync_mal_delete_api_error, response.code, errorText)
+                        )
+                    }
+                    else -> false
                 }
-                if (!response.isSuccessful) {
-                    val errorText = response.body?.string().orEmpty()
-                    throw IllegalStateException(
-                        context.getString(R.string.account_sync_mal_delete_api_error, response.code, errorText)
-                    )
+            }
+            if (unauthorizedFirst) {
+                val refreshed = ExternalAuthManager.refreshMalTokenSync(context)
+                if (refreshed.isNullOrBlank()) {
+                    ExternalAuthManager.markSessionExpired(context, "mal")
+                    throw IllegalStateException("MyAnimeList oturumu sona erdi (HTTP 401)")
+                }
+                deleteOnce(refreshed).use { retryResponse ->
+                    if (retryResponse.code == 404) return
+                    if (!retryResponse.isSuccessful) {
+                        val errorText = retryResponse.body?.string().orEmpty()
+                        if (retryResponse.code == 401) {
+                            ExternalAuthManager.markSessionExpired(context, "mal")
+                        }
+                        throw IllegalStateException(
+                            context.getString(R.string.account_sync_mal_delete_api_error, retryResponse.code, errorText)
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {

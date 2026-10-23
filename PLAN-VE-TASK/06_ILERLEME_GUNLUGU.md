@@ -5,7 +5,44 @@ sorusunun tek yerden cevaplanması.
 
 ---
 
-## 2026-10-22 · Geçiş 14 — gerçek Gradle derleme ve birim test doğrulaması (E83, E84)
+## 2026-10-23 · Geçiş 15 — oturum dayanıklılığı: token yenileme, Bangumi Legacy yedek yolu, oturum-doldu görünürlüğü (E85–E95)
+
+**Durum:** `arena/9c5d6aae-kitsugi-beta` · HEAD: bu commit · temel: v2.4.348 (0b02e79) main (76eff11) ile birleştirildi (63cba7e6)
+**Doğrulama:** tree-sitter Kotlin sözdizimi taraması 14 değişen dosyada temiz (BangumiApiClient.kt = `07_ARACLAR.md`'de belgeli bilinen yanlış pozitif; temel dosya da aynı hatayı veriyordu). **Derleme ve birim test BU ORTAMDA ÇALIŞTIRILMADI** (JDK/Gradle/Android SDK yok) — kullanıcı: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`
+
+### Kapatılan hatalar (E85–E95, ayrıntı: 03_HATA_KAYDI)
+
+| # | Özet | Düzeltme |
+|---|---|---|
+| E85 | Kitsu 30 günlük access token hiç yenilenmiyordu | `KitsuApiClient.refreshToken` + `getOrRefreshKitsuToken` (proaktif, mutex'li) + `forceRefreshKitsuToken` (401 sonrası) + `executeWithKitsuAuthRetry` (bir kez tekrar) |
+| E86 | Bangumi'de yeni yapıma ilerleme yazımı `400 ...add subject to your collection first` ile düşüyordu | `isSubjectNotCollected` ayrımı → önce koleksiyon oluştur, ilerlemeyi yeniden yaz |
+| E87 | Bangumi `/v0` normal OAuth token'ına `403 insufficient token scope` veriyordu (`parseTokenScope` JSON dizesini çözemez — `bangumi/server` `internal/auth/mysql_repository.go` + `TestParseTokenScope_NonObject`) | Resmî **Legacy PHP** yedek yolu: `POST /collection/{id}/update`, `POST /subject/{id}/update/watched_eps` (alan-bazlı koruma korunur; HTTP 200 gövdeli hatalar `parseLegacyWriteError` ile ayrıştırılır) |
+| E88 | Bangumi `getValidToken` geçici yenileme başarısızında `null` döndürüp "bağlı değil" yalanı üretiyordu | Bayat-token fallback + `forceRefresh` kalıcı (401/403/invalid_grant) vs geçici ayrımı + başarılı `saveAuth`'ta cooldown reset |
+| E89 | MAL refresh gövdesi elle URL-encode ediliyordu (`client_secret` bozulabilirdi); geçici ağ hatası "oturum doldu" sanılıyordu | `FormBody` + `getOrRefreshMalToken` bayat-token fallback + `forceRefreshMalToken` |
+| E90 | Shikimori/MAL/Kitsu refresh'leri mutex'sizdi → tek kullanımlık refresh token paralel tüketiliyordu | Sağlayıcı başına `Mutex` (`kitsuRefreshMutex` / `shikimoriRefreshMutex` / `malRefreshMutex`) |
+| E91 | Oturumu düşen hesap UI'da görünmüyordu | `markSessionExpired`/`isSessionExpired` + `${provider}_session_expired` bayrakları; ayarlar kartlarında "Oturum süresi doldu" |
+| E92 | Shikimori 5 yazım ucu 401'i sessizce `false/null`a çeviriyordu | Uçlar `ShikimoriTokenException(401)` fırlatır; `syncEntryToShikimori` refresh + bir kez tekrar |
+| E93 | Shikimori silmede bayat önbellek `rateId` 404 → hayalet kayıt kalıyordu | `resolveFreshRateId` ile taze kimlik ve ikinci DELETE |
+| E94 | MAL içe aktarma 401'de yenileme yapmıyordu | `fetchWithOptionalAuthRetry` |
+| E95 | Oturumu düşen hesap "Bağlı" görünmeye devam ediyordu | `ProfileSettings.is*SessionExpired` + `AccountHubItem` başlıkları |
+
+### Saklanan sözleşmeler (bozan yok)
+
+- Alan-bazlı yazım korundu: Legacy yolu da `A4` ("gönderilmeyen alan sunucuda sıfırlanır") gereği mevcut koleksiyondan doldurulur.
+- `PendingSyncPolicy` ve kuyruk kararları değişmedi; 401 metinleri mevcut `isAuthError` sözlüğüyle uyumlu ("401"/"Unauthorized").
+- Silme-yolu `E81` (`notinteresting`) ve tekrar-sözleşmeleri (`E72`/`E76`/`E77`) dokunulmadı.
+
+### Yeni testler
+
+- `BangumiLegacyWriteContractTest` (7 test): `CollectionType → Legacy status` eşlemesi, form alanlarının mevcut koleksiyondan doldurulması (puan/not silinmesin), 380-karakter sınırı, HTTP 200 gövdeli `invalid_token` ayrıştırması, `sessionExpiredKey` kanonikleştirme.
+
+### Kanıt
+
+- Resmî doküman: `bangumi/api` `open-api/api.yml` (`/collection/{subject_id}/{action}`, `/subject/{subject_id}/update/watched_eps`, `CollectionStatusType = wish|collect|do|on_hold|dropped`), `docs-raw/How-to-Auth.md`.
+- Sunucu kaynağı: `bangumi/server` `web/routes.go` (`mw.NeedScope(ScopeWriteCollection)`), `internal/auth/mysql_repository.go` (`parseTokenScope` + `TestParseTokenScope_NonObject`), `ctrl/update_subject_collection.go` (`ErrSubjectNotCollected` yolu), `web/handler/user/update_episode_collection.go` (`400 "you need to add subject to your collection first"`).
+- Referans istemciler: Mihon `BangumiApi`/`KitsuApi` (refresh_token grant + Content-Type sözleşmesi), czy0729/Bangumi `fetch.ts` (HTTP 200 gövdeli hata ayrıştırması), Kazumi `BangumiSyncService` (PAT doğrulama deseni).
+- Sözdizimi taraması: 14 üretim + 1 test dosyası temiz (bilinen 1 yanlış pozitif hariç). **Derleme/test çalıştırılmadı.**
+ — gerçek Gradle derleme ve birim test doğrulaması (E83, E84)
 
 **Durum:** Derleme ve birim test ortamı başarıyla koşturuldu.
 **Testler:** `SimklSyncContractTest` **11**; `data/auth` **210**; `PendingSync*` (data/local) **35**; TOPLAM **256 test firesiz geçti** (`BUILD SUCCESSFUL in 3m 33s` ve `3m 26s`).

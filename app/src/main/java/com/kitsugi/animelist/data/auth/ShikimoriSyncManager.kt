@@ -86,7 +86,54 @@ object ShikimoriSyncManager {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
-        val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
+        // `E92`: sunucu yerel `expiresAt` geçerli görünürken token'ı iptal etmişse
+        // (HTTP 401) refresh token ile zorla yenile ve işlemi BİR KEZ daha dene.
+        val initialToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
+        val firstAttempt = runSyncCatching {
+            doSyncEntryToShikimori(context, entry, knownMalId, fields, fullWrite, initialToken)
+        }
+        val firstAuthFailure = firstAttempt.fold(
+            onSuccess = { res -> res.errors.any { it.contains("401") || it.contains("Unauthorized", ignoreCase = true) } },
+            onFailure = { err -> err is ShikimoriApiClient.ShikimoriTokenException && err.status == 401 }
+        )
+        if (!firstAuthFailure) {
+            return@withContext firstAttempt.getOrElse { err ->
+                SyncResult(
+                    messages = emptyList(),
+                    errors = listOf("Shikimori: ${err.message ?: context.getString(R.string.account_sync_unknown_error)}")
+                )
+            }
+        }
+        val refreshed = ExternalAuthManager.forceRefreshShikimoriToken(context)
+        if (refreshed.isNullOrBlank()) {
+            ExternalAuthManager.markSessionExpired(context, "shikimori")
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf("Shikimori oturumu sona erdi (HTTP 401) — Ayarlar > Shikimori bölümünden tekrar giriş yapın")
+            )
+        }
+        runSyncCatching {
+            doSyncEntryToShikimori(context, entry, knownMalId, fields, fullWrite, refreshed)
+        }.getOrElse { err ->
+            SyncResult(
+                messages = emptyList(),
+                errors = listOf("Shikimori: ${err.message ?: context.getString(R.string.account_sync_unknown_error)}")
+            )
+        }
+    }
+
+    /**
+     * Gerçek Shikimori yazım gövdesi; [token] null/boşsa "bağlı değil" sonucu döner.
+     * 401 ayrımı [syncEntryToShikimori]'deki yenileme sarmalayıcısı tarafından yapılır (`E92`).
+     */
+    private suspend fun doSyncEntryToShikimori(
+        context: Context,
+        entry: MediaEntry,
+        knownMalId: Int?,
+        fields: Set<SyncField>,
+        fullWrite: Boolean,
+        token: String?
+    ): SyncResult = withContext(Dispatchers.IO) {
         var userId = ExternalAuthManager.getShikimoriUserId(context)
         if (!token.isNullOrBlank() && userId == null) {
             // Kimlik eksikse (girişte whoami geçici yanıt vermediyse) bir kez daha dene.
@@ -227,8 +274,8 @@ object ShikimoriSyncManager {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_anime_manga_only)))
         }
 
-        val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
-        if (token.isNullOrBlank()) {
+        val initialToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
+        if (initialToken.isNullOrBlank()) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Shikimori")))
         }
         // getShikimoriRateId, kullanıcı kimliği kayıtlı değilse istisna fırlatır; önce çözmeye çalış.
@@ -255,22 +302,24 @@ object ShikimoriSyncManager {
         // üzerinden oluşturulmuş kayıtlarda saklanıyordu; içe aktarılmış/uzak kayıtlar
         // silinemiyormuş gibi görünüyordu. Uzak liste OKUNAMAZSA bu "yok" demek değildir —
         // gerçek hata olarak raporlanır ki kuyrukta yeniden denensin.
-        val rateLookup: Result<Int?> = if (cachedRateId != null) {
-            Result.success(cachedRateId)
-        } else {
-            val userId = ExternalAuthManager.getShikimoriUserId(context)
-            if (userId == null) {
-                return@withContext SyncResult(
-                    messages = emptyList(),
-                    errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Shikimori"))
-                )
-            }
-            runSyncCatching {
-                ShikimoriApiClient.fetchAllUserRates(token, userId)
-                    .firstOrNull { rate -> rate.targetId == targetId && rate.targetType == targetType }
-                    ?.id
-            }
+        val token = initialToken
+        val userIdForLookup = ExternalAuthManager.getShikimoriUserId(context)
+        if (userIdForLookup == null) {
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf(context.getString(R.string.account_sync_account_not_connected, "Shikimori"))
+            )
         }
+        // `E93`: önbellekteki rate kimliği bayat olabilir (kayıt web'de silinip yeniden
+        // oluşturulmuş). DELETE 404 dönüyorsa kimliği uzak listeden TAZELEYİP bir kez daha dene;
+        // aksi hâlde silme "başarılı" sanılıp gerçek kayıt Shikimori'de kalıyordu.
+        suspend fun resolveFreshRateId(): Int? = runSyncCatching {
+            ShikimoriApiClient.fetchAllUserRates(token, userIdForLookup)
+                .firstOrNull { rate -> rate.targetId == targetId && rate.targetType == targetType }
+                ?.id
+        }.getOrNull()
+
+        val rateLookup: Result<Int?> = Result.success(cachedRateId ?: resolveFreshRateId())
 
         val rateId = rateLookup.getOrElse {
             return@withContext SyncResult(
@@ -286,8 +335,22 @@ object ShikimoriSyncManager {
             )
         }
 
-        val success = ShikimoriApiClient.deleteUserRate(token, rateId)
-        if (success) {
+        var deleted = runSyncCatching { ShikimoriApiClient.deleteUserRate(token, rateId) }
+            .getOrElse { false }
+        if (deleted && cachedRateId != null && cachedRateId != rateId) {
+            // Bayat önbellek zaten silinmiş olabilir; gerçek kayıt farklı kimlikte. Yeniden dene.
+            val freshId = resolveFreshRateId()
+            if (freshId != null && freshId != rateId) {
+                deleted = runSyncCatching { ShikimoriApiClient.deleteUserRate(token, freshId) }.getOrElse { false }
+            }
+        } else if (!deleted && cachedRateId != null) {
+            // 401 olmayan bir başarısızlık değilse bile taze kimlikle bir kez daha dene (E93).
+            val freshId = resolveFreshRateId()
+            if (freshId != null && freshId != rateId) {
+                deleted = runSyncCatching { ShikimoriApiClient.deleteUserRate(token, freshId) }.getOrElse { false }
+            }
+        }
+        if (deleted) {
             ExternalAuthManager.removeShikimoriRateId(context, targetId, targetType)
             SyncResult(messages = listOf(context.getString(R.string.account_sync_entry_deleted, "Shikimori", entry.title)))
         } else {

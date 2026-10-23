@@ -507,9 +507,38 @@ object BangumiApiClient {
         val description: String?,
         override val message: String
     ) : Exception(message) {
-        val isUnauthorized: Boolean get() = code == 401
+        private val combinedText: String
+            get() = listOfNotNull(title, description, message).joinToString(" ").lowercase()
+
+        val isUnauthorized: Boolean get() = code == 401 || combinedText.contains("invalid_token")
         val isForbidden: Boolean get() = code == 403
         val isNotFound: Boolean get() = code == 404
+
+        /** `bangumi/server` → `NeedScope(ScopeWriteCollection)` reddi (`403 insufficient token scope`). */
+        val isCollectionScopeForbidden: Boolean
+            get() = code == 403 && combinedText.contains("scope")
+
+        /**
+         * `bangumi/server` → `ErrSubjectNotCollected`:
+         * `PATCH /v0/users/-/collections/{id}/episodes` çağrısında yapıt henüz koleksiyonda yoksa
+         * sunucu `400 "you need to add subject to your collection first"` (veya `PATCH .../collections/{id}`
+         * çağrısında `404 "subject not collected"`) döner (`E86`).
+         */
+        val isSubjectNotCollected: Boolean
+            get() = (code == 400 || code == 404) && (
+                combinedText.contains("add subject to your collection first") ||
+                    combinedText.contains("subject is not collected") ||
+                    combinedText.contains("subject not collected")
+                )
+
+        /** OAuth `/oauth/access_token` uç noktasının kalıcı yenileme reddi (`E88`). */
+        val isInvalidGrant: Boolean
+            get() = (code == 0 || code == 400 || code == 401) && (
+                combinedText.contains("invalid_grant") ||
+                    combinedText.contains("invalid_client") ||
+                    combinedText.contains("expired_token") ||
+                    combinedText.contains("invalid refresh token")
+                )
 
         /**
          * 415 → sunucunun `req.JSON` ara katmanı `Content-Type` başlığını reddetti.
@@ -776,7 +805,8 @@ object BangumiApiClient {
     /** `GET /v0/users/{username}` — başka bir kullanıcının açık profili. */
     suspend fun getUser(token: String?, username: String): BangumiUser? = withContext(Dispatchers.IO) {
         runCatching {
-            val body = get("/v0/users/${URLEncoder.encode(username, "UTF-8")}", token = token) ?: return@runCatching null
+            val encodedUser = URLEncoder.encode(username, "UTF-8")
+            val body = get("/v0/users/$encodedUser", token = token) ?: return@runCatching null
             parseUser(JSONObject(body))
         }.getOrNull()
     }
@@ -784,13 +814,15 @@ object BangumiApiClient {
     /** `GET /v0/users/{username}/collections/-/characters` — kullanıcının karakter favorileri. */
     suspend fun getUserCharacterFavorites(token: String?, username: String): List<BangumiFavoriteItem> =
         withContext(Dispatchers.IO) {
-            fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/characters", token)
+            val encodedUser = URLEncoder.encode(username, "UTF-8")
+            fetchFavoriteList("/v0/users/$encodedUser/collections/-/characters", token)
         }
 
     /** `GET /v0/users/{username}/collections/-/persons` — kullanıcının kişi (kişi/stüdyo) favorileri. */
     suspend fun getUserPersonFavorites(token: String?, username: String): List<BangumiFavoriteItem> =
         withContext(Dispatchers.IO) {
-            fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/persons", token)
+            val encodedUser = URLEncoder.encode(username, "UTF-8")
+            fetchFavoriteList("/v0/users/$encodedUser/collections/-/persons", token)
         }
 
     private suspend fun fetchFavoriteList(path: String, token: String?): List<BangumiFavoriteItem> {
@@ -1291,7 +1323,8 @@ object BangumiApiClient {
     private suspend fun isFavouriteEntity(kind: String, token: String, username: String, id: Int): Boolean =
         withContext(Dispatchers.IO) {
             try {
-                val path = "/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/$kind/$id"
+                val encodedUser = URLEncoder.encode(username, "UTF-8")
+                val path = "/v0/users/$encodedUser/collections/-/$kind/$id"
                 get(path, token = token) != null
             } catch (e: BangumiApiException) {
                 if (e.isNotFound) false else throw e
@@ -1347,7 +1380,8 @@ object BangumiApiClient {
             "limit" to limit.coerceIn(1, 50).toString(),
             "offset" to offset.toString()
         )
-        val body = get("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections", query, token)
+        val encodedUser = URLEncoder.encode(username, "UTF-8")
+        val body = get("/v0/users/$encodedUser/collections", query, token)
             ?: return@withContext BangumiPage(0, limit, offset, emptyList())
         val json = JSONObject(body)
         val array = json.optJSONArray("data") ?: JSONArray()
@@ -1391,8 +1425,9 @@ object BangumiApiClient {
         username: String
     ): BangumiUserCollection? = withContext(Dispatchers.IO) {
         try {
+            val encodedUser = URLEncoder.encode(username, "UTF-8")
             val body = get(
-                "/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/$subjectId",
+                "/v0/users/$encodedUser/collections/$subjectId",
                 token = token
             ) ?: return@withContext null
             parseUserCollection(JSONObject(body))
@@ -1638,8 +1673,10 @@ object BangumiApiClient {
         }
         val episodes = getAllMainEpisodes(subject.id, token)
         if (episodes.isEmpty()) {
-            // Bölüm listesi boşsa (henüz wiki girişi yok) son çare olarak ep_status dene.
-            patchCollection(token, subject.id, epStatus = watchedCount)
+            // `bangumi/server` kitap dışı subject'lerde `PATCH .../collections/{id}` içinde
+            // `ep_status` alanını HTTP 400 ile reddeder; bölüm listesi boşsa doğrudan resmî
+            // `POST /subject/{id}/update/watched_eps` ucu kullanılır.
+            setProgressLegacy(token, subject, watchedCount)
             return
         }
         val targetIds = episodes
@@ -1648,6 +1685,160 @@ object BangumiApiClient {
             .take(watchedCount)
             .map { it.id }
         markEpisodes(token, subject.id, targetIds)
+    }
+
+    // ── Resmî Legacy PHP API yazma yedekleri (`E87`) ─────────────────────────
+    // `bangumi/server` Go `/v0` yazma uçları (`mw.NeedScope(ScopeWriteCollection)`), PHP OAuth
+    // sunucusunun `chii_oauth_access_tokens.scope` sütununa dizi (`[]`) yazdığı normal OAuth
+    // oturumlarını `403 insufficient token scope` ile reddedebiliyor (`TestParseTokenScope_NonObject`).
+    // Aynı Bearer OAuth token'ı resmî Legacy PHP uçlarında (`POST /collection/{id}/update`,
+    // `POST /subject/{id}/update/watched_eps`, `POST /ep/{id}/status/{status}`) doğrudan geçerlidir.
+
+    /** `CollectionType` (`1..5`) → resmî `CollectionStatusType` (`open-api/api.yml`). */
+    internal fun collectionTypeToLegacyStatus(type: Int): String = when (type) {
+        CollectionType.WISH -> "wish"
+        CollectionType.DONE -> "collect"
+        CollectionType.DOING -> "do"
+        CollectionType.ON_HOLD -> "on_hold"
+        CollectionType.DROPPED -> "dropped"
+        else -> "do"
+    }
+
+    /**
+     * Legacy PHP `/collection/{id}/update` gövdesi alan bazlı koruma (`A4`) ile üretilir:
+     * OpenAPI sözleşmesi gereği `rating` ve `privacy` gönderilmezse sunucu bunları `0`a
+     * sıfırladığından, değiştirilmeyen alanlar mevcut [existing] koleksiyon kaydından doldurulur.
+     */
+    internal fun buildLegacyCollectionFormFields(
+        existing: BangumiUserCollection?,
+        type: Int? = null,
+        rate: Int? = null,
+        comment: String? = null,
+        private: Boolean? = null,
+        tags: List<String>? = null
+    ): Map<String, String> {
+        val effectiveType = type ?: existing?.type ?: CollectionType.DOING
+        val effectiveRate = rate ?: existing?.rate
+        val effectiveComment = comment ?: existing?.comment
+        val effectivePrivate = private ?: existing?.private ?: false
+        val effectiveTags = tags ?: existing?.tags
+
+        val fields = linkedMapOf<String, String>()
+        fields["status"] = collectionTypeToLegacyStatus(effectiveType)
+        if (effectiveRate != null && effectiveRate in 1..10) {
+            fields["rating"] = effectiveRate.toString()
+        }
+        sanitizeCommentForWrite(effectiveComment)?.let { cleaned ->
+            fields["comment"] = cleaned
+        }
+        sanitizeTagsForWrite(effectiveTags)?.let { cleanedTags ->
+            if (cleanedTags.isNotEmpty()) {
+                fields["tags"] = cleanedTags.joinToString(" ")
+            }
+        }
+        fields["privacy"] = if (effectivePrivate) "1" else "0"
+        return fields
+    }
+
+    /**
+     * Bangumi Legacy PHP uçları hata durumunda HTTP 200 ile `{"request":"...","code":401,"error":"invalid_token"}`
+     * döndürebilir (`czy0729/Bangumi` `fetch.ts`). Gövde incelenip gerçek hata varsa [BangumiApiException] üretilir.
+     */
+    internal fun parseLegacyWriteError(httpCode: Int, body: String): BangumiApiException? {
+        if (httpCode >= 400) return parseError(httpCode, body)
+        if (body.isBlank()) return null
+        val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
+        val embeddedCode = json.optInt("code", 200)
+        val embeddedError = json.cleanString("error")
+        if (embeddedError.isBlank() && embeddedCode < 400) return null
+        val finalCode = when {
+            embeddedError.equals("invalid_token", ignoreCase = true) -> 401
+            embeddedCode >= 400 -> embeddedCode
+            else -> 400
+        }
+        val detail = embeddedError.ifBlank { "HTTP $finalCode" }
+        return BangumiApiException(
+            code = finalCode,
+            title = embeddedError.ifBlank { null },
+            description = json.cleanString("request").ifBlank { null },
+            message = "Bangumi Legacy API hatası ($finalCode): $detail"
+        )
+    }
+
+    private suspend fun postLegacyForm(
+        pathWithQuery: String,
+        token: String,
+        formFields: Map<String, String>
+    ): String? {
+        awaitBangumiThrottle()
+        val formBuilder = FormBody.Builder()
+        formFields.forEach { (k, v) -> formBuilder.add(k, v) }
+        val request = Request.Builder()
+            .url("$API_BASE$pathWithQuery")
+            .bangumiHeaders(token)
+            .post(formBuilder.build())
+            .build()
+        return withContext(Dispatchers.IO) {
+            httpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                parseLegacyWriteError(response.code, body)?.let { throw it }
+                body.ifBlank { null }
+            }
+        }
+    }
+
+    /**
+     * `POST /collection/{subject_id}/update` — `/v0` kapsam reddinde (`403 insufficient token scope`)
+     * aynı OAuth token ile koleksiyon oluşturur veya günceller (`E87`).
+     */
+    suspend fun upsertCollectionLegacy(
+        token: String,
+        subjectId: Int,
+        username: String?,
+        type: Int? = null,
+        rate: Int? = null,
+        comment: String? = null,
+        private: Boolean? = null,
+        tags: List<String>? = null
+    ) {
+        val existing = if (!username.isNullOrBlank()) {
+            runCatching { getUserCollection(token, subjectId, username) }.getOrNull()
+        } else {
+            null
+        }
+        val fields = buildLegacyCollectionFormFields(
+            existing = existing,
+            type = type,
+            rate = rate,
+            comment = comment,
+            private = private,
+            tags = tags
+        )
+        postLegacyForm("/collection/$subjectId/update", token, fields)
+    }
+
+    /**
+     * `POST /subject/{subject_id}/update/watched_eps` — `/v0` kapsam reddinde (`403`)
+     * veya bölüm listesi boş yapımlarda ilerlemeyi yazar (`E87`).
+     */
+    suspend fun setProgressLegacy(
+        token: String,
+        subject: BangumiSubject,
+        watchedCount: Int,
+        volumeCount: Int? = null
+    ) {
+        val safeEps = watchedCount.coerceAtLeast(0)
+        val form = linkedMapOf("watched_eps" to safeEps.toString())
+        val queryParts = mutableListOf("watched_eps=$safeEps")
+        if (subject.isBook && volumeCount != null && volumeCount >= 0) {
+            form["watched_vols"] = volumeCount.toString()
+            queryParts += "watched_vols=$volumeCount"
+        }
+        postLegacyForm(
+            pathWithQuery = "/subject/${subject.id}/update/watched_eps?${queryParts.joinToString("&")}",
+            token = token,
+            formFields = form
+        )
     }
 
     // ── Yazma yetkisi tanılaması ─────────────────────────────────────────────

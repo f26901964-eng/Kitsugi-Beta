@@ -301,7 +301,9 @@ object ShikimoriApiClient {
         val isInvalidGrant: Boolean = false,
         /** Sunucunun döndürdüğü HTTP durum kodu (0 = ağ/istemci kaynaklı hata). */
         val status: Int = 0
-    ) : Exception(message)
+    ) : Exception(message) {
+        constructor(status: Int, message: String) : this(message, false, status)
+    }
 
     /**
      * OAuth yetki kodunu (authorization code) access token ile takas eder.
@@ -864,6 +866,9 @@ object ShikimoriApiClient {
 
         executeShikimori(request).use { response ->
             val body = response.body?.string().orEmpty()
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
             if (response.isSuccessful) {
                 JSONObject(body).optInt("id", 0).takeIf { it > 0 }
             } else {
@@ -897,8 +902,11 @@ object ShikimoriApiClient {
             .addHeader("Authorization", "Bearer $token")
             .get()
             .build()
-        runCatching {
+        try {
             executeShikimori(request).use { response ->
+                if (response.code == 401) {
+                    throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+                }
                 if (!response.isSuccessful) return@use null
                 val body = response.body?.string().orEmpty()
                 if (body.isBlank()) return@use null
@@ -906,7 +914,11 @@ object ShikimoriApiClient {
                 if (array.length() == 0) null
                 else array.getJSONObject(0).optInt("id", 0).takeIf { it > 0 }
             }
-        }.getOrNull()
+        } catch (authErr: ShikimoriTokenException) {
+            throw authErr
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /**
@@ -931,7 +943,12 @@ object ShikimoriApiClient {
             .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        executeShikimori(request).use { response -> response.isSuccessful }
+        executeShikimori(request).use { response ->
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
+            response.isSuccessful
+        }
     }
 
     /**
@@ -963,6 +980,9 @@ object ShikimoriApiClient {
             .build()
 
         executeShikimori(request).use { response ->
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
             response.isSuccessful
         }
     }
@@ -979,6 +999,9 @@ object ShikimoriApiClient {
             .build()
 
         executeShikimori(request).use { response ->
+            if (response.code == 401) {
+                throw ShikimoriTokenException(401, "Shikimori HTTP 401 Unauthorized")
+            }
             response.isSuccessful || response.code == 404
         }
     }

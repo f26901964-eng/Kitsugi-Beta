@@ -1013,6 +1013,10 @@ object AniListSyncManager {
                     }
                     if (!response.isSuccessful) {
                         val errorText = response.body?.string().orEmpty().take(300)
+                        if (response.code == 401) {
+                            context?.let { ExternalAuthManager.markSessionExpired(it, "anilist") }
+                            throw IllegalStateException("AniList oturumu sona erdi (HTTP 401)")
+                        }
                         com.kitsugi.animelist.data.remote.KitsugiApiBase
                             .extractAniListServiceDownMessage(errorText)
                             ?.let { downMsg ->
@@ -1036,7 +1040,12 @@ object AniListSyncManager {
                         }
                     val errors = JSONObject(responseText).optJSONArray("errors")
                     if (errors != null && errors.length() > 0) {
-                        throw IllegalStateException(errors.toString())
+                        val rawErrors = errors.toString()
+                        if (rawErrors.contains("Invalid token", ignoreCase = true)) {
+                            context?.let { ExternalAuthManager.markSessionExpired(it, "anilist") }
+                            throw IllegalStateException("AniList oturumu sona erdi (HTTP 401: Invalid token)")
+                        }
+                        throw IllegalStateException(rawErrors)
                     }
 
                     return responseText
