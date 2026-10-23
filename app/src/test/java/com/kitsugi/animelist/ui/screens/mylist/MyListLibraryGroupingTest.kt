@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -58,29 +59,6 @@ class MyListLibraryGroupingTest {
         assertEquals(anilist.id, grouped.single().entry.id)
         assertTrue("Combined card should stay blurred if any provider marks it adult", grouped.single().entry.isAdult)
         assertEquals(listOf("shikimori", "anilist"), grouped.single().sourceIds)
-    }
-
-    @Test
-    fun shikimoriCopyJoinsSameMalProductionWithoutDependingOnLocalizedTitle() {
-        val shikimori = entry(
-            id = 12,
-            title = "Zom 100: Zombie ni Naru made ni Shitai 100 no Koto",
-            source = "shikimori",
-            malId = 54_112,
-            year = 2023
-        )
-        val mal = entry(
-            id = 10,
-            title = "Zom 100: Bucket List of the Dead",
-            source = "mal",
-            malId = 54_112,
-            year = 2023
-        )
-
-        val grouped = groupMyListEntries(listOf(shikimori, mal))
-
-        assertEquals(1, grouped.size)
-        assertEquals(setOf("shikimori", "mal"), grouped.single().sourceIds.toSet())
     }
 
     @Test
@@ -167,5 +145,142 @@ class MyListLibraryGroupingTest {
         assertEquals("mal", sourceBadgeId("Jikan"))
         assertEquals("shikimori", sourceBadgeId("Shiki"))
         assertEquals(null, sourceBadgeId("manual"))
+    }
+
+    @Test
+    fun snapshotIsolatesEachSourceTabAndEnrichesMissingEnglishAndLatinTitlesFromSiblings() {
+        val anilist = entry(id = 1, title = "Kaijuu 8-gou", source = "anilist", malId = 52588)
+            .copy(titleEnglish = "Kaiju No. 8", titleJapanese = "怪獣8号")
+        val mal = entry(id = 2, title = "Kaijuu 8-gou", source = "mal", malId = 52588)
+            .copy(titleEnglish = "Kaiju No. 8", titleJapanese = "怪獣8号")
+        // Simkl ve Shikimori liste API'leri İngilizce ve özgün başlıkları boş bırakır.
+        val simkl = entry(id = 3, title = "Kaijuu 8-gou", source = "simkl", malId = 52588)
+        val kitsu = entry(id = 4, title = "Kaiju No. 8", source = "kitsu", malId = 300_046_900)
+        val shikimori = entry(id = 5, title = "Kaijuu 8-gou", source = "shikimori", malId = 52588)
+        // Bangumi yalnızca Çince katalog adını ve kendi subject kimliğini taşır.
+        val bangumi = entry(id = 6, title = "怪兽8号", source = "bangumi", malId = 500_404_804)
+
+        val snapshot = buildMyListLibrarySnapshot(
+            entries = listOf(anilist, mal, simkl, kitsu, shikimori, bangumi),
+            identityExtras = mapOf(
+                kitsu.id to setOf("Anime:mal:52588"),
+                bangumi.id to setOf("Anime:mal:52588")
+            )
+        )
+
+        // Tümü: tek birleşik kart + 6 kaynak rozeti
+        assertEquals(1, snapshot.entriesForTab(MY_LIST_ALL_TAB_INDEX).size)
+        assertEquals(
+            listOf("anilist", "mal", "simkl", "kitsu", "shikimori", "bangumi"),
+            snapshot.combinedItems.single().sourceIds
+        )
+
+        // Her kaynak sekmesi YALNIZCA kendi kaydını içerir ve "kaiju no 8" aramasında 1 sonuç döner.
+        val expectedByTab = listOf(
+            MY_LIST_ANILIST_TAB_INDEX to anilist.id,
+            MY_LIST_MAL_TAB_INDEX to mal.id,
+            MY_LIST_SIMKL_TAB_INDEX to simkl.id,
+            MY_LIST_KITSU_TAB_INDEX to kitsu.id,
+            MY_LIST_SHIKIMORI_TAB_INDEX to shikimori.id,
+            MY_LIST_BANGUMI_TAB_INDEX to bangumi.id
+        )
+        for ((tabIndex, expectedId) in expectedByTab) {
+            val tabEntries = snapshot.entriesForTab(tabIndex)
+            assertEquals("Tab $tabIndex must hold only its own source entry", 1, tabEntries.size)
+            assertEquals(expectedId, tabEntries.single().id)
+
+            val searched = filterMyListEntries(
+                entries = tabEntries,
+                searchQuery = "kaiju no 8",
+                selectedStatusFilterId = "all",
+                selectedTypeFilterId = "all",
+                selectedFavoriteFilterId = "all",
+                selectedScoreFilterId = "all",
+                selectedYearFilterId = "all",
+                selectedExtraFilterId = "all",
+                searchAliasesByEntryId = snapshot.searchAliasesByEntryId
+            )
+            assertEquals("Tab $tabIndex must match 'kaiju no 8' with 1 own result", listOf(expectedId), searched.map { it.id })
+        }
+
+        // Simkl, Shikimori ve Bangumi satırları kendi kimliklerini bozmadan İngilizce/Latin ad kazanır.
+        val enrichedSimkl = snapshot.entriesForTab(MY_LIST_SIMKL_TAB_INDEX).single()
+        assertEquals("simkl", enrichedSimkl.source)
+        assertEquals("Kaiju No. 8", enrichedSimkl.titleEnglish)
+        assertEquals("怪獣8号", enrichedSimkl.titleJapanese)
+
+        val enrichedBangumi = snapshot.entriesForTab(MY_LIST_BANGUMI_TAB_INDEX).single()
+        assertEquals("bangumi", enrichedBangumi.source)
+        assertEquals(500_404_804, enrichedBangumi.malId)
+        assertEquals("Kaijuu 8-gou", enrichedBangumi.title)
+        assertEquals("Kaiju No. 8", enrichedBangumi.titleEnglish)
+
+        // Özgün Çince başlıkla arama da hem Tümü hem Bangumi sekmesinde eşleşmeye devam eder.
+        val cjkOnBangumi = filterMyListEntries(
+            entries = snapshot.entriesForTab(MY_LIST_BANGUMI_TAB_INDEX),
+            searchQuery = "怪兽8号",
+            selectedStatusFilterId = "all",
+            selectedTypeFilterId = "all",
+            selectedFavoriteFilterId = "all",
+            selectedScoreFilterId = "all",
+            selectedYearFilterId = "all",
+            selectedExtraFilterId = "all",
+            searchAliasesByEntryId = snapshot.searchAliasesByEntryId
+        )
+        assertEquals(listOf(bangumi.id), cjkOnBangumi.map { it.id })
+    }
+
+    @Test
+    fun snapshotUsesBangumiTitleCacheWhenBangumiHasNoOtherSibling() {
+        val bangumiOnly = entry(id = 40, title = "怪兽8号", source = "bangumi", malId = 500_404_804)
+
+        val snapshot = buildMyListLibrarySnapshot(
+            entries = listOf(bangumiOnly),
+            bangumiTitleLookup = { rawId ->
+                if (rawId == 404_804) {
+                    BangumiTitleCache.LatinTitles(
+                        romaji = "Kaijuu 8-gou",
+                        english = "Kaiju No. 8",
+                        native = "怪獣8号"
+                    )
+                } else {
+                    null
+                }
+            }
+        )
+
+        val tabEntry = snapshot.entriesForTab(MY_LIST_BANGUMI_TAB_INDEX).single()
+        assertEquals("Kaijuu 8-gou", tabEntry.title)
+        assertEquals("Kaiju No. 8", tabEntry.titleEnglish)
+
+        val searched = filterMyListEntries(
+            entries = listOf(tabEntry),
+            searchQuery = "kaiju no 8",
+            selectedStatusFilterId = "all",
+            selectedTypeFilterId = "all",
+            selectedFavoriteFilterId = "all",
+            selectedScoreFilterId = "all",
+            selectedYearFilterId = "all",
+            selectedExtraFilterId = "all",
+            searchAliasesByEntryId = snapshot.searchAliasesByEntryId
+        )
+        assertEquals(listOf(bangumiOnly.id), searched.map { it.id })
+    }
+
+    @Test
+    fun snapshotHidesCrosswalkBridgedAdultMediaAcrossAllTabsWhenIncludeAdultIsFalse() {
+        val anilistAdult = entry(id = 50, title = "Adult Title", source = "anilist", malId = 99111)
+            .copy(isAdult = true)
+        val bangumiUnflagged = entry(id = 51, title = "成人作品", source = "bangumi", malId = 500_077_777)
+
+        val hiddenSnapshot = buildMyListLibrarySnapshot(
+            entries = listOf(anilistAdult, bangumiUnflagged),
+            identityExtras = mapOf(bangumiUnflagged.id to setOf("Anime:mal:99111")),
+            includeAdult = false
+        )
+
+        assertTrue(hiddenSnapshot.entriesForTab(MY_LIST_ALL_TAB_INDEX).isEmpty())
+        assertTrue(hiddenSnapshot.entriesForTab(MY_LIST_ANILIST_TAB_INDEX).isEmpty())
+        assertTrue(hiddenSnapshot.entriesForTab(MY_LIST_BANGUMI_TAB_INDEX).isEmpty())
     }
 }

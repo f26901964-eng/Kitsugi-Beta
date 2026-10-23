@@ -17,16 +17,23 @@ internal fun rememberMyListSearchState(
 ): MyListSearchUiState {
     val latestRequest by rememberUpdatedState(request)
     val entriesKey = MyListSearchEntriesKey(entries)
-    val prepared by produceState(viewModel.cachedPreparedSearch, entriesKey, scope.sortId, scope.localeTag) {
+    val prepared by produceState<PreparedMyListSearch?>(
+        initialValue = viewModel.cachedPreparedSearch,
+        entriesKey,
+        scope.sortId,
+        scope.localeTag
+    ) {
         val computed = prepareMyListSearch(
             entries, scope.sortId, viewModel.cachedPreparedSearch, localeTag = scope.localeTag
         )
         viewModel.cachedPreparedSearch = computed
         value = computed
     }
-    val snapshot by produceState(
+    val snapshot by produceState<MyListSearchUiCache?>(
         initialValue = viewModel.cachedSearchResult,
-        prepared, entriesKey, scope
+        prepared,
+        entriesKey,
+        scope
     ) {
         val ready = prepared ?: return@produceState
         // A changed source/sort can still be preparing. Never search the previous tab's

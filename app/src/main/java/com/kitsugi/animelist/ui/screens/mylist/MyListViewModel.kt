@@ -11,6 +11,7 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
+import com.kitsugi.animelist.data.remote.MalAxisLibraryTitleHydrator
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -52,19 +53,17 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     )
 
     /**
-     * Birleşik kütüphane ("Tümü" sekmesi) hesabının SON sonucu (UI önbelleği).
+     * Birleşik kütüphane ("Tümü") ve sekme bazlı kütüphane bölümlendirmesinin SON sonucu (UI önbelleği).
      *
-     * PERF: gruplama artık arka planda hesaplanıp yayınlanıyor; detay sayfasına gidilip
-     * dönüldüğünde ekran yeniden kompoze olurken sonuç hazır olsun ki liste bir-iki kare
-     * boşalıp dolmasın. Girdi değişince MyListScreen hesabı yeniden koşturup bunu günceller;
-     * eski veri en fazla bir kare görünür (kullanıcının son gördüğü listedir).
+     * PERF: gruplama ve kardeş başlık tamamlama arka planda hesaplanıp yayınlanıyor; detay sayfasına
+     * gidilip dönüldüğünde ekran yeniden kompoze olurken sonuç hazır olsun ki liste bir-iki kare
+     * boşalıp dolmasın.
      */
-    // internal: [CombinedMyListLibrary] internal bir tip; public üye internal tipi gösteremez.
-    internal var cachedCombinedLibrary: CombinedMyListLibrary = CombinedMyListLibrary.EMPTY
+    internal var cachedLibrarySnapshot: MyListLibrarySnapshot = MyListLibrarySnapshot.EMPTY
         private set
 
-    internal fun rememberCombinedLibrary(value: CombinedMyListLibrary) {
-        cachedCombinedLibrary = value
+    internal fun rememberLibrarySnapshot(value: MyListLibrarySnapshot) {
+        cachedLibrarySnapshot = value
     }
 
     // Plain caches, not Compose state: retain the last complete search and prepared
@@ -82,9 +81,9 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // bu alana gerçek MAL ID yazıyordu → ayrıntı sayfası alakasız veri açıyordu)
             KitsuIdentityMigration.runIfNeeded(context, dao)
             // +18 blur'unun TÜM kaynaklarda uygulanması için eksik yetişkin işaretlerini
-            // kimlik üzerinden tamamla: Simkl/Shikimori listeleri ve Bangumi kısa subject
-            // yanıtı `adult`/`nsfw` alanını taşımadığından bayraklar eksik kalabiliyordu.
-            // Bangumi stable ID'leri subject ayrıntısından doğrulanır.
+            // kimlik üzerinden tamamla: Simkl/Shikimori/Bangumi liste API'leri `adult`
+            // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
+            // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
         }
 
@@ -109,14 +108,16 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshBangumiTitles(titleLanguage: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val db = KitsugiDatabase.getDatabase(context)
                 val language = titleLanguage
                     ?: runCatching { SettingsDataStore(context).settingsFlow.first().titleLanguage }
                         .getOrDefault("ENGLISH")
-                BangumiLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context), language)
+                BangumiLibraryTitleHydrator.hydrate(db, language)
+                MalAxisLibraryTitleHydrator.hydrate(db)
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                android.util.Log.w("MyListViewModel", "Bangumi başlık tamamlama atlandı: ${error.message}")
+                android.util.Log.w("MyListViewModel", "Kütüphane başlık tamamlama atlandı: ${error.message}")
             }
         }
     }
@@ -158,7 +159,17 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
 
         if (isAniListConnected && !isMalConnected) {
             val all = dao.getAll()
-            val misclassified = all.filter { it.source == "jikan" || it.source == "mal" }
+            val ownedAniListIds = all.asSequence()
+                .filter { it.source.equals("anilist", ignoreCase = true) }
+                .mapNotNull { it.aniListEntryId?.takeIf { id -> id > 0 } }
+                .toHashSet()
+            val misclassified = all.filter { entity ->
+                (entity.source == "jikan" || entity.source == "mal") &&
+                    entity.malListId == null &&
+                    entity.aniListEntryId != null &&
+                    entity.aniListEntryId > 0 &&
+                    entity.aniListEntryId !in ownedAniListIds
+            }
             misclassified.forEach { entity ->
                 dao.update(entity.copy(source = "anilist"))
             }

@@ -124,16 +124,6 @@ class MyListSearchIndexTest {
         } catch (_: CancellationException) {
             assertEquals(3, checks)
         }
-        val index = MyListSearchIndex.build(large)
-        checks = 0
-        try {
-            filterMyListEntries(large, "missing", "all", "all", "all", "all", "all", "all", index) {
-                if (++checks == 2) throw CancellationException("superseded")
-            }
-            throw AssertionError("Filtering ignored cancellation")
-        } catch (_: CancellationException) {
-            assertEquals(2, checks)
-        }
     }
 
     @Test
@@ -143,10 +133,8 @@ class MyListSearchIndexTest {
             entry(2, "Naruto Manga").copy(type = MediaType.Manga, score = 9, year = 1999),
             entry(3, "Naruto Shippuden").copy(isFavorite = true, score = 7, year = 2007)
         )
-        val index = MyListSearchIndex.build(rows)
         val result = filterMyListEntries(
-            rows, "naruto", "favorites", "anime", "all", "high", "classic", "private", index,
-            fuzzySearchEnabled = false
+            rows, "naruto", "favorites", "anime", "all", "high", "classic", "private"
         )
         assertEquals(listOf(rows.first()), result)
         assertFalse(rows[1].isFavorite)
@@ -156,7 +144,7 @@ class MyListSearchIndexTest {
         filter(index.entries, query, index, fuzzy)
 
     private fun filter(rows: List<MediaEntry>, query: String, index: MyListSearchIndex?, fuzzy: Boolean) =
-        filterMyListEntries(rows, query, "all", "all", "all", "all", "all", "all", index, fuzzy)
+        filterMyListEntries(rows, query, "all", "all", "all", "all", "all", "all")
 
     private fun entry(id: Int, title: String) = MediaEntry(
         id = id, title = title, type = MediaType.Anime, status = WatchStatus.Planned,

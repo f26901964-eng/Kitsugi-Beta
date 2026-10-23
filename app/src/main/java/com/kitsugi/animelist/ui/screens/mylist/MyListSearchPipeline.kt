@@ -140,12 +140,9 @@ internal fun Flow<MyListSearchRequest>.searchMyList(
                 selectedFavoriteFilterId = request.favorite,
                 selectedScoreFilterId = request.score,
                 selectedYearFilterId = request.year,
-                selectedExtraFilterId = request.extra,
-                searchIndex = index,
-                fuzzySearchEnabled = request.fuzzySearchEnabled,
-                checkActive = checkActive
+                selectedExtraFilterId = request.extra
             )
-            val groups = groupMyListEntriesByStatus(entries, checkActive)
+            val groups = groupMyListEntriesByStatus(entries)
             jobContext.ensureActive()
             MyListSearchResult(request, entries, groups)
         }

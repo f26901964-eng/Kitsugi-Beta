@@ -469,6 +469,7 @@ fun MyListTabBar(
     visibleEntries: List<MediaEntry>,
     allEntries: List<MediaEntry> = emptyList(),
     allLibraryEntryCount: Int = allEntries.size,
+    tabCounts: List<Int>? = null,
     isAniListConnected: Boolean = false,
     isMalConnected: Boolean = false,
     isSimklConnected: Boolean = false,
@@ -491,12 +492,18 @@ fun MyListTabBar(
     val KitsugiColors = LocalKitsugiColors.current
     var showSourcePickerSheet by rememberSaveable { mutableStateOf(false) }
 
-    val countAniList = remember(allEntries) { allEntries.count { it.source.equals("anilist", ignoreCase = true) } }
-    val countMal = remember(allEntries) { allEntries.count { it.source.equals("mal", ignoreCase = true) || it.source.equals("jikan", ignoreCase = true) || it.source.equals("myanimelist", ignoreCase = true) } }
-    val countSimkl = remember(allEntries) { allEntries.count { it.source.equals("simkl", ignoreCase = true) } }
-    val countKitsu = remember(allEntries) { allEntries.count { it.source.equals("kitsu", ignoreCase = true) } }
-    val countShikimori = remember(allEntries) { allEntries.count { it.source.equals("shikimori", ignoreCase = true) } }
-    val countBangumi = remember(allEntries) { allEntries.count { isBangumiListMember(it.source, it.malId) } }
+    val countAniList = tabCounts?.getOrNull(MY_LIST_ANILIST_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_ANILIST_TAB_INDEX, it.source, it.malId) } }
+    val countMal = tabCounts?.getOrNull(MY_LIST_MAL_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_MAL_TAB_INDEX, it.source, it.malId) } }
+    val countSimkl = tabCounts?.getOrNull(MY_LIST_SIMKL_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_SIMKL_TAB_INDEX, it.source, it.malId) } }
+    val countKitsu = tabCounts?.getOrNull(MY_LIST_KITSU_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_KITSU_TAB_INDEX, it.source, it.malId) } }
+    val countShikimori = tabCounts?.getOrNull(MY_LIST_SHIKIMORI_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_SHIKIMORI_TAB_INDEX, it.source, it.malId) } }
+    val countBangumi = tabCounts?.getOrNull(MY_LIST_BANGUMI_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, it.source, it.malId) } }
 
     val platforms = listOf(
         MyListPlatformSource(
@@ -586,7 +593,7 @@ fun MyListTabBar(
         description = "${platforms.size} platformdaki içerikleri tek listede birleştir"
     )
     val displayPlatforms = listOf(allPlatform) + platforms
-    val currentPlatform = displayPlatforms.firstOrNull { it.index == selectedTabIndex } ?: platforms[0]
+    val currentPlatform = displayPlatforms.firstOrNull { it.index == selectedTabIndex } ?: allPlatform
 
     Row(
         modifier = Modifier
@@ -836,12 +843,19 @@ fun MyListContentPage(
     selectedTabIndex: Int,
     isConnected: Boolean,
     isSimklSessionExpired: Boolean,
+    isLibraryComputing: Boolean = false,
     pageEntries: List<MediaEntry>,
     sourceBadgesByEntryId: Map<Int, List<String>>,
     visibleEntries: List<MediaEntry>,
     groupedVisibleEntries: List<Pair<WatchStatus, List<MediaEntry>>>,
     searchQuery: String,
     selectedStatusFilterId: String,
+    selectedTypeFilterId: String = "all",
+    selectedFavoriteFilterId: String = "all",
+    selectedScoreFilterId: String = "all",
+    selectedYearFilterId: String = "all",
+    selectedExtraFilterId: String = "all",
+    selectedSortId: String = "newest",
     selectedListLayoutId: String,
     appSettings: com.kitsugi.animelist.data.settings.AppSettings,
     pageScrollState: LazyListState,
@@ -886,13 +900,15 @@ fun MyListContentPage(
             )
         }
     ) {
-        if (!isConnected && searchQuery.isBlank()) {
+        if (!isConnected) {
             MyListNotConnectedState(
                 selectedTabIndex = pageTabIndex,
                 isSimklSessionExpired = isSimklSessionExpired,
                 onLogin = onLogin
             )
-        } else if (pageEntries.isEmpty() && searchQuery.isBlank()) {
+        } else if (isLibraryComputing && pageEntries.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize())
+        } else if (pageEntries.isEmpty()) {
             LazyColumn(
                 state = pageScrollState,
                 modifier = Modifier
@@ -902,17 +918,6 @@ fun MyListContentPage(
                 item { MyListSyncPromptState() }
             }
         } else {
-            val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX
-            val displayEntries = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) visibleEntries else pageEntries
-            // PERF: aktif olmayan pager sayfası için durum gruplaması her yeniden
-            // kompozisyonda yeniden hesaplanıyordu (kompozisyon sırasında 6 × tam liste
-            // taraması — kaydırma jesti sırasında komşu sayfalar da kompoze olur).
-            val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
-                groupedVisibleEntries
-            } else {
-                remember(pageEntries) { groupMyListEntriesByStatus(pageEntries) }
-            }
-
             LazyColumn(
                 state = pageScrollState,
                 modifier = Modifier
@@ -924,33 +929,31 @@ fun MyListContentPage(
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "${displayEntries.size} sonuç",
+                        text = "${visibleEntries.size} sonuç",
                         color = KitsugiColors.textMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
                     )
                 }
-                if (displayEntries.isEmpty()) {
+                if (visibleEntries.isEmpty()) {
                     item {
                         EmptyListResultCard(
-                            searchQuery = if (pageTabIndex == selectedTabIndex) searchQuery else "",
-                            selectedStatusFilterId = if (pageTabIndex == selectedTabIndex) selectedStatusFilterId else "all",
-                            selectedTypeFilterId = "all",
-                            selectedFavoriteFilterId = "all",
-                            selectedScoreFilterId = "all",
-                            selectedYearFilterId = "all",
-                            selectedExtraFilterId = "all",
-                            selectedSortId = "newest"
+                            searchQuery = searchQuery,
+                            selectedStatusFilterId = selectedStatusFilterId,
+                            selectedTypeFilterId = selectedTypeFilterId,
+                            selectedFavoriteFilterId = selectedFavoriteFilterId,
+                            selectedScoreFilterId = selectedScoreFilterId,
+                            selectedYearFilterId = selectedYearFilterId,
+                            selectedExtraFilterId = selectedExtraFilterId,
+                            selectedSortId = selectedSortId
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
-                } else if ((selectedStatusFilterId == "completed" && pageTabIndex == selectedTabIndex) ||
-                    !appSettings.separatedListStyle
-                ) {
+                } else if (selectedStatusFilterId == "completed" || !appSettings.separatedListStyle) {
                     // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
                     MyListFlatContent(
-                        visibleEntries = displayEntries,
+                        visibleEntries = visibleEntries,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
@@ -964,7 +967,7 @@ fun MyListContentPage(
                     )
                 } else {
                     MyListGroupedContent(
-                        groupedEntries = displayGrouped,
+                        groupedEntries = groupedVisibleEntries,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,

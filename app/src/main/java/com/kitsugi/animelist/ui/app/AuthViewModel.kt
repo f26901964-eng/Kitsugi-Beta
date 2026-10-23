@@ -34,6 +34,7 @@ import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
+import com.kitsugi.animelist.data.remote.MalAxisLibraryTitleHydrator
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -2228,6 +2229,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (importResult.isSuccess) {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Shikimori"))
+                    launchMalAxisTitleHydration()
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "Shikimori", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }
@@ -2303,6 +2305,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 throw cancelled
             } catch (error: Exception) {
                 android.util.Log.w("AuthViewModel", "Bangumi başlık tamamlama atlandı: ${error.message}")
+            }
+        }
+    }
+
+    private fun launchMalAxisTitleHydration() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                MalAxisLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.w("AuthViewModel", "Simkl/Shikimori başlık tamamlama atlandı: ${error.message}")
             }
         }
     }
@@ -2397,6 +2411,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (importResult.isSuccess) {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "Simkl"))
+                    launchMalAxisTitleHydration()
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "Simkl", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }

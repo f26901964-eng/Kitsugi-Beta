@@ -143,4 +143,41 @@ class MyListIdentityCrosswalkTest {
             )
         )
     }
+
+    @Test
+    fun kitsuRowGainsMalKeyFromInvertedKitsuMapping() {
+        val kitsuAnime = entry(id = 21, title = "Kaiju No. 8", source = "kitsu", malId = 300_046_900)
+        val kitsuManga = entry(
+            id = 22,
+            title = "Kaiju No. 8",
+            source = "kitsu",
+            malId = 300_057_000,
+            type = MediaType.Manga
+        )
+        val kitsuToMal = MyListIdentityCrosswalk.reverseKitsuMapping(
+            mapOf(
+                "kitsu_media_default_a_52588" to 46900,
+                "kitsu_media_user_42_m_127907" to 57000
+            )
+        )
+
+        assertEquals(
+            setOf("Anime:mal:52588"),
+            MyListIdentityCrosswalk.extraKeysFor(kitsuAnime, ids = null, kitsuMediaToMal = kitsuToMal)
+        )
+        assertEquals(
+            setOf("Manga:mal:127907"),
+            MyListIdentityCrosswalk.extraKeysFor(kitsuManga, ids = null, kitsuMediaToMal = kitsuToMal)
+        )
+    }
+
+    @Test
+    fun ambiguousKitsuMappingIsDropped() {
+        val raw = mapOf(
+            "kitsu_media_default_a_52588" to 46900,
+            "kitsu_media_default_a_52589" to 46900
+        )
+
+        assertTrue(MyListIdentityCrosswalk.reverseKitsuMapping(raw).isEmpty())
+    }
 }
