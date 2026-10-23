@@ -12,8 +12,8 @@ internal class CrossSyncCandidateIndex<Group : Any>(
     private val identityExtras: Map<Int, Set<String>> = emptyMap()
 ) {
     private val groupsByIdentityKey = mutableMapOf<String, LinkedHashSet<Group>>()
-    private val groupsByTitleAlias = mutableMapOf<String, LinkedHashSet<Group>>()
-    private val groupsByJapaneseTitle = mutableMapOf<String, LinkedHashSet<Group>>()
+    private val groupsByPrimaryEnglishTitle = mutableMapOf<String, LinkedHashSet<Group>>()
+    private val groupsByAnyTitle = mutableMapOf<String, LinkedHashSet<Group>>()
 
     fun keysOf(entry: MediaEntry): Set<String> =
         if (identityExtras.isEmpty()) MediaIdentity.keys(entry)
@@ -23,27 +23,50 @@ internal class CrossSyncCandidateIndex<Group : Any>(
         keysOf(entry).forEach { key ->
             groupsByIdentityKey.getOrPut(key) { linkedSetOf() }.add(group)
         }
-        titleAliases(entry).forEach { alias ->
-            groupsByTitleAlias.getOrPut(titleKey(entry, alias)) { linkedSetOf() }.add(group)
+        primaryEnglishAliases(entry).forEach { alias ->
+            val k = titleKey(entry, alias)
+            groupsByPrimaryEnglishTitle.getOrPut(k) { linkedSetOf() }.add(group)
+            groupsByAnyTitle.getOrPut(k) { linkedSetOf() }.add(group)
         }
         japaneseAlias(entry)?.let { alias ->
-            groupsByJapaneseTitle.getOrPut(titleKey(entry, alias)) { linkedSetOf() }.add(group)
+            groupsByAnyTitle.getOrPut(titleKey(entry, alias)) { linkedSetOf() }.add(group)
         }
+    }
+
+    /**
+     * Replaces every indexed reference to [oldGroup] with [newGroup] when two component clusters
+     * coalesce into a single cluster, preventing absorbed stale groups from appearing in later
+     * [possibleMatches] / [sharingTitleAlias] lookups.
+     */
+    fun replaceGroup(oldGroup: Group, newGroup: Group) {
+        if (oldGroup === newGroup) return
+        fun rewrite(map: MutableMap<String, LinkedHashSet<Group>>) {
+            for (bucket in map.values) {
+                if (bucket.remove(oldGroup)) {
+                    bucket.add(newGroup)
+                }
+            }
+        }
+        rewrite(groupsByIdentityKey)
+        rewrite(groupsByPrimaryEnglishTitle)
+        rewrite(groupsByAnyTitle)
     }
 
     /** Returns a small superset of groups that may satisfy MediaIdentity.sameMedia(). */
     fun possibleMatches(entry: MediaEntry): Set<Group> = LinkedHashSet<Group>().apply {
         keysOf(entry).forEach { key -> addAll(groupsByIdentityKey[key].orEmpty()) }
-        titleAliases(entry).forEach { alias -> addAll(groupsByTitleAlias[titleKey(entry, alias)].orEmpty()) }
-        japaneseAlias(entry)?.let { alias -> addAll(groupsByJapaneseTitle[titleKey(entry, alias)].orEmpty()) }
+        primaryEnglishAliases(entry).forEach { alias -> addAll(groupsByAnyTitle[titleKey(entry, alias)].orEmpty()) }
+        japaneseAlias(entry)?.let { alias -> addAll(groupsByAnyTitle[titleKey(entry, alias)].orEmpty()) }
     }
 
     /** Only primary/English aliases participate in the conflicting-ID safety check. */
     fun sharingTitleAlias(entry: MediaEntry): Set<Group> = LinkedHashSet<Group>().apply {
-        titleAliases(entry).forEach { alias -> addAll(groupsByTitleAlias[titleKey(entry, alias)].orEmpty()) }
+        primaryEnglishAliases(entry).forEach { alias ->
+            addAll(groupsByPrimaryEnglishTitle[titleKey(entry, alias)].orEmpty())
+        }
     }
 
-    private fun titleAliases(entry: MediaEntry): Set<String> = listOfNotNull(
+    private fun primaryEnglishAliases(entry: MediaEntry): Set<String> = listOfNotNull(
         entry.title,
         entry.titleEnglish
     ).map { MediaIdentity.normalizedTitle(it) }

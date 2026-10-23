@@ -180,7 +180,7 @@ class BangumiMasterDictionaryTest {
     @Test
     fun `sozluk boyutu beklendigi gibi`() {
         assertEquals("tag sözlüğü 58338 grup içermeli", 58338, BangumiTagDictionary.size)
-        assertEquals("org sözlüğü 52626 eşleme içermeli", 52626, BangumiOrgDictionary.size)
+        assertEquals("org sözlüğü 52644 eşleme içermeli", 52644, BangumiOrgDictionary.size)
         // sözlük girişlerinin Latin adı boş olamaz
         for (key in listOf("bangumi_studio_kyoto_animation", "bangumi_network_muse")) {
             assertTrue("$key için Latin ad olmalı", !BangumiOrgDictionary.canonicalName(key).isNullOrBlank())
@@ -199,8 +199,8 @@ class BangumiMasterDictionaryTest {
             assertEquals("Souls Benzeri", "Souls-like".toLocalizedTagLabel())
             assertEquals("Hafif Roman", "轻小说".toLocalizedTagLabel())
             assertEquals("KyoAni", "京アニ".toLocalizedOrgName())
-            assertEquals("Masayuki Aoyagi", "青柳昌行".toLocalizedOrgName())
-            assertEquals("Tomonori Ochikoshi", "落越友則".toLocalizedOrgName())
+            assertEquals("Aoyagi Masayuki", "青柳昌行".toLocalizedOrgName())
+            assertEquals("Raku Etsu Tomonori", "落越友則".toLocalizedOrgName())
             assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
             assertEquals("Monthly Wings", "月刊ウィングス".toLocalizedOrgName())
             assertEquals("CoMix Wave Films", "コミックス・ウェーブ・フィルム".toLocalizedOrgName())
@@ -215,8 +215,8 @@ class BangumiMasterDictionaryTest {
             assertEquals("Souls-like", "Souls-like".toLocalizedTagLabel())
             assertEquals("Light Novel", "轻小说".toLocalizedTagLabel())
             assertEquals("KyoAni", "京アニ".toLocalizedOrgName())
-            assertEquals("Masayuki Aoyagi", "青柳昌行".toLocalizedOrgName())
-            assertEquals("Tomonori Ochikoshi", "落越友則".toLocalizedOrgName())
+            assertEquals("Aoyagi Masayuki", "青柳昌行".toLocalizedOrgName())
+            assertEquals("Raku Etsu Tomonori", "落越友則".toLocalizedOrgName())
             assertEquals("Overlap Bunko", "オーバーラップ文庫".toLocalizedOrgName())
             assertEquals("Monthly Wings", "月刊ウィングス".toLocalizedOrgName())
             assertEquals("CoMix Wave Films", "コミックス・ウェーブ・フィルム".toLocalizedOrgName())

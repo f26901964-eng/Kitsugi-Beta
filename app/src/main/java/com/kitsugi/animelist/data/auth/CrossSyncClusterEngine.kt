@@ -279,6 +279,7 @@ object CrossSyncClusterEngine {
                         for (secondary in matches.drop(1)) {
                             primary.absorbFrom(secondary)
                             groups.remove(secondary)
+                            index.replaceGroup(secondary, primary)
                             secondary.candidates.forEach { member -> index.add(primary, member) }
                         }
                         primary

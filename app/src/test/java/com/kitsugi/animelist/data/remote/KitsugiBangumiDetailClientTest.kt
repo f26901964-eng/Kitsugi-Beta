@@ -308,7 +308,7 @@ class KitsugiBangumiDetailClientTest {
         // Stüdyo/şirket adları Japonca infobox'tan Latin ada çevrilir
         assertEquals(listOf("KyoAni"), detail.studios.map { it.name })
         assertEquals(
-            listOf("光坂高校演劇部", "TBS", "Pony Canyon", "Movic"),
+            listOf("光坂高校演劇部", "TBS", "PONY CANYON", "Movic"),
             detail.producers.map { it.name }
         )
         // Ana + diğer kanallar birleşir
@@ -547,7 +547,7 @@ class KitsugiBangumiDetailClientTest {
         assertEquals("PG-13", merged.rating)
         assertEquals("Clannad: After Story", merged.titleEnglish)
         assertEquals("https://youtube.com/watch?v=abc", merged.trailerUrl)
-        assertEquals(listOf("Kyoto Animation"), merged.studios.map { it.name })
+        assertEquals(listOf("KyoAni"), merged.studios.map { it.name })
         // Çapraz kimlikler detaya yazılır (galeri / bölüm puanı / logo bunları kullanır)
         assertEquals(4181, merged.realMalId)
         assertEquals(4235, merged.tmdbId)

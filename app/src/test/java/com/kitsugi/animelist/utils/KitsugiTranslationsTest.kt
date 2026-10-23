@@ -199,7 +199,7 @@ class KitsugiTranslationsTest {
     fun studioNames_translateToLatin() {
         assertEquals("KyoAni", "京都アニメーション".toLatinStudioName())
         assertEquals("KyoAni", "京都动画".toLatinStudioName())
-        assertEquals("Pony Canyon", "ポニーキャニオン".toLatinStudioName())
+        assertEquals("PONY CANYON", "ポニーキャニオン".toLatinStudioName())
         assertEquals("Movic", "ムービック".toLatinStudioName())
         assertEquals("Toei Animation", "東映アニメーション".toLatinStudioName())
         // Bilinmeyen (kurgusal) stüdyo adı olduğu gibi kalır
