@@ -17856,7 +17856,7 @@
     <string name="wiki_simple_reader">Simple reader</string>
     <string name="wiki_desktop_layout">Desktop layout</string>
     <string name="wiki_mobile_layout">Mobile layout</string>
-    <string name="wiki_original_hint">%1$s · Original theme; translation and ad blocking are managed by page tools.</string>
+    <string name="wiki_original_hint">%1$s · Appearance follows the app theme by default; translation and ad blocking are managed by the switches on this page.</string>
     <string name="wiki_original_load_failed">The page failed to load or the site restricted access. Retry, try mobile layout, or use the simple reader.</string>
     <string name="wiki_original_link_blocked">This redirect or download was blocked for safety. Use the browser button above to continue if needed.</string>
     <string name="wiki_original_reader_unavailable">This special page is not supported by the simple reader. Continue in original view.</string>
@@ -17869,6 +17869,11 @@
     <string name="wiki_ads_on">Ad blocking: on (%1$d)</string>
     <string name="wiki_ads_off">Ad blocking: off (%1$d)</string>
     <string name="wiki_tools_info">About page tools</string>
+    <string name="wiki_page_tools">Page tools</string>
+    <string name="wiki_tools_translate_title">Translation</string>
+    <string name="wiki_tools_ad_block_title">Ad blocking</string>
+    <string name="wiki_tools_ad_block_blocked">%1$d requests blocked</string>
+    <string name="wiki_tools_status_title">Page status</string>
     <string name="wiki_dom_translating">Google → %1$s · Translating… (%2$d texts)</string>
     <string name="wiki_dom_translated">Google → %1$s · %2$d texts translated</string>
     <string name="wiki_dom_partial">Some texts could not be translated. Their originals were kept.</string>
@@ -17880,11 +17885,15 @@
     <string name="wiki_filter_attribution">%1$d domain rules · StevenBlack contributed list (MIT) + Kitsugi ad-network rules. Pinned list revision: %2$s. Source: github.com/StevenBlack/hosts. Not a full browser extension or EasyList engine.</string>
     <string name="wiki_tools_preferences_failed">Preferences could not be read. Automatic translation is off; ad blocking defaults to on. Reload preferences.</string>
     <string name="wiki_tools_script_failed">Page tools could not run in this document. The original content is preserved; you can retry.</string>
+    <!-- v2.4.337: compact wiki toolbar and video player error state -->
+    <string name="wiki_more_actions">More actions</string>
+    <string name="wiki_tools_translate_on">Translation on</string>
+    <string name="wiki_tools_translate_off">Translate</string>
 
     <!-- Original wiki reading appearance and native find -->
     <string name="wiki_more_tools">More page tools</string>
     <string name="wiki_reading_appearance">Appearance and text size</string>
-    <string name="wiki_theme_explanation">Site theme preserves the original appearance. Other options use the supported wiki’s own light/dark colors; images are not filtered. These settings apply to all wiki pages.</string>
+    <string name="wiki_theme_explanation">“Follow the app theme” is the default: the wiki page matches the app’s light/dark theme, so the page and the toolbar no longer clash. “Site theme (original)” keeps the site’s own colors. Images are not filtered; these settings apply to all wiki pages.</string>
     <string name="wiki_theme_site">Site theme (original)</string>
     <string name="wiki_theme_app">Follow app theme</string>
     <string name="wiki_theme_light">Light theme</string>
@@ -17899,6 +17908,20 @@
     <string name="wiki_find_next">Next match</string>
     <string name="wiki_find_close">Close find in page</string>
     <string name="wiki_find_matches">%1$d / %2$d matches</string>
+    <!-- v2.4.353: theme-aligned wiki chrome, sharing and reading aids -->
+    <string name="wiki_share_link">Share link</string>
+    <string name="wiki_copy_link">Copy link</string>
+    <string name="wiki_link_copied">Link copied</string>
+    <string name="wiki_tabs_title">Tabs</string>
+    <string name="wiki_keep_screen_on">Keep screen on while reading</string>
+    <string name="wiki_keep_screen_on_desc">The screen stays on while this tab is open. Applies to this reading session only.</string>
+    <string name="wiki_text_larger">Increase text size</string>
+    <string name="wiki_text_smaller">Decrease text size</string>
+    <string name="wiki_tools_section_content">Translation and privacy</string>
+    <string name="wiki_tools_section_view">Appearance</string>
+    <string name="wiki_tools_section_page">Page</string>
+    <string name="wiki_reading_appearance_desc">Theme and text size for wiki pages. Default: follow the app theme.</string>
+    <string name="wiki_reading_appearance_value">%1$s · %2$d%%</string>
     <string name="account_sync_offline_identity_pending">Offline: identity could not be verified, will retry when connected</string>
     <string name="bangumi_tag_chinese_speaking">Chinese-speaking Region</string>
 

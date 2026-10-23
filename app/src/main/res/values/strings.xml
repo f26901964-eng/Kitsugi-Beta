@@ -17861,7 +17861,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_simple_reader">Sade okuyucu</string>
     <string name="wiki_desktop_layout">Masaüstü düzeni</string>
     <string name="wiki_mobile_layout">Mobil düzen</string>
-    <string name="wiki_original_hint">%1$s · Özgün tema; çeviri ve reklam engeli sayfa araçlarından yönetilir.</string>
+    <string name="wiki_original_hint">%1$s · Görünüm varsayılan olarak uygulama temasını izler; çeviri ve reklam engeli bu sayfadaki anahtarlarla yönetilir.</string>
     <string name="wiki_original_load_failed">Sayfa yüklenemedi veya site erişimi kısıtladı. Yenileyebilir, mobil düzeni deneyebilir ya da sade okuyucuya geçebilirsiniz.</string>
     <string name="wiki_original_link_blocked">Güvenlik için bu yönlendirme veya indirme açılmadı. İsterseniz üstteki tarayıcı düğmesiyle devam edin.</string>
     <string name="wiki_original_reader_unavailable">Bu özel sayfa sade okuyucuya uygun değil. Özgün görünümde devam edebilirsiniz.</string>
@@ -17874,6 +17874,11 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_ads_on">Reklam engeli: açık (%1$d)</string>
     <string name="wiki_ads_off">Reklam engeli: kapalı (%1$d)</string>
     <string name="wiki_tools_info">Sayfa araçları hakkında</string>
+    <string name="wiki_page_tools">Sayfa araçları</string>
+    <string name="wiki_tools_translate_title">Çeviri</string>
+    <string name="wiki_tools_ad_block_title">Reklam engeli</string>
+    <string name="wiki_tools_ad_block_blocked">%1$d istek engellendi</string>
+    <string name="wiki_tools_status_title">Sayfa durumu</string>
     <string name="wiki_dom_translating">Google → %1$s · Çevriliyor… (%2$d metin)</string>
     <string name="wiki_dom_translated">Google → %1$s · %2$d metin çevrildi</string>
     <string name="wiki_dom_partial">Bazı metinler çevrilemedi. Orijinalleri korundu.</string>
@@ -17885,11 +17890,15 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_filter_attribution">%1$d alan adı kuralı · StevenBlack katkı listesi (MIT) + Kitsugi reklam ağı kuralları. Sabit liste sürümü: %2$s. Kaynak: github.com/StevenBlack/hosts. Tam tarayıcı eklentisi veya EasyList motoru değildir.</string>
     <string name="wiki_tools_preferences_failed">Ayarlar okunamadı. Otomatik çeviri kapalı, reklam engeli varsayılan olarak açık tutuldu. Ayarları yeniden yükleyin.</string>
     <string name="wiki_tools_script_failed">Sayfa araçları bu belgede çalıştırılamadı. Özgün içerik korunuyor; yeniden deneyebilirsiniz.</string>
+    <!-- v2.4.337: kompakt wiki şeridi ve video oynatıcı hata durumu -->
+    <string name="wiki_more_actions">Diğer işlemler</string>
+    <string name="wiki_tools_translate_on">Çeviri açık</string>
+    <string name="wiki_tools_translate_off">Çevir</string>
 
     <!-- Original wiki reading appearance and native find -->
     <string name="wiki_more_tools">Diğer sayfa araçları</string>
     <string name="wiki_reading_appearance">Görünüm ve yazı boyutu</string>
-    <string name="wiki_theme_explanation">Site teması özgün görünümü korur. Diğer seçenekler, desteklenen wikinin kendi açık/koyu renklerini kullanır; resimlere filtre uygulanmaz. Bu ayarlar tüm wiki sayfalarında geçerlidir.</string>
+    <string name="wiki_theme_explanation">Varsayılan “Uygulama temasını izle” seçeneğidir: wiki sayfası uygulamanın açık/koyu temasıyla aynı görünür, sayfa ile üst şerit arasında renk farkı kalmaz. “Site teması (özgün)” sitenin kendi rengini korur. Resimlere filtre uygulanmaz; bu ayarlar tüm wiki sayfalarında geçerlidir.</string>
     <string name="wiki_theme_site">Site teması (özgün)</string>
     <string name="wiki_theme_app">Uygulama temasını izle</string>
     <string name="wiki_theme_light">Açık tema</string>
@@ -17904,6 +17913,20 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_find_next">Sonraki eşleşme</string>
     <string name="wiki_find_close">Sayfada aramayı kapat</string>
     <string name="wiki_find_matches">%1$d / %2$d eşleşme</string>
+    <!-- v2.4.353: uygulama temasıyla hizalı wiki şeridi, paylaşım ve okuma kolaylıkları -->
+    <string name="wiki_share_link">Bağlantıyı paylaş</string>
+    <string name="wiki_copy_link">Bağlantıyı kopyala</string>
+    <string name="wiki_link_copied">Bağlantı kopyalandı</string>
+    <string name="wiki_tabs_title">Sekmeler</string>
+    <string name="wiki_keep_screen_on">Okurken ekranı açık tut</string>
+    <string name="wiki_keep_screen_on_desc">Bu sekmede sayfa açıkken ekran kapanmaz. Yalnızca bu okuma oturumu için geçerlidir.</string>
+    <string name="wiki_text_larger">Yazıyı büyüt</string>
+    <string name="wiki_text_smaller">Yazıyı küçült</string>
+    <string name="wiki_tools_section_content">Çeviri ve gizlilik</string>
+    <string name="wiki_tools_section_view">Görünüm</string>
+    <string name="wiki_tools_section_page">Sayfa</string>
+    <string name="wiki_reading_appearance_desc">Wiki sayfalarının teması ve yazı boyutu. Varsayılan: uygulama temasını izle.</string>
+    <string name="wiki_reading_appearance_value">%1$s · %2$d%%</string>
     <string name="account_sync_offline_identity_pending">Çevrimdışı: kimlik doğrulanamadı, bağlantıda yeniden denenecek</string>
     <string name="bangumi_tag_chinese_speaking">Çince Konuşulan Bölge</string>
 

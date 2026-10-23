@@ -239,7 +239,7 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
-    val wikiPageTheme: String = "SITE",
+    val wikiPageTheme: String = "APP",
     val wikiTextZoom: Int = 100,
     /** Wiki açılır sayfası son seçilen düzeni hatırlar; varsayılan MOBİL düzendir. */
     val wikiDesktopLayout: Boolean = false,

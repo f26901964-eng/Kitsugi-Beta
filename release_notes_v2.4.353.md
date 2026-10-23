@@ -22,6 +22,19 @@
 - **Layout fazı enterpolasyonu:** Portre moddaki ofset okumaları layout fazına taşınarak gereksiz kare başı çizimler sonlandırıldı.
 - **Galeri butonu nabız animasyonu:** `KitsugiGalleryIconButton` üzerindeki sonsuz nabız döngüsü yalnızca aktif yükleme anıyla sınırlandırılarak CPU ve pil yükü sıfırlandı.
 
+### 🔍 Shikimori Arama Sonuçlarında Başlık Dili Düzeltmesi
+- **Doğru Romaji Eşlemesi:** Shikimori REST arama sonuçlarından gelen `name` alanı artık yanlışlıkla `titleEnglish` yerine `titleRomaji` alanında saklanıyor.
+- **GraphQL Başlık Zenginleştirmesi:** Anime ve manga arama/keşfet sonuçları `ShikimoriTitleResolver` ile arka planda gerçek İngilizce ve Japonca adlarla zenginleştirilerek Ayarlar'da seçilen başlık diline (İngilizce, Romaji, Japonca) göre listelenir.
+- **Zaman Aşımı ve Yedek Koruması:** Paralel çalışan istekler için 6 saniyelik zaman aşımı tanımlandı; bağlantı hatasında veya yanıtsızlıkta Romaji başlık kesintisiz korunur.
+
+### 📖 Wiki Okuyucu Tema Uyumu ve Şerit Sadeleştirmesi
+- **Varsayılan Uygulama Teması:** `wikiPageTheme` varsayılanı `APP` olarak güncellendi. Yeni kurulumlarda wiki açılır sayfası uygulamanın açık/koyu temasını doğrudan izler; koyu temada ekran parlaması ve renk kırılması yaşanmaz. Özgün site temasını isteyenler için `SITE` tercihi korunur.
+- **Sadeleştirilmiş Sekme Şeridi:** Aktif sekme %16 vurgu dolgusu ve %40 vurgu çerçevesiyle öne çıkarılırken, pasif sekmeler tamamen saydamlaştırılarak kutu kalabalığı giderildi. Kapat (`×`) butonu görsel kirliliği önlemek için yalnızca aktif sekmede gösterilir.
+- **Kompakt ⋮ Menüsü ve Yeni Eylemler:** Üstteki kalabalık bilgi satırları menü başlığına (kilit ikonu + alan adı + mod) taşındı. Menüye **Bağlantıyı paylaş** (`ACTION_SEND`), **Bağlantıyı kopyala** (pano) ve çoklu sekmeler için **Sekmeler (n)** listesi eklendi.
+- **Gruplandırılmış Sayfa Araçları:** Ayarlar kartları dilinde 3 ana başlığa ayrıldı: Çeviri ve gizlilik, Görünüm (hızlı 10 puanlık yazı boyutu büyüt/küçült, oturumluk ekranda tutma), Sayfa (sayfada bul, hakkında).
+- **Zıplamasız Yükleme Çizgisi & Temalı Arama:** Yükleme çizgisi sabit 2 dp yüksekliğe sabitlenerek sayfa yüklenince yaşanan zıplama önlendi; sayfada bul çubuğu yuvarlatılarak uygulama vurgu rengine bağlandı.
+- **Ayarlardan Doğrudan Erişim:** **Ayarlar → Tercihler → Fandom Wiki** altına `Okuma görünümü` eklendi; okuyucu penceresi açılmadan da genel tema ve yazı boyutu tercihi yönetilebilir.
+
 ---
 
 ## 🇬🇧 English
@@ -45,3 +58,16 @@
 - **Gesture & page transition decoupling:** Moved `currentPage` consumption into scoped effects and stabilized lambdas with `remember` to ensure fluid horizontal and vertical scrolling.
 - **Layout-phase offset interpolation:** Deferred portrait offset measurements to the layout phase, eliminating per-frame composition overhead.
 - **Gallery icon pulse bounded:** Restricted `KitsugiGalleryIconButton` pulse animations strictly to active image loading states, freeing idle CPU and GPU cycles.
+
+### 🔍 Shikimori Search Result Title Language & Romaji Differentiation
+- **Accurate Romaji Mapping:** Shikimori REST search responses now properly route `name` to `titleRomaji` instead of erroneously assigning it to `titleEnglish`.
+- **GraphQL Title Enrichment:** Search and discover results are asynchronously enriched with authentic English and Japanese names via `ShikimoriTitleResolver`, strictly respecting user-selected title language preferences (English, Romaji, or Japanese).
+- **Timeout & Graceful Fallback:** Added a strict 6-second timeout to GraphQL enrichment queries, seamlessly falling back to Romaji titles without blocking UI or image resolution.
+
+### 📖 Wiki Reader Chrome Theme & Tab Strip Streamlining
+- **App Theme by Default:** `wikiPageTheme` now defaults to `APP`, ensuring new installations seamlessly match the application's dark or light theme palette without abrupt color clashing. Existing choices and the `SITE` option remain fully supported.
+- **Minimalist Tab Strip:** Active tabs are highlighted with a 16% accent fill and 40% border outline, while inactive tabs remain transparent to prevent visual clutter. Close buttons (`×`) are streamlined to the active tab.
+- **Clean Context Menu:** Domain and layout context badges have migrated inside the `⋮` menu header. Added **Share link** (`ACTION_SEND`), **Copy link** (clipboard), and a scrollable **Tabs (n)** overview list.
+- **Grouped Page Tools:** Redesigned sheet into structured groups: Translation & Privacy, Appearance (quick ±10pt text resizing, keep screen on toggle), and Page (find in page, about).
+- **Stable 2 dp Progress Bar & Themed Find Bar:** Fixed loading indicator jitter by dedicating an unshifting 2 dp progress track; styled find bar with rounded geometry and theme accents.
+- **Settings Integration:** Added a direct `Reading appearance` preference entry under **Settings → Preferences → Fandom Wiki**, allowing full font size and theme configuration outside the reader.
