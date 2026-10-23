@@ -346,7 +346,8 @@ fun ThemePlayerContainer(
                     if (released) return
                     currentPosition = positionMs
                     duration = durationMs
-                    if (positionMs > 0L) hasStartedPlayback = true
+                    // Resume konumu ilk frame kanıtı değildir; gerçek video çıkışını bekle.
+                    if (inlineVideoVisible(playerEngine)) hasStartedPlayback = true
                 }
 
                 override fun onTracksChanged(

@@ -9,12 +9,11 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.remote.anisub.AniSubSubtitleClient
 
 class AddonStreamClient {
     private val gson = Gson()
@@ -28,11 +27,6 @@ class AddonStreamClient {
 
     companion object {
         private const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        private const val MAX_ANI_SUB_ARCHIVE_BYTES = 80L * 1024 * 1024
-        private const val MAX_ANI_SUB_EXTRACTED_BYTES = 100L * 1024 * 1024
-        private const val MAX_ANI_SUB_ENTRY_BYTES = 20L * 1024 * 1024
-        private const val MAX_ANI_SUB_ARCHIVE_FILES = 300
-        private val SUPPORTED_ANI_SUB_EXTENSIONS = setOf("ass", "ssa", "srt", "vtt")
     }
 
     /**
@@ -65,19 +59,10 @@ class AddonStreamClient {
         val normalizedUrl = normalizeManifestUrl(manifestUrl)
         if (normalizedUrl.isBlank()) return@withContext null
 
-        if (normalizedUrl.contains("anisub.co")) {
-            return@withContext ManagedAddonEntity(
-                manifestUrl = normalizedUrl,
-                name = "AniSub.co",
-                description = KitsugiStrings.get(R.string.anisub_co_turkce_altyazi_eklentisi),
-                icon = "https://anisub.co/favicon.ico",
-                isEnabled = true,
-                orderIndex = 99,
-                idPrefixes = null,
-                streamTypes = null,
-                subtitleTypes = "movie,series"
-            )
-        }
+        // AniSub.co'nun artık gerçek bir Stremio manifesti var
+        // (https://anisub.co/manifest.json). Önce onu okumayı dene;
+        // ağ hatasında aşağıdaki ihtiyati tanım kullanılır ki eklenti
+        // çevrimdışıyken bile listeden düşmesin.
 
         val request = Request.Builder()
             .url(normalizedUrl)
@@ -90,14 +75,15 @@ class AddonStreamClient {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.e("AddonStreamClient", "HTTP error ${response.code} fetching manifest from $normalizedUrl")
-                    return@withContext null
+                    return@withContext fallbackAniSubManifest(normalizedUrl)
                 }
-                val bodyString = response.body?.string() ?: return@withContext null
-                val manifestMap = gson.fromJson(bodyString, Map::class.java) ?: return@withContext null
+                val bodyString = response.body?.string() ?: return@withContext fallbackAniSubManifest(normalizedUrl)
+                val manifestMap = gson.fromJson(bodyString, Map::class.java) ?: return@withContext fallbackAniSubManifest(normalizedUrl)
 
                 val name = manifestMap["name"] as? String ?: "Bilinmeyen Eklenti"
                 val description = manifestMap["description"] as? String
-                val icon = manifestMap["icon"] as? String
+                // Stremio manifestleri görseli "logo" alanında verir (örn. AniSub).
+                val icon = (manifestMap["icon"] as? String) ?: (manifestMap["logo"] as? String)
 
                 // Parse top-level idPrefixes (e.g. ["tt", "kitsu:"])
                 @Suppress("UNCHECKED_CAST")
@@ -165,8 +151,27 @@ class AddonStreamClient {
             }
         } catch (e: Exception) {
             Log.e("AddonStreamClient", "Error fetching manifest from $normalizedUrl", e)
-            null
+            fallbackAniSubManifest(normalizedUrl)
         }
+    }
+
+    /**
+     * AniSub manifesti ağ hatası/HTTP hatasında okunamazsa kullanılan
+     * ihtiyati tanım. Diğer addon URL'leri için null döner.
+     */
+    private fun fallbackAniSubManifest(normalizedUrl: String): ManagedAddonEntity? {
+        if (!normalizedUrl.contains("anisub.co")) return null
+        return ManagedAddonEntity(
+            manifestUrl = normalizedUrl,
+            name = "AniSub.co",
+            description = KitsugiStrings.get(R.string.anisub_co_turkce_altyazi_eklentisi),
+            icon = "https://anisub.co/assets/logo.png",
+            isEnabled = true,
+            orderIndex = 99,
+            idPrefixes = null,
+            streamTypes = null,
+            subtitleTypes = "movie,series"
+        )
     }
 
     suspend fun fetchStreams(
@@ -224,7 +229,18 @@ class AddonStreamClient {
         episode: Int? = null
     ): List<SubtitleResponseItem> = withContext(Dispatchers.IO) {
         if (manifestUrl.contains("anisub.co")) {
-            return@withContext fetchAniSubSubtitles(context, id, aniListId, animeTitle, episode)
+            // AniSub paket mantığı (bölüm seçimi / ZIP+RAR açma) standart Stremio
+            // akışıyla karşılanamadığı için özel istemciye devredilir.
+            // Bkz. AniSubSubtitleClient.
+            return@withContext AniSubSubtitleClient.fetchSubtitles(
+                context = context,
+                type = type,
+                id = id,
+                aniListId = aniListId,
+                animeTitle = animeTitle,
+                episode = episode,
+                filenameHint = extraParams?.get("filename")
+            )
         }
 
         val normalizedManifest = normalizeManifestUrl(manifestUrl)
@@ -300,320 +316,7 @@ class AddonStreamClient {
         }
         return parts.joinToString("&")
     }
-
-    private suspend fun fetchAniSubSubtitles(
-        context: android.content.Context,
-        id: String,
-        aniListId: Int?,
-        animeTitle: String?,
-        episode: Int?
-    ): List<SubtitleResponseItem> = withContext(Dispatchers.IO) {
-        try {
-            val effectiveAniListId = aniListId ?: id.takeIf { it.startsWith("anilist:", ignoreCase = true) }
-                ?.substringAfter(':')?.substringBefore(':')?.toIntOrNull()
-            Log.d("AddonStreamClient", "fetchAniSubSubtitles: id=$id, aniListId=$effectiveAniListId, title=$animeTitle, ep=$episode")
-
-            // AniSub's public search is an Inertia endpoint. Obtain the current asset version;
-            // hard-coding it caused search requests to break whenever the website deployed.
-            val initHtml = client.newCall(
-                Request.Builder().url("https://anisub.co")
-                    .header("User-Agent", DEFAULT_USER_AGENT).get().build()
-            ).execute().use { response ->
-                if (response.isSuccessful) response.body?.string().orEmpty() else ""
-            }
-            if (initHtml.isBlank()) return@withContext emptyList()
-            val version = """"version"\s*:\s*"([a-f0-9]{32})"""".toRegex(RegexOption.IGNORE_CASE)
-                .find(initHtml)?.groupValues?.getOrNull(1)
-                ?: "13462527c7e340ff00f088b7f91a548a"
-
-            val title = animeTitle?.trim()?.takeIf(String::isNotBlank)
-                ?: effectiveAniListId?.let { resolveAniListTitle(it) }
-                ?: id.substringBefore(':').takeIf { it.startsWith("tt", ignoreCase = true) }?.let(::resolveImdbTitle)
-            // Stremio IDs may be IMDb, Kitsu, or plain catalog IDs. Never turn `kitsu:123:1`
-            // into the useless query "kitsu", and don't let an empty title suppress the ID fallback.
-            val idQuery = when {
-                id.startsWith("kitsu:", ignoreCase = true) || id.startsWith("anilist:", ignoreCase = true) ->
-                    id.substringAfter(':').substringBefore(':')
-                else -> id.substringBefore(':').trim()
-            }
-            val queries = listOfNotNull(
-                title,
-                if (title == null) effectiveAniListId?.toString() else null,
-                if (title == null) idQuery.takeIf(String::isNotBlank) else null
-            ).map(String::trim).filter(String::isNotBlank).distinct().take(3)
-            if (queries.isEmpty()) {
-                Log.w("AddonStreamClient", "AniSub search skipped: no usable title or catalog ID")
-                return@withContext emptyList()
-            }
-
-            // Inertia paginates search results. Search a bounded number of pages for title hits
-            // instead of silently missing items beyond page one.
-            val itemsById = linkedMapOf<Long, AnisubSubtitleItem>()
-            for (query in queries) {
-                var page = 1
-                var lastPage = 1
-                while (page <= lastPage && page <= 4) {
-                    val searchUrl = "https://anisub.co/tum-altyazilar?q=${URLEncoder.encode(query, "UTF-8")}&page=$page"
-                    val json = client.newCall(
-                        Request.Builder().url(searchUrl)
-                            .header("User-Agent", DEFAULT_USER_AGENT)
-                            .header("Accept", "application/json")
-                            .header("x-inertia", "true")
-                            .header("x-inertia-version", version)
-                            .header("x-requested-with", "XMLHttpRequest")
-                            .get().build()
-                    ).execute().use { response ->
-                        if (response.isSuccessful) response.body?.string().orEmpty() else ""
-                    }
-                    if (json.isBlank()) break
-                    val result = runCatching { gson.fromJson(json, AnisubSearchResponse::class.java) }.getOrNull()
-                    val data = result?.props?.subtitles ?: break
-                    data.data.orEmpty().forEach { item -> item.subtitle_id?.let { itemsById.putIfAbsent(it, item) } }
-                    lastPage = data.last_page?.coerceAtLeast(1) ?: 1
-                    page++
-                }
-            }
-
-            val normalizedQuery = title?.let(::normalizeAniSubTitle).orEmpty()
-            val candidates = itemsById.values.filter { item ->
-                val itemAniListId = item.mediaInfo?.media_anilist_id
-                if (effectiveAniListId != null && itemAniListId != null && itemAniListId != effectiveAniListId) return@filter false
-                if (effectiveAniListId != null && itemAniListId == effectiveAniListId) {
-                    // Exact AniList identity is authoritative; title spelling may differ.
-                } else if (normalizedQuery.isNotBlank()) {
-                    val itemTitles = listOfNotNull(item.mediaInfo?.title_romaji, item.mediaInfo?.title_english)
-                        .map(::normalizeAniSubTitle).filter(String::isNotBlank)
-                    if (itemTitles.none { it.contains(normalizedQuery) || normalizedQuery.contains(it) }) return@filter false
-                } else if (itemAniListId == null || itemAniListId != effectiveAniListId) {
-                    // If all we had was an IMDb/Kitsu ID, only retain results whose indexed title
-                    // contains that ID (the site may index external IDs); never return unrelated rows.
-                    val external = normalizeAniSubTitle(idQuery)
-                    val itemTitles = listOfNotNull(item.mediaInfo?.title_romaji, item.mediaInfo?.title_english)
-                        .map(::normalizeAniSubTitle).filter(String::isNotBlank)
-                    if (external.isBlank() || itemTitles.none { it.contains(external) }) return@filter false
-                }
-                episode == null || AniSubSubtitleMatcher.releaseMatchesEpisode(item.subtitle_release_name.orEmpty(), episode)
-            }
-            Log.d("AddonStreamClient", "AniSub candidates: ${candidates.size} for title=$title id=$effectiveAniListId episode=$episode")
-
-            val subtitleItems = mutableListOf<SubtitleResponseItem>()
-            // Keep the player request bounded even for very popular shows with many historical uploads.
-            for (item in candidates.take(8)) {
-                val subId = item.subtitle_id ?: continue
-                val downloadInfoJson = client.newCall(
-                    Request.Builder().url("https://anisub.co/api/subtitles/$subId/download")
-                        .header("User-Agent", DEFAULT_USER_AGENT).get().build()
-                ).execute().use { response ->
-                    if (response.isSuccessful) response.body?.string() else null
-                } ?: continue
-                val downloadInfo = runCatching { gson.fromJson(downloadInfoJson, AnisubDownloadResponse::class.java) }.getOrNull()
-                val downloadUrl = downloadInfo?.data?.download_url?.takeIf { downloadInfo.success && it.isNotBlank() } ?: continue
-                val files = downloadAndUnzipSubtitle(
-                    context = context,
-                    downloadUrl = downloadUrl,
-                    subId = subId,
-                    downloadFilename = downloadInfo?.data?.filename,
-                    episode = episode,
-                    mediaTitle = title,
-                    releaseName = item.subtitle_release_name.orEmpty()
-                )
-                // AniSub.co is a Turkish-only source; normalize its display language for all rows.
-                val lang = "tr"
-                files.forEach { file ->
-                    subtitleItems.add(
-                        SubtitleResponseItem(
-                            id = "anisub-$subId-${file.name.hashCode().toLong().and(0xffffffffL).toString(16)}",
-                            url = "file://${file.absolutePath}",
-                            lang = lang
-                        )
-                    )
-                }
-            }
-            subtitleItems.distinctBy { it.url }
-        } catch (e: Exception) {
-            Log.e("AddonStreamClient", "Error in fetchAniSubSubtitles", e)
-            emptyList()
-        }
-    }
-
-    private fun normalizeAniSubTitle(value: String): String = value
-        .lowercase()
-        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
-        .trim()
-
-    /** Resolve the display title when a caller provides only an AniList numeric ID. */
-    private fun resolveAniListTitle(aniListId: Int): String? {
-        return runCatching {
-            val payload = gson.toJson(
-                mapOf("query" to "query { Media(id: $aniListId, type: ANIME) { title { romaji english } } }")
-            )
-            val request = Request.Builder()
-                .url("https://graphql.anilist.co")
-                .header("User-Agent", DEFAULT_USER_AGENT)
-                .header("Content-Type", "application/json")
-                .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use null
-                val media = gson.fromJson(response.body?.string(), Map::class.java)
-                    ?.get("data").let { it as? Map<*, *> }
-                    ?.get("Media").let { it as? Map<*, *> }
-                    ?.get("title").let { it as? Map<*, *> }
-                (media?.get("romaji") as? String)?.takeIf(String::isNotBlank)
-                    ?: (media?.get("english") as? String)?.takeIf(String::isNotBlank)
-            }
-        }.getOrNull()
-    }
-
-    /** Resolve an IMDb-only Stremio request through Cinemeta when the caller has no title metadata. */
-    private fun resolveImdbTitle(imdbId: String): String? {
-        return runCatching {
-            for (type in listOf("series", "movie")) {
-                val request = Request.Builder()
-                    .url("https://v3-cinemeta.strem.io/meta/$type/${encodePathSegment(imdbId)}.json")
-                    .header("User-Agent", DEFAULT_USER_AGENT)
-                    .header("Accept", "application/json")
-                    .get().build()
-                val title = client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@use null
-                    val meta = gson.fromJson(response.body?.string(), Map::class.java)
-                        ?.get("meta") as? Map<*, *>
-                    (meta?.get("name") as? String)?.takeIf(String::isNotBlank)
-                }
-                if (title != null) return title
-            }
-            null
-        }.getOrNull()
-    }
-
-    private fun readLimitedBody(body: okhttp3.ResponseBody, limitBytes: Long): ByteArray? {
-        if (body.contentLength() > limitBytes) return null
-        val output = java.io.ByteArrayOutputStream()
-        body.byteStream().use { input ->
-            val buffer = ByteArray(16 * 1024)
-            var total = 0L
-            while (true) {
-                val count = input.read(buffer)
-                if (count < 0) break
-                if (count == 0) continue
-                total += count
-                if (total > limitBytes) return null
-                output.write(buffer, 0, count)
-            }
-        }
-        return output.toByteArray()
-    }
-
-    private fun downloadAndUnzipSubtitle(
-        context: android.content.Context,
-        downloadUrl: String,
-        subId: Long,
-        downloadFilename: String?,
-        episode: Int?,
-        mediaTitle: String?,
-        releaseName: String
-    ): List<java.io.File> {
-        val cacheDir = java.io.File(context.cacheDir, "anisub_subs/$subId")
-        return try {
-            if (!cacheDir.exists() && !cacheDir.mkdirs()) return emptyList()
-            val cached = cacheDir.listFiles()?.filter { it.isFile }.orEmpty()
-            if (cached.isNotEmpty()) {
-                return AniSubSubtitleMatcher.selectFiles(cached, episode, mediaTitle, releaseName)
-            }
-
-            val archiveBytes = client.newCall(
-                Request.Builder().url(downloadUrl).header("User-Agent", DEFAULT_USER_AGENT).get().build()
-            ).execute().use { response ->
-                if (!response.isSuccessful) return emptyList()
-                val body = response.body ?: return emptyList()
-                readLimitedBody(body, MAX_ANI_SUB_ARCHIVE_BYTES)
-            } ?: return emptyList()
-
-            val isZip = archiveBytes.size >= 4 && archiveBytes[0] == 0x50.toByte() && archiveBytes[1] == 0x4b.toByte()
-            if (!isZip) {
-                val text = archiveBytes.toString(Charsets.UTF_8)
-                val inferredExtension = downloadFilename?.substringAfterLast('.', "")?.lowercase()
-                    ?.takeIf { it in SUPPORTED_ANI_SUB_EXTENSIONS }
-                    ?: when {
-                        text.trimStart().startsWith("[Script Info]", ignoreCase = true) -> "ass"
-                        text.trimStart().startsWith("WEBVTT", ignoreCase = true) -> "vtt"
-                        text.contains("-->") -> "srt"
-                        else -> null
-                    }
-                if (inferredExtension == null) return emptyList()
-                val directFile = java.io.File(cacheDir, "subtitle.$inferredExtension")
-                directFile.writeBytes(archiveBytes)
-                return AniSubSubtitleMatcher.selectFiles(listOf(directFile), episode, mediaTitle, releaseName)
-            }
-
-            val extractedFiles = mutableListOf<java.io.File>()
-            var totalExtractedBytes = 0L
-            java.util.zip.ZipInputStream(java.io.ByteArrayInputStream(archiveBytes)).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null && extractedFiles.size < MAX_ANI_SUB_ARCHIVE_FILES) {
-                    if (!entry.isDirectory && entry.name.substringAfterLast('.', "").lowercase() in SUPPORTED_ANI_SUB_EXTENSIONS) {
-                        // Use only the basename, so ZIP paths cannot escape the app cache directory.
-                        val baseName = java.io.File(entry.name).name
-                        if (baseName.isNotBlank()) {
-                            val destination = java.io.File(cacheDir, "${extractedFiles.size}_$baseName")
-                            var entryBytes = 0L
-                            destination.outputStream().buffered().use { output ->
-                                val buffer = ByteArray(8192)
-                                while (true) {
-                                    val count = zip.read(buffer)
-                                    if (count <= 0) break
-                                    entryBytes += count
-                                    totalExtractedBytes += count
-                                    if (entryBytes > MAX_ANI_SUB_ENTRY_BYTES || totalExtractedBytes > MAX_ANI_SUB_EXTRACTED_BYTES) {
-                                        throw IOException("AniSub archive exceeds extraction size limit")
-                                    }
-                                    output.write(buffer, 0, count)
-                                }
-                            }
-                            extractedFiles.add(destination)
-                        }
-                    }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
-                }
-            }
-            AniSubSubtitleMatcher.selectFiles(extractedFiles, episode, mediaTitle, releaseName)
-        } catch (e: Exception) {
-            // Do not let a partially extracted/bomb archive masquerade as a valid cached subtitle.
-            cacheDir.listFiles()?.forEach { it.delete() }
-            Log.e("AddonStreamClient", "Error downloading/unzipping AniSub subtitle $subId", e)
-            emptyList()
-        }
-    }
-
 }
-
-private data class AnisubSearchResponse(val props: AnisubProps?)
-private data class AnisubProps(val subtitles: AnisubSubtitlesData?)
-private data class AnisubSubtitlesData(val data: List<AnisubSubtitleItem>?, val current_page: Int? = null, val last_page: Int? = null)
-private data class AnisubSubtitleItem(
-    val subtitle_id: Long?,
-    val subtitle_release_name: String?,
-    val subtitle_language: String?,
-    val format: String?,
-    val mediaInfo: AnisubMediaInfo?
-)
-private data class AnisubMediaInfo(
-    val media_anilist_id: Int?,
-    val title_romaji: String?,
-    val title_english: String?
-)
-private data class AnisubDownloadResponse(
-    val success: Boolean,
-    val data: AnisubDownloadData?,
-    val message: String?
-)
-private data class AnisubDownloadData(
-    val download_url: String?,
-    val filename: String?,
-    val file_size: Long?
-)
-
 
 data class SubtitleResponseWrapper(
     val subtitles: List<SubtitleResponseItem>?
@@ -622,7 +325,13 @@ data class SubtitleResponseWrapper(
 data class SubtitleResponseItem(
     val id: String?,
     val url: String?,
-    val lang: String?
+    val lang: String?,
+    /**
+     * Addon'un beyan ettiği altyazı biçimi ("ass", "srt", "vtt" ...).
+     * Bazı addon'lar (örn. AniSub) uzantısız URL döndürür; biçim bilgisi
+     * yoksa SubtitleRepositoryImpl URL'den tahmin eder.
+     */
+    val format: String? = null
 )
 
 data class StreamResponseWrapper(

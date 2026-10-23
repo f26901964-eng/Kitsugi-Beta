@@ -325,7 +325,7 @@ fun KitsugiYouTubePlayer(
         var duration by remember(videoId) { mutableStateOf(0L) }
         // İlk kare göründükten sonra ara bellek dalgalanmaları yükleme animasyonunu
         // yeniden göstermemeli; aksi hâlde akıcı oynayan video "donuyor" gibi görünüyor.
-        var hasStartedPlayback by remember(videoId) { mutableStateOf(false) }
+        var hasStartedPlayback by remember(playerEngine) { mutableStateOf(false) }
         var playerState by remember(playerEngine) { mutableStateOf(PlayerEngine.State.IDLE) }
         val engineTypeForPlayer = activeEngineType
         val resumedState = rememberInlinePlayerResumed()
@@ -377,7 +377,8 @@ fun KitsugiYouTubePlayer(
                     if (released) return
                     currentPosition = positionMs
                     duration = durationMs
-                    if (positionMs > 0L) hasStartedPlayback = true
+                    // Resume konumu ilk frame kanıtı değildir; gerçek video çıkışını bekle.
+                    if (inlineVideoVisible(playerEngine)) hasStartedPlayback = true
                 }
 
                 override fun onTracksChanged(
