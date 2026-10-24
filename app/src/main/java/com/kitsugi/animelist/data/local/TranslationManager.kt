@@ -7,6 +7,9 @@ import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import com.kitsugi.animelist.utils.isTechnicalTranslationValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -52,6 +55,57 @@ class TranslationManager(context: Context) {
         }
 
         private const val MAX_CHUNK_CHARS = 1400
+
+        /**
+         * Web sayfası (DOM) çevirisinde kullanılan parça boyutu.
+         *
+         * Google Translate'in tek istek sınırı 5000 karakterdir; genel çeviri yolu
+         * (açıklama/biyografi) kısmî akış grenliliği için 1400'de kalırken sayfa
+         * çevirisi işaretli paketleri tek istekte gönderebilmek için 3600 kullanır:
+         * aynı metin için yaklaşık 2,5 kat daha az ağ turu. Paket boyutu
+         * (bkz. `WikiDomTranslationBatch`) bu sınırın altında tutulur.
+         */
+        private const val WEB_MAX_CHUNK_CHARS = 3600
+
+        /**
+         * Süreç içi LRU önbelleği (Room'un ÖNÜNDE).
+         *
+         * Sayfa çevirisinde yüzlerce metin ard arda çevrilir; her biri için SQLite
+         * sorgusu çalıştırmak görünür gecikme üretiyordu. Bu katman aynı oturumda
+         * tekrarlanan metinleri (sayfaya geri dönüş, aynı paragraftan birden çok
+         * düğüm, parça tekrarları) disk erişimi olmadan döndürür. Anahtarlar Room
+         * ile birebir aynı özetlerdir; kalıcı katman değişmez.
+         */
+        private const val MEMORY_CACHE_MAX_ENTRIES = 600
+        private val memoryCache: MutableMap<String, String> = java.util.Collections.synchronizedMap(
+            object : LinkedHashMap<String, String>(128, 0.75f, true) {
+                override fun removeEldestEntry(
+                    eldest: MutableMap.MutableEntry<String, String>?
+                ): Boolean = size > MEMORY_CACHE_MAX_ENTRIES
+            }
+        )
+
+        private fun memoryGet(hash: String): String? = memoryCache[hash]?.takeIf { it.isNotBlank() }
+
+        private fun memoryPut(hash: String, value: String) {
+            if (value.isNotBlank()) memoryCache[hash] = value
+        }
+
+        // Maskeleme desenleri tek kez derlenir. Eskiden her çeviri çağrısında
+        // (~sayfa çevirisinde yüzlerce kez) yeniden Regex derleniyordu.
+        private val MEDIA_EMBED_REGEX = Regex(
+            """(?:!\[[^\]]*\]\((https?://[^\s)]+)\)|(?:img\d*|webm|youtube)\s*\(\s*([^\s)]+)\s*\))""",
+            RegexOption.IGNORE_CASE
+        )
+        private val LINK_REGEX = Regex("""\[([^\]]+)\]\((https?://[^\s)]+)\)""")
+        private val RAW_URL_REGEX = Regex("""https?://[^\s<>"'\)\]]+""")
+        private val WIKI_TOKEN_REGEX = Regex(
+            """\[\[[^\]]+\]\]|\{\{[^}]+\}\}|\b(?:File|Image|Category|Template|Dosya|Resim|Kategori|Şablon)\s*:\s*[^\s|]+|\b[\w.+-]+@[\w-]+\.[A-Za-z]{2,}\b""",
+            RegexOption.IGNORE_CASE
+        )
+        private val WIKI_NAMESPACE_WORDS = listOf(
+            "file", "image", "category", "template", "dosya", "resim", "kategori", "şablon"
+        )
     }
 
     private val dbContext = context.applicationContext
@@ -174,10 +228,17 @@ class TranslationManager(context: Context) {
 
         val hash = md5("${trimmed}_${resolvedSource}_${resolvedTarget}")
 
+        // 1a. Bellek önbelleği (Room'dan önce; değerler temizlenmiş hâliyle saklanır)
+        memoryGet(hash)?.let { memoryHit ->
+            onPartial?.let { runCatching { it(memoryHit) } }
+            return@withContext memoryHit
+        }
+
         // 1. Check local Room database cache
         val cached = runCatching { dao.getTranslation(hash) }.getOrNull()
         if (!cached.isNullOrBlank()) {
             val cleanedCached = cached.cleanShikimoriBbCode()
+            memoryPut(hash, cleanedCached)
             onPartial?.let { runCatching { it(cleanedCached) } }
             return@withContext cleanedCached
         }
@@ -191,6 +252,7 @@ class TranslationManager(context: Context) {
         // 3. Cache the success response in DB — YALNIZCA tam başarıda.
         //    Kısmî çeviriyi tam metin anahtarına yazmayız; sonraki açılışta kalan parçalar tamamlanır.
         if (result.fullyTranslated && translated.isNotBlank() && translated != trimmed) {
+            memoryPut(hash, translated)
             runCatching {
                 dao.insertTranslation(TranslationCacheEntity(hash, translated))
             }
@@ -212,6 +274,7 @@ class TranslationManager(context: Context) {
             val target = targetLang.trim().ifBlank { "tr" }
             if (source.equals(target, true) || isTechnicalTranslationValue(original)) return@withContext original
             val hash = md5("webdom-v1_${source}_${target}_$original")
+            memoryGet(hash)?.let { return@withContext it }
             val cached = try {
                 dao.getTranslation(hash)
             } catch (e: CancellationException) {
@@ -219,17 +282,28 @@ class TranslationManager(context: Context) {
             } catch (_: Exception) {
                 null
             }
-            if (!cached.isNullOrBlank()) return@withContext cached
+            if (!cached.isNullOrBlank()) {
+                memoryPut(hash, cached)
+                return@withContext cached
+            }
             // Mask within each chunk: token integrity must not require a URL token
             // belonging to another chunk of a long DOM text node.
-            val parts = ArrayList<String>()
-            for (chunk in splitIntoChunks(original, MAX_CHUNK_CHARS)) {
-                val result = fetchFromGoogle(chunk, source, target, null)
-                if (!result.fullyTranslated || result.text.isBlank()) return@withContext null
-                parts.add(result.text)
+            // Parçalar birbirinden bağımsızdır: eşzamanlılık kapısı (requestGate)
+            // ağı zaten sınırladığı için parçalar paralel istenir; sıra korunur.
+            val chunks = splitIntoChunks(original, WEB_MAX_CHUNK_CHARS)
+            val results = if (chunks.size == 1) {
+                listOf(fetchFromGoogle(chunks[0], source, target, null, WEB_MAX_CHUNK_CHARS))
+            } else {
+                coroutineScope {
+                    chunks.map { chunk ->
+                        async { fetchFromGoogle(chunk, source, target, null, WEB_MAX_CHUNK_CHARS) }
+                    }.awaitAll()
+                }
             }
-            val translated = parts.joinToString("\n\n")
+            if (results.any { !it.fullyTranslated || it.text.isBlank() }) return@withContext null
+            val translated = results.joinToString("\n\n") { it.text }
             if (translated.length > minOf(40_000, original.length * 6 + 256)) return@withContext null
+            memoryPut(hash, translated)
             try {
                 dao.insertTranslation(TranslationCacheEntity(hash, translated))
             } catch (e: CancellationException) {
@@ -239,6 +313,69 @@ class TranslationManager(context: Context) {
             }
             translated
         }
+
+    /**
+     * Tek bir sayfa metni için AĞSIZ önbellek sorgusu (bellek → Room).
+     *
+     * Sayfa çevirisi paketleri metin metin önbelleğe bakarak yalnızca eksikleri
+     * ağa gönderir; böylece paketin dizilişi değişse de (farklı kaydırma konumu,
+     * sayfaya dönüş) daha önce çevrilmiş paragraflar yeniden çevrilmez.
+     * `null` = önbellekte yok. Teknik metin / aynı dil durumunda çevrilmiş hâliyle
+     * aynı olan özgün metin döner (ağa gitmeye gerek yoktur).
+     */
+    suspend fun cachedWebPageText(text: String, sourceLang: String, targetLang: String): String? =
+        withContext(Dispatchers.IO) {
+            val original = text.trim()
+            if (original.isEmpty()) return@withContext original
+            val source = sourceLang.trim().ifBlank { "auto" }
+            val target = targetLang.trim().ifBlank { "tr" }
+            if (source.equals(target, true) || isTechnicalTranslationValue(original)) return@withContext original
+            val hash = md5("webdom-v1_${source}_${target}_$original")
+            memoryGet(hash)?.let { return@withContext it }
+            val cached = try {
+                dao.getTranslation(hash)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (!cached.isNullOrBlank()) memoryPut(hash, cached)
+            cached?.takeIf { it.isNotBlank() }
+        }
+
+    /**
+     * Paket hâlinde çevrilmiş sayfa metinlerini TEK TEK önbelleğe yazar.
+     *
+     * Anahtarlar [translateWebPageText] / [cachedWebPageText] ile aynıdır; toplu
+     * yazım tek Room işleminde yapılır. Yazım başarısızlığı çeviriyi etkilemez.
+     */
+    suspend fun storeWebPageTexts(
+        pairs: List<Pair<String, String>>,
+        sourceLang: String,
+        targetLang: String
+    ) {
+        if (pairs.isEmpty()) return
+        withContext(Dispatchers.IO) {
+            val source = sourceLang.trim().ifBlank { "auto" }
+            val target = targetLang.trim().ifBlank { "tr" }
+            val entities = pairs.mapNotNull { (originalText, translatedText) ->
+                val original = originalText.trim()
+                val translated = translatedText.trim()
+                if (original.isEmpty() || translated.isEmpty()) return@mapNotNull null
+                val hash = md5("webdom-v1_${source}_${target}_$original")
+                memoryPut(hash, translated)
+                TranslationCacheEntity(hash, translated)
+            }.distinctBy { it.originalHash }
+            if (entities.isEmpty()) return@withContext
+            try {
+                dao.insertTranslations(entities)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Cache failure must not discard valid translations.
+            }
+        }
+    }
 
     suspend fun translateTo(text: String?, targetLang: String): String = translateTo(text, "auto", targetLang)
 
@@ -269,29 +406,46 @@ class TranslationManager(context: Context) {
     )
 
     /**
+     * Maskelenmesi gereken hiçbir kalıp içermeyen düz metinler için hızlı karar.
+     *
+     * Korunan her kalıbın zorunlu tetikleyicisi aranır: bağlantı/gömme köşeli
+     * parantez veya `http`, şablon için `{{`, e-posta için `@`, spoiler için `~`,
+     * ad alanı için kelimenin kendisi + `:`. Hiçbiri yoksa maskeleme çıktısı
+     * girdinin aynısıdır ve jeton listeleri boştur; regex taramaları atlanabilir.
+     * Şüphe hâlinde (tetikleyici VARSA) her zamanki tam maskeleme çalışır —
+     * koruma davranışı değişmez.
+     */
+    private fun needsMasking(text: String): Boolean {
+        if (text.indexOfAny(charArrayOf('[', '{', '@', '~')) >= 0) return true
+        if (text.contains("http", ignoreCase = true)) return true
+        if ('(' in text && (text.contains("img", ignoreCase = true) ||
+                text.contains("webm", ignoreCase = true) ||
+                text.contains("youtube", ignoreCase = true))
+        ) return true
+        if (':' in text && WIKI_NAMESPACE_WORDS.any { text.contains(it, ignoreCase = true) }) return true
+        return false
+    }
+
+    /**
      * Markdown linklerini, medya etiketlerini (img/webm/youtube), spoiler işaretlerini
      * ve URL'leri Google Translate'in bozmasını önlemek için harf içermeyen sembolik
      * yer tutucularla maskeler (böylece Google Translate yer tutucu içindeki kelimeleri çeviremez).
      */
     private fun maskMarkdown(text: String): MaskedMarkdown {
+        if (!needsMasking(text)) return MaskedMarkdown(text, { it }, { true })
         var masked = text
 
         // 1. AniList / Markdown görsel ve video gömmeleri: img220(https://...), webm(https://...), ![](https://...)
-        val mediaEmbedRegex = Regex(
-            """(?:!\[[^\]]*\]\((https?://[^\s)]+)\)|(?:img\d*|webm|youtube)\s*\(\s*([^\s)]+)\s*\))""",
-            RegexOption.IGNORE_CASE
-        )
         val rawTokens = mutableListOf<String>()
-        masked = mediaEmbedRegex.replace(masked) { match ->
+        masked = MEDIA_EMBED_REGEX.replace(masked) { match ->
             val idx = rawTokens.size
             rawTokens.add(match.value)
             "⟪@$idx⟫"
         }
 
         // 2. Markdown linkleri: [Etiket](https://...)
-        val linkRegex = Regex("""\[([^\]]+)\]\((https?://[^\s)]+)\)""")
         val links = mutableListOf<Pair<String, String>>() // (label, url)
-        masked = linkRegex.replace(masked) { match ->
+        masked = LINK_REGEX.replace(masked) { match ->
             val idx = links.size
             val label = match.groupValues[1].trim()
             val url = match.groupValues[2].trim()
@@ -300,8 +454,7 @@ class TranslationManager(context: Context) {
         }
 
         // 3. Korunacak bağımsız URL'ler
-        val rawUrlRegex = Regex("""https?://[^\s<>"'\)\]]+""")
-        masked = rawUrlRegex.replace(masked) { match ->
+        masked = RAW_URL_REGEX.replace(masked) { match ->
             val idx = rawTokens.size
             rawTokens.add(match.value.trim())
             "⟪@$idx⟫"
@@ -310,11 +463,7 @@ class TranslationManager(context: Context) {
         // 3.5 Wiki'ye özgü korunacak jetonlar: [[Sayfa|Etiket]], {{şablon}}, File:/Image:/
         //     Category: ad alanı değerleri ve e-posta adresleri. Bunlar çevrilirse bağlantı
         //     hedefi ya da şablon adı bozulur; kullanıcı yanlış sayfaya düşer.
-        val wikiTokenRegex = Regex(
-            """\[\[[^\]]+\]\]|\{\{[^}]+\}\}|\b(?:File|Image|Category|Template|Dosya|Resim|Kategori|Şablon)\s*:\s*[^\s|]+|\b[\w.+-]+@[\w-]+\.[A-Za-z]{2,}\b""",
-            RegexOption.IGNORE_CASE
-        )
-        masked = wikiTokenRegex.replace(masked) { match ->
+        masked = WIKI_TOKEN_REGEX.replace(masked) { match ->
             val idx = rawTokens.size
             rawTokens.add(match.value.trim())
             "⟪@$idx⟫"
@@ -652,8 +801,10 @@ class TranslationManager(context: Context) {
         maxAttempts: Int = 3
     ): String? {
         val chunkHash = md5("chunk_${text}_${sourceLang}_${targetLang}")
+        memoryGet(chunkHash)?.let { return it }
         val cachedChunk = runCatching { dao.getTranslation(chunkHash) }.getOrNull()
         if (!cachedChunk.isNullOrBlank()) {
+            memoryPut(chunkHash, cachedChunk)
             return cachedChunk
         }
 
@@ -663,6 +814,7 @@ class TranslationManager(context: Context) {
             }
             if (!result.isNullOrBlank()) {
                 if (result != text) {
+                    memoryPut(chunkHash, result)
                     runCatching { dao.insertTranslation(TranslationCacheEntity(chunkHash, result)) }
                 }
                 return result
@@ -682,11 +834,12 @@ class TranslationManager(context: Context) {
         text: String,
         sourceLang: String,
         targetLang: String,
-        onPartial: ((String) -> Unit)? = null
+        onPartial: ((String) -> Unit)? = null,
+        chunkChars: Int = MAX_CHUNK_CHARS
     ): GoogleTranslationResult {
         return try {
             val mask = maskMarkdown(text)
-            val chunks = splitIntoChunks(mask.masked, maxChunkSize = MAX_CHUNK_CHARS)
+            val chunks = splitIntoChunks(mask.masked, maxChunkSize = chunkChars)
             val translatedChunks = mutableListOf<String>()
             var allSucceeded = true
 

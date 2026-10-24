@@ -64,6 +64,11 @@ internal class WikiPageEnhancements(
     @Volatile private var wikiDocument =
         WikiOriginalPagePolicy.destination(session.url) == WikiOriginalPagePolicy.Destination.WIKI
 
+    private companion object {
+        /** Aynı anda çevrilen paket sayısı; çevirmenin ağ kapısıyla (4 izin) aynıdır. */
+        const val MAX_IN_FLIGHT_BATCHES = 4
+    }
+
     /** WebView invokes this on background threads. No UI, IO, regex or JS evaluation here. */
     fun intercept(request: WebResourceRequest): WebResourceResponse? {
         if (disposed || !wikiDocument || !blocking.get() ||
@@ -180,30 +185,18 @@ internal class WikiPageEnhancements(
                 updateStatus(status)
                 session.documentTextRevision++
                 session.enhancementError = false
-                while (isActive && ready && id == documentId) {
-                    session.blockedRequests = blocked.get()
-                    evaluate("window.__kitsugiWikiAdsV1(${settings.blockAds});")
-                    if (!settings.translate) { delay(1000); continue }
-                    val batch = json("window.__kitsugiWikiDomV1.take(${JSONObject.quote(id)})")
-                    updateStatus(batch.optJSONObject("status"))
-                    val items = decodeItems(batch.optJSONArray("items"))
-                    if (items.isEmpty()) {
-                        delay(if (batch.optJSONObject("status")?.optBoolean("scanning") == true) 120 else 900)
-                        continue
-                    }
-                    session.translating = true
-                    val translated = try {
-                        WikiDomTranslationBatch.translate(items) { text ->
-                            translator.translateWebPageText(text, settings.source, settings.target)
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        items.map { WikiDomResult(it, null) }
-                    } finally {
-                        if (!disposed && run == runGeneration && id == documentId) session.translating = false
-                    }
-                    ensureActive()
+                // Boru hattı: eskiden döngü tek paketi alıp ağ yanıtını bekliyor, sonra
+                // 120 ms uyuyup sıradakine geçiyordu; 162 metin yirmiden çok ardışık
+                // ağ turu demekti. Şimdi en çok MAX_IN_FLIGHT_BATCHES paket aynı anda
+                // çevrilir (ağ eşzamanlılığı çevirmenin kapısında zaten sınırlı),
+                // JS köprüsü çağrıları (take/apply) bu coroutine'de sıralı kalır ve
+                // sonuçlar belge sırasıyla uygulanır.
+                val inFlight = mutableListOf<Deferred<List<WikiDomResult>>>()
+                var lastAdsAt = 0L
+
+                suspend fun applyOldest() {
+                    val translated = inFlight.removeAt(0).await()
+                    currentCoroutineContext().ensureActive()
                     val values = JSONArray().apply {
                         translated.forEach { result -> put(JSONObject().apply {
                             put("id", result.item.id)
@@ -217,10 +210,60 @@ internal class WikiPageEnhancements(
                     do {
                         applied = json("window.__kitsugiWikiDomV1.apply(${JSONObject.quote(id)},$values)")
                         if (applied.optBoolean("deferred")) delay(300)
-                    } while (isActive && applied.optBoolean("deferred"))
+                    } while (currentCoroutineContext().isActive && applied.optBoolean("deferred"))
                     updateStatus(applied.optJSONObject("status"))
                     if (!applied.optBoolean("stale")) session.documentTextRevision++
-                    delay(120)
+                    if (!disposed && run == runGeneration && id == documentId) {
+                        session.translating = inFlight.isNotEmpty()
+                    }
+                }
+
+                while (isActive && ready && id == documentId) {
+                    session.blockedRequests = blocked.get()
+                    // Reklam stilini her turda köprüden göndermek yerine en sık 2 sn'de
+                    // bir tazele; betik zaten yalnızca eksik/değişmişse dokunur.
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    if (now - lastAdsAt >= 2000) {
+                        lastAdsAt = now
+                        evaluate("window.__kitsugiWikiAdsV1(${settings.blockAds});")
+                    }
+                    if (!settings.translate) { delay(1000); continue }
+                    if (inFlight.size >= MAX_IN_FLIGHT_BATCHES) { applyOldest(); continue }
+                    val batch = json("window.__kitsugiWikiDomV1.take(${JSONObject.quote(id)})")
+                    updateStatus(batch.optJSONObject("status"))
+                    val items = decodeItems(batch.optJSONArray("items"))
+                    if (items.isEmpty()) {
+                        if (inFlight.isNotEmpty()) {
+                            applyOldest()
+                        } else {
+                            session.translating = false
+                            delay(if (batch.optJSONObject("status")?.optBoolean("scanning") == true) 120 else 900)
+                        }
+                        continue
+                    }
+                    session.translating = true
+                    inFlight.add(async {
+                        try {
+                            WikiDomTranslationBatch.translate(
+                                items,
+                                cached = { text ->
+                                    translator.cachedWebPageText(text, settings.source, settings.target)
+                                },
+                                store = { pairs ->
+                                    translator.storeWebPageTexts(pairs, settings.source, settings.target)
+                                }
+                            ) { text ->
+                                translator.translateWebPageText(text, settings.source, settings.target)
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            items.map { WikiDomResult(it, null) }
+                        }
+                    })
+                    // En eski paket biz sıradakini toplarken bitmişse bekletmeden uygula;
+                    // bitmemişse sabit gecikme olmadan sonraki paketi toplamaya devam et.
+                    if (inFlight.first().isCompleted) applyOldest()
                 }
             } catch (_: TimeoutCancellationException) {
                 if (!disposed && run == runGeneration && id == documentId) session.enhancementError = true
@@ -245,7 +288,7 @@ internal class WikiPageEnhancements(
 
     private fun decodeItems(array: JSONArray?): List<WikiDomText> {
         if (array == null) return emptyList()
-        require(array.length() <= 8)
+        require(array.length() <= WikiDomTranslationBatch.MAX_ROWS)
         return (0 until array.length()).map { index ->
             val item = array.getJSONObject(index)
             val text = item.getString("text")

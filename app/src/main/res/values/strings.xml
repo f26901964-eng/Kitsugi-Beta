@@ -17719,6 +17719,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_tools_info">Sayfa araçları hakkında</string>
     <string name="wiki_page_tools">Sayfa araçları</string>
     <string name="wiki_tools_translate_title">Çeviri</string>
+    <string name="wiki_translate_source_language">Çevrilen dil</string>
+    <string name="wiki_translate_target_language">Çevrilecek dil</string>
+    <string name="wiki_translate_language_search">Dil ara</string>
     <string name="wiki_tools_ad_block_title">Reklam engeli</string>
     <string name="wiki_tools_ad_block_blocked">%1$d istek engellendi</string>
     <string name="wiki_tools_status_title">Sayfa durumu</string>
@@ -17729,7 +17732,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="wiki_dom_no_article">Desteklenen makale alanı henüz bulunamadı; özgün içerik korunuyor.</string>
     <string name="wiki_tools_assets_failed">Sayfa araçları yüklenemedi. Yeniden deneyebilir veya sade okuyucuyu kullanabilirsiniz.</string>
     <string name="wiki_tools_save_failed">Sayfa tercihi kaydedilemedi. Lütfen yeniden deneyin.</string>
-    <string name="wiki_tools_explanation">Çeviri, uygulamanın otomatik çeviri ve kaynak/hedef dil ayarlarını izler. Makale metinleri mevcut uygulama içi Google çeviri servisine gönderilir; formlar ve düzenlenebilir alanlar gönderilmez. Harici çeviri uygulaması tercihi değiştirilmez.\n\nBağlantılar, görseller ve HTML öğeleri yerinde kalır; metin uzadığında satır yükseklikleri değişebilir. Gizli içerikler, tek harfli dekoratif başlıklar ve gömülü çerçeveler çevrilmez. Orijinal metne dönüş aynı belgede ağsızdır.\n\nReklam engeli bu wiki alan adı için hatırlanır. Değiştirince sayfa yeniden yüklenir. Alan adı filtresi ve reklam kutusu gizleme birlikte çalışır; tüm reklamların engellenmesi garanti değildir. Site bozulursa bu wiki için kapatabilirsiniz.</string>
+    <string name="wiki_tools_explanation">Çeviri, uygulamanın otomatik çeviri ve kaynak/hedef dil ayarlarını izler; çevrilen ve çevrilecek dili sayfa araçlarından da değiştirebilirsiniz (seçim uygulama ayarlarıyla aynıdır, dil seçmek bu sayfada çeviriyi açar). Makale metinleri mevcut uygulama içi Google çeviri servisine gönderilir; formlar ve düzenlenebilir alanlar gönderilmez. Harici çeviri uygulaması tercihi değiştirilmez.\n\nBağlantılar, görseller ve HTML öğeleri yerinde kalır; metin uzadığında satır yükseklikleri değişebilir. Gizli içerikler, tek harfli dekoratif başlıklar ve gömülü çerçeveler çevrilmez. Orijinal metne dönüş aynı belgede ağsızdır.\n\nReklam engeli bu wiki alan adı için hatırlanır. Değiştirince sayfa yeniden yüklenir. Alan adı filtresi ve reklam kutusu gizleme birlikte çalışır; tüm reklamların engellenmesi garanti değildir. Site bozulursa bu wiki için kapatabilirsiniz.</string>
     <string name="wiki_filter_attribution">%1$d alan adı kuralı · StevenBlack katkı listesi (MIT) + Kitsugi reklam ağı kuralları. Sabit liste sürümü: %2$s. Kaynak: github.com/StevenBlack/hosts. Tam tarayıcı eklentisi veya EasyList motoru değildir.</string>
     <string name="wiki_tools_preferences_failed">Ayarlar okunamadı. Otomatik çeviri kapalı, reklam engeli varsayılan olarak açık tutuldu. Ayarları yeniden yükleyin.</string>
     <string name="wiki_tools_script_failed">Sayfa araçları bu belgede çalıştırılamadı. Özgün içerik korunuyor; yeniden deneyebilirsiniz.</string>

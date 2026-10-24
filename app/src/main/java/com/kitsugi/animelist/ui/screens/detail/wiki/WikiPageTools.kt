@@ -2,6 +2,8 @@ package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -9,7 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Translate
@@ -31,6 +35,7 @@ import com.kitsugi.animelist.ui.components.DisableDialogWindowForceDark
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils
 
 /**
  * Sayfa araçlarının tek giriş noktası.
@@ -69,6 +74,20 @@ internal class WikiPageToolsController {
     }
 }
 
+/** Sayfa araçlarından açılan dil seçicisinin hangi yönü düzenlediği. */
+private enum class WikiLanguagePickerKind { SOURCE, TARGET }
+
+/** Dil kodunun katalogdaki adı; kaynak tarafta "auto" otomatik algılamadır. */
+@Composable
+private fun wikiLanguageName(code: String): String =
+    if (code.equals("auto", ignoreCase = true)) {
+        stringResource(R.string.translate_auto_detect)
+    } else {
+        KitsugiTranslateUtils.googleLanguageCatalog
+            .firstOrNull { it.first.equals(code, ignoreCase = true) }?.second
+            ?: code.uppercase()
+    }
+
 @Composable
 internal fun WikiPageTools(
     session: WikiOriginalSession,
@@ -79,11 +98,19 @@ internal fun WikiPageTools(
     preferenceFailed: Boolean,
     onSaveAppearance: (String, Int) -> Unit,
     onToggleAds: () -> Unit,
-    controller: WikiPageToolsController? = null
+    controller: WikiPageToolsController? = null,
+    /**
+     * Çeviri kaynak/hedef dili seçimi BURADAN yapılır; uygulama ayarlarına
+     * gidilmesine gerek yoktur. Seçim aynı küresel ayara yazılır, böylece
+     * Ayarlar sayfasıyla her zaman senkron kalır.
+     */
+    onSelectSourceLanguage: (String) -> Unit = {},
+    onSelectTargetLanguage: (String) -> Unit = {}
 ) {
     var showTools by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var languagePicker by remember { mutableStateOf<WikiLanguagePickerKind?>(null) }
 
     val host = remember(session.url) {
         runCatching { android.net.Uri.parse(session.url).host }.getOrNull().orEmpty()
@@ -109,6 +136,11 @@ internal fun WikiPageTools(
             translateOn = config.translate,
             translateDetail = translateDetail,
             translateEnabled = preferences != null && assets != null,
+            sourceLanguageName = wikiLanguageName(config.source),
+            targetLanguageName = wikiLanguageName(config.target),
+            languageEnabled = preferences != null && !savingPreference,
+            onOpenSourcePicker = { languagePicker = WikiLanguagePickerKind.SOURCE },
+            onOpenTargetPicker = { languagePicker = WikiLanguagePickerKind.TARGET },
             adsOn = config.blockAds,
             adsDetail = when {
                 !config.blockAds -> null
@@ -128,6 +160,39 @@ internal fun WikiPageTools(
             onOpenInfo = { showTools = false; showInfo = true },
             onRetry = { session.translationRetry++ },
             onDismiss = { showTools = false }
+        )
+    }
+
+    languagePicker?.let { kind ->
+        val autoName = stringResource(R.string.translate_auto_detect)
+        WikiLanguagePickerDialog(
+            title = stringResource(
+                if (kind == WikiLanguagePickerKind.SOURCE) R.string.settings_translate_source
+                else R.string.settings_translate_target
+            ),
+            options = remember(kind, autoName) {
+                val catalog = KitsugiTranslateUtils.googleLanguageCatalog
+                if (kind == WikiLanguagePickerKind.SOURCE) listOf("auto" to autoName) + catalog else catalog
+            },
+            selectedCode = if (kind == WikiLanguagePickerKind.SOURCE) config.source else config.target,
+            onDismiss = { languagePicker = null },
+            onSelect = { code ->
+                languagePicker = null
+                // Dil seçmek = bu dile çevirmek istemektir: çeviri kapalıysa bu
+                // sayfada açılır. Dil değişimi ayar akışıyla geldiğinde manuel
+                // seçim sıfırlanır; bekleyen bayrak seçimin kaybolmasını önler.
+                val current = if (kind == WikiLanguagePickerKind.SOURCE) config.source else config.target
+                if (code.equals(current, ignoreCase = true)) {
+                    session.translationOverride = true
+                } else {
+                    session.pendingTranslationEnable = true
+                    if (kind == WikiLanguagePickerKind.SOURCE) {
+                        onSelectSourceLanguage(code)
+                    } else {
+                        onSelectTargetLanguage(code)
+                    }
+                }
+            }
         )
     }
 
@@ -189,6 +254,11 @@ private fun WikiPageToolsDialog(
     translateOn: Boolean,
     translateDetail: String?,
     translateEnabled: Boolean,
+    sourceLanguageName: String,
+    targetLanguageName: String,
+    languageEnabled: Boolean,
+    onOpenSourcePicker: () -> Unit,
+    onOpenTargetPicker: () -> Unit,
     adsOn: Boolean,
     adsDetail: String?,
     adsEnabled: Boolean,
@@ -235,6 +305,18 @@ private fun WikiPageToolsDialog(
                     enabled = translateEnabled,
                     accentColor = accentColor,
                     onCheckedChange = onToggleTranslate
+                )
+                WikiToolLanguageRow(
+                    title = stringResource(R.string.wiki_translate_source_language),
+                    value = sourceLanguageName,
+                    enabled = languageEnabled,
+                    onClick = onOpenSourcePicker
+                )
+                WikiToolLanguageRow(
+                    title = stringResource(R.string.wiki_translate_target_language),
+                    value = targetLanguageName,
+                    enabled = languageEnabled,
+                    onClick = onOpenTargetPicker
                 )
                 WikiToolSwitchRow(
                     icon = Icons.Rounded.Security,
@@ -400,6 +482,167 @@ private fun WikiToolActionRow(
             modifier = Modifier.weight(1f)
         )
     }
+}
+
+/** Çeviri anahtarının altındaki dil seçim satırı: başlık + seçili dil + açılır işaret. */
+@Composable
+private fun WikiToolLanguageRow(
+    title: String,
+    value: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(shape)
+            .tvClickable(enabled = enabled, shape = shape, onClick = onClick)
+            .padding(start = 32.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Language,
+            contentDescription = null,
+            tint = if (enabled) KitsugiColors.TextSecondary else KitsugiColors.TextMuted.copy(alpha = 0.5f),
+            modifier = Modifier.size(16.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                color = KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            imageVector = Icons.Rounded.ArrowDropDown,
+            contentDescription = null,
+            tint = if (enabled) KitsugiColors.TextSecondary else KitsugiColors.TextMuted.copy(alpha = 0.5f),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+/**
+ * Aranabilir dil seçici. Katalog ~130 dil olduğu için düz kaydırma yerine
+ * arama + LazyColumn kullanılır; satırlar yalnızca görünürken bileşir.
+ */
+@Composable
+private fun WikiLanguagePickerDialog(
+    title: String,
+    options: List<Pair<String, String>>,
+    selectedCode: String,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
+    val accentColor = LocalKitsugiAccent.current
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(options, query) {
+        val needle = query.trim()
+        if (needle.isEmpty()) {
+            options
+        } else {
+            options.filter { (code, name) ->
+                name.contains(needle, ignoreCase = true) || code.contains(needle, ignoreCase = true)
+            }
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = KitsugiColors.Surface,
+        titleContentColor = KitsugiColors.TextPrimary,
+        textContentColor = KitsugiColors.TextSecondary,
+        title = {
+            DisableDialogWindowForceDark()
+            Text(title, color = KitsugiColors.TextPrimary)
+        },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it.take(64) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = KitsugiColors.TextPrimary,
+                        unfocusedTextColor = KitsugiColors.TextPrimary,
+                        cursorColor = KitsugiColors.TextPrimary,
+                        focusedBorderColor = KitsugiColors.TextPrimary,
+                        unfocusedBorderColor = KitsugiColors.TextSecondary,
+                        focusedLabelColor = KitsugiColors.TextPrimary,
+                        unfocusedLabelColor = KitsugiColors.TextSecondary
+                    ),
+                    label = { Text(stringResource(R.string.wiki_translate_language_search)) },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Search, contentDescription = null, tint = KitsugiColors.TextSecondary)
+                    },
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).selectableGroup()
+                ) {
+                    items(filtered, key = { it.first }) { (code, name) ->
+                        val selected = code.equals(selectedCode, ignoreCase = true)
+                        val rowShape = RoundedCornerShape(10.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .clip(rowShape)
+                                .background(
+                                    if (selected) accentColor.copy(alpha = 0.14f) else Color.Transparent
+                                )
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = { onSelect(code) }
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selected,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = accentColor,
+                                    unselectedColor = KitsugiColors.TextSecondary
+                                )
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = name,
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = code,
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary),
+                onClick = onDismiss
+            ) { Text(stringResource(R.string.kapat)) }
+        }
+    )
 }
 
 /** Sayfa araçları sayfasında listelenecek kısa durum/uyarı satırları. */
