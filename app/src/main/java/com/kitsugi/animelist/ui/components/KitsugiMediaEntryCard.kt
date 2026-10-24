@@ -23,9 +23,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -67,7 +69,7 @@ fun KitsugiMediaEntryCard(
     layoutId: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
-    onIncrementClick: () -> Unit = {},
+    onEditClick: (() -> Unit)? = null,
     titleLanguage: String = "ROMAJI",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
@@ -105,7 +107,7 @@ fun KitsugiMediaEntryCard(
                 entry = entry,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onClick,
-                onIncrementClick = onIncrementClick,
+                onEditClick = onEditClick,
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
@@ -117,7 +119,7 @@ fun KitsugiMediaEntryCard(
                 entry = entry,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onClick,
-                onIncrementClick = onIncrementClick,
+                onEditClick = onEditClick,
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
@@ -129,7 +131,7 @@ fun KitsugiMediaEntryCard(
                 entry = entry,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onClick,
-                onIncrementClick = onIncrementClick,
+                onEditClick = onEditClick,
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
@@ -152,7 +154,7 @@ fun KitsugiMediaEntryCard(
                 entry = entry,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onClick,
-                onIncrementClick = onIncrementClick,
+                onEditClick = onEditClick,
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
@@ -174,7 +176,7 @@ private fun CompactMediaEntryCard(
     entry: MediaEntry,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onIncrementClick: () -> Unit,
+    onEditClick: (() -> Unit)?,
     titleLanguage: String,
     scoreFormat: String,
     hideScores: Boolean,
@@ -302,10 +304,10 @@ private fun CompactMediaEntryCard(
             }
 
             val isTv = LocalIsTv.current
-            if (!isTv) {
+            if (!isTv && onEditClick != null) {
                 Spacer(modifier = Modifier.width(10.dp))
-                QuickIncrementButton(
-                    onClick = onIncrementClick
+                QuickEditButton(
+                    onClick = onEditClick
                 )
             }
         }
@@ -318,7 +320,7 @@ private fun ComfortableMediaEntryCard(
     entry: MediaEntry,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onIncrementClick: () -> Unit,
+    onEditClick: (() -> Unit)?,
     titleLanguage: String,
     scoreFormat: String,
     hideScores: Boolean,
@@ -468,10 +470,10 @@ private fun ComfortableMediaEntryCard(
             }
 
             val isTv = LocalIsTv.current
-            if (!isTv) {
+            if (!isTv && onEditClick != null) {
                 Spacer(modifier = Modifier.width(10.dp))
-                QuickIncrementButton(
-                    onClick = onIncrementClick
+                QuickEditButton(
+                    onClick = onEditClick
                 )
             }
         }
@@ -484,7 +486,7 @@ private fun LargeMediaEntryCard(
     entry: MediaEntry,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onIncrementClick: () -> Unit,
+    onEditClick: (() -> Unit)?,
     titleLanguage: String,
     scoreFormat: String,
     hideScores: Boolean,
@@ -644,9 +646,9 @@ private fun LargeMediaEntryCard(
                         }
 
                         val isTv = LocalIsTv.current
-                        if (!isTv) {
-                            QuickIncrementButton(
-                                onClick = onIncrementClick
+                        if (!isTv && onEditClick != null) {
+                            QuickEditButton(
+                                onClick = onEditClick
                             )
                         }
                     }
@@ -765,9 +767,9 @@ private fun LargeMediaEntryCard(
                         }
 
                     val isTv = LocalIsTv.current
-                    if (!isTv) {
-                        QuickIncrementButton(
-                            onClick = onIncrementClick
+                    if (!isTv && onEditClick != null) {
+                        QuickEditButton(
+                            onClick = onEditClick
                         )
                     }
                 }
@@ -776,28 +778,34 @@ private fun LargeMediaEntryCard(
     }
 }
 
+/**
+ * Listem satır kartlarındaki düzenleme kısayolu. Kayıt zaten listede olduğu için
+ * "+" (listeye ekle / +1 bölüm) değil kalem ikonu gösterilir; tıklanınca detay
+ * sayfasına girmeden liste düzenleme sayfası açılır.
+ */
 @Composable
-private fun QuickIncrementButton(
+private fun QuickEditButton(
     onClick: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
 
+    val shape = RoundedCornerShape(999.dp)
     Box(
         modifier = Modifier
             .size(38.dp)
-            .clip(RoundedCornerShape(999.dp))
+            .clip(shape)
             .background(accentColor.copy(alpha = 0.12f))
             .border(
                 width = 1.5.dp,
                 color = accentColor.copy(alpha = 0.55f),
-                shape = RoundedCornerShape(999.dp)
+                shape = shape
             )
-            .tvClickable(shape = RoundedCornerShape(999.dp), onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.Rounded.Add,
-            contentDescription = stringResource(R.string.arti_1_ekle),
+            imageVector = Icons.Rounded.Edit,
+            contentDescription = stringResource(R.string.duzenle),
             tint = accentColor,
             modifier = Modifier.size(20.dp)
         )
@@ -1088,7 +1096,7 @@ private fun MinimalistMediaEntryCard(
     entry: MediaEntry,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onIncrementClick: () -> Unit,
+    onEditClick: (() -> Unit)?,
     titleLanguage: String,
     scoreFormat: String,
     hideScores: Boolean,
@@ -1217,10 +1225,10 @@ private fun MinimalistMediaEntryCard(
             }
 
             val isTv = LocalIsTv.current
-            if (!isTv) {
+            if (!isTv && onEditClick != null) {
                 Spacer(modifier = Modifier.width(10.dp))
-                QuickIncrementButton(
-                    onClick = onIncrementClick
+                QuickEditButton(
+                    onClick = onEditClick
                 )
             }
         }

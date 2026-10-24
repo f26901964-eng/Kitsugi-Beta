@@ -452,8 +452,7 @@ fun KitsugiUserMediaListScreen(
                                 blurAdultMedia = appSettings.blurAdultMedia,
                                 gridColumns = gridColumns,
                                 onEntryClick = ::openEntry,
-                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
-                                onIncrementProgress = ::openEntry,
+                                // Başkasının listesi değiştirilemez; düzenleme kısayolu gizlenir.
                                 onPosterLongClick = { imageUrl ->
                                     activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
                                 }
@@ -468,8 +467,7 @@ fun KitsugiUserMediaListScreen(
                                 blurAdultMedia = appSettings.blurAdultMedia,
                                 gridColumns = gridColumns,
                                 onEntryClick = ::openEntry,
-                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
-                                onIncrementProgress = ::openEntry,
+                                // Başkasının listesi değiştirilemez; düzenleme kısayolu gizlenir.
                                 onPosterLongClick = { imageUrl ->
                                     activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
                                 }

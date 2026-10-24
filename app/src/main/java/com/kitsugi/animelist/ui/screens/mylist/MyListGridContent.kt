@@ -35,7 +35,7 @@ internal fun LazyListScope.MyListGroupedContent(
     gridColumns: Int = 3,
     sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit
 ) {
     val isGrid = selectedListLayoutId == "grid_2col"
@@ -101,7 +101,7 @@ internal fun LazyListScope.MyListGroupedContent(
                     entry = entry,
                     layoutId = selectedListLayoutId,
                     onClick = { onEntryClick(entry) },
-                    onIncrementClick = { onIncrementProgress(entry) },
+                    onEditClick = onEditEntry?.let { edit -> { edit(entry) } },
                     titleLanguage = titleLanguage,
                     scoreFormat = scoreFormat,
                     hideScores = hideScores,
@@ -130,7 +130,7 @@ internal fun LazyListScope.MyListFlatContent(
     gridColumns: Int = 3,
     sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit
 ) {
     val isGrid = selectedListLayoutId == "grid_2col"
@@ -177,7 +177,7 @@ internal fun LazyListScope.MyListFlatContent(
                 entry = entry,
                 layoutId = selectedListLayoutId,
                 onClick = { onEntryClick(entry) },
-                onIncrementClick = { onIncrementProgress(entry) },
+                onEditClick = onEditEntry?.let { edit -> { edit(entry) } },
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,

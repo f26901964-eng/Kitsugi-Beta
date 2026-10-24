@@ -384,8 +384,9 @@ fun MyListScreen(
         ListStats.from(selectedTabEntries)
     }
 
-    fun incrementEntryProgress(entry: MediaEntry) {
-        viewModel.incrementEntryProgress(entry)
+    fun openListEditor(entry: MediaEntry) {
+        isAddingBangumiEntry = false
+        editingEntry = entry
     }
 
     val configuration = LocalConfiguration.current
@@ -660,7 +661,7 @@ fun MyListScreen(
                         }
                     },
                     onEntryClick = onEntryClick,
-                    onIncrementProgress = { incrementEntryProgress(it) },
+                    onEditEntry = { openListEditor(it) },
                     onPosterLongClick = { imageUrl ->
                         activeZoomImageUrl = imageUrl
                         val zoomEntry = visibleEntries.find { it.imageUrl == imageUrl }
@@ -930,6 +931,8 @@ fun MyListScreen(
     editingEntry?.let { entry ->
         KitsugiMediaEntryEditorDialog(
             initialEntry = entry,
+            source = entry.source,
+            scoreFormat = appSettings.scoreFormat,
             onDismiss = {
                 editingEntry = null
                 isAddingBangumiEntry = false

@@ -848,7 +848,7 @@ fun MyListContentPage(
     onLogin: () -> Unit,
     onRefresh: () -> Unit,
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit,
     accentColor: Color,
     horizontalPadding: Dp
@@ -967,7 +967,7 @@ fun MyListContentPage(
                         gridColumns = gridColumns,
                         sourceBadgesByEntryId = sourceBadgesByEntryId,
                         onEntryClick = onEntryClick,
-                        onIncrementProgress = onIncrementProgress,
+                        onEditEntry = onEditEntry,
                         onPosterLongClick = onPosterLongClick
                     )
                 } else {
@@ -981,7 +981,7 @@ fun MyListContentPage(
                         gridColumns = gridColumns,
                         sourceBadgesByEntryId = sourceBadgesByEntryId,
                         onEntryClick = onEntryClick,
-                        onIncrementProgress = onIncrementProgress,
+                        onEditEntry = onEditEntry,
                         onPosterLongClick = onPosterLongClick
                     )
                 }
