@@ -348,6 +348,62 @@ object CrossSyncPolicy {
      */
     fun shouldRetry(errors: List<String>, skipped: List<String>): Boolean = errors.isNotEmpty()
 
+    /**
+     * MAL kimliğinin kanıt türü — çapraz yazım kapısının tek girdisi.
+     *
+     * `NATIVE`  : satır MAL'ın kendisi (ya da elle eklenmiş kayıt) → kimlik kaynağından gelir,
+     *             hiçbir çapraz doğrulama gerekmez.
+     * `REFERENCE`: kimlik başka bir sağlayıcının resmî referansından (AniList `idMal`, ARM,
+     *             Kitsu `mappings`, Simkl/Shikimori kimliği) çözüldü.
+     * `GUESS`   : kimlik yalnızca başlık aramasıyla tahmin edildi → hedefin kendi kataloğu
+     *             doğrulamıyorsa yazılmaz.
+     */
+    enum class MalIdOrigin { NATIVE, REFERENCE, GUESS }
+
+    private val nativeMalSources = setOf("mal", "myanimelist", "manual")
+
+    /**
+     * KİMLİĞİ KENDİ KATALOĞUNDA DOĞRULAYABİLEN hedefler:
+     * AniList `Media.idMal`, Kitsu resmî `mappings`, Simkl `ids.mal`. Bunlar verilen MAL
+     * kimliğini hedef tarafında birebir teyit eder; başlık tahminiyle gelen bir kimlik bile
+     * yanlış kayda yazılmaz (hedef eşleşme yoksa "atlandı" olur).
+     */
+    private val selfVerifyingTargets = setOf("anilist", "kitsu", "simkl")
+
+    fun malIdOrigin(rowSource: String?, identity: CrossProviderIds): MalIdOrigin {
+        if (identity.malId == null) return MalIdOrigin.NATIVE
+        if (CrossProviderIds.normalizeSource(rowSource) in nativeMalSources) return MalIdOrigin.NATIVE
+        val via = identity.via["mal"]?.lowercase().orEmpty()
+        // Nereden geldiği bilinmiyorsa tahmin sayılır: güvenli taraf.
+        if (via.isBlank()) return MalIdOrigin.GUESS
+        return if (via.contains("arama") || via.contains("search")) MalIdOrigin.GUESS else MalIdOrigin.REFERENCE
+    }
+
+    /**
+     * [target] kaynağına yazılabilir mi?
+     *
+     * Kural: `Rejected` (katalog çelişkisi) her zaman engeller. Aksi hâlde satırın kendi
+     * kaynağına yazım serbesttir; diğer hedefler için belirleyici olan MAL kimliğinin
+     * kanıt türüdür. Eskiden burada `Unverifiable` de engelliyordu — yıl alanı boş olan
+     * ya da MAL kataloğu o an okunamayan HER satır altı kaynağın beşine yazılmıyordu.
+     */
+    fun allowsWrite(
+        target: String,
+        rowSource: String?,
+        identity: CrossProviderIds,
+        verdictBlocked: Boolean
+    ): Boolean {
+        if (verdictBlocked) return false
+        val targetKey = CrossProviderIds.normalizeSource(target)
+        if (targetKey == CrossProviderIds.normalizeSource(rowSource)) return true
+        if (identity.malId == null) return true
+        return when (malIdOrigin(rowSource, identity)) {
+            MalIdOrigin.NATIVE, MalIdOrigin.REFERENCE -> true
+            MalIdOrigin.GUESS -> targetKey in selfVerifyingTargets
+        }
+    }
+
+
     /** Eşitleme özetinde gösterilecek sonuç satırı. */
     fun summarize(outcomes: Map<String, String>): String =
         outcomes.entries.joinToString(", ") { (platform, outcome) -> "$platform: $outcome" }
@@ -452,7 +508,13 @@ object CrossProviderIdentityResolver {
         connected: ConnectedSources = ConnectedSources.All
     ): Boolean = when (entry.type) {
         MediaType.Anime, MediaType.Manga ->
-            (ids.malId != null || !connected.mal) &&
+            // MAL kimliği bağlantı durumundan BAĞIMSIZ olarak zorunludur: diğer beş
+            // kaynağın neredeyse tamamı MAL kimliği üzerinden çözülür ve bu kimlik
+            // sonradan "tamam" işaretli önbellekten bir daha hesaplanmaz. Eskiden MAL
+            // bağlı değilken `malId == null` "tamam" sayılıyordu; kullanıcı MAL'ı
+            // sonradan bağladığında satır önbellekten geldiği için MAL'a hiçbir zaman
+            // yazılmıyordu (sessiz kalıcı kayıp).
+            ids.malId != null &&
                 (ids.aniListId != null || !connected.aniList) &&
                 (ids.kitsuId != null || !connected.kitsu) &&
                 (ids.bangumiSubjectId != null || !connected.bangumi) &&
@@ -595,7 +657,15 @@ object CrossProviderIdentityResolver {
         // 6) Son çare: MAL kataloğunda sıkı başlık araması (tek ve net eşleşme).
         // Adaylar sırayla denenir: Bangumi satırında İngilizce çoğu zaman yoktur ve görünen
         // başlık Çince olabilir; Jikan'da net eşleşme verecek alan özgün Japonca başlıktır.
-        if (ids.malId == null && connected.mal && CrossSyncPolicy.supportsMal(entry.type)) {
+        //
+        // KAPI `connected.mal` DEĞİL: MAL kimliği MAL'a yazmak için değil, **Shikimori'nin
+        // `target_id`si** ve Kitsu'nun `mappings` köprüsü için de gerekir. Kullanıcı MAL'ı
+        // hiç bağlamamış ama Shikimori/Kitsu/Bangumi bağlamışsa bu adım atlanıyordu ve o
+        // kaynaklar "kimlik çözülemedi" diye sessizce atlanıyordu. Arama Jikan üzerinden
+        // anonim yapılır; ek yetki gerektirmez.
+        val malIdUseful = connected.mal || connected.shikimori || connected.kitsu ||
+            connected.bangumi || connected.aniList
+        if (ids.malId == null && malIdUseful && CrossSyncPolicy.supportsMal(entry.type)) {
             val searchTitles = listOfNotNull(entry.titleEnglish, entry.titleJapanese, entry.title)
                 .map { it.trim() }
                 .filter { it.isNotBlank() }

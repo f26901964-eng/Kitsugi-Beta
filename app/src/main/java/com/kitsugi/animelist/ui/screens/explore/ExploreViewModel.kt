@@ -51,14 +51,6 @@ private fun localizedSimklStatusItems(
  */
 enum class ExploreErrorType { None, TmdbError, AniListError, MalError }
 
-/**
- * Bangumi Keşfet şeridi başına üst süre sınırı.
- *
- * Şeritler paralel çalışır; bu tavan **toplam** süreyi değil, en yavaş şeridin süresini
- * sınırlar. Asılı bir istek tüm vitrini dakikalarca boş bırakmasın diye 15 sn seçildi.
- */
-private const val BANGUMI_SHELF_TIMEOUT_MS = 15_000L
-
 class ExploreViewModel(application: Application) : AndroidViewModel(application) {
 
     private val apiClient = JikanApiClient(
@@ -884,42 +876,25 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val context = getApplication<Application>().applicationContext
         val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
 
-        /**
-         * Tek bir şeridin tüm vitrini kilitlemesini engeller.
-         *
-         * `supervisorScope` bir şerit hata verse bile diğerlerini sürdürür; ancak **asılı**
-         * bir şerit (yanıtı gelmeyen istek) tüm `ExplorePayload`'un dönmesini geciktirir ve
-         * kullanıcı bu sırada boş/iskelet ekran görür. Her şerit kendi süre tavanıyla
-         * sınırlandığında vitrin en geç [BANGUMI_SHELF_TIMEOUT_MS] içinde çizilir.
-         */
-        suspend fun shelf(
-            block: suspend () -> List<com.kitsugi.animelist.data.remote.JikanSearchResult>
-        ): List<com.kitsugi.animelist.data.remote.JikanSearchResult> =
-            withTimeoutOrNull(BANGUMI_SHELF_TIMEOUT_MS) {
-                runCatching { block() }.getOrDefault(emptyList())
-            } ?: emptyList()
-
-        val topAnimeDeferred = async { shelf { bangumi.topAnime(20, context) } }
-        val trendingAnimeDeferred = async { shelf { bangumi.trendingAnime(20, context) } }
-        val topRatedAnimeDeferred = async { shelf { bangumi.topRatedAnime(20, context) } }
-        val seasonalAnimeDeferred = async { shelf { bangumi.seasonalAnime(20, context) } }
-        val airingAnimeDeferred = async { shelf { bangumi.airingAnime(20, context) } }
-        val upcomingAnimeDeferred = async { shelf { bangumi.upcomingAnime(20, context) } }
-        val movieAnimeDeferred = async { shelf { bangumi.movieAnime(20, context) } }
-        val bangumiTvShowsDeferred = async { shelf { bangumi.realTvShows(20, context) } }
-        val bangumiMoviesDeferred = async { shelf { bangumi.realMovies(20, context) } }
-        val newlyAddedAnimeDeferred = async { shelf { bangumi.newlyAddedAnime(20, context) } }
-        val topMangaDeferred = async { shelf { bangumi.topManga(20, context) } }
-        val publishingMangaDeferred = async { shelf { bangumi.publishingManga(20, context) } }
-        val trendingMangaDeferred = async { shelf { bangumi.trendingManga(20, context) } }
-        val topRatedMangaDeferred = async { shelf { bangumi.topRatedManga(20, context) } }
+        val topAnimeDeferred = async { runCatching { bangumi.topAnime(20, context) }.getOrDefault(emptyList()) }
+        val trendingAnimeDeferred = async { runCatching { bangumi.trendingAnime(20, context) }.getOrDefault(emptyList()) }
+        val topRatedAnimeDeferred = async { runCatching { bangumi.topRatedAnime(20, context) }.getOrDefault(emptyList()) }
+        val seasonalAnimeDeferred = async { runCatching { bangumi.seasonalAnime(20, context) }.getOrDefault(emptyList()) }
+        val airingAnimeDeferred = async { runCatching { bangumi.airingAnime(20, context) }.getOrDefault(emptyList()) }
+        val upcomingAnimeDeferred = async { runCatching { bangumi.upcomingAnime(20, context) }.getOrDefault(emptyList()) }
+        val movieAnimeDeferred = async { runCatching { bangumi.movieAnime(20, context) }.getOrDefault(emptyList()) }
+        val bangumiTvShowsDeferred = async { runCatching { bangumi.realTvShows(20, context) }.getOrDefault(emptyList()) }
+        val bangumiMoviesDeferred = async { runCatching { bangumi.realMovies(20, context) }.getOrDefault(emptyList()) }
+        val newlyAddedAnimeDeferred = async { runCatching { bangumi.newlyAddedAnime(20, context) }.getOrDefault(emptyList()) }
+        val topMangaDeferred = async { runCatching { bangumi.topManga(20, context) }.getOrDefault(emptyList()) }
+        val publishingMangaDeferred = async { runCatching { bangumi.publishingManga(20, context) }.getOrDefault(emptyList()) }
+        val trendingMangaDeferred = async { runCatching { bangumi.trendingManga(20, context) }.getOrDefault(emptyList()) }
+        val topRatedMangaDeferred = async { runCatching { bangumi.topRatedManga(20, context) }.getOrDefault(emptyList()) }
         // Bangumi bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
-        val airingSoonDeferred = async {
-            withTimeoutOrNull(BANGUMI_SHELF_TIMEOUT_MS) { fetchSharedAiringSoon() }.orEmpty()
-        }
+        val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         // Vitrin arka planları veri yolunu BLOKE ETMEZ — prepareHomeHeroes() asenkron çözer.
-        val enrichedTopAnime = topAnimeDeferred.await()
+        val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         ExplorePayload(
             topAnime = enrichedTopAnime,
@@ -936,7 +911,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),
             topRatedAnime = topRatedAnimeDeferred.await(),
             topRatedManga = topRatedMangaDeferred.await(),
-            airingSoonAnime = airingSoonDeferred.await()
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
         )
     }
 

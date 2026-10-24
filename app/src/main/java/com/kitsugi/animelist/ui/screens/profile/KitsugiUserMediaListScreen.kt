@@ -76,9 +76,15 @@ import com.kitsugi.animelist.ui.screens.mylist.MyListFlatContent
 import com.kitsugi.animelist.ui.screens.mylist.MyListGroupedContent
 import com.kitsugi.animelist.ui.screens.mylist.MyListHeaderSection
 import com.kitsugi.animelist.ui.screens.mylist.MyListSingleSourceBar
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SORT_DEFAULT
+import com.kitsugi.animelist.ui.screens.mylist.MyListAddedPeriodContent
 import com.kitsugi.animelist.ui.screens.mylist.applySort
 import com.kitsugi.animelist.ui.screens.mylist.filterMyListEntries
+import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntriesByAddedPeriod
 import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntriesByStatus
+import com.kitsugi.animelist.ui.screens.mylist.isExplicitMyListSort
+import com.kitsugi.animelist.ui.screens.mylist.myListSortUsesAddedDateSections
+import com.kitsugi.animelist.ui.screens.mylist.myListUsesFlatSortedLayout
 import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiListStatusBottomSheet
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -139,7 +145,7 @@ fun KitsugiUserMediaListScreen(
     var selectedScoreFilterId by rememberSaveable(userId) { mutableStateOf("all") }
     var selectedYearFilterId by rememberSaveable(userId) { mutableStateOf("all") }
     var selectedExtraFilterId by rememberSaveable(userId) { mutableStateOf("all") }
-    var selectedSortId by rememberSaveable(userId) { mutableStateOf("newest") }
+    var selectedSortId by rememberSaveable(userId) { mutableStateOf(MY_LIST_SORT_DEFAULT) }
 
     var showSearchField by rememberSaveable(userId) { mutableStateOf(false) }
     var showFilterPanel by rememberSaveable(userId) { mutableStateOf(false) }
@@ -186,19 +192,26 @@ fun KitsugiUserMediaListScreen(
             selectedExtraFilterId = selectedExtraFilterId
         )
     }
-    val visibleEntries = remember(filteredEntries, selectedSortId, sourceItemByListEntryId) {
-        when (selectedSortId) {
-            "newest" -> filteredEntries.sortedByDescending { entry ->
-                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
-            }
-            "oldest" -> filteredEntries.sortedBy { entry ->
-                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
-            }
-            else -> applySort(filteredEntries, selectedSortId)
-        }
+    // Eklenme zamanı artık modelde taşınıyor (toListemMediaEntry, addedAt = AniList
+    // createdAt): "Son/İlk eklenen" için buradaki özel durum kalktı, tek motor
+    // (applySort) her iki ekranda da aynı sözleşmeyle sıralıyor.
+    val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
+        applySort(filteredEntries, selectedSortId, appSettings.titleLanguage)
     }
     val groupedVisibleEntries = remember(visibleEntries) {
         groupMyListEntriesByStatus(visibleEntries)
+    }
+    val useFlatLayout = myListUsesFlatSortedLayout(
+        sortId = selectedSortId,
+        selectedStatusFilterId = selectedStatusFilterId,
+        separatedListStyle = appSettings.separatedListStyle
+    )
+    val addedPeriodEntries = remember(visibleEntries, selectedSortId, useFlatLayout) {
+        if (useFlatLayout && myListSortUsesAddedDateSections(selectedSortId)) {
+            groupMyListEntriesByAddedPeriod(visibleEntries)
+        } else {
+            emptyList()
+        }
     }
 
     val hasActiveFilters = selectedStatusFilterId != "all" ||
@@ -207,7 +220,7 @@ fun KitsugiUserMediaListScreen(
         selectedScoreFilterId != "all" ||
         selectedYearFilterId != "all" ||
         selectedExtraFilterId != "all" ||
-        (selectedSortId != "newest" && selectedSortId != "added")
+        isExplicitMyListSort(selectedSortId)
 
     val showScrollToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 3 }
@@ -441,8 +454,26 @@ fun KitsugiUserMediaListScreen(
                                     selectedSortId = selectedSortId
                                 )
                             }
-                        } else if (selectedStatusFilterId == "completed" || !appSettings.separatedListStyle) {
-                            // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
+                        } else if (useFlatLayout && addedPeriodEntries.isNotEmpty()) {
+                            // "Son eklenen / İlk eklenen": global tarih sırası + dönem başlıkları.
+                            MyListAddedPeriodContent(
+                                sections = addedPeriodEntries,
+                                selectedListLayoutId = selectedListLayoutId,
+                                titleLanguage = appSettings.titleLanguage,
+                                scoreFormat = appSettings.scoreFormat,
+                                hideScores = appSettings.hideScores,
+                                blurAdultMedia = appSettings.blurAdultMedia,
+                                gridColumns = gridColumns,
+                                onEntryClick = ::openEntry,
+                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
+                                onIncrementProgress = ::openEntry,
+                                onPosterLongClick = { imageUrl ->
+                                    activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
+                                }
+                            )
+                        } else if (useFlatLayout) {
+                            // Seçilen sıralama globaldir; durum bölümleri sırayı ezmez.
+                            // (AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa da düz akış.)
                             MyListFlatContent(
                                 visibleEntries = visibleEntries,
                                 selectedListLayoutId = selectedListLayoutId,
@@ -625,6 +656,7 @@ private fun UserMediaListItem.toListemMediaEntry(): MediaEntry = MediaEntry(
     isPrivate = isPrivate,
     isHiddenFromStatusLists = isHiddenFromStatusLists,
     updatedAt = updatedAt,
+    addedAt = createdAt,
     titleEnglish = titleEnglish,
     titleJapanese = titleNative,
     aniListEntryId = listEntryId

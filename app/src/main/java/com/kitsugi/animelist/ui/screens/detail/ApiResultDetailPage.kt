@@ -179,12 +179,6 @@ fun ApiResultDetailPage(
     onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
     onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {},
     titleLanguage: String = "ROMAJI",
-    /**
-     * Kişi/karakter adı dili (`ROMAJI` / `ENGLISH` / `NATIVE`). Ayar ekranındaki ayrı
-     * "personel adı dili" tercihidir; sekmelere açıkça geçirilir ki başlık dili ile
-     * karışmasın ve ayar değiştiğinde tablo yeniden çizilsin.
-     */
-    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,
@@ -445,6 +439,8 @@ fun ApiResultDetailPage(
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
     var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
+    // Kaynak seçicisinden açıldığında galeri bu kaynağa filtrelenir (kapatınca sıfırlanır).
+    var activeGallerySource by remember { mutableStateOf<String?>(null) }
     val galleryItems by viewModel.galleryItems.collectAsState()
 
     val listState = rememberLazyListState()
@@ -749,8 +745,11 @@ fun ApiResultDetailPage(
                                     onOpenSourceGallery = { source ->
                                         val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
                                         if (sourceItems.isNotEmpty()) {
-                                            activeGalleryCategory = sourceItems.first().category
-                                            if (!galleryLoading) activeGalleryItems = sourceItems
+                                            // Tüm galeri verilir; galeri içindeki "Kaynak" listesinden
+                                            // başka kaynaklara geçilebildiği için liste daraltılmaz.
+                                            activeGalleryCategory = null
+                                            activeGallerySource = source
+                                            if (!galleryLoading) activeGalleryItems = galleryItems
                                             activeGalleryIndex = 0
                                         }
                                     }
@@ -777,8 +776,8 @@ fun ApiResultDetailPage(
                             KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayResult.title)
                         }
                     }
-                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
-                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
+                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
+                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
                     5 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
@@ -1052,12 +1051,15 @@ fun ApiResultDetailPage(
         KitsugiImageGalleryDialog(
             galleryItems = activeGalleryItems,
             initialIndex = activeGalleryIndex,
-            initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
+            initialCategory = if (activeGallerySource != null) null
+                else activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
+            initialSource = activeGallerySource,
             title = displayResult.title,
             isAdult = displayResult.isAdult,
             onDismiss = {
                 activeGalleryItems = emptyList()
                 activeGalleryCategory = null
+                activeGallerySource = null
             }
         )
     }

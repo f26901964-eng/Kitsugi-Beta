@@ -1,7 +1,10 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
+import com.kitsugi.animelist.utils.PreferenceHelpers
 
 /**
  * Sekme sırası: 0 = Tümü (birleşik kütüphane), 1..5 = platform kütüphaneleri.
@@ -108,6 +111,59 @@ internal data class MyListLibraryItem(
     val sourceIds: List<String>
 )
 
+/**
+ * Tek geçişte üretilen kütüphane görünümü:
+ * - [combinedItems] / [combinedEntries]: "Tümü" sekmesi için tekilleştirilmiş kartlar ve kaynak rozetleri,
+ * - [entriesByTab]: `0..6` her sekme için kesin kaynak izolasyonlu ve kardeş başlık varyantlarıyla
+ *   zenginleştirilmiş kayıt listeleri (`0 = Tümü`, `1 = AniList`, `2 = MAL`, `3 = Simkl`,
+ *   `4 = Kitsu`, `5 = Shikimori`, `6 = Bangumi`),
+ * - [searchAliasesByEntryId]: bir kaydın kendi sekmesinden çıkmadan tüm doğrulanmış kardeş başlıklarıyla
+ *   (Romaji, İngilizce, Japonca/Çince/Özgün ve Bangumi önbelleği) aranabilmesini sağlayan eşad kümesi.
+ */
+internal data class MyListLibrarySnapshot(
+    val combinedItems: List<MyListLibraryItem>,
+    val combinedEntries: List<MediaEntry>,
+    val sourceBadgesByEntryId: Map<Int, List<String>>,
+    val entriesByTab: List<List<MediaEntry>>,
+    val searchAliasesByEntryId: Map<Int, Set<String>>,
+    val isComputed: Boolean = true
+) {
+    fun entriesForTab(tabIndex: Int): List<MediaEntry> =
+        entriesByTab.getOrElse(tabIndex) { emptyList() }
+
+    fun countForTab(tabIndex: Int): Int =
+        entriesForTab(tabIndex).size
+
+    companion object {
+        val EMPTY = MyListLibrarySnapshot(
+            combinedItems = emptyList(),
+            combinedEntries = emptyList(),
+            sourceBadgesByEntryId = emptyMap(),
+            entriesByTab = List(MY_LIST_TAB_COUNT) { emptyList() },
+            searchAliasesByEntryId = emptyMap(),
+            isComputed = false
+        )
+    }
+}
+
+private val PLACEHOLDER_LIBRARY_TITLE_REGEX =
+    Regex("^(Bangumi|Shikimori|Kitsu Anime|Kitsu Manga)\\s*#\\d+$", RegexOption.IGNORE_CASE)
+
+internal fun isPlaceholderLibraryTitle(title: String?): Boolean {
+    if (title.isNullOrBlank()) return true
+    val trimmed = title.trim()
+    if (trimmed.equals("Başlıksız", ignoreCase = true) || trimmed.equals("Untitled", ignoreCase = true)) {
+        return true
+    }
+    return PLACEHOLDER_LIBRARY_TITLE_REGEX.matches(trimmed)
+}
+
+private fun isLatinOrNumericTitle(title: String?): Boolean {
+    if (title.isNullOrBlank()) return false
+    if (PreferenceHelpers.isLatinText(title)) return true
+    return title.none { it.isLetter() } && title.any { it.isDigit() }
+}
+
 private data class MutableMyListLibraryGroup(
     var representative: MediaEntry,
     val members: MutableList<IdentityKeysOf> = mutableListOf(),
@@ -116,23 +172,29 @@ private data class MutableMyListLibraryGroup(
 
 /**
  * Collapses copies of the same title across the connected list providers without modifying
- * the underlying records. The representative is the newest inserted record; progress and
+ * the underlying records. The representative is the highest-priority provider record; progress and
  * status changes remain scoped to that provider, while [sourceIds] exposes every provider
  * that has a matching record.
  *
  * [identityExtras] maps a row's `MediaEntry.id` to cross-provider identity keys learned
- * elsewhere (`MyListIdentityCrosswalk`: the cross-provider ID cache and the MAL ↔ Bangumi
- * mapping). A row only carries **its own** provider ID, so without these keys an imported
- * Bangumi/Kitsu/Shikimori copy has nothing in common with the AniList/MAL copy and can only
- * merge by title — which fails for non-Latin catalog titles (Bangumi stores `name_cn`), and
- * every copy then becomes its own tile in "Tümü". See the report
- * `KOK_NEDEN_RAPORU_LISTEM_TUMU_SAYI_SISMESI_BANGUMI_2026-10-13.md`.
+ * elsewhere (`MyListIdentityCrosswalk`: the cross-provider ID cache and the MAL ↔ Bangumi / Kitsu
+ * mappings).
  */
 internal fun groupMyListEntries(
     entries: List<MediaEntry>,
     identityExtras: Map<Int, Set<String>> = emptyMap()
-): List<MyListLibraryItem> {
-    if (entries.isEmpty()) return emptyList()
+): List<MyListLibraryItem> =
+    buildMyListLibrarySnapshot(entries = entries, identityExtras = identityExtras).combinedItems
+
+internal fun buildMyListLibrarySnapshot(
+    entries: List<MediaEntry>,
+    identityExtras: Map<Int, Set<String>> = emptyMap(),
+    includeAdult: Boolean = true,
+    bangumiTitleLookup: (Int) -> BangumiTitleCache.LatinTitles? = { null }
+): MyListLibrarySnapshot {
+    if (entries.isEmpty()) {
+        return MyListLibrarySnapshot.EMPTY.copy(isComputed = true)
+    }
 
     // Identity keys are resolved once per row: the matcher below compares every entry against
     // the groups it has already opened, so recomputing `MediaIdentity.keys` in that loop was
@@ -140,8 +202,9 @@ internal fun groupMyListEntries(
     val groupIndexesByIdentity = mutableMapOf<String, MutableList<Int>>()
     val groups = mutableListOf<MutableMyListLibraryGroup>()
 
-    entries.forEach { entry ->
+    entries.forEachIndexed { originalIndex, entry ->
         val identity = IdentityKeysOf(
+            originalIndex = originalIndex,
             entry = entry,
             keys = if (identityExtras.isEmpty()) MediaIdentity.keys(entry)
             else MediaIdentity.keys(entry, identityExtras[entry.id].orEmpty())
@@ -195,11 +258,6 @@ internal fun groupMyListEntries(
     }
 
     // ── 2. tur: aynı yapımın farklı gruplarını birleştir ───────────────────────
-    // İlk geçiş açgözlüdür: satır, aday gruplardan *ilk* uyanın içine konur. Kayıtlar hangi
-    // sırada geldiği (içe aktarma sırası!) iki ayrı grubun açılmasını belirleyebiliyor ve
-    // gruplar birbirine hiç eklenmediği için aynı içerik "Tümü" sekmesinde iki kart olarak
-    // kalıyordu. Bu tur, aday anahtarı çakışan grupları üye üye yeniden doğrulayıp birleştirir;
-    // sonuç artık sıra bağımsızdır ve tek bir tarama maliyeti üretir.
     val parent = MutableList(groups.size) { it }
 
     fun root(index: Int): Int {
@@ -212,8 +270,6 @@ internal fun groupMyListEntries(
     }
 
     if (groups.size > 1) {
-        // Birleşme, tek bir satırın gruba katılmasından daha gevşek olamaz: tüm üye çiftleri
-        // çakışmasız olmalı ve en az bir çift gerçekten aynı yapım olmalı.
         fun compatible(left: Int, right: Int): Boolean {
             val leftMembers = groups[left].members
             val rightMembers = groups[right].members
@@ -262,21 +318,188 @@ internal fun groupMyListEntries(
         }
     }
 
-    return groups.mapIndexedNotNull { groupIndex, group ->
-        if (root(groupIndex) != groupIndex) return@mapIndexedNotNull null
-        MyListLibraryItem(
-            // Adult metadata from any linked provider is authoritative for the combined
-            // tile: don't let a non-adult representative unblur a copy flagged +18 elsewhere.
-            entry = group.representative.copy(
-                isAdult = group.members.any { it.entry.isAdult }
-            ),
-            sourceIds = group.sourceIds.toList()
+    val combinedItems = ArrayList<MyListLibraryItem>(groups.size)
+    val enrichedByOriginalIndex = arrayOfNulls<MediaEntry>(entries.size)
+    val searchAliasesByEntryId = LinkedHashMap<Int, Set<String>>(entries.size)
+
+    groups.forEachIndexed { groupIndex, group ->
+        if (root(groupIndex) != groupIndex) return@forEachIndexed
+
+        val groupIsAdult = group.members.any { it.entry.isAdult }
+        if (!includeAdult && groupIsAdult) {
+            group.members.forEach { member ->
+                enrichedByOriginalIndex[member.originalIndex] = member.entry.copy(isAdult = true)
+            }
+            return@forEachIndexed
+        }
+        val rankedMembers = group.members.sortedWith { left, right ->
+            val rankDiff = myListRepresentativeRank(left.entry) - myListRepresentativeRank(right.entry)
+            if (rankDiff != 0) rankDiff else right.entry.id.compareTo(left.entry.id)
+        }
+
+        val bangumiCachedList = group.members.mapNotNull { member ->
+            if (sourceBadgeId(member.entry.source) == "bangumi") {
+                BangumiIdNamespace.rawIdOrNull(member.entry.malId)?.let(bangumiTitleLookup)
+            } else {
+                null
+            }
+        }
+
+        val bestLatinTitle = rankedMembers.firstNotNullOfOrNull { member ->
+            member.entry.title.takeIf { !isPlaceholderLibraryTitle(it) && isLatinOrNumericTitle(it) }
+        } ?: bangumiCachedList.firstNotNullOfOrNull { cached ->
+            cached.romaji?.takeIf { !isPlaceholderLibraryTitle(it) && isLatinOrNumericTitle(it) }
+        }
+
+        val bestEnglishTitle = rankedMembers.firstNotNullOfOrNull { member ->
+            member.entry.titleEnglish?.takeIf { !isPlaceholderLibraryTitle(it) && isLatinOrNumericTitle(it) }
+        } ?: bangumiCachedList.firstNotNullOfOrNull { cached ->
+            cached.english?.takeIf { !isPlaceholderLibraryTitle(it) && isLatinOrNumericTitle(it) }
+        }
+
+        val bestNativeTitle = rankedMembers.firstNotNullOfOrNull { member ->
+            member.entry.titleJapanese?.takeIf { !isPlaceholderLibraryTitle(it) && PreferenceHelpers.hasCjkCharacters(it) }
+        } ?: rankedMembers.firstNotNullOfOrNull { member ->
+            member.entry.title.takeIf { !isPlaceholderLibraryTitle(it) && PreferenceHelpers.hasCjkCharacters(it) }
+        } ?: bangumiCachedList.firstNotNullOfOrNull { cached ->
+            cached.native?.takeIf { !isPlaceholderLibraryTitle(it) }
+        } ?: rankedMembers.firstNotNullOfOrNull { member ->
+            member.entry.titleJapanese?.takeIf { !isPlaceholderLibraryTitle(it) }
+        }
+
+        val groupSearchAliases = LinkedHashSet<String>()
+        fun addAlias(value: String?) {
+            val trimmed = value?.trim()?.takeIf { it.isNotEmpty() && !isPlaceholderLibraryTitle(it) } ?: return
+            groupSearchAliases += trimmed
+        }
+        group.members.forEach { member ->
+            addAlias(member.entry.title)
+            addAlias(member.entry.titleEnglish)
+            addAlias(member.entry.titleJapanese)
+        }
+        bangumiCachedList.forEach { cached ->
+            addAlias(cached.romaji)
+            addAlias(cached.english)
+            addAlias(cached.native)
+        }
+
+        val earliestAddedAt = group.members
+            .map { com.kitsugi.animelist.model.normalizeToEpochSeconds(it.entry.addedAt) }
+            .filter { it > 0L }
+            .minOrNull()
+            ?: group.representative.addedAt
+
+        val enrichedRepresentative = enrichEntryFromGroup(
+            entry = group.representative,
+            bestLatinTitle = bestLatinTitle,
+            bestEnglishTitle = bestEnglishTitle,
+            bestNativeTitle = bestNativeTitle,
+            groupIsAdult = groupIsAdult
+        ).copy(addedAt = earliestAddedAt)
+        val badges = group.sourceIds.toList()
+        combinedItems += MyListLibraryItem(
+            entry = enrichedRepresentative,
+            sourceIds = badges
+        )
+        if (groupSearchAliases.isNotEmpty()) {
+            val existingRepAliases = searchAliasesByEntryId[enrichedRepresentative.id]
+            searchAliasesByEntryId[enrichedRepresentative.id] =
+                if (existingRepAliases == null) groupSearchAliases else existingRepAliases + groupSearchAliases
+        }
+
+        group.members.forEach { member ->
+            val enrichedMember = enrichEntryFromGroup(
+                entry = member.entry,
+                bestLatinTitle = bestLatinTitle,
+                bestEnglishTitle = bestEnglishTitle,
+                bestNativeTitle = bestNativeTitle,
+                groupIsAdult = groupIsAdult
+            )
+            enrichedByOriginalIndex[member.originalIndex] = enrichedMember
+            if (groupSearchAliases.isNotEmpty()) {
+                val existingAliases = searchAliasesByEntryId[enrichedMember.id]
+                searchAliasesByEntryId[enrichedMember.id] =
+                    if (existingAliases == null) groupSearchAliases else existingAliases + groupSearchAliases
+            }
+        }
+    }
+
+    val combinedEntries = combinedItems.map { it.entry }
+    val sourceBadgesByEntryId = combinedItems.associate { it.entry.id to it.sourceIds }
+
+    val tabBuckets = Array(MY_LIST_TAB_COUNT) { ArrayList<MediaEntry>() }
+    tabBuckets[MY_LIST_ALL_TAB_INDEX].addAll(combinedEntries)
+    for (i in entries.indices) {
+        val entry = enrichedByOriginalIndex[i] ?: entries[i]
+        if (!includeAdult && entry.isAdult) continue
+        val tabIndex = myListTabIndexForSource(entry.source) ?: continue
+        if (myListSourceMatchesTab(tabIndex, entry.source, entry.malId)) {
+            tabBuckets[tabIndex].add(entry)
+        }
+    }
+
+    return MyListLibrarySnapshot(
+        combinedItems = combinedItems,
+        combinedEntries = combinedEntries,
+        sourceBadgesByEntryId = sourceBadgesByEntryId,
+        entriesByTab = tabBuckets.map { it },
+        searchAliasesByEntryId = searchAliasesByEntryId,
+        isComputed = true
+    )
+}
+
+private fun enrichEntryFromGroup(
+    entry: MediaEntry,
+    bestLatinTitle: String?,
+    bestEnglishTitle: String?,
+    bestNativeTitle: String?,
+    groupIsAdult: Boolean
+): MediaEntry {
+    val currentTitle = entry.title
+    val shouldUpgradePrimaryTitle = isPlaceholderLibraryTitle(currentTitle) || !isLatinOrNumericTitle(currentTitle)
+    val resolvedTitle = if (shouldUpgradePrimaryTitle) {
+        bestLatinTitle ?: bestEnglishTitle ?: currentTitle
+    } else {
+        currentTitle
+    }
+
+    val currentEnglish = entry.titleEnglish
+    val resolvedEnglish = if (currentEnglish.isNullOrBlank() || !isLatinOrNumericTitle(currentEnglish)) {
+        bestEnglishTitle ?: currentEnglish
+    } else {
+        currentEnglish
+    }
+
+    val currentJapanese = entry.titleJapanese
+    val resolvedJapanese = if (currentJapanese.isNullOrBlank()) {
+        bestNativeTitle ?: currentTitle.takeIf { PreferenceHelpers.hasCjkCharacters(it) }
+    } else {
+        currentJapanese
+    }
+
+    return if (
+        resolvedTitle == entry.title &&
+        resolvedEnglish == entry.titleEnglish &&
+        resolvedJapanese == entry.titleJapanese &&
+        groupIsAdult == entry.isAdult
+    ) {
+        entry
+    } else {
+        entry.copy(
+            title = resolvedTitle,
+            titleEnglish = resolvedEnglish,
+            titleJapanese = resolvedJapanese,
+            isAdult = groupIsAdult
         )
     }
 }
 
-/** A row together with its resolved identity keys (own provider IDs + crosswalk extras). */
-private data class IdentityKeysOf(val entry: MediaEntry, val keys: Set<String>)
+/** A row together with its original position and resolved identity keys (own provider IDs + crosswalk extras). */
+private data class IdentityKeysOf(
+    val originalIndex: Int,
+    val entry: MediaEntry,
+    val keys: Set<String>
+)
 
 /** Canonical IDs are shared by source logos, source tabs, and search-result aliases. */
 internal fun sourceBadgeId(source: String): String? = when (source.trim().lowercase()) {

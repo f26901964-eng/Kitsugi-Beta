@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.Request
+import okhttp3.Response
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -51,12 +52,16 @@ object MdbListClient {
 
     private const val TAG = "MdbListClient"
     private const val BASE_URL = "https://mdblist.com/api/"
+    private const val QUOTA_URL_HOST = "api.mdblist.com"
     private const val CACHE_TTL_MS = 30L * 60L * 1_000L
     private const val MAX_CACHE_ENTRIES = 500
     private val imdbIdPattern = Regex("^tt\\d{5,12}$", RegexOption.IGNORE_CASE)
 
     private data class CacheEntry(val ratings: MdbListRatings, val expiresAt: Long)
     private val cache = BoundedCache<String, CacheEntry>("mdbList", 300)
+
+    /** Uygulama açılışında kalıcı kota deposunu bağlar (bkz. KitsugiApplication). */
+    fun initialize(context: android.content.Context) = MdbListQuotaCenter.bind(context, "")
 
     /**
      * API anahtarını Matrix'in bilinen IMDb ID'si ile sınar.
@@ -73,7 +78,15 @@ object MdbListClient {
             .build()
 
         try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                // Doğrulama da gerçek bir API çağrısıdır: dönen başlıklar kotayı günceller.
+                recordQuotaFromResponse(apiKey, response)
+                if (response.code == 429) {
+                    // 429 = kimlik doğrulama geçti, günlük kota bitti. Anahtar geçerlidir;
+                    // burada "geçersiz anahtar" demek kullanıcıyı yanıltırdı.
+                    Log.w(TAG, "MDBList key validation reached the daily quota (HTTP 429)")
+                    return@withContext true
+                }
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList key validation failed: HTTP ${response.code}")
                     return@withContext false
@@ -118,8 +131,13 @@ object MdbListClient {
         val now = System.currentTimeMillis()
         cache[cacheKey]?.let { entry ->
             if (entry.expiresAt > now) return@withContext entry.ratings
-            cache.remove(cacheKey, entry)
         }
+        if (MdbListQuotaCenter.isExhausted(apiKey)) {
+            // Günlük kota bitti: boşuna 429 üretmek yerine son bilinen puanlar gösterilir.
+            // (Önbellek süresi dolmuş olsa bile, hiç yoktan iyidir.)
+            return@withContext cache[cacheKey]?.ratings
+        }
+        cache[cacheKey]?.let { entry -> cache.remove(cacheKey, entry) }
 
         val url = buildLookupUrl(apiKey, normalizedImdbId, normalizedTmdbId)
             ?: return@withContext null
@@ -130,7 +148,8 @@ object MdbListClient {
             .build()
 
         val parsed = try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                recordQuotaFromResponse(apiKey, response)
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList request failed: HTTP ${response.code} for $identity")
                     return@withContext null
@@ -171,6 +190,168 @@ object MdbListClient {
                 else addQueryParameter("tmdb", normalizedTmdbId.toString())
             }
             .build()
+    }
+
+    /**
+     * API anahtarının günlük istek hakkını `/user` uç noktasından okur.
+     *
+     * MDBList bu uç noktada hem gövdede (`api_requests` = limit, `api_requests_count` =
+     * kullanılan) hem de `X-RateLimit-*` başlıklarında güncel kotayı döndürür. Ücretsiz ve
+     * ücretli hesaplar aynı alanlarla geldiği için limit asla sabit bir sayı varsayılmaz.
+     *
+     * @return kota okunabildiyse doldurulmuş [MdbListQuota]; anahtar geçersizse `null`.
+     */
+    suspend fun fetchQuota(apiKey: String): MdbListQuota? = withContext(Dispatchers.IO) {
+        val key = apiKey.trim()
+        if (key.isEmpty()) return@withContext null
+
+        val url = HttpUrl.Builder()
+            .scheme("https")
+            .host(QUOTA_URL_HOST)
+            .addPathSegment("user")
+            .addQueryParameter("apikey", key)
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", "KitsugiAnimeList/1.0")
+            .build()
+
+        try {
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                val headerQuota = parseQuotaHeaders(
+                    limitHeader = response.header("X-RateLimit-Limit") ?: response.header("RateLimit-Limit"),
+                    remainingHeader = response.header("X-RateLimit-Remaining") ?: response.header("RateLimit-Remaining"),
+                    resetHeader = response.header("X-RateLimit-Reset") ?: response.header("RateLimit-Reset")
+                )
+                if (response.code == 429) {
+                    Log.w(TAG, "MDBList quota request rate limited (HTTP 429)")
+                    return@withContext (headerQuota ?: MdbListQuota()).copy(
+                        remaining = 0,
+                        resetAtEpochSeconds = headerQuota?.resetAtEpochSeconds
+                            ?: resetFromRetryAfter(response),
+                        updatedAtMillis = System.currentTimeMillis()
+                    )
+                }
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "MDBList quota request failed: HTTP ${response.code}")
+                    return@withContext headerQuota
+                }
+                val body = response.body?.string()
+                parseUserQuota(body, headerQuota)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "MDBList quota request failed (${e.javaClass.simpleName})")
+            null
+        }
+    }
+
+    /**
+     * `/user` yanıtını kotaya çevirir. Gövde okunamazsa başlıklardan gelen değerler korunur.
+     * Test edilebilir olması için ağdan bağımsızdır.
+     */
+    internal fun parseUserQuota(body: String?, headers: MdbListQuota?): MdbListQuota? {
+        var limit = headers?.limit
+        var remaining = headers?.remaining
+        var plan = headers?.plan ?: MdbListPlan.UNKNOWN
+        val resetAt = headers?.resetAtEpochSeconds
+
+        if (!body.isNullOrBlank()) {
+            try {
+                val root = JSONObject(body)
+                val declaredLimit = root.optInt("api_requests", -1).takeIf { it > 0 }
+                val usedCount = root.optInt("api_requests_count", -1).takeIf { it >= 0 }
+                limit = limit ?: declaredLimit
+                val resolvedLimit = limit
+                if (remaining == null && resolvedLimit != null && usedCount != null) {
+                    remaining = (resolvedLimit - usedCount).coerceAtLeast(0)
+                }
+
+                val patronStatus = root.optString("patron_status").lowercase()
+                val pledge = root.optInt("patreon_pledge", 0)
+                if (patronStatus.isNotBlank() || pledge > 0) {
+                    plan = if (patronStatus.contains("active") || pledge > 0) {
+                        MdbListPlan.SUPPORTER
+                    } else {
+                        MdbListPlan.FREE
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "MDBList quota JSON parse failed (${e.javaClass.simpleName})")
+            }
+        }
+
+        if (limit == null && remaining == null) return null
+        return MdbListQuota(
+            limit = limit,
+            remaining = remaining,
+            resetAtEpochSeconds = resetAt,
+            plan = plan,
+            updatedAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    /**
+     * `X-RateLimit-Limit` / `-Remaining` / `-Reset` başlıklarını ayrıştırır.
+     * Değerler okunamazsa `null` döner; uydurma sayı üretilmez.
+     */
+    internal fun parseQuotaHeaders(
+        limitHeader: String?,
+        remainingHeader: String?,
+        resetHeader: String?
+    ): MdbListQuota? {
+        val limit = limitHeader?.trim()?.toIntOrNull()?.takeIf { it > 0 }
+        val remaining = remainingHeader?.trim()?.toIntOrNull()?.takeIf { it >= 0 }
+        if (limit == null && remaining == null) return null
+        return MdbListQuota(
+            limit = limit,
+            remaining = remaining,
+            resetAtEpochSeconds = normalizeEpochSeconds(resetHeader?.trim()?.toLongOrNull()),
+            updatedAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    /** Bazı sürümler sıfırlanma anını milisaniye olarak yollar; saniyeye indirger. */
+    internal fun normalizeEpochSeconds(value: Long?): Long? {
+        val raw = value?.takeIf { it > 0L } ?: return null
+        return if (raw > 100_000_000_000L) raw / 1_000L else raw
+    }
+
+    /**
+     * Her MDBList yanıtında bulunan kota başlıklarını merkeze yazar. Ağ/ayrıştırma hatası
+     * puanlama akışını asla bozmaz; bu yüzden tüm gövde korumalıdır.
+     */
+    private fun recordQuotaFromResponse(apiKey: String, response: Response) {
+        try {
+            val quota = parseQuotaHeaders(
+                limitHeader = response.header("X-RateLimit-Limit") ?: response.header("RateLimit-Limit"),
+                remainingHeader = response.header("X-RateLimit-Remaining") ?: response.header("RateLimit-Remaining"),
+                resetHeader = response.header("X-RateLimit-Reset") ?: response.header("RateLimit-Reset")
+            )
+            if (quota != null) {
+                MdbListQuotaCenter.recordHeaders(
+                    apiKey = apiKey,
+                    limit = quota.limit,
+                    remaining = quota.remaining,
+                    resetAtEpochSeconds = quota.resetAtEpochSeconds
+                )
+            }
+            if (response.code == 429) {
+                MdbListQuotaCenter.recordExhausted(
+                    apiKey = apiKey,
+                    resetAtEpochSeconds = quota?.resetAtEpochSeconds ?: resetFromRetryAfter(response)
+                )
+            }
+        } catch (_: Throwable) {
+            // Kota takibi yardımcı bir özelliktir; hiçbir koşulda puanlamayı düşürmemeli.
+        }
+    }
+
+    /** `Retry-After` saniye cinsinden bekleme süresidir; mutlak sıfırlanma anına çevrilir. */
+    private fun resetFromRetryAfter(response: Response): Long? {
+        val seconds = response.header("Retry-After")?.trim()?.toLongOrNull()
+            ?.takeIf { it > 0L } ?: return null
+        return System.currentTimeMillis() / 1_000L + seconds
     }
 
     /** Kept internal so the API response contract can be tested without network access. */

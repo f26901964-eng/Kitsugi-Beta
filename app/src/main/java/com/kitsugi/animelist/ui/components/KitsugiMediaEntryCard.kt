@@ -1229,14 +1229,17 @@ private fun MinimalistMediaEntryCard(
 
 // ─── Poster köşe rozetleri ──────────────────────────────────────────────────
 
-/** Sağ üst köşeye tam oturan rozet biçimi: dış köşe düz, iç köşeler yumuşak. */
+/**
+ * Sağ üstteki durum etiketi: posterin üst ve sağ kenarları boyunca boşluk
+ * bırakmaz; yalnızca görsele bakan iç köşe yumuşak kalır.
+ */
 private val TopEndCornerShape = RoundedCornerShape(
-    topStart = 6.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 6.dp
+    topStart = 0.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 0.dp
 )
 
-/** Sağ alt köşeye tam oturan rozet biçimi. */
+/** Sağ alttaki puan etiketi: alt ve sağ kenara tam oturur. */
 private val BottomEndCornerShape = RoundedCornerShape(
-    topStart = 6.dp, topEnd = 6.dp, bottomStart = 6.dp, bottomEnd = 0.dp
+    topStart = 6.dp, topEnd = 0.dp, bottomStart = 0.dp, bottomEnd = 0.dp
 )
 
 /**
@@ -1257,7 +1260,7 @@ private fun PosterCornerTag(
             .widthIn(max = 108.dp)
             .clip(shape)
             .background(Color.Black.copy(alpha = 0.66f))
-            .padding(horizontal = 6.dp, vertical = 3.dp)
+            .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {
         Text(
             text = text,

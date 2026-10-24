@@ -255,6 +255,7 @@ fun SearchScreen(
 
     var showEnginePickerSheet by remember { mutableStateOf(false) }
     var showSourceEngineFilterSheet by remember { mutableStateOf(false) }
+    var showOrgFilterSheet by remember { mutableStateOf(false) }
 
     // Keep canonical English values in state/API filters; localize only the visible labels.
     val tmdbGenres = listOf(
@@ -368,7 +369,17 @@ fun SearchScreen(
                     onClick = { showSourceEngineFilterSheet = true }
                 )
             }
-
+            if (uiState.organizations.isNotEmpty()) {
+                item(key = "selected_organizations") {
+                    SearchOrganizationChips(
+                        organizations = uiState.organizations,
+                        onRemove = { filter ->
+                            viewModel.updateOrganizations(uiState.organizations - filter)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
 
             // Active Filters Inline Dismissible Chips Row
             // (Active filter pills removed – chips themselves show active state)
@@ -417,8 +428,8 @@ fun SearchScreen(
                             .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        uiState.sourceErrorCodes.values.distinct().forEach { code ->
-                            PlatformErrorCodeChip(code = code)
+                        uiState.sourceErrorCodes.forEach { (platform, code) ->
+                            PlatformErrorCodeChip(code = code, platform = platform)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -676,7 +687,19 @@ fun SearchScreen(
                 showSourceEngineFilterSheet = false
                 viewModel.setFilterSheetOpen(true)
             },
+            onOpenOrganizations = {
+                showSourceEngineFilterSheet = false
+                showOrgFilterSheet = true
+            },
             onDismiss = { showSourceEngineFilterSheet = false }
+        )
+    }
+
+    if (showOrgFilterSheet) {
+        OrgFilterSheet(
+            currentFilters = uiState.toLegacyFilters(),
+            onApplyFilters = viewModel::updateOrganizations,
+            onDismiss = { showOrgFilterSheet = false }
         )
     }
 
@@ -686,7 +709,8 @@ fun SearchScreen(
             currentFilters = SearchFilters(
                 genres = uiState.genres,
                 excludedGenres = uiState.excludedGenres,
-                tags = uiState.tags
+                tags = uiState.tags,
+                organizations = uiState.organizations
             ),
             onApplyFilters = {
                 viewModel.updateFilters(it)
@@ -747,7 +771,7 @@ fun SearchScreen(
             options = tmdbGenres,
             selectedOption = currentGenre,
             onOptionSelected = { g ->
-                val updated = SearchFilters(
+                val updated = uiState.toLegacyFilters().copy(
                     genres = if (g == null || g == "All") emptyList() else listOf(g)
                 )
                 viewModel.updateFilters(updated)

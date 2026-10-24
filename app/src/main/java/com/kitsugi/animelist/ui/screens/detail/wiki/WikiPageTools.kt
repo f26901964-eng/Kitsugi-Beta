@@ -9,11 +9,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FormatSize
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -121,6 +123,12 @@ internal fun WikiPageTools(
             canFind = session.view != null,
             statusLines = statusLines,
             retryAvailable = retryAvailable,
+            theme = preferences?.pageTheme ?: "APP",
+            zoom = WikiReadingAppearance.textPercent(preferences?.textZoom ?: 100),
+            keepScreenOn = session.keepScreenOn,
+            canKeepScreenOn = session.view != null,
+            onToggleKeepScreenOn = { session.keepScreenOn = it },
+            onSaveAppearance = onSaveAppearance,
             onToggleTranslate = { session.translationOverride = !config.translate },
             onToggleAds = onToggleAds,
             onOpenAppearance = { showTools = false; showAppearance = true },
@@ -132,7 +140,11 @@ internal fun WikiPageTools(
     }
 
     if (showAppearance && preferences != null) {
-        WikiReadingSettingsDialog(preferences, onDismiss = { showAppearance = false }) { mode, zoom ->
+        WikiReadingSettingsDialog(
+            mode = preferences.pageTheme,
+            zoom = preferences.textZoom,
+            onDismiss = { showAppearance = false }
+        ) { mode, zoom ->
             showAppearance = false
             onSaveAppearance(mode, zoom)
         }
@@ -196,6 +208,12 @@ private fun WikiPageToolsDialog(
     canFind: Boolean,
     statusLines: List<String>,
     retryAvailable: Boolean,
+    theme: String,
+    zoom: Int,
+    keepScreenOn: Boolean,
+    canKeepScreenOn: Boolean,
+    onToggleKeepScreenOn: (Boolean) -> Unit,
+    onSaveAppearance: (String, Int) -> Unit,
     onToggleTranslate: () -> Unit,
     onToggleAds: () -> Unit,
     onOpenAppearance: () -> Unit,
@@ -205,6 +223,8 @@ private fun WikiPageToolsDialog(
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val zoomLabel = stringResource(R.string.wiki_text_percent, zoom)
+    val canZoom = canOpenAppearance
     val retryAction: (@Composable () -> Unit)? = if (retryAvailable) {
         {
             TextButton(
@@ -227,57 +247,81 @@ private fun WikiPageToolsDialog(
             Column(
                 modifier = Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())
             ) {
-                WikiToolSwitchRow(
-                    icon = Icons.Rounded.Translate,
-                    title = stringResource(R.string.wiki_tools_translate_title),
-                    detail = translateDetail,
-                    checked = translateOn,
-                    enabled = translateEnabled,
-                    accentColor = accentColor,
-                    onCheckedChange = onToggleTranslate
-                )
-                WikiToolSwitchRow(
-                    icon = Icons.Rounded.Security,
-                    title = stringResource(R.string.wiki_tools_ad_block_title),
-                    detail = adsDetail,
-                    checked = adsOn,
-                    enabled = adsEnabled,
-                    accentColor = accentColor,
-                    onCheckedChange = onToggleAds
-                )
-                HorizontalDivider(
-                    color = KitsugiColors.Border.copy(alpha = 0.4f),
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-                WikiToolActionRow(
-                    icon = Icons.Rounded.Tune,
-                    title = stringResource(R.string.wiki_reading_appearance),
-                    enabled = canOpenAppearance,
-                    onClick = onOpenAppearance
-                )
-                WikiToolActionRow(
-                    icon = Icons.Rounded.Search,
-                    title = stringResource(R.string.wiki_find_in_page),
-                    enabled = canFind,
-                    onClick = onOpenFind
-                )
-                WikiToolActionRow(
-                    icon = Icons.Rounded.Info,
-                    title = stringResource(R.string.wiki_tools_info),
-                    enabled = true,
-                    onClick = onOpenInfo
-                )
-                if (statusLines.isNotEmpty()) {
-                    HorizontalDivider(
-                        color = KitsugiColors.Border.copy(alpha = 0.4f),
-                        modifier = Modifier.padding(vertical = 6.dp)
+                // 2026-10-23: satırlar tek sütun hâlinde yığılmıyor; uygulama temasındaki
+                // ayar grupları gibi başlıklı, yuvarlak yüzeylere ayrıldı.
+                WikiToolGroup(title = stringResource(R.string.wiki_tools_section_content)) {
+                    WikiToolSwitchRow(
+                        icon = Icons.Rounded.Translate,
+                        title = stringResource(R.string.wiki_tools_translate_title),
+                        detail = translateDetail,
+                        checked = translateOn,
+                        enabled = translateEnabled,
+                        accentColor = accentColor,
+                        onCheckedChange = onToggleTranslate
                     )
+                    WikiToolSwitchRow(
+                        icon = Icons.Rounded.Security,
+                        title = stringResource(R.string.wiki_tools_ad_block_title),
+                        detail = adsDetail,
+                        checked = adsOn,
+                        enabled = adsEnabled,
+                        accentColor = accentColor,
+                        onCheckedChange = onToggleAds
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                WikiToolGroup(title = stringResource(R.string.wiki_tools_section_view)) {
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.Tune,
+                        title = stringResource(R.string.wiki_reading_appearance),
+                        detail = zoomLabel,
+                        enabled = canOpenAppearance,
+                        onClick = onOpenAppearance
+                    )
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.FormatSize,
+                        title = stringResource(R.string.wiki_text_smaller),
+                        enabled = canZoom && zoom > 80,
+                        onClick = { onSaveAppearance(theme, (zoom - 10).coerceAtLeast(80)) }
+                    )
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.FormatSize,
+                        title = stringResource(R.string.wiki_text_larger),
+                        enabled = canZoom && zoom < 180,
+                        onClick = { onSaveAppearance(theme, (zoom + 10).coerceAtMost(180)) }
+                    )
+                    WikiToolSwitchRow(
+                        icon = Icons.Rounded.Visibility,
+                        title = stringResource(R.string.wiki_keep_screen_on),
+                        detail = stringResource(R.string.wiki_keep_screen_on_desc),
+                        checked = keepScreenOn,
+                        enabled = canKeepScreenOn,
+                        accentColor = accentColor,
+                        onCheckedChange = { onToggleKeepScreenOn(!keepScreenOn) }
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                WikiToolGroup(title = stringResource(R.string.wiki_tools_section_page)) {
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.Search,
+                        title = stringResource(R.string.wiki_find_in_page),
+                        enabled = canFind,
+                        onClick = onOpenFind
+                    )
+                    WikiToolActionRow(
+                        icon = Icons.Rounded.Info,
+                        title = stringResource(R.string.wiki_tools_info),
+                        enabled = true,
+                        onClick = onOpenInfo
+                    )
+                }
+                if (statusLines.isNotEmpty()) {
                     Text(
                         text = stringResource(R.string.wiki_tools_status_title),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                        modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
                     )
                     statusLines.forEach { line ->
                         Row(
@@ -373,7 +417,8 @@ private fun WikiToolActionRow(
     icon: ImageVector,
     title: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    detail: String? = null
 ) {
     val shape = RoundedCornerShape(10.dp)
     Row(
@@ -392,14 +437,49 @@ private fun WikiToolActionRow(
             tint = if (enabled) KitsugiColors.TextSecondary else KitsugiColors.TextMuted.copy(alpha = 0.5f),
             modifier = Modifier.size(18.dp)
         )
-        Text(
-            text = title,
-            color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            if (!detail.isNullOrBlank()) {
+                Text(
+                    text = detail,
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
     }
+}
+
+/**
+ * Araç sayfasındaki gruplu bölüm: uygulama genelindeki ayar kartlarıyla aynı dil
+ * (yuvarlak yüzey + kısa başlık). Satırlar arasında ayırıcı çizgi yok; dokunma
+ * hedefleri tek tek yuvarlatılmış olduğu için çizgiye gerek kalmıyor.
+ */
+@Composable
+private fun WikiToolGroup(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Text(
+        text = title,
+        color = KitsugiColors.TextMuted,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.45f))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        content = content
+    )
 }
 
 /** Sayfa araçları sayfasında listelenecek kısa durum/uyarı satırları. */
@@ -426,14 +506,25 @@ private fun wikiStatusLines(
     return lines
 }
 
+/**
+ * Okuma görünümü penceresi: tema modu + yazı boyutu.
+ *
+ * 2026-10-23: yalnızca okuyucunun ⋮ menüsünden değil, **Ayarlar → Fandom Wiki**
+ * bölümünden de açılabilsin diye `internal` yapıldı ve tercih nesnesi yerine düz
+ * değerler alıyor. Böylece aynı pencere iki yerden de tek kaynakla çiziliyor.
+ */
 @Composable
-private fun WikiReadingSettingsDialog(
-    preferences: WikiPagePreferences,
+internal fun WikiReadingSettingsDialog(
+    mode: String,
+    zoom: Int,
     onDismiss: () -> Unit,
     onApply: (String, Int) -> Unit
 ) {
-    var mode by remember { mutableStateOf(WikiReadingAppearance.normalize(preferences.pageTheme)) }
-    var zoom by remember { mutableStateOf(WikiReadingAppearance.textPercent(preferences.textZoom).toFloat()) }
+    val accentColor = LocalKitsugiAccent.current
+    var selectedMode by remember { mutableStateOf(WikiReadingAppearance.normalize(mode)) }
+    var selectedZoom by remember {
+        mutableStateOf(WikiReadingAppearance.textPercent(zoom).toFloat())
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = KitsugiColors.Surface,
@@ -449,10 +540,11 @@ private fun WikiReadingSettingsDialog(
                 Column(Modifier.selectableGroup()) {
                     WikiReadingAppearance.modes.forEach { value ->
                         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .selectable(selected = mode == value, role = Role.RadioButton, onClick = { mode = value }),
+                            .selectable(selected = selectedMode == value, role = Role.RadioButton,
+                                onClick = { selectedMode = value }),
                             verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = mode == value, onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = KitsugiColors.TextPrimary,
+                            RadioButton(selected = selectedMode == value, onClick = null,
+                                colors = RadioButtonDefaults.colors(selectedColor = accentColor,
                                     unselectedColor = KitsugiColors.TextSecondary))
                             Text(stringResource(when (value) {
                                 "APP" -> R.string.wiki_theme_app
@@ -464,16 +556,18 @@ private fun WikiReadingSettingsDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.wiki_text_percent, zoom.toInt()), color = KitsugiColors.TextPrimary)
-                Slider(value = zoom, onValueChange = { zoom = WikiReadingAppearance.textPercent(it.toInt()).toFloat() },
+                Text(stringResource(R.string.wiki_text_percent, selectedZoom.toInt()), color = KitsugiColors.TextPrimary)
+                Slider(value = selectedZoom,
+                    onValueChange = { selectedZoom = WikiReadingAppearance.textPercent(it.toInt()).toFloat() },
                     valueRange = 80f..180f, steps = 9,
-                    colors = SliderDefaults.colors(thumbColor = KitsugiColors.TextPrimary,
-                        activeTrackColor = KitsugiColors.TextPrimary))
+                    colors = SliderDefaults.colors(thumbColor = accentColor,
+                        activeTrackColor = accentColor))
                 Text(stringResource(R.string.wiki_text_scale_hint), style = MaterialTheme.typography.bodySmall)
-                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { mode = "SITE"; zoom = 100f }) { Text(stringResource(R.string.wiki_reading_reset)) }
+                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary),
+                    onClick = { selectedMode = "APP"; selectedZoom = 100f }) { Text(stringResource(R.string.wiki_reading_reset)) }
             }
         },
-        confirmButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { onApply(mode, zoom.toInt()) }) { Text(stringResource(R.string.wiki_reading_apply)) } },
+        confirmButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { onApply(selectedMode, selectedZoom.toInt()) }) { Text(stringResource(R.string.wiki_reading_apply)) } },
         dismissButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = onDismiss) { Text(stringResource(R.string.kapat)) } }
     )
 }

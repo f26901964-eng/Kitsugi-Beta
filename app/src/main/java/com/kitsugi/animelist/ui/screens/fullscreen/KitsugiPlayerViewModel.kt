@@ -127,6 +127,16 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                             currentVolume.value = savedVol
                         }
                     }
+                    if (!orchestrator.errorRecovery.hasRecoveryAttempted && pendingResumeAfterEngineSwitchMs == null) {
+                        val preferred = PlayerEngineSelector.selectEngine(
+                            settings = settings,
+                            videoUrl = _currentVideoUrl.value ?: ""
+                        )
+                        if (_activeEngineType.value != preferred) {
+                            Log.d("KitsugiPlayer", "Persisted engine setting loaded: ${_activeEngineType.value} -> $preferred")
+                            _activeEngineType.value = preferred
+                        }
+                    }
                 }
             }
         }
@@ -820,6 +830,20 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             settings = appSettings.value,
             videoUrl = videoUrl ?: ""
         )
+        if (!initialPlayerPrefsRestored) {
+            viewModelScope.launch {
+                val persisted = dataStore.settingsFlow.first()
+                if (!orchestrator.errorRecovery.hasRecoveryAttempted && pendingResumeAfterEngineSwitchMs == null) {
+                    val resolved = PlayerEngineSelector.selectEngine(
+                        settings = persisted,
+                        videoUrl = _currentVideoUrl.value ?: videoUrl ?: ""
+                    )
+                    if (_activeEngineType.value != resolved) {
+                        _activeEngineType.value = resolved
+                    }
+                }
+            }
+        }
 
         viewModelScope.launch {
             loadEpisodes()

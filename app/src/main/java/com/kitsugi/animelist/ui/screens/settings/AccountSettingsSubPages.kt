@@ -140,8 +140,8 @@ private fun PlatformConnectionsPage(
             AccountHubItem(
                 title = "Simkl",
                 subtitle = when {
-                    profile.isSimklConnected -> stringResource(R.string.bagli_x, profile.simklUsername)
                     profile.isSimklSessionExpired -> stringResource(R.string.oturum_suresi_doldu_tekrar_giris_yapin)
+                    profile.isSimklConnected -> stringResource(R.string.bagli_x, profile.simklUsername)
                     else -> stringResource(R.string.inline_not_connected_2c7d104)
                 },
                 platformId = "simkl",
@@ -153,7 +153,11 @@ private fun PlatformConnectionsPage(
             // Kitsu
             AccountHubItem(
                 title = "Kitsu",
-                subtitle = if (profile.isKitsuConnected) stringResource(R.string.bagli_x, profile.kitsuUsername) else stringResource(R.string.inline_not_connected_2c7d104),
+                subtitle = when {
+                    profile.isKitsuSessionExpired -> stringResource(R.string.oturum_suresi_doldu_tekrar_giris_yapin)
+                    profile.isKitsuConnected -> stringResource(R.string.bagli_x, profile.kitsuUsername)
+                    else -> stringResource(R.string.inline_not_connected_2c7d104)
+                },
                 platformId = "kitsu",
                 isConnected = profile.isKitsuConnected,
                 onClick = { onNavigate(SettingsRoute.KitsuSettings) }
@@ -163,7 +167,11 @@ private fun PlatformConnectionsPage(
             // Shikimori
             AccountHubItem(
                 title = "Shikimori",
-                subtitle = if (profile.isShikimoriConnected) stringResource(R.string.bagli_x, profile.shikimoriUsername) else stringResource(R.string.inline_not_connected_2c7d104),
+                subtitle = when {
+                    profile.isShikimoriSessionExpired -> stringResource(R.string.oturum_suresi_doldu_tekrar_giris_yapin)
+                    profile.isShikimoriConnected -> stringResource(R.string.bagli_x, profile.shikimoriUsername)
+                    else -> stringResource(R.string.inline_not_connected_2c7d104)
+                },
                 platformId = "shikimori",
                 isConnected = profile.isShikimoriConnected,
                 onClick = { onNavigate(SettingsRoute.ShikimoriSettings) }
@@ -173,7 +181,11 @@ private fun PlatformConnectionsPage(
             // Bangumi (bgm.tv)
             AccountHubItem(
                 title = "Bangumi",
-                subtitle = if (profile.isBangumiConnected) stringResource(R.string.bagli_x, profile.bangumiUsername) else stringResource(R.string.inline_not_connected_2c7d104),
+                subtitle = when {
+                    profile.isBangumiSessionExpired -> stringResource(R.string.oturum_suresi_doldu_tekrar_giris_yapin)
+                    profile.isBangumiConnected -> stringResource(R.string.bagli_x, profile.bangumiUsername)
+                    else -> stringResource(R.string.inline_not_connected_2c7d104)
+                },
                 platformId = "bangumi",
                 isConnected = profile.isBangumiConnected,
                 onClick = { onNavigate(SettingsRoute.BangumiSettings) }

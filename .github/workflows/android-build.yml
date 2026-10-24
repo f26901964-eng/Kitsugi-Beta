@@ -77,20 +77,26 @@ jobs:
           ./gradlew :app:testFossDebugUnitTest \
             --tests 'com.kitsugi.animelist.data.platform.*' \
             --tests 'com.kitsugi.animelist.ui.screens.profile.*' \
+            --tests 'com.kitsugi.animelist.ui.screens.mylist.*' \
             --tests 'com.kitsugi.animelist.core.diagnostics.*' \
             --tests 'com.kitsugi.animelist.data.settings.*' \
             --tests 'com.kitsugi.animelist.data.account.*' \
             --tests 'com.kitsugi.animelist.data.notifications.NotificationArchiveStoreTest' \
             --tests 'com.kitsugi.animelist.core.notifications.*' \
             --tests 'com.kitsugi.animelist.core.player.*' \
+            --tests 'com.kitsugi.animelist.core.player.engine.*' \
             --tests 'com.kitsugi.animelist.data.remote.malweb.*' \
             --tests 'com.kitsugi.animelist.data.cloudstream.CsPluginUpdateCheckerTest' \
             --tests 'com.kitsugi.animelist.data.remote.CloudstreamRepoMirrorTest' \
             --tests 'com.kitsugi.animelist.data.fandom.*' \
             --tests 'com.kitsugi.animelist.data.remote.MdbListClientTest' \
+            --tests 'com.kitsugi.animelist.data.remote.anisub.*' \
+            --tests 'com.kitsugi.animelist.data.auth.*' \
+            --tests 'com.kitsugi.animelist.data.local.*' \
+            --tests 'com.kitsugi.animelist.model.*' \
+            --tests 'com.kitsugi.animelist.data.remote.BangumiIdNamespaceTest' \
             --tests 'com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydratorTest' \
-            --tests 'com.kitsugi.animelist.data.local.MediaEntryRepositoryTitlePreservationTest' \
-            --tests 'com.kitsugi.animelist.data.auth.BangumiImportTitlesTest' \
+            --tests 'com.kitsugi.animelist.data.remote.ShikimoriPosterResolverTest' \
             --tests 'com.kitsugi.animelist.utils.BangumiDisplayTitleLanguageTest' \
             --tests 'com.kitsugi.animelist.utils.BangumiMasterDictionaryTest' \
             --tests 'com.kitsugi.animelist.utils.KitsugiTranslationsTest' \

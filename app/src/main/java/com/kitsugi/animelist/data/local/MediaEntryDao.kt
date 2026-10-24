@@ -19,6 +19,17 @@ interface MediaEntryDao {
     @Query("SELECT * FROM media_entries WHERE id = :id LIMIT 1")
     suspend fun getById(id: Int): MediaEntryEntity?
 
+    /**
+     * Yalnızca bir kaynağın satırları. `getAll()` + Kotlin tarafında süzme, her yenilemede
+     * tüm kütüphaneyi (1000+ satır) kopyalıyordu; liste içe aktarımı kaynak kapsamlıdır.
+     * Şema değişikliği yok — yalnızca yeni sorgu.
+     */
+    @Query("SELECT * FROM media_entries WHERE LOWER(source) = LOWER(:source) ORDER BY id DESC")
+    suspend fun getBySource(source: String): List<MediaEntryEntity>
+
+    @Query("SELECT COUNT(*) FROM media_entries WHERE LOWER(source) = LOWER(:source)")
+    suspend fun countBySource(source: String): Int
+
     @Query("SELECT * FROM media_entries WHERE malId = :malId LIMIT 1")
     suspend fun getByMalId(malId: Int): MediaEntryEntity?
 

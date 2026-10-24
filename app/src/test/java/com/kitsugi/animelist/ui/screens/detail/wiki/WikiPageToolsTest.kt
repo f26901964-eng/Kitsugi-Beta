@@ -38,6 +38,42 @@ class WikiPageToolsTest {
         assertNull(WikiDomTranslationBatch.unpack("⟪K0⟫Hello⟪/K0⟫⟪K0⟫world⟪/K0⟫", 2))
     }
 
+    @Test fun repeatedTextIsTranslatedOnceAndFannedOut() = kotlinx.coroutines.runBlocking {
+        val rows = listOf(
+            WikiDomText(1, 0, "Read more"),
+            WikiDomText(2, 0, "Read more"),
+            WikiDomText(3, 0, "Characters"),
+            WikiDomText(4, 0, "Read more")
+        )
+        var requests = 0
+        val result = WikiDomTranslationBatch.translate(rows) { packed ->
+            requests++
+            // Paketlenmiş istek: işaretleri doğrula, çevrilmiş değerleri aynı işaretlerle döndür.
+            val values = WikiDomTranslationBatch.unpack(packed, 2)
+            assertNotNull(values)
+            values!!.mapIndexed { index, value -> "⟪K$index⟫TR:$value⟪/K$index⟫" }.joinToString("\n")
+        }
+        // Tekrarlanan metin tek istekte çevrilir (2 farklı metin, 1 ağ çağrısı).
+        assertEquals(1, requests)
+        assertEquals(
+            listOf("TR:Read more", "TR:Read more", "TR:Characters", "TR:Read more"),
+            result.map { it.translated }
+        )
+    }
+
+    @Test fun batchSizeIsBoundedLikeTheDomBridge() {
+        val rows = (1..WikiDomTranslationBatch.MAX_ROWS + 1).map { WikiDomText(it, 0, "row $it") }
+        var rejected = false
+        kotlinx.coroutines.runBlocking {
+            try {
+                WikiDomTranslationBatch.translate(rows) { it }
+            } catch (_: IllegalArgumentException) {
+                rejected = true
+            }
+        }
+        assertTrue(rejected)
+    }
+
     @Test fun invalidLanguageValuesNeverEnterTranslationUrl() {
         val prefs = WikiPagePreferences(true, "en&key=oops", "auto", emptySet())
         val config = prefs.configFor("you-zitsu.fandom.com", null, null, 0)

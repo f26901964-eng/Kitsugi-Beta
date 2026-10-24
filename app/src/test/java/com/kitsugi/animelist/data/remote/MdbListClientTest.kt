@@ -136,6 +136,80 @@ class MdbListClientTest {
     }
 
     @Test
+    fun quotaHeadersParseLimitRemainingAndReset() {
+        val quota = requireNotNull(
+            MdbListClient.parseQuotaHeaders("25000", "1784", "1734393600")
+        )
+
+        assertEquals(25000, quota.limit ?: -1)
+        assertEquals(1784, quota.remaining ?: -1)
+        assertEquals(1734393600L, quota.resetAtEpochSeconds ?: 0L)
+        assertFalse(quota.isExhausted)
+        assertTrue(quota.isKnown)
+        assertEquals(23216, quota.used ?: -1)
+    }
+
+    @Test
+    fun quotaHeadersRejectGarbageInsteadOfInventingNumbers() {
+        // Başlık yoksa/bozuksa sayı uydurulmaz; arayüz "bilinmiyor" gösterir.
+        assertNull(MdbListClient.parseQuotaHeaders(null, null, null))
+        assertNull(MdbListClient.parseQuotaHeaders("abc", "xyz", "0"))
+    }
+
+    @Test
+    fun quotaResetHeaderAcceptsMilliseconds() {
+        assertEquals(1734393600L, MdbListClient.normalizeEpochSeconds(1734393600000L) ?: 0L)
+        assertEquals(1734393600L, MdbListClient.normalizeEpochSeconds(1734393600L) ?: 0L)
+        assertNull(MdbListClient.normalizeEpochSeconds(null))
+    }
+
+    @Test
+    fun userQuotaReadsPaidPlanLimitFromResponseInsteadOfFreeLimit() {
+        val quota = requireNotNull(
+            MdbListClient.parseUserQuota(
+                """{"api_requests":25000,"api_requests_count":1000,"patron_status":"active_patron","patreon_pledge":3}""",
+                null
+            )
+        )
+
+        // Ücretli plan: limit asla sabit 1.000 varsayılmaz.
+        assertEquals(25000, quota.limit ?: -1)
+        assertEquals(24000, quota.remaining ?: -1)
+        assertEquals(MdbListPlan.SUPPORTER, quota.plan)
+    }
+
+    @Test
+    fun userQuotaDetectsFreePlanAndExhaustedQuota() {
+        val quota = requireNotNull(
+            MdbListClient.parseUserQuota(
+                """{"api_requests":1000,"api_requests_count":1000,"patron_status":"former_patron","patreon_pledge":0}""",
+                null
+            )
+        )
+
+        assertEquals(1000, quota.limit ?: -1)
+        assertEquals(0, quota.remaining ?: -1)
+        assertEquals(MdbListPlan.FREE, quota.plan)
+        assertTrue(quota.isExhausted)
+    }
+
+    @Test
+    fun userQuotaKeepsHeaderValuesWhenBodyIsUnreadable() {
+        val headers = MdbListQuota(
+            limit = 25000,
+            remaining = 24999,
+            resetAtEpochSeconds = 2_000_000_000L
+        )
+
+        val quota = requireNotNull(MdbListClient.parseUserQuota("not-json", headers))
+
+        assertEquals(25000, quota.limit ?: -1)
+        assertEquals(24999, quota.remaining ?: -1)
+        assertEquals(2_000_000_000L, quota.resetAtEpochSeconds ?: 0L)
+        assertEquals(MdbListPlan.UNKNOWN, quota.plan)
+    }
+
+    @Test
     fun sensitiveUrlRedactorHidesCredentialParametersButPreservesOtherQueryValues() {
         val url = "https://example.test/item?api_key=tmdb-secret&language=tr-TR&apikey=mdb-secret&token=login-token"
 

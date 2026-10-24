@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,6 +21,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.collect
@@ -46,19 +49,28 @@ internal fun WikiFindBar(session: WikiOriginalSession) {
     if (!session.findOpen) return
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val accent = LocalKitsugiAccent.current
     LaunchedEffect(Unit) { focus.requestFocus() }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+    // 2026-10-23: arama çubuğu uygulama temasına bağlandı — vurgu renkli odak
+    // çerçevesi, yuvarlatılmış alan ve sayfa yüzeyinden ayrılan tek parça zemin.
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(KitsugiColors.Surface)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
         OutlinedTextField(
             value = session.findQuery,
             onValueChange = { session.findQuery = it.take(256) },
             modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = KitsugiColors.TextPrimary,
                 unfocusedTextColor = KitsugiColors.TextPrimary,
-                cursorColor = KitsugiColors.TextPrimary,
-                focusedBorderColor = KitsugiColors.TextPrimary,
-                unfocusedBorderColor = KitsugiColors.TextSecondary,
-                focusedLabelColor = KitsugiColors.TextPrimary,
+                cursorColor = accent,
+                focusedBorderColor = accent.copy(alpha = 0.7f),
+                unfocusedBorderColor = KitsugiColors.Border,
+                focusedLabelColor = accent,
                 unfocusedLabelColor = KitsugiColors.TextSecondary
             ),
             label = { Text(stringResource(R.string.wiki_find_in_page)) },

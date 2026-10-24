@@ -155,6 +155,12 @@ data class ProfileSettings(
     val simklUsername: String = "",
     val isSimklImportRunning: Boolean = false,
     val isSimklSessionExpired: Boolean = false,
+    /** `E95`: oturumu sunucu tarafında düşmüş diğer hesaplar (Ayarlar kartı "Oturum süresi doldu" gösterir). */
+    val isAniListSessionExpired: Boolean = false,
+    val isMalSessionExpired: Boolean = false,
+    val isKitsuSessionExpired: Boolean = false,
+    val isShikimoriSessionExpired: Boolean = false,
+    val isBangumiSessionExpired: Boolean = false,
     val onProfileInfoSave: (profileName: String, listTitle: String) -> Unit,
     val onPickProfileImageClick: () -> Unit,
     val onPickBannerImageClick: () -> Unit,

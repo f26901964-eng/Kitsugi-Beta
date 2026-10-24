@@ -132,11 +132,6 @@ private fun WebViewWrapper(
 
         val layoutParams = FrameLayout.LayoutParams(width, height)
 
-        // İçerik değişince (örn. biyografi otomatik çevirisi tamamlanınca veya
-        // "Orijinal" düğmesine basılınca) WebView yeniden oluşturulmadan yeni HTML
-        // yüklenir; aksi hâlde AndroidView yalnızca ilk veriyi gösteriyordu.
-        val lastLoadedHtml = remember { arrayOfNulls<String>(1) }
-
         AndroidView(
             factory = { context ->
                 WebView(context).apply {
@@ -146,14 +141,7 @@ private fun WebViewWrapper(
                     this.layoutParams = layoutParams
                     chromeClient?.let { webChromeClient = it }
                     webViewClient = client
-                    lastLoadedHtml[0] = data
                     loadDataWithBaseURL(null, data, null, "utf-8", null)
-                }
-            },
-            update = { webView ->
-                if (lastLoadedHtml[0] != data) {
-                    lastLoadedHtml[0] = data
-                    webView.loadDataWithBaseURL(null, data, null, "utf-8", null)
                 }
             },
             modifier = Modifier,

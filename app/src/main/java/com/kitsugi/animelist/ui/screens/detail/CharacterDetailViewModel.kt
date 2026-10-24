@@ -471,7 +471,9 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
 
         val names = buildList {
             add(detail.name)
+            detail.name.substringBefore("/").trim().takeIf { it.isNotEmpty() }?.let(::add)
             requestedName?.let(::add)
+            requestedName?.substringBefore("/")?.trim()?.takeIf { it.isNotEmpty() }?.let(::add)
             detail.nativeName?.let(::add)
             detail.romanizedName?.let(::add)
             detail.englishName?.let(::add)
@@ -501,23 +503,36 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             )
         }.getOrDefault(emptyList())
 
+        val isVoiceActorPhoto: (String?) -> Boolean = { candidateUrl ->
+            !isRealMediaRole && detail.voiceActors.any { va ->
+                DetailCache.isSameImageResource(candidateUrl, va.imageUrl)
+            }
+        }
+        val safeMainImageUrl = mainImageUrl?.takeUnless(isVoiceActorPhoto)
+
         val items = buildList {
-            if (!mainImageUrl.isNullOrBlank()) {
-                add(GalleryItem(url = mainImageUrl, source = friendlySource, category = GalleryCategory.CHARACTER, description = description))
+            if (!safeMainImageUrl.isNullOrBlank()) {
+                add(GalleryItem(url = safeMainImageUrl, source = friendlySource, category = GalleryCategory.CHARACTER, description = description))
             }
             for (img in aggregated) {
-                if (img.url != mainImageUrl && img.url.isNotBlank()) {
+                if (img.url != safeMainImageUrl && img.url.isNotBlank() && !isVoiceActorPhoto(img.url)) {
                     add(GalleryItem(url = img.url, source = img.source, category = GalleryCategory.CHARACTER, description = description))
                 }
             }
         }.distinctBy { it.url }
 
         val bestPortrait = items.firstOrNull()?.url
-        if (!bestPortrait.isNullOrBlank()) {
+        if (!bestPortrait.isNullOrBlank() && !isVoiceActorPhoto(bestPortrait)) {
             if (!isRealMediaRole) {
-                names.forEach { alias -> DetailCache.propagateCharacterPortrait(alias, bestPortrait) }
+                val portraitTargets = listOfNotNull(
+                    detail.name,
+                    detail.name.substringBefore("/").trim().takeIf { it.isNotEmpty() },
+                    requestedName,
+                    requestedName?.substringBefore("/")?.trim()?.takeIf { it.isNotEmpty() }
+                ).filter { it.isNotBlank() }.distinct()
+                portraitTargets.forEach { alias -> DetailCache.propagateCharacterPortrait(alias, bestPortrait) }
             }
-            if (detail.imageUrl.isNullOrBlank() && currentFetchKey == expectedFetchKey) {
+            if ((detail.imageUrl.isNullOrBlank() || isVoiceActorPhoto(detail.imageUrl)) && currentFetchKey == expectedFetchKey) {
                 val upgraded = detail.copy(imageUrl = bestPortrait)
                 _state.value = CharacterDetailState.Success(upgraded)
                 DetailCache.putCharacterDetail(source, characterId, upgraded, lastCharacterCacheIdentity)
@@ -525,6 +540,73 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         }
 
         if (currentFetchKey == expectedFetchKey) _galleryItems.value = items
+    }
+
+    /**
+     * Wiki sekmesi karakter sayfasını çözdüğünde ana detayda eksik olan portre veya biyografiyi
+     * kurgusal karakter verisiyle tamamlar ve önbellekteki karakter listesine yayar.
+     */
+    fun onWikiCharacterPageResolved(page: com.kitsugi.animelist.data.fandom.FandomCharacterPage) {
+        if (lastIsRealMediaRole) return
+        val currentState = _state.value as? CharacterDetailState.Success ?: return
+        var detail = currentState.detail
+        val expectedKey = currentFetchKey ?: return
+
+        val isVoiceActorPhoto: (String?) -> Boolean = { candidateUrl ->
+            detail.voiceActors.any { va -> DetailCache.isSameImageResource(candidateUrl, va.imageUrl) }
+        }
+        val wikiImages = page.infobox?.images.orEmpty().filter { it.url.isNotBlank() && !isVoiceActorPhoto(it.url) }
+        val firstWikiPortrait = wikiImages.firstOrNull()?.url
+        var updated = false
+
+        if (!firstWikiPortrait.isNullOrBlank()) {
+            val portraitTargets = listOfNotNull(
+                detail.name,
+                detail.name.substringBefore("/").trim().takeIf { it.isNotEmpty() },
+                lastCharacterName,
+                lastCharacterName?.substringBefore("/")?.trim()?.takeIf { it.isNotEmpty() }
+            ).filter { it.isNotBlank() }.distinct()
+            portraitTargets.forEach { alias -> DetailCache.propagateCharacterPortrait(alias, firstWikiPortrait) }
+
+            if (detail.imageUrl.isNullOrBlank() || isVoiceActorPhoto(detail.imageUrl)) {
+                detail = detail.copy(imageUrl = firstWikiPortrait)
+                updated = true
+            }
+            val currentGallery = _galleryItems.value
+            val wikiSourceLabel = page.siteName ?: "Wiki"
+            val newGalleryItems = (currentGallery + wikiImages.map { img ->
+                GalleryItem(
+                    url = img.url,
+                    source = wikiSourceLabel,
+                    category = GalleryCategory.CHARACTER,
+                    description = img.caption ?: detail.name
+                )
+            }).distinctBy { it.url }
+            if (newGalleryItems.size != currentGallery.size) {
+                _galleryItems.value = newGalleryItems
+            }
+        }
+
+        val currentBio = detail.biography?.trim().orEmpty()
+        val isPlaceholderBio = currentBio.isEmpty() ||
+            currentBio == "Bu kurgusal karakter için ek biyografi bilgisi bulunmuyor."
+        val wikiBio = page.description?.trim().orEmpty()
+        if (isPlaceholderBio && wikiBio.isNotEmpty()) {
+            detail = detail.copy(biography = wikiBio)
+            updated = true
+            triggerBioTranslationIfNeeded(
+                bio = wikiBio,
+                source = lastSource,
+                characterId = lastCharacterId,
+                cacheIdentity = lastCharacterCacheIdentity,
+                expectedFetchKey = expectedKey
+            )
+        }
+
+        if (updated) {
+            _state.value = CharacterDetailState.Success(detail)
+            DetailCache.putCharacterDetail(lastSource, lastCharacterId, detail, lastCharacterCacheIdentity)
+        }
     }
 
     /**
@@ -578,7 +660,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch {
             val updated = withContext(Dispatchers.IO) {
                 runCatching {
-                    KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, tabMode = true)
+                    KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, background = true)
                 }
                     .getOrNull()
             } ?: return@launch

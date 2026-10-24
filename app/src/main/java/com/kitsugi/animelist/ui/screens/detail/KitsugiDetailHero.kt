@@ -128,9 +128,8 @@ fun KitsugiDetailHero(
     val configuration = LocalConfiguration.current
     val screenHeightDp = configuration.screenHeightDp.toFloat()
     val screenWidthDp = configuration.screenWidthDp
-    // Yatay modda her zaman dikey poster birincil olur; dikey modda ekran
-    // oranına bakılır — uzun-dar telefonlarda dikey poster, daha kare/tablet
-    // benzeri cihazlarda yatay arka plan tercih edilir.
+    // Ortak kural (Listem detayıyla aynı): yatay modda dikey poster,
+    // dikey modda — telefonun en-boy oranından bağımsız — yatay arka plan.
     val artworkPreference = remember(screenWidthDp, configuration.screenHeightDp) {
         resolveHeroArtworkPreference(screenWidthDp, configuration.screenHeightDp)
     }
@@ -200,8 +199,8 @@ fun KitsugiDetailHero(
         }.distinct()
     }
     // YÖN ⇄ GÖRSEL OTOMATİK EŞLEŞMESİ:
-    //  - POSTER tercihi (yatay mod **ve** uzun-dar telefonlar): dikey poster birincil.
-    //  - BACKDROP tercihi (daha kare/tablet benzeri cihazlar): yatay arka plan birincil.
+    //  - POSTER tercihi (yatay mod): dikey poster birincil.
+    //  - BACKDROP tercihi (dikey mod): yatay arka plan birincil.
     // Çift sabit olduğu için eşleşme otomatiktir; yedek aday olarak diğer tür
     // listenin sonuna eklenir (kullanıcı elle kaydırdığında veya birincil aday
     // yüklenemediğinde kullanılır).
@@ -234,16 +233,19 @@ fun KitsugiDetailHero(
         // GÖRSEL ALANININ ŞEKLİ: ekran yönü/boyutuna göre varsayılan oranla başlar,
         // görsel yüklenince GERÇEK en-boy oranına kilitlenir → kutu, gösterdiği görselle
         // birebir aynı şekle gelir ve görsel (Crop ile) alanı TAM kaplar; kırpma/boşluk ≈ sıfır.
-        //  - POSTER tercihi (yatay mod + uzun-dar telefonlar) → 2:3 DİKEY poster kutusu.
-        //  - BACKDROP tercihi (kare/tablet benzeri cihazlar) → 16:9 YATAY arka plan bandı.
-        val defaultBoxAspect = if (usePosterArtwork) 2f / 3f else 16f / 9f
+        //  - POSTER (yatay mod) → 2:3 DİKEY poster kutusu.
+        //  - BACKDROP (dikey mod) → 16:9 YATAY arka plan bandı.
+        // Kutu, TERCİHE değil o anda GÖSTERİLEN gerçek görsele göre şekillenir:
+        // dikey modda yatay aday yoksa postere düşülür; poster 16:9 aralığına
+        // sıkıştırılırsa kareye yakın kırpılıp bozuluyordu.
+        val defaultBoxAspect = if (isVerticalArtwork) 2f / 3f else 16f / 9f
         val boxAspect = (loadedImageAspect ?: defaultBoxAspect).coerceIn(
-            minimumValue = if (usePosterArtwork) 0.5f else 1.0f,
-            maximumValue = if (usePosterArtwork) 1.6f else 2.2f
+            minimumValue = if (isVerticalArtwork) 0.5f else 1.0f,
+            maximumValue = if (isVerticalArtwork) 1.6f else 2.2f
         )
-        // POSTER'da görsel alanı çok uzun olabilir; ekran yüksekliğiyle sınırla.
-        // BACKDROP'ta 16:9 bant kendi sınırını getirir; yine de ekranın %62'sini aşmasın.
-        val bannerCapDp = if (usePosterArtwork) screenHeightDp else screenHeightDp * 0.62f
+        // Dikey görselde alan ekran yüksekliğiyle sınırlanır; yatay bant
+        // ekranın %62'sini aşmaz.
+        val bannerCapDp = if (isVerticalArtwork) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
 
         // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine

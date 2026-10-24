@@ -73,6 +73,44 @@ object SimklImportManager {
         }
     }
 
+    /**
+     * Simkl'in **ucuz değişiklik imzası** (`/sync/activities`).
+     *
+     * Simkl'de `sync/all-items` uçları tam listeyi döndürür ve "şu tarihten sonra
+     * değişenler" parametresi yoktur. Bu yüzden yenileme öncesi tek küçük istekle
+     * kullanıcının film/dizi/anime listelerinde en son ne zaman bir şey değiştiği
+     * öğrenilir; imza son senkronla aynıysa tam liste HİÇ çekilmez.
+     *
+     * @return revizyon imzası; uç kullanılamıyorsa/boşsa `null` (çağıran tam çekime düşer)
+     */
+    suspend fun fetchActivitiesRevision(token: String): String? {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val request = Request.Builder()
+                    .url("https://api.simkl.com/sync/activities")
+                    .header("Authorization", "Bearer $token")
+                    .header("simkl-api-key", CLIENT_ID)
+                    .header("User-Agent", "KitsugiApp/2.4")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use null
+                    val body = response.body?.string().orEmpty()
+                    if (body.isBlank() || body.trim() == "null") return@use null
+                    val root = runCatching { JSONObject(body) }.getOrNull() ?: return@use null
+
+                    val parts = mutableListOf<String>()
+                    root.optString("all").takeIf { it.isNotBlank() && it != "null" }
+                        ?.let { parts.add("all=$it") }
+                    for (key in listOf("movies", "shows", "anime", "tv_shows")) {
+                        root.optJSONObject(key)?.let { parts.add("$key=$it") }
+                    }
+                    if (parts.isEmpty()) null else parts.joinToString("|")
+                }
+            }.getOrNull()
+        }
+    }
+
     suspend fun fetchAllLists(token: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
             val movies = fetchList(token, "movies")
@@ -90,7 +128,11 @@ object SimklImportManager {
             while (attempt < 4) {
                 attempt++
                 val request = Request.Builder()
-                    .url("https://api.simkl.com/sync/all-items/$type")
+                    // (E80) `memos=yes`: kullanıcının özel notu (`memo.text`, ≤140 krk) liste
+                    // yanıtına eklenir. Olmasaydı yazıcı `private_memo` yazıyor ama içe
+                    // aktarma notu hiç okumuyordu; üstelik `notes=null` gelen satır,
+                    // smartImport'ta yerel notu siliyordu.
+                    .url("https://api.simkl.com/sync/all-items/$type?memos=yes")
                     .header("Authorization", "Bearer $token")
                     .header("simkl-api-key", CLIENT_ID)
                     .header("User-Agent", "KitsugiApp/2.4")
@@ -165,6 +207,14 @@ object SimklImportManager {
                         val score = item.optInt("user_rating", 0).takeIf { it > 0 }
                             ?: item.optInt("rating", 0).takeIf { it > 0 }
 
+                        // Simkl liste API'si eklenme zamanı vermez; son izleme zamanı
+                        // son aktivitenin en iyi vekilidir. Bugüne kadar Simkl satırları
+                        // updatedAt=0 ile yazılıyordu — "Son Güncelleme" sıralamasında
+                        // hep sona düşüyor, eklenme vekili olarak da kullanılamıyordu.
+                        val lastWatchedAt = item.optNullableString("last_watched_at")?.let { raw ->
+                            runCatching { java.time.Instant.parse(raw).epochSecond }.getOrDefault(0L)
+                        } ?: 0L
+
                         // malId SADECE ve SADECE Simkl API'sinin gerçekten 'mal' olarak döndüğü gerçek MAL ID'dir.
                         // Asla simklId veya uydurma ID malId yerine konulmaz! Aksi halde CrossSync rastgele MAL animeleriyle eşleştirir!
                         val realMalId = if (mediaType == MediaType.Anime && malId != null && malId > 0 && malId < 100_000_000) malId else null
@@ -194,6 +244,8 @@ object SimklImportManager {
                                 imageUrl = imageUrl,
                                 year = year,
                                 synopsis = null,
+                                notes = simklMemoText(item),
+                                updatedAt = lastWatchedAt,
                                 tmdbId = tmdbId,
                                 simklId = simklId
                             )
@@ -219,12 +271,28 @@ object SimklImportManager {
     }
 }
 
-    private fun mapSimklStatus(status: String?): WatchStatus {
+    /**
+     * Simkl `memos=yes` yanıtındaki `memo` nesnesinden not metnini çıkarır (E80).
+     *
+     * Resmî sözleşme (api.simkl.org/guides/sync): alan adı tekil `memo`dur; içinde
+     * `text` (≤140 karakter) ve `is_private` bulunur, boş not `{}` olarak gelir.
+     * Yazma tarafı `private_memo` düz dizgesini kullanır — okuma/yazma asimetrisi
+     * Simkl'in kendi sözleşmesidir. `unit` testleri için görünür.
+     */
+    internal fun simklMemoText(item: JSONObject): String? =
+        item.optJSONObject("memo")
+            ?.optString("text")
+            ?.takeIf { it.isNotBlank() }
+
+    /** `unit` testleri için görünür (E79 regresyonu). */
+    internal fun mapSimklStatus(status: String?): WatchStatus {
         return when (status?.lowercase()) {
             "watching", "reading", "rewatching" -> WatchStatus.Watching
             "completed" -> WatchStatus.Completed
             "hold", "on_hold", "paused" -> WatchStatus.Paused
-            "dropped" -> WatchStatus.Dropped
+            // (E79) Simkl bırakılanları `notinteresting` kovasında tutar; bu eşleme yokken
+            // bırakılan kayıtlar `else` dalından "planlandı" olarak içe aktarılıyordu.
+            "dropped", "notinteresting" -> WatchStatus.Dropped
             "plantowatch", "plan_to_watch", "planning" -> WatchStatus.Planned
             else -> WatchStatus.Planned
         }

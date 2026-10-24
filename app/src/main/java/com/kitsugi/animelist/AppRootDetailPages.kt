@@ -280,7 +280,6 @@ fun AppRootDetailPages(
                         )
                     },
                     titleLanguage = appSettings.titleLanguage,
-                    staffNameLanguage = appSettings.staffNameLanguage,
                     scoreFormat = appSettings.scoreFormat,
                     hideScores = appSettings.hideScores,
                     showAnimeLogos = appSettings.showAnimeLogos,
@@ -456,7 +455,6 @@ fun AppRootDetailPages(
                             )
                         },
                         titleLanguage = appSettings.titleLanguage,
-                        staffNameLanguage = appSettings.staffNameLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
                         showAnimeLogos = appSettings.showAnimeLogos,
@@ -679,6 +677,31 @@ fun AppRootDetailPages(
                             navState.popDetailStack()
                             appViewModel.selectTab(com.kitsugi.animelist.ui.navigation.MainTab.Settings)
                             appViewModel.requestSettingsRoute(com.kitsugi.animelist.ui.screens.settings.SettingsRoute.MalSettings)
+                        }
+                    },
+                    onConnectPlatform = { platformIndex ->
+                        // Bildirimler > "Hesabı Bağla": kaynagin kendi hesap sayfasina git.
+                        // MAL (1) tek-oturum akisini kullanir; digerleri ayarlar rotasina gider.
+                        if (platformIndex == 1) {
+                            if (authViewModel.isMalConnected) {
+                                authViewModel.ensureMalUnifiedSession()
+                            } else {
+                                navState.popDetailStack()
+                                appViewModel.selectTab(com.kitsugi.animelist.ui.navigation.MainTab.Settings)
+                                appViewModel.requestSettingsRoute(com.kitsugi.animelist.ui.screens.settings.SettingsRoute.MalSettings)
+                            }
+                        } else {
+                            val route = when (platformIndex) {
+                                0 -> com.kitsugi.animelist.ui.screens.settings.SettingsRoute.AniListSettings
+                                2 -> com.kitsugi.animelist.ui.screens.settings.SettingsRoute.SimklSettings
+                                3 -> com.kitsugi.animelist.ui.screens.settings.SettingsRoute.KitsuSettings
+                                4 -> com.kitsugi.animelist.ui.screens.settings.SettingsRoute.ShikimoriSettings
+                                5 -> com.kitsugi.animelist.ui.screens.settings.SettingsRoute.BangumiSettings
+                                else -> com.kitsugi.animelist.ui.screens.settings.SettingsRoute.AccountConnections
+                            }
+                            navState.popDetailStack()
+                            appViewModel.selectTab(com.kitsugi.animelist.ui.navigation.MainTab.Settings)
+                            appViewModel.requestSettingsRoute(route)
                         }
                     },
                     onUserProfileClick = { userId, username, avatarUrl ->

@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.local
 import android.content.Context
 import com.kitsugi.animelist.data.auth.CrossProviderIdentityCache
 import com.kitsugi.animelist.data.auth.CrossProviderIds
+import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.remote.BangumiLocalMappingCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
@@ -42,6 +43,7 @@ import kotlinx.coroutines.withContext
 object MyListIdentityCrosswalk {
 
     private val bangumiMappingKey = Regex("^bgm_([am])_(\\d+)$")
+    private val kitsuMappingKey = Regex("^kitsu_media_.+_([am])_(\\d+)$")
 
     /**
      * `MediaEntry.id` → o satır için bilinen ek kanonik kimlik anahtarları.
@@ -51,17 +53,37 @@ object MyListIdentityCrosswalk {
     suspend fun build(context: Context, entries: List<MediaEntry>): Map<Int, Set<String>> {
         if (entries.isEmpty()) return emptyMap()
         return withContext(Dispatchers.IO) {
-            val pending = entries.filter { needsCrosswalk(it) }
-            if (pending.isEmpty()) return@withContext emptyMap()
+            // `needsCrosswalk` en az bir satırda köprü gerekiyorsa tüm satırlardaki
+            // doğrulanmış `CrossProviderIdentityCache` + `bgm_detail_xref_v1` + `bangumi_id_mapping`
+            // anahtarlarını topla (`E101`/`E104`): örn. `AniList`/`MAL` satırında önbelleklenmiş
+            // `bangumiSubjectId`/`kitsuId`/`simklId`, henüz kendi önbelleği olmayan `Bangumi`/`Kitsu`
+            // satırıyla doğrudan kimlik üzerinden birleşsin. `extraKeysFor` satırın kendi uzayını asla ezmez.
+            if (entries.none { needsCrosswalk(it) }) return@withContext emptyMap()
 
-            val bangumiSubjectToMal = runCatching { BangumiLocalMappingCache.snapshot(context) }
-                .getOrNull()
-                ?.let { reverseBangumiMapping(it) }
-                .orEmpty()
+            val bangumiSubjectToMal = buildMap {
+                runCatching { BangumiLocalMappingCache.snapshot(context) }
+                    .getOrNull()
+                    ?.let { putAll(reverseBangumiMapping(it)) }
+                putAll(readDetailXrefBangumiToMal(context))
+            }
 
-            val result = LinkedHashMap<Int, Set<String>>(pending.size)
-            pending.forEach { entry ->
-                val extras = extraKeysFor(entry, cachedIds(context, entry), bangumiSubjectToMal)
+            val kitsuMediaToMal = if (entries.any { MediaIdentity.kitsuId(it) != null }) {
+                runCatching { ExternalAuthManager.getPrefs(context).all }
+                    .getOrNull()
+                    ?.let { reverseKitsuMapping(it) }
+                    .orEmpty()
+            } else {
+                emptyMap()
+            }
+
+            val result = LinkedHashMap<Int, Set<String>>(entries.size)
+            entries.forEach { entry ->
+                val extras = extraKeysFor(
+                    entry = entry,
+                    ids = cachedIds(context, entry),
+                    bangumiSubjectToMal = bangumiSubjectToMal,
+                    kitsuMediaToMal = kitsuMediaToMal
+                )
                 if (extras.isNotEmpty()) result[entry.id] = extras
             }
             result
@@ -109,11 +131,14 @@ object MyListIdentityCrosswalk {
     internal fun extraKeysFor(
         entry: MediaEntry,
         ids: CrossProviderIds?,
-        bangumiSubjectToMal: Map<String, Int> = emptyMap()
+        bangumiSubjectToMal: Map<String, Int> = emptyMap(),
+        kitsuMediaToMal: Map<String, Int> = emptyMap()
     ): Set<String> {
         val prefix = entry.type.name
         val ownedNamespaces = MediaIdentity.keys(entry).mapTo(HashSet()) { it.substringBeforeLast(':') }
-        val malId = ids?.malId ?: bangumiMalIdOfBangumiRow(entry, prefix, bangumiSubjectToMal)
+        val malId = ids?.malId
+            ?: bangumiMalIdOfBangumiRow(entry, prefix, bangumiSubjectToMal)
+            ?: kitsuMalIdOfKitsuRow(entry, prefix, kitsuMediaToMal)
 
         val candidates = listOfNotNull(
             malId?.let { "$prefix:mal:$it" },
@@ -141,6 +166,18 @@ object MyListIdentityCrosswalk {
         return bangumiSubjectToMal["$typePrefix:$subjectId"]
     }
 
+    /** Kitsu satırının `kitsuMediaId`'si için önbellekten bulunan gerçek MAL ID. */
+    private fun kitsuMalIdOfKitsuRow(
+        entry: MediaEntry,
+        typePrefix: String,
+        kitsuMediaToMal: Map<String, Int>
+    ): Int? {
+        if (kitsuMediaToMal.isEmpty()) return null
+        if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) return null
+        val kitsuMediaId = MediaIdentity.kitsuId(entry) ?: return null
+        return kitsuMediaToMal["$typePrefix:$kitsuMediaId"]
+    }
+
     /**
      * `bgm_a_<malId> → subject_id` (animeler) ve `bgm_m_<malId> → subject_id` (kitaplar) kayıtlarını
      * `"<Tür>:<subject_id>" → malId` biçimine ters çevirir.
@@ -164,4 +201,48 @@ object MyListIdentityCrosswalk {
             malIds.singleOrNull()?.let { subjectKey to it }
         }.toMap()
     }
+
+    /**
+     * `kitsu_media_<userId>_{a|m}_<malId> → kitsuMediaId` kayıtlarını
+     * `"<Tür>:<kitsuMediaId>" → malId` biçimine ters çevirir.
+     *
+     * Bir Kitsu medya kimliği birden fazla MAL kaydına bağlanmışsa belirsizlik nedeniyle elenir.
+     */
+    internal fun reverseKitsuMapping(raw: Map<String, *>): Map<String, Int> {
+        if (raw.isEmpty()) return emptyMap()
+        val malIdsByKitsuMedia = HashMap<String, MutableSet<Int>>()
+        raw.forEach { (key, value) ->
+            val kitsuMediaId = (value as? Number)?.toInt() ?: return@forEach
+            if (kitsuMediaId <= 0) return@forEach
+            val match = kitsuMappingKey.matchEntire(key) ?: return@forEach
+            val malId = match.groupValues[2].toIntOrNull()
+                ?.takeIf { it in CrossProviderIds.REAL_MAL_MIN..CrossProviderIds.REAL_MAL_MAX }
+                ?: return@forEach
+            val typePrefix = if (match.groupValues[1] == "a") MediaType.Anime.name else MediaType.Manga.name
+            malIdsByKitsuMedia.getOrPut("$typePrefix:$kitsuMediaId") { LinkedHashSet() } += malId
+        }
+        return malIdsByKitsuMedia.mapNotNull { (kitsuKey, malIds) ->
+            malIds.singleOrNull()?.let { kitsuKey to it }
+        }.toMap()
+    }
+
+    /** `KitsugiBangumiDetailClient` (`bgm_detail_xref_v1`: `s<id> -> "al=...;mal=...;"`) köprüsü. */
+    private fun readDetailXrefBangumiToMal(context: Context): Map<String, Int> = runCatching {
+        val prefs = context.getSharedPreferences("bgm_detail_xref_v1", Context.MODE_PRIVATE)
+        val out = HashMap<String, Int>()
+        prefs.all.forEach { (key, value) ->
+            if (!key.startsWith("s")) return@forEach
+            val subjectId = key.drop(1).toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
+            val encoded = value as? String ?: return@forEach
+            val malId = encoded.split(';')
+                .firstOrNull { it.startsWith("mal=") }
+                ?.removePrefix("mal=")
+                ?.toIntOrNull()
+                ?.takeIf { it in CrossProviderIds.REAL_MAL_MIN..CrossProviderIds.REAL_MAL_MAX }
+                ?: return@forEach
+            out["${MediaType.Anime.name}:$subjectId"] = malId
+            out["${MediaType.Manga.name}:$subjectId"] = malId
+        }
+        out
+    }.getOrDefault(emptyMap())
 }

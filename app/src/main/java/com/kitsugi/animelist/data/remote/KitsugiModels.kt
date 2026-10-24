@@ -159,7 +159,18 @@ data class KitsugiMediaDetail(
     val rawStatus: String? = null,
     val rawSourceMaterial: String? = null,
     val rawSeason: String? = null,
-    val seasonYear: Int? = null
+    val seasonYear: Int? = null,
+    /** Shikimori gibi sağlayıcıların ayrıntı yanıtında taşıdığı ek alanlar. */
+    val titleRussian: String? = null,
+    val episodesAired: Int? = null,
+    // Nullable kalır: Gson, eski kalıcı önbellek JSON'larında olmayan non-null List
+    // alanlarına emptyList() yerine null koyar; eski MAL/AniList kayıtları da güvenli okunur.
+    val publishers: List<String>? = null,
+    val licensors: List<String>? = null,
+    val fansubbers: List<String>? = null,
+    val fandubbers: List<String>? = null,
+    /** Kaynağın kendi topluluk istatistikleri; çapraz-servis yedeğinden önce kullanılır. */
+    val nativeStats: KitsugiStats? = null
 )
 
 data class KitsugiStreamingEpisode(

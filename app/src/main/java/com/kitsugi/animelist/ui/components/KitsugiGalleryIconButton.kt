@@ -49,6 +49,41 @@ fun KitsugiGalleryIconButton(
     modifier: Modifier = Modifier,
     isLoading: Boolean = LocalKitsugiGalleryLoading.current
 ) {
+    // Sonsuz nabız (pulse) transition'ı YALNIZCA yükleme sürerken kurulur.
+    // Eski yapıda transition boştayken de yaşıyor, detay sayfası açık kaldığı
+    // sürece HER KAREDE bu alt ağacı yeniden kompoze edip kaydırma karelerini
+    // çalıyordu (aynı hata sınıfı KitsugiTranslateIconButton'da düzeltilmişti).
+    if (isLoading) {
+        PulsingGalleryIconButton(
+            onClick = onClick,
+            accentColor = accentColor,
+            modifier = modifier
+        )
+    } else {
+        IconButton(
+            onClick = onClick,
+            enabled = true,
+            modifier = modifier
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Rounded.Image,
+                    contentDescription = stringResource(R.string.action_gallery),
+                    tint = accentColor,
+                    modifier = Modifier.alpha(1f)
+                )
+            }
+        }
+    }
+}
+
+/** Yükleme sürerken çalışan izole alt ağaç: sonsuz animasyon yalnızca burada yaşar. */
+@Composable
+private fun PulsingGalleryIconButton(
+    onClick: () -> Unit,
+    accentColor: Color,
+    modifier: Modifier
+) {
     val transition = rememberInfiniteTransition(label = "galleryLoadingTransition")
     val pulseAlpha by transition.animateFloat(
         initialValue = 0.30f,
@@ -62,7 +97,7 @@ fun KitsugiGalleryIconButton(
 
     IconButton(
         onClick = onClick,
-        enabled = !isLoading,
+        enabled = false,
         modifier = modifier
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(40.dp)) {
@@ -70,15 +105,13 @@ fun KitsugiGalleryIconButton(
                 imageVector = Icons.Rounded.Image,
                 contentDescription = stringResource(R.string.action_gallery),
                 tint = accentColor,
-                modifier = Modifier.alpha(if (isLoading) pulseAlpha * 0.6f else 1f)
+                modifier = Modifier.alpha(pulseAlpha * 0.6f)
             )
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(34.dp),
-                    color = accentColor,
-                    strokeWidth = 2.dp
-                )
-            }
+            CircularProgressIndicator(
+                modifier = Modifier.size(34.dp),
+                color = accentColor,
+                strokeWidth = 2.dp
+            )
         }
     }
 }

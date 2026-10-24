@@ -17,6 +17,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,12 +45,22 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.kitsugi.animelist.R
 
 /** One lightweight history per tab, but only ONE live WebView for the whole reader. */
-internal class WikiOriginalSession(initialUrl: String, var readerLocation: FandomReaderLocation) {
+internal class WikiOriginalSession(
+    initialUrl: String,
+    var readerLocation: FandomReaderLocation,
+    /** Son seçilen düzen; varsayılan mobil (false). Kullanıcı seçimi kalıcıdır. */
+    initialDesktop: Boolean = false
+) {
     var url by mutableStateOf(initialUrl)
     var title by mutableStateOf<String?>(null)
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
-    var desktop by mutableStateOf(true)
+    var desktop by mutableStateOf(initialDesktop)
+    /**
+     * Okurken ekranın kapanmaması. Oturumludur (uygulama yeniden başlarsa kapanır) ve
+     * yalnızca bu sekmenin WebView'ine uygulanır; ayarlara yazılmaz.
+     */
+    var keepScreenOn by mutableStateOf(false)
     var progress by mutableStateOf(0)
     var failed by mutableStateOf(false)
     var pageCommitted by mutableStateOf(false)
@@ -188,6 +199,7 @@ internal fun WikiOriginalPage(
         session.enhancements?.setAppearance(pageMode)
         session.view?.let { view ->
             if (view.settings.textZoom != textZoom) view.settings.textZoom = textZoom
+            if (view.keepScreenOn != session.keepScreenOn) view.keepScreenOn = session.keepScreenOn
             if (!session.pageCommitted) view.setBackgroundColor(currentBackground)
         }
     }
@@ -237,12 +249,23 @@ internal fun WikiOriginalPage(
             TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { session.generation++ }) { Text(stringResource(R.string.yenile)) }
         }
 
-        if (session.progress < 100 && !session.failed && !assetFailed) {
-            LinearProgressIndicator(
-                progress = { session.progress / 100f },
-                color = accentColor,
-                modifier = Modifier.fillMaxWidth()
-            )
+        // İlerleme çizgisi her zaman 2 dp yer kaplar: yükleme bitince çizgi kaybolurken
+        // WebView'in yukarı sıçraması (içerik kayması) engellenir. Material bileşenin
+        // 4 dp yüksekliği 2 dp'lik alandan taşacağı için ince çubuk elle çizilir.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(accentColor.copy(alpha = 0.16f))
+        ) {
+            if (session.progress < 100 && !session.failed && !assetFailed) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth((session.progress.coerceIn(0, 100)) / 100f)
+                        .background(accentColor)
+                )
+            }
         }
         if (session.failed) {
             // Keep the page under the message: a site-provided 403/404/challenge can still
@@ -268,6 +291,7 @@ internal fun WikiOriginalPage(
                         val engine = WebView(context).also { allocatedView = it }.apply {
                             val ownedView = this
                             setBackgroundColor(currentBackground)
+                            keepScreenOn = session.keepScreenOn
                             val tools = WikiPageEnhancements(context, this, session, loadedAssets, currentConfig)
                             session.enhancements = tools
                             tools.setAppearance(currentPageMode)
@@ -417,11 +441,9 @@ internal fun WikiOriginalPage(
                                     session.progress = 100
                                     session.pageCommitted = true
                                     update(view, url)
-                                    if (desktopAtCreation && url != null &&
-                                        WikiOriginalPagePolicy.destination(url) == WikiOriginalPagePolicy.Destination.WIKI
-                                    ) {
-                                        view.evaluateJavascript(WikiOriginalPagePolicy.DESKTOP_VIEWPORT_SCRIPT, null)
-                                    }
+                                    // Görünüm düzeni (viewport + ekrana sığdırma) WikiPageEnhancements
+                                    // içinde, belge görünür olduğu anda uygulanır; burada ikinci kez
+                                    // dokunulmaz. Böylece sayfa 1200 px düzende yatay kaydırmaya düşmez.
                                     tools.documentAvailable(url)
                                     if (restoreScroll || session.restoreAfterReload) {
                                         restoreScroll = false

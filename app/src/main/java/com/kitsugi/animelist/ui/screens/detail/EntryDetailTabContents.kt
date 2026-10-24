@@ -176,35 +176,43 @@ internal fun EntryDetailOverviewTab(
             (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty() || detail.serializations.isNotEmpty())) {
             // Rol bazlı yönlendirme: yazar çipleri kişi sayfasına, dergi çipleri
             // filtreli aramaya, stüdyo/yapımcı/yayıncı çipleri stüdyo sayfasına gider.
-            val studioChipClick: (com.kitsugi.animelist.data.remote.KitsugiStudio) -> Unit = { chip ->
-                when (chip.role) {
-                    com.kitsugi.animelist.data.remote.StudioRole.AUTHOR ->
-                        onStaffClick(chip.id, chip.source, chip.name, chip.imageUrl)
-                    com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE -> {
-                        val magSource = chip.source.lowercase(java.util.Locale.ROOT).trim()
-                        val safeMagId = chip.id.takeIf {
-                            it > 0 && (magSource == "jikan" || magSource == "mal" || magSource == "myanimelist")
-                        } ?: 0
-                        onMagazineClick(safeMagId, chip.name)
-                    }
-                    else -> {
-                        val resolvedSource = resolveStudioClickSource(
-                            studioSource = chip.source,
-                            mediaSource = entry.source.lowercase(),
-                            mediaType = entry.type,
-                            role = chip.role
-                        )
-                        onStudioClick(chip.id, resolvedSource, chip.name, chip.imageUrl)
+            // (2026-10-23 perf fix) lambda remember ile stabilize edildi: her
+            // recompose'da yeni instance üretilirse KitsugiStudiosCard gövdesi
+            // (tüm çip FlowRow'ları) baştan kuruluyordu.
+            val studioChipClick: (com.kitsugi.animelist.data.remote.KitsugiStudio) -> Unit =
+                remember(onStaffClick, onMagazineClick, onStudioClick, entry.source, entry.type) {
+                    { chip ->
+                        when (chip.role) {
+                            com.kitsugi.animelist.data.remote.StudioRole.AUTHOR ->
+                                onStaffClick(chip.id, chip.source, chip.name, chip.imageUrl)
+                            com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE -> {
+                                val magSource = chip.source.lowercase(java.util.Locale.ROOT).trim()
+                                val safeMagId = chip.id.takeIf {
+                                    it > 0 && (magSource == "jikan" || magSource == "mal" || magSource == "myanimelist")
+                                } ?: 0
+                                onMagazineClick(safeMagId, chip.name)
+                            }
+                            else -> {
+                                val resolvedSource = resolveStudioClickSource(
+                                    studioSource = chip.source,
+                                    mediaSource = entry.source.lowercase(),
+                                    mediaType = entry.type,
+                                    role = chip.role
+                                )
+                                onStudioClick(chip.id, resolvedSource, chip.name, chip.imageUrl)
+                            }
+                        }
                     }
                 }
-            }
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
-                networks = detail.networks + detail.serializations,
+                networks = detail.networks,
                 onStudioClick = studioChipClick,
                 onProducerClick = studioChipClick,
-                onNetworkClick = studioChipClick
+                onNetworkClick = studioChipClick,
+                serializations = detail.serializations,
+                onSerializationClick = studioChipClick
             )
         }
 
