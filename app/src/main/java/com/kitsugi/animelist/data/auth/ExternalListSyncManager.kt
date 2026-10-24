@@ -47,8 +47,14 @@ object ExternalListSyncManager {
     internal const val OUTCOME_NOT_CONNECTED = "bağlı değil"
     internal const val OUTCOME_FAILED = "hata"
     internal const val OUTCOME_TIMEOUT = "zaman aşımı"
-    /** Değişen alan yok: hedefe istek atılmadı (veri kaybını önleyen "dokunma" kuralı). */
-    internal const val OUTCOME_UP_TO_DATE = "değişiklik yok"
+    /**
+     * Hedefte kayıt VAR ve yazılacak yeni alan YOK — gerçek bir eşitlik durumu.
+     *
+     * Önceden bu etiket, hedefte kaydın olup olmadığına bakılmadan "değişen alan yok" diye
+     * basılıyordu; kullanıcı ise o kaynakta kaydın hiç oluşmadığını görüyordu. Artık yalnızca
+     * hedefteki kayıt doğrulandıktan sonra kullanılır (bkz. [RemoteListPresence]).
+     */
+    internal const val OUTCOME_UP_TO_DATE = "zaten eşit"
 
     /** Bangumi yazması çağrıda zaten yapıldı (`skipBangumiWrite`). */
     internal const val OUTCOME_WRITTEN_BY_CALLER = "çağıran yazdı"
@@ -96,6 +102,24 @@ object ExternalListSyncManager {
     ) {
         /** Bu sağlayıcıya yazılacak alanlar (desteklenmeyenler süzülür). */
         fun fieldsFor(provider: String): Set<SyncField> = fields.narrowTo(provider)
+
+        /**
+         * Varlık kaydının anahtarı — aynı yapının farklı kaynak satırları aynı anahtarı üretir.
+         */
+        val presenceKey: String by lazy { RemoteListPresence.keyFor(entry, identity) }
+
+        /**
+         * Sağlayıcı için YAZIM PLANI.
+         *
+         * Hedefte kaydın var olduğu doğrulanmadıysa alan süzmesi uygulanmaz: kayıt yokken
+         * "değişen alan yok" demek, o kaynağa hiç yazmamak (ya da yarım kayıt oluşturmak)
+         * anlamına geliyordu. Ayrıntı: [RemoteListPresence], [planSyncWrite].
+         */
+        fun writePlan(provider: String): SyncWritePlan = planSyncWrite(
+            requested = fieldsFor(provider),
+            isFullWrite = isFullWrite,
+            presenceConfirmed = RemoteListPresence.isPresent(context, presenceKey, provider)
+        )
 
         /**
          * İlk/tam yazım mı? (yeni kayıt ya da eski kuyruk işi)
@@ -300,8 +324,7 @@ object ExternalListSyncManager {
             )
         }
 
-        return Prepared(
-            run = Run(
+        val run = Run(
                 context = context,
                 entry = entry,
                 remoteEntry = remoteEntry,
@@ -322,10 +345,11 @@ object ExternalListSyncManager {
                 ),
                 verdictBlocked = verdictBlocked,
                 fields = fields
-            ),
-            skipped = skipped,
-            errors = errors
-        )
+            )
+        // Satırın KENDİ kaynağında kaydın var olduğu bilinir (içe aktarılmış satır oradan
+        // geldi). Diğer beş kaynak için varlık doğrulanana kadar tam yazım uygulanır.
+        RemoteListPresence.seedOwnSource(context, run.presenceKey, rowSource)
+        return Prepared(run = run, skipped = skipped, errors = errors)
     }
 
     /**
@@ -372,8 +396,10 @@ object ExternalListSyncManager {
             !run.allows("anilist") -> return identitySkip(run, ANILIST)
         }
 
-        val fields = run.fieldsFor("anilist")
-        // Değişen alan yoksa istek atılmaz: hedefte uygulama dışında girilmiş puan/not ezilmesin.
+        // Değişen alan yoksa istek atılmaz — ANCAK yalnızca kaydın AniList'te VAR olduğu
+        // doğrulandıysa. Kayıt yokken/doğrulanmadıysa tam yazım yapılır (kayıt oluşur).
+        val plan = run.writePlan("anilist")
+        val fields = plan.fields
         if (fields.isEmpty()) return SourceResult(ANILIST, OUTCOME_UP_TO_DATE)
 
         val update = runSyncCatching {
@@ -386,7 +412,7 @@ object ExternalListSyncManager {
                 knownAniListMediaId = run.identity.aniListId,
                 knownMalId = run.identity.malId,
                 fields = fields,
-                fullWrite = run.isFullWrite
+                fullWrite = plan.fullWrite
             )
         }
 
@@ -492,13 +518,15 @@ object ExternalListSyncManager {
             )
         }
 
-        val fields = run.fieldsFor("mal")
+        // Varlık doğrulanmadan alan süzmesi uygulanmaz (bkz. [RemoteListPresence]).
+        val plan = run.writePlan("mal")
+        val fields = plan.fields
         if (fields.isEmpty()) return SourceResult(MAL, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("mal")
             MalSyncManager.updateMalEntry(
                 token = token, entry = run.remoteEntry, context = context,
-                fields = fields, fullWrite = run.isFullWrite
+                fields = fields, fullWrite = plan.fullWrite
             )
         }.fold(
             // `false` = gönderilecek geçerli alan yok (ör. yalnız parsiyel tarih değişti) →
@@ -525,7 +553,10 @@ object ExternalListSyncManager {
             !run.allows("simkl") -> return identitySkip(run, SIMKL)
         }
 
-        val fields = run.fieldsFor("simkl")
+        // Simkl'de liste kaydı yokken yalnız puan göndermek kaydı listeye EKLEMEZ
+        // (kullanıcı Simkl'de hiçbir şey görmez). Varlık doğrulanmadıysa tam yazım gider.
+        val plan = run.writePlan("simkl")
+        val fields = plan.fields
         if (fields.isEmpty()) return SourceResult(SIMKL, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("simkl")
@@ -533,7 +564,7 @@ object ExternalListSyncManager {
                 context, run.remoteEntry,
                 knownMalId = run.identity.malId,
                 fields = fields,
-                fullWrite = run.isFullWrite
+                fullWrite = plan.fullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -566,7 +597,11 @@ object ExternalListSyncManager {
             !run.allows("kitsu") -> return identitySkip(run, KITSU)
         }
 
-        val fields = run.fieldsFor("kitsu")
+        // Kitsu'da kayıt bulunamadıysa `findLibraryEntryId` null döner ve kayıt OLUŞTURULUR;
+        // yine de alan süzmesi uygulanmaz, çünkü "değişen alan yok" iken hiç çağrı yapılmaması
+        // kaydın hiç oluşmaması demekti (bkz. [RemoteListPresence]).
+        val plan = run.writePlan("kitsu")
+        val fields = plan.fields
         if (fields.isEmpty()) return SourceResult(KITSU, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("kitsu")
@@ -575,7 +610,7 @@ object ExternalListSyncManager {
                 entry = run.remoteEntry,
                 knownKitsuMediaId = run.identity.kitsuId,
                 fields = fields,
-                fullWrite = run.isFullWrite
+                fullWrite = plan.fullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -623,7 +658,11 @@ object ExternalListSyncManager {
             run.remoteEntry
         }
 
-        val fields = run.fieldsFor("shikimori")
+        // Shikimori web'inde oluşturulmuş kayıtlar bu kural olmadan hiç eşitlenmiyordu:
+        // "değişen alan yok" → istek yok → kayıt hiç yoklamıyordu. Varlık doğrulanmadan
+        // alan süzmesi uygulanmaz.
+        val plan = run.writePlan("shikimori")
+        val fields = plan.fields
         if (fields.isEmpty()) return SourceResult(SHIKIMORI, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("shikimori")
@@ -631,7 +670,7 @@ object ExternalListSyncManager {
                 context, shikimoriEntry,
                 knownMalId = run.identity.malId,
                 fields = fields,
-                fullWrite = run.isFullWrite
+                fullWrite = plan.fullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -659,7 +698,10 @@ object ExternalListSyncManager {
             !run.allows("bangumi") -> return identitySkip(run, BANGUMI)
         }
 
-        val fields = run.fieldsFor("bangumi")
+        // Bangumi koleksiyonunda kayıt yokken alan süzmesi uygulanırsa kayıt hiç oluşmaz
+        // (`skipCollectionWrite`), kullanıcı Bangumi'de yalnızca "hiç eklenmemiş" görür.
+        val plan = run.writePlan("bangumi")
+        val fields = plan.fields
         if (fields.isEmpty()) return SourceResult(BANGUMI, OUTCOME_UP_TO_DATE)
         return runSyncCatching {
             PlatformRateLimiter.acquire("bangumi")
@@ -670,7 +712,7 @@ object ExternalListSyncManager {
                 entry = run.entry,
                 knownSubjectId = run.identity.bangumiSubjectId,
                 fields = fields,
-                fullWrite = run.isFullWrite
+                fullWrite = plan.fullWrite
             )
         }.fold(
             onSuccess = { result ->
@@ -973,6 +1015,26 @@ object ExternalListSyncManager {
             skipped.addAll(result.skipped)
             if (result.synced) syncedSources.add(result.source)
             if (result.source == ANILIST && result.aniListEntryId != null) aniListEntryId = result.aniListEntryId
+
+            // ── VARLIK KAYDI ────────────────────────────────────────────────────────
+            // Kaydın hedefte var olduğu YALNIZCA gerçek bir yazımdan sonra doğrulanmış olur.
+            // Bir sonraki turda bu sağlayıcı için alan süzmesi uygulanabilir (hedefte elle
+            // girilmiş değerler ezilmez); silme başarılıysa kayıt "yok" olarak işaretlenir.
+            if (result.synced) {
+                RemoteListPresence.record(
+                    context,
+                    prepared.run.presenceKey,
+                    providerKeyOf(result.source),
+                    present = !isDelete
+                )
+            } else if (!isDelete && result.outcome == OUTCOME_WRITTEN_BY_CALLER) {
+                RemoteListPresence.record(
+                    context,
+                    prepared.run.presenceKey,
+                    providerKeyOf(result.source),
+                    present = true
+                )
+            }
         }
 
         // "Bağlı değil" sonuçları arasından YALNIZ gerçekten kullanılanları ayır.

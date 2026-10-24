@@ -1,5 +1,27 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.355
+
+## 🇹🇷 Türkçe
+
+### 🔁 Altı Kaynak Arası Eşitleme — "Değişiklik Yok" Hatası Giderildi
+- **Kök neden:** Eşitleme alan bazlı çalışıyor ve her kaynak için "değişen alan yoksa istek atma" kuralı uygulanıyordu; **hedefte kaydın var olup olmadığı hiç kontrol edilmiyordu**. Kitsu'dan içe aktarılmış bir yapımda yalnızca favori/etiket değiştirdiğinizde Simkl · Kitsu · Shikimori · Bangumi "değişiklik yok" diyor, oysa kayıt bu kaynaklarda **hiç oluşmuyordu**.
+- **Varlık kaydı:** Her (yapım, sağlayıcı) çifti için "hedefte kayıt VAR" bilgisi kalıcı tutulur. Kayıt doğrulanmadan alan süzmesi uygulanmaz; hedefe **tam yazım** gider (boş yerel alanlar gönderilmediği için hedefteki değerler silinmez).
+- **Onarım turu:** Hiçbir alan değişmese bile 10 dakikada en fazla bir kez tüm kaynaklara tam eşitleme yapılır; eksik/eskimiş kayıtlar kendiliğinden oluşturulur ve düzeltilir.
+- **Dürüst rapor:** "değişiklik yok" etiketi artık yalnızca hedefteki kayıt **gerçekten eşitse** gösterilir ve adı **"zaten eşit"** oldu; yazılmamış bir alan için başarı gösterilmez.
+- **Hesap değişiminde temizlik:** Hesap koparıldığında/başka hesaba geçildiğinde varlık kayıtları temizlenir; yeni hesapta eksik kayıtlar "zaten eşit" denip atlanmaz.
+
+## 🇬🇧 English
+
+### 🔁 Six-Source Sync — "No changes" Bug Fixed
+- **Root cause:** Writes were field-diffed and each provider skipped the request when no local field changed, **without ever checking whether the target actually held the entry**. On a Kitsu-imported title, changing only favourite/tags reported "no changes" for Simkl · Kitsu · Shikimori · Bangumi while those libraries had no record at all.
+- **Presence tracking:** A persistent per-(title, provider) presence flag is kept. Until the record is confirmed, field filtering is bypassed and a **full write** is sent (empty local values are never sent, so remote values are preserved).
+- **Repair pass:** Even with no local change, a throttled (≤1 per 10 min) full sync runs so missing/stale records self-heal.
+- **Honest report:** The old "no changes" label is now only shown when the target really is equal, renamed to **"already equal"**.
+- **Account switch cleanup:** Presence data is cleared on disconnect so a new account never inherits "already equal" claims.
+
+---
+
 # Kitsugi Beta v2.4.352
 
 ## 🇹🇷 Türkçe

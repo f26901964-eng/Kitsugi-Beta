@@ -21,15 +21,27 @@ class MyListSearchIndexTest {
     )
 
     @Test
-    fun preservesTitleAliasesNativeTextMetadataAndPunctuationSearch() {
+    fun preservesTitleAliasesNativeTextAndPunctuationSearch() {
         val index = MyListSearchIndex.build(entries)
         for ((query, expected) in listOf(
             "attack on titan" to listOf(1), "進撃" to listOf(1),
-            "2013" to listOf(1), "16498" to listOf(1), "ninja" to listOf(2),
-            "mal" to listOf(3), "rezero" to listOf(3), ":" to listOf(3)
+            "2013" to listOf(1), "rezero" to listOf(3), ":" to listOf(3)
         )) {
             assertEquals(query, expected, search(index, query, fuzzy = false).map { it.id })
         }
+    }
+
+    /**
+     * v2.4.352 sözleşmesi: kaynak (`source`), tür, durum, alt başlık ve sentetik MAL kimliği
+     * başlık aramasına KATILMAZ — bunlar yanlış pozitif ("mal" → her MAL kaydı) üretiyordu.
+     * Bu test o kararı sabitler; meta alan yeniden aramaya eklenirse burada kırılır.
+     */
+    @Test
+    fun metadataFieldsAreNotSearchedAsTitleNoise() {
+        val index = MyListSearchIndex.build(entries)
+        assertTrue("MAL kimliği aramada kullanılmamalı", search(index, "16498", fuzzy = false).isEmpty())
+        assertTrue("Alt başlık aramada kullanılmamalı", search(index, "ninja", fuzzy = false).isEmpty())
+        assertTrue("Kaynak adı aramada kullanılmamalı", search(index, "mal", fuzzy = false).isEmpty())
     }
 
     @Test
@@ -144,7 +156,10 @@ class MyListSearchIndexTest {
         filter(index.entries, query, index, fuzzy)
 
     private fun filter(rows: List<MediaEntry>, query: String, index: MyListSearchIndex?, fuzzy: Boolean) =
-        filterMyListEntries(rows, query, "all", "all", "all", "all", "all", "all")
+        filterMyListEntries(
+            rows, query, "all", "all", "all", "all", "all", "all",
+            fuzzySearchOverride = fuzzy
+        )
 
     private fun entry(id: Int, title: String) = MediaEntry(
         id = id, title = title, type = MediaType.Anime, status = WatchStatus.Planned,
