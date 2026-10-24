@@ -159,7 +159,12 @@ Kullanıcı sistem yazı ölçeği de dikkate alınmaya devam eder.
 | DOM çeviri / kozmetik reklam (jsdom, regresyon) | **26 / 26** |
 | Görünüm politikası (Kotlin, gerçek üretim dosyaları) | **12 / 12** |
 | Sayfa/sekme/URL politikası + viewport metni (Kotlin) | **13 / 13** |
-| **Toplam** | **70 / 70** |
+| Android derlemesi (CI: JDK 17, Gradle, foss debug + R8 release + DEX doğrulama) | **başarılı** (25 dk 6 sn) |
+| **Toplam** | **70 / 70** + derleme |
+
+CI kanıtı: `🏗️ Android Derleme Doğrulama` iş akışı, `40066797592` numaralı koşu, `build-debug` işi;
+artifact: `kitsugi-foss-apks` (debug + release APK). Bu, değişen Kotlin/Compose dosyalarının gerçek
+Android araç zinciriyle derlendiğini doğrular.
 
 Ek kontroller:
 
@@ -171,9 +176,8 @@ Ek kontroller:
 
 ### Doğrulanmayanlar — açıkça
 
-- **Android/Compose tam derlemesi ve APK üretilmedi.** Bu ortamda Android SDK ve Gradle dağıtımı yok
-  (önceki denemede Gradle indirmesi SSLHandshakeException ile durmuştu).
-- **Gerçek cihaz/emülatör görsel kabul testi yapılmadı.**
+- **Gerçek cihaz/emülatör görsel kabul testi yapılmadı.** APK üretildi (CI), ancak tema renklerinin
+  cihaz ekranındaki görüntüsü ve iki parmak jest davranışı ölçülmedi.
 - **Canlı Fandom/Wikipedia CSS'i ile piksel doğrulaması yapılmadı.** Hangi seçicinin hangi wikide ne kadar
   etkili olduğu yalnızca bilinen Fandom Desktop / Vector 2022 yapısına göre tasarlandı; jsdom testleri
   sözleşmeyi (sınıf, öznitelik, stil varlığı, geri yükleme) doğrular, renkleri değil.
