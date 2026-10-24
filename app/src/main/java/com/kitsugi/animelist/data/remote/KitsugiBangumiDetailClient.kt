@@ -20,6 +20,8 @@ import com.kitsugi.animelist.utils.toTurkishDuration
 import com.kitsugi.animelist.utils.toTurkishRelationType
 import com.kitsugi.animelist.utils.toTurkishSeason
 import com.kitsugi.animelist.utils.toTurkishStaffRole
+import com.kitsugi.animelist.utils.toLocalizedStaffRole
+import com.kitsugi.animelist.utils.BangumiOrgDictionary
 import com.kitsugi.animelist.utils.toTurkishStatus
 import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.CancellationException
@@ -108,6 +110,19 @@ object KitsugiBangumiDetailClient {
 
     /** Kurum adı araması: aynı ada sahip çok kayıt olabildiğinden ilk 5 yetersiz kalıyordu. */
     private const val STUDIO_SEARCH_LIMIT = 10
+
+    /**
+     * Bir kurum adı için en fazla kaç farklı yazımla arama yapılır
+     * (`SHUEISHA` → sözlük köprüsü → `集英社` gibi). Her yazım bir ağ isteğidir.
+     */
+    private const val MAX_ORG_QUERY_VARIANTS = 4
+
+    /**
+     * Gevşek kurum adı eşleşmesi için en kısa normalize anahtar uzunluğu. Kısa kısaltmalar
+     * (`TBS`, `NBC`) yanlış kurumlara bağlanmasın diye yalnızca yeterince uzun adlarda
+     * "içerir" karşılaştırması yapılır.
+     */
+    private const val MIN_FUZZY_ORG_KEY = 6
 
     /** Bulunamayan kurumlar bu süre boyunca yeniden aranmaz (geçici hatalar bunun dışında). */
     private const val STUDIO_MISS_TTL_MS = 10 * 60 * 1000L
@@ -466,45 +481,63 @@ object KitsugiBangumiDetailClient {
         // ── Stüdyo / yapımcı / kanal ─────────────────────────────────────────
         // Stüdyo/şirket adları infobox'ta Japonca/Çince gelir — Latin ada çevrilir
         // (örn. 京都アニメーション → Kyoto Animation); bilinmeyenler olduğu gibi kalır.
-        val studioNames = splitCompanies(
-            values(
-                "动画制作", "動畫製作", "动画制作公司", "動畫製作公司", "アニメーション制作",
-                "アニメーション製作", "アニメ制作", "制作", "制作公司", "製作公司", "制作スタジオ", "开发", "開發"
-            )
+        //
+        // Aynı kurum infobox'ta birden çok yazımla geçebiliyor
+        // (`SHUEISHA` + `集英社`, `ジェネオン・ユニバーサル・エンターテイメント(NBC…)` +
+        // `Geneon Universal Entertainment`). Sözlük kimliği (`bangumi_producer_*`) aynıysa
+        // tek çipte toplanır; yoksa normalize edilmiş ad kullanılır. Bu olmadan Liste
+        // sayfasında aynı şirket iki kez, biri ham Japonca olarak görünüyordu.
+        fun distinctCompanies(names: List<String>): List<String> {
+            val seen = HashSet<String>(names.size * 2)
+            return names.filter { name ->
+                val identity = BangumiOrgDictionary.identityKey(name)
+                    ?: normalizeCompanyKey(name)
+                identity.isNotEmpty() && seen.add(identity)
+            }
+        }
+
+        val studioNames = distinctCompanies(
+            splitCompanies(
+                values(
+                    "动画制作", "動畫製作", "动画制作公司", "動畫製作公司", "アニメーション制作",
+                    "アニメーション製作", "アニメ制作", "制作", "制作公司", "製作公司", "制作スタジオ", "开发", "開發"
+                )
+            ).map { it.toLatinStudioName() }
         )
-            .map { it.toLatinStudioName() }
         val studios = studioNames
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.STUDIO) }
         val producers = if (mediaType == MediaType.Manga) {
-            splitCompanies(valuesAll("出版社", "出版", "发行", "發行"))
-                .map { it.toLatinStudioName() }
-                .distinct()
+            distinctCompanies(
+                splitCompanies(valuesAll("出版社", "出版", "发行", "發行"))
+                    .map { it.toLatinStudioName() }
+            )
                 .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.PUBLISHER) }
         } else {
             // Kurum rollerini kaynaklar arasında kayıpsız birleştir.
-            splitCompanies(
-                valuesAll(
-                    "製作", "出品", "发行", "發行", "发行公司", "製作委员会", "制作委员会",
-                    "製作委員會", "制作協力", "製作協力", "音楽制作", "音乐制作", "音樂製作",
-                    "レーベル", "厂牌", "廠牌", "配給", "配给", "プロデュース"
+            distinctCompanies(
+                splitCompanies(
+                    valuesAll(
+                        "製作", "出品", "发行", "發行", "发行公司", "製作委员会", "制作委员会",
+                        "製作委員會", "制作協力", "製作協力", "音楽制作", "音乐制作", "音樂製作",
+                        "レーベル", "厂牌", "廠牌", "配給", "配给", "プロデュース"
+                    )
                 )
+                    .map { it.toLatinStudioName() }
+                    .filter { name -> studioNames.none { it.equals(name, ignoreCase = true) } }
             )
-                .map { it.toLatinStudioName() }
-                .filter { name -> studioNames.none { it.equals(name, ignoreCase = true) } }
-                .distinct()
                 .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.PRODUCER) }
         }
-        val networks = splitNetworks(
-            valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台", "放送局", "テレビ局")
+        val networks = distinctCompanies(
+            splitNetworks(
+                valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台", "放送局", "テレビ局")
+            ).map { it.toLatinStudioName() }
         )
-            .map { it.toLatinStudioName() }
-            .distinct()
             .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.NETWORK) }
-        val serializations = splitCompanies(valuesAll(
-            "连载杂志", "連載雜誌", "連載雑誌", "杂志", "雜誌", "雑誌", "掲載誌", "連載", "杂志社"
-        ))
-            .map { it.toLatinStudioName() }
-            .distinct()
+        val serializations = distinctCompanies(
+            splitCompanies(valuesAll(
+                "连载杂志", "連載雜誌", "連載雑誌", "杂志", "雜誌", "雑誌", "掲載誌", "連載", "杂志社"
+            )).map { it.toLatinStudioName() }
+        )
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.MAGAZINE) }
 
         // ── Yayın bilgisi ────────────────────────────────────────────────────
@@ -2478,51 +2511,184 @@ object KitsugiBangumiDetailClient {
      */
     suspend fun resolveCompanyPersonId(name: String): Int? = findStudioPersonId(name)
 
-    /** Kurum adını Bangumi kişi/şirket条目'ı ile eşler; bulunamazsa `null`. */
+    /**
+     * p1 (`next.bgm.tv`) uçlarının boş döndüğü stüdyo/şirket kayıtlarında V0 ucu üzerinden
+     * kurum kaydını kişi şemasıyla verir.
+     *
+     * @return kurum adı okunamazsa `null`; çalışma listesi boş kalabilir.
+     */
+    suspend fun fetchCompanyFallback(personId: Int): KitsugiStudioDetail? = withContext(Dispatchers.IO) {
+        if (personId <= 0) return@withContext null
+        val root = runCatching { BangumiApiClient.getPerson(personId) }
+            .getOrNull() ?: return@withContext null
+        val info = BangumiApiClient.parseInfobox(root.optJSONArray("infobox"))
+        val nameCn = root.strOrNull("nameCN")
+            ?: root.strOrNull("name_cn")
+            ?: info["简体中文名"]?.firstOrNull()
+            ?: info["中文名"]?.firstOrNull()
+        val localized = BangumiNameLocalizer.entityFromInfobox(
+            name = root.strOrNull("name"),
+            nameCn = nameCn,
+            infobox = info
+        )
+        val name = localized.display.takeIf { it.isNotBlank() && it != "?" }
+            ?: return@withContext null
+        val about = root.strOrNull("summary")?.let(::cleanMarkup)
+            ?: info["地址"]?.firstOrNull()
+            ?: info["网址"]?.firstOrNull()
+        val works = runCatching {
+            BangumiApiClient.getJsonArrayOrNull("/v0/persons/$personId/subjects")
+        }.getOrNull().let(::parseCompanySubjectWorks)
+        KitsugiStudioDetail(
+            id = personId,
+            name = name,
+            isMain = true,
+            imageUrl = root.optJSONObject("images").image("large", "medium", "grid", "small", "common"),
+            about = about,
+            mediaWorks = works.distinctBy { it.mediaId }
+        )
+    }
+
+    /** `/v0/persons/{id}/subjects` → kurumun yer aldığı yapımlar. */
+    private fun parseCompanySubjectWorks(array: JSONArray?): List<KitsugiStaffMediaWork> {
+        if (array == null) return emptyList()
+        val seen = HashSet<Int>()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val subjectId = item.optInt("id", 0).takeIf { it > 0 } ?: return@mapNotNull null
+            val subjectType = item.optInt("type", 0)
+            if (subjectType != BangumiApiClient.SubjectType.ANIME &&
+                subjectType != BangumiApiClient.SubjectType.BOOK &&
+                subjectType != BangumiApiClient.SubjectType.REAL
+            ) return@mapNotNull null
+            val mediaId = BangumiIdNamespace.stableIdFromRaw(subjectId) ?: return@mapNotNull null
+            if (!seen.add(subjectId)) return@mapNotNull null
+            val title = BangumiNameLocalizer.entity(item.strOrNull("name"), item.strOrNull("name_cn"))
+            val staffRole = item.strOrNull("staff")?.toLocalizedStaffRole()
+                ?.takeIf { it.isNotBlank() }
+                ?: if (isTurkish()) "Stüdyo" else "Studio"
+            KitsugiStaffMediaWork(
+                mediaId = mediaId,
+                mediaTitle = title.display.ifBlank { "#$subjectId" },
+                mediaImageUrl = BangumiApiClient.absoluteImageUrl(item.strOrNull("image")),
+                mediaType = when (subjectType) {
+                    BangumiApiClient.SubjectType.BOOK -> "manga"
+                    BangumiApiClient.SubjectType.REAL -> "tv"
+                    else -> "anime"
+                },
+                staffRole = staffRole,
+                source = SOURCE,
+                titleEnglish = title.english,
+                titleJapanese = title.native,
+                titleRomaji = title.romaji
+            )
+        }
+    }
+
+    /**
+     * Kurum adını Bangumi kişi/şirket条目'ı ile eşler; bulunamazsa `null`.
+     *
+     * Bangumi infobox'ı aynı şirketi `SHUEISHA` (Latin), `集英社` (CJK) ya da
+     * `ジェネオン・ユニバーサル・エンターテイメント(NBCユニバーサル・エンターテイメントジャパン)`
+     * gibi farklı biçimlerde verebiliyor. [StudioSourceSupport.orgNameVariants] ile üretilen
+     * yazımlar sırayla denenir (sözlük köprüsü Latin adı Bangumi'nin lokal adına çevirir) ve
+     * eşleşme tüm ad alanları üzerinden normalize edilerek yapılır. Bu, özellikle kurumun
+     * Bangumi'de Latin adla değil CJK adla kayıtlı olduğu durumlarda çipleri kurtarır.
+     */
     private suspend fun findStudioPersonId(name: String): Int? {
         val key = normalizeCompanyKey(name)
         if (key.isEmpty()) return null
+        if (StudioSourceSupport.isCommitteeName(name)) return null
         studioPersonIdCache[key]?.let { cached -> if (cached > 0) return cached }
         studioPersonMissUntil[key]?.let { until ->
             if (System.currentTimeMillis() < until) return null
         }
+
+        val queries = StudioSourceSupport.orgNameVariants(name)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it.length <= 80 }
+            .distinct()
+            .take(MAX_ORG_QUERY_VARIANTS)
+        if (queries.isEmpty()) return null
+
+        // Aranan adın tüm yazımları eşleşme anahtarı olarak kullanılır: arama "集英社" ile
+        // yapıldıysa dönen kayıt "SHUEISHA" adıyla da eşleşsin.
+        val wantedKeys = buildSet<String> {
+            add(key)
+            queries.forEach { query ->
+                val norm = normalizeCompanyKey(query)
+                if (norm.isNotEmpty()) add(norm)
+            }
+            val latin = BangumiOrgDictionary.latinNameFor(name)
+            if (latin != null) {
+                val norm = normalizeCompanyKey(latin)
+                if (norm.isNotEmpty()) add(norm)
+            }
+        }
+
         val token = tokenOrNull()
         // Ağ/zaman aşımı hatası "bulunamadı" anlamına GELMEZ: önbelleğe alınmaz, bir sonraki
         // tıklamada/yeniden denemede tekrar sorgulanır. (Eskiden hata → boş liste → kalıcı 0
         // kaydı oluşuyor, kurum sayfası oturum boyunca açılmıyordu.)
-        val candidates = try {
-            BangumiApiClient.searchPersons(keyword = name, token = token, limit = STUDIO_SEARCH_LIMIT).data
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (e: Exception) {
-            Log.w(TAG, "Kurum araması başarısız ($name): ${e.message}")
-            return null
-        }
-        // Öncelik şirket kayıtlarında (type = 2, 公司); şirket eşleşmezse aynı ada sahip
-        // kişi kaydı (type = 1 — ör. yapımcı şahıslar) kabul edilir: detay sayfası zaten
-        // kişi şablonunu kullanır ve kişinin yapım listesi anlamlı bir sayfa açar.
-        fun exactMatch(entity: com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiEntity): Boolean =
-            listOf(entity.name, entity.nameCn).any { candidateName ->
-                val entityKey = normalizeCompanyKey(candidateName)
-                entityKey.isNotEmpty() && entityKey == key
+        var networkFailure = false
+        var matched: com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiEntity? = null
+
+        for (query in queries) {
+            val candidates = try {
+                BangumiApiClient.searchPersons(keyword = query, token = token, limit = STUDIO_SEARCH_LIMIT).data
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (e: Exception) {
+                Log.w(TAG, "Kurum araması başarısız ($query): ${e.message}")
+                networkFailure = true
+                continue
             }
-        val matched = candidates.filter { it.type == 2 }.firstOrNull(::exactMatch)
-            ?: candidates.filter { it.type == 1 }.firstOrNull(::exactMatch)
-            ?: candidates.filter { it.type == 3 }.firstOrNull(::exactMatch)
-        val id = matched?.id?.takeIf { it > 0 }
+
+            // Öncelik şirket kayıtlarında (type = 2, 公司); şirket eşleşmezse aynı ada sahip
+            // kişi kaydı (type = 1 — ör. yapımcı şahıslar) kabul edilir: detay sayfası zaten
+            // kişi şablonunu kullanır ve kişinin yapım listesi anlamlı bir sayfa açar.
+            fun matches(entity: com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiEntity): Boolean {
+                val entityKeys = listOfNotNull(entity.name, entity.nameCn)
+                    .map { normalizeCompanyKey(it) }
+                    .filter { it.isNotEmpty() }
+                if (entityKeys.any { it in wantedKeys }) return true
+                // GEVŞEK EŞLEŞME: infobox yazımı ile Bangumi kaydı arasında takma ad ya da
+                // uzun ünlü farkı olabiliyor
+                // (`ジェネオン・ユニバーサル・エンターテイメント(NBC…)` ↔ `…エンタテイメント`).
+                // Birebir anahtar eşitliği bu durumda yetmiyor ve çip "bulunamadı"ya düşüyordu.
+                val queryKey = normalizeCompanyKey(query)
+                if (queryKey.length < MIN_FUZZY_ORG_KEY) return false
+                return entityKeys.any { k ->
+                    k.length >= MIN_FUZZY_ORG_KEY && (k.contains(queryKey) || queryKey.contains(k))
+                }
+            }
+
+            matched = candidates.filter { it.type == 2 }.firstOrNull(::matches)
+                ?: candidates.filter { it.type == 1 }.firstOrNull(::matches)
+                ?: candidates.filter { it.type == 3 }.firstOrNull(::matches)
+            if (matched != null) break
+        }
+
         matched?.images?.let { images ->
             BangumiApiClient.absoluteImageUrl(images.poster)?.let { imageUrl ->
                 studioPersonImageCache[key] = imageUrl
             }
         }
+        val id = matched?.id?.takeIf { it > 0 }
         if (id == null) {
-            if (studioPersonMissUntil.size > 256) studioPersonMissUntil.clear()
-            studioPersonMissUntil[key] = System.currentTimeMillis() + STUDIO_MISS_TTL_MS
+            // Yalnızca "gerçekten arandı ve bulunamadı" durumu önbelleğe alınır; aramalardan
+            // biri ağ hatasıyla düştüyse bir sonraki tıklama yeniden denesin.
+            if (!networkFailure) {
+                if (studioPersonMissUntil.size > 256) studioPersonMissUntil.clear()
+                studioPersonMissUntil[key] = System.currentTimeMillis() + STUDIO_MISS_TTL_MS
+            }
             return null
         }
         studioPersonMissUntil.remove(key)
         if (studioPersonIdCache.size > 256) studioPersonIdCache.clear()
         studioPersonIdCache[key] = id
+        // Aynı kurumun diğer yazımları da isabetli sayılsın (çip metni değişse bile).
+        wantedKeys.forEach { wanted -> studioPersonIdCache[wanted] = id }
         return id
     }
 

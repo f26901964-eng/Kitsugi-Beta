@@ -209,7 +209,7 @@ class PendingSyncDrainerTest {
         val dao = FakePendingSyncDao()
         runBlocking {
             PendingSyncDrainer.enqueue(dao, "DELETE", entry())
-            PendingSyncDrainer.enqueue(dao, "UPDATE", entry(id = 9), setOf(SyncField.NOTES))
+            PendingSyncDrainer.enqueue(dao, "UPDATE", entry(id = 9).copy(title = "Other Entry"), setOf(SyncField.NOTES))
             // UPDATE düşmesi DELETE işine ve başka satıra dokunmaz.
             PendingSyncDrainer.removeSyncedFields(dao, "UPDATE", entry(), SyncField.ALL)
             assertEquals(2, dao.getAll().size)

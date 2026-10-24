@@ -489,6 +489,7 @@ private fun MyListTabPageWrapper(
         selectedYearFilterId = appViewModel.myListYearFilterId,
         selectedExtraFilterId = appViewModel.myListExtraFilterId,
         selectedSortId = appViewModel.myListSortId,
+        selectedGroupId = appViewModel.myListGroupId,
         initialScrollIndex = appViewModel.myListScrollIndex,
         initialScrollOffset = appViewModel.myListScrollOffset,
         selectedTabIndex = appViewModel.myListTabIndex,
@@ -501,6 +502,7 @@ private fun MyListTabPageWrapper(
         onYearFilterChange = { appViewModel.updateMyListYearFilter(context, it) },
         onExtraFilterChange = { appViewModel.updateMyListExtraFilter(context, it) },
         onSortChange = { appViewModel.updateMyListSort(context, it) },
+        onGroupChange = { appViewModel.updateMyListGroup(context, it) },
         onScrollPositionChange = { index, offset ->
             appViewModel.updateMyListScrollPosition(index, offset)
         },

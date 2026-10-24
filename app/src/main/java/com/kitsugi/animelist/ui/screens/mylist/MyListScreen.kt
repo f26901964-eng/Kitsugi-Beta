@@ -117,6 +117,8 @@ fun MyListScreen(
     selectedYearFilterId: String,
     selectedExtraFilterId: String,
     selectedSortId: String,
+    selectedGroupId: String = MyListGroupingIds.ADDED,
+    onGroupChange: (String) -> Unit = {},
     initialScrollIndex: Int,
     initialScrollOffset: Int,
     selectedTabIndex: Int,
@@ -408,6 +410,7 @@ fun MyListScreen(
                 selectedScoreFilterId != "all" ||
                 selectedYearFilterId != "all" ||
                 selectedExtraFilterId != "all" ||
+                selectedGroupId != MyListGroupingIds.ADDED ||
                 isExplicitMyListSort(selectedSortId)
 
         // ── Sabit üst bar (başlık + arama + filtreleme) ──
@@ -433,6 +436,7 @@ fun MyListScreen(
                 selectedYearFilterId = selectedYearFilterId,
                 selectedExtraFilterId = selectedExtraFilterId,
                 selectedSortId = selectedSortId,
+                selectedGroupId = selectedGroupId,
                 onStatusFilterChange = onStatusFilterChange,
                 onTypeFilterChange = onTypeFilterChange,
                 onFavoriteFilterChange = onFavoriteFilterChange,
@@ -440,6 +444,7 @@ fun MyListScreen(
                 onYearFilterChange = onYearFilterChange,
                 onExtraFilterChange = onExtraFilterChange,
                 onSortChange = onSortChange,
+                onGroupChange = onGroupChange,
                 activeTabScrollState = activeTabScrollState,
                 accentColor = accentColor,
                 horizontalPadding = horizontalPadding,
@@ -576,8 +581,8 @@ fun MyListScreen(
                         titleLanguage = appSettings.titleLanguage
                     )
                 }
-                val pageGroupedEntries = remember(pageVisibleEntries) {
-                    groupMyListEntriesByStatus(pageVisibleEntries)
+                val pageVisibleSections = remember(pageVisibleEntries, selectedGroupId) {
+                    groupMyListEntries(pageVisibleEntries, selectedGroupId)
                 }
 
                 // Wait until this page has actual items before restoring a deep position.
@@ -622,7 +627,8 @@ fun MyListScreen(
                     pageEntries = pageEntries,
                     sourceBadgesByEntryId = if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) allSourceBadgesByEntryId else emptyMap(),
                     visibleEntries = pageVisibleEntries,
-                    groupedVisibleEntries = pageGroupedEntries,
+                    visibleSections = pageVisibleSections,
+                    selectedGroupId = selectedGroupId,
                     searchQuery = searchQuery,
                     selectedStatusFilterId = selectedStatusFilterId,
                     selectedTypeFilterId = selectedTypeFilterId,

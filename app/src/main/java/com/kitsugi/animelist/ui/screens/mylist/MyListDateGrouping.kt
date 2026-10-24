@@ -29,7 +29,7 @@ import java.time.temporal.TemporalAdjusters
  * sekmede "Bugün", diğerinde "Dün" görünüyordu. Artık tek kaynak
  * [MediaEntry.addedAt] (sağlayıcının `created_at` / `added_to_watchlist_at` değeri).
  */
-internal enum class MyListDateBucket(@StringRes val labelRes: Int) {
+internal enum class LegacyMyListDateBucket(@StringRes val labelRes: Int) {
     TODAY(R.string.mylist_date_today),
     YESTERDAY(R.string.mylist_date_yesterday),
     THIS_WEEK(R.string.mylist_date_this_week),
@@ -40,21 +40,21 @@ internal enum class MyListDateBucket(@StringRes val labelRes: Int) {
 
 /** Hafta başlangıcı Pazartesi'dir (ISO-8601, AniHyou/AniList alışkanlığı). */
 private val DESCENDING_BUCKETS = listOf(
-    MyListDateBucket.TODAY,
-    MyListDateBucket.YESTERDAY,
-    MyListDateBucket.THIS_WEEK,
-    MyListDateBucket.LAST_WEEK,
-    MyListDateBucket.OLDER,
-    MyListDateBucket.UNKNOWN
+    LegacyMyListDateBucket.TODAY,
+    LegacyMyListDateBucket.YESTERDAY,
+    LegacyMyListDateBucket.THIS_WEEK,
+    LegacyMyListDateBucket.LAST_WEEK,
+    LegacyMyListDateBucket.OLDER,
+    LegacyMyListDateBucket.UNKNOWN
 )
 
 private val ASCENDING_BUCKETS = listOf(
-    MyListDateBucket.OLDER,
-    MyListDateBucket.LAST_WEEK,
-    MyListDateBucket.THIS_WEEK,
-    MyListDateBucket.YESTERDAY,
-    MyListDateBucket.TODAY,
-    MyListDateBucket.UNKNOWN
+    LegacyMyListDateBucket.OLDER,
+    LegacyMyListDateBucket.LAST_WEEK,
+    LegacyMyListDateBucket.THIS_WEEK,
+    LegacyMyListDateBucket.YESTERDAY,
+    LegacyMyListDateBucket.TODAY,
+    LegacyMyListDateBucket.UNKNOWN
 )
 
 /** "Son eklenen / İlk eklenen" ailesindeki sıralama kimlikleri. */
@@ -73,22 +73,22 @@ internal fun myListDateBucketOf(
     timestampSec: Long,
     zone: ZoneId = ZoneId.systemDefault(),
     today: LocalDate = LocalDate.now(zone)
-): MyListDateBucket {
-    if (timestampSec <= 0L) return MyListDateBucket.UNKNOWN
+): LegacyMyListDateBucket {
+    if (timestampSec <= 0L) return LegacyMyListDateBucket.UNKNOWN
     val date = runCatching {
         Instant.ofEpochSecond(timestampSec).atZone(zone).toLocalDate()
-    }.getOrNull() ?: return MyListDateBucket.UNKNOWN
+    }.getOrNull() ?: return LegacyMyListDateBucket.UNKNOWN
 
-    if (!date.isBefore(today)) return MyListDateBucket.TODAY
-    if (date == today.minusDays(1)) return MyListDateBucket.YESTERDAY
+    if (!date.isBefore(today)) return LegacyMyListDateBucket.TODAY
+    if (date == today.minusDays(1)) return LegacyMyListDateBucket.YESTERDAY
 
     val thisWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    if (!date.isBefore(thisWeekStart)) return MyListDateBucket.THIS_WEEK
+    if (!date.isBefore(thisWeekStart)) return LegacyMyListDateBucket.THIS_WEEK
 
     val lastWeekStart = thisWeekStart.minusWeeks(1)
-    if (!date.isBefore(lastWeekStart)) return MyListDateBucket.LAST_WEEK
+    if (!date.isBefore(lastWeekStart)) return LegacyMyListDateBucket.LAST_WEEK
 
-    return MyListDateBucket.OLDER
+    return LegacyMyListDateBucket.OLDER
 }
 
 /**
@@ -100,10 +100,10 @@ internal fun groupMyListEntriesByAddedDate(
     ascending: Boolean = false,
     zone: ZoneId = ZoneId.systemDefault(),
     today: LocalDate = LocalDate.now(zone)
-): List<Pair<MyListDateBucket, List<MediaEntry>>> {
+): List<Pair<LegacyMyListDateBucket, List<MediaEntry>>> {
     if (entries.isEmpty()) return emptyList()
 
-    val buckets = LinkedHashMap<MyListDateBucket, MutableList<MediaEntry>>()
+    val buckets = LinkedHashMap<LegacyMyListDateBucket, MutableList<MediaEntry>>()
     entries.forEach { entry ->
         val bucket = myListDateBucketOf(addedSortTimestamp(entry), zone, today)
         buckets.getOrPut(bucket) { mutableListOf() }.add(entry)

@@ -47,21 +47,21 @@ class MyListDateGroupingTest {
         addedAt = addedAt
     )
 
-    private fun bucketOf(date: LocalDate): MyListDateBucket =
+    private fun bucketOf(date: LocalDate): LegacyMyListDateBucket =
         myListDateBucketOf(secondsAt(date), zone, today)
 
     @Test
     fun buckets_areComputedFromCalendarDays() {
-        assertEquals(MyListDateBucket.TODAY, bucketOf(today))
-        assertEquals(MyListDateBucket.TODAY, bucketOf(today.plusDays(1)))      // saat kayması
-        assertEquals(MyListDateBucket.YESTERDAY, bucketOf(today.minusDays(1)))
-        assertEquals(MyListDateBucket.THIS_WEEK, bucketOf(LocalDate.of(2026, 10, 21))) // Çarşamba
-        assertEquals(MyListDateBucket.THIS_WEEK, bucketOf(LocalDate.of(2026, 10, 19))) // Pazartesi
-        assertEquals(MyListDateBucket.LAST_WEEK, bucketOf(LocalDate.of(2026, 10, 18))) // Pazar
-        assertEquals(MyListDateBucket.LAST_WEEK, bucketOf(LocalDate.of(2026, 10, 13)))
-        assertEquals(MyListDateBucket.LAST_WEEK, bucketOf(LocalDate.of(2026, 10, 12))) // pazartesi
-        assertEquals(MyListDateBucket.OLDER, bucketOf(LocalDate.of(2026, 10, 11)))
-        assertEquals(MyListDateBucket.UNKNOWN, myListDateBucketOf(0L, zone, today))
+        assertEquals(LegacyMyListDateBucket.TODAY, bucketOf(today))
+        assertEquals(LegacyMyListDateBucket.TODAY, bucketOf(today.plusDays(1)))      // saat kayması
+        assertEquals(LegacyMyListDateBucket.YESTERDAY, bucketOf(today.minusDays(1)))
+        assertEquals(LegacyMyListDateBucket.THIS_WEEK, bucketOf(LocalDate.of(2026, 10, 21))) // Çarşamba
+        assertEquals(LegacyMyListDateBucket.THIS_WEEK, bucketOf(LocalDate.of(2026, 10, 19))) // Pazartesi
+        assertEquals(LegacyMyListDateBucket.LAST_WEEK, bucketOf(LocalDate.of(2026, 10, 18))) // Pazar
+        assertEquals(LegacyMyListDateBucket.LAST_WEEK, bucketOf(LocalDate.of(2026, 10, 13)))
+        assertEquals(LegacyMyListDateBucket.LAST_WEEK, bucketOf(LocalDate.of(2026, 10, 12))) // pazartesi
+        assertEquals(LegacyMyListDateBucket.OLDER, bucketOf(LocalDate.of(2026, 10, 11)))
+        assertEquals(LegacyMyListDateBucket.UNKNOWN, myListDateBucketOf(0L, zone, today))
     }
 
     @Test
@@ -78,15 +78,15 @@ class MyListDateGroupingTest {
 
         assertEquals(
             listOf(
-                MyListDateBucket.TODAY,
-                MyListDateBucket.YESTERDAY,
-                MyListDateBucket.THIS_WEEK,
-                MyListDateBucket.OLDER,
-                MyListDateBucket.UNKNOWN
+                LegacyMyListDateBucket.TODAY,
+                LegacyMyListDateBucket.YESTERDAY,
+                LegacyMyListDateBucket.THIS_WEEK,
+                LegacyMyListDateBucket.OLDER,
+                LegacyMyListDateBucket.UNKNOWN
             ),
             grouped.map { it.first }
         )
-        assertEquals(listOf(2), grouped.first { it.first == MyListDateBucket.TODAY }.second.map { it.id })
+        assertEquals(listOf(2), grouped.first { it.first == LegacyMyListDateBucket.TODAY }.second.map { it.id })
     }
 
     @Test
@@ -161,6 +161,6 @@ class MyListDateGroupingTest {
         val newest = applySort(listOf(legacy, fresh), "newest")
 
         assertEquals(listOf(6, 5), newest.map { it.id })
-        assertEquals(MyListDateBucket.YESTERDAY, myListDateBucketOf(addedSortTimestamp(legacy), zone, today))
+        assertEquals(LegacyMyListDateBucket.YESTERDAY, myListDateBucketOf(addedSortTimestamp(legacy), zone, today))
     }
 }

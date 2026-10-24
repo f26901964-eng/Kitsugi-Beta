@@ -99,6 +99,7 @@ fun MyListHeaderSection(
     selectedYearFilterId: String,
     selectedExtraFilterId: String,
     selectedSortId: String,
+    selectedGroupId: String = MyListGroupingIds.ADDED,
     onStatusFilterChange: (String) -> Unit,
     onTypeFilterChange: (String) -> Unit,
     onFavoriteFilterChange: (String) -> Unit,
@@ -106,6 +107,7 @@ fun MyListHeaderSection(
     onYearFilterChange: (String) -> Unit,
     onExtraFilterChange: (String) -> Unit,
     onSortChange: (String) -> Unit,
+    onGroupChange: (String) -> Unit = {},
     activeTabScrollState: LazyListState,
     accentColor: Color,
     horizontalPadding: Dp,
@@ -247,12 +249,14 @@ fun MyListHeaderSection(
                 selectedYearFilterId = selectedYearFilterId,
                 selectedExtraFilterId = selectedExtraFilterId,
                 selectedSortId = selectedSortId,
+                selectedGroupId = selectedGroupId,
                 onStatusSelected = onStatusFilterChange,
                 onTypeSelected = onTypeFilterChange,
                 onScoreSelected = onScoreFilterChange,
                 onYearSelected = onYearFilterChange,
                 onExtraSelected = onExtraFilterChange,
                 onSortSelected = onSortChange,
+                onGroupSelected = onGroupChange,
                 onResetFilters = {
                     onStatusFilterChange("all")
                     onTypeFilterChange("all")
@@ -261,6 +265,7 @@ fun MyListHeaderSection(
                     onYearFilterChange("all")
                     onExtraFilterChange("all")
                     onSortChange(MY_LIST_SORT_DEFAULT)
+                    onGroupChange(MyListGroupingIds.ADDED)
                 },
                 onDismiss = onHideFilters
             )
@@ -847,7 +852,9 @@ fun MyListContentPage(
     pageEntries: List<MediaEntry>,
     sourceBadgesByEntryId: Map<Int, List<String>>,
     visibleEntries: List<MediaEntry>,
-    groupedVisibleEntries: List<Pair<WatchStatus, List<MediaEntry>>>,
+    /** Aktif sayfanın gruplanmış hali ([groupMyListEntries]); gruplama sıralamadan bağımsızdır. */
+    visibleSections: List<MyListSection> = emptyList(),
+    selectedGroupId: String = MyListGroupingIds.ADDED,
     searchQuery: String,
     selectedStatusFilterId: String,
     selectedTypeFilterId: String = "all",
@@ -935,27 +942,13 @@ fun MyListContentPage(
                 applySort(pageEntries, selectedSortId, appSettings.titleLanguage)
             }
             val displayEntries = if (isActivePage) visibleEntries else sortedPageEntries
-            // Düz akış mı durum bölümleri mi? Karar tek yerden:
-            // myListUsesFlatSortedLayout — kullanıcı sıralama seçtiyse sıralama
-            // globaldir ve KAZANIR; durum bölümleri ancak varsayılan gezinmededir.
-            // Komşu sayfada durum filtresi uygulanmadığı için karar da "all" ile verilir.
-            val useFlatLayout = myListUsesFlatSortedLayout(
-                sortId = selectedSortId,
-                selectedStatusFilterId = if (isActivePage) selectedStatusFilterId else "all",
-                separatedListStyle = appSettings.separatedListStyle
-            )
-            // "Son eklenen / İlk eklenen" düz akışta dönem başlıklarıyla çizilir.
-            val displayAddedPeriods = remember(displayEntries, selectedSortId, useFlatLayout) {
-                if (useFlatLayout && myListSortUsesAddedDateSections(selectedSortId)) {
-                    groupMyListEntriesByAddedPeriod(displayEntries)
-                } else {
-                    emptyList()
-                }
-            }
-            val displayGrouped = if (isActivePage) {
-                groupedVisibleEntries
+            val groupingId = MyListGroupingIds.normalize(selectedGroupId)
+            val displaySections = if (isActivePage) {
+                visibleSections
             } else {
-                remember(sortedPageEntries) { groupMyListEntriesByStatus(sortedPageEntries) }
+                remember(sortedPageEntries, groupingId) {
+                    groupMyListEntries(sortedPageEntries, groupingId)
+                }
             }
 
             LazyColumn(
@@ -990,25 +983,7 @@ fun MyListContentPage(
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
-                } else if (useFlatLayout && displayAddedPeriods.isNotEmpty()) {
-                    // "Son eklenen / İlk eklenen": global tarih sırası + dönem başlıkları.
-                    MyListAddedPeriodContent(
-                        sections = displayAddedPeriods,
-                        selectedListLayoutId = selectedListLayoutId,
-                        titleLanguage = appSettings.titleLanguage,
-                        scoreFormat = appSettings.scoreFormat,
-                        hideScores = appSettings.hideScores,
-                        blurAdultMedia = appSettings.blurAdultMedia,
-                        gridColumns = gridColumns,
-                        sourceBadgesByEntryId = sourceBadgesByEntryId,
-                        onEntryClick = onEntryClick,
-                        onIncrementProgress = onIncrementProgress,
-                        onPosterLongClick = onPosterLongClick
-                    )
-                } else if (useFlatLayout) {
-                    // Kullanıcının seçtiği sıralama global olarak uygulanır; durum
-                    // bölümleri sırayı EZMEZ (AniHyou paritesi: "Ayrılmış liste
-                    // tarzını kullan" kapalıysa da aynı düz akış).
+                } else if (groupingId == MyListGroupingIds.NONE || !appSettings.separatedListStyle) {
                     MyListFlatContent(
                         visibleEntries = displayEntries,
                         selectedListLayoutId = selectedListLayoutId,
@@ -1023,8 +998,8 @@ fun MyListContentPage(
                         onPosterLongClick = onPosterLongClick
                     )
                 } else {
-                    MyListGroupedContent(
-                        groupedEntries = displayGrouped,
+                    MyListSectionedContent(
+                        sections = displaySections,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,

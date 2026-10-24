@@ -348,6 +348,8 @@ internal enum class MyListAddedPeriod(@androidx.annotation.StringRes val titleRe
  *    yapılır; buradaki yedek yalnızca okuma yolunu korur.)
  */
 internal fun MediaEntry.effectiveAddedSeconds(): Long {
+    val created = com.kitsugi.animelist.model.normalizeToEpochSeconds(createdAt)
+    if (created > 0L) return created
     val direct = com.kitsugi.animelist.model.normalizeToEpochSeconds(addedAt)
     if (direct > 0L) return direct
     return com.kitsugi.animelist.model.normalizeToEpochSeconds(updatedAt)
@@ -462,7 +464,9 @@ internal fun applySort(
     sortId: String,
     titleLanguage: String? = null
 ): List<MediaEntry> {
-    if (entries.size < 2) return entries
+    // "Varsayılan": liste KENDİ sırasında bırakılır. Sıralama seçimi gruplamayı
+    // kaldırmadığı için varsayılan görünüm (durum/tarih başlıkları) korunur.
+    if (entries.size < 2 || sortId == "default" || sortId.isEmpty()) return entries
 
     val decorated = entries.map { entry ->
         val displayTitle = if (titleLanguage != null) {
@@ -636,15 +640,26 @@ internal fun applySort(
     return decorated.sortedWith(comparator).map { it.entry }
 }
 
+/** Gruplama kimliğinin kısa, yerelleştirilmiş etiketi (liste başlık özetinde kullanılır). */
+@Composable
+internal fun myListGroupingLabel(groupId: String): String = when (MyListGroupingIds.normalize(groupId)) {
+    MyListGroupingIds.STATUS -> stringResource(R.string.mylist_group_status_short)
+    MyListGroupingIds.NONE -> stringResource(R.string.mylist_group_none)
+    else -> stringResource(R.string.mylist_group_added)
+}
+
 @Composable
 internal fun getSortTitle(sortId: String): String = when (sortId) {
+    "default" -> stringResource(R.string.mylist_sort_default)
+    "newest" -> stringResource(R.string.mylist_sort_added_desc)
+    "oldest" -> stringResource(R.string.mylist_sort_added_asc)
     "score" -> "Puan (En yüksek)"
     "score_asc" -> "Puan (En düşük)"
     else -> stringResource(
         when (sortId) {
             MY_LIST_SORT_DEFAULT -> R.string.mylist_sort_default
-            "newest", "added" -> R.string.mylist_sort_newest
-            "oldest" -> R.string.mylist_sort_oldest
+            "newest", "added" -> R.string.mylist_sort_added_desc
+            "oldest" -> R.string.mylist_sort_added_asc
             "title" -> R.string.mylist_sort_title_asc
             "title_desc" -> R.string.mylist_sort_title_desc
             "progress" -> R.string.mylist_sort_progress_high

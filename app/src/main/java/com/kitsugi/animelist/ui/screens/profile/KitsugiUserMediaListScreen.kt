@@ -73,18 +73,15 @@ import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.screens.mylist.EmptyListResultCard
 import com.kitsugi.animelist.ui.screens.mylist.MyListFlatContent
-import com.kitsugi.animelist.ui.screens.mylist.MyListGroupedContent
+import com.kitsugi.animelist.ui.screens.mylist.MyListSectionedContent
 import com.kitsugi.animelist.ui.screens.mylist.MyListHeaderSection
 import com.kitsugi.animelist.ui.screens.mylist.MyListSingleSourceBar
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SORT_DEFAULT
-import com.kitsugi.animelist.ui.screens.mylist.MyListAddedPeriodContent
+import com.kitsugi.animelist.ui.screens.mylist.MyListGroupingIds
 import com.kitsugi.animelist.ui.screens.mylist.applySort
 import com.kitsugi.animelist.ui.screens.mylist.filterMyListEntries
-import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntriesByAddedPeriod
-import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntriesByStatus
+import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntries
 import com.kitsugi.animelist.ui.screens.mylist.isExplicitMyListSort
-import com.kitsugi.animelist.ui.screens.mylist.myListSortUsesAddedDateSections
-import com.kitsugi.animelist.ui.screens.mylist.myListUsesFlatSortedLayout
 import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiListStatusBottomSheet
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -146,6 +143,9 @@ fun KitsugiUserMediaListScreen(
     var selectedYearFilterId by rememberSaveable(userId) { mutableStateOf("all") }
     var selectedExtraFilterId by rememberSaveable(userId) { mutableStateOf("all") }
     var selectedSortId by rememberSaveable(userId) { mutableStateOf(MY_LIST_SORT_DEFAULT) }
+    // Gruplama, sıralamadan bağımsız: profil listesi de Listem ile aynı varsayılan
+    // (eklenme tarihi) bölümlerini gösterir. Kullanıcı isterse durum/düz listeye geçer.
+    var selectedGroupId by rememberSaveable(userId) { mutableStateOf(MyListGroupingIds.ADDED) }
 
     var showSearchField by rememberSaveable(userId) { mutableStateOf(false) }
     var showFilterPanel by rememberSaveable(userId) { mutableStateOf(false) }
@@ -198,20 +198,8 @@ fun KitsugiUserMediaListScreen(
     val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
         applySort(filteredEntries, selectedSortId, appSettings.titleLanguage)
     }
-    val groupedVisibleEntries = remember(visibleEntries) {
-        groupMyListEntriesByStatus(visibleEntries)
-    }
-    val useFlatLayout = myListUsesFlatSortedLayout(
-        sortId = selectedSortId,
-        selectedStatusFilterId = selectedStatusFilterId,
-        separatedListStyle = appSettings.separatedListStyle
-    )
-    val addedPeriodEntries = remember(visibleEntries, selectedSortId, useFlatLayout) {
-        if (useFlatLayout && myListSortUsesAddedDateSections(selectedSortId)) {
-            groupMyListEntriesByAddedPeriod(visibleEntries)
-        } else {
-            emptyList()
-        }
+    val groupedVisibleEntries = remember(visibleEntries, selectedGroupId) {
+        groupMyListEntries(visibleEntries, selectedGroupId)
     }
 
     val hasActiveFilters = selectedStatusFilterId != "all" ||
@@ -220,6 +208,7 @@ fun KitsugiUserMediaListScreen(
         selectedScoreFilterId != "all" ||
         selectedYearFilterId != "all" ||
         selectedExtraFilterId != "all" ||
+        selectedGroupId != MyListGroupingIds.ADDED ||
         isExplicitMyListSort(selectedSortId)
 
     val showScrollToTop by remember {
@@ -317,6 +306,7 @@ fun KitsugiUserMediaListScreen(
                 selectedYearFilterId = selectedYearFilterId,
                 selectedExtraFilterId = selectedExtraFilterId,
                 selectedSortId = selectedSortId,
+                selectedGroupId = selectedGroupId,
                 onStatusFilterChange = { selectedStatusFilterId = it },
                 onTypeFilterChange = { selectedTypeFilterId = it },
                 onFavoriteFilterChange = { selectedFavoriteFilterId = it },
@@ -324,6 +314,7 @@ fun KitsugiUserMediaListScreen(
                 onYearFilterChange = { selectedYearFilterId = it },
                 onExtraFilterChange = { selectedExtraFilterId = it },
                 onSortChange = { selectedSortId = it },
+                onGroupChange = { selectedGroupId = it },
                 activeTabScrollState = listState,
                 accentColor = accentColor,
                 horizontalPadding = horizontalPadding,
@@ -454,26 +445,12 @@ fun KitsugiUserMediaListScreen(
                                     selectedSortId = selectedSortId
                                 )
                             }
-                        } else if (useFlatLayout && addedPeriodEntries.isNotEmpty()) {
-                            // "Son eklenen / İlk eklenen": global tarih sırası + dönem başlıkları.
-                            MyListAddedPeriodContent(
-                                sections = addedPeriodEntries,
-                                selectedListLayoutId = selectedListLayoutId,
-                                titleLanguage = appSettings.titleLanguage,
-                                scoreFormat = appSettings.scoreFormat,
-                                hideScores = appSettings.hideScores,
-                                blurAdultMedia = appSettings.blurAdultMedia,
-                                gridColumns = gridColumns,
-                                onEntryClick = ::openEntry,
-                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
-                                onIncrementProgress = ::openEntry,
-                                onPosterLongClick = { imageUrl ->
-                                    activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
-                                }
-                            )
-                        } else if (useFlatLayout) {
-                            // Seçilen sıralama globaldir; durum bölümleri sırayı ezmez.
-                            // (AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa da düz akış.)
+                        } else if (selectedGroupId == MyListGroupingIds.NONE ||
+                            selectedStatusFilterId == "completed" ||
+                            !appSettings.separatedListStyle
+                        ) {
+                            // "Düz liste" gruplaması, Tamamlandı filtresi ya da "Ayrılmış liste
+                            // tarzını kullan" kapalıysa düz akış.
                             MyListFlatContent(
                                 visibleEntries = visibleEntries,
                                 selectedListLayoutId = selectedListLayoutId,
@@ -490,8 +467,8 @@ fun KitsugiUserMediaListScreen(
                                 }
                             )
                         } else {
-                            MyListGroupedContent(
-                                groupedEntries = groupedVisibleEntries,
+                            MyListSectionedContent(
+                                sections = groupedVisibleEntries,
                                 selectedListLayoutId = selectedListLayoutId,
                                 titleLanguage = appSettings.titleLanguage,
                                 scoreFormat = appSettings.scoreFormat,

@@ -127,7 +127,7 @@ fun KitsugiStudiosCard(
                         solid = true,
                         // Kimliği henüz çözülmemiş Bangumi yerel kayıtları da tıklanabilir:
                         // ad taşınır, hedef sayfa kurumu adıyla çözümler (bkz. KitsugiStudioClient).
-                        onClick = if (studio.name.isNotBlank()) {
+                        onClick = if (studio.name.isNotBlank() && isStudioChipClickable(studio)) {
                             { onStudioClick(studio) }
                         } else null
                     )
@@ -145,7 +145,7 @@ fun KitsugiStudiosCard(
                         text = producer.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
-                        onClick = if (producer.name.isNotBlank()) {
+                        onClick = if (producer.name.isNotBlank() && isStudioChipClickable(producer)) {
                             { onProducerClick(producer) }
                         } else null
                     )
@@ -163,7 +163,7 @@ fun KitsugiStudiosCard(
                         text = serial.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
-                        onClick = if (serial.name.isNotBlank()) {
+                        onClick = if (serial.name.isNotBlank() && isStudioChipClickable(serial)) {
                             { onSerializationClick(serial) }
                         } else null
                     )
@@ -183,7 +183,7 @@ fun KitsugiStudiosCard(
                         solid = false,
                         // Yayıncı ağlar da Bangumi'de şirket (type=2) kaydıdır; kimlik
                         // çözülmemişse ad ile çözümleme hedef sayfada yapılır.
-                        onClick = if (network.name.isNotBlank()) {
+                        onClick = if (network.name.isNotBlank() && isStudioChipClickable(network)) {
                             { onNetworkClick(network) }
                         } else null
                     )
@@ -192,6 +192,17 @@ fun KitsugiStudiosCard(
         }
     }
 }
+
+/**
+ * Çip kurum sayfasına gidebilir mi?
+ *
+ * Bangumi infobox'ındaki üretim komiteleri (`とらぶるダークネス2nd製作委員会` gibi) ayrı bir
+ * kurum kaydı **değildir**; tıklanınca hedef sayfa hiçbir kaynakta bulunamıyor ve kullanıcı
+ * "Stüdyo detayları yüklenemedi" (KTS-COM-1020) ekranına düşüyordu. Kimliği çözülmüş
+ * kayıtlar (id > 0) her zaman tıklanabilir kalır.
+ */
+internal fun isStudioChipClickable(chip: KitsugiStudio): Boolean =
+    chip.id > 0 || !com.kitsugi.animelist.data.remote.StudioSourceSupport.isCommitteeName(chip.name)
 
 // ---------------------------------------------------------------------------
 //  Etiketler (Tags) - Spoiler toggle + daha fazla expander

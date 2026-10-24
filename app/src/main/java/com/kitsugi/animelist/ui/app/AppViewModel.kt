@@ -121,6 +121,17 @@ class AppViewModel : ViewModel() {
     var myListSortId by mutableStateOf(MY_LIST_SORT_DEFAULT)
         private set
 
+    /**
+     * Liste gruplaması — sıralamadan BAĞIMSIZ eksen.
+     *
+     * `added` (varsayılan): Bugün / Dün / Bu Hafta / Bu Ay … bölümleri.
+     * `status`: İzleniyor / Planlandı / İzlendi … bölümleri.
+     * `none`  : tek düz akış.
+     * Seçilen sıralama bu gruplamayı kaldırmaz; yalnızca bölümlerin içini sıralar.
+     */
+    var myListGroupId by mutableStateOf("added")
+        private set
+
     // Scroll konumları bilinçli olarak Compose state'i DEĞİLDİR: bu değerler
     // kaydırma sırasında HER KARE yazılır ve yalnızca ekran yeniden kurulurken
     // "ilk değer" olarak okunur. mutableIntStateOf olduklarında her kaydırma
@@ -208,6 +219,7 @@ class AppViewModel : ViewModel() {
         // değişmesin — "Son eklenen"i isteyen tek dokunuşla yeniden seçer ve artık
         // gerçek eklenme tarihine göre, global olarak çalışır.
         myListSortId = migrateLegacyDefaultSort(prefs)
+        myListGroupId = prefs.getString("group", "added") ?: "added"
         // Kayıtlı sekme indeksi DOĞRUDAN geri yüklenir (mevcut sıra: 0 = Tümü … 6 = Bangumi).
         // Eski sıra göçü (migrateLegacyMyListTabIndex) bilinçli olarak kaldırıldı: koşulsuz
         // olarak her açılışta uygulanıyor ve son seçilen sekmeyi bir sıra kaydırıyordu
@@ -337,6 +349,13 @@ class AppViewModel : ViewModel() {
             // Bilinçli seçim işareti: eski varsayılan göçü bu değeri bir daha taşımasın.
             .putBoolean("sort_default_v2_done", true)
             .apply()
+    }
+
+    fun updateMyListGroup(context: Context, value: String) {
+        myListGroupId = value
+        resetMyListScroll()
+        context.getSharedPreferences("Kitsugi_list_filters", Context.MODE_PRIVATE)
+            .edit().putString("group", value).apply()
     }
 
     private fun resetMyListScroll() {

@@ -346,11 +346,18 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
                 _galleryItems.value = emptyList()
             }
         } else {
+            // Kaynak HATA FIRLATMADAN boş döndüyse (tüm aramalar "bulunamadı") kod
+            // "Sınıflandırılamayan hata" (KTS-COM-1020) değil, doğru teşhisi veren
+            // "Eşleşme bulunamadı" (KTS-COM-1021) olmalı: kullanıcı ağ hatası sanmasın.
+            val recentFailure = com.kitsugi.animelist.data.platform.PlatformFailureRegistry
+                .latest(source)?.code
+            val errorCode = recentFailure
+                ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1021
             _state.value = StudioDetailState.Error(
                 com.kitsugi.animelist.KitsugiApplication.getInstance()
                     ?.getString(com.kitsugi.animelist.R.string.studio_page_load_failed)
                     ?: "Stüdyo detayları yüklenemedi.",
-                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.currentOrUnknown(source),
+                errorCode,
             )
         }
     }

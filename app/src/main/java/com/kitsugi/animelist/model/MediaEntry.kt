@@ -81,7 +81,14 @@ data class MediaEntry(
      * görüldüğü an yerel olarak sabitlenir ve sonraki eşitlemelerde korunur.
      * Bilinçli olarak kurucunun SON parametresidir (konumsal kurulumlar kaymasın).
      */
-    val addedAt: Long = 0L
+    val addedAt: Long = 0L,
+    /**
+     * Liste'ye eklendiği an (**saniye** — [updatedAt] ile aynı birim).
+     *
+     * "Bugün / Bu Hafta …" varsayılan Listem görünümü ve "Eklenme tarihi" sıralaması bu
+     * alanı kullanır. [addedAt] ile senkron çalışır.
+     */
+    val createdAt: Long = addedAt
 )
 
 /**

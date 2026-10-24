@@ -133,6 +133,7 @@ object KitsugiSpoilerRules {
     fun normalizeLabel(raw: String?): String {
         if (raw.isNullOrBlank()) return ""
         return raw
+            .replace('İ', 'i')
             .replace(WRAPPER_REGEX, " ")
             .replace('_', ' ')
             .replace('-', ' ')

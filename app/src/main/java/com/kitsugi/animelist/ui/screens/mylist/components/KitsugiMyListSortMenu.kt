@@ -33,21 +33,11 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.annotation.StringRes
-import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.KitsugiStrings
 
 /**
  * Listem'de seçilebilen TEK bir sıralama ölçütü.
- *
- * Aynı liste üç ayrı yerde kullanılıyor (satır içi çipler, sıralama çekmecesi ve filtre
- * sayfası). Daha önce üçü ayrı listelerden besleniyordu ve birbirinden koptu:
- * "Favoriler", "Yayın yılı" ve "Öncelik" yalnızca birinde vardı; kullanıcı hangi ekrandan
- * bakarsa baksın aynı seçenekleri görmeli. Etiketler `@StringRes` üzerinden gelir, bu
- * yüzden TR/EN sürümleri ayrışamaz.
- *
- * [ascId] `null` ise ölçütün ters yönü yoktur (ör. Favoriler): tekrar dokunmak seçimi
- * korur, ok simgesi de daima "azalan" olur.
  */
 data class MyListSortEntry(
     val descId: String,
@@ -82,16 +72,27 @@ data class SortMenuItem(
     val title: String
 )
 
+/**
+ * Sıralama menüsü — **tek kavram = tek satır**.
+ *
+ * `ascId == descId` olan satır yön değiştirmez (Varsayılan, Favoriler). "Son eklenen" /
+ * "İlk eklenen" ayrı satırlar değil, `newest ↔ oldest` ikilisiyle aynı satırın iki yönüdür;
+ * satıra dokunmak yönü çevirir. Menü, filtre panelindeki kompakt çiplerle aynı kaynaktan
+ * ([com.kitsugi.animelist.ui.screens.mylist.myListSortChoices]) beslenir.
+ */
 val myListSortMenuItems = listOf(
     SortMenuItem("default", "default", KitsugiStrings.get(R.string.mylist_sort_default)),
-    SortMenuItem("title", "title_desc", KitsugiStrings.get(R.string.ui_account_title)),
-    SortMenuItem("score", "score_asc", "Puan"),
-    SortMenuItem("progress", "progress_asc", "İlerleme"),
-    SortMenuItem("updated_desc", "updated_asc", "Güncelleme tarihi"),
-    SortMenuItem("newest", "oldest", "Eklenme tarihi"),
-    SortMenuItem("start_date_desc", "start_date_asc", "Başlangıç tarihi"),
-    SortMenuItem("end_date_desc", "end_date_asc", "Bitiş tarihi"),
-    SortMenuItem("repeat_desc", "repeat_asc", "Tekrar Sayısı")
+    SortMenuItem("newest", "oldest", KitsugiStrings.get(R.string.mylist_sort_added)),
+    SortMenuItem("title", "title_desc", KitsugiStrings.get(R.string.mylist_sort_title)),
+    SortMenuItem("score", "score_asc", KitsugiStrings.get(R.string.mylist_sort_score)),
+    SortMenuItem("progress", "progress_asc", KitsugiStrings.get(R.string.mylist_sort_progress)),
+    SortMenuItem("favorites", "favorites", KitsugiStrings.get(R.string.mylist_sort_favorites)),
+    SortMenuItem("updated_desc", "updated_asc", KitsugiStrings.get(R.string.mylist_sort_updated)),
+    SortMenuItem("start_date_desc", "start_date_asc", KitsugiStrings.get(R.string.mylist_sort_start)),
+    SortMenuItem("end_date_desc", "end_date_asc", KitsugiStrings.get(R.string.mylist_sort_end)),
+    SortMenuItem("year_desc", "year_asc", KitsugiStrings.get(R.string.mylist_sort_year)),
+    SortMenuItem("priority_desc", "priority_asc", KitsugiStrings.get(R.string.mylist_sort_priority)),
+    SortMenuItem("repeat_desc", "repeat_asc", KitsugiStrings.get(R.string.mylist_sort_repeat))
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,9 +131,9 @@ fun KitsugiMyListSortMenu(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            myListSortEntries.forEach { item ->
+            myListSortMenuItems.forEach { item ->
                 val isDescActive = selectedSortId == item.descId
-                val isAscActive = item.ascId != null && selectedSortId == item.ascId
+                val isAscActive = selectedSortId == item.ascId
                 val isSelected = isDescActive || isAscActive
 
                 Row(
@@ -141,7 +142,13 @@ fun KitsugiMyListSortMenu(
                         .clip(RoundedCornerShape(18.dp))
                         .background(if (isSelected) KitsugiColors.SurfaceSoft else KitsugiColors.SurfaceStrong)
                         .tvClickable(shape = RoundedCornerShape(18.dp)) {
-                            onSortSelected(item.nextSortId(selectedSortId))
+                            // Yön çevirme: seçili satır ters yöne geçer, yönsüz satır sabit kalır.
+                            val nextSortId = when {
+                                item.ascId == item.descId -> item.descId
+                                isDescActive -> item.ascId
+                                else -> item.descId
+                            }
+                            onSortSelected(nextSortId)
                             onDismissRequest()
                         }
                         .padding(horizontal = 20.dp, vertical = 15.dp),
@@ -149,7 +156,7 @@ fun KitsugiMyListSortMenu(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(item.titleRes),
+                        text = item.title,
                         color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
