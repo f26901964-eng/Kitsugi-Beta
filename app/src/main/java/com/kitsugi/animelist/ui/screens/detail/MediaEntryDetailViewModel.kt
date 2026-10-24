@@ -292,20 +292,51 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    /**
+     * Açıklamanın hangi kaynaktan geldiği.
+     *
+     * Aynı kayıt için açıklama üç ayrı yerden gelebiliyor: listeden gelen kısa özet ([LIST]),
+     * kaynağın kendi API'si ([API]) ve detay yanıtı ([DETAIL]). Bu ikisi eşdeğerdir ve
+     * [LIST]'ten üstündür. Öncelik tutulmazsa yavaş dönen liste özeti, ekranda zaten
+     * gösterilen kaynak açıklamasını ezip "açıklama bir anlık değişti" görüntüsü üretiyordu.
+     */
+    private enum class SynopsisOrigin(val rank: Int) { LIST(0), API(1), DETAIL(1) }
+
+    private var appliedSynopsisOrigin: SynopsisOrigin? = null
+
     private fun applyAndTranslateSynopsis(
         entry: MediaEntry,
         rawText: String,
         expectedFetchKey: String?,
-        forceRetranslate: Boolean = false
+        forceRetranslate: Boolean = false,
+        origin: SynopsisOrigin = SynopsisOrigin.API
     ) {
         if (rawText.isBlank()) return
         val stableId = cacheIdentityOf(entry)
         val previousRaw = _originalSynopsis.value
+
+        // 1) Aynı metin (yalnızca boşluk/noktalama farkıyla) tekrar geliyorsa ekranda
+        //    hiçbir şeyi yeniden yazma: gereksiz titreme ve gereksiz çeviri isteği olmaz.
+        if (!forceRetranslate && previousRaw != null &&
+            com.kitsugi.animelist.utils.translationMatchesSource(previousRaw, rawText)
+        ) return
+
+        // 2) Daha düşük öncelikli kaynak, daha yüksek öncelikli açıklamayı ezemez.
+        //    (Kısa liste özeti, kaynağın kendi/detay açıklamasını değiştirmesin.)
+        val appliedRank = appliedSynopsisOrigin?.rank ?: -1
+        val showingSomething = _synopsisState.value is SynopsisState.Success
+        if (!forceRetranslate && showingSomething && appliedRank > origin.rank) return
+
         _originalSynopsis.value = rawText
+        appliedSynopsisOrigin = origin
 
         if (!forceRetranslate) {
-            val cachedTr = DetailCache.getTranslation("synopsis", entry.source, stableId)
-            if (!cachedTr.isNullOrBlank()) {
+            val cachedTr = DetailCache.getTranslation(
+                "synopsis", entry.source, stableId, sourceText = rawText
+            )
+            if (!cachedTr.isNullOrBlank() &&
+                !com.kitsugi.animelist.utils.translationMatchesSource(rawText, cachedTr)
+            ) {
                 _synopsisState.value = SynopsisState.Success(cachedTr)
                 _translatedSynopsis.value = cachedTr
                 return
@@ -331,23 +362,37 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     _translationLoading.value = true
                     val tr = withContext(Dispatchers.IO) {
                         translationManager.translateToTarget(rawText) { partial ->
-                            if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                            if (currentFetchKey == expectedFetchKey &&
+                                partial.isNotBlank() &&
+                                !com.kitsugi.animelist.utils.translationMatchesSource(rawText, partial)
+                            ) {
                                 _synopsisState.value = SynopsisState.Success(partial)
                                 _translatedSynopsis.value = partial
                             }
                         }
                     }
                     if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
-                        if (tr != rawText) {
-                            DetailCache.putTranslation("synopsis", entry.source, stableId, tr)
+                        // Kaynak metin zaten hedef dilde: çeviri yok sayılır, eski yanlış
+                        // kayıt temizlenir ve "Orijinal / Çeviri" düğmesi gösterilmez.
+                        if (com.kitsugi.animelist.utils.translationMatchesSource(rawText, tr)) {
+                            DetailCache.removeTranslation("synopsis", entry.source, stableId)
+                            _translatedSynopsis.value = null
+                            _synopsisState.value = SynopsisState.Success(rawText)
+                            return@launch
                         }
+                        DetailCache.putTranslation(
+                            "synopsis", entry.source, stableId, tr, sourceText = rawText
+                        )
                         _synopsisState.value = SynopsisState.Success(tr)
                         _translatedSynopsis.value = tr
                     }
                 } else {
                     if (currentFetchKey == expectedFetchKey) {
+                        // Otomatik çeviri kapalı: gösterilen metin orijinaldir; çeviri
+                        // durumu **dolu bırakılmaz**, aksi hâlde orijinal/çeviri düğmesi
+                        // aynı metni gösterip durur.
                         _synopsisState.value = SynopsisState.Success(rawText)
-                        _translatedSynopsis.value = rawText
+                        _translatedSynopsis.value = null
                     }
                 }
             } finally {
@@ -367,6 +412,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _translationLoading.value = false
             // Yeni kayıt / otomatik çeviri kapandı: eski orijinal-geçiş durumu geçerli değil.
         _showSynopsisOriginal.value = false
+        // Yeni kayıt: bir önceki kaydın açıklama kaynağı önceliği taşınmaz.
+        appliedSynopsisOrigin = null
     }
 
     /** Orijinal / çeviri geçişi (açıklama). Çeviri bellekte kalır, yeniden çevrilmez. */
@@ -418,7 +465,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         // Reset states
         val cachedDetail = DetailCache.getMediaDetail(entry.source, stableId)
-        val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", entry.source, stableId)
+        val cachedSynopsisTranslation = DetailCache.getTranslation(
+            "synopsis", entry.source, stableId, sourceText = entry.synopsis
+        )
         val cachedVideos = DetailCache.getMediaVideos(entry.source, stableId, _targetSeason.value)
         _videoItems.value = cachedVideos ?: KitsugiMediaVideoAggregator.seedFromDetail(cachedDetail, entry.source)
         videosTracker.reset()
@@ -427,13 +476,20 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _detailLoading.value = cachedDetail == null
         if (cachedDetail != null) _detailErrorCode.value = null
 
+        // Önbellekteki çeviri, listeden gelen özetin **gerçek** çevirisi olmalı.
+        // (Eski sürümde Türkçe özet Türkçeye "çevrilip" kaydedilmiş olabilir.)
+        val entrySynopsis = entry.synopsis
+        val cachedSynopsisIsValid = !cachedSynopsisTranslation.isNullOrBlank() &&
+            !entrySynopsis.isNullOrBlank() &&
+            !com.kitsugi.animelist.utils.translationMatchesSource(entrySynopsis, cachedSynopsisTranslation)
         _synopsisState.value = when {
-            cachedSynopsisTranslation != null -> SynopsisState.Success(cachedSynopsisTranslation)
-            !entry.synopsis.isNullOrBlank() -> SynopsisState.Success(entry.synopsis)
+            cachedSynopsisIsValid -> SynopsisState.Success(cachedSynopsisTranslation.orEmpty())
+            !entrySynopsis.isNullOrBlank() -> SynopsisState.Success(entrySynopsis)
             else -> SynopsisState.Loading
         }
-        _translatedSynopsis.value = cachedSynopsisTranslation
-        _originalSynopsis.value = entry.synopsis
+        _translatedSynopsis.value = if (cachedSynopsisIsValid) cachedSynopsisTranslation else null
+        _originalSynopsis.value = entrySynopsis
+        appliedSynopsisOrigin = if (!entry.synopsis.isNullOrBlank()) SynopsisOrigin.LIST else null
 
         _logoUrl.value = null
         _episodeRatings.value = emptyMap()
@@ -665,7 +721,12 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         if (detail != null) {
             val detailSynopsis = detail.synopsis
             if (!detailSynopsis.isNullOrBlank()) {
-                applyAndTranslateSynopsis(entry, detailSynopsis, expectedFetchKey)
+                applyAndTranslateSynopsis(
+                    entry = entry,
+                    rawText = detailSynopsis,
+                    expectedFetchKey = expectedFetchKey,
+                    origin = SynopsisOrigin.DETAIL
+                )
             }
 
             val determinedSeason = KitsugiEpisodeRatingsRepository.determineTargetSeason(
@@ -1315,9 +1376,16 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val stableId = cacheIdentityOf(entry)
         val expectedFetchKey = currentFetchKey
 
-        // 1. Prioritize cached translation if available
-        val cachedTr = DetailCache.getTranslation("synopsis", entry.source, stableId)
-        if (!cachedTr.isNullOrBlank()) {
+        // 1. Önbellekteki çeviri YALNIZCA kaynak metinle eşleşiyorsa kullanılır.
+        //    Eski davranış yalnızca (kaynak, id) anahtarına bakıyordu; özet değişince
+        //    alakasız bir metnin çevirisi gösteriliyordu.
+        val knownRaw = _originalSynopsis.value ?: _detailState.value?.synopsis ?: entry.synopsis
+        val cachedTr = DetailCache.getTranslation(
+            "synopsis", entry.source, stableId, sourceText = knownRaw
+        )
+        if (!cachedTr.isNullOrBlank() && !knownRaw.isNullOrBlank() &&
+            !com.kitsugi.animelist.utils.translationMatchesSource(knownRaw, cachedTr)
+        ) {
             _synopsisState.value = SynopsisState.Success(cachedTr)
             _translatedSynopsis.value = cachedTr
             return

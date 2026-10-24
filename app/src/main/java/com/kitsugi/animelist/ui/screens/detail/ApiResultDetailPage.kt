@@ -491,8 +491,14 @@ fun ApiResultDetailPage(
 
     val synopsisForSave = detailState?.synopsis
     // Çeviri varsa (ve kullanıcı orijinale geçmediyse) çeviriyi, yoksa orijinali göster
-    val synopsisHasTranslation = translatedSynopsis != null && translatedSynopsis != detailState?.synopsis
-    val displaySynopsis = if (showSynopsisOriginal) detailState?.synopsis else translatedSynopsis ?: detailState?.synopsis
+    // "Çeviri var mı?" kararı normalize edilmiş metinle verilir: aynı metnin yalnızca
+    // boşluk/noktalama farkıyla dönmesi çeviri sayılmaz (Türkçe→Türkçe hatası).
+    val rawSynopsisForToggle = detailState?.synopsis
+    val translatedForToggle = translatedSynopsis
+    val synopsisHasTranslation = translatedForToggle != null && rawSynopsisForToggle != null &&
+        !com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsisForToggle, translatedForToggle)
+    val displaySynopsis = if (showSynopsisOriginal) rawSynopsisForToggle
+    else translatedForToggle?.takeIf { synopsisHasTranslation } ?: rawSynopsisForToggle
 
     KitsugiPageEnter {
         DetailPageScaffold(

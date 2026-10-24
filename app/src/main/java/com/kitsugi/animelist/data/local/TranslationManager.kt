@@ -4,7 +4,9 @@ import android.content.Context
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
+import com.kitsugi.animelist.utils.isLikelyTurkishText
 import com.kitsugi.animelist.utils.isTechnicalTranslationValue
+import com.kitsugi.animelist.utils.translationMatchesSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -52,6 +54,34 @@ class TranslationManager(context: Context) {
         }
 
         private const val MAX_CHUNK_CHARS = 1400
+
+        /**
+         * "Bu metin zaten hedef dilde" bilgisinin bellek içi defteri.
+         *
+         * Aynı Türkçe biyografi her açılışta Google'a gönderilmesin diye tutulur; kalıcı
+         * değildir (uygulama yeniden başlarsa ilk istekte `src` alanından yeniden öğrenilir).
+         * Sınırlı boyut: en fazla [ALREADY_TARGET_MEMORY] kayıt.
+         */
+        private const val ALREADY_TARGET_MEMORY = 256
+
+        /**
+         * accessOrder = true: okunan kayıt sona taşınır; böylece tahliye gerçekten
+         * "en uzun süredir kullanılmayan" kaydı atar.
+         */
+        private val alreadyTargetCache = java.util.Collections.synchronizedMap(
+            LinkedHashMap<String, Boolean>(64, 0.75f, true)
+        )
+
+        private fun alreadyTargetKey(text: String, targetLang: String): String =
+            "${targetLang.lowercase()}|${text.trim().lowercase()}"
+
+        /** Sınırı aşınca en eski kayıtları atar (bellek şişmesini engeller). */
+        private fun pruneAlreadyTargetCache() {
+            while (alreadyTargetCache.size > ALREADY_TARGET_MEMORY) {
+                val eldest = alreadyTargetCache.keys.firstOrNull() ?: return
+                alreadyTargetCache.remove(eldest)
+            }
+        }
     }
 
     private val dbContext = context.applicationContext
@@ -68,77 +98,27 @@ class TranslationManager(context: Context) {
 
     /**
      * Verilen metnin büyük olasılıkla Türkçe olup olmadığını kontrol eder.
-     * CJK / Kiril karakterleri veya İngilizce kelimeler içeriyorsa kesinlikle Türkçe değildir.
+     *
+     * Yerel sezgi yalnızca gereksiz ağ isteğini önleyen bir **ön kontrol**tür. Kesin karar
+     * [translateTo] içinde Google'ın döndürdüğü algılanan kaynak dille verilir; bu yüzden
+     * buradaki sezgi yanılsa bile Türkçe metin Türkçeye "çevrilmiş" gibi gösterilmez.
      */
-    private fun isLikelyTurkish(text: String): Boolean {
-        if (text.isBlank()) return false
+    private fun isLikelyTurkish(text: String): Boolean = isLikelyTurkishText(text)
 
-        // CJK (Çince/Japonca/Korece) veya Kiril harfleri varsa Türkçe değildir
-        var nonLatinScriptCount = 0
-        var letterCount = 0
-        for (ch in text) {
-            if (ch.isLetter()) {
-                letterCount++
-                val code = ch.code
-                if (code in 0x0400..0x04FF || // Cyrillic
-                    code in 0x3040..0x30FF || // Hiragana & Katakana
-                    code in 0x3400..0x4DBF || // CJK Ext A
-                    code in 0x4E00..0x9FFF || // CJK Unified
-                    code in 0xAC00..0xD7AF    // Hangul
-                ) {
-                    nonLatinScriptCount++
-                }
-            }
+    /** Metin daha önce "zaten hedef dilde" olarak işaretlendi mi? (ağ isteğini atla) */
+    private fun alreadyTargetLanguage(text: String, targetLang: String): Boolean {
+        if (text.length > 4000) return false // uzun metinlerde hızlı yol aramaya değmez
+        val key = alreadyTargetKey(text, targetLang)
+        return alreadyTargetCache[key] == true
+    }
+
+    /** [text] için "zaten hedef dilde" bilgisini bellekte tut. */
+    private fun rememberAlreadyTarget(text: String, targetLang: String) {
+        if (text.length > 4000) return
+        runCatching {
+            alreadyTargetCache[alreadyTargetKey(text, targetLang)] = true
+            pruneAlreadyTargetCache()
         }
-        if (letterCount == 0) return false
-        if (nonLatinScriptCount > 0 && (nonLatinScriptCount >= 3 || nonLatinScriptCount * 10 >= letterCount)) {
-            return false
-        }
-
-        val words = text.lowercase().split(Regex("""[\s\p{Punct}]+""")).filter { it.isNotBlank() }
-        if (words.isEmpty()) return false
-
-        // Yaygın İngilizce kelimeler — eğer bunlar varsa metin kesinlikle İngilizce/yabancıdır
-        val englishWords = setOf(
-            "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-            "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-            "this", "but", "his", "by", "from", "they", "we", "say", "her",
-            "she", "or", "an", "will", "my", "one", "all", "would", "there",
-            "their", "what", "so", "up", "out", "if", "about", "who", "get",
-            "which", "go", "me", "when", "make", "can", "like", "time", "no",
-            "just", "him", "know", "take", "into", "year", "your", "good",
-            "some", "could", "them", "see", "other", "than", "then", "now",
-            "only", "its", "over", "also", "after", "two", "how", "work",
-            "first", "even", "new", "because", "born", "voiced", "role",
-            "series", "anime", "manga", "high", "school", "music", "band",
-            "studio", "company", "produced", "written", "directed", "story",
-            "character", "characters", "world", "life", "years", "was", "were",
-            "is", "are", "has", "had", "been", "into", "through", "during"
-        )
-        val englishCount = words.count { it in englishWords }
-        if (englishCount >= 2) {
-            return false
-        }
-
-        // Belirgin Türkçe kelimeler
-        val turkishWords = setOf(
-            "bir", "için", "olan", "sonra", "ancak", "olarak", "tarafından",
-            "nedeniyle", "birlikte", "bulunan", "olduğu", "göre", "kendi",
-            "çünkü", "böylece", "arasında", "yapılan", "yılında", "bölüm",
-            "karakter", "karakteri", "biyografi", "hakkında", "seslendiren",
-            "sanatçı", "sanatçısı", "doğdu", "başladı", "aldı", "ilgili",
-            "üzerine", "karşı", "kadar", "daha", "çok", "गöre", "ise", "ile"
-        )
-        val turkishCount = words.count { it in turkishWords }
-
-        // Yalnızca Türkçe'ye özgü karakterler
-        val distinctTurkishChars = setOf('ğ', 'Ğ', 'ş', 'Ş', 'ı', 'İ')
-        val distinctCharCount = text.count { it in distinctTurkishChars }
-
-        if (distinctCharCount >= 4 && englishCount == 0 && (turkishCount >= 1 || words.size <= 12)) {
-            return true
-        }
-        return turkishCount >= 2 && turkishCount > englishCount * 2
     }
 
     suspend fun translate(text: String?): String = withContext(Dispatchers.IO) {
@@ -162,15 +142,22 @@ class TranslationManager(context: Context) {
         val trimmed = text.trim().cleanShikimoriBbCode()
         if (trimmed.isBlank()) return@withContext ""
 
+        // Kaynak dil ile hedef dil aynıysa çeviri anlamsızdır (ör. kaynak ayarı "tr",
+        // hedef "tr"): istek atılmaz, metin olduğu gibi döner.
+        if (resolvedSource.equals(resolvedTarget, ignoreCase = true)) return@withContext trimmed
+
         // Teknik metin (yalnızca URL, dosya adı, `File:` ad alanı değeri…) çevrilmez.
         // Google Translate bu değerlere boşluk ekler / yol parçasını çevirir ve bağlantı
         // erişilemez hâle gelir; hiç istek yapmadan orijinali döndürmek en güvenli yol.
         if (isTechnicalTranslationValue(trimmed)) return@withContext trimmed
 
-        // Metin zaten Türkçeyse çevirme — gereksiz API çağrısını önle
+        // Metin zaten Türkçeyse çevirme — gereksiz API çağrısını önle.
+        // (Yerel sezgi yanılsa bile aşağıdaki "algılanan dil == hedef dil" denetimi
+        //  aynı metnin çeviri gibi gösterilmesini engeller.)
         if (resolvedTarget.equals("tr", ignoreCase = true) && isLikelyTurkish(trimmed)) {
             return@withContext trimmed
         }
+        if (alreadyTargetLanguage(trimmed, resolvedTarget)) return@withContext trimmed
 
         val hash = md5("${trimmed}_${resolvedSource}_${resolvedTarget}")
 
@@ -188,7 +175,22 @@ class TranslationManager(context: Context) {
         val result = fetchFromGoogle(trimmed, resolvedSource, resolvedTarget, onPartial)
         val translated = result.text.cleanShikimoriBbCode()
 
-        // 3. Cache the success response in DB — YALNIZCA tam başarıda.
+        // 3. Kaynak metin zaten hedef dildeyse çeviri sayılmaz.
+        //    Bu, "Türkçe metni tekrar Türkçeye çevirme" hatasının ana düzeltmesidir:
+        //    Google `src` alanında "tr" döndürürse sonuç kullanıcıya çeviri olarak
+        //    gösterilmez (orijinal metin döner) ve önbelleğe yazılmaz.
+        if (result.alreadyInTargetLanguage &&
+            result.detectedSourceLang.orEmpty().equals(resolvedTarget, ignoreCase = true)
+        ) {
+            rememberAlreadyTarget(trimmed, resolvedTarget)
+            return@withContext trimmed
+        }
+        if (translationMatchesSource(trimmed, translated)) {
+            rememberAlreadyTarget(trimmed, resolvedTarget)
+            return@withContext trimmed
+        }
+
+        // 4. Cache the success response in DB — YALNIZCA tam başarıda.
         //    Kısmî çeviriyi tam metin anahtarına yazmayız; sonraki açılışta kalan parçalar tamamlanır.
         if (result.fullyTranslated && translated.isNotBlank() && translated != trimmed) {
             runCatching {
@@ -220,16 +222,29 @@ class TranslationManager(context: Context) {
                 null
             }
             if (!cached.isNullOrBlank()) return@withContext cached
+            if (target.equals("tr", true) && isLikelyTurkish(original)) return@withContext original
+            if (alreadyTargetLanguage(original, target)) return@withContext original
             // Mask within each chunk: token integrity must not require a URL token
             // belonging to another chunk of a long DOM text node.
             val parts = ArrayList<String>()
+            var detected: String? = null
             for (chunk in splitIntoChunks(original, MAX_CHUNK_CHARS)) {
                 val result = fetchFromGoogle(chunk, source, target, null)
                 if (!result.fullyTranslated || result.text.isBlank()) return@withContext null
+                detected = detected ?: result.detectedSourceLang
                 parts.add(result.text)
+            }
+            // Kaynak metin zaten hedef dildeyse çeviri üretilmez (bkz. translateTo).
+            if (detected.orEmpty().equals(target, ignoreCase = true)) {
+                rememberAlreadyTarget(original, target)
+                return@withContext original
             }
             val translated = parts.joinToString("\n\n")
             if (translated.length > minOf(40_000, original.length * 6 + 256)) return@withContext null
+            if (translationMatchesSource(original, translated)) {
+                rememberAlreadyTarget(original, target)
+                return@withContext original
+            }
             try {
                 dao.insertTranslation(TranslationCacheEntity(hash, translated))
             } catch (e: CancellationException) {
@@ -509,10 +524,19 @@ class TranslationManager(context: Context) {
     }
 
     /**
+     * Google Translate yanıtı: çevrilmiş metin + **algılanan kaynak dil**.
+     *
+     * Algılanan dil, "zaten hedef dilde olan metni tekrar çevirme" hatasının kesin
+     * çözümüdür: Google `sl=auto` ile kendi dil tespitini yapar ve `src` alanında
+     * döndürür. Kaynak dil == hedef dil ise sonuç çeviri olarak kullanılmaz.
+     */
+    private class ParsedTranslation(val text: String, val detectedSourceLang: String?)
+
+    /**
      * Google Translate'in farklı uç noktalarından dönen JSON yanıtlarını (hem `dj=1`
      * nesne biçimi hem klasik iç içe dizi biçimi) ayrıştırır.
      */
-    private fun parseTranslationResponse(responseText: String): String? {
+    private fun parseTranslationResponse(responseText: String): ParsedTranslation? {
         val trimmed = responseText.trim()
         if (trimmed.isEmpty() || trimmed.startsWith("<")) return null
 
@@ -526,13 +550,18 @@ class TranslationManager(context: Context) {
                     val trans = item.optString("trans", "")
                     if (trans.isNotEmpty()) sb.append(trans)
                 }
-                if (sb.isNotEmpty()) return sb.toString()
+                if (sb.isNotEmpty()) {
+                    val src = obj.optString("src", "").trim().ifBlank { null }
+                    return ParsedTranslation(sb.toString(), src)
+                }
             }
         }
 
         if (trimmed.startsWith("[")) {
             val jsonArray = JSONArray(trimmed)
             val firstElem = jsonArray.opt(0)
+            // Klasik biçimde 3. eleman algılanan dildir: [[...], null, "en", ...]
+            val detected = jsonArray.optString(2, "").trim().ifBlank { null }
             if (firstElem is JSONArray) {
                 val sb = StringBuilder()
                 for (i in 0 until firstElem.length()) {
@@ -547,9 +576,9 @@ class TranslationManager(context: Context) {
                         }
                     }
                 }
-                if (sb.isNotEmpty()) return sb.toString()
+                if (sb.isNotEmpty()) return ParsedTranslation(sb.toString(), detected)
             } else if (firstElem is String && firstElem.isNotEmpty()) {
-                return firstElem
+                return ParsedTranslation(firstElem, detected)
             }
         }
 
@@ -610,7 +639,7 @@ class TranslationManager(context: Context) {
         sourceLang: String,
         targetLang: String,
         startEndpointIndex: Int = 0
-    ): String? {
+    ): ParsedTranslation? {
         for (offset in 0 until 4) {
             val endpointIdx = (startEndpointIndex + offset) % 4
             val request = buildEndpointRequest(endpointIdx, text, sourceLang, targetLang)
@@ -627,7 +656,7 @@ class TranslationManager(context: Context) {
                         if (body.isNullOrBlank()) null else parseTranslationResponse(body)
                     }
                 }
-                if (!parsed.isNullOrBlank()) {
+                if (parsed != null && parsed.text.isNotBlank()) {
                     return parsed
                 }
             } catch (ce: CancellationException) {
@@ -650,20 +679,22 @@ class TranslationManager(context: Context) {
         sourceLang: String,
         targetLang: String,
         maxAttempts: Int = 3
-    ): String? {
+    ): ParsedTranslation? {
         val chunkHash = md5("chunk_${text}_${sourceLang}_${targetLang}")
         val cachedChunk = runCatching { dao.getTranslation(chunkHash) }.getOrNull()
         if (!cachedChunk.isNullOrBlank()) {
-            return cachedChunk
+            // Önbellekte algılanan dil yok; dil denetimi bir üst katmanda metin
+            // karşılaştırmasıyla ([translationMatchesSource]) yapılır.
+            return ParsedTranslation(cachedChunk, null)
         }
 
         repeat(maxAttempts) { attempt ->
             val result = requestGate.withPermit {
                 fetchSingleChunk(text, sourceLang, targetLang, startEndpointIndex = attempt)
             }
-            if (!result.isNullOrBlank()) {
-                if (result != text) {
-                    runCatching { dao.insertTranslation(TranslationCacheEntity(chunkHash, result)) }
+            if (result != null && result.text.isNotBlank()) {
+                if (result.text != text) {
+                    runCatching { dao.insertTranslation(TranslationCacheEntity(chunkHash, result.text)) }
                 }
                 return result
             }
@@ -675,8 +706,19 @@ class TranslationManager(context: Context) {
         return null
     }
 
-    /** Google çevirisi sonucu: birleşik metin + tüm parçaların başarıp başarılmadığı. */
-    private class GoogleTranslationResult(val text: String, val fullyTranslated: Boolean)
+    /**
+     * Google çevirisi sonucu: birleşik metin + tüm parçaların başarıp başarılmadığı +
+     * Google'ın algıladığı kaynak dil.
+     *
+     * [detectedSourceLang] hedef dile eşitse kaynak metin zaten hedef dildeydi; [text]
+     * bu durumda orijinal metni taşır ve [alreadyInTargetLanguage] true olur.
+     */
+    private class GoogleTranslationResult(
+        val text: String,
+        val fullyTranslated: Boolean,
+        val detectedSourceLang: String? = null,
+        val alreadyInTargetLanguage: Boolean = false
+    )
 
     private suspend fun fetchFromGoogle(
         text: String,
@@ -689,12 +731,22 @@ class TranslationManager(context: Context) {
             val chunks = splitIntoChunks(mask.masked, maxChunkSize = MAX_CHUNK_CHARS)
             val translatedChunks = mutableListOf<String>()
             var allSucceeded = true
+            var detectedLang: String? = null
 
             for ((index, chunk) in chunks.withIndex()) {
                 val raw = fetchSingleChunkWithRetry(chunk, sourceLang, targetLang)
+                val chunkLang = raw?.detectedSourceLang
+                if (!chunkLang.isNullOrBlank()) {
+                    detectedLang = when {
+                        detectedLang == null -> chunkLang
+                        detectedLang?.equals(chunkLang, ignoreCase = true) == true -> detectedLang
+                        // Parçalar farklı dillerde: tek bir kaynak dilden söz edilemez.
+                        else -> ""
+                    }
+                }
                 // Korumalı jeton (URL/dosya adı/bağlantı) kaybı varsa çeviri reddedilir:
                 // bozuk bağlantı göstermektense kaynak metin korunur.
-                val translated = if (raw == null || !mask.isIntact(raw)) {
+                val translated = if (raw == null || !mask.isIntact(raw.text)) {
                     if (raw != null) {
                         android.util.Log.w(
                             "TranslationManager",
@@ -704,7 +756,7 @@ class TranslationManager(context: Context) {
                     allSucceeded = false
                     chunk
                 } else {
-                    raw
+                    raw.text
                 }
                 translatedChunks.add(translated)
                 if (onPartial != null && index < chunks.lastIndex) {
@@ -715,7 +767,17 @@ class TranslationManager(context: Context) {
                 }
             }
 
-            GoogleTranslationResult(mask.unmask(translatedChunks.joinToString("\n\n")), allSucceeded)
+            val alreadyInTarget = detectedLang?.equals(targetLang.trim(), ignoreCase = true) == true
+            // Kaynak metin zaten hedef dildeyse çeviri metni değil **orijinal** metni döndür.
+            val finalText = if (alreadyInTarget) text
+            else mask.unmask(translatedChunks.joinToString("\n\n"))
+
+            GoogleTranslationResult(
+                text = finalText,
+                fullyTranslated = allSucceeded,
+                detectedSourceLang = detectedLang?.takeIf { it.isNotBlank() },
+                alreadyInTargetLanguage = alreadyInTarget
+            )
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {

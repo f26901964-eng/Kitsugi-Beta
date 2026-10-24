@@ -342,8 +342,14 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         if (!autoTranslate && !isRussian) return
 
         if (!forceRetranslate) {
-            val cachedTr = DetailCache.getTranslation("synopsis", result.source, result.malId)
-            if (!cachedTr.isNullOrBlank()) {
+            val cachedTr = DetailCache.getTranslation(
+                "synopsis", result.source, result.malId, sourceText = rawSynopsis
+            )
+            // Önbellekteki çeviri kaynak metinle eşdeğerse (Türkçe metnin "çevirisi")
+            // çeviri sayılmaz; orijinal gösterilir.
+            if (!cachedTr.isNullOrBlank() &&
+                !com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsis, cachedTr)
+            ) {
                 _translatedSynopsis.value = cachedTr
                 return
             }
@@ -374,15 +380,24 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 _translationLoading.value = true
                 val tr = withContext(Dispatchers.IO) {
                     translationManager.translateToTarget(rawSynopsis) { partial ->
-                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        if (currentFetchKey == expectedFetchKey &&
+                            partial.isNotBlank() &&
+                            !com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsis, partial)
+                        ) {
                             _translatedSynopsis.value = partial
                         }
                     }
                 }
                 if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
-                    if (tr != rawSynopsis) {
-                        DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
+                    if (com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsis, tr)) {
+                        // Kaynak metin zaten hedef dilde: çeviri yok, düğme de yok.
+                        DetailCache.removeTranslation("synopsis", result.source, result.malId)
+                        _translatedSynopsis.value = null
+                        return@launch
                     }
+                    DetailCache.putTranslation(
+                        "synopsis", result.source, result.malId, tr, sourceText = rawSynopsis
+                    )
                     _translatedSynopsis.value = tr
                 }
             } finally {
@@ -450,14 +465,21 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
 
         val cachedDetail = DetailCache.getMediaDetail(result.source, result.malId)
-        val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", result.source, result.malId)
+        val cachedDetailSynopsis = cachedDetail?.synopsis
+        val cachedSynopsisTranslation = cachedDetailSynopsis?.let { raw ->
+            DetailCache.getTranslation("synopsis", result.source, result.malId, sourceText = raw)
+        }
         val cachedVideos = DetailCache.getMediaVideos(result.source, result.malId, _targetSeason.value)
         _videoItems.value = cachedVideos ?: KitsugiMediaVideoAggregator.seedFromDetail(cachedDetail, result.source)
         videosTracker.reset()
 
         _detailState.value = cachedDetail
         _detailLoading.value = cachedDetail == null
-        _translatedSynopsis.value = cachedSynopsisTranslation
+        // Çeviri yalnızca **aynı** özet metnine aitse gösterilir.
+        _translatedSynopsis.value = cachedSynopsisTranslation?.takeIf { tr ->
+            !cachedDetailSynopsis.isNullOrBlank() &&
+                !com.kitsugi.animelist.utils.translationMatchesSource(cachedDetailSynopsis, tr)
+        }
         _logoUrl.value = null
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null

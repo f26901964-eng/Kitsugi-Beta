@@ -152,28 +152,9 @@ class KitsugiDetailClient {
                 return@withContext null
             }
 
-            if (mediaType != MediaType.Manga) {
-                // Simkl kayıtlarında TMDB çözümü için önbellekteki gerçek ID'ler kullanılır,
-                // böylece özet de Simkl API'si yerine TMDB'den gelebilir.
-                // Bangumi için de aynı yol: önbellekteki çözülmüş TMDB/MAL kimlikleri kullanılır.
-                val cachedSimklDetail = when {
-                    source.equals("simkl", ignoreCase = true) -> DetailCache.getMediaDetail("simkl", externalId)
-                    source.equals("bangumi", ignoreCase = true) -> DetailCache.getMediaDetail("bangumi", externalId)
-                    else -> null
-                }
-                val trMeta = getTurkishMetadataFromTmdb(
-                    source = source,
-                    externalId = externalId,
-                    mediaType = mediaType,
-                    providedTmdbId = cachedSimklDetail?.tmdbId,
-                    providedRealMalId = cachedSimklDetail?.realMalId
-                )
-                if (trMeta != null && !trMeta.synopsis.isNullOrBlank()) {
-                    return@withContext trMeta.synopsis
-                }
-            }
-
-            when (MalJikanMediaSupport.canonicalSource(source)) {
+            // 1. Önce kaynağın kendi özeti denenir (kaynak otoritesi).
+            val canonical = MalJikanMediaSupport.canonicalSource(source)
+            val sourceSynopsis = when (canonical) {
                 "jikan", "mal" -> KitsugiMalDetailClient.fetchSynopsis(
                     malId = externalId,
                     mediaType = mediaType
@@ -227,7 +208,31 @@ class KitsugiDetailClient {
                 }
 
                 else -> null
+            }?.takeIf { it.isNotBlank() }
+
+            if (sourceSynopsis != null) {
+                return@withContext sourceSynopsis
             }
+
+            // 2. Kaynakta özet yoksa ve manga değilse TMDB Türkçe özeti denenir.
+            if (mediaType != MediaType.Manga) {
+                val cachedCrossDetail = when {
+                    source.equals("simkl", ignoreCase = true) -> DetailCache.getMediaDetail("simkl", externalId)
+                    source.equals("bangumi", ignoreCase = true) -> DetailCache.getMediaDetail("bangumi", externalId)
+                    else -> null
+                }
+                val trMeta = getTurkishMetadataFromTmdb(
+                    source = source,
+                    externalId = externalId,
+                    mediaType = mediaType,
+                    providedTmdbId = cachedCrossDetail?.tmdbId,
+                    providedRealMalId = cachedCrossDetail?.realMalId
+                )
+                if (trMeta != null && !trMeta.synopsis.isNullOrBlank()) {
+                    return@withContext trMeta.synopsis
+                }
+            }
+            null
         }
     }
 
@@ -895,7 +900,11 @@ class KitsugiDetailClient {
             getTurkishMetadataFromTmdb(source, externalId, mediaType, resolvedTmdbId, effectiveRealMalId)
         } else null
         var mergedDetail = if (trMeta != null) {
-            val updatedSynopsis = if (!trMeta.synopsis.isNullOrBlank()) trMeta.synopsis else currentDetail.synopsis
+            // TMDB özeti artık yalnızca kaynağın özeti **yoksa** kullanılır; dilli çeviri
+            // zaten otomatik çeviri katmanında yapılır.
+            val sourceSynopsis = currentDetail.synopsis?.takeIf { it.isNotBlank() }
+            val updatedSynopsis = sourceSynopsis
+                ?: trMeta.synopsis?.takeIf { it.isNotBlank() }
             // Kaynak Otoritesi Kuralı (Source Authority Preservation):
             // Birincil kaynağın başlıkları, türleri, stüdyoları ve kapak görseli her zaman önceliklidir!
             val updatedTitle = if (!currentDetail.title.isNullOrBlank()) currentDetail.title else trMeta.title

@@ -354,20 +354,64 @@ object DetailCache {
         return "${targetLang}_${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
     }
 
+    /**
+     * Çevirinin ait olduğu **kaynak metnin** kimliği.
+     *
+     * Neden gerekli: anahtar yalnızca (dil, tür, kaynak, id) içeriyordu. Bir kaydın özeti /
+     * biyografisi sonradan değiştiğinde (ör. TMDB zenginleştirmesi farklı bir özet getirdiğinde)
+     * eski metnin çevirisi yeni metne "yapışıyor" ve sayfada alakasız bir açıklama görünüyordu.
+     * Karşılaştırma normalize edilmiş metinle yapılır: boşluk/noktalama farkı çeviriyi
+     * geçersiz kılmaz, anlamlı metin değişimi kılar.
+     */
+    private val translationSourceTexts = BoundedCache<String, String>("detail.translationTexts", 300)
+
+    private fun translationTextKey(type: String, source: String, id: Int, identity: String?): String =
+        "src_${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
+
     // Translations (Synopsis / Biography)
-    fun getTranslation(type: String, source: String, id: Int, identity: String? = null): String? {
+    fun getTranslation(
+        type: String,
+        source: String,
+        id: Int,
+        identity: String? = null,
+        sourceText: String? = null
+    ): String? {
         val key = translationKey(type, source, id, identity)
-        return translations[key]
+        val translation = translations[key] ?: return null
+        // Çağıran kaynak metni veriyorsa çeviri o metne ait olmalı; değilse eski/yapışmış kayıttır.
+        if (sourceText != null) {
+            val stored = translationSourceTexts[translationTextKey(type, source, id, identity)]
+            if (stored != null &&
+                stored != com.kitsugi.animelist.utils.normalizeTranslationText(sourceText)
+            ) {
+                return null
+            }
+        }
+        return translation
     }
 
-    fun putTranslation(type: String, source: String, id: Int, translation: String, identity: String? = null) {
+    fun putTranslation(
+        type: String,
+        source: String,
+        id: Int,
+        translation: String,
+        identity: String? = null,
+        sourceText: String? = null
+    ) {
         val key = translationKey(type, source, id, identity)
         translations[key] = translation
+        if (sourceText != null) {
+            translationSourceTexts[translationTextKey(type, source, id, identity)] =
+                com.kitsugi.animelist.utils.normalizeTranslationText(sourceText)
+        } else {
+            translationSourceTexts.remove(translationTextKey(type, source, id, identity))
+        }
     }
 
     fun removeTranslation(type: String, source: String, id: Int, identity: String? = null) {
         val key = translationKey(type, source, id, identity)
         translations.remove(key)
+        translationSourceTexts.remove(translationTextKey(type, source, id, identity))
     }
 
     // Fanart.tv Gallery Cache
@@ -469,6 +513,7 @@ object DetailCache {
         staffDetails.clear()
         studioDetails.clear()
         translations.clear()
+        translationSourceTexts.clear()
         fanartGalleryCache.clear()
         tmdbGalleryCache.clear()
         shikimoriGalleryCache.clear()

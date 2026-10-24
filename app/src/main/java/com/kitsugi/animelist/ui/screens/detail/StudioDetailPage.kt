@@ -226,6 +226,11 @@ fun StudioDetailPage(
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
                 var activeGalleryIndex by remember { mutableStateOf(0) }
 
+                val rawAboutForToggle = detail.about
+                val translatedAboutForToggle = translatedAbout
+                val aboutHasTranslation = translatedAboutForToggle != null && !rawAboutForToggle.isNullOrBlank() &&
+                    !com.kitsugi.animelist.utils.translationMatchesSource(rawAboutForToggle, translatedAboutForToggle)
+
                 StudioDetailSuccessContent(
                     detail = detail,
                     source = source,
@@ -236,7 +241,7 @@ fun StudioDetailPage(
                     titleLanguage = titleLanguage,
                     translatedAbout = translatedAbout,
                     preferredTranslator = preferredTranslator,
-                    aboutHasTranslation = translatedAbout != null && translatedAbout != detail.about,
+                    aboutHasTranslation = aboutHasTranslation,
                     showAboutOriginal = showAboutOriginal,
                     onToggleAboutOriginal = { viewModel.toggleAboutOriginal() },
                     onTranslateAbout = { viewModel.translateAbout() },

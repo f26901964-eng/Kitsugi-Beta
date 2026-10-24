@@ -134,8 +134,14 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     ) {
         if (bio.isNullOrBlank()) return
         if (!forceRetranslate) {
-            val cachedTranslation = DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity)
-            if (!cachedTranslation.isNullOrBlank()) {
+            val cachedTranslation = DetailCache.getTranslation(
+                "bio_char", source, characterId, cacheIdentity, sourceText = bio
+            )
+            // Önbellekteki çeviri kaynak metinle eşdeğerse (ör. eski sürümde Türkçe metin
+            // Türkçeye "çevrilip" kaydedilmişse) çeviri yok sayılır.
+            if (!cachedTranslation.isNullOrBlank() &&
+                !com.kitsugi.animelist.utils.translationMatchesSource(bio, cachedTranslation)
+            ) {
                 _translatedBio.value = cachedTranslation
                 return
             }
@@ -152,15 +158,25 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 _translationLoading.value = true
                 val tr = withContext(Dispatchers.IO) {
                     translationManager.translateToTarget(bio) { partial ->
-                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        if (currentFetchKey == expectedFetchKey &&
+                            partial.isNotBlank() &&
+                            !com.kitsugi.animelist.utils.translationMatchesSource(bio, partial)
+                        ) {
                             _translatedBio.value = partial
                         }
                     }
                 }
                 if (currentFetchKey == expectedFetchKey && tr.isNotBlank()) {
-                    if (tr != bio) {
-                        DetailCache.putTranslation("bio_char", source, characterId, tr, cacheIdentity)
+                    // Kaynak metin zaten hedef dildeyse çeviri üretilmemiştir: "Orijinal /
+                    // Çeviri" düğmesi boşuna görünmesin, eski yanlış kayıt da silinsin.
+                    if (com.kitsugi.animelist.utils.translationMatchesSource(bio, tr)) {
+                        DetailCache.removeTranslation("bio_char", source, characterId, cacheIdentity)
+                        _translatedBio.value = null
+                        return@launch
                     }
+                    DetailCache.putTranslation(
+                        "bio_char", source, characterId, tr, cacheIdentity, sourceText = bio
+                    )
                     _translatedBio.value = tr
                 }
             } finally {
@@ -225,7 +241,12 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
 
         val cachedCharacterDetail = DetailCache.getCharacterDetail(source, characterId, cacheIdentity)
             ?.takeIf { CharacterDetailIdentity.matchesExpectedDetail(source, name, isRealMediaRole, it) }
-        val cachedBioTranslation = DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity)
+        // Önbellekteki çeviri ancak **farklı** bir metinse gösterilir; aynı metnin biçim
+        // farkıyla dönmesi (Türkçe→Türkçe) "Çeviri" düğmesi açmamalı.
+        val cachedBioTranslation = cachedCharacterDetail?.biography?.let { bio ->
+            DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity, sourceText = bio)
+                ?.takeIf { tr -> !com.kitsugi.animelist.utils.translationMatchesSource(bio, tr) }
+        }
 
         _state.value = if (cachedCharacterDetail != null) CharacterDetailState.Success(cachedCharacterDetail) else CharacterDetailState.Loading
         _isFavourite.value = cachedCharacterDetail?.isFavourite ?: false

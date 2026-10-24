@@ -211,7 +211,11 @@ fun MediaEntryDetailPage(
     val originalSynopsis by viewModel.originalSynopsis.collectAsState()
     val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
     // Orijinal / çeviri geçişi: orijinal gösterilirken özet ham metniyle verilir.
-    val synopsisHasTranslation = translatedSynopsis != null && translatedSynopsis != originalSynopsis
+    // Normalize karşılaştırma: aynı metnin biçim farkıyla dönmesi çeviri sayılmaz.
+    val rawSynopsisForToggle = originalSynopsis
+    val translatedForToggle = translatedSynopsis
+    val synopsisHasTranslation = translatedForToggle != null && !rawSynopsisForToggle.isNullOrBlank() &&
+        !com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsisForToggle, translatedForToggle)
     val displayedSynopsisState = run {
         val raw = originalSynopsis
         if (showSynopsisOriginal && !raw.isNullOrBlank()) SynopsisState.Success(raw) else synopsisState
