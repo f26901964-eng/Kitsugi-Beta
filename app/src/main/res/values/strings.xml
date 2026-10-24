@@ -17737,14 +17737,18 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <!-- Original wiki reading appearance and native find -->
     <string name="wiki_more_tools">Diğer sayfa araçları</string>
     <string name="wiki_reading_appearance">Görünüm ve yazı boyutu</string>
-    <string name="wiki_theme_explanation">Site teması özgün görünümü korur. Diğer seçenekler, desteklenen wikinin kendi açık/koyu renklerini kullanır; resimlere filtre uygulanmaz. Bu ayarlar tüm wiki sayfalarında geçerlidir.</string>
+    <string name="wiki_theme_explanation">Site teması özgün görünümü korur. Açık ve Koyu tema önce wikinin kendi tema renklerini kullanır; wiki renkleri sabit kodlamışsa sayfa uyumlu bir renk katmanıyla boyanır. Resim, video ve oynatıcılara filtre uygulanmaz. Seçim kaydetmeden de anında önizlenir; bu ayarlar tüm wiki sayfalarında geçerlidir.</string>
     <string name="wiki_theme_site">Site teması (özgün)</string>
     <string name="wiki_theme_app">Uygulama temasını izle</string>
     <string name="wiki_theme_light">Açık tema</string>
     <string name="wiki_theme_dark">Koyu tema</string>
     <string name="wiki_theme_limited">Bu wiki görünümünde tema değişimi desteklenmiyor veya uygulanamadı. Site renkleri korunuyor.</string>
     <string name="wiki_text_percent">Yazı boyutu: %1$d%%</string>
-    <string name="wiki_text_scale_hint">Sistem yazı ölçeği de dikkate alınır. Büyütme, tablo ve kutuların yerleşimini değiştirebilir; bazı sabit boyutlu öğeler aynı kalabilir. Sayfada iki parmakla yakınlaştırma da kullanılabilir.</string>
+    <string name="wiki_text_effective">Ekranda etkin boyut: %1$d%% (masaüstü sığdırması)</string>
+    <string name="wiki_text_decrease">Yazıyı küçült</string>
+    <string name="wiki_text_increase">Yazıyı büyüt</string>
+    <string name="wiki_fit_screen">Sayfayı ekrana sığdır</string>
+    <string name="wiki_text_scale_hint">Sistem yazı ölçeği de dikkate alınır. Sayfa ilk açılışta ekrana sığdırılır; masaüstü düzeninde yazı okunabilir kalsın diye ölçek kadar büyütülür. Büyütme tablo ve kutuların yerleşimini değiştirebilir; iki parmakla yakınlaştırma korunur.</string>
     <string name="wiki_reading_reset">Özgün görünüme dön</string>
     <string name="wiki_reading_apply">Uygula</string>
     <string name="wiki_find_in_page">Sayfada bul</string>

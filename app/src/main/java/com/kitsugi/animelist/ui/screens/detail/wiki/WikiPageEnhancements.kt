@@ -56,8 +56,10 @@ internal class WikiPageEnhancements(
     private var runGeneration = 0
     private var appearanceJob: Job? = null
     private var appearanceMode = "SITE"
+    private var appearancePalette = WikiReadingAppearance.palette("SITE", false, "", "", "")
     private var appearanceGeneration = 0
     private var documentId = UUID.randomUUID().toString()
+    private val hexColor = Regex("#[0-9a-fA-F]{6}")
     private var ready = false
     private var foreground = true
     @Volatile private var disposed = false
@@ -106,9 +108,11 @@ internal class WikiPageEnhancements(
         restart()
     }
 
-    fun setAppearance(mode: String) {
-        if (appearanceMode == mode) return
+    /** Palette is part of the identity: a theme change without a new palette is a no-op. */
+    fun setAppearance(mode: String, palette: WikiAppearancePalette) {
+        if (appearanceMode == mode && appearancePalette.signature == palette.signature) return
         appearanceMode = mode
+        appearancePalette = palette
         applyAppearance()
     }
 
@@ -118,14 +122,20 @@ internal class WikiPageEnhancements(
         if (!ready || disposed || !foreground) return
         val id = documentId
         val mode = appearanceMode
+        val palette = appearancePalette
         appearanceJob = scope.launch {
             try {
                 evaluate(assets.appearance)
-                val result = json("window.__kitsugiWikiAppearanceV1(${JSONObject.quote(mode)})")
+                val result = json(
+                    "window.__kitsugiWikiAppearanceV2(${JSONObject.quote(mode)},${palette.toJson()})"
+                )
                 if (!disposed && id == documentId && generation == appearanceGeneration) {
                     session.pageThemeSupported = result.optBoolean("supported")
-                    val canvas = result.optString("canvas", "#ffffff")
-                    if (canvas.matches(Regex("#[0-9a-fA-F]{6}"))) {
+                    // Prefer the palette we actually painted; the computed canvas is only a
+                    // fallback for SITE mode where the document owns every colour.
+                    val canvas = result.optString("background").takeIf { it.matches(hexColor) }
+                        ?: result.optString("canvas", "#ffffff")
+                    if (canvas.matches(hexColor)) {
                         view.setBackgroundColor(android.graphics.Color.parseColor(canvas))
                     }
                 }

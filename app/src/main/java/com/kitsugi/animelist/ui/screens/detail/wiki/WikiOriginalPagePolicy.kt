@@ -21,12 +21,25 @@ internal object WikiOriginalPagePolicy {
     }
 
     // Desktop mode must also use a desktop viewport: a desktop UA alone still obeys
-    // width=device-width on many wikis. No article/theme styles or nodes are replaced.
+    // width=device-width on many wikis. The viewport is written together with the fitted
+    // initial scale, otherwise the desktop layout opens at 100% and the user has to pinch
+    // out on every page. No article/theme styles or nodes are replaced.
     const val DESKTOP_VIEWPORT_SCRIPT = """(function() {
         var meta = document.querySelector('meta[name="viewport"]');
         if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; document.head.appendChild(meta); }
-        meta.content = 'width=1200';
+        var content = 'width=__WIDTH__, initial-scale=__SCALE__, minimum-scale=0.1, maximum-scale=5, user-scalable=yes';
+        if (meta.content !== content) meta.content = content;
     })();"""
+
+    /** [layoutWidth] is the CSS width the wiki is asked to lay out for, [initialScalePercent]
+     * is the fit-to-screen scale computed from the real device width. */
+    fun desktopViewportScript(layoutWidth: Int, initialScalePercent: Int): String {
+        val width = layoutWidth.coerceIn(320, 2400)
+        val scale = (initialScalePercent.coerceIn(10, 100) / 100f).toString()
+        return DESKTOP_VIEWPORT_SCRIPT
+            .replace("__WIDTH__", width.toString())
+            .replace("__SCALE__", scale)
+    }
 
     /** Keep the installed engine's version; never impersonate an old, hard-coded Chrome. */
     fun desktopUserAgent(systemUserAgent: String): String = systemUserAgent

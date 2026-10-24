@@ -56,3 +56,6 @@ __pycache__/
 
 # Isolated PostgreSQL account regression tests
 /scripts/account-tests/node_modules/
+
+# Yerel test önbelleği (jsdom, kotlinc, deneme derlemeleri)
+/.cache/

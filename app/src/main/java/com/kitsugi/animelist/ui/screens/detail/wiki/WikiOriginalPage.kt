@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.luminance
@@ -73,6 +74,10 @@ internal class WikiOriginalSession(initialUrl: String, var readerLocation: Fando
     var translationDocumentUrl: String? = null
     var enhancements: WikiPageEnhancements? = null
     var restoreAfterReload = false
+    /** Sayaç: sayfa araçlarındaki "ekrana sığdır" eylemi her artışta bir kez uygulanır. */
+    var fitRequest by mutableStateOf(0)
+    /** Canlı WebView'in sığdırma denetleyicisi; WebView bırakılırken temizlenir. */
+    var viewportFit: WikiViewportFit? = null
     var history: Bundle? = null
     var historyDesktop: Boolean? = null
     var scrollX = 0
@@ -178,14 +183,49 @@ internal fun WikiOriginalPage(
         session.lastTranslationPreferenceKey, session.translationRetry) ?: WikiPageToolConfig()
     val currentConfig by rememberUpdatedState(config)
     val background = KitsugiColors.Background
-    val pageMode = WikiReadingAppearance.resolve(preferences?.pageTheme ?: "SITE", background.luminance() < 0.5f)
-    val textZoom = WikiReadingAppearance.engineTextZoom(preferences?.textZoom ?: 100, LocalDensity.current.fontScale)
+    val appDark = background.luminance() < 0.5f
+    // Dialogdaki seçim "Uygula"dan önce de görünür: kullanıcı temayı denediğinde sayfa
+    // anında değişir, kaydetmezse eski tercihe döner.
+    var previewAppearance by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    val pageMode = WikiReadingAppearance.resolve(
+        previewAppearance?.first ?: preferences?.pageTheme ?: "SITE", appDark
+    )
+    val zoomPercent = previewAppearance?.second ?: preferences?.textZoom ?: 100
+    val palette = WikiReadingAppearance.palette(
+        pageMode, appDark, WikiReadingAppearance.hex(background.toArgb()),
+        WikiReadingAppearance.hex(KitsugiColors.Surface.toArgb()),
+        WikiReadingAppearance.hex(KitsugiColors.TextPrimary.toArgb())
+    )
+    val deviceWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
+    val layoutWidth = WikiReaderFit.layoutWidth(session.desktop, deviceWidthDp)
+    val fitScale = WikiReaderFit.scale(deviceWidthDp, layoutWidth)
+    val textZoom = WikiReaderFit.readingTextZoom(
+        WikiReadingAppearance.engineTextZoom(zoomPercent, LocalDensity.current.fontScale), fitScale
+    )
+    // Koyu/açık tema seçilince WebView'in boş zemini de o renge boyanır; beyaz parlama olmaz.
+    val paintedBackground = if (pageMode == "SITE") {
+        background.toArgb()
+    } else {
+        runCatching { android.graphics.Color.parseColor(palette.background) }.getOrDefault(background.toArgb())
+    }
     val currentPageMode by rememberUpdatedState(pageMode)
+    val currentPalette by rememberUpdatedState(palette)
     val currentTextZoom by rememberUpdatedState(textZoom)
-    val currentBackground by rememberUpdatedState(background.toArgb())
+    val currentBackground by rememberUpdatedState(paintedBackground)
+    LaunchedEffect(preferences?.pageTheme, preferences?.textZoom, previewAppearance) {
+        val preview = previewAppearance ?: return@LaunchedEffect
+        val saved = preferences ?: return@LaunchedEffect
+        if (WikiReadingAppearance.normalize(saved.pageTheme) == WikiReadingAppearance.normalize(preview.first) &&
+            WikiReadingAppearance.textPercent(saved.textZoom) == WikiReadingAppearance.textPercent(preview.second)
+        ) previewAppearance = null
+    }
+    // Sayfa araçlarından gelen açık "ekrana sığdır" isteği, kullanıcı yakınlaştırmış olsa da uygulanır.
+    LaunchedEffect(session.fitRequest) {
+        if (session.fitRequest > 0) session.viewportFit?.apply(force = true)
+    }
     SideEffect {
         session.enhancements?.configure(config)
-        session.enhancements?.setAppearance(pageMode)
+        session.enhancements?.setAppearance(pageMode, palette)
         session.view?.let { view ->
             if (view.settings.textZoom != textZoom) view.settings.textZoom = textZoom
             if (!session.pageCommitted) view.setBackgroundColor(currentBackground)
@@ -195,6 +235,10 @@ internal fun WikiOriginalPage(
     Column(modifier) {
         WikiPageTools(session, preferences, assets, config, savingPreference || preferenceReadFailed, preferenceFailed,
             controller = toolsController,
+            onPreviewAppearance = { mode, zoom ->
+                previewAppearance = if (mode == null || zoom == null) null else mode to zoom
+            },
+            onFitScreen = { session.fitRequest++ },
             onSaveAppearance = { mode, zoom ->
                 scope.launch {
                     savingPreference = true
@@ -205,6 +249,8 @@ internal fun WikiOriginalPage(
                         throw e
                     } catch (_: Exception) {
                         preferenceFailed = true
+                        // Kaydedilemeyen önizleme ekranda kalmasın.
+                        previewAppearance = null
                     } finally {
                         savingPreference = false
                     }
@@ -270,7 +316,9 @@ internal fun WikiOriginalPage(
                             setBackgroundColor(currentBackground)
                             val tools = WikiPageEnhancements(context, this, session, loadedAssets, currentConfig)
                             session.enhancements = tools
-                            tools.setAppearance(currentPageMode)
+                            val viewportFit = WikiViewportFit.forDevice(this, session.desktop)
+                            session.viewportFit = viewportFit
+                            tools.setAppearance(currentPageMode, currentPalette)
                             tools.setForeground(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
                             var released = false
                             var rendererGone = false
@@ -289,6 +337,7 @@ internal fun WikiOriginalPage(
                                         session.historyDesktop = desktopAtCreation
                                         stopLoading()
                                     }
+                                    if (session.viewportFit === viewportFit) session.viewportFit = null
                                     if (session.view === ownedView) session.view = null
                                     setFindListener(null)
                                     session.findOpen = false
@@ -298,6 +347,21 @@ internal fun WikiOriginalPage(
                                     removeAllViews()
                                     destroy()
                                 }
+                            }
+                            // Masaüstü viewport'u, ölçekle birlikte yazılır; aksi hâlde sayfa
+                            // 1200 px genişlikte %100 ölçekle açılır ve ekrana sığmaz.
+                            fun applyViewport(view: WebView) {
+                                if (!desktopAtCreation) return
+                                val metrics = resources.displayMetrics
+                                val density = metrics.density.takeIf { it > 0f } ?: 1f
+                                val widthDp = if (width > 0) width / density else metrics.widthPixels / density
+                                val layout = WikiReaderFit.DESKTOP_LAYOUT_WIDTH
+                                view.evaluateJavascript(
+                                    WikiOriginalPagePolicy.desktopViewportScript(
+                                        layout, WikiReaderFit.initialScalePercent(widthDp, layout)
+                                    ),
+                                    null
+                                )
                             }
                             layoutParams = ViewGroup.LayoutParams(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -315,13 +379,25 @@ internal fun WikiOriginalPage(
                                 mediaPlaybackRequiresUserGesture = true
                                 setGeolocationEnabled(false)
                                 useWideViewPort = true
-                                loadWithOverviewMode = true
+                                // Masaüstü düzeninde ölçeği biz veriyoruz (ekrana sığdırma);
+                                // mobil düzen kendi viewport'unu ve genel görünümünü korusun.
+                                loadWithOverviewMode = !desktopAtCreation
                                 setSupportZoom(true)
                                 builtInZoomControls = true
                                 displayZoomControls = false
                                 this.textZoom = currentTextZoom
-                                if (session.desktop) {
+                                if (desktopAtCreation) {
                                     userAgentString = WikiOriginalPagePolicy.desktopUserAgent(userAgentString)
+                                    // İlk boyama bile sığsın: sayfa 1200 CSS px'e yerleşir,
+                                    // ölçek cihaz genişliğine göre seçilir.
+                                    val metrics = resources.displayMetrics
+                                    val density = metrics.density.takeIf { it > 0f } ?: 1f
+                                    setInitialScale(
+                                        WikiReaderFit.initialScalePercent(
+                                            metrics.widthPixels / density,
+                                            WikiReaderFit.DESKTOP_LAYOUT_WIDTH
+                                        )
+                                    )
                                 }
                                 if (Build.VERSION.SDK_INT >= 29) {
                                     @Suppress("DEPRECATION")
@@ -337,6 +413,16 @@ internal fun WikiOriginalPage(
                                 }
                             }
                             setDownloadListener { _, _, _, _, _ -> currentBlockedLink() }
+                            addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, _ ->
+                                if (released) return@addOnLayoutChangeListener
+                                val width = right - left
+                                val oldWidth = oldRight - oldLeft
+                                if (width <= 0 || oldWidth <= 0 || kotlin.math.abs(width - oldWidth) <= 4) {
+                                    return@addOnLayoutChangeListener
+                                }
+                                // Döndürme/pencere değişimi: kullanıcı yakınlaştırmadıysa yeniden sığdır.
+                                post { if (!released) viewportFit.apply() }
+                            }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onProgressChanged(view: WebView, newProgress: Int) {
                                     if (!released) session.progress = newProgress
@@ -390,8 +476,13 @@ internal fun WikiOriginalPage(
                                     }
                                 }
 
+                                override fun onScaleChanged(view: WebView, oldScale: Float, newScale: Float) {
+                                    if (!released) viewportFit.onScaleChanged()
+                                }
+
                                 override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                                     if (released) return
+                                    viewportFit.resetForDocument()
                                     session.failed = false
                                     session.progress = 0
                                     session.pageCommitted = false
@@ -408,7 +499,11 @@ internal fun WikiOriginalPage(
                                 override fun onPageCommitVisible(view: WebView, url: String?) {
                                     if (!released && !rendererGone) {
                                         session.pageCommitted = true
+                                        if (url != null &&
+                                            WikiOriginalPagePolicy.destination(url) == WikiOriginalPagePolicy.Destination.WIKI
+                                        ) applyViewport(view)
                                         tools.documentAvailable(url)
+                                        view.post { if (!released) viewportFit.apply() }
                                     }
                                 }
 
@@ -420,9 +515,12 @@ internal fun WikiOriginalPage(
                                     if (desktopAtCreation && url != null &&
                                         WikiOriginalPagePolicy.destination(url) == WikiOriginalPagePolicy.Destination.WIKI
                                     ) {
-                                        view.evaluateJavascript(WikiOriginalPagePolicy.DESKTOP_VIEWPORT_SCRIPT, null)
+                                        applyViewport(view)
                                     }
                                     tools.documentAvailable(url)
+                                    // Geç yüklenen yazı tipleri/yerleşim sonrası son düzeltme.
+                                    view.post { if (!released) viewportFit.apply() }
+                                    view.postDelayed({ if (!released) viewportFit.apply() }, 250)
                                     if (restoreScroll || session.restoreAfterReload) {
                                         restoreScroll = false
                                         session.restoreAfterReload = false

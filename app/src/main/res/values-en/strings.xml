@@ -17732,14 +17732,18 @@
     <!-- Original wiki reading appearance and native find -->
     <string name="wiki_more_tools">More page tools</string>
     <string name="wiki_reading_appearance">Appearance and text size</string>
-    <string name="wiki_theme_explanation">Site theme preserves the original appearance. Other options use the supported wiki’s own light/dark colors; images are not filtered. These settings apply to all wiki pages.</string>
+    <string name="wiki_theme_explanation">Site theme preserves the original appearance. Light and Dark first use the wiki’s own theme colors; when a wiki hard-codes its colors, a compatible color layer is applied. Images, videos and players are never filtered. The choice is previewed before saving and applies to all wiki pages.</string>
     <string name="wiki_theme_site">Site theme (original)</string>
     <string name="wiki_theme_app">Follow app theme</string>
     <string name="wiki_theme_light">Light theme</string>
     <string name="wiki_theme_dark">Dark theme</string>
     <string name="wiki_theme_limited">Theme switching is unsupported or could not be applied to this wiki skin. Site colors are preserved.</string>
     <string name="wiki_text_percent">Text size: %1$d%%</string>
-    <string name="wiki_text_scale_hint">System font scaling is also respected. Larger text can reflow tables and boxes; some fixed-size elements may stay unchanged. Pinch-to-zoom is also available.</string>
+    <string name="wiki_text_effective">Effective on screen: %1$d%% (desktop fit)</string>
+    <string name="wiki_text_decrease">Decrease text size</string>
+    <string name="wiki_text_increase">Increase text size</string>
+    <string name="wiki_fit_screen">Fit page to screen</string>
+    <string name="wiki_text_scale_hint">System font scaling is also respected. The page is fitted to the screen when it opens, and desktop-layout text is enlarged with the fit so it stays readable. Larger text can reflow tables and boxes; pinch-to-zoom still works.</string>
     <string name="wiki_reading_reset">Reset to original appearance</string>
     <string name="wiki_reading_apply">Apply</string>
     <string name="wiki_find_in_page">Find in page</string>

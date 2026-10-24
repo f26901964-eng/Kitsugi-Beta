@@ -9,7 +9,9 @@ const { JSDOM } = require('jsdom');
 
 const source = readFileSync(resolve(__dirname,
   '../../app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/WikiOriginalPagePolicy.kt'), 'utf8');
-const script = source.match(/const val DESKTOP_VIEWPORT_SCRIPT = """([\s\S]*?)"""/)[1];
+// The shipped template takes the layout width and the fitted scale; see desktopViewportScript().
+const template = source.match(/const val DESKTOP_VIEWPORT_SCRIPT = """([\s\S]*?)"""/)[1];
+const script = template.replace('__WIDTH__', '1200').replace('__SCALE__', '0.3');
 
 function page(viewport = '<meta name="viewport" content="width=device-width, initial-scale=1">') {
   return new JSDOM(`<!doctype html><html class="theme-dark"><head>${viewport}
@@ -32,7 +34,8 @@ test('desktop viewport changes without replacing article DOM or wiki styles', ()
   const body = document.body.innerHTML;
   const style = document.querySelector('style').outerHTML;
   dom.window.eval(script);
-  assert.equal(document.querySelector('meta[name=viewport]').content, 'width=1200');
+  assert.equal(document.querySelector('meta[name=viewport]').content,
+    'width=1200, initial-scale=0.3, minimum-scale=0.1, maximum-scale=5, user-scalable=yes');
   assert.equal(document.body.innerHTML, body);
   assert.equal(document.querySelector('style').outerHTML, style);
   assert.equal(document.documentElement.className, 'theme-dark');
@@ -48,14 +51,21 @@ test('repeated finish callbacks do not duplicate viewport or content', () => {
   dom.window.close();
 });
 
-test('missing viewport is created without disabling user zoom', () => {
+test('missing viewport is created, fitted, and never disables user zoom', () => {
   const dom = page('');
   dom.window.eval(script);
   const content = dom.window.document.querySelector('meta[name=viewport]').content;
-  assert.equal(content, 'width=1200');
+  assert.ok(content.startsWith('width=1200, initial-scale=0.3'));
+  assert.ok(content.includes('minimum-scale=0.1'));
+  assert.ok(content.includes('user-scalable=yes'));
   assert.ok(!content.includes('user-scalable=no'));
-  assert.ok(!content.includes('maximum-scale'));
+  assert.ok(content.includes('maximum-scale=5'), 'zoom-in stays available up to 5x');
   dom.window.close();
+});
+
+test('placeholders are fully substituted by the Kotlin builder', () => {
+  assert.ok(template.includes('__WIDTH__') && template.includes('__SCALE__'), 'template keeps its placeholders');
+  assert.ok(!script.includes('__WIDTH__') && !script.includes('__SCALE__'));
 });
 
 test('theme-hidden duplicate remains hidden and article links retain anchors', () => {

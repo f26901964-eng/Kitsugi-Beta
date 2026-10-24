@@ -54,6 +54,18 @@ fun main() {
         val desktop = WikiOriginalPagePolicy.desktopUserAgent(ua)
         check(WikiOriginalPagePolicy.desktopUserAgent(desktop) == desktop)
     }
+    test("desktop viewport carries the fitted scale and keeps user zoom") {
+        val script = WikiOriginalPagePolicy.desktopViewportScript(1200, 30)
+        check(script.contains("width=1200, initial-scale=0.3"))
+        check(script.contains("minimum-scale=0.1"))
+        check(script.contains("maximum-scale=5"))
+        check(script.contains("user-scalable=yes"))
+        check(!script.contains("user-scalable=no"))
+        check(!script.contains("__WIDTH__") && !script.contains("__SCALE__"))
+        check(WikiOriginalPagePolicy.desktopViewportScript(1200, 300).contains("initial-scale=1.0"))
+        check(WikiOriginalPagePolicy.desktopViewportScript(0, 0).contains("width=320"))
+        check(WikiOriginalPagePolicy.desktopViewportScript(99999, 50).contains("width=2400"))
+    }
     val home = FandomReaderLocation("you-zitsu", "You-Zitsu Wiki")
     val character = FandomReaderLocation("you-zitsu", "Kiyotaka Ayanokōji")
     val otherWiki = FandomReaderLocation("tr.onepiece", "Ana Sayfa")

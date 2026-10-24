@@ -9,7 +9,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Translate
@@ -21,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +83,10 @@ internal fun WikiPageTools(
     preferenceFailed: Boolean,
     onSaveAppearance: (String, Int) -> Unit,
     onToggleAds: () -> Unit,
-    controller: WikiPageToolsController? = null
+    controller: WikiPageToolsController? = null,
+    /** Görünüm penceresindeki geçici seçim; kaydetmeden canlı önizleme sağlar. */
+    onPreviewAppearance: (String?, Int?) -> Unit = { _, _ -> },
+    onFitScreen: () -> Unit = {}
 ) {
     var showTools by remember { mutableStateOf(false) }
     var showAppearance by remember { mutableStateOf(false) }
@@ -119,12 +126,14 @@ internal fun WikiPageTools(
             adsEnabled = preferences != null && !savingPreference,
             canOpenAppearance = preferences != null && !savingPreference,
             canFind = session.view != null,
+            canFit = session.view != null && !savingPreference,
             statusLines = statusLines,
             retryAvailable = retryAvailable,
             onToggleTranslate = { session.translationOverride = !config.translate },
             onToggleAds = onToggleAds,
             onOpenAppearance = { showTools = false; showAppearance = true },
             onOpenFind = { showTools = false; session.findOpen = true },
+            onFitScreen = { showTools = false; onFitScreen() },
             onOpenInfo = { showTools = false; showInfo = true },
             onRetry = { session.translationRetry++ },
             onDismiss = { showTools = false }
@@ -132,10 +141,19 @@ internal fun WikiPageTools(
     }
 
     if (showAppearance && preferences != null) {
-        WikiReadingSettingsDialog(preferences, onDismiss = { showAppearance = false }) { mode, zoom ->
-            showAppearance = false
-            onSaveAppearance(mode, zoom)
-        }
+        WikiReadingSettingsDialog(
+            preferences = preferences,
+            desktop = session.desktop,
+            onPreview = onPreviewAppearance,
+            onDismiss = {
+                showAppearance = false
+                onPreviewAppearance(null, null)
+            },
+            onApply = { mode, zoom ->
+                showAppearance = false
+                onSaveAppearance(mode, zoom)
+            }
+        )
     }
 
     if (showInfo) {
@@ -194,12 +212,14 @@ private fun WikiPageToolsDialog(
     adsEnabled: Boolean,
     canOpenAppearance: Boolean,
     canFind: Boolean,
+    canFit: Boolean,
     statusLines: List<String>,
     retryAvailable: Boolean,
     onToggleTranslate: () -> Unit,
     onToggleAds: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenFind: () -> Unit,
+    onFitScreen: () -> Unit,
     onOpenInfo: () -> Unit,
     onRetry: () -> Unit,
     onDismiss: () -> Unit
@@ -260,6 +280,12 @@ private fun WikiPageToolsDialog(
                     title = stringResource(R.string.wiki_find_in_page),
                     enabled = canFind,
                     onClick = onOpenFind
+                )
+                WikiToolActionRow(
+                    icon = Icons.Rounded.AspectRatio,
+                    title = stringResource(R.string.wiki_fit_screen),
+                    enabled = canFit,
+                    onClick = onFitScreen
                 )
                 WikiToolActionRow(
                     icon = Icons.Rounded.Info,
@@ -429,11 +455,19 @@ private fun wikiStatusLines(
 @Composable
 private fun WikiReadingSettingsDialog(
     preferences: WikiPagePreferences,
+    desktop: Boolean,
+    onPreview: (String?, Int?) -> Unit,
     onDismiss: () -> Unit,
     onApply: (String, Int) -> Unit
 ) {
     var mode by remember { mutableStateOf(WikiReadingAppearance.normalize(preferences.pageTheme)) }
     var zoom by remember { mutableStateOf(WikiReadingAppearance.textPercent(preferences.textZoom).toFloat()) }
+    // Masaüstü düzeni 1200 CSS px'tir; telefonda sığdırma ölçeği kadar yazı da büyütülür.
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp.toFloat()
+    val fitScale = WikiReaderFit.scale(screenWidthDp, WikiReaderFit.layoutWidth(desktop, screenWidthDp))
+    val effective = WikiReaderFit.effectivePercent(zoom.toInt(), fitScale)
+    fun publish() = onPreview(mode, zoom.toInt())
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = KitsugiColors.Surface,
@@ -444,12 +478,15 @@ private fun WikiReadingSettingsDialog(
             Text(stringResource(R.string.wiki_reading_appearance), color = KitsugiColors.TextPrimary)
         },
         text = {
-            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.wiki_theme_explanation))
                 Column(Modifier.selectableGroup()) {
                     WikiReadingAppearance.modes.forEach { value ->
                         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                            .selectable(selected = mode == value, role = Role.RadioButton, onClick = { mode = value }),
+                            .selectable(selected = mode == value, role = Role.RadioButton, onClick = {
+                                mode = value
+                                publish()
+                            }),
                             verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = mode == value, onClick = null,
                                 colors = RadioButtonDefaults.colors(selectedColor = KitsugiColors.TextPrimary,
@@ -464,13 +501,49 @@ private fun WikiReadingSettingsDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.wiki_text_percent, zoom.toInt()), color = KitsugiColors.TextPrimary)
-                Slider(value = zoom, onValueChange = { zoom = WikiReadingAppearance.textPercent(it.toInt()).toFloat() },
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.wiki_text_percent, zoom.toInt()),
+                        color = KitsugiColors.TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        zoom = (zoom - 10f).coerceAtLeast(80f)
+                        publish()
+                    }) {
+                        Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.wiki_text_decrease),
+                            tint = KitsugiColors.TextPrimary)
+                    }
+                    IconButton(onClick = {
+                        zoom = (zoom + 10f).coerceAtMost(180f)
+                        publish()
+                    }) {
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.wiki_text_increase),
+                            tint = KitsugiColors.TextPrimary)
+                    }
+                }
+                Slider(value = zoom, onValueChange = {
+                    // Sürüklerken her adımda WebView'a yazmak büyük sayfalarda kasmaya yol açar;
+                    // önizleme parmak kalkınca uygulanır (A−/A+ tek dokunuşta hemen uygular).
+                    zoom = WikiReadingAppearance.textPercent(it.toInt()).toFloat()
+                },
+                    onValueChangeFinished = { publish() },
                     valueRange = 80f..180f, steps = 9,
                     colors = SliderDefaults.colors(thumbColor = KitsugiColors.TextPrimary,
                         activeTrackColor = KitsugiColors.TextPrimary))
+                if (effective > zoom.toInt()) {
+                    Text(
+                        stringResource(R.string.wiki_text_effective, effective),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
                 Text(stringResource(R.string.wiki_text_scale_hint), style = MaterialTheme.typography.bodySmall)
-                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { mode = "SITE"; zoom = 100f }) { Text(stringResource(R.string.wiki_reading_reset)) }
+                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = {
+                    mode = "SITE"
+                    zoom = 100f
+                    publish()
+                }) { Text(stringResource(R.string.wiki_reading_reset)) }
             }
         },
         confirmButton = { TextButton(colors = ButtonDefaults.textButtonColors(contentColor = KitsugiColors.TextPrimary), onClick = { onApply(mode, zoom.toInt()) }) { Text(stringResource(R.string.wiki_reading_apply)) } },

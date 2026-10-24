@@ -1,5 +1,10 @@
 # Wiki okuyucu — tema ve kullanılabilirlik denetimi
 
+> **Güncelleme (2026-10-24, v2.4.341):** Bu belgedeki "tema sözleşmesi yoksa genel CSS zorlanmaz"
+> kararı değişti. Sahada tema seçiminin büyük wikilerde hiçbir etkisi olmadığı görüldü; artık
+> site sözleşmesinin yanına uyumlu bir renk katmanı uygulanıyor. Güncel kök neden ve çözüm:
+> [Wiki tema + sığdırma raporu](../COZUM_RAPORU_WIKI_TEMA_SIGDIRMA_2026-10-24.md).
+
 Tarih: 2026-10-21
 
 Önceki çalışma: [Sayfa içinde çeviri ve reklam engelleme](WIKI_DOM_TRANSLATION_ADBLOCK_2026-10-21.md).
