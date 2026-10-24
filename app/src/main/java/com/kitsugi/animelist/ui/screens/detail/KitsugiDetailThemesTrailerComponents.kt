@@ -274,7 +274,9 @@ fun ThemePlayerContainer(
         val dataStore = remember { com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext) }
         val appSettingsState = dataStore.settingsFlow.collectAsState(initial = null)
         val appSettings = appSettingsState.value
-        val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
+        val safeSettings = remember(appSettings) {
+            (appSettings ?: com.kitsugi.animelist.data.settings.AppSettings()).forCompactInlinePlayback()
+        }
 
         // Kompakt oynatıcı HER ZAMAN Media3 (TextureView) ile başlar.
         //

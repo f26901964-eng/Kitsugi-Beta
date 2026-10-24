@@ -1046,6 +1046,7 @@ fun TvDetailScreen(
                     },
                     onRetry = {
                         if (trailerOverlayTitle == displayTitle) {
+                            trailerService.clearCache()
                             loadAndShowTrailer()
                         } else {
                             val currentSource = trailerPlaybackSource

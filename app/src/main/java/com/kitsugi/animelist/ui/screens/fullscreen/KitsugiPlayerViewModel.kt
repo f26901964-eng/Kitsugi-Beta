@@ -860,7 +860,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    private var currentYouTubeVideoId: String? = null
+
     private fun loadPlaybackSource(videoId: String?, activity: android.app.Activity?) {
+        currentYouTubeVideoId = videoId
         viewModelScope.launch {
             _isLoading.value = true
             _hasError.value = false
@@ -868,7 +871,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 videoId != null -> {
                     try {
                         val src = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            InAppYouTubeExtractor()
+                            InAppYouTubeExtractor.shared
                                 .extractPlaybackSource("https://www.youtube.com/watch?v=$videoId")
                         }
                         if (src != null) {
@@ -876,6 +879,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         } else {
                             _hasError.value = true
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         _hasError.value = true
                         _errorDetails.value = e.message
@@ -1299,6 +1304,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
      * mevcut konumdan yeniden hazırlanır.
      */
     fun retryCurrentSource() {
+        currentYouTubeVideoId?.let { videoId ->
+            InAppYouTubeExtractor.shared.invalidatePlaybackSource(videoId)
+            _playbackSource.value = null
+            loadPlaybackSource(videoId, activity = null)
+            return
+        }
         val source = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
         if (source == null) {
             _hasError.value = true

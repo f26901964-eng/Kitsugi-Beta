@@ -2,6 +2,29 @@ package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.core.player.engine.PlayerEngine
 import com.kitsugi.animelist.core.player.engine.PlayerEngineType
+import com.kitsugi.animelist.data.settings.AppSettings
+
+/**
+ * Compact previews should display their first frame quickly without changing the
+ * fullscreen player's buffer policy. Large startup buffers are especially noticeable
+ * on AnimeThemes' high-bitrate WebM files on slow connections.
+ */
+internal fun AppSettings.forCompactInlinePlayback(): AppSettings {
+    val compactMinBufferMs = minOf(playback.minBufferMs, 5_000)
+    val compactMaxBufferMs = minOf(playback.maxBufferMs, 20_000)
+        .coerceAtLeast(compactMinBufferMs)
+    return copy(
+        playback = playback.copy(
+            minBufferMs = compactMinBufferMs,
+            maxBufferMs = compactMaxBufferMs,
+            bufferForPlaybackMs = minOf(playback.bufferForPlaybackMs, 1_000),
+            bufferForPlaybackAfterRebufferMs = minOf(
+                playback.bufferForPlaybackAfterRebufferMs,
+                2_000
+            )
+        )
+    )
+}
 
 /** A network/format stall must not leave the compact player black at 00:00 forever. */
 internal const val INLINE_PLAYER_START_TIMEOUT_MS = 18_000L
@@ -9,6 +32,50 @@ internal const val INLINE_PLAYER_START_TIMEOUT_MS = 18_000L
 internal fun PlayerEngineType.alternateInlineEngine(): PlayerEngineType = when (this) {
     PlayerEngineType.MEDIA3 -> PlayerEngineType.MPV
     PlayerEngineType.MPV, PlayerEngineType.EXTERNAL -> PlayerEngineType.MEDIA3
+}
+
+internal enum class InlinePlaybackFailure {
+    /** HTTP, TLS, stalled or invalid media: another signed URL may repair playback. */
+    SOURCE,
+    /** Audio advances without a rendered frame: try the other decoder on the same URL first. */
+    AUDIO_ONLY
+}
+
+internal data class InlinePlaybackAttempt(
+    val sourceIndex: Int,
+    val engine: PlayerEngineType
+)
+
+internal const val MAX_INLINE_PLAYBACK_ATTEMPTS = 4
+
+/**
+ * Chooses a genuinely new source/engine attempt and never retries the same broken pair.
+ * Source errors move to another URL before changing engines; decoder-like audio-only
+ * failures keep the URL and change the engine first. A hard cap prevents fallback loops.
+ */
+internal fun nextInlinePlaybackAttempt(
+    failed: InlinePlaybackAttempt,
+    failure: InlinePlaybackFailure,
+    sourceCount: Int,
+    attempted: Set<InlinePlaybackAttempt>
+): InlinePlaybackAttempt? {
+    if (sourceCount <= 0 || attempted.size >= MAX_INLINE_PLAYBACK_ATTEMPTS) return null
+    val media3Attempts = (0 until sourceCount).map { index ->
+        InlinePlaybackAttempt(index, PlayerEngineType.MEDIA3)
+    }
+    val mpvAttempts = (0 until sourceCount).map { index ->
+        InlinePlaybackAttempt(index, PlayerEngineType.MPV)
+    }
+    val sameSourceMpv = InlinePlaybackAttempt(failed.sourceIndex, PlayerEngineType.MPV)
+    val ordered = when (failure) {
+        InlinePlaybackFailure.SOURCE ->
+            media3Attempts + listOf(sameSourceMpv) + mpvAttempts
+        InlinePlaybackFailure.AUDIO_ONLY ->
+            listOf(sameSourceMpv) + media3Attempts + mpvAttempts
+    }
+    return ordered.firstOrNull { candidate ->
+        candidate != failed && candidate !in attempted
+    }
 }
 
 /**

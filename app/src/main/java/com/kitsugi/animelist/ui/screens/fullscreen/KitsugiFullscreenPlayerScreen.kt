@@ -51,6 +51,7 @@ import com.kitsugi.animelist.core.player.SubtitleInput
 import com.kitsugi.animelist.data.repository.AddonStreamRepository
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
+import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PauseOverlay
 import com.kitsugi.animelist.ui.screens.fullscreen.components.FeedbackBubble
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerInlineLoadingOverlay
@@ -942,8 +943,15 @@ fun KitsugiFullscreenPlayerScreen(
                 // even when the URL hasn't changed. Using the object reference as key caused
                 // unnecessary player restarts every ~10s, resetting position to 0 each time.
                 var lastPreparedUrl by remember { mutableStateOf<String?>(null) }
-                val prepareKey = remember(source?.videoUrl, currentHeaders, currentSubtitles) {
-                    Triple(source?.videoUrl, currentHeaders.hashCode(), currentSubtitles.map { it.url }.hashCode())
+                val effectivePlaybackHeaders = remember(source, currentHeaders) {
+                    if (source?.requestHeaders?.isNotEmpty() == true) {
+                        YouTubeRequestPolicy.headersForPlaybackSource(source)
+                    } else {
+                        currentHeaders
+                    }
+                }
+                val prepareKey = remember(source?.videoUrl, effectivePlaybackHeaders, currentSubtitles) {
+                    Triple(source?.videoUrl, effectivePlaybackHeaders.hashCode(), currentSubtitles.map { it.url }.hashCode())
                 }
                 LaunchedEffect(playerEngine, prepareKey, appSettings != null) {
                     // Bekle: Kayıtlı tercihler diskten okunana kadar varsayılan AppSettings() ile
@@ -979,7 +987,7 @@ fun KitsugiFullscreenPlayerScreen(
                     playerEngine.prepare(
                         videoUrl = safeVideoUrl,
                         audioUrl = source?.audioUrl,
-                        headers = currentHeaders,
+                        headers = effectivePlaybackHeaders,
                         subtitles = currentSubtitles,
                         startPositionMs = startPos,
                         addonName = currentAddonName,

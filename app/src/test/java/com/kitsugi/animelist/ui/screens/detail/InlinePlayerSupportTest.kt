@@ -4,7 +4,9 @@ import com.kitsugi.animelist.core.player.engine.PlayerEngine
 import com.kitsugi.animelist.core.player.engine.PlayerEngineType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import com.kitsugi.animelist.data.settings.AppSettings
 import org.junit.Test
 
 class InlinePlayerSupportTest {
@@ -197,5 +199,91 @@ class InlinePlayerSupportTest {
                 hasVisibleVideo = false
             )
         )
+    }
+
+    @Test
+    fun sourceFailureMovesToDifferentUrlBeforeChangingEngine() {
+        val failed = InlinePlaybackAttempt(0, PlayerEngineType.MEDIA3)
+        val next = nextInlinePlaybackAttempt(
+            failed = failed,
+            failure = InlinePlaybackFailure.SOURCE,
+            sourceCount = 3,
+            attempted = setOf(failed)
+        )
+
+        assertEquals(InlinePlaybackAttempt(1, PlayerEngineType.MEDIA3), next)
+    }
+
+    @Test
+    fun audioOnlyFailureKeepsSourceAndChangesDecoderFirst() {
+        val failed = InlinePlaybackAttempt(1, PlayerEngineType.MEDIA3)
+        val next = nextInlinePlaybackAttempt(
+            failed = failed,
+            failure = InlinePlaybackFailure.AUDIO_ONLY,
+            sourceCount = 3,
+            attempted = setOf(failed)
+        )
+
+        assertEquals(InlinePlaybackAttempt(1, PlayerEngineType.MPV), next)
+    }
+
+    @Test
+    fun fallbackNeverRepeatsAttemptAndStopsAtHardCap() {
+        var current = InlinePlaybackAttempt(0, PlayerEngineType.MEDIA3)
+        val attempted = mutableSetOf<InlinePlaybackAttempt>()
+        val sequence = mutableListOf<InlinePlaybackAttempt>()
+
+        repeat(MAX_INLINE_PLAYBACK_ATTEMPTS + 2) {
+            attempted += current
+            val next = nextInlinePlaybackAttempt(
+                failed = current,
+                failure = InlinePlaybackFailure.SOURCE,
+                sourceCount = 3,
+                attempted = attempted
+            ) ?: return@repeat
+            assertFalse(next in attempted)
+            sequence += next
+            current = next
+        }
+
+        assertEquals(MAX_INLINE_PLAYBACK_ATTEMPTS - 1, sequence.size)
+        assertNull(
+            nextInlinePlaybackAttempt(
+                failed = current,
+                failure = InlinePlaybackFailure.SOURCE,
+                sourceCount = 3,
+                attempted = attempted
+            )
+        )
+    }
+
+    @Test
+    fun compactPlaybackUsesSmallStartupBufferWithoutMutatingFullscreenSettings() {
+        val original = AppSettings()
+        val compact = original.forCompactInlinePlayback()
+
+        assertEquals(1_000, compact.bufferForPlaybackMs)
+        assertEquals(2_000, compact.bufferForPlaybackAfterRebufferMs)
+        assertEquals(5_000, compact.minBufferMs)
+        assertEquals(20_000, compact.maxBufferMs)
+        assertEquals(3_500, original.bufferForPlaybackMs)
+        assertEquals(45_000, original.maxBufferMs)
+    }
+
+    @Test
+    fun compactPlaybackDoesNotIncreaseAlreadySmallerBuffers() {
+        val original = AppSettings(
+            playback = com.kitsugi.animelist.data.settings.PlayerPlaybackSettings(
+                minBufferMs = 4_000,
+                maxBufferMs = 10_000,
+                bufferForPlaybackMs = 500,
+                bufferForPlaybackAfterRebufferMs = 1_000
+            )
+        ).forCompactInlinePlayback()
+
+        assertEquals(4_000, original.minBufferMs)
+        assertEquals(10_000, original.maxBufferMs)
+        assertEquals(500, original.bufferForPlaybackMs)
+        assertEquals(1_000, original.bufferForPlaybackAfterRebufferMs)
     }
 }

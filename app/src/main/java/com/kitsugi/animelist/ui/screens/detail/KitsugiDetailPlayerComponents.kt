@@ -67,6 +67,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.kitsugi.animelist.data.trailer.InAppYouTubeExtractor
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
 import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
+import com.kitsugi.animelist.data.trailer.playbackCandidates
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -261,7 +262,7 @@ fun KitsugiYouTubePlayer(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     KitsugiButton(
                         onClick = {
-                            // Taze çıkarım + taze motor örneği.
+                            InAppYouTubeExtractor.shared.invalidatePlaybackSource(videoId)
                             hasError = false
                             engineAttempt++
                             retryCount++
@@ -307,14 +308,32 @@ fun KitsugiYouTubePlayer(
         val dataStore = remember { com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext) }
         val appSettingsState = dataStore.settingsFlow.collectAsState(initial = null)
         val appSettings = appSettingsState.value
-        val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
+        val safeSettings = remember(appSettings) {
+            (appSettings ?: com.kitsugi.animelist.data.settings.AppSettings()).forCompactInlinePlayback()
+        }
 
         // YouTube'un imzalı Googlevideo/HLS adresleri Media3'ün özel istek politikasını
         // gerektirir (tam ekran oynatıcıyla aynı yol). MPV yalnızca bir kez yedek olarak
         // denenir. Her yeniden deneme TAZE bir motor örneği kurar: hata sonrası serbest
         // bırakılmış yüzey/çözücü kalıntıları yeni denemeyi de bozabiliyordu.
-        val playerEngine = remember(context, activeEngineType, videoId, engineAttempt) {
-            when (activeEngineType) {
+        val sourceCandidates = remember(source) { source.playbackCandidates() }
+        var activeAttempt by remember(videoId, source) {
+            mutableStateOf(
+                InlinePlaybackAttempt(
+                    sourceIndex = 0,
+                    engine = initialInlineEngineType(
+                        configuredPreference = appSettings?.playerPreference,
+                        isYouTubeSource = true
+                    )
+                )
+            )
+        }
+        var attemptedSources by remember(videoId, source) {
+            mutableStateOf<Set<InlinePlaybackAttempt>>(emptySet())
+        }
+        val activeSource = sourceCandidates.getOrElse(activeAttempt.sourceIndex) { sourceCandidates[0] }
+        val playerEngine = remember(context, activeAttempt.engine, videoId, activeAttempt.sourceIndex) {
+            when (activeAttempt.engine) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
                 else -> Media3PlayerEngine(context, safeSettings)
             }
@@ -327,28 +346,42 @@ fun KitsugiYouTubePlayer(
         // yeniden göstermemeli; aksi hâlde akıcı oynayan video "donuyor" gibi görünüyor.
         var hasStartedPlayback by remember(playerEngine) { mutableStateOf(false) }
         var playerState by remember(playerEngine) { mutableStateOf(PlayerEngine.State.IDLE) }
-        val engineTypeForPlayer = activeEngineType
         val resumedState = rememberInlinePlayerResumed()
 
-        fun switchToAlternateEngine(failedEngine: PlayerEngineType, reason: String) {
-            if (failedEngine != activeEngineType) return
-            if (!didTryAlternateEngine) {
-                didTryAlternateEngine = true
-                val alternate = failedEngine.alternateInlineEngine()
-                Log.w("KitsugiYouTubePlayer", "$failedEngine did not start ($reason); trying $alternate")
-                // Yeni motor ilk kareyi üretene kadar tampon göstergesi görünmeli.
+        fun handlePlaybackFailure(
+            failedAttempt: InlinePlaybackAttempt,
+            failure: InlinePlaybackFailure,
+            reason: String
+        ) {
+            if (failedAttempt != activeAttempt) return
+            val tried = attemptedSources + failedAttempt
+            attemptedSources = tried
+            val next = nextInlinePlaybackAttempt(
+                failed = failedAttempt,
+                failure = failure,
+                sourceCount = sourceCandidates.size,
+                attempted = tried
+            )
+            if (next != null) {
+                Log.w(
+                    "KitsugiYouTubePlayer",
+                    "${failedAttempt.engine}/source-${failedAttempt.sourceIndex} did not start " +
+                        "($reason); trying ${next.engine}/source-${next.sourceIndex}"
+                )
                 hasStartedPlayback = false
                 isPlayingState = false
                 playerState = PlayerEngine.State.BUFFERING
-                activeEngineType = alternate
+                activeAttempt = next
             } else {
-                Log.e("KitsugiYouTubePlayer", "Both inline engines failed for $videoId ($reason)")
+                Log.e("KitsugiYouTubePlayer", "All inline playback attempts failed for $videoId ($reason)")
+                InAppYouTubeExtractor.shared.invalidatePlaybackSource(videoId)
                 hasError = true
             }
         }
 
-        DisposableEffect(playerEngine) {
+        DisposableEffect(playerEngine, activeAttempt) {
             var released = false
+            val attemptForListener = activeAttempt
             val listener = object : PlayerEngine.Listener {
                 override fun onStateChanged(state: PlayerEngine.State) {
                     if (!released) {
@@ -370,7 +403,7 @@ fun KitsugiYouTubePlayer(
                 override fun onPlaybackError(errorCode: Int, errorMsg: String, cause: Throwable?) {
                     if (released) return
                     Log.e("KitsugiYouTubePlayer", "Playback error: $errorMsg (code: $errorCode)")
-                    switchToAlternateEngine(engineTypeForPlayer, errorMsg)
+                    handlePlaybackFailure(attemptForListener, InlinePlaybackFailure.SOURCE, errorMsg)
                 }
 
                 override fun onPositionChanged(positionMs: Long, durationMs: Long) {
@@ -378,7 +411,7 @@ fun KitsugiYouTubePlayer(
                     currentPosition = positionMs
                     duration = durationMs
                     // Resume konumu ilk frame kanıtı değildir; gerçek video çıkışını bekle.
-                    if (inlineVideoVisible(playerEngine)) hasStartedPlayback = true
+                    if (inlineVideoVisible(playerEngine) || positionMs > 0L) hasStartedPlayback = true
                 }
 
                 override fun onTracksChanged(
@@ -390,6 +423,11 @@ fun KitsugiYouTubePlayer(
             onDispose {
                 released = true
                 playerEngine.removeListener(listener)
+            }
+        }
+
+        DisposableEffect(playerEngine) {
+            onDispose {
                 runCatching { playerEngine.pause() }
                 playerEngine.release()
             }
@@ -403,15 +441,15 @@ fun KitsugiYouTubePlayer(
             }
         }
 
-        LaunchedEffect(source, activeEngineType, engineAttempt) {
-            val attemptedEngine = engineTypeForPlayer
+        LaunchedEffect(source, activeAttempt) {
+            val attemptedNow = activeAttempt
             playerState = PlayerEngine.State.BUFFERING
             try {
                 val reachedReady = withTimeoutOrNull(INLINE_PLAYER_START_TIMEOUT_MS) {
                     playerEngine.prepare(
-                        videoUrl = source.videoUrl,
-                        audioUrl = source.audioUrl,
-                        headers = YouTubeRequestPolicy.headersForInlineUrl(source.videoUrl),
+                        videoUrl = activeSource.videoUrl,
+                        audioUrl = activeSource.audioUrl,
+                        headers = YouTubeRequestPolicy.headersForPlaybackSource(activeSource),
                         startPositionMs = currentPosition
                     )
                     if (!resumedState.value) {
@@ -431,7 +469,11 @@ fun KitsugiYouTubePlayer(
                     }
                 }
                 if (reachedReady == null) {
-                    switchToAlternateEngine(attemptedEngine, "no playback progress within ${INLINE_PLAYER_START_TIMEOUT_MS}ms")
+                    handlePlaybackFailure(
+                        attemptedNow,
+                        InlinePlaybackFailure.SOURCE,
+                        "no playback progress within ${INLINE_PLAYER_START_TIMEOUT_MS}ms"
+                    )
                     return@LaunchedEffect
                 }
                 if (!reachedReady) return@LaunchedEffect
@@ -447,16 +489,24 @@ fun KitsugiYouTubePlayer(
                         playerEngine.seekTo(playerEngine.currentPosition + 1L)
                     }
                 )
-                if (audioOnly && attemptedEngine == activeEngineType) {
-                    switchToAlternateEngine(attemptedEngine, "audio-only playback (no video track selected)")
+                if (audioOnly && attemptedNow == activeAttempt) {
+                    handlePlaybackFailure(
+                        attemptedNow,
+                        InlinePlaybackFailure.AUDIO_ONLY,
+                        "audio-only playback (no video track selected)"
+                    )
                 }
             } catch (e: CancellationException) {
                 // The player can be disposed while prepare or network IO is in flight.
                 throw e
             } catch (e: Exception) {
-                if (attemptedEngine != activeEngineType) return@LaunchedEffect
+                if (attemptedNow != activeAttempt) return@LaunchedEffect
                 Log.e("KitsugiYouTubePlayer", "Prepare error", e)
-                switchToAlternateEngine(attemptedEngine, e.message ?: e.javaClass.simpleName)
+                handlePlaybackFailure(
+                    attemptedNow,
+                    InlinePlaybackFailure.SOURCE,
+                    e.message ?: e.javaClass.simpleName
+                )
             }
         }
 
@@ -489,9 +539,9 @@ fun KitsugiYouTubePlayer(
                 playerEngine.pause()
                 KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                     context = context,
-                    videoUrl = source.videoUrl,
-                    audioUrl = source.audioUrl,
-                    headers = YouTubeRequestPolicy.headersForInlineUrl(source.videoUrl)
+                    videoUrl = activeSource.videoUrl,
+                    audioUrl = activeSource.audioUrl,
+                    headers = YouTubeRequestPolicy.headersForPlaybackSource(activeSource)
                 )
             }
         ) {
