@@ -668,6 +668,9 @@ fun AppRootDetailPages(
                     isBangumiConnected = authViewModel.isBangumiConnected,
                     onBack = { navState.popDetailStack() },
                     malSessionRefreshToken = authViewModel.malSessionReadyToken,
+                    // Akıllı bildirim butonu: butona basılan sekmede seçili kaynak
+                    // hangisiyse bildirimler doğrudan o kaynağın sekmesinde açılır.
+                    preferredSource = key.preferredSource,
                     onOpenMalAccountSettings = {
                         if (authViewModel.isMalConnected) {
                             // Bağlı bir MAL hesabı VAR: web oturumu (bildirimler) aynı hesaba
