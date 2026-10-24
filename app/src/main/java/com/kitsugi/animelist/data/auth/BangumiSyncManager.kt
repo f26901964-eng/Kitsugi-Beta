@@ -41,6 +41,14 @@ object BangumiSyncManager {
         MediaType.TvShow
     )
 
+    internal fun isLegacyRawBangumiStoredId(
+        source: String,
+        storedId: Int?,
+        knownMalId: Int?
+    ): Boolean = knownMalId == null &&
+        canonicalMediaSourceId(source) == BangumiIdNamespace.SOURCE &&
+        storedId != null && storedId in 1..99_999_999
+
     data class SyncResult(
         val messages: List<String>,
         val errors: List<String> = emptyList(),
@@ -94,7 +102,9 @@ object BangumiSyncManager {
         /** Yerel satırda DEĞİŞEN alanlar (bkz. [SyncField]). */
         fields: Set<SyncField> = SyncField.ALL,
         /** Tam yazım mı? Süzme sonrası kümeden anlaşılamaz. */
-        fullWrite: Boolean = fields == SyncField.ALL
+        fullWrite: Boolean = fields == SyncField.ALL,
+        /** Çapraz katmanda doğrulanan gerçek MAL ID; kaynak namespace'inden bağımsızdır. */
+        knownMalId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!supportsMediaType(entry.type)) {
             return@withContext SyncResult(emptyList(), listOf(context.getString(R.string.account_sync_service_media_type_unsupported)))
@@ -106,7 +116,7 @@ object BangumiSyncManager {
         }
 
         val isBook = entry.type == MediaType.Manga
-        val subjectId = resolveSubjectId(context, entry, knownSubjectId)
+        val subjectId = resolveSubjectId(context, entry, knownSubjectId, knownMalId)
         if (subjectId == null) {
             return@withContext SyncResult(
                 emptyList(),
@@ -525,14 +535,16 @@ object BangumiSyncManager {
     private suspend fun resolveSubjectId(
         context: Context,
         entry: MediaEntry,
-        knownSubjectId: Int? = null
+        knownSubjectId: Int? = null,
+        knownMalId: Int? = null
     ): Int? {
         knownSubjectId?.takeIf { it > 0 }?.let { return it }
         val stored = entry.malId
         BangumiIdNamespace.rawIdFromStable(stored)?.let { return it }
         val expectedSubjectType = BangumiIdNamespace.subjectTypeFor(entry.type)
-        val isBangumiEntry = canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE
-        val isLegacyRawBangumiId = isBangumiEntry && stored != null && stored in 1..99_999_999
+        // Çapraz katman `knownMalId` verdiğinde düşük aralıktaki değer artık ham Bangumi
+        // subject ID değil, kanıtlanmış gerçek MAL ID'dir; legacy subject okuması yapılmaz.
+        val isLegacyRawBangumiId = isLegacyRawBangumiStoredId(entry.source, stored, knownMalId)
 
         if (isLegacyRawBangumiId) {
             val token = BangumiAuthStore.getValidToken(context)
@@ -563,7 +575,9 @@ object BangumiSyncManager {
         val resolverStoredId = if (isLegacyRawBangumiId) {
             null
         } else {
-            com.kitsugi.animelist.model.MediaIdentity.realMalId(entry) ?: stored
+            CrossProviderIds.realMalIdOf(knownMalId)
+                ?: com.kitsugi.animelist.model.MediaIdentity.realMalId(entry)
+                ?: stored
         }
         val baseTitles = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
             .filter { it.isNotBlank() }
@@ -573,7 +587,9 @@ object BangumiSyncManager {
         // "Kaiju No. 8" İngilizce adını taşıyorsa), gerçek MAL/AniList kimliğinden resmî özgün
         // Japonca adı ("怪獣8号") çekip en başa koyarız (`E99`). Böylece Bangumi CJK araması tek
         // istekte kesin subject'i (`395378`) bulur ve önbelleğe yazar.
-        val realMalId = com.kitsugi.animelist.model.MediaIdentity.realMalId(entry)
+        val realMalId = CrossProviderIds.realMalIdOf(knownMalId)
+            ?: com.kitsugi.animelist.model.MediaIdentity.realMalId(entry)
+            ?: stored?.takeIf { !isLegacyRawBangumiId && it in 1..99_999_999 }
         val officialNativeTitle = if (realMalId != null && !baseTitles.any(::containsCjkOrKana)) {
             fetchOfficialNativeTitle(realMalId, entry.type)
         } else null

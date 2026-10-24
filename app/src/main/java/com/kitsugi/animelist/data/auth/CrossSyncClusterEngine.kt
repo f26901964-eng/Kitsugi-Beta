@@ -31,10 +31,17 @@ object CrossSyncClusterEngine {
         var shikimori: MediaEntry? = null,
         var bangumi: MediaEntry? = null,
         var identityReviewRequired: Boolean = false,
-        var identityReviewDetails: String? = null
+        var identityReviewDetails: String? = null,
+        /** Yalnız şüpheli gelen satırlar; doğrulanabilir küme çekirdeği bunların dışında kalır. */
+        var identityReviewEntryIds: Set<Int> = emptySet()
     ) {
         val candidates: List<MediaEntry>
             get() = listOfNotNull(aniList, mal, simkl, kitsu, shikimori, bangumi)
+
+        val actionableCandidates: List<MediaEntry>
+            get() = candidates.filterNot { it.id in identityReviewEntryIds }
+
+        fun isIdentityReviewed(entry: MediaEntry): Boolean = entry.id in identityReviewEntryIds
 
         fun setSlot(slot: Slot, entry: MediaEntry) {
             when (slot) {
@@ -65,6 +72,7 @@ object CrossSyncClusterEngine {
             if (bangumi == null) bangumi = other.bangumi
             if (other.identityReviewRequired) {
                 identityReviewRequired = true
+                identityReviewEntryIds = identityReviewEntryIds + other.identityReviewEntryIds
                 if (identityReviewDetails == null) {
                     identityReviewDetails = other.identityReviewDetails
                 }
@@ -163,7 +171,9 @@ object CrossSyncClusterEngine {
             // an entry matches a group when NO member conflicts on provider IDs/types and AT LEAST
             // ONE member satisfies MediaIdentity.sameMedia(existing, entry).
             val matches = index.possibleMatches(entry).filter { group ->
-                val members = group.candidates
+                // Daha önce incelemeye ayrılmış satır, sonraki kayıtlar için kimlik/başlık
+                // köprüsü olarak kullanılamaz; güvenli çekirdek eşleşmeye devam eder.
+                val members = group.actionableCandidates
                 members.isNotEmpty() &&
                     members.none { existing ->
                         identity.conflictingIdentityKeys(
@@ -230,7 +240,7 @@ object CrossSyncClusterEngine {
                 matches.isEmpty() -> ClusterGroup().also { groups.add(it) }
                 matches.size == 1 -> {
                     val match = matches.single()
-                    val sharedCandidates = match.candidates.filter { candidate ->
+                    val sharedCandidates = match.actionableCandidates.filter { candidate ->
                         index.keysOf(candidate).intersect(entryKeys).isNotEmpty()
                     }
                     val sharedIds = sharedCandidates
@@ -243,12 +253,13 @@ object CrossSyncClusterEngine {
                     }
                     if (nonIdenticalTitleHolders.isNotEmpty()) {
                         val suspicious = CrossSyncIdentityGuard.findSuspiciousSharedIdCandidates(
-                            existingCandidates = match.candidates,
+                            existingCandidates = match.actionableCandidates,
                             incoming = entry,
                             sharedIdCandidates = nonIdenticalTitleHolders
                         )
                         if (suspicious.isNotEmpty()) {
                             match.identityReviewRequired = true
+                            match.identityReviewEntryIds = match.identityReviewEntryIds + entry.id
                             onDiagnostic?.invoke(
                                 DiagnosticEvent.MarkedIdentityReview(
                                     entry = entry,
@@ -285,11 +296,11 @@ object CrossSyncClusterEngine {
                         primary
                     } else {
                         val keyMatches = matches.filter { candidateGroup ->
-                            candidateGroup.candidates.any { index.keysOf(it).intersect(entryKeys).isNotEmpty() }
+                            candidateGroup.actionableCandidates.any { index.keysOf(it).intersect(entryKeys).isNotEmpty() }
                         }
                         val normalizedEntryTitle = identity.normalizedTitle(entry.title)
                         val exactTitleMatches = matches.filter { candidateGroup ->
-                            candidateGroup.candidates.any { candidate ->
+                            candidateGroup.actionableCandidates.any { candidate ->
                                 val normalizedCandidateTitle = identity.normalizedTitle(candidate.title)
                                 normalizedCandidateTitle.isNotBlank() && normalizedCandidateTitle == normalizedEntryTitle
                             }
@@ -299,12 +310,12 @@ object CrossSyncClusterEngine {
                             keyMatches.isEmpty() && exactTitleMatches.size == 1 -> exactTitleMatches.single()
                             else -> null
                         }
-                        val sharedInResolved = resolvedMatch?.candidates.orEmpty().filter {
+                        val sharedInResolved = resolvedMatch?.actionableCandidates.orEmpty().filter {
                             index.keysOf(it).intersect(entryKeys).isNotEmpty()
                         }
                         val suspiciousInResolved = if (resolvedMatch != null) {
                             CrossSyncIdentityGuard.findSuspiciousSharedIdCandidates(
-                                existingCandidates = resolvedMatch.candidates,
+                                existingCandidates = resolvedMatch.actionableCandidates,
                                 incoming = entry,
                                 sharedIdCandidates = sharedInResolved
                             )
@@ -331,7 +342,10 @@ object CrossSyncClusterEngine {
                                     candidateGroups = matches.map { it.candidates }
                                 )
                             )
-                            ClusterGroup(identityReviewRequired = true).also { groups.add(it) }
+                            ClusterGroup(
+                                identityReviewRequired = true,
+                                identityReviewEntryIds = setOf(entry.id)
+                            ).also { groups.add(it) }
                         }
                     }
                 }
@@ -347,6 +361,7 @@ object CrossSyncClusterEngine {
             incoming: MediaEntry,
             incomingKeys: Set<String>
         ): Boolean {
+            if (matches.any { it.actionableCandidates.isEmpty() }) return false
             // 1. No two matched groups may already fill the same provider slot with distinct rows,
             //    and no pair across any two groups may conflict on provider IDs or years.
             for (i in matches.indices) {
@@ -356,8 +371,8 @@ object CrossSyncClusterEngine {
                     if (Slot.entries.any { slot -> left.getSlot(slot) != null && right.getSlot(slot) != null }) {
                         return false
                     }
-                    for (a in left.candidates) {
-                        for (b in right.candidates) {
+                    for (a in left.actionableCandidates) {
+                        for (b in right.actionableCandidates) {
                             if (MediaIdentity.conflictingIdentityKeys(
                                     typeA = a.type,
                                     typeB = b.type,
@@ -375,7 +390,7 @@ object CrossSyncClusterEngine {
                 }
             }
             // 2. Combined pool must also pass shared-ID relatedness without suspicion.
-            val combinedCandidates = matches.flatMap { it.candidates }
+            val combinedCandidates = matches.flatMap { it.actionableCandidates }
             val sharedWithIncoming = combinedCandidates.filter {
                 index.keysOf(it).intersect(incomingKeys).isNotEmpty()
             }

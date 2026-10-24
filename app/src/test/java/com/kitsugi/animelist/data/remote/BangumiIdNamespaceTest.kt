@@ -149,4 +149,34 @@ class BangumiIdNamespaceTest {
             )
         )
     }
+
+    @Test
+    fun `mapped subject still requires a title alias instead of year-only acceptance`() {
+        val wrongSameYear = sampleAnimeSubject(
+            id = 999,
+            name = "Unrelated Show",
+            nameCn = "",
+            date = "2019-04-01",
+            eps = 13
+        )
+        assertNull(
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(wrongSameYear),
+                query = "ぼくたちは勉強ができない",
+                expectedYear = 2019,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME,
+                allowYearOnlyFallback = false
+            )
+        )
+        // Legacy search fallback remains unchanged for its existing callers.
+        assertEquals(
+            999,
+            BangumiIdNamespace.selectUniqueSubjectMatch(
+                subjects = listOf(wrongSameYear),
+                query = "ぼくたちは勉強ができない",
+                expectedYear = 2019,
+                expectedSubjectType = BangumiApiClient.SubjectType.ANIME
+            )?.id
+        )
+    }
 }

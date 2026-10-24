@@ -26,7 +26,11 @@ import java.util.Locale
  */
 object PlatformErrorCatalog {
 
-    private val httpCodePattern = Regex("\\b(\\d{3})\\b")
+    private val httpCodePatterns = listOf(
+        Regex("""\bhttps?(?:/\d+(?:\.\d+)?)?\s*[:=#-]?\s*(\d{3})\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:status|statuscode|responsecode|httpstatus|kod)\s*[:=#-]?\s*(\d{3})\b""", RegexOption.IGNORE_CASE),
+        Regex("""\b(?:isteği reddetti|istegi reddetti|request rejected|request failed|response)\s*\(\s*(\d{3})\s*\)""", RegexOption.IGNORE_CASE)
+    )
 
     // ────────────────────────────────────────────────────────────────────────
     // Sınıflandırma
@@ -70,7 +74,9 @@ object PlatformErrorCatalog {
         val blob = listOfNotNull(message, details).joinToString(" ")
         val declared = ListPlatform.fromLabel(platformLabel)
         val platform = if (declared != ListPlatform.GENERIC) declared else ListPlatform.detect(blob)
-        return classifyText(platform, blob, null)
+        // Olayın kendi durum kodu, ayrıntı bloklarındaki geçmiş hata kodlarından önce gelir.
+        val structuredHttp = extractHttpCode(message.orEmpty()) ?: extractHttpCode(details.orEmpty())
+        return classifyText(platform, blob, structuredHttp)
     }
 
     /** Metin ve (varsa) HTTP kodu üzerinden kod seçer. */
@@ -111,11 +117,11 @@ object PlatformErrorCatalog {
     ): PlatformErrorCode? = when (platform) {
 
         ListPlatform.BANGUMI -> when {
-            t.contains("nsfw") || http == 400 || t.contains("400") -> PlatformErrorCode.BGM_6001
+            t.contains("nsfw") || http == 400 -> PlatformErrorCode.BGM_6001
             t.contains("user-agent") || t.contains("user agent") -> PlatformErrorCode.BGM_6006
-            http == 401 || t.contains("401") -> PlatformErrorCode.BGM_6002
-            http == 404 || t.contains("404") -> PlatformErrorCode.BGM_6003
-            http == 429 || t.contains("429") -> PlatformErrorCode.COM_1006
+            http == 401 -> PlatformErrorCode.BGM_6002
+            http == 404 -> PlatformErrorCode.BGM_6003
+            http == 429 -> PlatformErrorCode.COM_1006
             else -> null
         }
 
@@ -124,11 +130,11 @@ object PlatformErrorCatalog {
                 PlatformErrorCode.SHK_5003
             t.contains("messages") && (t.contains("scope") || t.contains("izin") || t.contains("permission")) ->
                 PlatformErrorCode.SHK_5002
-            http == 422 || t.contains("422") -> PlatformErrorCode.SHK_5004
-            http == 401 || t.contains("401") -> PlatformErrorCode.SHK_5006
+            http == 422 -> PlatformErrorCode.SHK_5004
+            http == 401 -> PlatformErrorCode.SHK_5006
             t.contains("cloudflare") || t.contains("waf") || t.contains("captcha") ->
                 PlatformErrorCode.SHK_5005
-            http == 429 || t.contains("429") || t.contains("rate limit") || t.contains("hız sınırı") ->
+            http == 429 || t.contains("rate limit") || t.contains("hız sınırı") ->
                 PlatformErrorCode.SHK_5001
             else -> null
         }
@@ -136,34 +142,34 @@ object PlatformErrorCatalog {
         ListPlatform.SIMKL -> when {
             t.contains("pin") && (t.contains("expired") || t.contains("doldu") || t.contains("süresi")) ->
                 PlatformErrorCode.SMK_8001
-            t.contains("polling") || http == 401 || t.contains("401") -> PlatformErrorCode.SMK_8002
+            t.contains("polling") || http == 401 -> PlatformErrorCode.SMK_8002
             t.contains("client_id") || t.contains("client id") -> PlatformErrorCode.SMK_8003
-            http == 429 || t.contains("429") -> PlatformErrorCode.SMK_8004
+            http == 429 -> PlatformErrorCode.SMK_8004
             t.contains("calendar") || t.contains("takvim") -> PlatformErrorCode.SMK_8005
             else -> null
         }
 
         ListPlatform.ANILIST -> when {
             isAniListServiceDownText(t) -> PlatformErrorCode.ANL_2008
-            t.contains("too many requests") || http == 429 || t.contains("429") ||
+            t.contains("too many requests") || http == 429 ||
                 t.contains("hız sınırı") || t.contains("rate limit") -> PlatformErrorCode.ANL_2002
             t.contains("score format") || t.contains("puan format") -> PlatformErrorCode.ANL_2006
             t.contains("private") || t.contains("gizli") -> PlatformErrorCode.ANL_2005
-            (http != null && http in 500..599) || t.contains("500") || t.contains("502") ||
-                t.contains("503") || t.contains("504") || t.contains("internal server error") ->
+            (http != null && http in 500..599) || t.contains("internal server error") ||
+                t.contains("bad gateway") || t.contains("service unavailable") || t.contains("gateway timeout") ->
                 PlatformErrorCode.ANL_2003
-            http == 401 || t.contains("401") -> PlatformErrorCode.ANL_2004
+            http == 401 -> PlatformErrorCode.ANL_2004
             else -> null
         }
 
         ListPlatform.MAL -> when {
-            t.contains("jikan") && (http == 429 || t.contains("429")) -> PlatformErrorCode.MAL_3001
-            t.contains("jikan") && (t.contains("503") || t.contains("bakım") || t.contains("maintenance")) ->
+            t.contains("jikan") && (http == 429 || t.contains("too many requests")) -> PlatformErrorCode.MAL_3001
+            t.contains("jikan") && (t.contains("service unavailable") || t.contains("bakım") || t.contains("maintenance")) ->
                 PlatformErrorCode.MAL_3006
             t.contains("private") || t.contains("gizli") -> PlatformErrorCode.MAL_3004
-            http == 429 || t.contains("429") || t.contains("rate limit") -> PlatformErrorCode.MAL_3002
-            http == 401 || t.contains("401") -> PlatformErrorCode.MAL_3007
-            http == 404 || t.contains("404") -> PlatformErrorCode.MAL_3005
+            http == 429 || t.contains("rate limit") -> PlatformErrorCode.MAL_3002
+            http == 401 -> PlatformErrorCode.MAL_3007
+            http == 404 -> PlatformErrorCode.MAL_3005
             else -> null
         }
 
@@ -177,7 +183,7 @@ object PlatformErrorCatalog {
                 PlatformErrorCode.KIT_4001
             t.contains("relationship") || t.contains("ilişki") ->
                 PlatformErrorCode.KIT_4004
-            http == 429 || t.contains("429") || t.contains("rate limit") ->
+            http == 429 || t.contains("rate limit") ->
                 PlatformErrorCode.KIT_4002
             // 404 / 5xx ve diğer durumlar ortak HTTP eşlemesine bırakılır
             // (COM_1009 "Kayıt bulunamadı", COM_1007 "Sunucu hatası"...).
@@ -185,10 +191,10 @@ object PlatformErrorCatalog {
         }
 
         ListPlatform.TMDB -> when {
-            http == 401 || t.contains("401") || t.contains("api_key") || t.contains("api key") ->
+            http == 401 || t.contains("api_key") || t.contains("api key") ->
                 PlatformErrorCode.TMD_7001
-            http == 429 || t.contains("429") -> PlatformErrorCode.TMD_7004
-            http == 404 || t.contains("404") -> PlatformErrorCode.TMD_7003
+            http == 429 -> PlatformErrorCode.TMD_7004
+            http == 404 -> PlatformErrorCode.TMD_7003
             t.contains("language") || t.contains("dil") -> PlatformErrorCode.TMD_7002
             else -> null
         }
@@ -272,21 +278,21 @@ object PlatformErrorCatalog {
             PlatformErrorCode.COM_1025
 
         // ── Kalan 429/5xx izleri ────────────────────────────────────────────
-        t.contains("429") || t.contains("too many requests") -> PlatformErrorCode.COM_1006
-        t.contains("500") || t.contains("502") || t.contains("503") || t.contains("504") ->
-            PlatformErrorCode.COM_1007
+        t.contains("too many requests") -> PlatformErrorCode.COM_1006
+        t.contains("internal server error") || t.contains("bad gateway") ||
+            t.contains("service unavailable") || t.contains("gateway timeout") -> PlatformErrorCode.COM_1007
 
         else -> null
     }
 
-    /** Metin içinde geçen ilk 4xx/5xx HTTP kodunu çıkarır. */
+    /**
+     * Yalnız açık HTTP/status bağlamındaki 4xx/5xx kodunu çıkarır.
+     * `kitsu=42919`, `MAL ID=500012426` veya yıl/başlık sayıları durum kodu değildir.
+     */
     private fun extractHttpCode(text: String): Int? {
-        val normalized = text.lowercase(Locale.ROOT)
-        val looksLikeHttp = normalized.contains("http") ||
-            normalized.contains("status") ||
-            normalized.contains("kod")
-        if (!looksLikeHttp) return null
-        return httpCodePattern.findAll(normalized)
+        if (text.isBlank()) return null
+        return httpCodePatterns.asSequence()
+            .flatMap { pattern -> pattern.findAll(text) }
             .mapNotNull { it.groupValues.getOrNull(1)?.toIntOrNull() }
             .firstOrNull { it in 400..599 }
     }

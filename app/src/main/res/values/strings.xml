@@ -7347,7 +7347,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="cross_sync_log_failed_update">[%1$s] ! Güncellenemedi: %2$s</string>
     <string name="cross_sync_log_group_created">İçerik grubu oluşturuldu: %1$s (%2$d kaynak)</string>
     <string name="cross_sync_log_identity_rejected">Şüpheli kimlik, ekleme engellendi: %1$s → MAL #%2$d</string>
-    <string name="cross_sync_log_identity_review">Kimlik doğrulaması gerektiği için dış hesaplara aktarılmadı: %1$s</string>
+    <string name="cross_sync_log_identity_review">Bazı kaynak kayıtları kimlik incelemesinde; şüpheli hedeflere yazılmayacak: %1$s</string>
+    <string name="cross_sync_reason_identity_review_target">Bu hedef kaydı kimlik incelemesinde; diğer güvenli kaynaklar eşitlenebilir</string>
+    <string name="cross_sync_detail_identity_review_target">Bu satır kümenin güvenli kimlik çekirdeğiyle uyuşmadığı için yalnız bu hedefe yazım durduruldu. Satır, diğer kaynakların birleştirilen değerlerine de katılmadı.</string>
     <string name="cross_sync_log_imported_entries">%1$s kütüphanesinden %2$d kayıt alındı.</string>
     <string name="cross_sync_log_local_update_failed">Yerel liste güncellenemedi: %1$s</string>
     <string name="cross_sync_log_match_summary">Toplam %1$d tekil içerik bulundu. Eşitleme başlatılıyor...</string>

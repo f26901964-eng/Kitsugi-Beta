@@ -89,7 +89,7 @@ object CrossSyncIdentityGuard {
         "no", "gou", "wa", "ga", "to", "ni", "de", "wo", "o", "e", "ha", "mo", "ya", "da", "na", "ne", "yo", "ka",
         "x", "vs", "feat",
         "season", "seasons", "part", "parts", "cour", "arc", "chapter", "chapters", "volume",
-        "movie", "movies", "film", "films", "gekijouban", "gekijou", "ban", "hen",
+        "movie", "movies", "film", "films", "eiga", "gekijouban", "gekijou", "ban", "hen",
         "animation", "anime", "tv", "ova", "oad", "ona", "special", "specials", "series", "edition",
         "final", "first", "second", "third", "fourth", "fifth", "new", "shin", "zoku", "kai", "re", "remake",
         "1st", "2nd", "3rd", "4th", "5th", "6th", "nd", "rd", "th", "i", "ii", "iii", "iv", "v", "vi"
@@ -97,10 +97,17 @@ object CrossSyncIdentityGuard {
 
     private val nonWordCharacters = Regex("[^\\p{L}\\p{N}]+")
     private val yearRegex = Regex("^(\\d{4})")
+    private val trailingMediaTypeQualifier = Regex(
+        "\\s*[\\(\\[]\\s*(?:tv|movie|film|ova|oad|ona|special|specials|anime)\\s*[\\)\\]]\\s*$",
+        RegexOption.IGNORE_CASE
+    )
 
     /** Küçük harf + NFKC; noktalama boşluğa dönüşür, kelime sınırları korunur (tokenizasyon için). */
     fun tokenNormalize(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKC)
         .lowercase(Locale.ROOT)
+        // Resmî alias yazımları: `kiss×sis` ↔ `Kiss x Sis`, `&` ↔ `and`.
+        .replace("×", " x ")
+        .replace("&", " and ")
         .replace(nonWordCharacters, " ")
         .trim()
 
@@ -209,6 +216,7 @@ object CrossSyncIdentityGuard {
     /** Yapısal kelimeler atılmış, boşluksuz karşılaştırma anahtarı; Hepburn romanizasyon farklarını katlar. */
     private fun compactKey(title: String): String = rawTokens(title)
         .filterNot { it in structuralTokens }
+        .map { if (it == "kyuu") "q" else it }
         .joinToString("")
         .replace("ou", "o")
         .replace("oo", "o")
@@ -273,8 +281,14 @@ object CrossSyncIdentityGuard {
         // Keep every word, including articles and season/movie descriptors. Removing common
         // tokens can collapse distinct titles ("No Game No Life" vs "Game Life").
         // The only special spelling normalization is the audited Mayoiga/Mayohiga alias.
-        fun strictCompactKey(value: String): String = rawTokens(value)
-            .map { if (it == "mayohiga") "mayoiga" else it }
+        fun strictCompactKey(value: String): String = rawTokens(trailingMediaTypeQualifier.replace(value, ""))
+            .map {
+                when (it) {
+                    "mayohiga" -> "mayoiga"
+                    "kyuu" -> "q"
+                    else -> it
+                }
+            }
             .joinToString("")
 
         val ka = strictCompactKey(a)

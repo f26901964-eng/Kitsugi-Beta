@@ -261,7 +261,8 @@ object AniListSyncManager {
                 .optJSONObject("data")
                 ?.optJSONObject("Media")
                 ?.optBoolean("isFavourite", false)
-        }.getOrNull()
+                ?: error("AniList favori doğrulaması medya döndürmedi (mediaId=$aniListMediaId)")
+        }.getOrThrow()
     }
 
     /**
@@ -301,7 +302,7 @@ object AniListSyncManager {
         return runSyncCatching {
             postAniList(token = token, query = query, variables = variables, context = context)
             true
-        }.getOrDefault(false)
+        }.getOrThrow()
     }
 
     fun deleteAniListEntry(
@@ -416,7 +417,9 @@ object AniListSyncManager {
             ?: resolveAniListMediaId(token, entry, context, knownMalId = knownMalId)
             ?: return@runSyncCatching null
         mediaId.takeIf { it == expectedMediaId }
-    }.getOrNull()
+        // HTTP/GraphQL/ağ hatası kimlik uyuşmazlığı değildir; çağırana gerçek
+        // istisna olarak taşınır. Yalnız geçerli yanıttaki null/farklı ID null olur.
+    }.getOrThrow()
 
     fun resolveAniListMediaId(
         token: String,
@@ -483,7 +486,7 @@ object AniListSyncManager {
             val resolved = runSyncCatching {
                 val response = postAniList(token = token, query = query, variables = variables, context = context)
                 JSONObject(response).optJSONObject("data")?.optJSONObject("Media")?.optInt("id", 0)?.takeIf { it > 0 }
-            }.getOrNull()
+            }.getOrThrow()
             if (resolved != null) {
                 return resolved.takeIf {
                     verifyAniListMediaIdentity(
@@ -568,7 +571,7 @@ object AniListSyncManager {
         val remoteYear = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }
         CrossSyncIdentityGuard.titlesAreIdentityEquivalent(expectedTitles, remoteTitles) &&
             (CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear) || entry.year == null || remoteYear == null)
-    }.getOrDefault(false)
+    }.getOrThrow()
 
     /**
      * Resolves an AniList source row's official `idMal` only after verifying AniList's own record

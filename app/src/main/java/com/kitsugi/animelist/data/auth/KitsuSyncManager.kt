@@ -273,13 +273,19 @@ object KitsuSyncManager {
             suspend fun writeWithLengthGuard(
                 write: suspend (Int) -> KitsuApiClient.KitsuWriteResult
             ): KitsuApiClient.KitsuWriteResult {
-                val first = write(entry.progress)
-                if (first.success || !KitsuApiClient.isMediaLengthError(first.errorMessage)) return first
-                val cap = KitsuApiClient.fetchMediaLength(kitsuMediaId, isAnime) ?: return first
-                if (cap >= entry.progress) return first
-                val capped = write(cap)
-                if (capped.success) cappedProgressTo = cap
-                return capped
+                val outcome = KitsuProgressLengthGuard.write(
+                    requestedProgress = entry.progress,
+                    write = write,
+                    fetchLength = {
+                        KitsuApiClient.fetchMediaLength(
+                            kitsuMediaId = kitsuMediaId,
+                            isAnime = isAnime,
+                            accessToken = token
+                        )
+                    }
+                )
+                cappedProgressTo = outcome.cappedProgressTo
+                return outcome.result
             }
 
             val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)

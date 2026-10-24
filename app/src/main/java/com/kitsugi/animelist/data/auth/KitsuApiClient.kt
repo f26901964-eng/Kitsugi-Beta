@@ -750,15 +750,36 @@ object KitsuApiClient {
      * Kitsu medyasının uzunluğunu (anime: episodeCount, manga: chapterCount) döner.
      * Bilinmiyorsa (ör. devam eden yayın) veya istek başarısızsa null.
      */
-    suspend fun fetchMediaLength(kitsuMediaId: Int, isAnime: Boolean): Int? = withContext(Dispatchers.IO) {
+    internal fun buildMediaLengthRequest(
+        kitsuMediaId: Int,
+        isAnime: Boolean,
+        accessToken: String?
+    ): Request {
         val endpoint = if (isAnime) "anime" else "manga"
         val field = if (isAnime) "episodeCount" else "chapterCount"
-        PlatformRateLimiter.acquire("kitsu")
-        val request = Request.Builder()
+        return Request.Builder()
             .url("$BASE_URL/$endpoint/$kitsuMediaId?fields[$endpoint]=$field")
             .addHeader("Accept", "application/vnd.api+json")
             .addHeader("User-Agent", "KitsugiApp/2.4")
+            .apply {
+                accessToken?.takeIf { it.isNotBlank() }?.let {
+                    addHeader("Authorization", "Bearer $it")
+                }
+            }
             .build()
+    }
+
+    suspend fun fetchMediaLength(
+        kitsuMediaId: Int,
+        isAnime: Boolean,
+        accessToken: String? = null
+    ): Int? = withContext(Dispatchers.IO) {
+        val endpoint = if (isAnime) "anime" else "manga"
+        val field = if (isAnime) "episodeCount" else "chapterCount"
+        PlatformRateLimiter.acquire("kitsu")
+        // R18/NSFW medya anonim istekte 404 olabilir. Uzunluk koruması, yazmayla
+        // aynı hesabın Bearer token'ını taşımadığında cap öğrenilemiyordu.
+        val request = buildMediaLengthRequest(kitsuMediaId, isAnime, accessToken)
         try {
             executeWithHostFallback(request).use { response ->
                 if (response.code == 429) PlatformRateLimiter.notifyRateLimited("kitsu")

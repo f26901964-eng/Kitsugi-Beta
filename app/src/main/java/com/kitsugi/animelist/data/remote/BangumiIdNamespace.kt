@@ -135,6 +135,34 @@ object BangumiIdNamespace {
         ).trim()
         if (query.isBlank()) return null
         val token = runCatching { BangumiAuthStore.getValidToken(context) }.getOrNull()
+
+        // 3a) Paketlenmiş açık kaynak MAL↔Bangumi eşlemesi yalnız aday üretir.
+        // Aday, Bangumi'nin kendi subject kaydındaki alias/tür/yıl ile kanıtlanmadan
+        // kullanılmaz; bilinen çelişkili çiftler BangumiMalCrosswalk içinde elenmiştir.
+        if (malId != null && expectedSubjectType == BangumiApiClient.SubjectType.ANIME) {
+            val mappedIds = BangumiMalCrosswalk.bangumiSubjectsForMal(context, malId)
+            if (mappedIds.isNotEmpty()) {
+                val mappedSubjects = mappedIds.mapNotNull { subjectId ->
+                    runCatching { BangumiApiClient.getSubject(subjectId, token) }.getOrElse { error ->
+                        if (error is CancellationException) throw error
+                        null
+                    }
+                }
+                val mapped = selectUniqueSubjectMatch(
+                    subjects = mappedSubjects,
+                    query = query,
+                    expectedYear = expectedYear,
+                    expectedSubjectType = expectedSubjectType,
+                    allowYearOnlyFallback = false
+                )
+                if (mapped != null) {
+                    runCatching { BangumiLocalMappingCache.put(context, malId, expectedSubjectType, mapped.id) }
+                    return mapped.id
+                }
+            }
+        }
+
+        // 3b) Önceki güvenli davranış: sıkı başlık araması.
         val page = runCatching {
             BangumiApiClient.searchSubjects(
                 keyword = query,
@@ -171,7 +199,8 @@ object BangumiIdNamespace {
         subjects: List<BangumiApiClient.BangumiSubject>,
         query: String,
         expectedYear: Int?,
-        expectedSubjectType: Int
+        expectedSubjectType: Int,
+        allowYearOnlyFallback: Boolean = true
     ): BangumiApiClient.BangumiSubject? {
         fun subjectYear(s: BangumiApiClient.BangumiSubject): Int? =
             s.date?.take(4)?.toIntOrNull()?.takeIf { it > 0 }
@@ -203,6 +232,7 @@ object BangumiIdNamespace {
             return null
         }
 
+        if (!allowYearOnlyFallback) return null
         val candidates = typeFiltered.filter { subject ->
             expectedYear == null || subjectYear(subject) == expectedYear
         }

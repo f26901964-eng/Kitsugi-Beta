@@ -1745,11 +1745,18 @@ object BangumiApiClient {
      * döndürebilir (`czy0729/Bangumi` `fetch.ts`). Gövde incelenip gerçek hata varsa [BangumiApiException] üretilir.
      */
     internal fun parseLegacyWriteError(httpCode: Int, body: String): BangumiApiException? {
+        if (body.isBlank()) {
+            return if (httpCode >= 400) parseError(httpCode, body) else null
+        }
+        val json = runCatching { JSONObject(body) }.getOrNull()
+        val embeddedCode = json?.optInt("code", 200) ?: 200
+        val embeddedError = json?.cleanString("error").orEmpty()
+        // Legacy watched_eps başarısı HTTP 200 + {"code":202,"error":"Accepted"} döner.
+        // `error` alanının varlığı tek başına hata değildir; embedded 2xx önce kabul edilir.
+        // Gerçek transport HTTP 4xx/5xx yanıtını ise embedded değerle maskelemeyiz.
+        if (httpCode < 400 && embeddedCode in 200..299) return null
         if (httpCode >= 400) return parseError(httpCode, body)
-        if (body.isBlank()) return null
-        val json = runCatching { JSONObject(body) }.getOrNull() ?: return null
-        val embeddedCode = json.optInt("code", 200)
-        val embeddedError = json.cleanString("error")
+        if (json == null) return null
         if (embeddedError.isBlank() && embeddedCode < 400) return null
         val finalCode = when {
             embeddedError.equals("invalid_token", ignoreCase = true) -> 401

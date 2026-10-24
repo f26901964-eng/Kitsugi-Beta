@@ -99,6 +99,20 @@ class BangumiLegacyWriteContractTest {
     }
 
     @Test
+    fun legacyWatchedEpsAccepted202IsSuccessEvenThoughErrorFieldSaysAccepted() {
+        val exactReportBody = """{"request":"/subject/267715/update/watched_eps","code":202,"error":"Accepted"}"""
+        assertNull(BangumiApiClient.parseLegacyWriteError(httpCode = 200, body = exactReportBody))
+    }
+
+    @Test
+    fun legacyAcceptedBodyDoesNotMaskRealTransportFailure() {
+        val body = """{"code":202,"error":"Accepted"}"""
+        val err = BangumiApiClient.parseLegacyWriteError(httpCode = 400, body = body)
+        assertNotNull(err)
+        assertEquals(400, err!!.code)
+    }
+
+    @Test
     fun legacyWriteErrorTreatsSuccessBodyAsNonError() {
         assertNull(BangumiApiClient.parseLegacyWriteError(httpCode = 200, body = ""))
         assertNull(BangumiApiClient.parseLegacyWriteError(httpCode = 200, body = """{"request":"ok"}"""))

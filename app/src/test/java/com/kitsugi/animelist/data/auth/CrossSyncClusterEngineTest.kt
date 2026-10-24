@@ -321,7 +321,20 @@ class CrossSyncClusterEngineTest {
         val session = CrossSyncClusterEngine.Session()
         session.addEntry(CrossSyncClusterEngine.Slot.ANILIST, kaijuAl)
         session.addEntry(CrossSyncClusterEngine.Slot.SHIKIMORI, poisonedEntry)
-        assertTrue(session.groupsSnapshot().single().identityReviewRequired)
+        val reviewedGroup = session.groupsSnapshot().single()
+        assertTrue(reviewedGroup.identityReviewRequired)
+        assertEquals(setOf(poisonedEntry.id), reviewedGroup.identityReviewEntryIds)
+        assertEquals(listOf(kaijuAl), reviewedGroup.actionableCandidates)
+
+        // Şüpheli satır sonradan gelen gerçek eşleşme için köprü olamaz; güvenli çekirdek
+        // yine de büyür ve bütün küme yazma dışı kalmaz.
+        val verifiedMal = kaijuAl.copy(id = 3, source = "mal")
+        session.addEntry(CrossSyncClusterEngine.Slot.MAL, verifiedMal)
+        val scopedGroup = session.groupsSnapshot().single()
+        assertEquals(setOf(poisonedEntry.id), scopedGroup.identityReviewEntryIds)
+        assertEquals(setOf(kaijuAl.id, verifiedMal.id), scopedGroup.actionableCandidates.map { it.id }.toSet())
+        assertFalse(scopedGroup.isIdentityReviewed(verifiedMal))
+        assertTrue(scopedGroup.isIdentityReviewed(poisonedEntry))
     }
 
     @Test
