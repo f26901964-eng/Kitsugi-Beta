@@ -1685,6 +1685,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         // Kota anahtara özgüdür: diskteki son kayıt bu anahtarla eşleşiyorsa anında gösterilir.
         MdbListQuotaCenter.bind(context, settings.mdbListApiKey)
+
+        // Manga/MDBList uyumsuz: MDBList film ve dizi puanları verir, manga için yok.
+        if (entry.type == MediaType.Manga) {
+            _mdbListRatings.value = null
+            return
+        }
+
         _mdbListLoading.value = true
         try {
             val stableId = entry.malId ?: 0
@@ -1719,10 +1726,16 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
 
             if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
+                // MDBList'te anime hem film hem dizi olabilir; "any" ile iki türde de aranır.
+                val mediaType = when (entry.type) {
+                    MediaType.Movie -> "movie"
+                    else -> "any"
+                }
                 val ratings = withContext(Dispatchers.IO) {
                     MdbListClient.fetchRatings(
                         imdbId = imdbId,
                         tmdbId = tmdbId,
+                        mediaType = mediaType,
                         apiKey = settings.mdbListApiKey
                     )
                 }

@@ -36,8 +36,9 @@ fun LazyListScope.sourceExploreSections(
 
     visibleSections.forEach { section ->
         item(key = "source_category_${section.key}") {
+            val resolvedTitle = localizedExploreSectionTitle(section.title)
             KitsugiHorizontalMediaSection(
-                title = section.title,
+                title = resolvedTitle,
                 results = section.results,
                 isLoading = isLoading,
                 alreadyInList = isAlreadyInList,
@@ -45,7 +46,7 @@ fun LazyListScope.sourceExploreSections(
                 onItemClick = onItemClick,
                 onLongClickItem = onLongClickItem,
                 onSeeAllClick = {
-                    onSeeAllSection(section.title, section.category, section.results)
+                    openExploreSectionSeeAll(section, resolvedTitle, onSeeAllSection)
                 },
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,

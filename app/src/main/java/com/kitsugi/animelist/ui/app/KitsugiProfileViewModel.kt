@@ -1234,6 +1234,12 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
     }
 
     private suspend fun postGraphQl(token: String, query: String, variables: JSONObject): String {
+        if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGate(
+                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.INTERACTIVE
+            )
+        ) {
+            throw IllegalStateException("AniList kotası dolu; profil isteği ertelendi.")
+        }
         return withContext(Dispatchers.IO) {
             val payload = JSONObject()
                 .put("query", query)

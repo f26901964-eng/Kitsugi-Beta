@@ -100,7 +100,6 @@ fun ExploreScreen(
     onRedirectToAuth: (() -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val context = androidx.compose.ui.platform.LocalContext.current
     val onSeeAllForSelected: (String, ExploreCategoryType, List<JikanSearchResult>) -> Unit = { title, category, results ->
         onSeeAllSection(title, category, results, viewModel.selectedPlatform)
     }
@@ -124,6 +123,10 @@ fun ExploreScreen(
     val filteredNewlyAddedManga = remember(viewModel.newlyAddedManga, showAdultContent) { viewModel.newlyAddedManga.filter { showAdultContent || !it.isAdult } }
     val filteredAiringSoonAnime = remember(viewModel.airingSoonAnime, showAdultContent) { viewModel.airingSoonAnime.filter { showAdultContent || !it.isAdult } }
     val filteredUpcomingMediaTmdb = remember(viewModel.upcomingMediaTmdb, showAdultContent) { viewModel.upcomingMediaTmdb.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklContinueMovies = remember(viewModel.simklContinueMovies, showAdultContent) { viewModel.simklContinueMovies.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklPlannedMovies = remember(viewModel.simklPlannedMovies, showAdultContent) { viewModel.simklPlannedMovies.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklContinueSeries = remember(viewModel.simklContinueSeries, showAdultContent) { viewModel.simklContinueSeries.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklPlannedSeries = remember(viewModel.simklPlannedSeries, showAdultContent) { viewModel.simklPlannedSeries.filter { showAdultContent || !it.isAdult } }
 
     // AniHyou paritesi: ayrım kapalıysa romanlar manga rafına karışır; açıksa ayrı "Noveller" rafı.
     val effectiveNovels = if (separateNovelsManga) filteredNovels else emptyList()
@@ -135,8 +138,8 @@ fun ExploreScreen(
         filteredTopAnime, filteredAiringAnime, filteredUpcomingAnime,
         effectiveTopManga, filteredPublishingManga, filteredTrendingAnime,
         filteredMovieAnime, filteredSeasonalAnime,
-        viewModel.simklContinueMovies, viewModel.simklPlannedMovies,
-        viewModel.simklContinueSeries, viewModel.simklPlannedSeries,
+        filteredSimklContinueMovies, filteredSimklPlannedMovies,
+        filteredSimklContinueSeries, filteredSimklPlannedSeries,
         filteredAiringSoonAnime, filteredTrendingManga,
         filteredNewlyAddedAnime, filteredNewlyAddedManga, filteredUpcomingMediaTmdb,
         filteredTopRatedAnime, filteredTopRatedManga,
@@ -152,10 +155,10 @@ fun ExploreScreen(
             trendingAnime = filteredTrendingAnime,
             movieAnime = filteredMovieAnime,
             seasonalAnime = filteredSeasonalAnime,
-            simklContinueMovies = viewModel.simklContinueMovies,
-            simklPlannedMovies = viewModel.simklPlannedMovies,
-            simklContinueSeries = viewModel.simklContinueSeries,
-            simklPlannedSeries = viewModel.simklPlannedSeries,
+            simklContinueMovies = filteredSimklContinueMovies,
+            simklPlannedMovies = filteredSimklPlannedMovies,
+            simklContinueSeries = filteredSimklContinueSeries,
+            simklPlannedSeries = filteredSimklPlannedSeries,
             airingSoonAnime = filteredAiringSoonAnime,
             trendingManga = filteredTrendingManga,
             newlyAddedAnime = filteredNewlyAddedAnime,
@@ -172,6 +175,13 @@ fun ExploreScreen(
     val selectedSourceSections = remember(viewModel.selectedPlatform, filteredSourcePayload) {
         if (viewModel.selectedPlatform == ExplorePlatform.ALL) emptyList()
         else sourceSections(viewModel.selectedPlatform, filteredSourcePayload)
+    }
+    val singleSourceDisplaySections = remember(viewModel.selectedPlatform, selectedSourceSections, filteredSourcePayload) {
+        singleSourceExploreSections(
+            platform = viewModel.selectedPlatform,
+            p = filteredSourcePayload,
+            baseSections = selectedSourceSections
+        )
     }
 
     // "Tümü" modu bölümleri: yalnızca kaynak durumları/ayar değişince hesaplanır.
@@ -263,9 +273,8 @@ fun ExploreScreen(
         (if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
             allSectionsList.isNotEmpty() || sharedAiringSoon.isNotEmpty()
         } else {
-            selectedSourceSections.any { it.results.isNotEmpty() } || filteredAiringSoonAnime.isNotEmpty()
-        }) || viewModel.simklContinueMovies.isNotEmpty() || viewModel.simklPlannedMovies.isNotEmpty() ||
-        viewModel.simklContinueSeries.isNotEmpty() || viewModel.simklPlannedSeries.isNotEmpty()
+            singleSourceDisplaySections.any { it.results.isNotEmpty() } || filteredAiringSoonAnime.isNotEmpty()
+        })
     val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
         contentReady = hasCatalogContent,
         initialIndex = initialScrollIndex,
@@ -315,9 +324,7 @@ fun ExploreScreen(
 
     val isCatalogEmpty = viewModel.selectedPlatform != ExplorePlatform.ALL &&
         !viewModel.isLoading && viewModel.errorMessage == null &&
-        selectedSourceSections.none { it.results.isNotEmpty() } &&
-        viewModel.simklContinueSeries.isEmpty() && viewModel.simklContinueMovies.isEmpty() &&
-        viewModel.simklPlannedSeries.isEmpty() && viewModel.simklPlannedMovies.isEmpty() &&
+        singleSourceDisplaySections.none { it.results.isNotEmpty() } &&
         filteredAiringSoonAnime.isEmpty()
 
     Row(
@@ -434,23 +441,18 @@ fun ExploreScreen(
                                                         .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                                                         .tvClickable(shape = RoundedCornerShape(12.dp)) {
                                                             val randomPool = mutableListOf<JikanSearchResult>()
-                                                            randomPool.addAll(filteredTopAnime)
-                                                            randomPool.addAll(filteredAiringAnime)
-                                                            randomPool.addAll(filteredUpcomingAnime)
-                                                            randomPool.addAll(filteredTopManga)
-                                                            randomPool.addAll(filteredPublishingManga)
-                                                            randomPool.addAll(filteredTrendingAnime)
-                                                            randomPool.addAll(filteredMovieAnime)
-                                                            randomPool.addAll(filteredBangumiTvShows)
-                                                            randomPool.addAll(filteredBangumiMovies)
-                                                            randomPool.addAll(filteredSeasonalAnime)
-                                                            randomPool.addAll(viewModel.simklContinueMovies)
-                                                            randomPool.addAll(viewModel.simklPlannedMovies)
-                                                            randomPool.addAll(viewModel.simklContinueSeries)
-                                                            randomPool.addAll(viewModel.simklPlannedSeries)
                                                             if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
-                                                                randomPool.addAll(allSectionsList
-                                                                    .flatMap { it.results }.distinctBy { it.exploreIdentity() })
+                                                                randomPool.addAll(
+                                                                    allSectionsList
+                                                                        .flatMap { it.results }
+                                                                        .distinctBy { it.exploreIdentity() }
+                                                                )
+                                                            } else {
+                                                                randomPool.addAll(
+                                                                    singleSourceDisplaySections
+                                                                        .flatMap { it.results }
+                                                                        .distinctBy { it.exploreIdentity() }
+                                                                )
                                                             }
                                                             randomPool.filter { showAdultContent || !it.isAdult }
                                                                 .randomOrNull()?.let(onOpenApiDetail)
@@ -635,50 +637,19 @@ fun ExploreScreen(
                             } else {
                                 val isTmdbFamilySource = viewModel.selectedPlatform == ExplorePlatform.TMDB ||
                                     viewModel.selectedPlatform == ExplorePlatform.SIMKL
-                                item {
-                                    if (isTmdbFamilySource) {
-                                        TmdbCategoriesSection(
+                                if (singleSourceDisplaySections.any { it.results.isNotEmpty() } || viewModel.isLoading) {
+                                    item(key = "selected_categories_${viewModel.selectedPlatform.name}") {
+                                        ExploreCategoriesSection(
+                                            platform = viewModel.selectedPlatform,
+                                            sections = singleSourceDisplaySections,
+                                            isLoading = viewModel.isLoading,
                                             isExpanded = isCategoriesExpanded,
                                             onExpandedChange = { isCategoriesExpanded = it },
                                             accentColor = accentColor,
-                                            filteredTopAnime = filteredTopAnime,
-                                            filteredAiringAnime = filteredAiringAnime,
-                                            filteredMovieAnime = filteredMovieAnime,
-                                            filteredTopManga = filteredTopManga,
-                                            filteredUpcomingAnime = filteredUpcomingAnime,
-                                            filteredSeasonalAnime = filteredSeasonalAnime,
-                                            filteredPublishingManga = filteredPublishingManga,
-                                            filteredTrendingAnime = filteredTrendingAnime,
-                                            filteredNewlyAddedAnime = filteredNewlyAddedAnime,
-                                            filteredTrendingManga = filteredTrendingManga,
-                                            filteredUpcomingMediaTmdb = filteredUpcomingMediaTmdb,
-                                            onSeeAllSection = onSeeAllForSelected,
-                                            onOpenAiringCalendar = onOpenAiringCalendar
+                                            onSeeAllSection = onSeeAllForSelected
                                         )
-                                    } else {
-                                        DefaultCategoriesSection(
-                                            isExpanded = isCategoriesExpanded,
-                                            onExpandedChange = { isCategoriesExpanded = it },
-                                            accentColor = accentColor,
-                                            filteredSeasonalAnime = filteredSeasonalAnime,
-                                            filteredTopAnime = filteredTopAnime,
-                                            filteredTrendingAnime = filteredTrendingAnime,
-                                            filteredMovieAnime = filteredMovieAnime,
-                                            filteredNewlyAddedAnime = filteredNewlyAddedAnime,
-                                            filteredTopRatedAnime = filteredTopRatedAnime,
-                                            filteredTopManga = filteredTopManga,
-                                            filteredPublishingManga = filteredPublishingManga,
-                                            filteredTrendingManga = filteredTrendingManga,
-                                            filteredTopRatedManga = filteredTopRatedManga,
-                                            filteredNewlyAddedManga = filteredNewlyAddedManga,
-                                            filteredAiringAnime = filteredAiringAnime,
-                                            filteredUpcomingAnime = filteredUpcomingAnime,
-                                            onSeeAllSection = onSeeAllForSelected,
-                                            onOpenAiringCalendar = onOpenAiringCalendar,
-                                            onOpenMangaReader = onOpenMangaReader
-                                        )
+                                        Spacer(modifier = Modifier.height(26.dp))
                                     }
-                                    Spacer(modifier = Modifier.height(26.dp))
                                 }
 
                                 // Tüm kaynaklardaki ortak yayın şeridi aynı noktada: kategori
@@ -703,7 +674,7 @@ fun ExploreScreen(
 
                                 if (!isTmdbFamilySource || viewModel.tmdbModernHomeEnabled) {
                                     sourceExploreSections(
-                                        sections = selectedSourceSections,
+                                        sections = singleSourceDisplaySections,
                                         isLoading = viewModel.isLoading,
                                         isAlreadyInList = isAlreadyInList,
                                         getMediaEntry = getMediaEntry,
@@ -715,22 +686,6 @@ fun ExploreScreen(
                                         hideScores = hideScores,
                                         blurAdultMedia = blurAdultMedia
                                     )
-                                    if (viewModel.selectedPlatform == ExplorePlatform.SIMKL) {
-                                        simklUserExploreSections(
-                                            viewModel = viewModel,
-                                            isAlreadyInList = isAlreadyInList,
-                                            getMediaEntry = getMediaEntry,
-                                            onItemClick = onOpenApiDetail,
-                                            onLongClickItem = onLongClickItem,
-                                            onSeeAllSection = onSeeAllForSelected,
-                                            onNavigateToWatchHistory = onNavigateToWatchHistory,
-                                            titleLanguage = titleLanguage,
-                                            scoreFormat = scoreFormat,
-                                            hideScores = hideScores,
-                                            blurAdultMedia = blurAdultMedia,
-                                            context = context
-                                        )
-                                    }
                                 }
                             }
                         }

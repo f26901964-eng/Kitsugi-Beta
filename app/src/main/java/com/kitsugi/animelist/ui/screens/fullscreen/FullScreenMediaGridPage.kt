@@ -199,9 +199,9 @@ fun FullScreenMediaGridPage(
 
     // Filtrasyon öncesi "tohum" liste: filtre temizlendiğinde ağa çıkmadan geri dönülen başlangıç
     // verisi (keşfet rafından gelen ilk sonuçlar ya da sayfa hafızası).
-    val seedResults = remember(platform, categoryType) { session?.cachedResults ?: initialResults }
-    var loadedResults by remember(platform, categoryType) { mutableStateOf(seedResults) }
-    var currentPage by remember(platform, categoryType) {
+    val seedResults = remember(platform, categoryType, title) { session?.cachedResults ?: initialResults }
+    var loadedResults by remember(platform, categoryType, title) { mutableStateOf(seedResults) }
+    var currentPage by remember(platform, categoryType, title) {
         mutableIntStateOf(session?.cachedPage ?: if (initialResults.isEmpty()) 0 else 1)
     }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -228,11 +228,11 @@ fun FullScreenMediaGridPage(
         ExploreCategoryType.AIRING_ANIME,
         ExploreCategoryType.TRENDING_MANGA
     )
-    var simklPageInitialized by remember(platform, categoryType, isSimklPersonalList) {
+    var simklPageInitialized by remember(platform, categoryType, title, isSimklPersonalList) {
         mutableStateOf(platform != ExplorePlatform.SIMKL || isSimklPersonalList)
     }
-    var simklTrendingResults by remember(platform, categoryType) { mutableStateOf<List<JikanSearchResult>?>(null) }
-    var hasMorePages by remember(platform, categoryType, isSimklPersonalList) {
+    var simklTrendingResults by remember(platform, categoryType, title) { mutableStateOf<List<JikanSearchResult>?>(null) }
+    var hasMorePages by remember(platform, categoryType, title, isSimklPersonalList) {
         mutableStateOf(session?.cachedHasMore ?: !isSimklPersonalList)
     }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -391,17 +391,17 @@ fun FullScreenMediaGridPage(
         ExplorePlatform.MAL -> when (categoryType) {
             ExploreCategoryType.TOP_RATED_ANIME -> apiClient.topAnime(np, showAdultContent)
             ExploreCategoryType.TOP_RATED_MANGA -> apiClient.topManga(np, showAdultContent)
-            ExploreCategoryType.TOP_ANIME -> apiClient.topAnime(np)
-            ExploreCategoryType.TRENDING_ANIME -> apiClient.trendingAnime(np)
-            ExploreCategoryType.AIRING_ANIME -> apiClient.airingAnime(np)
-            ExploreCategoryType.UPCOMING_ANIME -> apiClient.upcomingAnime(np)
-            ExploreCategoryType.MOVIE_ANIME -> apiClient.movieAnime(np)
+            ExploreCategoryType.TOP_ANIME -> apiClient.topAnime(np, showAdultContent)
+            ExploreCategoryType.TRENDING_ANIME -> apiClient.trendingAnime(np, showAdultContent)
+            ExploreCategoryType.AIRING_ANIME -> apiClient.airingAnime(np, showAdultContent)
+            ExploreCategoryType.UPCOMING_ANIME -> apiClient.upcomingAnime(np, showAdultContent)
+            ExploreCategoryType.MOVIE_ANIME -> apiClient.movieAnime(np, showAdultContent)
             ExploreCategoryType.SEASONAL_ANIME -> apiClient.seasonalAnime(np, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
-            ExploreCategoryType.TOP_MANGA -> apiClient.topManga(np)
-            ExploreCategoryType.PUBLISHING_MANGA -> apiClient.publishingManga(np)
-            ExploreCategoryType.TRENDING_MANGA -> apiClient.trendingManga(np)
-            ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.newlyAddedAnime(np)
-            ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.newlyAddedManga(np)
+            ExploreCategoryType.TOP_MANGA -> apiClient.topManga(np, showAdultContent)
+            ExploreCategoryType.PUBLISHING_MANGA -> apiClient.publishingManga(np, showAdultContent)
+            ExploreCategoryType.TRENDING_MANGA -> apiClient.trendingManga(np, showAdultContent)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.newlyAddedAnime(np, showAdultContent)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.newlyAddedManga(np, showAdultContent)
             ExploreCategoryType.MANHWA_MANHUA -> apiClient.manhwaManhua(np, showAdultContent)
             ExploreCategoryType.NOVELS -> apiClient.novelsShelf(np, showAdultContent)
             ExploreCategoryType.BANGUMI_TV,
@@ -411,17 +411,17 @@ fun FullScreenMediaGridPage(
         ExplorePlatform.AniList -> when (categoryType) {
             ExploreCategoryType.TOP_RATED_ANIME -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Anime, np, showAdultContent)
             ExploreCategoryType.TOP_RATED_MANGA -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Manga, np, showAdultContent)
-            ExploreCategoryType.TOP_ANIME -> apiClient.aniListTopAnime(np)
-            ExploreCategoryType.TRENDING_ANIME -> apiClient.aniListTrendingAnime(np)
-            ExploreCategoryType.AIRING_ANIME -> apiClient.aniListAiringAnime(np)
-            ExploreCategoryType.UPCOMING_ANIME -> apiClient.aniListUpcomingAnime(np)
-            ExploreCategoryType.MOVIE_ANIME -> apiClient.aniListMovieAnime(np)
+            ExploreCategoryType.TOP_ANIME -> apiClient.aniListTopAnime(np, showAdultContent)
+            ExploreCategoryType.TRENDING_ANIME -> apiClient.aniListTrendingAnime(np, showAdultContent)
+            ExploreCategoryType.AIRING_ANIME -> apiClient.aniListAiringAnime(np, showAdultContent)
+            ExploreCategoryType.UPCOMING_ANIME -> apiClient.aniListUpcomingAnime(np, showAdultContent)
+            ExploreCategoryType.MOVIE_ANIME -> apiClient.aniListMovieAnime(np, showAdultContent)
             ExploreCategoryType.SEASONAL_ANIME -> apiClient.aniListSeasonalAnime(np, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
-            ExploreCategoryType.TOP_MANGA -> apiClient.aniListTopManga(np)
-            ExploreCategoryType.PUBLISHING_MANGA -> apiClient.aniListPublishingManga(np)
-            ExploreCategoryType.TRENDING_MANGA -> apiClient.aniListTrendingManga(np)
-            ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.aniListNewlyAddedAnime(np)
-            ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.aniListNewlyAddedManga(np)
+            ExploreCategoryType.TOP_MANGA -> apiClient.aniListTopManga(np, showAdultContent)
+            ExploreCategoryType.PUBLISHING_MANGA -> apiClient.aniListPublishingManga(np, showAdultContent)
+            ExploreCategoryType.TRENDING_MANGA -> apiClient.aniListTrendingManga(np, showAdultContent)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.aniListNewlyAddedAnime(np, showAdultContent)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.aniListNewlyAddedManga(np, showAdultContent)
             // AniList manhwa/manhua'yı ayrı tür olarak sınıflandırmaz → raf yok.
             ExploreCategoryType.MANHWA_MANHUA -> emptyList()
             ExploreCategoryType.NOVELS -> apiClient.aniListNovels(np, showAdultContent)
@@ -555,7 +555,7 @@ fun FullScreenMediaGridPage(
         }
     }
 
-    LaunchedEffect(platform, categoryType, isSimklPersonalList) {
+    LaunchedEffect(platform, categoryType, title, isSimklPersonalList) {
         if (!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || loadedResults.isEmpty())) {
             loadNextPage()
         }

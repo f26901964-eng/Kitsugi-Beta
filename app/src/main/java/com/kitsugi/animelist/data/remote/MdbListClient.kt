@@ -51,7 +51,7 @@ private fun MdbListRatings.withoutEmptyScores(): MdbListRatings = copy(
 object MdbListClient {
 
     private const val TAG = "MdbListClient"
-    private const val BASE_URL = "https://mdblist.com/api/"
+    private const val BASE_URL = "https://api.mdblist.com/"
     private const val QUOTA_URL_HOST = "api.mdblist.com"
     private const val CACHE_TTL_MS = 30L * 60L * 1_000L
     private const val MAX_CACHE_ENTRIES = 500
@@ -69,7 +69,7 @@ object MdbListClient {
      */
     suspend fun validateApiKey(apiKey: String): Boolean = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) return@withContext false
-        val url = buildLookupUrl(apiKey = apiKey, imdbId = "tt0133093", tmdbId = null)
+        val url = buildLookupUrl(apiKey = apiKey, imdbId = "tt0133093", tmdbId = null, mediaType = "movie")
             ?: return@withContext false
         val request = Request.Builder()
             .url(url)
@@ -109,15 +109,25 @@ object MdbListClient {
 
     /** Existing IMDb-ID API retained for callers. */
     suspend fun fetchRatings(imdbId: String, apiKey: String): MdbListRatings? =
-        fetchRatings(imdbId = imdbId, tmdbId = null, apiKey = apiKey)
+        fetchRatings(imdbId = imdbId, tmdbId = null, mediaType = null, apiKey = apiKey)
+
+    suspend fun fetchRatings(
+        imdbId: String?,
+        tmdbId: Int?,
+        apiKey: String
+    ): MdbListRatings? = fetchRatings(imdbId = imdbId, tmdbId = tmdbId, mediaType = null, apiKey = apiKey)
 
     /**
      * Gets scores by IMDb ID, with TMDB ID as a fallback for catalogs without an IMDb mapping.
      * IMDb is preferred if both IDs are available.
+     *
+     * @param mediaType "movie", "show", or "any" (default). Anime/TV shows map to "show",
+     * movies map to "movie". Manga is not supported by MDBList and should not be looked up.
      */
     suspend fun fetchRatings(
         imdbId: String?,
         tmdbId: Int?,
+        mediaType: String?,
         apiKey: String
     ): MdbListRatings? = withContext(Dispatchers.IO) {
         val normalizedImdbId = imdbId?.trim()?.lowercase()?.takeIf(imdbIdPattern::matches)
@@ -127,7 +137,8 @@ object MdbListClient {
         }
 
         val identity = normalizedImdbId?.let { "imdb:$it" } ?: "tmdb:$normalizedTmdbId"
-        val cacheKey = "${fingerprint(apiKey.trim())}:$identity"
+        val typeSuffix = mediaType?.let { ":$it" } ?: ""
+        val cacheKey = "${fingerprint(apiKey.trim())}:$identity$typeSuffix"
         val now = System.currentTimeMillis()
         cache[cacheKey]?.let { entry ->
             if (entry.expiresAt > now) return@withContext entry.ratings
@@ -139,7 +150,7 @@ object MdbListClient {
         }
         cache[cacheKey]?.let { entry -> cache.remove(cacheKey, entry) }
 
-        val url = buildLookupUrl(apiKey, normalizedImdbId, normalizedTmdbId)
+        val url = buildLookupUrl(apiKey, normalizedImdbId, normalizedTmdbId, mediaType)
             ?: return@withContext null
         val request = Request.Builder()
             .url(url)
@@ -174,21 +185,28 @@ object MdbListClient {
         parsed
     }
 
-    internal fun buildLookupUrl(apiKey: String, imdbId: String?, tmdbId: Int?): HttpUrl? {
+    internal fun buildLookupUrl(
+        apiKey: String,
+        imdbId: String?,
+        tmdbId: Int?,
+        mediaType: String? = null
+    ): HttpUrl? {
         if (apiKey.isBlank()) return null
         val normalizedImdbId = imdbId?.trim()?.lowercase()?.takeIf(imdbIdPattern::matches)
         val normalizedTmdbId = tmdbId?.takeIf { it > 0 }
         if (normalizedImdbId == null && normalizedTmdbId == null) return null
 
+        val provider = if (normalizedImdbId != null) "imdb" else "tmdb"
+        val id = normalizedImdbId ?: normalizedTmdbId.toString()
+        val type = mediaType?.takeIf { it in listOf("movie", "show", "any") } ?: "any"
+
         return HttpUrl.Builder()
             .scheme("https")
-            .host("mdblist.com")
-            .addPathSegments("api/")
+            .host("api.mdblist.com")
+            .addPathSegment(provider)
+            .addPathSegment(type)
+            .addPathSegment(id)
             .addQueryParameter("apikey", apiKey.trim())
-            .apply {
-                if (normalizedImdbId != null) addQueryParameter("i", normalizedImdbId)
-                else addQueryParameter("tmdb", normalizedTmdbId.toString())
-            }
             .build()
     }
 
@@ -444,6 +462,7 @@ object MdbListClient {
     private fun scoreCategory(source: String, name: String, type: String): ScoreCategory? {
         val normalized = "$source $name $type".lowercase().filter(Char::isLetterOrDigit)
         return when {
+            normalized.contains("popcorn") -> ScoreCategory.TOMATOES_AUDIENCE
             normalized.contains("tomato") &&
                 (normalized.contains("audience") || normalized.contains("user")) -> ScoreCategory.TOMATOES_AUDIENCE
             normalized.contains("tomato") || normalized.contains("tomatometer") -> ScoreCategory.TOMATOES

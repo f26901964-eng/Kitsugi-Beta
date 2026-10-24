@@ -372,6 +372,12 @@ object AniListImportManager {
         query: String,
         variables: JSONObject
     ): String {
+        if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGateBlocking(
+                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.BACKGROUND
+            )
+        ) {
+            throw IllegalStateException("AniList kotası dolu; içe aktarma sonraki tura ertelendi.")
+        }
         val payload = JSONObject()
             .put("query", query)
             .put("variables", variables)

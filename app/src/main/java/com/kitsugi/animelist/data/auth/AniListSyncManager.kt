@@ -968,6 +968,13 @@ object AniListSyncManager {
         variables: JSONObject,
         context: Context? = null
     ): String {
+        // Kotayı görünmez şekilde tüketen doğrudan POST: kapıdan geçir.
+        if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGateBlocking(
+                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.BACKGROUND
+            )
+        ) {
+            throw IllegalStateException("AniList kotası dolu; eşitleme sonraki tura ertelendi.")
+        }
         val payload = JSONObject()
             .put("query", query)
             .put("variables", variables)

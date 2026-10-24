@@ -13,33 +13,37 @@ class MdbListClientTest {
         val url = requireNotNull(MdbListClient.buildLookupUrl(
             apiKey = "key with&symbols",
             imdbId = " TT1234567 ",
-            tmdbId = 42
+            tmdbId = 42,
+            mediaType = null
         ))
 
         assertEquals("https", url.scheme)
-        assertEquals("mdblist.com", url.host)
-        assertEquals("/api/", url.encodedPath)
+        assertEquals("api.mdblist.com", url.host)
+        assertEquals("/imdb/any/tt1234567", url.encodedPath)
         assertEquals("key with&symbols", url.queryParameter("apikey"))
-        assertEquals("tt1234567", url.queryParameter("i"))
+        assertNull(url.queryParameter("i"))
         assertNull(url.queryParameter("tmdb"))
     }
 
     @Test
     fun lookupUrlFallsBackToPositiveTmdbId() {
         val url = requireNotNull(
-            MdbListClient.buildLookupUrl(apiKey = "personal-key", imdbId = null, tmdbId = 550)
+            MdbListClient.buildLookupUrl(apiKey = "personal-key", imdbId = null, tmdbId = 550, mediaType = "movie")
         )
 
-        assertEquals("550", url.queryParameter("tmdb"))
+        assertEquals("api.mdblist.com", url.host)
+        assertEquals("/tmdb/movie/550", url.encodedPath)
+        assertEquals("personal-key", url.queryParameter("apikey"))
         assertNull(url.queryParameter("i"))
+        assertNull(url.queryParameter("tmdb"))
     }
 
     @Test
     fun lookupUrlRejectsMissingOrInvalidIdentity() {
-        assertNull(MdbListClient.buildLookupUrl("key", imdbId = null, tmdbId = null))
-        assertNull(MdbListClient.buildLookupUrl("key", imdbId = "tt123", tmdbId = null))
-        assertNull(MdbListClient.buildLookupUrl("key", imdbId = null, tmdbId = 0))
-        assertNull(MdbListClient.buildLookupUrl("", imdbId = "tt1234567", tmdbId = null))
+        assertNull(MdbListClient.buildLookupUrl("key", imdbId = null, tmdbId = null, mediaType = null))
+        assertNull(MdbListClient.buildLookupUrl("key", imdbId = "tt123", tmdbId = null, mediaType = null))
+        assertNull(MdbListClient.buildLookupUrl("key", imdbId = null, tmdbId = 0, mediaType = null))
+        assertNull(MdbListClient.buildLookupUrl("", imdbId = "tt1234567", tmdbId = null, mediaType = null))
     }
 
     @Test
@@ -51,7 +55,7 @@ class MdbListClientTest {
               "ratings": [
                 {"source":"IMDb", "value":"8.5/10"},
                 {"source":"Rotten Tomatoes", "value":"92%"},
-                {"source":"Rotten Tomatoes Audience", "score":87},
+                {"source":"popcorn", "score":87},
                 {"source":"Metacritic", "value":"78/100"},
                 {"source":"Letterboxd", "value":"4.1/5"},
                 {"source":"TMDb", "value":"7.9/10"},

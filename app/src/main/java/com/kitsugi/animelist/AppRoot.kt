@@ -590,18 +590,16 @@ fun AppRoot(
                     )
 
                     when (event.serviceName) {
-                        // Yeni bağlanan hesabın listesi MUTLAKA taze çekilir (tam senkron):
-                        // "az önce senkron oldu" tazelik penceresi burada uygulanmaz.
-                        "anilist"   -> authViewModel.importAniListAnimeList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
-                        "simkl"     -> authViewModel.importSimklList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
-                        "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
-                        "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
-                        "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
-                        else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
+                        "anilist"   -> authViewModel.importAniListAnimeList(latestMediaEntries, mediaRepository)
+                        "simkl"     -> authViewModel.importSimklList(latestMediaEntries, mediaRepository)
+                        "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository)
+                        "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository)
+                        "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository)
+                        else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
                     }
 
                     launch {
-                        val count = mediaRepository.drainPendingQueue(freshBudget = true)
+                        val count = mediaRepository.drainPendingQueue()
                         if (count > 0) {
                             appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.cevrimdisi_kaydedilen_x_islem_senkronize_edildi, count))
                         }
@@ -936,7 +934,7 @@ fun AppRoot(
                     activeScreen is DetailScreen.About -> AppStateKey.About(depth = currentDepth)
                     activeScreen is DetailScreen.UserProfile -> AppStateKey.UserProfile(activeScreen.userId, depth = currentDepth, username = activeScreen.username, avatarUrl = activeScreen.avatarUrl, source = activeScreen.source)
                     activeScreen is DetailScreen.UserMediaList -> AppStateKey.UserMediaList(activeScreen.userId, depth = currentDepth, username = activeScreen.username, initialMediaType = activeScreen.initialMediaType)
-                    activeScreen is DetailScreen.Notifications -> AppStateKey.Notifications(depth = currentDepth, preferredSource = activeScreen.preferredSource)
+                    activeScreen is DetailScreen.Notifications -> AppStateKey.Notifications(depth = currentDepth)
                     activeScreen is DetailScreen.Downloads -> AppStateKey.Downloads(depth = currentDepth)
                     activeScreen is DetailScreen.WatchHistory -> AppStateKey.WatchHistory(depth = currentDepth)
                     activeScreen is DetailScreen.PluginPicker -> AppStateKey.PluginPicker(depth = currentDepth)
@@ -1307,6 +1305,8 @@ private fun AppNavigationContent(
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
+                        showAdultContent = appSettings.showAdultContent,
+                        blurAdultMedia = appSettings.blurAdultMedia,
                         getMediaEntry = getMediaEntry,
                         // Kart kısayolu: listede ise düzenle panelini aç, değilse tekil ekleme akışına
                         // (AppRoot sarmalayıcısı Bangumi diyaloğunu da yönetir).
