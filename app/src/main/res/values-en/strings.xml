@@ -6468,7 +6468,7 @@
     <string name="mylist_empty_filtered">No items match the selected filters.</string>
     <string name="mylist_empty_search_query">No items found for "%1$s".</string>
     <string name="gallery_tab_details">Details</string>
-    <string name="gallery_tab_other_images">Other images</string>
+    <string name="gallery_tab_other_images">Sources</string>
     <string name="gallery_field_source">Source</string>
     <string name="gallery_field_language">Language</string>
     <string name="gallery_textless">✨ Textless</string>

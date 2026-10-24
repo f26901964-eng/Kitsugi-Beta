@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Share
@@ -122,13 +123,20 @@ fun KitsugiImageGalleryDialog(
         mutableStateOf<GalleryCategory?>(initialCategory)
     }
 
-    // Filtered items based on selected category
-    val filteredItems = remember(galleryItems, selectedCategoryFilter) {
-        if (selectedCategoryFilter == null) {
-            galleryItems
-        } else {
-            galleryItems.filter { it.category == selectedCategoryFilter }
+    // Kaynak filtresi: yatay düzenin sağ panelindeki "Kaynaklar" sekmesinden seçilir
+    // (null = Tümü). Kategori filtresiyle birlikte uygulanır.
+    var selectedSourceFilter by remember { mutableStateOf<String?>(null) }
+
+    // Filtered items based on selected category + source
+    val filteredItems = remember(galleryItems, selectedCategoryFilter, selectedSourceFilter) {
+        var items: List<GalleryItem> = galleryItems
+        if (selectedCategoryFilter != null) {
+            items = items.filter { it.category == selectedCategoryFilter }
         }
+        if (selectedSourceFilter != null) {
+            items = items.filter { it.source.equals(selectedSourceFilter, ignoreCase = true) }
+        }
+        items
     }
 
     val resolvedInitialPage = remember(galleryItems, initialIndex, filteredItems) {
@@ -145,8 +153,8 @@ fun KitsugiImageGalleryDialog(
 
     var isFirstLaunch by remember { mutableStateOf(true) }
 
-    // Reset to page 0 if selectedCategoryFilter changes to avoid index bounds error, ignoring first launch
-    LaunchedEffect(selectedCategoryFilter) {
+    // Reset to page 0 if selectedCategoryFilter/selectedSourceFilter changes to avoid index bounds error, ignoring first launch
+    LaunchedEffect(selectedCategoryFilter, selectedSourceFilter) {
         if (isFirstLaunch) {
             isFirstLaunch = false
         } else {
@@ -442,6 +450,8 @@ fun KitsugiImageGalleryDialog(
                             availableCategories = availableCategories,
                             selectedCategoryFilter = selectedCategoryFilter,
                             onCategorySelected = { selectedCategoryFilter = it },
+                            selectedSourceFilter = selectedSourceFilter,
+                            onSourceSelected = { selectedSourceFilter = it },
                             pagerState = pagerState,
                             title = title,
                             accentColor = accentColor,
@@ -532,7 +542,9 @@ private fun GalleryLandscapeLayout(
     isAlreadyDownloaded: Boolean = false,
     allowDelete: Boolean = true,
     deleteActive: Boolean = false,
-    onRequestDelete: () -> Unit = {}
+    onRequestDelete: () -> Unit = {},
+    selectedSourceFilter: String? = null,
+    onSourceSelected: (String?) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val currentItem = filteredItems.getOrNull(pagerState.currentPage)
@@ -897,7 +909,7 @@ private fun GalleryLandscapeLayout(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Detail tabs: Details / Fans / Comments — mimic fanart.tv
+                // Detail tabs: Details / Sources — sağ panelde detaylar ve kaynak listesi
                 var detailTab by remember { mutableStateOf(0) }
                 Row(
                     modifier = Modifier
@@ -1073,54 +1085,114 @@ private fun GalleryLandscapeLayout(
                         }
                     }
                 } else {
-                    // ── Other images tab: small grid of same-category items ──
-                    val sameCategory = remember(currentItem, galleryItems) {
-                        if (currentItem == null) emptyList()
-                        else galleryItems.filter { it.category == currentItem.category && it.url != currentItem.url }
-                    }
-                    if (sameCategory.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.gallery_no_more_images),
-                                color = KitsugiColors.TextMuted,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            itemsIndexed(sameCategory) { _, relatedItem ->
-                                val relIdx = filteredItems.indexOf(relatedItem)
-                                KitsugiNsfwImage(
-                                    model = relatedItem.url,
-                                    contentDescription = stringResource(R.string.gallery_related_image),
-                                    isAdult = isAdult,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(90.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                        .tvClickable(shape = RoundedCornerShape(8.dp)) {
-                                            if (relIdx >= 0) {
-                                                scope.launch { pagerState.animateScrollToPage(relIdx) }
-                                            }
-                                        },
-                                    contentScale = ContentScale.Crop
+                    // ── Sources tab: yalnızca kaynak listesi (görsel önizleme yok) ──
+                    val sourceGroups = remember(galleryItems) {
+                        galleryItems
+                            .groupBy { it.source.trim().lowercase() }
+                            .toSortedMap()
+                            .map { (key, items) ->
+                                Triple(
+                                    key,
+                                    items.firstOrNull()?.source?.trim()?.takeIf { it.isNotEmpty() } ?: key,
+                                    items.size
                                 )
                             }
+                    }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        item {
+                            GallerySourceRow(
+                                label = stringResource(R.string.filter_all),
+                                count = galleryItems.size,
+                                selected = selectedSourceFilter == null,
+                                accentColor = accentColor,
+                                onClick = { onSourceSelected(null) },
+                                logo = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Folder,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFB800),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            )
+                        }
+                        itemsIndexed(sourceGroups) { _, (key, displayName, count) ->
+                            GallerySourceRow(
+                                label = displayName,
+                                count = count,
+                                selected = selectedSourceFilter != null &&
+                                    selectedSourceFilter.equals(key, ignoreCase = true),
+                                accentColor = accentColor,
+                                onClick = { onSourceSelected(key) },
+                                logo = {
+                                    KitsugiPlatformLogo(
+                                        platformId = key,
+                                        size = 22.dp,
+                                        cornerRadius = 5.dp
+                                    )
+                                }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SOURCE ROW – "Kaynaklar" sekmesindeki tek satır (logo + ad + görsel sayısı)
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun GallerySourceRow(
+    label: String,
+    count: Int,
+    selected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+    logo: @Composable () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (selected) accentColor.copy(alpha = 0.15f)
+                else KitsugiColors.SurfaceSoft.copy(alpha = 0.5f)
+            )
+            .border(
+                1.dp,
+                if (selected) accentColor.copy(alpha = 0.5f)
+                else KitsugiColors.Border.copy(alpha = 0.4f),
+                RoundedCornerShape(10.dp)
+            )
+            .tvClickable(shape = RoundedCornerShape(10.dp)) { onClick() }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        logo()
+        Text(
+            text = label,
+            color = if (selected) accentColor else KitsugiColors.TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = count.toString(),
+            color = KitsugiColors.TextMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
