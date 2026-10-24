@@ -687,15 +687,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             )
         }
 
-        // ── Vitrin görseli: SAYFA AÇILMADAN ÖNCE çözülür ─────────────────────────
-        // Kullanıcı detay sayfasını görmeden en kaliteli TMDB (`/original`) /
-        // Fanart.tv yatay arka plan seçilir ve decode edilir. Böylece vitrin ilk
-        // kareden itibaren doğru ve tam çözünürlüklü görseli gösterir.
-        resolveHeroArtwork(result, detail)
-
+        // Birincil detay hazır olduğu anda sayfayı aç. TMDB/Fanart seçimi ve görsel
+        // preload'u loading ekranında bekletmez; mevcut kaynak görseliyle başlayan vitrin,
+        // yüksek kaliteli aday hazır olunca güncellenir.
         _detailLoading.value = false
 
         if (detail != null) {
+            viewModelScope.launch {
+                resolveHeroArtwork(result, detail)
+            }
             // ── Aşama 2: TMDB/TR ZENGİNLEŞTİRME — zaman tavanlı, arka planda ─────────
             // Bangumi'de bu adım aynı zamanda çapraz kimlik çözümü (AniList → MAL → ARM) ve
             // MAL/AniList/TMDB birleştirmesidir; TMDB kapalı olsa bile çalışmalıdır (TMDB'ye

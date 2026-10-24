@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -47,12 +48,12 @@ class KitsugiStudioClient {
                 }
                 "anilist" -> fetchAniListStudioDetail(studioId)
                 "bangumi" -> {
-                    var detail = if (studioId > 0) fetchBangumiStudioDetail(studioId) else null
+                    var detail = if (studioId > 0) fetchBangumiStudioDetail(studioId, name) else null
                     // Kimlik yoksa / yanlışsa kurumu ADIYLA çözümle (Bangumi şirket条目 type=2,
                     // eşleşmezse aynı adlı kişi kaydı — sayfa kişi şablonunu kullanır).
                     if (detail == null && !name.isNullOrBlank()) {
                         val personId = KitsugiBangumiDetailClient.resolveCompanyPersonId(name)
-                        if (personId != null) detail = fetchBangumiStudioDetail(personId)
+                        if (personId != null) detail = fetchBangumiStudioDetail(personId, name)
                     }
                     detail
                 }
@@ -182,10 +183,28 @@ class KitsugiStudioClient {
      * Kitsugi'nin stüdyo modeline çevrilir: açıklamalar infobox'dan, "Yapımlar" listesi
      * `/persons/{id}/works` ucundan gelir.
      */
-    private suspend fun fetchBangumiStudioDetail(personId: Int): KitsugiStudioDetail? {
-        val person = runCatching {
-            KitsugiBangumiDetailClient.fetchStaffDetail(personId)
-        }.getOrNull() ?: return null
+    private suspend fun fetchBangumiStudioDetail(
+        personId: Int,
+        expectedName: String? = null
+    ): KitsugiStudioDetail? {
+        // p1 deneyseldir ve devre kesiciye takılabilir. Kurum kökünü ve yapımları önce
+        // resmî v0 person uçlarından al; p1'i yalnızca eksik yapım bölümünü tamamlamak için kullan.
+        val v0Person = runCatching {
+            KitsugiBangumiCreditsClient.fetchPersonDetail(personId, expectedName)
+        }.getOrElse {
+            if (it is CancellationException) throw it
+            null
+        }
+        val p1Person = if (v0Person?.mediaWorks.isNullOrEmpty()) {
+            runCatching { KitsugiBangumiDetailClient.fetchStaffDetail(personId) }.getOrElse {
+                if (it is CancellationException) throw it
+                null
+            }
+        } else {
+            null
+        }
+        val person = mergeBangumiOrganizationDetails(v0Person, p1Person) ?: return null
+        if (!matchesBangumiOrganization(expectedName, person)) return null
 
         val about = buildString {
             if (!person.homeTown.isNullOrBlank()) appendLine(person.homeTown)

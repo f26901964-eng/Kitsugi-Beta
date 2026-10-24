@@ -5,6 +5,7 @@ import com.kitsugi.animelist.utils.parseToMediaType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import com.kitsugi.animelist.ui.app.AppNavigationState
 import com.kitsugi.animelist.ui.app.AuthViewModel
 import com.kitsugi.animelist.model.MediaEntry
@@ -209,12 +210,17 @@ fun AppRootDetailPages(
 
         is AppStateKey.ApiResultDetail -> {
             navState.stateHolder.SaveableStateProvider(key = "api_${key.depth}_${key.result.source}_${key.result.malId}") {
-                val existingApiEntry = mediaEntries.firstMatchingInSource(key.result)
+                val existingApiEntry = remember(mediaEntries, key.result) {
+                    mediaEntries.firstMatchingInSource(key.result)
+                }
+                val findExistingApiEntry = remember(mediaEntries) {
+                    { r: JikanSearchResult -> mediaEntries.firstOrNull { entry -> entry.matchesInSource(r) } }
+                }
                 ApiResultDetailPage(
                     result = key.result,
                     existingEntry = existingApiEntry,
                     // Ekleme butonu ve mevcut üyelik aynı sağlayıcı kapsamını kullanır.
-                    findExistingEntry = { r -> mediaEntries.firstOrNull { entry -> entry.matchesInSource(r) } },
+                    findExistingEntry = findExistingApiEntry,
                     onBackClick = { navState.popDetailStack() },
                     onAddClick = { selection ->
                         onAddApiSelectionToList(selection)
@@ -280,6 +286,7 @@ fun AppRootDetailPages(
                         )
                     },
                     titleLanguage = appSettings.titleLanguage,
+                    staffNameLanguage = appSettings.staffNameLanguage,
                     scoreFormat = appSettings.scoreFormat,
                     hideScores = appSettings.hideScores,
                     showAnimeLogos = appSettings.showAnimeLogos,
@@ -455,6 +462,7 @@ fun AppRootDetailPages(
                             )
                         },
                         titleLanguage = appSettings.titleLanguage,
+                        staffNameLanguage = appSettings.staffNameLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
                         showAnimeLogos = appSettings.showAnimeLogos,

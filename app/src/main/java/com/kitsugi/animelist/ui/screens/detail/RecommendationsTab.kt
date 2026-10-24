@@ -28,6 +28,9 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import androidx.compose.foundation.layout.Column
@@ -82,14 +85,19 @@ fun RecommendationsTabContent(
                     )
                 }
             } else {
+                var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
+                val visibleList = list.take(visibleCount)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    list.forEach { rel ->
+                    visibleList.forEach { rel ->
                         RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
+                    }
+                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
+                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
                     }
                 }
             }

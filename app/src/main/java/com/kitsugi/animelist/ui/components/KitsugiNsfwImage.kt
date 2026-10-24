@@ -226,6 +226,9 @@ fun KitsugiNsfwImage(
                 // Aksi halde hotlink korumalı site görselleri bitmap-blur yolunda 403 olurdu.
                 when (model) {
                     is ImageRequest -> model.newBuilder(context)
+                        // Coil dönüşümleri piksel erişimi ister; high-quality hero isteği
+                        // hardware olsa bile bitmap-blur yolu mutlaka software kalır.
+                        .allowHardware(false)
                         .transformations(KitsugiBlurSupport.bitmapBlurTransformation(bitmapBlurPx))
                         .build()
                     else -> ImageRequest.Builder(context)

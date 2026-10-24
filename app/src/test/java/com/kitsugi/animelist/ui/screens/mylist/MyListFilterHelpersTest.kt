@@ -113,6 +113,55 @@ class MyListFilterHelpersTest {
     }
 
     @Test
+    fun missingAddedAt_fallsBackToUpdatedAtInsteadOfUnknownBucket() {
+        // Kaynak eklenme zamanı vermiyor (MAL/Bangumi) → elde tek zaman damgası
+        // `updatedAt`. Bu satırlar "bilinmiyor" kovasına düşüp sıralamayı
+        // bozmamalı; gerçek tarihi olan satırlarla birlikte sıralanmalı.
+        val list = listOf(
+            entry(id = 1, title = "Vekil tarihli", addedAt = 0L, updatedAt = 300L),
+            entry(id = 2, title = "Gerçek tarihli", addedAt = 200L),
+            entry(id = 3, title = "Hiç tarihi yok", addedAt = 0L, updatedAt = 0L)
+        )
+
+        assertEquals(listOf(1, 2, 3), applySort(list, "newest").map { it.id })
+        assertEquals(listOf(2, 1, 3), applySort(list, "oldest").map { it.id })
+    }
+
+    @Test
+    fun unknownAddedAt_isOrderedByTitleForDeterministicOutputAcrossSources() {
+        // Yerel `id` kaynak başına farklı uzaydan gelir (Simkl 150M+, Kitsu 300M+).
+        // "Tümü" sekmesinde aynı kovadaki satırlar ada göre sıralanmalı ki sıra
+        // kaynak karışımına göre değişmesin.
+        val list = listOf(
+            entry(id = 900, title = "C Kayıt", addedAt = 0L),
+            entry(id = 5, title = "A Kayıt", addedAt = 0L),
+            entry(id = 150_000_321, title = "B Kayıt", addedAt = 0L)
+        )
+
+        assertEquals(listOf(5, 150_000_321, 900), applySort(list, "newest").map { it.id })
+        assertEquals(listOf(5, 150_000_321, 900), applySort(list, "oldest").map { it.id })
+    }
+
+    @Test
+    fun addedPeriodGrouping_usesUpdatedAtFallback() {
+        val zone = java.time.ZoneId.systemDefault()
+        val now = java.time.LocalDate.of(2026, 10, 23).atTime(12, 0).atZone(zone).toEpochSecond()
+        val list = listOf(
+            // addedAt boş, updatedAt bugün → "Bugün" bölümüne düşmeli.
+            entry(id = 1, title = "Vekil", addedAt = 0L, updatedAt = now),
+            entry(id = 2, title = "Gerçek", addedAt = now - 86_400L),
+            entry(id = 3, title = "Bilinmiyor", addedAt = 0L, updatedAt = 0L)
+        )
+
+        val groups = groupMyListEntriesByAddedPeriod(list, nowEpochSeconds = now)
+
+        assertEquals(
+            listOf(MyListAddedPeriod.TODAY, MyListAddedPeriod.YESTERDAY, MyListAddedPeriod.UNKNOWN),
+            groups.map { it.first }
+        )
+    }
+
+    @Test
     fun scoreAsc_keepsUnratedLast() {
         val list = listOf(
             entry(id = 1, title = "Puansız", score = null),

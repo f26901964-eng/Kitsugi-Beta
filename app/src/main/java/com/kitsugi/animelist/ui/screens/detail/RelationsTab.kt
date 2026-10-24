@@ -25,6 +25,9 @@ import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import androidx.compose.ui.res.stringResource
@@ -69,11 +72,16 @@ fun RelationsTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
+                var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
+                val visibleList = list.take(visibleCount)
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    list.forEach { rel ->
+                    visibleList.forEach { rel ->
                         RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
+                    }
+                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
+                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
                     }
                 }
             }

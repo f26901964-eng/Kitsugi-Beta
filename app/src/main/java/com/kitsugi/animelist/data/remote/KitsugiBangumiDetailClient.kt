@@ -2111,21 +2111,45 @@ object KitsugiBangumiDetailClient {
             }
         }
 
-    /** p1 infobox: `[{key, values:[{k?, v}]}]`. */
+    /**
+     * p1 infobox: `[{key, values:[{k?, v}]}]`.
+     *
+     * `k` **alt alan adıdır**: `别名` üst anahtarının altında `英文名`, `罗马字`, `日文名`,
+     * `纯假名` gibi gerçek alanlar bulunur. Eski kod yalnızca `v` değerini okuyup alt anahtarı
+     * attığı için İngilizce/romaji ad hiçbir zaman `英文名`/`罗马字` alanından gelmiyordu.
+     * Artık alt anahtar da haritaya yazılır; `BangumiNameLocalizer` bu alanları doğrudan görür.
+     */
     internal fun parseP1Infobox(array: JSONArray?): Map<String, List<String>> {
-        val result = linkedMapOf<String, List<String>>()
+        val result = linkedMapOf<String, MutableList<String>>()
+
+        fun add(key: String?, value: String?) {
+            val cleanKey = key?.trim().orEmpty()
+            val cleanValue = value?.trim().orEmpty()
+            if (cleanKey.isEmpty() || cleanValue.isEmpty()) return
+            val bucket = result.getOrPut(cleanKey) { mutableListOf() }
+            if (!bucket.contains(cleanValue)) bucket += cleanValue
+        }
+
         for (entry in array.objects()) {
             val key = entry.strOrNull("key") ?: continue
-            val raw = entry.opt("values")
-            val values = when (raw) {
-                is JSONArray -> (0 until raw.length()).mapNotNull { index ->
-                    val item = raw.optJSONObject(index)
-                    (if (item != null) item.strOrNull("v") else raw.optString(index).trim().takeIf { it.isNotEmpty() })
+            when (val raw = entry.opt("values")) {
+                is JSONArray -> {
+                    for (index in 0 until raw.length()) {
+                        val item = raw.optJSONObject(index)
+                        val value = if (item != null) {
+                            item.strOrNull("v")
+                        } else {
+                            raw.optString(index).trim().takeIf { it.isNotEmpty() }
+                        } ?: continue
+                        add(key, value)
+                        val subKey = item?.strOrNull("k")
+                        if (subKey != null && !subKey.equals(key, ignoreCase = true)) {
+                            add(subKey, value)
+                        }
+                    }
                 }
-                is String -> listOf(raw.trim())
-                else -> emptyList()
-            }.filter { it.isNotBlank() }
-            if (values.isNotEmpty()) result[key] = values
+                is String -> add(key, raw)
+            }
         }
         return result
     }
@@ -2484,6 +2508,7 @@ object KitsugiBangumiDetailClient {
             }
         val matched = candidates.filter { it.type == 2 }.firstOrNull(::exactMatch)
             ?: candidates.filter { it.type == 1 }.firstOrNull(::exactMatch)
+            ?: candidates.filter { it.type == 3 }.firstOrNull(::exactMatch)
         val id = matched?.id?.takeIf { it > 0 }
         matched?.images?.let { images ->
             BangumiApiClient.absoluteImageUrl(images.poster)?.let { imageUrl ->

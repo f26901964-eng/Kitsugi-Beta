@@ -206,16 +206,20 @@ fun MediaEntryDetailPage(
     val detailLoading by viewModel.detailLoading.collectAsState()
     val detailErrorCode by viewModel.detailErrorCode.collectAsState()
     val mangaMapping by viewModel.mangaMapping.collectAsState()
-    // (2026-10-23 KAYDIRMA PERFORMANS FIX) Sekme-özel durumlar (özet/çeviri,
-    // karakterler, ekip, öneriler, ilişkiler, grafikler, yorumlar, bölümler)
-    // artık sayfa gövdesinde DEĞİL, her sekmenin kendi slot composable'ında
-    // toplanıyor (dosya sonundaki *TabSlot fonksiyonları). Eski yapıda bu
-    // yığının tamamı TEK composition scope'unda collect edildiği için herhangi
-    // bir sekmenin verisi geldiğinde (veya çeviri/özet akışı her emisyon
-    // verdiğinde) TÜM sayfa — sol panel, scaffold ve görünür sekme içeriği —
-    // baştan kompoze oluyor, kaydırma kareleri çalınıyordu.
+    val synopsisState by viewModel.synopsisState.collectAsState()
+    val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
+    val originalSynopsis by viewModel.originalSynopsis.collectAsState()
+    val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
+    // Orijinal / çeviri geçişi: orijinal gösterilirken özet ham metniyle verilir.
+    val synopsisHasTranslation = translatedSynopsis != null && translatedSynopsis != originalSynopsis
+    val displayedSynopsisState = run {
+        val raw = originalSynopsis
+        if (showSynopsisOriginal && !raw.isNullOrBlank()) SynopsisState.Success(raw) else synopsisState
+    }
     val logoUrl by viewModel.logoUrl.collectAsState()
     val resolvedTmdbId by viewModel.resolvedTmdbId.collectAsState()
+    // Sekme akışları yalnızca ilgili pager sayfasında toplanır; arka plan zenginleştirmeleri
+    // hero, özet ve diğer sekmeleri gereksiz yere yeniden compose etmez.
     val targetSeason by viewModel.targetSeason.collectAsState()
     val galleryItems by viewModel.galleryItems.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
@@ -293,143 +297,28 @@ fun MediaEntryDetailPage(
 
     val externalUrl = remember(displayEntry) { buildExternalUrl(displayEntry) }
 
+    val onMediaClick: (Int, String, String) -> Unit = { mediaId, mediaType, mediaSource ->
+        val searchType = mediaType.parseToMediaType()
+        val searchResult = JikanSearchResult(
+            malId = mediaId,
+            title = context.getString(R.string.yukleniyor),
+            subtitle = "",
+            type = searchType,
+            total = null,
+            score = null,
+            isAdult = false,
+            imageUrl = null,
+            year = null,
+            source = mediaSource
+        )
+        onRelationClick(searchResult)
+    }
+
     // GalleryItem-based dialog state (Fanart.tv + multi-source)
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
     var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
-    // Kaynak seçicisinden açıldığında galeri bu kaynağa filtrelenir (kapatınca sıfırlanır).
-    var activeGallerySource by remember { mutableStateOf<String?>(null) }
     var activeEpisodeForOptions by remember { mutableStateOf<KitsugiStreamingEpisode?>(null) }
-
-    // ── STABİL CALLBACK'LER (2026-10-23 kaydırma perf fix) ──────────────────
-    // Sekme/slot composable'larına parametre olarak geçen lambda'lar her
-    // recompose'da yeniden üretilirse Compose o composable'ı "parametresi
-    // değişti" sayar ve gövdesini baştan çalıştırır — tüm Bilgi kolonunun
-    // (markdown + FlowRow çipleri) her emisyonda yeniden kurulması demek.
-    // mutableStateOf delegeleri SABİT nesneler olduğu için tek seferlik
-    // remember güvenlidir; lambda gövdesi güncel değeri delegeden/VM'den okur.
-    val onMediaClick: (Int, String, String) -> Unit = remember(context, onRelationClick) {
-        { mediaId, mediaType, mediaSource ->
-            val searchType = mediaType.parseToMediaType()
-            val searchResult = JikanSearchResult(
-                malId = mediaId,
-                title = context.getString(R.string.yukleniyor),
-                subtitle = "",
-                type = searchType,
-                total = null,
-                score = null,
-                isAdult = false,
-                imageUrl = null,
-                year = null,
-                source = mediaSource
-            )
-            onRelationClick(searchResult)
-        }
-    }
-    val openGallerySelection: (List<GalleryItem>, Int) -> Unit = remember {
-        { items, idx ->
-            activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-            if (!viewModel.galleryLoading.value) activeGalleryItems = items
-            activeGalleryIndex = idx
-        }
-    }
-    val onOverviewImageGalleryRequest: (List<String>, Int) -> Unit = remember {
-        { urls, index ->
-            if (!viewModel.galleryLoading.value) {
-                activeGalleryItems = urls.map { url ->
-                    GalleryItem(url = url, category = GalleryCategory.OTHER, source = "Açıklama")
-                }
-            }
-            activeGalleryIndex = index
-        }
-    }
-    val onOverviewGalleryItemRequest: (List<GalleryItem>, Int) -> Unit = remember {
-        { items, index ->
-            if (!viewModel.galleryLoading.value) activeGalleryItems = items
-            activeGalleryIndex = index
-        }
-    }
-    val onOverviewTranslateClick: () -> Unit = remember(displayEntry) {
-        { viewModel.translateSynopsis(displayEntry) }
-    }
-    val onToggleSynopsisOriginal: () -> Unit = remember {
-        { viewModel.toggleSynopsisOriginal() }
-    }
-    val onIntegrationsClick: (() -> Unit)? = remember(settingsDataStore) {
-        if (settingsDataStore != null) {
-            { showIntegrationsDialog = true }
-        } else {
-            null
-        }
-    }
-    val onSeasonSelected: (Int) -> Unit = remember(displayEntry) {
-        { newSeason -> viewModel.setTargetSeason(newSeason, displayEntry) }
-    }
-    val onEpisodeOptionsRequested: (KitsugiStreamingEpisode) -> Unit = remember {
-        { episode -> activeEpisodeForOptions = episode }
-    }
-    val onUnlinkManga: () -> Unit = remember(displayEntry) {
-        { viewModel.deleteMangaMapping(displayEntry.id) }
-    }
-    val onImagesItemClick: (Int) -> Unit = remember(galleryItems) {
-        { index ->
-            if (!viewModel.galleryLoading.value) activeGalleryItems = galleryItems
-            activeGalleryIndex = index
-        }
-    }
-    val onImagesOpenGallery: (GalleryCategory?) -> Unit = remember(galleryItems) {
-        { category ->
-            val startIndex = if (category == null) 0
-            else galleryItems.indexOfFirst { it.category == category }.coerceAtLeast(0)
-            activeGalleryCategory = category
-            if (!viewModel.galleryLoading.value) activeGalleryItems = galleryItems
-            activeGalleryIndex = startIndex
-        }
-    }
-    val onImagesOpenSourceGallery: (String) -> Unit = remember(galleryItems) {
-        { source ->
-            val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
-            if (sourceItems.isNotEmpty()) {
-                // Tüm galeri verilir; galeri içindeki "Kaynak" listesinden
-                // başka kaynaklara geçilebildiği için liste daraltılmaz.
-                activeGalleryCategory = null
-                activeGallerySource = source
-                if (!viewModel.galleryLoading.value) activeGalleryItems = galleryItems
-                activeGalleryIndex = 0
-            }
-        }
-    }
-    val onWikiOpenGallery: (List<GalleryItem>, Int) -> Unit = remember {
-        { items, index ->
-            activeGalleryCategory = items.getOrNull(index)?.category ?: GalleryCategory.OTHER
-            activeGalleryItems = items
-            activeGalleryIndex = index
-        }
-    }
-    // Öneriler ve İlişkiler sekmeleri aynı sarmalayıcıyı paylaşır.
-    val onRelationItemClick: (com.kitsugi.animelist.data.remote.KitsugiRelation) -> Unit =
-        remember(context, onRelationClick) {
-            { rel ->
-                val typeLabel = context.getString(rel.mediaType.labelRes())
-                onRelationClick(
-                    JikanSearchResult(
-                        malId = rel.malId,
-                        title = rel.title,
-                        subtitle = "${rel.relationType}, $typeLabel",
-                        type = rel.mediaType,
-                        total = null, score = null,
-                        isAdult = rel.isAdult,
-                        imageUrl = rel.imageUrl,
-                        year = null, realMalId = rel.malId,
-                        source = rel.source,
-                        titleEnglish = rel.titleEnglish,
-                        titleJapanese = rel.titleJapanese,
-                        titleRomaji = rel.titleRomaji,
-                        bangumiSubjectType = rel.bangumiSubjectType
-                    )
-                )
-            }
-        }
 
     val listState = rememberLazyListState()
     val tabListState = rememberLazyListState()
@@ -458,9 +347,7 @@ fun MediaEntryDetailPage(
     }
     val wikiPageIndex = if (wikiPrefs.enabled) tabs.size - 1 else -1
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
-    // NOT: pagerState.currentPage BURADA okunmaz. Okumak, sekme kaydırmasının
-    // ortasında (currentPage yarı yolda değiştiğinde) TÜM sayfanın recompose
-    // olmasına yol açıyordu. Okuma izole DetailTabLoadEffect alt ağacında.
+    val selectedTab = pagerState.currentPage
 
     // Yeni bir entry'ye geçildiğinde tab'ı sıfırla — geri tuşuyla dönüşlerde SIFIRLAMAZ.
     // lastProcessedTrigger, Composition'da yaşayan son işlenmiş trigger değerini saklar.
@@ -473,22 +360,21 @@ fun MediaEntryDetailPage(
         }
     }
 
-    // Call loadTab when tab changes.
-    // (2026-10-23 perf fix) currentPage okuması izole alt ağaca taşındı:
-    // sekme kaydırmasının ortasında currentPage değiştiğinde artık yalnızca
-    // bu küçük efekt composable'ı recompose olur, tüm sayfa değil.
-    DetailTabLoadEffect(
-        pagerState = pagerState,
-        wikiPageIndex = wikiPageIndex,
-        entry = displayEntry,
-        realMalId = detailState?.realMalId,
-        tmdbId = detailState?.tmdbId,
-        resolvedTmdbId = resolvedTmdbId,
-        detailIsNull = detailState == null,
-        viewModel = viewModel
-    )
-    // NOT: originalSynopsis → onSynopsisLoaded yayılımı artık OverviewTabSlot
-    // içinde (özet akışını yalnızca Bilgi sekmesi tüketir).
+    // Call loadTab when tab changes
+    LaunchedEffect(displayEntry.id, selectedTab, detailState?.realMalId, detailState?.tmdbId, resolvedTmdbId, detailState == null) {
+        if (selectedTab == wikiPageIndex) return@LaunchedEffect
+        detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
+            viewModel.loadTab(dataTabIndex, displayEntry, detailState?.realMalId)
+        }
+    }
+
+    // Propagate original synopsis back to UI if requested
+    LaunchedEffect(originalSynopsis) {
+        val synopsis = originalSynopsis
+        if (!synopsis.isNullOrBlank()) {
+            onSynopsisLoaded(synopsis)
+        }
+    }
 
     KitsugiPageEnter {
         DetailPageScaffold(
@@ -540,8 +426,12 @@ fun MediaEntryDetailPage(
                     onEditClick = onEditClick,
                     onDeleteClick = onDeleteClick,
                     onReadMangaClick = onReadMangaClick,
-                    onUnlinkMangaClick = onUnlinkManga,
-                    onGalleryOpen = openGallerySelection,
+                    onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
+                    onGalleryOpen = { items, idx ->
+                        activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
+                        if (!galleryLoading) activeGalleryItems = items
+                        activeGalleryIndex = idx
+                    },
                     leftPanelFocusRequester = lpFocus,
                     tabBarFocusRequester = tbFocus,
                     targetSeason = targetSeason
@@ -617,8 +507,12 @@ fun MediaEntryDetailPage(
                         onEditClick = onEditClick,
                         onDeleteClick = onDeleteClick,
                         onReadMangaClick = onReadMangaClick,
-                        onUnlinkMangaClick = onUnlinkManga,
-                        onGalleryOpen = openGallerySelection,
+                        onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
+                        onGalleryOpen = { items, idx ->
+                            activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
+                            if (!galleryLoading) activeGalleryItems = items
+                            activeGalleryIndex = idx
+                        },
                         leftPanelFocusRequester = lpFocus,
                         tabBarFocusRequester = tbFocus,
                         targetSeason = targetSeason
@@ -630,15 +524,27 @@ fun MediaEntryDetailPage(
                     MediaWikiTabSlot(
                         viewModel = wikiViewModel,
                         accentColor = accentColor,
-                        onOpenGallery = onWikiOpenGallery
+                        onOpenGallery = { items, index ->
+                            activeGalleryCategory = items.getOrNull(index)?.category ?: GalleryCategory.OTHER
+                            activeGalleryItems = items
+                            activeGalleryIndex = index
+                        }
                     )
                 } else when (page) {
                     0 -> {
-                        OverviewTabSlot(
-                            viewModel = viewModel,
+                        EntryDetailOverviewTab(
                             entry = displayEntry,
                             detail = detailState,
+                            synopsisState = displayedSynopsisState,
+                            originalSynopsis = originalSynopsis,
                             externalUrl = externalUrl,
+                            onSearchQuery = onSearchQuery,
+                            onStudioClick = onStudioClick,
+                            onStaffClick = onStaffClick,
+                            onMagazineClick = onMagazineClick,
+                            onGenreClick = onSearchByGenre,
+                            onTagClick = onSearchByTag,
+                            onSearchBySeason = onSearchBySeason,
                             preferredTranslator = preferredTranslator,
                             mdbListRatings = mdbListRatings,
                             mdbListLoading = mdbListLoading,
@@ -649,21 +555,25 @@ fun MediaEntryDetailPage(
                             mdbListShowLetterboxd = settingsState?.mdbListShowLetterboxd ?: mdbListShowLetterboxd,
                             mdbListShowTmdb = settingsState?.mdbListShowTmdb ?: mdbListShowTmdb,
                             mdbListShowTrakt = settingsState?.mdbListShowTrakt ?: mdbListShowTrakt,
-                            onSettingsClick = onIntegrationsClick,
-                            onSearchQuery = onSearchQuery,
-                            onStudioClick = onStudioClick,
-                            onStaffClick = onStaffClick,
-                            onMagazineClick = onMagazineClick,
-                            onGenreClick = onSearchByGenre,
-                            onTagClick = onSearchByTag,
-                            onSearchBySeason = onSearchBySeason,
-                            onImageGalleryRequest = onOverviewImageGalleryRequest,
-                            onGalleryItemRequest = onOverviewGalleryItemRequest,
-                            onTranslateClick = onOverviewTranslateClick,
-                            onToggleSynopsisOriginal = onToggleSynopsisOriginal,
+                            onSettingsClick = if (settingsDataStore != null) {
+                                { showIntegrationsDialog = true }
+                            } else null,
+                            onImageGalleryRequest = { urls, index ->
+                                if (!galleryLoading) activeGalleryItems = urls.map { url ->
+                                    GalleryItem(url = url, category = GalleryCategory.OTHER, source = "Açıklama")
+                                }
+                                activeGalleryIndex = index
+                            },
                             galleryItems = galleryItems,
                             galleryLoading = galleryLoading,
-                            onSynopsisLoaded = onSynopsisLoaded
+                            onGalleryItemRequest = { items, index ->
+                                if (!galleryLoading) activeGalleryItems = items
+                                activeGalleryIndex = index
+                            },
+                            onTranslateClick = { viewModel.translateSynopsis(displayEntry) },
+                            synopsisHasTranslation = synopsisHasTranslation,
+                            showSynopsisOriginal = showSynopsisOriginal,
+                            onToggleSynopsisOriginal = { viewModel.toggleSynopsisOriginal() }
                         )
                     }
                     1 -> {
@@ -677,9 +587,25 @@ fun MediaEntryDetailPage(
                                 DetailGalleryCard(
                                     items = galleryItems,
                                     isAdult = displayEntry.isAdult,
-                                    onItemClick = onImagesItemClick,
-                                    onOpenGallery = onImagesOpenGallery,
-                                    onOpenSourceGallery = onImagesOpenSourceGallery
+                                    onItemClick = { index ->
+                                        if (!galleryLoading) activeGalleryItems = galleryItems
+                                        activeGalleryIndex = index
+                                    },
+                                    onOpenGallery = { category ->
+                                        val startIndex = if (category == null) 0
+                                        else galleryItems.indexOfFirst { it.category == category }.coerceAtLeast(0)
+                                        activeGalleryCategory = category
+                                        if (!galleryLoading) activeGalleryItems = galleryItems
+                                        activeGalleryIndex = startIndex
+                                    },
+                                    onOpenSourceGallery = { source ->
+                                        val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
+                                        if (sourceItems.isNotEmpty()) {
+                                            activeGalleryCategory = sourceItems.first().category
+                                            if (!galleryLoading) activeGalleryItems = sourceItems
+                                            activeGalleryIndex = 0
+                                        }
+                                    }
                                 )
                             } else {
                                 // Galeri yüklenirken veya boşken bilgi mesajı
@@ -699,41 +625,68 @@ fun MediaEntryDetailPage(
                         }
                     }
                     2 -> {
-                        // currentPage burada (pager ITEM scope'unda) okunur: sayfa
-                        // geçişinde yalnızca bu item geçersiz olur, tüm sayfa değil.
-                        if (pagerState.currentPage == DETAIL_VIDEO_PAGE_INDEX) {
+                        if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
                             KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayEntry.title)
                         }
                     }
-                    3 -> CharactersTabSlot(
-                        viewModel = viewModel,
-                        onCharacterClick = onCharacterClick,
-                        onStaffClick = onStaffClick,
-                        onMediaClick = onMediaClick,
-                        titleLanguage = titleLanguage,
-                        staffNameLanguage = staffNameLanguage
-                    )
-                    4 -> StaffTabSlot(
-                        viewModel = viewModel,
-                        onStaffClick = onStaffClick,
-                        titleLanguage = titleLanguage,
-                        staffNameLanguage = staffNameLanguage
-                    )
-                    5 -> RecommendationsTabSlot(
-                        viewModel = viewModel,
-                        titleLanguage = titleLanguage,
-                        blurAdultMedia = blurAdultMedia,
-                        onRecommendationClick = onRelationItemClick
-                    )
-                    6 -> RelationsTabSlot(
-                        viewModel = viewModel,
-                        titleLanguage = titleLanguage,
-                        blurAdultMedia = blurAdultMedia,
-                        onRelationClick = onRelationItemClick
-                    )
-                    7 -> StatsTabSlot(viewModel = viewModel)
-                    8 -> ReviewsTabSlot(
-                        viewModel = viewModel,
+                    3 -> {
+                        val charactersState by viewModel.charactersState.collectAsState()
+                        CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
+                    }
+                    4 -> {
+                        val staffState by viewModel.staffState.collectAsState()
+                        StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
+                    }
+                    5 -> {
+                        val recommendationsState by viewModel.recommendationsState.collectAsState()
+                        RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
+                        val typeLabel = context.getString(rel.mediaType.labelRes())
+                        onRelationClick(JikanSearchResult(
+                            malId = rel.malId,
+                            title = rel.title,
+                            subtitle = "${rel.relationType}, $typeLabel",
+                            type = rel.mediaType,
+                            total = null, score = null,
+                            isAdult = rel.isAdult,
+                            imageUrl = rel.imageUrl,
+                            year = null, realMalId = rel.malId,
+                            source = rel.source,
+                            titleEnglish = rel.titleEnglish,
+                            titleJapanese = rel.titleJapanese,
+                            titleRomaji = rel.titleRomaji,
+                            bangumiSubjectType = rel.bangumiSubjectType
+                        ))
+                    })
+                    }
+                    6 -> {
+                        val relationsState by viewModel.relationsState.collectAsState()
+                        RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
+                        val typeLabel = context.getString(rel.mediaType.labelRes())
+                        onRelationClick(JikanSearchResult(
+                            malId = rel.malId,
+                            title = rel.title,
+                            subtitle = "${rel.relationType}, $typeLabel",
+                            type = rel.mediaType,
+                            total = null, score = null,
+                            isAdult = rel.isAdult,
+                            imageUrl = rel.imageUrl,
+                            year = null, realMalId = rel.malId,
+                            source = rel.source,
+                            titleEnglish = rel.titleEnglish,
+                            titleJapanese = rel.titleJapanese,
+                            titleRomaji = rel.titleRomaji,
+                            bangumiSubjectType = rel.bangumiSubjectType
+                        ))
+                    })
+                    }
+                    7 -> {
+                        val statsState by viewModel.statsState.collectAsState()
+                        StatsTabContent(state = statsState)
+                    }
+                    8 -> {
+                        val reviewsState by viewModel.reviewsState.collectAsState()
+                        ReviewsTabContent(
+                        state = reviewsState,
                         source = displayEntry.source,
                         externalId = if (displayEntry.source.equals("simkl", true)) {
                             displayEntry.simklId?.takeIf { it > 0 } ?: displayEntry.id
@@ -753,15 +706,23 @@ fun MediaEntryDetailPage(
                         titleLanguage = titleLanguage,
                         onUserProfileClick = onUserProfileClick,
                         preferredTranslator = preferredTranslator
-                    )
+                        )
+                    }
                     9 -> {
-                        EpisodesTabSlot(
-                            viewModel = viewModel,
+                        val episodesState by viewModel.episodesState.collectAsState()
+                        val episodeRatings by viewModel.episodeRatings.collectAsState()
+                        EntryDetailEpisodesTab(
                             entry = displayEntry,
                             detailState = detailState,
+                            state = episodesState,
+                            episodeRatings = episodeRatings,
                             targetSeason = targetSeason,
-                            onSeasonSelected = onSeasonSelected,
-                            onEpisodeOptionsRequested = onEpisodeOptionsRequested
+                            onSeasonSelected = { newSeason ->
+                                viewModel.setTargetSeason(newSeason, displayEntry)
+                            },
+                            onEpisodeOptionsRequested = { episode ->
+                                activeEpisodeForOptions = episode
+                            }
                         )
                     }
                 }
@@ -774,15 +735,12 @@ fun MediaEntryDetailPage(
             KitsugiImageGalleryDialog(
                 galleryItems = activeGalleryItems,
                 initialIndex = activeGalleryIndex,
-                initialCategory = if (activeGallerySource != null) null
-                    else activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
-                initialSource = activeGallerySource,
+                initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
                 title = displayEntry.title,
                 isAdult = displayEntry.isAdult,
-                onDismiss = {
+                onDismiss = { 
                     activeGalleryItems = emptyList()
                     activeGalleryCategory = null
-                    activeGallerySource = null
                 }
             )
         }
@@ -853,240 +811,3 @@ internal fun scoreText(entry: MediaEntry): String {
 }
 
 
-
-// ─── Sekme Slotları (2026-10-23 kaydırma performans fix) ───────────────────
-// Her sekme kendi StateFlow'larını KENDİ scope'unda toplar. Bir sekmenin verisi
-// geldiğinde / akışı emisyon verdiğinde yalnızca o sekmenin alt ağacı geçersiz
-// olur; sayfa gövdesi, sol panel ve diğer sekmeler recompose EDİLMEZ.
-// Slot parametrelerinin tamamı stabilize edildiği için (remember edilmiş
-// lambda'lar + data class'lar) Compose sekme içeriklerini gereksiz yere baştan
-// kurmaz.
-
-/** currentPage okumasını izole eden alt ağaç: sekme geçişinde tüm sayfa değil yalnızca bu efekt recompose olur. */
-@Composable
-private fun DetailTabLoadEffect(
-    pagerState: androidx.compose.foundation.pager.PagerState,
-    wikiPageIndex: Int,
-    entry: MediaEntry,
-    realMalId: Int?,
-    tmdbId: Int?,
-    resolvedTmdbId: Int?,
-    detailIsNull: Boolean,
-    viewModel: MediaEntryDetailViewModel
-) {
-    val selectedTab = pagerState.currentPage
-    LaunchedEffect(entry.id, selectedTab, realMalId, tmdbId, resolvedTmdbId, detailIsNull) {
-        if (selectedTab == wikiPageIndex) return@LaunchedEffect
-        detailDataTabIndexForPage(selectedTab)?.let { dataTabIndex ->
-            viewModel.loadTab(dataTabIndex, entry, realMalId)
-        }
-    }
-}
-
-@Composable
-private fun OverviewTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    entry: MediaEntry,
-    detail: KitsugiMediaDetail?,
-    externalUrl: String?,
-    preferredTranslator: String,
-    mdbListRatings: com.kitsugi.animelist.data.remote.MdbListRatings?,
-    mdbListLoading: Boolean,
-    mdbListShowImdb: Boolean,
-    mdbListShowTomatoes: Boolean,
-    mdbListShowMetacritic: Boolean,
-    mdbListShowAudience: Boolean,
-    mdbListShowLetterboxd: Boolean,
-    mdbListShowTmdb: Boolean,
-    mdbListShowTrakt: Boolean,
-    onSettingsClick: (() -> Unit)?,
-    onSearchQuery: (String) -> Unit,
-    onStudioClick: (Int, String, String?, String?) -> Unit,
-    onStaffClick: (Int, String, String?, String?) -> Unit,
-    onMagazineClick: (Int, String) -> Unit,
-    onGenreClick: (String) -> Unit,
-    onTagClick: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit,
-    onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit,
-    onImageGalleryRequest: (List<String>, Int) -> Unit,
-    onGalleryItemRequest: (List<GalleryItem>, Int) -> Unit,
-    onTranslateClick: () -> Unit,
-    onToggleSynopsisOriginal: () -> Unit,
-    galleryItems: List<GalleryItem>,
-    galleryLoading: Boolean,
-    onSynopsisLoaded: (String) -> Unit
-) {
-    val synopsisState by viewModel.synopsisState.collectAsState()
-    val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
-    val originalSynopsis by viewModel.originalSynopsis.collectAsState()
-    val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
-    // Orijinal / çeviri geçişi: orijinal gösterilirken özet ham metniyle verilir.
-    val synopsisHasTranslation = translatedSynopsis != null && translatedSynopsis != originalSynopsis
-    val displayedSynopsisState = run {
-        val raw = originalSynopsis
-        if (showSynopsisOriginal && !raw.isNullOrBlank()) SynopsisState.Success(raw) else synopsisState
-    }
-    // Propagate original synopsis back to UI if requested
-    LaunchedEffect(originalSynopsis) {
-        val synopsis = originalSynopsis
-        if (!synopsis.isNullOrBlank()) {
-            onSynopsisLoaded(synopsis)
-        }
-    }
-    EntryDetailOverviewTab(
-        entry = entry,
-        detail = detail,
-        synopsisState = displayedSynopsisState,
-        originalSynopsis = originalSynopsis,
-        externalUrl = externalUrl,
-        onSearchQuery = onSearchQuery,
-        onStudioClick = onStudioClick,
-        onStaffClick = onStaffClick,
-        onMagazineClick = onMagazineClick,
-        onGenreClick = onGenreClick,
-        onTagClick = onTagClick,
-        onSearchBySeason = onSearchBySeason,
-        preferredTranslator = preferredTranslator,
-        mdbListRatings = mdbListRatings,
-        mdbListLoading = mdbListLoading,
-        mdbListShowImdb = mdbListShowImdb,
-        mdbListShowTomatoes = mdbListShowTomatoes,
-        mdbListShowMetacritic = mdbListShowMetacritic,
-        mdbListShowAudience = mdbListShowAudience,
-        mdbListShowLetterboxd = mdbListShowLetterboxd,
-        mdbListShowTmdb = mdbListShowTmdb,
-        mdbListShowTrakt = mdbListShowTrakt,
-        onSettingsClick = onSettingsClick,
-        onImageGalleryRequest = onImageGalleryRequest,
-        galleryItems = galleryItems,
-        galleryLoading = galleryLoading,
-        onGalleryItemRequest = onGalleryItemRequest,
-        onTranslateClick = onTranslateClick,
-        synopsisHasTranslation = synopsisHasTranslation,
-        showSynopsisOriginal = showSynopsisOriginal,
-        onToggleSynopsisOriginal = onToggleSynopsisOriginal
-    )
-}
-
-@Composable
-private fun CharactersTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    onCharacterClick: (KitsugiCharacter) -> Unit,
-    onStaffClick: (Int, String, String?, String?) -> Unit,
-    onMediaClick: (Int, String, String) -> Unit,
-    titleLanguage: String,
-    staffNameLanguage: String
-) {
-    val state by viewModel.charactersState.collectAsState()
-    CharactersTabContent(
-        state = state,
-        onCharacterClick = onCharacterClick,
-        onStaffClick = onStaffClick,
-        onMediaClick = onMediaClick,
-        titleLanguage = titleLanguage,
-        staffNameLanguage = staffNameLanguage
-    )
-}
-
-@Composable
-private fun StaffTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    onStaffClick: (Int, String, String?, String?) -> Unit,
-    titleLanguage: String,
-    staffNameLanguage: String
-) {
-    val state by viewModel.staffState.collectAsState()
-    StaffTabContent(
-        state = state,
-        onStaffClick = onStaffClick,
-        titleLanguage = titleLanguage,
-        staffNameLanguage = staffNameLanguage
-    )
-}
-
-@Composable
-private fun RecommendationsTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    titleLanguage: String,
-    blurAdultMedia: Boolean,
-    onRecommendationClick: (com.kitsugi.animelist.data.remote.KitsugiRelation) -> Unit
-) {
-    val state by viewModel.recommendationsState.collectAsState()
-    RecommendationsTabContent(
-        state = state,
-        titleLanguage = titleLanguage,
-        blurAdultMedia = blurAdultMedia,
-        onRecommendationClick = onRecommendationClick
-    )
-}
-
-@Composable
-private fun RelationsTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    titleLanguage: String,
-    blurAdultMedia: Boolean,
-    onRelationClick: (com.kitsugi.animelist.data.remote.KitsugiRelation) -> Unit
-) {
-    val state by viewModel.relationsState.collectAsState()
-    RelationsTabContent(
-        state = state,
-        titleLanguage = titleLanguage,
-        blurAdultMedia = blurAdultMedia,
-        onRelationClick = onRelationClick
-    )
-}
-
-@Composable
-private fun StatsTabSlot(viewModel: MediaEntryDetailViewModel) {
-    val state by viewModel.statsState.collectAsState()
-    StatsTabContent(state = state)
-}
-
-@Composable
-private fun ReviewsTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    source: String,
-    externalId: Int,
-    mediaType: MediaType,
-    apiClient: JikanApiClient,
-    tmdbId: Int?,
-    realMalId: Int?,
-    titleLanguage: String,
-    onUserProfileClick: (Int, String, String?, String) -> Unit,
-    preferredTranslator: String
-) {
-    val state by viewModel.reviewsState.collectAsState()
-    ReviewsTabContent(
-        state = state,
-        source = source,
-        externalId = externalId,
-        mediaType = mediaType,
-        apiClient = apiClient,
-        tmdbId = tmdbId,
-        realMalId = realMalId,
-        titleLanguage = titleLanguage,
-        onUserProfileClick = onUserProfileClick,
-        preferredTranslator = preferredTranslator
-    )
-}
-
-@Composable
-private fun EpisodesTabSlot(
-    viewModel: MediaEntryDetailViewModel,
-    entry: MediaEntry,
-    detailState: KitsugiMediaDetail?,
-    targetSeason: Int?,
-    onSeasonSelected: (Int) -> Unit,
-    onEpisodeOptionsRequested: (KitsugiStreamingEpisode) -> Unit
-) {
-    val state by viewModel.episodesState.collectAsState()
-    val episodeRatings by viewModel.episodeRatings.collectAsState()
-    EntryDetailEpisodesTab(
-        entry = entry,
-        detailState = detailState,
-        state = state,
-        episodeRatings = episodeRatings,
-        targetSeason = targetSeason,
-        onSeasonSelected = onSeasonSelected,
-        onEpisodeOptionsRequested = onEpisodeOptionsRequested
-    )
-}

@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
-import com.kitsugi.animelist.utils.MediaTitleResolver
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.model.MediaEntry
 import kotlinx.coroutines.async
@@ -23,48 +22,6 @@ private data class SimklTrendingCacheEntry(
     val fetchedAtMillis: Long,
     val items: List<JikanSearchResult>
 )
-
-/**
- * Simkl başlık alanlarını Türkçe → İngilizce → Romaji zinciriyle çözer.
- *
- * Simkl `title` alanı bazı kayıtlarda doğrudan Japonca/Çince gelebilir. Bu
- * durumda sırasıyla `title_en`/`en_title`, `title_romaji` ve Latin orijinal
- * başlık denenir; ekranlarda CJK başlık görünmesi engellenir.
- */
-internal fun resolveSimklTitle(obj: JSONObject): String {
-    val raw = obj.optString("title", "")
-    val english = MediaTitleResolver.nonBlank(
-        obj.optString("title_en"),
-        obj.optString("en_title"),
-        obj.optString("title_english")
-    )
-    val romaji = MediaTitleResolver.nonBlank(
-        obj.optString("title_romaji"),
-        obj.optString("romaji")
-    )
-    val native = MediaTitleResolver.nonBlank(
-        obj.optString("title_native"),
-        obj.optString("ja_title"),
-        obj.optString("title_japanese")
-    )
-    return MediaTitleResolver.resolve(
-        localized = MediaTitleResolver.latin(raw),
-        english = english,
-        romaji = romaji,
-        original = native ?: raw
-    )
-}
-
-/** Simkl kaydındaki yerel (Japonca/Çince/Korece) başlık — yoksa null. */
-internal fun simklNativeTitle(obj: JSONObject): String? {
-    val native = MediaTitleResolver.nonBlank(
-        obj.optString("title_native"),
-        obj.optString("ja_title"),
-        obj.optString("title_japanese"),
-        obj.optString("title")
-    )
-    return native?.takeIf { MediaTitleResolver.hasCjk(it) }
-}
 
 /**
  * Simkl yanıtlarındaki kimlik alanlarını okur. Değerler sayı **ya da metin**
@@ -107,7 +64,8 @@ internal fun parseBestMediaArray(
     val results = mutableListOf<JikanSearchResult>()
     for (i in 0 until minOf(array.length(), limit)) {
         val obj = array.optJSONObject(i) ?: continue
-        val title = resolveSimklTitle(obj)
+        val titles = resolveSimklTitleVariants(obj)
+        val title = titles.display
         if (title.isBlank()) continue
         val ids = obj.optJSONObject("ids")
         val simklId = simklOptionalId(ids, "simkl_id", "simkl") ?: (i + 1)
@@ -152,8 +110,9 @@ internal fun parseBestMediaArray(
                 year = year,
                 source = "simkl",
                 realMalId = malId.takeIf { it > 0 },
-                titleEnglish = title,
-                titleJapanese = simklNativeTitle(obj),
+                titleEnglish = titles.english,
+                titleRomaji = titles.romaji,
+                titleJapanese = titles.native,
                 backdropUrl = backdropUrl,
                 tmdbId = tmdbId
             )
@@ -165,7 +124,7 @@ internal fun parseBestMediaArray(
 class SimklApiClient(
     private val clientMap: Map<String, String>? = null
 ) {
-    private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.syncClient
+    private val client = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
 
     // ── Resmî saniyelik limitler (api.simkl.org/resources/rate-limits) ─────────
     // 10 GET/sn ve 1 POST/sn (client_id + kullanıcı token'ı). GET aşımı 429;
@@ -250,7 +209,9 @@ class SimklApiClient(
             "tv", "shows", "series" -> "tv"
             else -> "anime"
         }
-        val url = "https://api.simkl.com/search/$endpoint?q=$encoded&$requiredQueryParams&page=${page.coerceAtLeast(1)}&limit=$limit"
+        // Anime'nin ayrı `title_en` / `title_romaji` alanları yalnızca full yanıtta garanti
+        // edilir. Her kart için ayrı summary isteği atmadan seçili başlık dilini besler.
+        val url = "https://api.simkl.com/search/$endpoint?q=$encoded&$requiredQueryParams&extended=full&page=${page.coerceAtLeast(1)}&limit=$limit"
         val request = jsonRequest(url)
 
         return try {
@@ -267,7 +228,8 @@ class SimklApiClient(
 
                 for (i in 0 until minOf(jsonArray.length(), limit)) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
+                    val titles = resolveSimklTitleVariants(obj)
+                    val title = titles.display
                     val ids = obj.optJSONObject("ids") ?: continue
 
                     val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
@@ -306,8 +268,9 @@ class SimklApiClient(
                             year = if (year > 0) year else null,
                             source = "simkl",
                             realMalId = if (malId > 0) malId else null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
+                            titleEnglish = titles.english,
+                            titleRomaji = titles.romaji,
+                            titleJapanese = titles.native,
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -511,7 +474,8 @@ class SimklApiClient(
         val results = mutableListOf<JikanSearchResult>()
         for (i in 0 until minOf(jsonArray.length(), limit)) {
             val obj = jsonArray.getJSONObject(i)
-            val title = resolveSimklTitle(obj)
+            val titles = resolveSimklTitleVariants(obj)
+            val title = titles.display
             val ids = obj.optJSONObject("ids") ?: continue
             val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 } ?: ids.optInt("simkl", 0)
             if (simklId <= 0) continue
@@ -544,8 +508,9 @@ class SimklApiClient(
                     year = if (year > 0) year else null,
                     source = "simkl",
                     realMalId = if (malId > 0) malId else null,
-                    titleEnglish = title,
-                    titleJapanese = simklNativeTitle(obj),
+                    titleEnglish = titles.english,
+                    titleRomaji = titles.romaji,
+                    titleJapanese = titles.native,
                     tmdbId = if (tmdbId > 0) tmdbId else null
                 )
             )
@@ -576,7 +541,8 @@ class SimklApiClient(
 
                 for (i in 0 until minOf(jsonArray.length(), 500)) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
+                    val titles = resolveSimklTitleVariants(obj)
+                    val title = titles.display
                     val ids = obj.optJSONObject("ids") ?: continue
 
                     // CDN response'unda ids iÃ§inde "simkl_id" veya "simkl" olabilir (NyanTV referans)
@@ -620,8 +586,9 @@ class SimklApiClient(
                             year = if (year > 0) year else null,
                             source = "simkl",
                             realMalId = if (malId > 0) malId else null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
+                            titleEnglish = titles.english,
+                            titleRomaji = titles.romaji,
+                            titleJapanese = titles.native,
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -651,7 +618,8 @@ class SimklApiClient(
 
                 for (i in 0 until minOf(jsonArray.length(), 20)) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
+                    val titles = resolveSimklTitleVariants(obj)
+                    val title = titles.display
                     val ids = obj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl", 0)
                     val tmdbId = ids.optInt("tmdb", 0)
@@ -671,8 +639,9 @@ class SimklApiClient(
                             year = if (year > 0) year else null,
                             source = "simkl",
                             realMalId = null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
+                            titleEnglish = titles.english,
+                            titleRomaji = titles.romaji,
+                            titleJapanese = titles.native,
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -712,7 +681,8 @@ class SimklApiClient(
 
                 for (i in 0 until jsonArray.length()) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = resolveSimklTitle(obj)
+                    val titles = resolveSimklTitleVariants(obj)
+                    val title = titles.display
                     val typeStr = obj.optString("type", "")
                     val ids = obj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl", 0)
@@ -740,8 +710,9 @@ class SimklApiClient(
                             year = if (year > 0) year else null,
                             source = "simkl",
                             realMalId = ids.optInt("mal", 0).takeIf { it > 0 },
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
+                            titleEnglish = titles.english,
+                            titleRomaji = titles.romaji,
+                            titleJapanese = titles.native,
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -854,7 +825,8 @@ class SimklApiClient(
                     val simklId = ids.optInt("simkl", 0).takeIf { it > 0 } ?: continue
                     val tmdbId = ids.optInt("tmdb", 0)
                     val malId = ids.optInt("mal", 0)
-                    val title = resolveSimklTitle(mediaObj)
+                    val titles = resolveSimklTitleVariants(mediaObj)
+                    val title = titles.display
                     val poster = mediaObj.optString("poster", "")
                     val year = mediaObj.optInt("year", 0)
                     val status = entry.optString("status", "")
@@ -881,8 +853,9 @@ class SimklApiClient(
                             year = if (year > 0) year else null,
                             source = "simkl",
                             realMalId = if (malId > 0) malId else null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(mediaObj),
+                            titleEnglish = titles.english,
+                            titleRomaji = titles.romaji,
+                            titleJapanese = titles.native,
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -927,9 +900,7 @@ class SimklApiClient(
     /**
      * Listeye iÃ§erik ekler veya durumunu gÃ¼nceller.
      * type: "shows" veya "movies" veya "anime"
-     * status: "watching", "plantowatch", "completed", "hold", "notinteresting"
-     * ("dropped" Simkl sözleşmesinde GEÇERSİZDİR — bkz. E81;
-     *  SimklSyncContract.normalizeListStatus son emniyet olarak çevirir.)
+     * status: "watching", "plantowatch", "completed", "hold", "dropped"
      * NyanTV referans: POST /sync/add-to-list
      */
     suspend fun addToList(
@@ -1581,7 +1552,8 @@ class SimklApiClient(
                     val ids   = obj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
                         ?: ids.optInt("simkl", 0).takeIf { it > 0 } ?: continue
-                    val title = resolveSimklTitle(obj)
+                    val titles = resolveSimklTitleVariants(obj)
+                    val title = titles.display
                     val poster = obj.optString("poster", "")
                     val year  = obj.optInt("year", 0)
                     val tmdbId = ids.optInt("tmdb", 0)
@@ -1605,8 +1577,9 @@ class SimklApiClient(
                             year = if (year > 0) year else null,
                             source = "simkl",
                             realMalId = null,
-                            titleEnglish = title,
-                            titleJapanese = simklNativeTitle(obj),
+                            titleEnglish = titles.english,
+                            titleRomaji = titles.romaji,
+                            titleJapanese = titles.native,
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )

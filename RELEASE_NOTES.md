@@ -1,5 +1,65 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.358
+
+## 🇹🇷 Türkçe
+
+### 📋 Listem Sıralaması — Kaynak Bazlı Eklenme Zamanı ve Deterministik Sıralama
+- **Simkl Gerçek Eklenme Zamanı:** Simkl `/sync/all-items` yanıtındaki `added_to_watchlist_at` alanı `addedAt` alanına bağlandı. Önceden `last_watched_at` kullanıldığı için izlenen herhangi bir bölüm diziyi "listeye yeni eklenmiş" gibi en üste taşıyordu; artık gerçek eklenme anı korunuyor.
+- **Bilinmeyen Kovası Onarımı (`repairMissingAddedAt`):** Listem açılışında `addedAt` boş ancak `updatedAt` dolu olan satırlar tek geçişte damgalanır. Böylece yapımların "Eklenme Tarihi Bilinmiyor" kovasına rastgele yığılması engellenir. Düzeltilecek satır yoksa veritabanına gereksiz yazım yapılmaz.
+- **Deterministik "Son Eklenen / İlk Eklenen" Sıralaması:**
+  - Zaman damgası bilinmeyen kayıtlar her iki yönde de listenin **en sonunda** yer alır.
+  - Tarihsiz kayıtlar kendi aralarında yerel ID karmaşasına kapılmadan **başlığa göre alfabetik** sıralanır.
+  - `updatedAt` artık eklenme sıralamasını bozan bir ikincil kırıcı olarak kullanılmaz.
+- **Ortak Çözümleyici (`effectiveAddedSeconds`):** Hem sıralama motoru hem de dönem başlıkları aynı çözümleyiciyi kullanır; aynı kayıt bir sekmede tarihli iken "Tümü" sekmesinde bilinmiyor olamaz.
+- **"Tümü" Kartı İlk Giriş Zamanı:** Birleşik kartlarda kopyalar arasındaki en erken bilinen eklenme anı (yapımın kütüphaneye ilk giriş anı) temel alınır.
+
+### 🔤 Simkl İngilizce Başlıklar & Genişletilmiş Varyantlar
+- **Genişletilmiş Başlık Ayrıştırıcı (`SimklTitleVariants`):** Metin aramalarına `extended=full` parametresi eklendi. İngilizce, Romaji ve Japonca başlıklar bağımsız olarak çözümlenir ve korunur.
+- **Doğru Başlık Önceliği:** Ham Romaji başlığın `titleEnglish` alanına yazılması ve JSON `"null"` dizgilerinin başlık olarak gösterilmesi engellendi.
+
+### ⚡ Detay Sayfası Performans & Akıcılık İyileştirmeleri
+- **İzole Sekme Abonelikleri:** Karakter, ekip, ilişki, öneri ve bölüm StateFlow abonelikleri yalnızca ilgili pager sayfasına taşındı; arka plan güncellemelerinin tüm detay sayfasını yeniden kompoze etmesi engellendi.
+- **Swipe Ölçüm İyileştirmesi:** Pager yüksekliğinin her swipe karesinde interpolasyon ve sınırsız-yükseklik ölçümü yapması kaldırıldı; kaydırma takılmaları giderildi.
+- **Kademeli Yükleme (`DetailIncrementalList`):** Karakter, ekip, öneri ve ilişki listeleri ilk 12 öğeyle açılır; devamı "Daha Fazla Yükle" butonuyla yüklenerek ilk kare render süresi hızlandırıldı.
+- **Donanım Hızlandırmalı Görseller:** Hero görsellerinde hardware bitmap etkinleştirildi (bitmap-blur yollarında software bitmap güvenliği korundu).
+- **Hemen Açılan Sayfalar:** TMDB/Fanart hero görsel çözümlemesi arka plana taşınarak birincil detay hazır olduğu anda sayfanın anında açılması sağlandı. Liste kaydı taramaları `remember` ile memoize edildi.
+
+### 🏢 Bangumi Kurum & Organizasyon Desteği
+- **Güvenilir Kurum Yüklemesi (`BangumiOrganizationFallback`):** Stüdyo, yapımcı, yayıncı, ağ ve dergi detayları resmî v0 person/detail ve subjects uçlarıyla birincil olarak yüklenir; deneysel p1 eksik yapımları tamamlayan yedek olarak konumlandırıldı.
+- **Grup ve Organizasyonlar:** Type-3 (grup/organizasyon) kayıtları desteklendi; p1 infobox'undaki `k` alt anahtarları ve ad varyantları indekslendi.
+
+---
+
+## 🇬🇧 English
+
+### 📋 My List Sorting — Source-Based Added Timestamp & Deterministic Order
+- **Simkl True Added Timestamp:** Now reads `added_to_watchlist_at` from `/sync/all-items`. Previously `last_watched_at` was used as a proxy, which erroneously pushed watched series to the top of "Recently Added"; actual addition time is now preserved.
+- **Unknown Bucket Self-Healing (`repairMissingAddedAt`):** Rows with missing `addedAt` but valid `updatedAt` are stamped in a single pass on opening My List, preventing entries from accumulating in the "Unknown Date" bucket. No unnecessary database writes are performed when no repair is needed.
+- **Deterministic "Recently Added / Oldest Added" Sorting:**
+  - Items with unknown timestamps are placed at the **end of the list** in both sort directions.
+  - Undated entries are sorted **alphabetically by title**, eliminating provider ID collisions across sources.
+  - `updatedAt` no longer interferes with added-date ordering.
+- **Unified Resolver (`effectiveAddedSeconds`):** Both sort comparators and section headers use the same resolver; an entry will never appear dated in one tab while classified as "Unknown" in "All".
+- **Composite "All" Card Earliest Entry:** Combined media cards use the earliest known addition timestamp among provider copies (the exact moment the title first entered the library).
+
+### 🔤 Simkl English Titles & Expanded Variants
+- **Title Variants Parser (`SimklTitleVariants`):** Added `extended=full` to text searches. English, Romaji, and native titles are parsed and preserved independently.
+- **Title Accuracy:** Prevents raw Romaji from copying into `titleEnglish` and filters out JSON `"null"` strings.
+
+### ⚡ Media Detail Page Performance Optimizations
+- **Isolated StateFlow Subscriptions:** Tab subscriptions are localized to active pager pages, preventing background data updates from re-composing the entire scaffold.
+- **Swipe Measurement Optimization:** Removed per-frame height interpolation during horizontal pager swipes, eliminating unconstrained layout passes.
+- **Incremental Tab Lists (`DetailIncrementalList`):** Characters, staff, recommendations, and relations load the first 12 items upfront with "Load More", reducing initial frame composition overhead.
+- **Hardware-Accelerated Bitmaps:** Enabled hardware bitmaps for direct hero artwork while maintaining software bitmaps for blur effects.
+- **Instant Page Display:** Offloaded TMDB/Fanart artwork preloading to the background so primary detail pages render instantly. Memoized entry lookup scans.
+
+### 🏢 Bangumi Organization & Studio Enhancements
+- **Reliable Fallback Architecture (`BangumiOrganizationFallback`):** Studios, producers, publishers, networks, and magazines load primarily via official v0 person/detail endpoints with p1 serving as a fallback for missing works.
+- **Groups & Organizations:** Added type-3 (group/organization) support; indexed `k` subkeys in p1 infobox for comprehensive alias resolution.
+
+---
+
 # Kitsugi Beta v2.4.357
 
 ## 🇹🇷 Türkçe

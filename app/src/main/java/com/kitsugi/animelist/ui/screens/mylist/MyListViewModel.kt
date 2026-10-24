@@ -85,6 +85,10 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
             // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
+            // Eski/boş `addedAt` satırlarını eldeki tek zaman damgasıyla onar: aksi halde
+            // MAL/Bangumi gibi kaynaklarda eklenme zamanı vermeyen satırlar Listem'in
+            // "Eklenme Tarihi Bilinmiyor" kovasında birikip sıralamayı çorbaya çeviriyordu.
+            repairMissingAddedAt(dao)
         }
 
         // Bangumi koleksiyonundan içe aktarılan satırlar YALNIZCA özgün (Japonca/Çince)
@@ -149,6 +153,38 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             }
             dao.update(entity.copy(subtitle = fixedSubtitle))
         }
+    }
+
+    /**
+     * `addedAt` alanı boş kalmış satırları onarır (tek yerden, tek yazımla).
+     *
+     * Neden gerekli: "Son eklenen" sıralaması ve dönem başlıkları `addedAt`e bakar.
+     * Alan v30 göçünde dolduruldu, ama o göçten sonra farklı yazma yollarından
+     * (yedek geri yükleme, çapraz eşitlemenin kardeş satır aynası, çok eski
+     * sürümlerden kalan 0 damgalı satırlar) geçen kayıtlar 0 kalabiliyor. Kaynak
+     * eklenme zamanı vermiyorsa (MAL, Bangumi) elimizdeki tek zaman damgası
+     * `updatedAt`'tir; bu, gerçek eklenme anının bir yaklaşığıdır ama satırın
+     * "bilinmiyor" kovasına düşüp sıralamayı bozmasından iyidir.
+     *
+     * Yalnızca `addedAt = 0` + `updatedAt > 0` satırlara dokunur, topluca tek
+     * `updateAll` çağrısı yapar ve düzeltilecek satır yoksa HİÇ yazmaz (Room
+     * invalidation / gereksiz yeniden hesaplama olmasın).
+     */
+    private suspend fun repairMissingAddedAt(
+        dao: com.kitsugi.animelist.data.local.MediaEntryDao
+    ) {
+        val rows = runCatching { dao.getAll() }.getOrNull() ?: return
+        if (rows.isEmpty()) return
+        val repaired = rows.mapNotNull { row ->
+            if (row.addedAt > 0L) return@mapNotNull null
+            // Bangumi milisaniye yazar; normalize edilmeden `addedAt`e kopyalanırsa
+            // satır ×1000 ile her zaman en üste çıkardı.
+            val fallback = com.kitsugi.animelist.model.normalizeToEpochSeconds(row.updatedAt)
+            if (fallback <= 0L) null else row.copy(addedAt = fallback)
+        }
+        if (repaired.isEmpty()) return
+        runCatching { dao.updateAll(repaired) }
+            .onFailure { android.util.Log.w("MyListViewModel", "addedAt onarımı atlandı: ${it.message}") }
     }
 
     private suspend fun repairMisclassifiedSources(

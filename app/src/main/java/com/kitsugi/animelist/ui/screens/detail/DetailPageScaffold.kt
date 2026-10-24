@@ -312,6 +312,17 @@ fun DetailPageScaffold(
                                 // ── Sekme İçerikleri ──
                                 item(key = "content") {
                                     val pageHeights = remember { mutableStateMapOf<Int, Int>() }
+                                    val currentPage = pagerState.currentPage
+                                    val currentHeightPx = pageHeights[currentPage] ?: 0
+                                    // Swipe fraction'ı burada OKUNMAZ. Önceki interpolasyon her kaydırma
+                                    // karesinde layout'u geçersiz kılıyor ve sınırsız-yükseklik ölçümünü
+                                    // bütün aktif sekme için tekrarlatıyordu. Yükseklik yalnızca gerçek
+                                    // içerik / seçili sayfa değişiminde güncellenir.
+                                    val currentHeightDp = if (currentHeightPx > 0) {
+                                        with(density) { currentHeightPx.toDp() }
+                                    } else {
+                                        null
+                                    }
                                     val screenHeightDp = LocalConfiguration.current.screenHeightDp
 
                                     HorizontalPager(
@@ -323,25 +334,6 @@ fun DetailPageScaffold(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .layout { measurable, constraints ->
-                                                // KARE-BAŞINA COMPOSE YOK (2026-10-23 perf fix):
-                                                // pager ofseti ve ölçülen sayfa yükseklikleri
-                                                // YALNIZCA layout fazında okunur. Compose faz
-                                                // sözleşmesine göre layout fazındaki state
-                                                // okuması yalnızca bu düğümü yeniden ölçer /
-                                                // biçimler; sayfa içeriklerini recompose ETMEZ.
-                                                // Eski yapı ofseti composition'da okuyordu ve
-                                                // her kaydırma karesinde pager'ı BARINDIRAN
-                                                // LazyColumn item'ını (dolayısıyla görünür sayfa
-                                                // içeriklerini) baştan kompoze ediyordu.
-                                                val currentPage = pagerState.currentPage
-                                                val pageOffset = pagerState.currentPageOffsetFraction
-                                                val targetPage = when {
-                                                    pageOffset > 0f -> currentPage + 1
-                                                    pageOffset < 0f -> currentPage - 1
-                                                    else -> currentPage
-                                                }
-                                                val currentHeightPx = pageHeights[currentPage] ?: 0
-                                                val targetHeightPx = pageHeights[targetPage] ?: currentHeightPx
                                                 val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
                                                 val placeable = measurable.measure(
                                                     constraints.copy(
@@ -349,17 +341,9 @@ fun DetailPageScaffold(
                                                         maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                                                     )
                                                 )
-                                                val interpolatedHeightPx = when {
-                                                    currentHeightPx > 0 && targetHeightPx > 0 ->
-                                                        currentHeightPx + (targetHeightPx - currentHeightPx) * kotlin.math.abs(pageOffset)
-                                                    currentHeightPx > 0 -> currentHeightPx.toFloat()
-                                                    else -> 0f
-                                                }
-                                                val height = (if (interpolatedHeightPx > 0f) {
-                                                    kotlin.math.round(interpolatedHeightPx).toInt().coerceAtLeast(minPagerHeightPx)
-                                                } else {
-                                                    placeable.height
-                                                }).coerceIn(minPagerHeightPx, 16_000_000)
+                                                val height = (currentHeightDp?.roundToPx()
+                                                    ?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                                                    .coerceIn(minPagerHeightPx, 16_000_000)
                                                 layout(placeable.width, height) { placeable.placeRelative(0, 0) }
                                             }
                                             .clipToBounds()

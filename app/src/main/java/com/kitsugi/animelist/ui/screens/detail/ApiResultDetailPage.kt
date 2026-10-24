@@ -179,6 +179,12 @@ fun ApiResultDetailPage(
     onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
     onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {},
     titleLanguage: String = "ROMAJI",
+    /**
+     * Kişi/karakter adı dili (`ROMAJI` / `ENGLISH` / `NATIVE`). Ayar ekranındaki ayrı
+     * "personel adı dili" tercihidir; sekmelere açıkça geçirilir ki başlık dili ile
+     * karışmasın ve ayar değiştiğinde tablo yeniden çizilsin.
+     */
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,
@@ -233,20 +239,14 @@ fun ApiResultDetailPage(
     val translatedSynopsis by viewModel.translatedSynopsis.collectAsState()
     val showSynopsisOriginal by viewModel.showSynopsisOriginal.collectAsState()
     val logoUrl by viewModel.logoUrl.collectAsState()
-    val episodeRatings by viewModel.episodeRatings.collectAsState()
     val resolvedTmdbId by viewModel.resolvedTmdbId.collectAsState()
-    val charactersState by viewModel.charactersState.collectAsState()
-    val staffState by viewModel.staffState.collectAsState()
-    val relationsState by viewModel.relationsState.collectAsState()
-    val recommendationsState by viewModel.recommendationsState.collectAsState()
-    val statsState by viewModel.statsState.collectAsState()
-    val reviewsState by viewModel.reviewsState.collectAsState()
-    val episodesState by viewModel.episodesState.collectAsState()
+    // Yalnızca ilgili pager sayfası sekme akışına abone olur; arka planda gelen karakter /
+    // ekip / ilişki güncellemeleri artık bütün detay sayfasını yeniden compose etmez.
     val targetSeason by viewModel.targetSeason.collectAsState()
     val mdbListRatings by viewModel.mdbListRatings.collectAsState()
     val mdbListLoading by viewModel.mdbListLoading.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
-    // Vitrin görsel planı sayfa açılmadan ÖNCE çözülür (TMDB/Fanart.tv en kaliteli sıra).
+    // Vitrin görsel planı birincil detaydan sonra arka planda çözülür (TMDB/Fanart.tv).
     val heroArtwork by viewModel.heroArtwork.collectAsState()
     val translationLoading by viewModel.translationLoading.collectAsState()
     // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
@@ -339,8 +339,10 @@ fun ApiResultDetailPage(
 
     val showFavouriteButton = !isSourceBangumi && (isSourceAniList || isAniListConnected)
     // Buton durumu ("Düzenle" / "Listeye Ekle") yalnızca aynı sağlayıcının üyeliğini temsil eder.
-    val effectiveExistingEntry = existingEntry?.takeIf { it.matchesInSource(displayResult) }
-        ?: findExistingEntry?.invoke(displayResult)?.takeIf { it.matchesInSource(displayResult) }
+    val effectiveExistingEntry = remember(existingEntry, displayResult, findExistingEntry) {
+        existingEntry?.takeIf { it.matchesInSource(displayResult) }
+            ?: findExistingEntry?.invoke(displayResult)?.takeIf { it.matchesInSource(displayResult) }
+    }
     val isFavorite = effectiveExistingEntry?.isFavorite ?: (detailState?.isFavourite ?: false)
 
     // Wiki sorgusu: kimlikler (gerçek MAL/TMDB) detayla birlikte netleşir.
@@ -439,8 +441,6 @@ fun ApiResultDetailPage(
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
     var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
-    // Kaynak seçicisinden açıldığında galeri bu kaynağa filtrelenir (kapatınca sıfırlanır).
-    var activeGallerySource by remember { mutableStateOf<String?>(null) }
     val galleryItems by viewModel.galleryItems.collectAsState()
 
     val listState = rememberLazyListState()
@@ -745,11 +745,8 @@ fun ApiResultDetailPage(
                                     onOpenSourceGallery = { source ->
                                         val sourceItems = galleryItems.filter { it.source.equals(source, ignoreCase = true) }
                                         if (sourceItems.isNotEmpty()) {
-                                            // Tüm galeri verilir; galeri içindeki "Kaynak" listesinden
-                                            // başka kaynaklara geçilebildiği için liste daraltılmaz.
-                                            activeGalleryCategory = null
-                                            activeGallerySource = source
-                                            if (!galleryLoading) activeGalleryItems = galleryItems
+                                            activeGalleryCategory = sourceItems.first().category
+                                            if (!galleryLoading) activeGalleryItems = sourceItems
                                             activeGalleryIndex = 0
                                         }
                                     }
@@ -776,9 +773,17 @@ fun ApiResultDetailPage(
                             KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayResult.title)
                         }
                     }
-                    3 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
-                    4 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
-                    5 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
+                    3 -> {
+                        val charactersState by viewModel.charactersState.collectAsState()
+                        CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
+                    }
+                    4 -> {
+                        val staffState by viewModel.staffState.collectAsState()
+                        StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage, staffNameLanguage = staffNameLanguage)
+                    }
+                    5 -> {
+                        val recommendationsState by viewModel.recommendationsState.collectAsState()
+                        RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
                             malId = rel.malId,
@@ -798,7 +803,10 @@ fun ApiResultDetailPage(
                         )
                         onRelationClick(relResult)
                     })
-                    6 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
+                    }
+                    6 -> {
+                        val relationsState by viewModel.relationsState.collectAsState()
+                        RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
                         val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
                             malId = rel.malId,
@@ -818,8 +826,14 @@ fun ApiResultDetailPage(
                         )
                         onRelationClick(relResult)
                     })
-                    7 -> StatsTabContent(state = statsState)
-                    8 -> ReviewsTabContent(
+                    }
+                    7 -> {
+                        val statsState by viewModel.statsState.collectAsState()
+                        StatsTabContent(state = statsState)
+                    }
+                    8 -> {
+                        val reviewsState by viewModel.reviewsState.collectAsState()
+                        ReviewsTabContent(
                         state = reviewsState,
                         source = result.source,
                         externalId = result.malId,
@@ -836,8 +850,11 @@ fun ApiResultDetailPage(
                         titleLanguage = titleLanguage,
                         onUserProfileClick = onUserProfileClick,
                         preferredTranslator = settingsState?.preferredTranslator ?: "DEFAULT"
-                    )
+                        )
+                    }
                     9 -> {
+                        val episodesState by viewModel.episodesState.collectAsState()
+                        val episodeRatings by viewModel.episodeRatings.collectAsState()
                         val streamIds = displayResult.toStreamMediaIds(
                             resolvedRealMalId = detailState?.realMalId ?: displayResult.realMalId,
                             resolvedTmdbId = detailState?.tmdbId ?: resolvedTmdbId ?: displayResult.tmdbId
@@ -1051,15 +1068,12 @@ fun ApiResultDetailPage(
         KitsugiImageGalleryDialog(
             galleryItems = activeGalleryItems,
             initialIndex = activeGalleryIndex,
-            initialCategory = if (activeGallerySource != null) null
-                else activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
-            initialSource = activeGallerySource,
+            initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
             title = displayResult.title,
             isAdult = displayResult.isAdult,
             onDismiss = {
                 activeGalleryItems = emptyList()
                 activeGalleryCategory = null
-                activeGallerySource = null
             }
         )
     }

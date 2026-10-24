@@ -96,8 +96,10 @@ fun CharactersTabContent(
             if (full.size > sheetVoiceActors.size) {
                 sheetVoiceActors = full.map { va ->
                     va.copy(
+                        // Seslendirmen adları da "personel adı dili" ayarına uyar; başlık
+                        // dili bu adları etkilememeli (tutarsızlık raporu).
                         name = displayPersonName(
-                            va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName
+                            va.name, va.romanizedName, va.nativeName, staffNameLanguage, va.englishName
                         )
                     )
                 }
@@ -140,6 +142,7 @@ fun CharactersTabContent(
                     )
                 }
             }
+            var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.detail_characters_empty),
@@ -148,68 +151,74 @@ fun CharactersTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                // Bangumi kadrosu topluluk katkılı bir kaynaktır; liste gizlenmez ama kaynağı
-                // belirtilir (canlı çekim kayıtlarda animasyon uyarlaması sanatı/rolü görülebiliyor).
-                val fromBangumi = list.any {
-                    it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true)
-                }
-                if (fromBangumi) {
-                    Text(
-                        text = stringResource(R.string.characters_bangumi_source_note),
-                        color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
-                    )
-                }
-                val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                if (isLandscape) {
-                    // Yatay mod: 2 sütunlu grid
-                    val chunks = list.chunked(2)
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        chunks.forEach { rowItems ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                rowItems.forEach { char ->
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        CharacterVoiceActorCard(
-                                            char = char,
-                                            onCharacterClick = onCharacterClick,
-                                            onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                            onShowVoiceActors = { char ->
-                                                sheetVoiceActors = char.voiceActors
-                                                selectedCharacterForVoiceActors = char
-                                            }
-                                        )
+                val visibleList = list.take(visibleCount)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Bangumi kadrosu topluluk katkılı bir kaynaktır; liste gizlenmez ama kaynağı
+                    // belirtilir (canlı çekim kayıtlarda animasyon uyarlaması sanatı/rolü görülebiliyor).
+                    val fromBangumi = list.any {
+                        it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true)
+                    }
+                    if (fromBangumi) {
+                        Text(
+                            text = stringResource(R.string.characters_bangumi_source_note),
+                            color = KitsugiColors.TextMuted,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                        )
+                    }
+                    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                    if (isLandscape) {
+                        // Yatay mod: 2 sütunlu grid
+                        val chunks = visibleList.chunked(2)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            chunks.forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    rowItems.forEach { char ->
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            CharacterVoiceActorCard(
+                                                char = char,
+                                                onCharacterClick = onCharacterClick,
+                                                onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
+                                                onShowVoiceActors = { char ->
+                                                    sheetVoiceActors = char.voiceActors
+                                                    selectedCharacterForVoiceActors = char
+                                                }
+                                            )
+                                        }
                                     }
-                                }
-                                // Eğer tek öğe kaldıysa boş weight doldurucu
-                                if (rowItems.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
+                                    // Eğer tek öğe kaldıysa boş weight doldurucu
+                                    if (rowItems.size == 1) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
                                 }
                             }
                         }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        list.forEach { char ->
-                            CharacterVoiceActorCard(
-                                char = char,
-                                onCharacterClick = onCharacterClick,
-                                onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                onShowVoiceActors = { char ->
-                                                sheetVoiceActors = char.voiceActors
-                                                selectedCharacterForVoiceActors = char
-                                            }
-                            )
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            visibleList.forEach { char ->
+                                CharacterVoiceActorCard(
+                                    char = char,
+                                    onCharacterClick = onCharacterClick,
+                                    onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
+                                    onShowVoiceActors = { char ->
+                                        sheetVoiceActors = char.voiceActors
+                                        selectedCharacterForVoiceActors = char
+                                    }
+                                )
+                            }
                         }
+                    }
+                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
+                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
                     }
                 }
             }
@@ -501,6 +510,7 @@ fun StaffTabContent(
                     )
                 }
             }
+            var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.detail_staff_empty),
@@ -509,38 +519,44 @@ fun StaffTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                if (isLandscape) {
-                    // Yatay mod: 2 sütunlu grid
-                    val chunks = list.chunked(2)
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        chunks.forEach { rowItems ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                rowItems.forEach { staff ->
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        StaffRow(staff = staff, onStaffClick = onStaffClick)
+                val visibleList = list.take(visibleCount)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                    if (isLandscape) {
+                        // Yatay mod: 2 sütunlu grid
+                        val chunks = visibleList.chunked(2)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            chunks.forEach { rowItems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    rowItems.forEach { staff ->
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            StaffRow(staff = staff, onStaffClick = onStaffClick)
+                                        }
                                     }
-                                }
-                                if (rowItems.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
+                                    if (rowItems.size == 1) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
                                 }
                             }
                         }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        list.forEach { staff ->
-                            StaffRow(staff = staff, onStaffClick = onStaffClick)
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            visibleList.forEach { staff ->
+                                StaffRow(staff = staff, onStaffClick = onStaffClick)
+                            }
                         }
+                    }
+                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
+                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
                     }
                 }
             }
