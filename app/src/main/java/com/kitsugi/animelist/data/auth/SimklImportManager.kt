@@ -207,10 +207,17 @@ object SimklImportManager {
                         val score = item.optInt("user_rating", 0).takeIf { it > 0 }
                             ?: item.optInt("rating", 0).takeIf { it > 0 }
 
-                        // Simkl liste API'si eklenme zamanı vermez; son izleme zamanı
-                        // son aktivitenin en iyi vekilidir. Bugüne kadar Simkl satırları
-                        // updatedAt=0 ile yazılıyordu — "Son Güncelleme" sıralamasında
-                        // hep sona düşüyor, eklenme vekili olarak da kullanılamıyordu.
+                        // Simkl `/sync/all-items` yanıtı GERÇEK eklenme zamanını verir:
+                        // `added_to_watchlist_at` (ISO-8601). Bu alan daha önce hiç
+                        // okunmuyordu; "Son eklenen" Simkl'de `last_watched_at` vekiline
+                        // düşüyordu, yani bir diziyi izlemek onu "listeye yeni eklenmiş"
+                        // gibi en üste taşıyordu. Artık iki alan ayrı ayrı taşınıyor:
+                        //   • addedAt   → added_to_watchlist_at (listeye eklenme)
+                        //   • updatedAt → last_watched_at       (son aktivite)
+                        // Bkz. https://api.simkl.org/api-reference/simkl/get-all-items
+                        val addedToWatchlistAt = item.optNullableString("added_to_watchlist_at")?.let { raw ->
+                            runCatching { java.time.Instant.parse(raw).epochSecond }.getOrDefault(0L)
+                        } ?: 0L
                         val lastWatchedAt = item.optNullableString("last_watched_at")?.let { raw ->
                             runCatching { java.time.Instant.parse(raw).epochSecond }.getOrDefault(0L)
                         } ?: 0L
@@ -246,6 +253,10 @@ object SimklImportManager {
                                 synopsis = null,
                                 notes = simklMemoText(item),
                                 updatedAt = lastWatchedAt,
+                                // Listeye eklenme zamanı Simkl'in kendi alanından gelir;
+                                // alan yoksa 0 kalır ve `resolveAddedAt` ilk-görülme
+                                // vekilini devreye alır.
+                                addedAt = addedToWatchlistAt,
                                 tmdbId = tmdbId,
                                 simklId = simklId
                             )

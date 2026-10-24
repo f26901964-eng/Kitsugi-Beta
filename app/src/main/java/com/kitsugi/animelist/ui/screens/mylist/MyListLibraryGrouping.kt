@@ -383,11 +383,15 @@ internal fun buildMyListLibrarySnapshot(
             addAlias(cached.native)
         }
 
+        // "Tümü" kartı, yapının herhangi bir kaynakta kütüphaneye İLK girdiği andır.
+        // Okuma yolu, tek sekmedeki sıralamayla aynı çözümleyiciyi kullanmak zorunda:
+        // aksi halde aynı yapım AniList sekmesinde tarihli, "Tümü"de "bilinmiyor"
+        // kovasında görünüyordu (kopyalardan birinin alanı boş olduğu için).
         val earliestAddedAt = group.members
-            .map { com.kitsugi.animelist.model.normalizeToEpochSeconds(it.entry.addedAt) }
+            .map { it.entry.effectiveAddedSeconds() }
             .filter { it > 0L }
             .minOrNull()
-            ?: group.representative.addedAt
+            ?: group.representative.effectiveAddedSeconds()
 
         val enrichedRepresentative = enrichEntryFromGroup(
             entry = group.representative,

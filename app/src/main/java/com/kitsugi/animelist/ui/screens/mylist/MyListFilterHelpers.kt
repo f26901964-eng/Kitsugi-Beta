@@ -319,6 +319,27 @@ internal enum class MyListAddedPeriod(@androidx.annotation.StringRes val titleRe
 }
 
 /**
+ * Bir kaydın "etkin eklenme zamanı" (epoch saniye) — sıralama ve dönem bölümleri
+ * **aynı** değeri görmek zorundadır, yoksa aynı satır bir sekmede tarihli, diğerinde
+ * "Eklenme Tarihi Bilinmiyor" olarak görünür.
+ *
+ * Öncelik:
+ * 1. `addedAt` — kaynağın gerçek/ilk-görülme eklenme zamanı.
+ * 2. `updatedAt` — kaynak eklenme zamanı vermediğinde (veya eski satırlarda alan
+ *    henüz doldurulmamışken) elde olan tek zaman damgası. "Son değişiklik" ile
+ *    "eklenme" aynı şey değildir; bu yüzden bu bir **vekil**dir, ama bilinmeyen
+ *    bir kovaya atmaktan iyidir: iki alanı da boş olan satırlar gerçekten
+ *    bilinmiyordur ve sonda, ada göre deterministik sıralanır.
+ *    (Kalıcı düzeltme `MyListViewModel.repairMissingAddedAt` tarafından
+ *    yapılır; buradaki yedek yalnızca okuma yolunu korur.)
+ */
+internal fun MediaEntry.effectiveAddedSeconds(): Long {
+    val direct = com.kitsugi.animelist.model.normalizeToEpochSeconds(addedAt)
+    if (direct > 0L) return direct
+    return com.kitsugi.animelist.model.normalizeToEpochSeconds(updatedAt)
+}
+
+/**
  * (Zaten eklenme tarihine göre sıralı) listeyi dönem bölümlerine ayırır.
  * Bölüm sırası, girdide ilk görülme sırasıdır — böylece azalan sıralamada
  * "Bugün" önce, artan sıralamada en eski dönem önce gelir; iki yönde de
@@ -333,7 +354,7 @@ internal fun groupMyListEntriesByAddedPeriod(
     val today = java.time.Instant.ofEpochSecond(nowEpochSeconds).atZone(zone).toLocalDate()
     val groups = LinkedHashMap<MyListAddedPeriod, MutableList<MediaEntry>>()
     entries.forEach { entry ->
-        val addedSec = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.addedAt)
+        val addedSec = entry.effectiveAddedSeconds()
         val period = if (addedSec <= 0L) {
             MyListAddedPeriod.UNKNOWN
         } else {
@@ -435,7 +456,7 @@ internal fun applySort(
         MyListSortKeys(
             entry = entry,
             titleKey = displayTitle.trim().lowercase(),
-            addedAtSec = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.addedAt),
+            addedAtSec = entry.effectiveAddedSeconds(),
             updatedAtSec = com.kitsugi.animelist.model.normalizeToEpochSeconds(entry.updatedAt),
             scoreKey = entry.score?.takeIf { it > 0 },
             progressRatio = entry.total?.takeIf { it > 0 }?.let { total ->
@@ -458,22 +479,46 @@ internal fun applySort(
             .thenBy { it.titleKey }
             .thenBy { it.entry.id }
 
-    val newestComparator: Comparator<MyListSortKeys> =
-        compareByDescending<MyListSortKeys> { it.addedAtSec }
-            .thenByDescending { it.updatedAtSec }
-            .thenByDescending { it.entry.id }
-            .thenBy { it.titleKey }
+    /**
+     * "Son eklenen": gerçek eklenme zamanı azalan; zamanı BİLİNMEYENLER her iki yönde de
+     * sonda ve kendi aralarında **ada göre** (yerel `id`'ye göre değil).
+     *
+     * Eski zincir `updatedAt` + yerel `id` ile kırılıyordu. İki sorun:
+     *  1. `id` kaynak başına farklı uzaydan gelir (Simkl 150M+, Kitsu 300M+, AniList
+     *     yerel autoincrement) → "Tümü" sekmesinde aynı saniyede eklenmiş kayıtlar
+     *     kaynak karışımına göre anlamsız sıralanıyordu.
+     *  2. `updatedAt` ile kırınca izleme ilerlemesi güncellenen eski bir kayıt, yeni
+     *     eklenmiş gibi öne fırlıyordu.
+     * Artık bilinmeyenler ada göre deterministik; bilinenler aynı saniyeye düşerse
+     * başlık (ve son çare kimlik) ile kararlı biçimde sıralanır.
+     */
+    fun addedTimeThenTitle(descending: Boolean): Comparator<MyListSortKeys> =
+        Comparator { a, b ->
+            val aKnown = a.addedAtSec > 0L
+            val bKnown = b.addedAtSec > 0L
+            if (aKnown != bKnown) {
+                // Bilinen her zaman bilinmeyenin önünde (unknownLast her iki yönde de true).
+                return@Comparator if (aKnown) -1 else 1
+            }
+            if (!aKnown) {
+                val byTitle = a.titleKey.compareTo(b.titleKey)
+                return@Comparator if (byTitle != 0) byTitle else a.entry.id.compareTo(b.entry.id)
+            }
+            val byTime = if (descending) b.addedAtSec.compareTo(a.addedAtSec)
+            else a.addedAtSec.compareTo(b.addedAtSec)
+            if (byTime != 0) return@Comparator byTime
+            val byTitle = a.titleKey.compareTo(b.titleKey)
+            if (byTitle != 0) return@Comparator byTitle
+            a.entry.id.compareTo(b.entry.id)
+        }
+
+    val newestComparator: Comparator<MyListSortKeys> = addedTimeThenTitle(descending = true)
+    val oldestComparator: Comparator<MyListSortKeys> = addedTimeThenTitle(descending = false)
 
     val comparator: Comparator<MyListSortKeys> = when (sortId) {
         // ── Eklenme tarihi ────────────────────────────────────────────────
         "newest", "added" -> newestComparator
-        "oldest" ->
-            compareBy<MyListSortKeys> { it.addedAtSec <= 0L }
-                .thenBy { it.addedAtSec }
-                .thenBy { it.updatedAtSec <= 0L }
-                .thenBy { it.updatedAtSec }
-                .thenBy { it.entry.id }
-                .thenBy { it.titleKey }
+        "oldest" -> oldestComparator
 
         // ── Başlık ────────────────────────────────────────────────────────
         "title" ->
