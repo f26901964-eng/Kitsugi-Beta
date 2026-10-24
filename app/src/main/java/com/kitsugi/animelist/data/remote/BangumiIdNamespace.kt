@@ -90,6 +90,37 @@ object BangumiIdNamespace {
     }
 
     /**
+     * Aramada kabul edilebilecek Bangumi türleri.
+     *
+     * Film, Bangumi'de tek bir subject type değildir: Coraline gibi animasyon filmler
+     * `ANIME + 剧场版`, gerçek çekim filmler ise `REAL + 电影` olabilir. [subjectTypeFor]
+     * geriye uyumluluk için tek/varsayılan türü döndürür; kimlik araması bu listeyi kullanmalı.
+     */
+    fun subjectTypesFor(mediaType: MediaType?): List<Int> = when (mediaType) {
+        MediaType.Movie -> listOf(BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.REAL)
+        else -> listOf(subjectTypeFor(mediaType))
+    }
+
+    /** Adayın yalnız türüne değil, film/dizi ayrımında platformuna da bakar. */
+    internal fun isCompatibleWithMediaType(
+        mediaType: MediaType?,
+        subjectType: Int,
+        platform: String?
+    ): Boolean {
+        if (subjectType !in subjectTypesFor(mediaType)) return false
+        if (mediaType != MediaType.Movie) return true
+        return when (subjectType) {
+            // Anime ana türü film ve TV serilerini birlikte taşır; film yazımında yalnız
+            // açıkça film olarak işaretlenmiş条目 kabul edilir (ör. Coraline: 剧场版).
+            BangumiApiClient.SubjectType.ANIME -> isMoviePlatform(platform)
+            // Eski REAL aramalarında platform bulunmayan sonuçlar da kabul ediliyordu;
+            // platform varsa aynı adlı bir TV kaydını filme yazma.
+            BangumiApiClient.SubjectType.REAL -> platform.isNullOrBlank() || isMoviePlatform(platform)
+            else -> false
+        }
+    }
+
+    /**
      * Bir kayıttan güvenilir Bangumi `subject_id` çözer.
      *
      * Sıra (güven derecesine göre azalır):
@@ -107,23 +138,30 @@ object BangumiIdNamespace {
         expectedYear: Int? = null,
         isAnime: Boolean = true,
         allowNetwork: Boolean = true,
-        subjectType: Int? = null
+        subjectType: Int? = null,
+        mediaType: MediaType? = null
     ): Int? {
         rawIdFromStable(storedId)?.let { return it }
         if (context == null) return null
 
-        val expectedSubjectType = subjectType ?: if (isAnime) {
-            BangumiApiClient.SubjectType.ANIME
-        } else {
-            BangumiApiClient.SubjectType.BOOK
+        val expectedSubjectTypes = when {
+            mediaType != null -> subjectTypesFor(mediaType)
+            subjectType != null -> listOf(subjectType)
+            else -> listOf(
+                if (isAnime) BangumiApiClient.SubjectType.ANIME else BangumiApiClient.SubjectType.BOOK
+            )
         }
 
         // 2) Yerel eşleme önbelleği (anime, kitap ve REAL subject'leri ayrı tutulur).
+        // Animasyon filmlerde iki olası türü de okumak gerekir; yalnız REAL anahtarına
+        // bakmak daha önce öğrenilmiş ANIME + 剧场版 eşleşmesini görünmez kılıyordu.
         val malId = realMalIdOf(storedId)
         if (malId != null) {
-            val cached = runCatching { BangumiLocalMappingCache.get(context, malId, expectedSubjectType) }
-                .getOrElse { null }
-            cached?.let { return it }
+            for (expectedType in expectedSubjectTypes) {
+                val cached = runCatching { BangumiLocalMappingCache.get(context, malId, expectedType) }
+                    .getOrElse { null }
+                cached?.let { return it }
+            }
         }
 
         if (!allowNetwork) return null
@@ -139,7 +177,7 @@ object BangumiIdNamespace {
         // 3a) Paketlenmiş açık kaynak MAL↔Bangumi eşlemesi yalnız aday üretir.
         // Aday, Bangumi'nin kendi subject kaydındaki alias/tür/yıl ile kanıtlanmadan
         // kullanılmaz; bilinen çelişkili çiftler BangumiMalCrosswalk içinde elenmiştir.
-        if (malId != null && expectedSubjectType == BangumiApiClient.SubjectType.ANIME) {
+        if (malId != null && BangumiApiClient.SubjectType.ANIME in expectedSubjectTypes) {
             val mappedIds = BangumiMalCrosswalk.bangumiSubjectsForMal(context, malId)
             if (mappedIds.isNotEmpty()) {
                 val mappedSubjects = mappedIds.mapNotNull { subjectId ->
@@ -152,11 +190,12 @@ object BangumiIdNamespace {
                     subjects = mappedSubjects,
                     query = query,
                     expectedYear = expectedYear,
-                    expectedSubjectType = expectedSubjectType,
+                    expectedSubjectTypes = expectedSubjectTypes,
+                    mediaType = mediaType,
                     allowYearOnlyFallback = false
                 )
                 if (mapped != null) {
-                    runCatching { BangumiLocalMappingCache.put(context, malId, expectedSubjectType, mapped.id) }
+                    runCatching { BangumiLocalMappingCache.put(context, malId, mapped.type, mapped.id) }
                     return mapped.id
                 }
             }
@@ -167,7 +206,7 @@ object BangumiIdNamespace {
             BangumiApiClient.searchSubjects(
                 keyword = query,
                 token = token,
-                types = listOf(expectedSubjectType),
+                types = expectedSubjectTypes,
                 limit = 10
             )
         }.getOrElse { error ->
@@ -179,11 +218,14 @@ object BangumiIdNamespace {
             subjects = page.data,
             query = query,
             expectedYear = expectedYear,
-            expectedSubjectType = expectedSubjectType
+            expectedSubjectTypes = expectedSubjectTypes,
+            mediaType = mediaType
         ) ?: return null
 
         if (malId != null) {
-            runCatching { BangumiLocalMappingCache.put(context, malId, expectedSubjectType, unique.id) }
+            // Varsayılan türü değil, sunucunun döndürdüğü gerçek türü öğren. Animasyon
+            // filmi ANIME anahtarındayken REAL anahtarına yazmak sonraki aramaları bozar.
+            runCatching { BangumiLocalMappingCache.put(context, malId, unique.type, unique.id) }
         }
         return unique.id
     }
@@ -199,7 +241,8 @@ object BangumiIdNamespace {
         subjects: List<BangumiApiClient.BangumiSubject>,
         query: String,
         expectedYear: Int?,
-        expectedSubjectType: Int,
+        expectedSubjectTypes: List<Int>,
+        mediaType: MediaType? = null,
         allowYearOnlyFallback: Boolean = true
     ): BangumiApiClient.BangumiSubject? {
         fun subjectYear(s: BangumiApiClient.BangumiSubject): Int? =
@@ -210,7 +253,10 @@ object BangumiIdNamespace {
             return s.infobox.values.asSequence().flatten().any { alias -> matchesTitle(alias, query) }
         }
 
-        val typeFiltered = subjects.filter { it.type == expectedSubjectType }
+        val typeFiltered = subjects.filter {
+            it.type in expectedSubjectTypes &&
+                (mediaType == null || isCompatibleWithMediaType(mediaType, it.type, it.platform))
+        }
         val exact = typeFiltered.filter(::matchesSubjectAnyName)
 
         if (exact.size == 1) {
@@ -238,6 +284,22 @@ object BangumiIdNamespace {
         }
         return candidates.singleOrNull()
     }
+
+    /** Geriye dönük uyumluluk: tek beklenen subject type alan aşırı yükleme. */
+    internal fun selectUniqueSubjectMatch(
+        subjects: List<BangumiApiClient.BangumiSubject>,
+        query: String,
+        expectedYear: Int?,
+        expectedSubjectType: Int,
+        allowYearOnlyFallback: Boolean = true
+    ): BangumiApiClient.BangumiSubject? = selectUniqueSubjectMatch(
+        subjects = subjects,
+        query = query,
+        expectedYear = expectedYear,
+        expectedSubjectTypes = listOf(expectedSubjectType),
+        mediaType = null,
+        allowYearOnlyFallback = allowYearOnlyFallback
+    )
 
     /** Boşluk/noktalama duyarsız başlık karşılaştırması (`MediaIdentity.normalizedTitle` ile aynı ruh). */
     private fun matchesTitle(candidate: String?, query: String): Boolean {

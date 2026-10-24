@@ -40,6 +40,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -73,7 +75,8 @@ fun KitsugiCosmicSearchBar(
     leadingContent: (@Composable () -> Unit)? = null,
     onFilterClick: (() -> Unit)? = null,
     isFilterActive: Boolean = false,
-    height: Dp = 56.dp
+    height: Dp = 56.dp,
+    focusRequester: FocusRequester? = null
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     var isFocused by remember { mutableStateOf(false) }
@@ -136,6 +139,7 @@ fun KitsugiCosmicSearchBar(
                 state = textFieldState,
                 modifier = Modifier
                     .weight(1f)
+                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                     .padding(vertical = 4.dp),
                 lineLimits = TextFieldLineLimits.SingleLine,
                 cursorBrush = SolidColor(accentColor),

@@ -541,7 +541,7 @@ object BangumiSyncManager {
         knownSubjectId?.takeIf { it > 0 }?.let { return it }
         val stored = entry.malId
         BangumiIdNamespace.rawIdFromStable(stored)?.let { return it }
-        val expectedSubjectType = BangumiIdNamespace.subjectTypeFor(entry.type)
+        val expectedSubjectTypes = BangumiIdNamespace.subjectTypesFor(entry.type)
         // Çapraz katman `knownMalId` verdiğinde düşük aralıktaki değer artık ham Bangumi
         // subject ID değil, kanıtlanmış gerçek MAL ID'dir; legacy subject okuması yapılmaz.
         val isLegacyRawBangumiId = isLegacyRawBangumiStoredId(entry.source, stored, knownMalId)
@@ -564,7 +564,13 @@ object BangumiSyncManager {
             val subjectYear = legacySubject?.date?.take(4)?.toIntOrNull()
             val yearMatches = storedYear == null || subjectYear == null || kotlin.math.abs(storedYear - subjectYear) <= 1
             if (
-                legacySubject?.type == expectedSubjectType &&
+                legacySubject != null &&
+                legacySubject.type in expectedSubjectTypes &&
+                BangumiIdNamespace.isCompatibleWithMediaType(
+                    entry.type,
+                    legacySubject.type,
+                    legacySubject.platform
+                ) &&
                 storedTitles.any { it in subjectTitles } &&
                 yearMatches
             ) {
@@ -606,7 +612,7 @@ object BangumiSyncManager {
                 title = candidateTitle,
                 expectedYear = entry.year,
                 isAnime = entry.type == MediaType.Anime,
-                subjectType = expectedSubjectType
+                mediaType = entry.type
             )
             if (resolved != null) return resolved
         }

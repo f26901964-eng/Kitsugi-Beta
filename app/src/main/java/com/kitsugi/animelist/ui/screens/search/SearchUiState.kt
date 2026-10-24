@@ -98,6 +98,8 @@ data class SearchUiState(
     val results: List<JikanSearchResult> = emptyList(),
     val multiResults: MultiPlatformResults = MultiPlatformResults(),
     val searchHistory: List<SearchHistoryItem> = emptyList(),
+    val searchHistoryEnabled: Boolean = true,
+    val lastDeletedHistoryItem: SearchHistoryItem? = null,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val page: Int = 1,
@@ -236,7 +238,12 @@ data class SearchUiState(
 data class SearchHistoryItem(
     val query: String,
     val platform: SearchPlatform,
-    val mediaType: MediaType
+    val mediaType: MediaType,
+    val timestamp: Long = 0L,
+    val engine: SearchSourceEngine = SearchSourceEngine.ALL,
+    val scope: SearchScope = SearchScope.ALL_MIXED,
+    val isPinned: Boolean = false,
+    val searchCount: Int = 1
 )
 
 enum class SearchPlatform(val label: String) {

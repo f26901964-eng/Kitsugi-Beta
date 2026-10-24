@@ -17997,4 +17997,37 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="mylist_sort_end">Bitiş tarihi</string>
     <string name="mylist_sort_year">Yayın yılı</string>
     <string name="mylist_sort_repeat">Tekrar sayısı</string>
+    <!-- Kompakt Tarayıcı Arama Geçmişi -->
+    <string name="search_history_matching">Geçmiş Önerileri</string>
+    <string name="search_history_fill_query">Arama çubuğuna aktar</string>
+    <string name="search_history_pin">Sabitle</string>
+    <string name="search_history_unpin">Sabitlemeyi kaldır</string>
+    <string name="search_history_copy">Kopyala</string>
+    <string name="search_history_search_with_source">%1$s ile ara</string>
+    <string name="search_history_show_more_count">Daha fazla göster (+%1$d)</string>
+    <string name="search_history_show_less">Daha az göster</string>
+    <string name="search_history_all_title">Tüm Geçmiş</string>
+    <string name="search_history_sheet_title">Arama Geçmişi</string>
+    <string name="search_history_filter_placeholder">Geçmişte ara...</string>
+    <string name="search_history_filter_all">Tümü</string>
+    <string name="search_history_filter_pinned">Sabitlenenler</string>
+    <string name="search_history_filter_frequent">Sık Arananlar</string>
+    <string name="search_history_group_today">Bugün</string>
+    <string name="search_history_group_yesterday">Dün</string>
+    <string name="search_history_group_this_week">Bu Hafta</string>
+    <string name="search_history_group_older">Daha Eski</string>
+    <string name="search_history_time_just_now">Az önce</string>
+    <string name="search_history_time_minutes">%1$ddk</string>
+    <string name="search_history_time_hours">%1$dsa</string>
+    <string name="search_history_time_days">%1$dg</string>
+    <string name="search_history_incognito_banner">Gizli arama açık · Yeni aramalar kaydedilmez</string>
+    <string name="search_history_incognito_turn_on_record">Kaydı Aç</string>
+    <string name="search_history_incognito_toggle">Gizli arama modu</string>
+    <string name="search_history_view_mode_toggle">Görünümü değiştir</string>
+    <string name="search_history_undo_deleted">\"%1$s\" kaldırıldı</string>
+    <string name="search_history_undo_action">Geri Al</string>
+    <string name="search_history_clear_confirm_title">Arama geçmişi temizlensin mi?</string>
+    <string name="search_history_clear_confirm_body">Kaydedilen son aramalarınız bu cihazdan ve eşitleme açıksa buluttan silinecek.</string>
+    <string name="search_history_keep_pinned">Sabitlenen aramaları koru (%1$d)</string>
+    <string name="search_history_empty_filter">Eşleşen geçmiş kaydı bulunamadı</string>
 </resources>

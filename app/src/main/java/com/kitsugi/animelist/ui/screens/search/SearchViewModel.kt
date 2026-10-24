@@ -58,6 +58,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var showAdultContentState = false
     private var searchHistoryEnabledState = true
     private var searchJob: Job? = null
+    private var undoHistoryDismissJob: Job? = null
 
     private val mixedMediaEngines = setOf(
         SearchSourceEngine.ANILIST, SearchSourceEngine.MAL,
@@ -217,6 +218,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             settingsDataStore.settingsFlow.collect { settings ->
                 showAdultContentState = settings.showAdultContent
                 searchHistoryEnabledState = settings.searchHistoryEnabled
+                _uiState.update { it.copy(searchHistoryEnabled = settings.searchHistoryEnabled) }
             }
         }
         viewModelScope.launch {
@@ -1285,7 +1287,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchHistoryItem(
                 query = state.query.trim(),
                 platform = state.selectedPlatform,
-                mediaType = state.selectedMediaType
+                mediaType = state.selectedMediaType,
+                timestamp = System.currentTimeMillis(),
+                engine = state.selectedEngine,
+                scope = state.selectedScope
             )
         } else null
 
@@ -2413,24 +2418,133 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         executeSearchForPage(queryText, 1).first
 
     fun clearHistory() {
+        clearHistory(keepPinned = false)
+    }
+
+    fun clearHistory(keepPinned: Boolean) {
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = null) }
         viewModelScope.launch {
-            searchHistoryRepository.clearSearchHistory()
+            searchHistoryRepository.clearSearchHistory(keepPinned = keepPinned)
         }
     }
 
     fun removeHistoryItem(item: SearchHistoryItem) {
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = item) }
         viewModelScope.launch {
             searchHistoryRepository.deleteSearchQuery(item.query)
         }
+        undoHistoryDismissJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(5_000L)
+            _uiState.update { current ->
+                if (current.lastDeletedHistoryItem?.query == item.query) {
+                    current.copy(lastDeletedHistoryItem = null)
+                } else {
+                    current
+                }
+            }
+        }
+    }
+
+    fun undoRemoveHistoryItem() {
+        val deleted = _uiState.value.lastDeletedHistoryItem ?: return
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = null) }
+        viewModelScope.launch {
+            searchHistoryRepository.restoreSearchQuery(deleted)
+        }
+    }
+
+    fun dismissUndoHistory() {
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = null) }
+    }
+
+    fun togglePinHistoryItem(item: SearchHistoryItem) {
+        viewModelScope.launch {
+            searchHistoryRepository.togglePinSearchQuery(item)
+        }
+    }
+
+    fun toggleSearchHistoryRecording() {
+        val nextEnabled = !_uiState.value.searchHistoryEnabled
+        viewModelScope.launch {
+            settingsDataStore.setSearchHistoryEnabled(nextEnabled)
+        }
+    }
+
+    fun fillQueryFromHistory(queryText: String) {
+        val cleaned = queryText.trim()
+        if (cleaned.isEmpty()) return
+        setQuery(cleaned)
     }
 
     fun applyHistoryItem(item: SearchHistoryItem) {
+        undoHistoryDismissJob?.cancel()
         _uiState.update {
             it.copy(
-                query = item.query
+                query = item.query.trim(),
+                lastDeletedHistoryItem = null
             )
         }
-        search()
+        search(resetPage = true)
+    }
+
+    fun applyHistoryItemWithSource(item: SearchHistoryItem) {
+        undoHistoryDismissJob?.cancel()
+        saveCurrentStateToCache()
+        val targetEngine = item.engine
+        val scopes = targetEngine.availableScopes()
+        val targetScope = if (item.scope in scopes) item.scope else scopes.first()
+
+        val mappedPlatform = when (targetEngine) {
+            SearchSourceEngine.ALL -> SearchPlatform.All
+            SearchSourceEngine.ANILIST -> SearchPlatform.AniList
+            SearchSourceEngine.MAL -> SearchPlatform.MAL
+            SearchSourceEngine.TMDB -> SearchPlatform.TMDB
+            SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
+            SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
+            SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+            SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
+        }
+        val mappedMediaType = when (targetScope) {
+            SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> MediaType.Manga
+            SearchScope.MOVIE -> MediaType.Movie
+            SearchScope.TV -> MediaType.TvShow
+            else -> MediaType.Anime
+        }
+        val mappedTab = when {
+            targetScope == SearchScope.CHARACTER -> KitsugiSearchTab.Character
+            targetScope == SearchScope.STAFF -> KitsugiSearchTab.Staff
+            targetEngine == SearchSourceEngine.ALL -> KitsugiSearchTab.All
+            targetEngine == SearchSourceEngine.ANILIST &&
+                targetScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) -> KitsugiSearchTab.Manga
+            targetEngine == SearchSourceEngine.ANILIST -> KitsugiSearchTab.Anime
+            targetEngine == SearchSourceEngine.MAL -> KitsugiSearchTab.MAL
+            targetEngine == SearchSourceEngine.TMDB -> KitsugiSearchTab.TMDB
+            targetEngine == SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
+            targetEngine == SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
+            targetEngine == SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            targetEngine == SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
+            else -> KitsugiSearchTab.All
+        }
+
+        _uiState.update {
+            it.copy(
+                query = item.query.trim(),
+                selectedEngine = targetEngine,
+                selectedScope = targetScope,
+                selectedPlatform = mappedPlatform,
+                selectedMediaType = mappedMediaType,
+                currentTab = mappedTab,
+                page = 1,
+                hasNextPage = true,
+                lastDeletedHistoryItem = null
+            )
+        }
+        persistSearchSelection()
+        search(resetPage = true)
     }
 
     fun clearResults() {

@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.account
 import android.content.Context
 import com.kitsugi.animelist.data.local.SearchHistoryDao
 import com.kitsugi.animelist.data.local.SearchHistoryEntity
+import com.kitsugi.animelist.data.local.SearchHistoryMapper
 import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import io.github.jan.supabase.auth.OtpType
@@ -50,7 +51,7 @@ object KitsugiAccountRepository {
     private const val TABLE = "user_data"
     private const val KEY_SEARCH_HISTORY = "search_history"
     private const val KEY_NOTIFICATIONS = "notifications"
-    private const val SEARCH_HISTORY_LIMIT = 20
+    private const val SEARCH_HISTORY_LIMIT = 50
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var settingsObserver: Job? = null
@@ -221,9 +222,22 @@ object KitsugiAccountRepository {
             // A malformed response must not be mistaken for an empty cloud backup and overwritten.
             val remote = remoteValue?.let { json.decodeFromJsonElement(searchListSerializer, it) }.orEmpty()
             val local = dao.getRecentSearchHistory().first().map { RemoteSearchEntry(it.query, it.type, it.timestamp) }
-            val merged = (local + remote).groupBy { it.query }
-                .map { (_, entries) -> entries.maxBy { it.timestamp } }
-                .sortedByDescending { it.timestamp }.take(SEARCH_HISTORY_LIMIT)
+            val merged = (local + remote).groupBy { it.query.trim().lowercase(java.util.Locale.ROOT) }
+                .map { (_, entries) ->
+                    val newest = entries.maxBy { it.timestamp }
+                    val anyPinned = entries.any { SearchHistoryMapper.isPinnedType(it.type) }
+                    if (anyPinned && !SearchHistoryMapper.isPinnedType(newest.type)) {
+                        val pinnedSource = entries.first { SearchHistoryMapper.isPinnedType(it.type) }
+                        newest.copy(type = pinnedSource.type)
+                    } else {
+                        newest
+                    }
+                }
+                .sortedWith(
+                    compareByDescending<RemoteSearchEntry> { SearchHistoryMapper.isPinnedType(it.type) }
+                        .thenByDescending { it.timestamp }
+                )
+                .take(SEARCH_HISTORY_LIMIT)
             requireOwner(uid)
             merged.forEach { entry ->
                 dao.insertSearchQuery(SearchHistoryEntity(query = entry.query, timestamp = entry.timestamp, type = entry.type))

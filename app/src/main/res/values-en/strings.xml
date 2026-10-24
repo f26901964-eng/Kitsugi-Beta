@@ -17991,4 +17991,37 @@
     <string name="mylist_sort_end">End date</string>
     <string name="mylist_sort_year">Release year</string>
     <string name="mylist_sort_repeat">Repeat count</string>
+    <!-- Kompakt Tarayıcı Arama Geçmişi -->
+    <string name="search_history_matching">History Suggestions</string>
+    <string name="search_history_fill_query">Fill into search bar</string>
+    <string name="search_history_pin">Pin</string>
+    <string name="search_history_unpin">Unpin</string>
+    <string name="search_history_copy">Copy</string>
+    <string name="search_history_search_with_source">Search in %1$s</string>
+    <string name="search_history_show_more_count">Show more (+%1$d)</string>
+    <string name="search_history_show_less">Show less</string>
+    <string name="search_history_all_title">Full History</string>
+    <string name="search_history_sheet_title">Search History</string>
+    <string name="search_history_filter_placeholder">Search in history...</string>
+    <string name="search_history_filter_all">All</string>
+    <string name="search_history_filter_pinned">Pinned</string>
+    <string name="search_history_filter_frequent">Frequent</string>
+    <string name="search_history_group_today">Today</string>
+    <string name="search_history_group_yesterday">Yesterday</string>
+    <string name="search_history_group_this_week">This Week</string>
+    <string name="search_history_group_older">Older</string>
+    <string name="search_history_time_just_now">Just now</string>
+    <string name="search_history_time_minutes">%1$dm</string>
+    <string name="search_history_time_hours">%1$dh</string>
+    <string name="search_history_time_days">%1$dd</string>
+    <string name="search_history_incognito_banner">Private search is on · New searches won\'t be saved</string>
+    <string name="search_history_incognito_turn_on_record">Resume</string>
+    <string name="search_history_incognito_toggle">Private search mode</string>
+    <string name="search_history_view_mode_toggle">Switch view</string>
+    <string name="search_history_undo_deleted">\"%1$s\" removed</string>
+    <string name="search_history_undo_action">Undo</string>
+    <string name="search_history_clear_confirm_title">Clear search history?</string>
+    <string name="search_history_clear_confirm_body">Your saved recent searches will be removed from this device and cloud sync if enabled.</string>
+    <string name="search_history_keep_pinned">Keep pinned searches (%1$d)</string>
+    <string name="search_history_empty_filter">No matching history entries found</string>
 </resources>

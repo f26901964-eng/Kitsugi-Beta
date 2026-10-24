@@ -141,6 +141,7 @@ fun SearchScreen(
     )
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val searchBarFocusRequester = remember { FocusRequester() }
     val context = androidx.compose.ui.platform.LocalContext.current
     // Otomatik sayfalama emniyeti (bkz. aşağıdaki shouldLoadMore açıklaması).
     var autoLoadBudget by remember { mutableIntStateOf(AUTO_LOAD_BUDGET_PER_SCROLL) }
@@ -373,6 +374,7 @@ fun SearchScreen(
                             showSourceEngineFilterSheet = true
                         },
                         isFilterActive = uiState.hasFiltersApplied,
+                        focusRequester = searchBarFocusRequester,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -418,16 +420,45 @@ fun SearchScreen(
             // Active Filters Inline Dismissible Chips Row
             // (Active filter pills removed – chips themselves show active state)
 
-            // Search History Section
-            if (showIdleContent && uiState.searchHistory.isNotEmpty()) {
-                item {
+            // Search History Section (Tarayıcı tarzı kompakt geçmiş & canlı öneriler)
+            val shouldRenderHistoryBlock = showIdleContent && (
+                uiState.searchHistory.isNotEmpty() ||
+                    !uiState.searchHistoryEnabled ||
+                    uiState.lastDeletedHistoryItem != null
+                )
+            if (shouldRenderHistoryBlock) {
+                item(key = "search_history_section") {
                     SearchHistorySection(
                         history = uiState.searchHistory,
+                        currentQuery = uiState.query,
+                        currentEngine = uiState.selectedEngine,
+                        currentScope = uiState.selectedScope,
+                        searchHistoryEnabled = uiState.searchHistoryEnabled,
+                        lastDeletedItem = uiState.lastDeletedHistoryItem,
                         onHistoryItemClick = viewModel::applyHistoryItem,
+                        onApplyWithSource = viewModel::applyHistoryItemWithSource,
+                        onFillQuery = { text ->
+                            viewModel.fillQueryFromHistory(text)
+                            scope.launch {
+                                if (lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0) {
+                                    lazyListState.animateScrollToItem(0)
+                                }
+                                kotlinx.coroutines.delay(40)
+                                runCatching { searchBarFocusRequester.requestFocus() }
+                                keyboardController?.show()
+                            }
+                        },
+                        onTogglePin = viewModel::togglePinHistoryItem,
                         onRemoveItem = viewModel::removeHistoryItem,
-                        onClearAll = viewModel::clearHistory
+                        onUndoDelete = viewModel::undoRemoveHistoryItem,
+                        onDismissUndo = viewModel::dismissUndoHistory,
+                        onClearAll = viewModel::clearHistory,
+                        onClearHistoryConfirmed = { keepPinned ->
+                            viewModel.clearHistory(keepPinned = keepPinned)
+                        },
+                        onToggleHistoryRecording = viewModel::toggleSearchHistoryRecording
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
 

@@ -179,4 +179,101 @@ class BangumiIdNamespaceTest {
             )?.id
         )
     }
+
+    @Test
+    fun `movie identity search accepts animated and live action films but not TV subjects`() {
+        assertEquals(
+            listOf(BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.REAL),
+            BangumiIdNamespace.subjectTypesFor(MediaType.Movie)
+        )
+
+        // Canlı Bangumi kaydı: Coraline #103470, type=2 (ANIME), platform=剧场版.
+        assertTrue(
+            BangumiIdNamespace.isCompatibleWithMediaType(
+                MediaType.Movie,
+                BangumiApiClient.SubjectType.ANIME,
+                "剧场版"
+            )
+        )
+        assertTrue(
+            BangumiIdNamespace.isCompatibleWithMediaType(
+                MediaType.Movie,
+                BangumiApiClient.SubjectType.REAL,
+                "电影"
+            )
+        )
+        assertFalse(
+            BangumiIdNamespace.isCompatibleWithMediaType(
+                MediaType.Movie,
+                BangumiApiClient.SubjectType.ANIME,
+                "TV"
+            )
+        )
+        assertFalse(
+            BangumiIdNamespace.isCompatibleWithMediaType(
+                MediaType.Movie,
+                BangumiApiClient.SubjectType.REAL,
+                "电视剧"
+            )
+        )
+        assertFalse(
+            BangumiIdNamespace.isCompatibleWithMediaType(
+                MediaType.Movie,
+                BangumiApiClient.SubjectType.BOOK,
+                "漫画"
+            )
+        )
+    }
+
+    @Test
+    fun `Coraline search selects Bangumi animated movie 103470 and rejects TV decoys`() {
+        val coraline = subject(
+            id = 103_470,
+            type = BangumiApiClient.SubjectType.ANIME,
+            platform = "剧场版",
+            nameCn = "鬼妈妈"
+        )
+        val animeTvDecoy = subject(
+            id = 103_469,
+            type = BangumiApiClient.SubjectType.ANIME,
+            platform = "TV"
+        )
+        val realTvDecoy = subject(
+            id = 103_471,
+            type = BangumiApiClient.SubjectType.REAL,
+            platform = "电视剧"
+        )
+
+        val selected = BangumiIdNamespace.selectUniqueSubjectMatch(
+            subjects = listOf(animeTvDecoy, coraline, realTvDecoy),
+            query = "Coraline",
+            expectedYear = 2009,
+            expectedSubjectTypes = BangumiIdNamespace.subjectTypesFor(MediaType.Movie),
+            mediaType = MediaType.Movie
+        )
+
+        assertEquals(103_470, selected?.id)
+    }
+
+    private fun subject(id: Int, type: Int, platform: String, nameCn: String = "") =
+        BangumiApiClient.BangumiSubject(
+            id = id,
+            type = type,
+            name = "Coraline",
+            nameCn = nameCn,
+            summary = "",
+            date = "2009-02-06",
+            platform = platform,
+            nsfw = false,
+            locked = false,
+            eps = 1,
+            totalEpisodes = 1,
+            volumes = 0,
+            images = null,
+            rating = null,
+            collection = null,
+            tags = emptyList(),
+            metaTags = emptyList(),
+            infobox = emptyMap()
+        )
 }

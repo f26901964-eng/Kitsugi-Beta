@@ -349,6 +349,28 @@ object CrossSyncPolicy {
     fun shouldRetry(errors: List<String>, skipped: List<String>): Boolean = errors.isNotEmpty()
 
     /**
+     * Bağlı kaynakların tamamı için gereken kimlikler çözülmüş mü?
+     *
+     * Film ve dizide Simkl veya TMDB kimliğinin bulunması, bağlı Bangumi kaydının
+     * aranmasını erken sonlandırmamalıdır (Coraline gibi filmlerde Bangumi atlanıyordu).
+     */
+    fun isIdentityComplete(
+        type: MediaType,
+        ids: CrossProviderIds,
+        connected: ConnectedSources = ConnectedSources.All
+    ): Boolean = when (type) {
+        MediaType.Anime, MediaType.Manga ->
+            ids.malId != null &&
+                (ids.aniListId != null || !connected.aniList) &&
+                (ids.kitsuId != null || !connected.kitsu) &&
+                (ids.bangumiSubjectId != null || !connected.bangumi) &&
+                (!connected.simkl || !supportsSimkl(type) || ids.simklId != null)
+        else ->
+            (!connected.simkl || !supportsSimkl(type) || ids.hasVideoIdentity) &&
+                (!connected.bangumi || !supportsBangumi(type) || ids.bangumiSubjectId != null)
+    }
+
+    /**
      * MAL kimliğinin kanıt türü — çapraz yazım kapısının tek girdisi.
      *
      * `NATIVE`  : satır MAL'ın kendisi (ya da elle eklenmiş kayıt) → kimlik kaynağından gelir,
@@ -506,21 +528,7 @@ object CrossProviderIdentityResolver {
         entry: MediaEntry,
         ids: CrossProviderIds,
         connected: ConnectedSources = ConnectedSources.All
-    ): Boolean = when (entry.type) {
-        MediaType.Anime, MediaType.Manga ->
-            // MAL kimliği bağlantı durumundan BAĞIMSIZ olarak zorunludur: diğer beş
-            // kaynağın neredeyse tamamı MAL kimliği üzerinden çözülür ve bu kimlik
-            // sonradan "tamam" işaretli önbellekten bir daha hesaplanmaz. Eskiden MAL
-            // bağlı değilken `malId == null` "tamam" sayılıyordu; kullanıcı MAL'ı
-            // sonradan bağladığında satır önbellekten geldiği için MAL'a hiçbir zaman
-            // yazılmıyordu (sessiz kalıcı kayıp).
-            ids.malId != null &&
-                (ids.aniListId != null || !connected.aniList) &&
-                (ids.kitsuId != null || !connected.kitsu) &&
-                (ids.bangumiSubjectId != null || !connected.bangumi) &&
-                (!connected.simkl || !CrossSyncPolicy.supportsSimkl(entry.type) || ids.simklId != null)
-        else -> (ids.tmdbId != null || ids.simklId != null)
-    }
+    ): Boolean = CrossSyncPolicy.isIdentityComplete(entry.type, ids, connected)
 
     private suspend fun resolveUncached(
         context: Context,
@@ -604,11 +612,14 @@ object CrossProviderIdentityResolver {
 
         // 4) Bangumi: MAL→Bangumi eşleme önbelleği, olmazsa sıkı başlık araması (tek ve net eşleşme).
         if (ids.bangumiSubjectId == null && connected.bangumi && CrossSyncPolicy.supportsBangumi(entry.type)) {
-            val subjectType = BangumiIdNamespace.subjectTypeFor(entry.type)
+            val subjectTypes = BangumiIdNamespace.subjectTypesFor(entry.type)
             val fromCache = ids.malId?.let { mal ->
-                runSyncCatching { BangumiLocalMappingCache.get(context, mal, subjectType) }.getOrNull()
+                subjectTypes.firstNotNullOfOrNull { subjectType ->
+                    runSyncCatching { BangumiLocalMappingCache.get(context, mal, subjectType) }.getOrNull()
+                        ?.takeIf { it > 0 }
+                }
             }
-            if (fromCache != null && fromCache > 0) {
+            if (fromCache != null) {
                 ids = ids.copy(bangumiSubjectId = fromCache).withVia("bangumi", "MAL eşleme önbelleği")
             } else {
                 val knownMalId = ids.malId
@@ -620,17 +631,12 @@ object CrossProviderIdentityResolver {
                             title = candidateTitle,
                             expectedYear = entry.year,
                             isAnime = isAnime,
-                            subjectType = subjectType
+                            mediaType = entry.type
                         )
                     }.getOrNull()?.takeIf { it > 0 }
                     if (resolved != null) {
                         ids = ids.copy(bangumiSubjectId = resolved).withVia("bangumi", "Bangumi arama")
-                        // AniList/MAL ↔ Bangumi köprüsü de öğrenilsin: sonraki eşitleme ağa çıkmaz.
-                        if (knownMalId != null) {
-                            runSyncCatching {
-                                BangumiLocalMappingCache.put(context, knownMalId, subjectType, resolved)
-                            }
-                        }
+                        // resolveBangumiId, MAL köprüsünü adayın GERÇEK subject türüyle öğrenir.
                         break
                     }
                 }
