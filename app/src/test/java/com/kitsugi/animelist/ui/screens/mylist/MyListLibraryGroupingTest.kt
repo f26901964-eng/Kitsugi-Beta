@@ -46,6 +46,36 @@ class MyListLibraryGroupingTest {
     }
 
 
+    /**
+     * "Tümü" sekmesinde tarih bölümü, kopyaların EN YENİ eklenme zamanını kullanmalı:
+     * kullanıcı yapımı dün Simkl'e eklemişse, AniList kopyası aylar önce eklenmiş olsa bile
+     * birleşik kart "Son eklenen" sıralamasında dünün tarihiyle görünür.
+     */
+    @Test
+    fun combinedRepresentativeUsesNewestAddedAtAcrossProviders() {
+        val anilist = entry(id = 10, title = "Kaiju No. 8", source = "anilist", malId = 52991)
+            .copy(addedAt = 1_600_000_000L)   // 2020
+        val simkl = entry(id = 40, title = "Kaiju No. 8", source = "simkl", malId = 52991)
+            .copy(addedAt = 1_700_000_000L)   // 2023 (daha yeni)
+
+        val grouped = groupMyListEntries(listOf(anilist, simkl))
+
+        assertEquals(1, grouped.size)
+        assertEquals(1_700_000_000L, grouped.single().entry.addedAt)
+    }
+
+    @Test
+    fun combinedRepresentativeKeepsKnownAddedAtWhenSiblingIsUnknown() {
+        val anilist = entry(id = 10, title = "Coraline", source = "anilist", malId = 52991)
+            .copy(addedAt = 1_600_000_000L)
+        val simkl = entry(id = 40, title = "Coraline", source = "simkl", malId = 52991)
+
+        val grouped = groupMyListEntries(listOf(anilist, simkl))
+
+        assertEquals(1, grouped.size)
+        assertEquals(1_600_000_000L, grouped.single().entry.addedAt)
+    }
+
     @Test
     fun combinedRepresentativeKeepsAdultFlagFromAnyProvider() {
         val shikimori = entry(id = 12, title = "Same title", source = "shikimori", malId = 52991)

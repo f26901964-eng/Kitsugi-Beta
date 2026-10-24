@@ -1,9 +1,14 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.ui.screens.mylist.components.myListSortEntries
+import com.kitsugi.animelist.ui.screens.mylist.components.nextSortId
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
@@ -98,6 +103,54 @@ class MyListDateGroupingTest {
 
         assertEquals(listOf(1, 99, 7), newest.map { it.id })
         assertEquals(listOf(99, 1, 7), oldest.map { it.id })
+    }
+
+    /**
+     * Sıralama menüsü (çipler, çekmece ve filtre sayfası) artık TEK bir listeden besleniyor.
+     * Bu test, listedeki her kimliğin `applySort` tarafından gerçekten karşılandığını ve
+     * liste uzunluğunun korunduğunu doğrular — yeni bir ölçüt eklenip `applySort`'a
+     * bağlanmazsa sıralama sessizce "Son eklenen"e düşerdi.
+     */
+    @Test
+    fun everySortMenuEntryIsHandledByApplySort() {
+        val sample = listOf(
+            entry(1, "Alfa", addedAt = secondsAt(today)),                                  // puan yok
+            entry(2, "Beta", addedAt = secondsAt(today.minusDays(3))).copy(score = 9, progress = 12, isFavorite = true),
+            entry(3, "Gama", addedAt = 0L)                                                 // bilinmiyor
+        )
+
+        myListSortEntries.forEach { sortEntry ->
+            val ids = listOfNotNull(sortEntry.descId, sortEntry.ascId)
+            ids.forEach { id ->
+                val sorted = applySort(sample, id)
+                assertEquals("Sıralama kimliği kayıt kaybetmemeli: $id", sample.size, sorted.size)
+                assertEquals("Sıralama kimliği kayıt üretmemeli: $id", sample.map { it.id }.toSet(), sorted.map { it.id }.toSet())
+            }
+        }
+    }
+
+    @Test
+    fun dateSectionsOnlyForAddedDateSorts() {
+        assertTrue(usesAddedDateGrouping("newest"))
+        assertTrue(usesAddedDateGrouping("oldest"))
+        listOf("title", "title_desc", "score", "score_asc", "progress", "progress_asc",
+            "favorites", "start_date_desc", "start_date_asc", "end_date_desc", "end_date_asc",
+            "year_desc", "year_asc", "updated_desc", "updated_asc", "repeat_desc", "repeat_asc",
+            "priority_desc", "priority_asc"
+        ).forEach { id ->
+            assertFalse("Tarih bölümü olmayan sıralama: $id", usesAddedDateGrouping(id))
+        }
+    }
+
+    @Test
+    fun sortToggleFlipsDirectionOnlyWhenThereIsOne() {
+        val added = myListSortEntries.first { it.descId == "newest" }
+        assertEquals("oldest", added.nextSortId("newest"))
+        assertEquals("newest", added.nextSortId("oldest"))
+
+        val favorites = myListSortEntries.first { it.descId == "favorites" }
+        assertNull(favorites.ascId)
+        assertEquals("favorites", favorites.nextSortId("favorites"))
     }
 
     @Test

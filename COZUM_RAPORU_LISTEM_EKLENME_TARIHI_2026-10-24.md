@@ -39,6 +39,9 @@ val addedAt: Long = 0L
 ```
 
 - `updatedAt` **değişmez**: durum/puan/ilerleme güncellemeleri `addedAt`i kaydırmaz.
+- `update()` kural: veritabanındaki `addedAt` esastır; çağıran yalnızca **daha eski** bir tarih
+  biliyorsa (içe aktarma düzeltmesi) onu geçirebilir. Böylece sıradan bir düzenleme tarihi ileri
+  taşımaz, ama gerçek `created_at` bulunduğunda değer geriye (gerçeğe) düzelir.
 - Yedek JSON'u (`MediaEntryBackup`) `addedAt` alanını yazar/okur; eski yedekler `0` ile açılır ve
   `updatedAt`e düşer (geriye dönük uyumlu).
 - Bekleyen senkron kuyruğu (`PendingSyncDrainer`) aynı JSON'u kullandığı için alan otomatik taşınır.
@@ -105,9 +108,17 @@ yereldeki değer ile sağlayıcının verdiği değerden **en eskisi** yazılır
 ### Sıralama (`MyListFilterHelpers`)
 
 ```kotlin
-"newest", "added", "added_desc" -> compareByDescending { addedSortTimestamp(it) }.thenByDescending { it.id }
-"oldest", "added_asc"           -> compareBy { addedSortKey(it) }.thenBy { it.id }   // bilinmeyen en sonda
+"newest", "added", "added_desc" ->
+    compareByDescending { addedSortTimestamp(it) }.thenBy { it.title.lowercase() }.thenBy { it.id }
+"oldest", "added_asc" ->
+    compareBy { addedSortKey(it) }.thenBy { it.title.lowercase() }.thenBy { it.id }  // bilinmeyen en sonda
 ```
+
+Eşit zaman damgalarında (aynı saniyede içe aktarılan toplu kayıtlar) sıra önce **başlığa** göre
+belirlenir. Önceden yalnızca yerel `id` kullanılıyordu; id'ler kaynak başına ayrı sayı uzaylarında
+olduğu için (Bangumi 500 milyon+, Kitsu 300 milyon+, Simkl 150 milyon+, AniList 100 milyon+) aynı
+saniyedeki kayıtlar sekmeden sekmeye farklı sıralanabiliyordu. Başlık anahtarı sekmeler arasında
+kararlıdır; `id` yalnızca son çare eşitlik bozucudur.
 
 `addedSortTimestamp` sırası: `addedAt` → `updatedAt` → `0`. Değerler `normalizeEpochSeconds()` ile
 korunur (eski milisaniye kayıtları/backuplar için).
@@ -123,12 +134,33 @@ Bugün → Dün → Bu Hafta → Geçen Hafta → Daha Eski → Eklendiği Tarih
 - Hafta başlangıcı **Pazartesi** (ISO-8601).
 - "İlk eklenen" seçiliyken bölüm sırası tersine döner, "Bilinmiyor" yine en sonda.
 - Saat dilimi cihazın yerel dilimidir; gelecekteki damgalar (cihaz saati kayması) "Bugün" sayılır.
-- `Ayrılmış liste tarzı` kapalıysa düz akış korunur (bölüm yok).
+- `Ayrılmış liste tarzı` kapalıysa düz akış korunur (bölüm yok); sıralama yine `addedAt` iledir.
+- **"Tamamlandı" filtresi:** Eskiden bu filtre listeyi koşulsuz düz akışa düşürüyordu, yani
+  kullanıcı "Son eklenen"i seçse bile tarih başlıklarını göremiyordu. Tarih bölümleri artık bu
+  kısayoldan ÖNCE değerlendirilir.
+- **Sekme kaydırma:** Pasif (komşu) pager sayfaları kendi satırlarını da aynı sıralama kimliğiyle
+  dizer ve tarih bölümlerini gösterir. Önceden komşu sayfa ham `pageEntries` sırasıyla/durum
+  gruplarıyla görünüyor, sekme geçişinde bölümler "kayboluyor" gibi algılanıyordu.
 - Metinler `values/` (TR) ve `values-en/` (EN) kaynaklarına eklendi.
 - **Tümü sekmesi:** birleşik kart, aynı yapımın kopyaları arasından **en yeni** `addedAt`
   değerini kullanır (`MyListLibraryGrouping`). Kullanıcı bir yapımı bugün herhangi bir
   kaynağa eklediyse Tümü'de "Son eklenen"in en üstünde görünür; sekme bazlı listeler
   kendi satırlarının sağlayıcı tarihini korur.
+
+### Sıralama menüsü tek kaynak (`myListSortEntries`)
+
+Sıralama seçenekleri ÜÇ ayrı yerde listeleniyordu ve birbirinden kopmuştu:
+
+| Yüzey | Önce | Şimdi |
+|---|---|---|
+| Satır içi çipler | 8 ölçüt (başlık literal, TR sabit) | `myListSortEntries` (11 ölçüt, TR/EN) |
+| Sıralama çekmecesi | 8 ölçüt | `myListSortEntries` |
+| Filtre sayfası | 15 ölçüt (`sortOptions`) | `myListSortEntries` |
+
+Eski durumda "Favoriler", "Yayın yılı" ve "Öncelik" yalnızca filtre sayfasında vardı; "Tekrar
+sayısı" ise yalnızca çekmecede. Artık tek liste var, etiketler `@StringRes` üzerinden geliyor
+(TR/EN ayrışamaz) ve seçili ölçüte dokunmak yönü çeviriyor (azalan → artan → azalan). Ters yönü
+olmayan ölçütlerde (`Favoriler`) `ascId = null`.
 
 ### UI
 
@@ -165,7 +197,11 @@ kayması olmaz). Başlık metni `item { }` içinde `stringResource` ile çözül
 - `res/values/strings.xml`, `res/values-en/strings.xml` — bölüm etiketleri
 
 **Test**
-- `app/src/test/.../mylist/MyListDateGroupingTest.kt` — bölüm sınırları, sıralama, eski kayıt geri düşüşü
+- `app/src/test/.../mylist/MyListDateGroupingTest.kt` — bölüm sınırları, `addedAt` tabanlı sıralama,
+  eski kayıt (`updatedAt`) geri düşüşü, **her sıralama kimliğinin `applySort` tarafından
+  karşılandığı**, tarih bölümlerinin yalnızca eklenme sıralamalarında açıldığı, yön çevirme
+- `app/src/test/.../mylist/MyListLibraryGroupingTest.kt` — "Tümü" kartının kopyalar arasından en
+  yeni `addedAt` değerini aldığı; bilinmeyen kopyanın bilinen tarihi ezmediği
 
 ---
 
@@ -178,6 +214,9 @@ kayması olmaz). Başlık metni `item { }` içinde `stringResource` ile çözül
 5. Bir kaydın puanını/ilerlemesini değiştir → yapım "Bugün" bölümünde kalmalı (tarih kaymamalı).
 6. **İlk eklenen** → en eski kayıtlar önce, "Eklendiği Tarih Bilinmiyor" en sonda.
 7. Ada göre / Puan / İlerleme seçildiğinde eski durum grupları (Ayrılmış liste tarzı) geri gelir.
+8. "Tamamlandı" filtresi açıkken de tarih bölümleri görünür.
+9. Sekmeler arasında kaydırırken komşu sekme de tarih bölümleriyle gelir (bölümler "kaybolmaz").
+10. Sıralama çekmecesi, satır içi çipler ve filtre sayfası **aynı** ölçütleri listeler.
 
 ---
 
@@ -185,7 +224,12 @@ kayması olmaz). Başlık metni `item { }` içinde `stringResource` ile çözül
 
 - Bu ortamda JDK ve Android SDK bulunmadığı için derleme (`./gradlew`) çalıştırılamadı; değişiklikler
   statik olarak ve birim test koduyla doğrulandı.
-- `app/schemas/…/30.json` ilk derlemede Room/KSP tarafından otomatik üretilecek.
 - MAL ve Bangumi API'leri gerçek "eklenme" alanı sunmadığı için bu iki kaynakta tarih, ilk aktarımda
   `updated_at`ten türetilir ve sonrasında sabitlenir. AniList/Kitsu/Shikimori/Simkl'de değer birebir
   sağlayıcının kendi alanıdır.
+- **Room şeması:** `app/schemas/.../30.json` bu ortamda ÜRETİLMEDİ (JDK/Android SDK yok, Gradle
+  çalıştırılamıyor). KSP ilk derlemede dosyayı kendisi yazacaktır; `exportSchema = true` olduğu için
+  şema doğrulaması derleme sırasında yapılır. Depoya elle yazılmış bir `30.json` KONMADI —
+  `identityHash` yanlış olursa göç testleri yanıltıcı kırılır.
+- Depoda `MigrationTestHelper` tabanlı bir göç testi yok; göç SQL'i bu nedenle cihazda
+  `Adb`/`Studio` ile doğrulanmalı (bkz. bölüm 8).

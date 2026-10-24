@@ -6366,6 +6366,11 @@
     <string name="mylist_date_last_week">Last Week</string>
     <string name="mylist_date_older">Older</string>
     <string name="mylist_date_unknown">Added date unknown</string>
+    <string name="mylist_sort_added">Date added</string>
+    <string name="mylist_sort_start">Start date</string>
+    <string name="mylist_sort_end">End date</string>
+    <string name="mylist_sort_year">Release year</string>
+    <string name="mylist_sort_repeat">Repeat count</string>
     <string name="mylist_sort_oldest">Oldest added</string>
     <string name="mylist_sort_title">Title</string>
     <string name="mylist_sort_progress">Progress</string>

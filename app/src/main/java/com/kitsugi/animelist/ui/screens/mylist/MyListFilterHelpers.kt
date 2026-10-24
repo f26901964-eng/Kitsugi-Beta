@@ -164,10 +164,14 @@ internal fun applySort(
         // `id` yalnızca eşit zaman damgalarında (ör. aynı saniyede içe aktarılan toplu
         // kayıtlar) kararlı bir sıra üretmek için son ölçüt olarak kullanılır.
         "newest", "added", "added_desc" -> entries.sortedWith(
-            compareByDescending<MediaEntry> { addedSortTimestamp(it) }.thenByDescending { it.id }
+            compareByDescending<MediaEntry> { addedSortTimestamp(it) }
+                .thenBy { it.title.lowercase() }
+                .thenBy { it.id }
         )
         "oldest", "added_asc" -> entries.sortedWith(
-            compareBy<MediaEntry> { addedSortKey(it) }.thenBy { it.id }
+            compareBy<MediaEntry> { addedSortKey(it) }
+                .thenBy { it.title.lowercase() }
+                .thenBy { it.id }
         )
         "title" -> sortedByTitleKey(descending = false)
         "title_desc" -> sortedByTitleKey(descending = true)
@@ -225,7 +229,9 @@ internal fun applySort(
             compareBy<MediaEntry> { it.priority ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() }
         )
         else -> entries.sortedWith(
-            compareByDescending<MediaEntry> { addedSortTimestamp(it) }.thenByDescending { it.id }
+            compareByDescending<MediaEntry> { addedSortTimestamp(it) }
+                .thenBy { it.title.lowercase() }
+                .thenBy { it.id }
         )
     }
 }
@@ -236,8 +242,8 @@ internal fun getSortTitle(sortId: String): String = when (sortId) {
     "score_asc" -> "Puan (En düşük)"
     else -> stringResource(
         when (sortId) {
-            "newest" -> R.string.mylist_sort_newest
-            "oldest" -> R.string.mylist_sort_oldest
+            "newest", "added", "added_desc" -> R.string.mylist_sort_newest
+            "oldest", "added_asc" -> R.string.mylist_sort_oldest
             "title" -> R.string.mylist_sort_title_asc
             "title_desc" -> R.string.mylist_sort_title_desc
             "progress" -> R.string.mylist_sort_progress_high

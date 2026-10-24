@@ -6371,6 +6371,11 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="mylist_date_last_week">Geçen Hafta</string>
     <string name="mylist_date_older">Daha Eski</string>
     <string name="mylist_date_unknown">Eklendiği Tarih Bilinmiyor</string>
+    <string name="mylist_sort_added">Eklenme tarihi</string>
+    <string name="mylist_sort_start">Başlangıç tarihi</string>
+    <string name="mylist_sort_end">Bitiş tarihi</string>
+    <string name="mylist_sort_year">Yayın yılı</string>
+    <string name="mylist_sort_repeat">Tekrar sayısı</string>
     <string name="mylist_sort_oldest">İlk eklenen</string>
     <string name="mylist_sort_title">Ada göre</string>
     <string name="mylist_sort_progress">İlerleme</string>

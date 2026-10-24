@@ -617,6 +617,7 @@ fun MyListScreen(
                     groupedVisibleEntries = groupedVisibleEntries,
                     searchQuery = searchQuery,
                     selectedStatusFilterId = selectedStatusFilterId,
+                    selectedSortId = selectedSortId,
                     selectedListLayoutId = selectedListLayoutId,
                     appSettings = appSettings,
                     pageScrollState = pageScrollState,

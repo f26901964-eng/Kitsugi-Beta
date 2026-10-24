@@ -32,25 +32,48 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.ui.utils.tvClickable
-import com.kitsugi.animelist.utils.KitsugiStrings
 
-data class SortMenuItem(
+/**
+ * Listem'de seçilebilen TEK bir sıralama ölçütü.
+ *
+ * Aynı liste üç ayrı yerde kullanılıyor (satır içi çipler, sıralama çekmecesi ve filtre
+ * sayfası). Daha önce üçü ayrı listelerden besleniyordu ve birbirinden koptu:
+ * "Favoriler", "Yayın yılı" ve "Öncelik" yalnızca birinde vardı; kullanıcı hangi ekrandan
+ * bakarsa baksın aynı seçenekleri görmeli. Etiketler `@StringRes` üzerinden gelir, bu
+ * yüzden TR/EN sürümleri ayrışamaz.
+ *
+ * [ascId] `null` ise ölçütün ters yönü yoktur (ör. Favoriler): tekrar dokunmak seçimi
+ * korur, ok simgesi de daima "azalan" olur.
+ */
+data class MyListSortEntry(
     val descId: String,
-    val ascId: String,
-    val title: String
+    val ascId: String?,
+    @StringRes val titleRes: Int
 )
 
-val myListSortMenuItems = listOf(
-    SortMenuItem("title", "title_desc", KitsugiStrings.get(R.string.ui_account_title)),
-    SortMenuItem("score", "score_asc", "Puan"),
-    SortMenuItem("progress", "progress_asc", "İlerleme"),
-    SortMenuItem("updated_desc", "updated_asc", "Güncelleme tarihi"),
-    SortMenuItem("newest", "oldest", "Eklenme tarihi"),
-    SortMenuItem("start_date_desc", "start_date_asc", "Başlangıç tarihi"),
-    SortMenuItem("end_date_desc", "end_date_asc", "Bitiş tarihi"),
-    SortMenuItem("repeat_desc", "repeat_asc", "Tekrar Sayısı")
+val myListSortEntries = listOf(
+    MyListSortEntry("newest", "oldest", R.string.mylist_sort_added),
+    MyListSortEntry("title", "title_desc", R.string.mylist_sort_title),
+    MyListSortEntry("score", "score_asc", R.string.detail_stat_score),
+    MyListSortEntry("progress", "progress_asc", R.string.mylist_sort_progress),
+    MyListSortEntry("favorites", null, R.string.mylist_sort_favorites),
+    MyListSortEntry("start_date_desc", "start_date_asc", R.string.mylist_sort_start),
+    MyListSortEntry("end_date_desc", "end_date_asc", R.string.mylist_sort_end),
+    MyListSortEntry("year_desc", "year_asc", R.string.mylist_sort_year),
+    MyListSortEntry("updated_desc", "updated_asc", R.string.mylist_sort_updated),
+    MyListSortEntry("repeat_desc", "repeat_asc", R.string.mylist_sort_repeat),
+    MyListSortEntry("priority_desc", "priority_asc", R.string.mylist_sort_priority)
 )
+
+/** Dokunulduğunda sıradaki sıralama kimliği: azalan → artan → azalan. */
+fun MyListSortEntry.nextSortId(current: String): String = when {
+    ascId != null && current == ascId -> descId
+    ascId != null && current == descId -> ascId
+    else -> descId
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,9 +111,9 @@ fun KitsugiMyListSortMenu(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            myListSortMenuItems.forEach { item ->
+            myListSortEntries.forEach { item ->
                 val isDescActive = selectedSortId == item.descId
-                val isAscActive = selectedSortId == item.ascId
+                val isAscActive = item.ascId != null && selectedSortId == item.ascId
                 val isSelected = isDescActive || isAscActive
 
                 Row(
@@ -99,8 +122,7 @@ fun KitsugiMyListSortMenu(
                         .clip(RoundedCornerShape(18.dp))
                         .background(if (isSelected) KitsugiColors.SurfaceSoft else KitsugiColors.SurfaceStrong)
                         .tvClickable(shape = RoundedCornerShape(18.dp)) {
-                            val nextSortId = if (isDescActive) item.ascId else item.descId
-                            onSortSelected(nextSortId)
+                            onSortSelected(item.nextSortId(selectedSortId))
                             onDismissRequest()
                         }
                         .padding(horizontal = 20.dp, vertical = 15.dp),
@@ -108,7 +130,7 @@ fun KitsugiMyListSortMenu(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = item.title,
+                        text = stringResource(item.titleRes),
                         color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium

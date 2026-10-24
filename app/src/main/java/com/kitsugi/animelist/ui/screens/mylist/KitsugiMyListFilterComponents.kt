@@ -34,7 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
-import com.kitsugi.animelist.ui.screens.mylist.components.myListSortMenuItems
+import com.kitsugi.animelist.ui.screens.mylist.components.myListSortEntries
+import com.kitsugi.animelist.ui.screens.mylist.components.nextSortId
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
@@ -55,12 +56,6 @@ internal data class TypeFilter(
 )
 
 internal data class FavoriteFilter(
-    val id: String,
-    val title: String,
-    val titleRes: Int? = null
-)
-
-internal data class SortOption(
     val id: String,
     val title: String,
     val titleRes: Int? = null
@@ -132,23 +127,6 @@ internal val extraFilters = listOf(
     ExtraFilter("repeating", "Tekrar İzlenenler", R.string.mylist_extra_repeating),
     ExtraFilter("private", "Özel / Gizli", R.string.mylist_extra_private),
     ExtraFilter("ongoing", "Tamamlanmamış", R.string.mylist_extra_ongoing)
-)
-
-internal val sortOptions = listOf(
-    SortOption("newest", "Son eklenen", R.string.mylist_sort_newest),
-    SortOption("oldest", "İlk eklenen", R.string.mylist_sort_oldest),
-    SortOption("title", "Ada göre", R.string.mylist_sort_title),
-    SortOption("score", "Puan"),
-    SortOption("progress", "İlerleme", R.string.mylist_sort_progress),
-    SortOption("favorites", "Favoriler", R.string.mylist_sort_favorites),
-    SortOption("start_date_desc", "Başlangıç (Yeni)", R.string.mylist_sort_start_new),
-    SortOption("start_date_asc", "Başlangıç (Eski)", R.string.mylist_sort_start_old),
-    SortOption("end_date_desc", "Bitiş (Yeni)", R.string.mylist_sort_end_new),
-    SortOption("end_date_asc", "Bitiş (Eski)", R.string.mylist_sort_end_old),
-    SortOption("year_desc", "Yayın Yılı (Yeni)", R.string.mylist_sort_year_new),
-    SortOption("year_asc", "Yayın Yılı (Eski)", R.string.mylist_sort_year_old),
-    SortOption("updated_desc", "Son Güncelleme", R.string.mylist_sort_updated),
-    SortOption("priority_desc", "Öncelik", R.string.mylist_sort_priority)
 )
 
 @Composable
@@ -278,11 +256,56 @@ internal fun SortFilterRow(
     selectedSortId: String,
     onSortSelected: (String) -> Unit
 ) {
-    FilterChipRow(
-        items = sortOptions.map { it.id to myListLocalizedTitle(it.title, it.titleRes) },
-        selectedId = selectedSortId,
-        onSelected = onSortSelected
-    )
+    // Filtre sayfası da satır içi çipler ve sıralama çekmecesiyle AYNI listeyi kullanır;
+    // böylece "Favoriler / Yayın yılı / Öncelik" gibi ölçütler bir yüzeyde unutulmaz.
+    // Seçili çipe dokunmak yönü çevirir (azalan ↔ artan).
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        myListSortEntries.forEach { entry ->
+            val isDescActive = selectedSortId == entry.descId
+            val isAscActive = entry.ascId != null && selectedSortId == entry.ascId
+            val isSelected = isDescActive || isAscActive
+            val accentColor = LocalKitsugiAccent.current
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (isSelected) accentColor.copy(alpha = 0.15f)
+                        else KitsugiColors.SurfaceStrong.copy(alpha = 0.4f)
+                    )
+                    .tvClickable(shape = RoundedCornerShape(999.dp), onClick = {
+                        onSortSelected(entry.nextSortId(selectedSortId))
+                    })
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = myListLocalizedTitle("", entry.titleRes),
+                        color = if (isSelected) accentColor else KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = if (isAscActive) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -427,9 +450,9 @@ internal fun RichMyListFilterPanel(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                myListSortMenuItems.forEach { item ->
+                myListSortEntries.forEach { item ->
                     val isDescActive = selectedSortId == item.descId
-                    val isAscActive = selectedSortId == item.ascId
+                    val isAscActive = item.ascId != null && selectedSortId == item.ascId
                     val isSelected = isDescActive || isAscActive
                     Box(
                         modifier = Modifier
@@ -438,8 +461,7 @@ internal fun RichMyListFilterPanel(
                                 if (isSelected) accentColor else KitsugiColors.Surface
                             )
                             .tvClickable(shape = RoundedCornerShape(999.dp), onClick = {
-                                val nextId = if (isDescActive) item.ascId else item.descId
-                                onSortSelected(nextId)
+                                onSortSelected(item.nextSortId(selectedSortId))
                             })
                             .padding(horizontal = 14.dp, vertical = 9.dp),
                         contentAlignment = Alignment.Center
@@ -449,7 +471,7 @@ internal fun RichMyListFilterPanel(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = item.title,
+                                text = myListLocalizedTitle("", item.titleRes),
                                 color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,

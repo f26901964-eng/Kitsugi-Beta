@@ -51,8 +51,11 @@ class MediaEntryRepository(
         val entryWithTime = entry.copy(
             updatedAt = entry.updatedAt.takeIf { it > 0L } ?: nowSec,
             // "Son eklenen" sırası bu alana bağlı: yeni kayıt her zaman bugüne yazılır,
-            // sağlayıcıdan gelen gerçek eklenme zamanı varsa o korunur.
-            addedAt = entry.addedAt.takeIf { it > 0L } ?: nowSec
+            // sağlayıcıdan gelen gerçek eklenme zamanı varsa o korunur. Eski çağrılar
+            // milisaniye geçebildiği için değer normalize edilir (alan saniye tutar).
+            addedAt = entry.addedAt.takeIf { it > 0L }
+                ?.let { com.kitsugi.animelist.model.normalizeEpochSeconds(it) }
+                ?: nowSec
         )
         val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
         // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
@@ -68,7 +71,9 @@ class MediaEntryRepository(
         val entriesWithTime = entries.map { entry ->
             entry.copy(
                 updatedAt = entry.updatedAt.takeIf { it > 0L } ?: nowSec,
-                addedAt = entry.addedAt.takeIf { it > 0L } ?: nowSec
+                addedAt = entry.addedAt.takeIf { it > 0L }
+                    ?.let { com.kitsugi.animelist.model.normalizeEpochSeconds(it) }
+                    ?: nowSec
             )
         }
         dao.insertAll(entriesWithTime.map { it.copy(id = 0).toEntity() })
@@ -148,8 +153,8 @@ class MediaEntryRepository(
                 //    doldurulmuş eski satırlarda olduğu gibi) daha eski olan o değer yazılır.
                 // Böylece değer asla ileri kaymaz, yalnızca gerçeğe yaklaşır.
                 val addedAt = listOfNotNull(
-                    match.addedAt.takeIf { it > 0L },
-                    imported.addedAt.takeIf { it > 0L }
+                    match.addedAt.takeIf { it > 0L }?.let { com.kitsugi.animelist.model.normalizeEpochSeconds(it) },
+                    imported.addedAt.takeIf { it > 0L }?.let { com.kitsugi.animelist.model.normalizeEpochSeconds(it) }
                 ).minOrNull() ?: System.currentTimeMillis() / 1000L
                 updates[match.id] = preserveResolvedTitles(match, imported).copy(
                     id = match.id,
@@ -173,7 +178,9 @@ class MediaEntryRepository(
         val insertEntities = inserts.map { entry ->
             entry.copy(
                 id = 0,
-                addedAt = entry.addedAt.takeIf { it > 0L } ?: nowSec
+                addedAt = entry.addedAt.takeIf { it > 0L }
+                    ?.let { com.kitsugi.animelist.model.normalizeEpochSeconds(it) }
+                    ?: nowSec
             ).toEntity()
         }
         dao.smartImportTransaction(insertEntities, updates.values.toList(), deletions)
@@ -238,8 +245,10 @@ class MediaEntryRepository(
                 .mapNotNull { preservedAddedAt[it] }
                 .minOrNull()
             // En eski bilinen an: değer senkronla ileri kaymaz, yalnızca geriye (gerçeğe) düzelir.
-            val addedAt = listOfNotNull(localAddedAt, entry.addedAt.takeIf { it > 0L }).minOrNull()
-                ?: nowSec
+            val addedAt = listOfNotNull(
+                localAddedAt,
+                entry.addedAt.takeIf { it > 0L }?.let { com.kitsugi.animelist.model.normalizeEpochSeconds(it) }
+            ).minOrNull() ?: nowSec
             entry.copy(
                 isAdult = entry.isAdult || entryKeys.any { it in preservedKeys },
                 addedAt = addedAt
@@ -273,13 +282,22 @@ class MediaEntryRepository(
         advancedScores: List<Double>? = null,
         skipBangumiWrite: Boolean = false
     ) {
-        // "Eklenme zamanı" bir güncelleme alanı DEĞİLDİR: çağıran taraf (örn. Tümü
-        // sekmesinin birleşik kartı, kopyaların en yenisini gösterebilmek için farklı bir
-        // `addedAt` taşıyabilir) bu değeri değiştiremez. Veritabanındaki değer kazanır.
+        // "Eklenme zamanı" bir güncelleme alanı DEĞİLDİR: durum/puan/ilerleme düzenlemesi
+        // tarihi ileri taşımamalıdır (kullanıcı bir diziyi 2024'te ekleyip bugün 5. bölüme
+        // geçtiğinde "Bugün" grubuna düşmemeli). Çağıran taraf yalnızca daha ESKİ bir
+        // tarih biliyorsa (içe aktarma düzeltmesi) onu geçirebilir.
         val storedAddedAt = runSyncCatching { dao.getById(entry.id)?.addedAt }.getOrNull() ?: 0L
+        val resolvedAddedAt = when {
+            storedAddedAt <= 0L -> entry.addedAt
+            // Yalnızca GERİYE doğru (gerçeğe yaklaşan) düzeltme kabul edilir; böylece
+            // içe aktarma daha eski bir tarih bulduğunda düzeltebilir, ama sıradan bir
+            // düzenleme tarihi ileri taşıyamaz.
+            entry.addedAt in 1 until storedAddedAt -> entry.addedAt
+            else -> storedAddedAt
+        }
         val entryWithTime = entry.copy(
             updatedAt = System.currentTimeMillis() / 1000L,
-            addedAt = storedAddedAt.takeIf { it > 0L } ?: entry.addedAt
+            addedAt = resolvedAddedAt
         )
         dao.update(
             entryWithTime.toEntity()
@@ -330,10 +348,15 @@ class MediaEntryRepository(
         val entities = entries.map {
             it.copy(
                 id = 0,
-                updatedAt = it.updatedAt.takeIf { value -> value > 0 } ?: now,
+                updatedAt = it.updatedAt.takeIf { value -> value > 0 }
+                    ?.let { value -> com.kitsugi.animelist.model.normalizeEpochSeconds(value) } ?: now,
                 // Yedek eski sürümden geldiyse `addedAt` yoktur; eklenme sırası bozulmasın
                 // diye son değişiklik zamanıyla doldurulur.
-                addedAt = it.addedAt.takeIf { value -> value > 0 } ?: it.updatedAt.takeIf { value -> value > 0 } ?: now
+                addedAt = it.addedAt.takeIf { value -> value > 0 }
+                    ?.let { value -> com.kitsugi.animelist.model.normalizeEpochSeconds(value) }
+                    ?: it.updatedAt.takeIf { value -> value > 0 }
+                        ?.let { value -> com.kitsugi.animelist.model.normalizeEpochSeconds(value) }
+                    ?: now
             ).toEntity()
         }
         dao.replaceAllTransaction(entities)

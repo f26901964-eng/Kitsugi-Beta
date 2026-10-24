@@ -842,6 +842,8 @@ fun MyListContentPage(
     groupedVisibleEntries: List<Pair<WatchStatus, List<MediaEntry>>>,
     searchQuery: String,
     selectedStatusFilterId: String,
+    /** "Son eklenen / İlk eklenen" seçiliyken tarih bölümleri bu kimliğe göre açılır. */
+    selectedSortId: String,
     selectedListLayoutId: String,
     appSettings: com.kitsugi.animelist.data.settings.AppSettings,
     pageScrollState: LazyListState,
@@ -903,16 +905,29 @@ fun MyListContentPage(
             }
         } else {
             val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX
-            val displayEntries = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) visibleEntries else pageEntries
+            // PERF/NOT: pasif sayfalar (kaydırma sırasında komşu sekmeler) eskiden ham
+            // `pageEntries` sırasını gösteriyordu; bu yüzden sekme değiştirirken liste bir an
+            // için "sıralanmamış" görünüyordu. Artık her sayfa KENDİ satırlarını aynı
+            // sıralama kimliğiyle dizer (remember ile önbelleklenir).
+            val isActivePage = pageTabIndex == selectedTabIndex || useGlobalSearchResults
+            val displayEntries = if (isActivePage) {
+                visibleEntries
+            } else {
+                remember(pageEntries, selectedSortId) { applySort(pageEntries, selectedSortId) }
+            }
             // PERF: aktif olmayan pager sayfası için durum gruplaması her yeniden
             // kompozisyonda yeniden hesaplanıyordu (kompozisyon sırasında 6 × tam liste
             // taraması — kaydırma jesti sırasında komşu sayfalar da kompoze olur).
             // "Son eklenen / İlk eklenen": liste durum grupları yerine eklenme tarihine
             // göre bölümlenir (Bugün → Dün → Bu Hafta → Geçen Hafta → Daha Eski →
             // Eklendiği Tarih Bilinmiyor). Bölümleme `MediaEntry.addedAt` üzerinden
-            // yapılır; böylece aynı yapım tüm sekmelerde aynı bölümde görünür.
-            val isActivePage = pageTabIndex == selectedTabIndex || useGlobalSearchResults
-            val useDateSections = isActivePage && usesAddedDateGrouping(selectedSortId)
+            // yapılır. Kural AKTİF SAYFAYLA SINIRLI DEĞİL: sekme kaydırırken komşu sayfa
+            // bir an durum gruplarıyla görünüp "sekme değişti, bölümler kayboldu"
+            // izlenimi veriyordu. Her sayfa kendi bölümlerini hesaplar (remember).
+            // Tarih bölümleri "Ayrılmış liste tarzı" kapalıyken gösterilmez (kullanıcı
+            // bölüm başlıklarını bilinçli olarak kapatmıştır); o durumda sıralama yine
+            // `addedAt` üzerinden doğru çalışır.
+            val useDateSections = usesAddedDateGrouping(selectedSortId) && appSettings.separatedListStyle
             val displayDateGrouped = if (useDateSections) {
                 remember(displayEntries, selectedSortId) {
                     groupMyListEntriesByAddedDate(
@@ -923,18 +938,10 @@ fun MyListContentPage(
             } else {
                 emptyList()
             }
-            val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
+            val displayGrouped = if (isActivePage) {
                 groupedVisibleEntries
             } else {
-                remember(pageEntries) {
-                    val statusOrder = listOf(
-                        WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
-                        WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
-                    )
-                    statusOrder.map { status ->
-                        status to pageEntries.filter { it.status == status }
-                    }.filter { it.second.isNotEmpty() }
-                }
+                remember(displayEntries) { groupMyListEntriesByStatus(displayEntries) }
             }
 
             LazyColumn(
@@ -969,12 +976,12 @@ fun MyListContentPage(
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
-                } else if ((selectedStatusFilterId == "completed" && pageTabIndex == selectedTabIndex) ||
-                    !appSettings.separatedListStyle
-                ) {
-                    // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
-                    MyListFlatContent(
-                        visibleEntries = displayEntries,
+                } else if (useDateSections) {
+                    // Tür bölümleri (Bugün / Dün / …) durum bölümlerinden ÖNCE gelir:
+                    // "Tamamlandı" filtresi açıkken liste düz akışa düşüyordu, yani
+                    // kullanıcı "Son eklenen"i seçse bile tarih başlıklarını göremiyordu.
+                    MyListDateGroupedContent(
+                        groupedEntries = displayDateGrouped,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
@@ -986,9 +993,12 @@ fun MyListContentPage(
                         onIncrementProgress = onIncrementProgress,
                         onPosterLongClick = onPosterLongClick
                     )
-                } else if (useDateSections) {
-                    MyListDateGroupedContent(
-                        groupedEntries = displayDateGrouped,
+                } else if ((selectedStatusFilterId == "completed" && pageTabIndex == selectedTabIndex) ||
+                    !appSettings.separatedListStyle
+                ) {
+                    // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
+                    MyListFlatContent(
+                        visibleEntries = displayEntries,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
