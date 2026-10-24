@@ -104,12 +104,9 @@ fun DetailPageScaffold(
     val leftPanelFocusRequester = remember { FocusRequester() }
     val tabBarFocusRequester = remember { FocusRequester() }
     val selectedTab = pagerState.currentPage
-    // Yapışkan başlık yüksekliği index == 2 sınırında gidip gelmesin.
-    val showFloatingHeader = rememberDetailStickyHeaderVisible(
-        listState = listState,
-        showAtIndex = 3,
-        hideAtIndex = 1
-    )
+    // Hero (0) + yapışkan sekmeler (1) + pager içeriği (2) düzeninde mini üst bar
+    // içerik görünür olduğunda açılır; sekme sınırındaki histerezis titremeyi önler.
+    val showFloatingHeader = rememberDetailStickyHeaderVisible(listState = listState)
 
     when {
         isLoading -> loadingScreen()

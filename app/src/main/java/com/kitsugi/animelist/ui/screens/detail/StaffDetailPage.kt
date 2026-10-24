@@ -272,11 +272,7 @@ fun StaffDetailPage(
                     }
                 ) {
                 val listState = rememberLazyListState()
-                val showFloatingHeader = rememberDetailStickyHeaderVisible(
-                    listState = listState,
-                    showAtIndex = 2,
-                    hideAtIndex = 0
-                )
+                val showFloatingHeader = rememberDetailStickyHeaderVisible(listState = listState)
                 // Wiki çözümlemesi ham detayla yapılır (ad gösterim tercihinden bağımsız).
                 LaunchedEffect(rawDetail, source, staffId) {
                     wikiViewModel.bindStaff(rawDetail, source, staffId)
