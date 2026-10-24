@@ -25,6 +25,7 @@ internal object KitsugiSimklDetailClient {
 
     private val rawJsonCache = java.util.concurrent.ConcurrentHashMap<String, JSONObject>()
     private val crossIdCache = java.util.concurrent.ConcurrentHashMap<String, SimklCrossIds>()
+    private val externalSimklIdCache = com.kitsugi.animelist.core.memory.BoundedCache<String, Int>("simkl.extId", 300)
 
     private fun parseOptionalId(ids: JSONObject?, key: String): Int? {
         if (ids == null) return null
@@ -449,7 +450,7 @@ internal object KitsugiSimklDetailClient {
                     .distinct(),
                 openings = emptyList(),
                 endings = emptyList(),
-                trailerUrl = null,
+                trailerUrl = extractSimklTrailerVideos(obj, simklId).firstOrNull()?.videoUrl,
                 title = resolvedTitle,
                 imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                 score = if (ratingScore > 0.0) (ratingScore * 10).toInt() else null,
@@ -506,5 +507,112 @@ internal object KitsugiSimklDetailClient {
             android.util.Log.w("KitsugiSimklDetailClient", "TMDB yerelleştirilmiş başlık alınamadı (tmdb=$tmdbId): ${e.message}")
             null
         }
+    }
+
+    internal fun extractSimklTrailerVideos(obj: JSONObject?, simklId: Int): List<MediaVideoItem> {
+        val arr = obj?.optJSONArray("trailers") ?: return emptyList()
+        val list = mutableListOf<MediaVideoItem>()
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i) ?: continue
+            val rawYt = item.optString("youtube", "").trim()
+            val ytId = extractCanonicalYouTubeId(rawYt) ?: continue
+            val rawName = item.optString("name", "").trim()
+            val label = rawName.ifBlank { KitsugiStrings.get(R.string.source_video_trailer) }
+            list += MediaVideoItem(
+                key = "simkl_trailer_${simklId}_$ytId",
+                title = label,
+                videoUrl = "https://www.youtube.com/watch?v=$ytId",
+                category = MediaVideoCategory.TRAILER,
+                source = "simkl"
+            )
+        }
+        return list
+    }
+
+    /**
+     * Harici kimliklerden (MAL / AniList / TMDB / IMDb) Simkl kimliğini çözümler.
+     */
+    suspend fun resolveSimklIdByExternalIds(
+        malId: Int? = null,
+        aniListId: Int? = null,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        mediaType: MediaType = MediaType.Anime
+    ): Int? {
+        if (mediaType == MediaType.Manga) return null
+        val clientId = com.kitsugi.animelist.BuildConfig.SIMKL_CLIENT_ID
+        if (clientId.isBlank()) return null
+
+        val queryPair: Pair<String, String> = when {
+            malId != null && malId in 1..99_999_999 -> "mal" to malId.toString()
+            aniListId != null && aniListId > 0 -> "anilist" to aniListId.toString()
+            !imdbId.isNullOrBlank() -> "imdb" to imdbId.trim()
+            tmdbId != null && tmdbId > 0 -> "tmdb" to tmdbId.toString()
+            else -> return null
+        }
+
+        val typeHint = when (mediaType) {
+            MediaType.Movie -> "movie"
+            MediaType.TvShow -> "tv"
+            else -> "anime"
+        }
+        val cacheKey = "$typeHint:${queryPair.first}:${queryPair.second}"
+        externalSimklIdCache[cacheKey]?.let { cached ->
+            return if (cached > 0) cached else null
+        }
+
+        val extraType = if (queryPair.first == "tmdb") "&type=$typeHint" else ""
+        val urlString = "https://api.simkl.com/search/id?${queryPair.first}=${queryPair.second}$extraType&client_id=$clientId"
+        val found = try {
+            com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("simkl")
+            val request = Request.Builder()
+                .url(urlString)
+                .header("Accept", "application/json")
+                .build()
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val body = response.body?.string()?.trim() ?: return null
+                if (!body.startsWith("[")) return null
+                val arr = org.json.JSONArray(body)
+                var resolved = 0
+                for (i in 0 until arr.length()) {
+                    val entry = arr.optJSONObject(i) ?: continue
+                    val id = parseOptionalId(entry.optJSONObject("ids"), "simkl") ?: 0
+                    if (id > 0) {
+                        resolved = id
+                        break
+                    }
+                }
+                resolved
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("KitsugiSimklDetailClient", "resolveSimklIdByExternalIds failed: ${e.message}")
+            return null
+        }
+
+        externalSimklIdCache[cacheKey] = found
+        return found.takeIf { it > 0 }
+    }
+
+    /**
+     * Simkl `extended=full` yanıtından fragman videolarını döndürür.
+     */
+    suspend fun fetchSimklVideos(
+        simklId: Int,
+        mediaType: MediaType
+    ): List<MediaVideoItem> {
+        if (simklId <= 0 || mediaType == MediaType.Manga) return emptyList()
+        val cacheKey = when (mediaType) {
+            MediaType.Movie -> "movies:$simklId"
+            MediaType.TvShow -> "tv:$simklId"
+            else -> "anime:$simklId"
+        }
+        if (!rawJsonCache.containsKey(cacheKey)) {
+            com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("simkl")
+        }
+        val obj = fetchSimklRawJson(simklId, mediaType) ?: return emptyList()
+        return extractSimklTrailerVideos(obj, simklId)
     }
 }

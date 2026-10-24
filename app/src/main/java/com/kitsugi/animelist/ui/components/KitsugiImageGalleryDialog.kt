@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Share
@@ -113,7 +114,7 @@ fun KitsugiImageGalleryDialog(
 
     // ── Kaynak (source) grupları ───────────────────────────────────────────
     // Galeri birden fazla API'den beslenir (TMDB, Fanart.tv, AniList, Jikan…).
-    // "Diğer Resimler" ve "Detaylar" bölümlerinde kaynak listesi gösterilir;
+    // "Kaynaklar" ve "Detaylar" bölümlerinde kaynak listesi gösterilir;
     // seçilen kaynak pager'ı ve kategori sekmelerini birlikte daraltır.
     val availableSources = remember(galleryItems) {
         galleryItems
@@ -971,7 +972,7 @@ private fun GalleryLandscapeLayout(
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf(stringResource(R.string.gallery_tab_details), stringResource(R.string.gallery_tab_other_images)).forEachIndexed { idx, tabLabel ->
+                    listOf(stringResource(R.string.gallery_tab_details), stringResource(R.string.gallery_tab_sources)).forEachIndexed { idx, tabLabel ->
                         val sel = detailTab == idx
                         Box(
                             modifier = Modifier
@@ -1139,24 +1140,19 @@ private fun GalleryLandscapeLayout(
                         }
                     }
                 } else {
-                    // ── Diğer Resimler sekmesi ──
-                    //  1) Kaynak (source) listesi: seçilen kaynak görsel ızgarasını ve pager'ı
-                    //     birlikte daraltır — detay sayfasındaki "Resimler" seçicisiyle aynı dil.
-                    //  2) Aynı kategoriden diğer görseller (kaynak filtresi uygulanmış hâlde).
-                    val sameCategory = remember(currentItem, sourceScopedItems) {
-                        if (currentItem == null) emptyList()
-                        else sourceScopedItems.filter { it.category == currentItem.category && it.url != currentItem.url }
-                    }
+                    // ── Kaynaklar sekmesi ──
+                    //  Seçilen kaynak görsel ızgarasını ve pager'ı birlikte daraltır.
+                    //  Kullanıcı tercihi doğrultusunda bu sekmede resim bulunmaz; yalnızca kaynaklar listelenir.
                     val totalImages = remember(sources) { sources.sumOf { it.count } }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        contentPadding = PaddingValues(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        if (sources.size > 1) {
-                            item(key = "source_section_title") {
-                                GallerySourceSectionTitle(stringResource(R.string.gallery_field_source))
-                            }
+                        item(key = "source_section_title") {
+                            GallerySourceSectionTitle(stringResource(R.string.gallery_tab_sources))
+                        }
+                        if (sources.isNotEmpty()) {
                             item(key = "source_all") {
                                 GallerySourceRow(
                                     label = stringResource(R.string.gallery_source_all),
@@ -1175,46 +1171,14 @@ private fun GalleryLandscapeLayout(
                                     onClick = { onSourceSelected(group.source) }
                                 )
                             }
-                            item(key = "source_spacer") {
-                                Spacer(modifier = Modifier.height(4.dp))
-                            }
-                        }
-
-                        item(key = "other_images_title") {
-                            GallerySourceSectionTitle(stringResource(R.string.gallery_tab_other_images))
-                        }
-
-                        if (sameCategory.isEmpty()) {
-                            item(key = "no_more_images") {
+                        } else {
+                            item(key = "no_sources") {
                                 Text(
-                                    text = stringResource(R.string.gallery_no_more_images),
+                                    text = stringResource(R.string.gallery_no_sources_found),
                                     color = KitsugiColors.TextMuted,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)
-                                )
-                            }
-                        } else {
-                            itemsIndexed(
-                                items = sameCategory,
-                                key = { index, _ -> "related_$index" }
-                            ) { _, relatedItem ->
-                                val relIdx = filteredItems.indexOf(relatedItem)
-                                KitsugiNsfwImage(
-                                    model = relatedItem.url,
-                                    contentDescription = stringResource(R.string.gallery_related_image),
-                                    isAdult = isAdult,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(90.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                        .tvClickable(shape = RoundedCornerShape(8.dp)) {
-                                            if (relIdx >= 0) {
-                                                scope.launch { pagerState.animateScrollToPage(relIdx) }
-                                            }
-                                        },
-                                    contentScale = ContentScale.Crop
                                 )
                             }
                         }
@@ -1864,7 +1828,7 @@ private fun DetailRow(
 // ─────────────────────────────────────────────────────────────────────────────
 // KAYNAK (SOURCE) FİLTRESİ — yardımcılar
 //   Galeri tek bir kaynağa indirilebilir. Kaynak listesi hem yatay modun sağ
-//   panelindeki "Diğer Resimler" sekmesinde hem de dikey modun detay levhasında
+//   panelindeki "Kaynaklar" sekmesinde hem de dikey modun detay levhasında
 //   aynı görünümle (logo + ad + sayı) çizilir.
 // ─────────────────────────────────────────────────────────────────────────────
 /** Bir kaynaktan gelen görsel sayısı (küçük/büyük harf farkı gözetilmez). */
@@ -1907,17 +1871,14 @@ private fun GallerySourceRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (source == null) {
-            Box(
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(if (selected) accent.copy(alpha = 0.28f) else KitsugiColors.SurfaceSoft),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("🗂", fontSize = 9.sp)
-            }
+            Icon(
+                imageVector = Icons.Rounded.Folder,
+                contentDescription = null,
+                tint = if (selected) accent else Color(0xFFFFB800),
+                modifier = Modifier.size(20.dp)
+            )
         } else {
-            KitsugiPlatformLogo(platformId = source, size = 18.dp, cornerRadius = 4.dp)
+            KitsugiPlatformLogo(platformId = source, size = 20.dp, cornerRadius = 5.dp)
         }
         Text(
             text = label,

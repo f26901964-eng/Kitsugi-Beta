@@ -5,6 +5,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.ui.utils.plainLabel
 import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.data.auth.runSyncCatching
+import com.kitsugi.animelist.data.auth.CrossSyncRetry
 import com.kitsugi.animelist.data.auth.CrossSyncReportStore
 import android.app.Application
 import android.content.Context
@@ -1346,7 +1347,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         } else if (current == null) {
                             // AniList'te eksik -> EKLE!
                             com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
-                            val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, mergedEntry, context = context) }
+                            val res = CrossSyncRetry.retrySyncWrite("anilist", mergedEntry.title) { AniListSyncManager.updateAniListEntry(aniListToken!!, mergedEntry, context = context) }
                             if (res.isSuccess && res.getOrNull() != null) {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                 logEvent("AniList", context.getString(R.string.cross_sync_log_added, "AniList", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
@@ -1376,7 +1377,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             var writeOk = true
                             if (listFields.isNotEmpty()) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
-                                val res = runSyncCatching {
+                                val res = CrossSyncRetry.retrySyncWrite("anilist", mergedEntry.title) {
                                     AniListSyncManager.updateAniListEntry(
                                         aniListToken!!, target, context = context, fields = listFields
                                     )
@@ -1426,7 +1427,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 // MAL'da eksik -> EKLE! (kimlik güvencesinden geçti)
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
                                 val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
-                                val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target, context = context) }
+                                val res = CrossSyncRetry.retrySyncWrite("mal", mergedEntry.title) { MalSyncManager.updateMalEntry(malToken!!, target, context = context) }
                                 if (res.isSuccess) {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                     logEvent("MyAnimeList", context.getString(R.string.cross_sync_log_added, "MAL", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
@@ -1441,7 +1442,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 if (dirty.isNotEmpty()) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val res = runSyncCatching {
+                                    val res = CrossSyncRetry.retrySyncWrite("mal", mergedEntry.title) {
                                         MalSyncManager.updateMalEntry(
                                             malToken!!, target, context = context, fields = dirty
                                         )
@@ -1494,7 +1495,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             recordIdentitySkip("Kitsu", mergedEntry.title)
                         } else if (current == null) {
                             // Kitsu'da eksik -> EKLE! (hız sınırı artık KitsuApiClient içinde her istek için uygulanıyor)
-                            val outcome = runSyncCatching {
+                            val outcome = CrossSyncRetry.retrySyncWrite("kitsu", mergedEntry.title, errorTexts = { it.errors }) {
                                 KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = null)
                             }
                             val res = outcome.getOrNull()
@@ -1519,7 +1520,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         } else {
                             val dirty = dirtyFor("kitsu", current)
                             if (dirty.isNotEmpty()) {
-                                val outcome = runSyncCatching {
+                                val outcome = CrossSyncRetry.retrySyncWrite("kitsu", mergedEntry.title, errorTexts = { it.errors }) {
                                     KitsuSyncManager.syncEntryToKitsu(
                                         context, mergedEntry,
                                         knownKitsuMediaId = knownKitsuId,
@@ -1560,7 +1561,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 // Shikimori'de eksik -> EKLE! (kimlik güvencesinden geçti)
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                 val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
-                                val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target, knownMalId = realMalId) }
+                                val outcome = CrossSyncRetry.retrySyncWrite("shikimori", mergedEntry.title, errorTexts = { it.errors }) { ShikimoriSyncManager.syncEntryToShikimori(context, target, knownMalId = realMalId) }
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(addedCount = it.addedCount + 1) }
@@ -1577,7 +1578,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 if (dirty.isNotEmpty()) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val outcome = runSyncCatching {
+                                    val outcome = CrossSyncRetry.retrySyncWrite("shikimori", mergedEntry.title, errorTexts = { it.errors }) {
                                         ShikimoriSyncManager.syncEntryToShikimori(
                                             context, target, knownMalId = realMalId, fields = dirty
                                         )
@@ -1616,7 +1617,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             // Bangumi'de eksik -> EKLE! (kimlik güvencesinden geçti)
                             com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("bangumi")
                             val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
-                            val outcome = runSyncCatching { BangumiSyncManager.syncEntryToBangumi(context, target) }
+                            val outcome = CrossSyncRetry.retrySyncWrite("bangumi", mergedEntry.title, errorTexts = { it.errors }) { BangumiSyncManager.syncEntryToBangumi(context, target) }
                             val res = outcome.getOrNull()
                             if (res != null && res.errors.isEmpty()) {
                                 statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(addedCount = it.addedCount + 1) }
@@ -1641,7 +1642,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             if (dirty.isNotEmpty()) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("bangumi")
                                 val target = mergedEntry.copy(malId = current.malId ?: (guardedMalId ?: realMalId))
-                                val outcome = runSyncCatching {
+                                val outcome = CrossSyncRetry.retrySyncWrite("bangumi", mergedEntry.title, errorTexts = { it.errors }) {
                                     BangumiSyncManager.syncEntryToBangumi(
                                         context, target, fields = dirty
                                     )

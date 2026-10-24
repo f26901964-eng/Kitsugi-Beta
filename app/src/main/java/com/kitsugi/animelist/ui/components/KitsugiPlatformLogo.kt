@@ -39,6 +39,7 @@ object KitsugiPlatformLogos {
         "bangumi", "bgm" -> R.drawable.ic_logo_bangumi
         "fanart.tv", "fanart" -> R.drawable.ic_logo_fanart
         "fandom" -> R.drawable.ic_logo_fandom
+        "animethemes", "animethemes.moe" -> R.drawable.ic_logo_animethemes
         else -> null
     }
 }

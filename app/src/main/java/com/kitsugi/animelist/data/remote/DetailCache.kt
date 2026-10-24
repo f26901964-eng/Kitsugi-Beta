@@ -434,6 +434,26 @@ object DetailCache {
     fun removeShikimoriGallery(id: Int) { shikimoriGalleryCache.remove(id) }
     fun clearShikimoriGalleryCache() { shikimoriGalleryCache.clear() }
 
+    // Unified Multi-Source Videos Cache
+    private val mediaVideos = BoundedCache<String, List<MediaVideoItem>>("detail.mediaVideos", 60)
+
+    private fun mediaVideosKey(source: String, id: Int, seasonNumber: Int? = null): String =
+        "${makeKey(source, id)}_s${seasonNumber?.takeIf { it > 0 } ?: 0}"
+
+    fun getMediaVideos(source: String, id: Int, seasonNumber: Int? = null): List<MediaVideoItem>? =
+        mediaVideos[mediaVideosKey(source, id, seasonNumber)]
+
+    fun putMediaVideos(source: String, id: Int, list: List<MediaVideoItem>, seasonNumber: Int? = null) {
+        if (list.isNotEmpty()) {
+            mediaVideos[mediaVideosKey(source, id, seasonNumber)] = list
+        }
+    }
+
+    fun removeMediaVideos(source: String, id: Int) {
+        val prefix = "${makeKey(source, id)}_"
+        mediaVideos.keys.filter { it.startsWith(prefix) }.forEach { mediaVideos.remove(it) }
+    }
+
     // Clear all (called on app-level reset / force refresh from settings)
     fun clear() {
         mediaDetails.clear()
@@ -444,6 +464,7 @@ object DetailCache {
         mediaReviews.clear()
         mediaEpisodes.clear()
         mediaRecommendations.clear()
+        mediaVideos.clear()
         characterDetails.clear()
         staffDetails.clear()
         studioDetails.clear()

@@ -1,5 +1,32 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.360
+
+## 🇹🇷 Türkçe
+
+### 🎬 Detay Sayfalarında Çok Kaynaklı Video Toplayıcı ve Kaynak Rozetleri
+- **Ortak Video Havuzu:** Detay sayfalarındaki Videolar sekmesi; AniList, MyAnimeList (Jikan), TMDB, Shikimori, Kitsu, Simkl ve AnimeThemes platformlarını paralel sorgulayarak fragman, tanıtım videoları (PV/CM), tema şarkıları (OP/ED webm/audio) ve ekstraları tek bir çatı altında birleştirir.
+- **Akıllı Tekilleştirme & Kaynak Rozetleri:** Aynı YouTube kimliği ve doğrudan video URL'leri mükemmel biçimde tekilleştirilir; katkıda bulunan tüm platformlar (`[Logo + İsim]`) rozetleri olarak listelenir.
+- **İnteraktif Kaynak Filtreleme:** Video grup başlıklarında yer alan kaynak rozetlerine dokunarak listeyi ilgili sağlayıcıya göre anında filtreleme imkanı sağlandı.
+- **TV Arayüzü Uyumluluğu:** TV detay ekranında (`TvDetailScreen`) tema kartları ve kaynak logoları yeni çok kaynaklı mimariyle tam uyumlu hale getirildi.
+- **AnimeThemes Entegrasyonu:** AnimeThemes platform logosu (`ic_logo_animethemes.xml`) ve doğrudan WebM akış oynatımı entegre edildi.
+
+### 🖼️ Görsel Galerisi "Kaynaklar" Sekmesi
+- **Yeni Sekme Adı & Düzeni:** Görsel galerisindeki sağ panel sekmesi, içeriğine tam uygun olarak "Diğer Resimler" yerine **"Kaynaklar"** ("Sources") olarak güncellendi.
+- **Zarif Kaynak Listesi:** Küçük resim önizlemeleri kaldırılarak yerine "Tümü" seçeneği ile her sağlayıcı (Bangumi, Fanart.tv, Jikan/MAL, Shikimori, TMDB vb.) için platform logosu, adı ve görsel sayısını listeleyen şık kaynak satırları getirildi.
+- **Çift Filtreleme Desteği:** Kaynak satırına dokunulduğunda galeri anında ilgili kaynağa filtrelenir; kategori filtreleriyle (Kapak, Arka Plan vb.) tam uyum içinde çalışır.
+
+### 📋 Listem: Gerçek Eklenme Zamanı (`addedAt`) ve Tarih Bölümleri
+- **Gerçek Eklenme Zamanı Sıralaması:** "Son eklenen / İlk eklenen" sıralaması, kararsız yerel DB satır ID'si yerine sağlayıcının resmî `createdAt` / `added_to_watchlist_at` (`addedAt`) sözleşmesine bağlandı. Gece senkronizasyonunda veya ilerleme güncellemelerinde sıralama bozulmaz.
+- **Tarih Bölümleri:** Sıralama "Son eklenen / İlk eklenen" olduğunda liste **Bugün, Dün, Bu Hafta, Geçen Hafta, Daha Eski, Eklendiği Tarih Bilinmiyor** başlıklarıyla estetik zaman çizelgesine ayrılır. Bugün eklenen yapım her zaman "Bugün" altında ve en üstte yer alır.
+- **Tekilleştirilmiş Sıralama Ölçütleri:** Çipler, filtre sayfası ve sıralama çekmecesi 11 ortak ölçüt içeren `MyListSortEntry` yapısında eşitlendi; yön çevirme ve deterministik eşitlik bozucu eklendi.
+- **Veritabanı v30 Göçü:** `addedAt` kolonu eklendi, eski Bangumi milisaniye zaman damgaları saniyeye normalize edildi.
+
+### 🔄 Çapraz Eşitleme İyileştirmeleri (`CrossSyncRetry`)
+- Ağ ve sağlayıcı kaynaklı geçici hatalara karşı akıllı yeniden deneme mantığı ve hata izolasyonu eklendi.
+
+---
+
 # Kitsugi Beta v2.4.359
 
 ## 🇹🇷 Türkçe

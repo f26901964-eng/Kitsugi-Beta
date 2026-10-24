@@ -40,7 +40,8 @@ data class JikanSearchResult(
 
 data class KitsugiTheme(
     val label: String,       // Görüntülenecek metin: "We Are!" by Hiroshi Kitadani (OP1)
-    val videoUrl: String?    // animethemes.moe direkt .webm linki (yoksa null → YouTube araması)
+    val videoUrl: String?,   // animethemes.moe direkt .webm linki (yoksa null → YouTube araması)
+    val source: String = ""  // Kaynak kimliği ("animethemes", "mal", "shikimori", "tmdb"...)
 )
 
 enum class StudioRole {
@@ -115,6 +116,7 @@ data class KitsugiMediaDetail(
     val openings: List<KitsugiTheme> = emptyList(),
     val endings: List<KitsugiTheme> = emptyList(),
     val trailerUrl: String? = null,
+    val trailerSource: String = "",
     val title: String? = null,
     val imageUrl: String? = null,
     val bannerImage: String? = null,

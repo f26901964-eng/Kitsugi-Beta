@@ -96,3 +96,5 @@ data class MediaEntry(
  */
 fun normalizeToEpochSeconds(value: Long): Long =
     if (value > 100_000_000_000L) value / 1000L else value
+
+fun normalizeEpochSeconds(value: Long): Long = normalizeToEpochSeconds(value)

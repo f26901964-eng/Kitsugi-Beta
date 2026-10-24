@@ -740,33 +740,48 @@ object KitsugiShikimoriClient {
         return out.distinctBy { it.name.lowercase(java.util.Locale.ROOT) }
     }
 
+    private val shikiVideosCache = com.kitsugi.animelist.core.memory.BoundedCache<Int, List<Pair<String, KitsugiTheme>>>("shikimori.videos", 120)
+
     suspend fun fetchShikimoriVideos(animeId: Int): List<Pair<String, KitsugiTheme>> = withContext(Dispatchers.IO) {
         if (animeId <= 0) return@withContext emptyList()
+        shikiVideosCache[animeId]?.let { return@withContext it }
+
         val url = runCatching { URL("$BASE_URL/animes/$animeId/videos") }.getOrNull() ?: return@withContext emptyList()
-        runCatching {
+        val parsed = runCatching {
             val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val list = mutableListOf<Pair<String, KitsugiTheme>>()
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
-                val vUrl = item.optString("url")
-                if (vUrl.isBlank() || (!vUrl.contains("youtube.com") && !vUrl.contains("youtu.be"))) continue
-                val rawName = item.optString("name", "").trim()
-                val kind = item.optString("kind", "pv").lowercase()
-                val kindTr = when (kind) {
-                    "pv" -> "PV / Tanıtım"
-                    "character_trailer" -> "Karakter Tanıtımı"
-                    "op" -> "Açılış (OP)"
-                    "ed" -> "Kapanış (ED)"
-                    "cm" -> "Ticari Reklam (CM)"
-                    "clip" -> "Klip"
-                    else -> "Video"
+                val directUrl = item.optString("url")
+                val playerUrl = item.optString("player_url")
+                val ytId = extractCanonicalYouTubeId(directUrl) ?: extractCanonicalYouTubeId(playerUrl)
+                val vUrl = when {
+                    ytId != null -> "https://www.youtube.com/watch?v=$ytId"
+                    directUrl.isNotBlank() && (directUrl.contains("youtube.com") || directUrl.contains("youtu.be")) -> directUrl
+                    else -> continue
                 }
-                val label = if (rawName.isNotBlank()) "$kindTr - $rawName" else kindTr
-                list.add(Pair(kind, KitsugiTheme(label = label, videoUrl = vUrl)))
+                val rawName = item.optString("name", "").trim()
+                val kind = item.optString("kind", "pv").lowercase(java.util.Locale.ROOT)
+                val kindLabel = when (kind) {
+                    "pv", "episode_preview" -> KitsugiStrings.get(R.string.source_video_pv)
+                    "character_trailer" -> KitsugiStrings.get(R.string.source_video_character_trailer)
+                    "op" -> KitsugiStrings.get(R.string.detail_openings)
+                    "ed" -> KitsugiStrings.get(R.string.detail_endings)
+                    "cm" -> KitsugiStrings.get(R.string.source_video_cm)
+                    "clip" -> KitsugiStrings.get(R.string.source_video_clip)
+                    else -> KitsugiStrings.get(R.string.source_video_trailer)
+                }
+                val label = if (rawName.isNotBlank()) "$kindLabel - $rawName" else kindLabel
+                list.add(Pair(kind, KitsugiTheme(label = label, videoUrl = vUrl, source = "shikimori")))
             }
             list
         }.getOrElse { emptyList() }
+
+        if (parsed.isNotEmpty()) {
+            shikiVideosCache[animeId] = parsed
+        }
+        parsed
     }
 
     suspend fun fetchShikimoriExternalLinks(

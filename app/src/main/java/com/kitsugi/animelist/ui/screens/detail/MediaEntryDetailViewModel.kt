@@ -40,7 +40,14 @@ import com.kitsugi.animelist.data.remote.MdbListClient
 import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.data.remote.KitsugiMediaVideoAggregator
+import com.kitsugi.animelist.data.remote.KitsugiTheme
+import com.kitsugi.animelist.data.remote.KnownVideoMediaIds
+import com.kitsugi.animelist.data.remote.MediaVideoCategory
+import com.kitsugi.animelist.data.remote.MediaVideoItem
+import com.kitsugi.animelist.data.remote.TmdbApiClient
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
@@ -57,6 +64,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val apiClient = JikanApiClient()
     private val translationManager = TranslationManager(context)
     private val mangaRepository = MangaSourceRepository(context)
+    private val tmdbVideoClient = TmdbApiClient()
     private val settingsDataStore = SettingsDataStore(context)
     private val TAG = "MediaEntryDetailVM"
 
@@ -233,6 +241,12 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val galleryTracker = GalleryLoadTracker()
     val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
 
+    private val _videoItems = MutableStateFlow<List<MediaVideoItem>>(emptyList())
+    val videoItems: StateFlow<List<MediaVideoItem>> = _videoItems.asStateFlow()
+
+    private val videosTracker = GalleryLoadTracker()
+    val videosLoading: StateFlow<Boolean> = videosTracker.loading
+
     /** Her yeni entry navigasyonunda artar — UI bu trigger’ı izleyerek tab’ı 0’a sıfırlar. */
     private val _pageResetTrigger = MutableStateFlow(0)
     val pageResetTrigger: StateFlow<Int> = _pageResetTrigger.asStateFlow()
@@ -383,6 +397,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             DetailCache.removeMediaRecommendations(entry.source, stableId)
             DetailCache.removeMediaReviews(entry.source, stableId, entry.type.name)
             DetailCache.removeMediaEpisodes(entry.source, stableId)
+            DetailCache.removeMediaVideos(entry.source, stableId)
             DetailCache.clearFanartCache() // Fanart galeri önbelleğini temizle
         }
 
@@ -404,6 +419,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         // Reset states
         val cachedDetail = DetailCache.getMediaDetail(entry.source, stableId)
         val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", entry.source, stableId)
+        val cachedVideos = DetailCache.getMediaVideos(entry.source, stableId, _targetSeason.value)
+        _videoItems.value = cachedVideos ?: KitsugiMediaVideoAggregator.seedFromDetail(cachedDetail, entry.source)
+        videosTracker.reset()
 
         _detailState.value = cachedDetail
         _detailLoading.value = cachedDetail == null
@@ -492,6 +510,20 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 Log.e(TAG, "Error fetching Fanart gallery (post-detail): ${e.message}", e)
             } finally {
                 galleryTracker.end(galleryToken)
+            }
+        }
+
+        // Ortak videolar sekmesi: tüm video sağlayan kaynakları paralel sorgular
+        val videosToken = videosTracker.begin()
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                fetchAggregatedVideosForEntry(entry, newKey)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching aggregated videos: ${e.message}", e)
+            } finally {
+                videosTracker.end(videosToken)
             }
         }
 
@@ -1624,6 +1656,15 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             if (_galleryItems.value.isNotEmpty()) {
                 runCatching { fetchFanartGallery(entry) }
             }
+            val seasonVideoToken = videosTracker.begin()
+            try {
+                fetchAggregatedVideosForEntry(entry, currentFetchKey)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (_: Exception) {
+            } finally {
+                videosTracker.end(seasonVideoToken)
+            }
         }
     }
 
@@ -1702,5 +1743,127 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             // `refresh` ağ hatalarını kendi içinde yutar; yalnızca iptal durumunu yukarı iletir.
             MdbListQuotaCenter.refresh(settings.mdbListApiKey, maxAgeMillis = 10L * 60_000L)
         }
+    }
+
+    private suspend fun fetchAggregatedVideosForEntry(entry: MediaEntry, expectedKey: String?) {
+        if (expectedKey != null && currentFetchKey != expectedKey) return
+        val stableId = cacheIdentityOf(entry)
+        val season = _targetSeason.value
+        DetailCache.getMediaVideos(entry.source, stableId, season)?.let { cached ->
+            if (expectedKey == null || currentFetchKey == expectedKey) {
+                _videoItems.value = cached
+                enrichEntryDetailWithCrossSourceVideos(entry, stableId, cached)
+            }
+            return
+        }
+
+        val currentDetail = _detailState.value
+        val initialSeed = KitsugiMediaVideoAggregator.seedFromDetail(currentDetail, entry.source)
+        if (initialSeed.isNotEmpty() && _videoItems.value.isEmpty()) {
+            _videoItems.value = initialSeed
+        }
+
+        val imdbFromLinks = currentDetail?.externalLinks
+            ?.firstOrNull { it.url.contains("imdb.com/title/") }
+            ?.url?.substringAfter("/title/")?.substringBefore("/")?.substringBefore("?")
+
+        val srcLower = entry.source.trim().lowercase()
+        val rawStored = entry.malId
+        val knownMalId = when {
+            currentDetail?.realMalId?.let { it in 1..99_999_999 } == true -> currentDetail.realMalId
+            srcLower in setOf("mal", "jikan", "myanimelist") -> rawStored?.takeIf { it in 1..99_999_999 }
+            srcLower == "anilist" -> rawStored?.takeIf { it in 1..99_999_999 }
+            else -> null
+        }
+        val knownAniListId = if (srcLower == "anilist" && rawStored != null && rawStored in 100_000_001..199_999_999) {
+            rawStored - 100_000_000
+        } else null
+        val knownKitsuId = if (srcLower == "kitsu" && rawStored != null) {
+            com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(rawStored)
+                ?: rawStored.takeIf { it in 1..99_999_999 && knownMalId != it }
+        } else null
+        val knownShikimoriId = if (srcLower == "shikimori") rawStored?.takeIf { it > 0 } else null
+        val knownSimklId = entry.simklId?.takeIf { it > 0 }
+            ?: if (srcLower == "simkl") rawStored?.takeIf { it > 0 } else null
+        val knownBangumiId = if (srcLower == "bangumi") {
+            com.kitsugi.animelist.data.remote.BangumiIdNamespace.rawIdOrNull(rawStored)
+        } else null
+
+        val knownIds = KnownVideoMediaIds(
+            malId = knownMalId,
+            aniListId = knownAniListId,
+            kitsuId = knownKitsuId,
+            tmdbId = (entry.tmdbId ?: currentDetail?.tmdbId ?: _resolvedTmdbId.value)?.takeIf { it > 0 },
+            simklId = knownSimklId,
+            shikimoriId = knownShikimoriId,
+            bangumiId = knownBangumiId,
+            imdbId = imdbFromLinks
+        )
+
+        val fallbackTitle = listOfNotNull(
+            currentDetail?.title,
+            entry.title,
+            currentDetail?.titleEnglish ?: entry.titleEnglish,
+            currentDetail?.titleRomaji,
+            currentDetail?.titleJapanese ?: entry.titleJapanese
+        ).firstOrNull { it.isNotBlank() }
+
+        val merged = KitsugiMediaVideoAggregator.aggregateVideos(
+            id = rawStored ?: stableId,
+            source = entry.source,
+            mediaType = currentDetail?.type ?: entry.type,
+            detail = currentDetail,
+            tmdbClient = tmdbVideoClient,
+            knownIds = knownIds,
+            fallbackTitle = fallbackTitle,
+            seasonNumber = season,
+            onProgress = { partial ->
+                if (expectedKey == null || currentFetchKey == expectedKey) {
+                    _videoItems.value = partial
+                }
+            }
+        )
+
+        if (stableId > 0 && merged.isNotEmpty()) {
+            DetailCache.putMediaVideos(entry.source, stableId, merged, season)
+        }
+
+        if (expectedKey == null || currentFetchKey == expectedKey) {
+            _videoItems.value = merged
+            enrichEntryDetailWithCrossSourceVideos(entry, stableId, merged)
+        }
+    }
+
+    private fun enrichEntryDetailWithCrossSourceVideos(
+        entry: MediaEntry,
+        stableId: Int,
+        videos: List<MediaVideoItem>
+    ) {
+        val current = _detailState.value ?: return
+        val firstTrailer = videos.firstOrNull {
+            it.category == MediaVideoCategory.TRAILER && !it.videoUrl.isNullOrBlank()
+        }
+        val crossOps = if (current.openings.isEmpty()) {
+            videos.filter { it.category == MediaVideoCategory.OPENING }
+                .map { KitsugiTheme(label = it.title, videoUrl = it.videoUrl, source = it.source) }
+        } else emptyList()
+        val crossEds = if (current.endings.isEmpty()) {
+            videos.filter { it.category == MediaVideoCategory.ENDING }
+                .map { KitsugiTheme(label = it.title, videoUrl = it.videoUrl, source = it.source) }
+        } else emptyList()
+
+        val needsTrailer = current.trailerUrl.isNullOrBlank() && firstTrailer != null
+        val needsOps = current.openings.isEmpty() && crossOps.isNotEmpty()
+        val needsEds = current.endings.isEmpty() && crossEds.isNotEmpty()
+        if (!needsTrailer && !needsOps && !needsEds) return
+
+        val updated = current.copy(
+            trailerUrl = if (needsTrailer) firstTrailer!!.videoUrl else current.trailerUrl,
+            trailerSource = if (needsTrailer) firstTrailer!!.source else current.trailerSource,
+            openings = if (needsOps) crossOps else current.openings,
+            endings = if (needsEds) crossEds else current.endings
+        )
+        _detailState.value = updated
+        DetailCache.putMediaDetail(entry.source, stableId, updated)
     }
 }

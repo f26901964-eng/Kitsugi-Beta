@@ -147,6 +147,7 @@ internal fun DetailPlatformBadge(
             "bangumi", "bgm" -> Color(0xFFF09199)
             "simkl" -> Color(0xFFE21926)
             "tmdb" -> Color(0xFFFFB800)
+            "animethemes", "animethemes.moe" -> Color(0xFF2EC4B6)
             else -> KitsugiColors.SurfaceSoft
         }
         Box(

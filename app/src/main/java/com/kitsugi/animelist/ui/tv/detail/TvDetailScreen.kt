@@ -91,6 +91,7 @@ import com.kitsugi.animelist.ui.components.KitsugiCinematicLoadingScreen
 import com.kitsugi.animelist.utils.toTurkishStaffRole
 import com.kitsugi.animelist.utils.toTurkishRelationType
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
+import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import com.kitsugi.animelist.ui.components.safeBlur
 import com.kitsugi.animelist.utils.KitsugiStrings
 
@@ -1765,6 +1766,7 @@ private fun TvThemeCard(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -1782,17 +1784,43 @@ private fun TvThemeCard(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (isOpening) stringResource(R.string.acilis_temasi_x, index + 1) else stringResource(R.string.kapanis_temasi_x, index + 1),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = accentColor
+                    color = accentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "Uygulamada Oynat",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = KitsugiColors.TextMuted
-                )
+                val cleanSrc = com.kitsugi.animelist.data.remote.canonicalVideoSource(theme.source)
+                if (cleanSrc.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (com.kitsugi.animelist.ui.components.KitsugiPlatformLogos.resFor(cleanSrc) != null) {
+                            com.kitsugi.animelist.ui.components.KitsugiPlatformLogo(
+                                platformId = cleanSrc,
+                                size = 12.dp,
+                                cornerRadius = 3.dp
+                            )
+                        }
+                        Text(
+                            text = cleanSrc.toFriendlySourceLabel(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KitsugiColors.TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.ui_play_in_app),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KitsugiColors.TextMuted,
+                        maxLines = 1
+                    )
+                }
             }
         }
 

@@ -246,6 +246,8 @@ fun ApiResultDetailPage(
     val mdbListRatings by viewModel.mdbListRatings.collectAsState()
     val mdbListLoading by viewModel.mdbListLoading.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
+    val videoItems by viewModel.videoItems.collectAsState()
+    val videosLoading by viewModel.videosLoading.collectAsState()
     // Vitrin görsel planı birincil detaydan sonra arka planda çözülür (TMDB/Fanart.tv).
     val heroArtwork by viewModel.heroArtwork.collectAsState()
     val translationLoading by viewModel.translationLoading.collectAsState()
@@ -770,7 +772,13 @@ fun ApiResultDetailPage(
                     }
                     2 -> {
                         if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
-                            KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayResult.title)
+                            KitsugiMediaVideosTab(
+                                detail = detailState,
+                                mediaTitle = displayResult.title,
+                                primarySource = displayResult.source,
+                                aggregatedVideos = videoItems,
+                                isLoading = videosLoading
+                            )
                         }
                     }
                     3 -> {

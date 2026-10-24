@@ -7053,7 +7053,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="mylist_empty_filtered">Seçili filtrelerle içerik bulunamadı.</string>
     <string name="mylist_empty_search_query">"%1$s" için içerik bulunamadı.</string>
     <string name="gallery_tab_details">Detaylar</string>
-    <string name="gallery_tab_other_images">Diğer Resimler</string>
+    <string name="gallery_tab_other_images">Kaynaklar</string>
+    <string name="gallery_tab_sources">Kaynaklar</string>
+    <string name="gallery_no_sources_found">Kaynak bulunamadı</string>
     <string name="gallery_source_all">Tümü</string>
     <string name="gallery_clear_source_filter">Kaynak filtresini temizle</string>
     <string name="gallery_field_source">Kaynak</string>
@@ -17973,4 +17975,24 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="detail_link_official_site">Resmi Web Sitesi</string>
     <string name="detail_link_wikipedia">Vikipedi</string>
     <string name="detail_stat_members">Üyeler</string>
+    <string name="ui_videos_loading">Videolar yükleniyor...</string>
+    <string name="detail_video_extras">Klipler ve Ek Videolar</string>
+    <string name="source_video_pv">Tanıtım (PV)</string>
+    <string name="source_video_character_trailer">Karakter Tanıtımı</string>
+    <string name="source_video_cm">Reklam (CM)</string>
+    <string name="source_video_opening_credits">Açılış Jeneriği</string>
+    <string name="source_video_music_video">Müzik Videosu</string>
+
+    <!-- Listem: "Son eklenen / İlk eklenen" bölüm başlıkları ve sıralama ölçütleri -->
+    <string name="mylist_date_today">Bugün</string>
+    <string name="mylist_date_yesterday">Dün</string>
+    <string name="mylist_date_this_week">Bu Hafta</string>
+    <string name="mylist_date_last_week">Geçen Hafta</string>
+    <string name="mylist_date_older">Daha Eski</string>
+    <string name="mylist_date_unknown">Eklendiği Tarih Bilinmiyor</string>
+    <string name="mylist_sort_added">Eklenme tarihi</string>
+    <string name="mylist_sort_start">Başlangıç tarihi</string>
+    <string name="mylist_sort_end">Bitiş tarihi</string>
+    <string name="mylist_sort_year">Yayın yılı</string>
+    <string name="mylist_sort_repeat">Tekrar sayısı</string>
 </resources>

@@ -7048,7 +7048,9 @@
     <string name="mylist_empty_filtered">No items match the selected filters.</string>
     <string name="mylist_empty_search_query">No items found for "%1$s".</string>
     <string name="gallery_tab_details">Details</string>
-    <string name="gallery_tab_other_images">Other images</string>
+    <string name="gallery_tab_other_images">Sources</string>
+    <string name="gallery_tab_sources">Sources</string>
+    <string name="gallery_no_sources_found">No sources found</string>
     <string name="gallery_source_all">All</string>
     <string name="gallery_clear_source_filter">Clear source filter</string>
     <string name="gallery_field_source">Source</string>
@@ -17967,4 +17969,24 @@
     <string name="detail_link_official_site">Official Website</string>
     <string name="detail_link_wikipedia">Wikipedia</string>
     <string name="detail_stat_members">Members</string>
+    <string name="ui_videos_loading">Loading videos...</string>
+    <string name="detail_video_extras">Clips &amp; Extras</string>
+    <string name="source_video_pv">Promo (PV)</string>
+    <string name="source_video_character_trailer">Character Trailer</string>
+    <string name="source_video_cm">Commercial (CM)</string>
+    <string name="source_video_opening_credits">Opening Credits</string>
+    <string name="source_video_music_video">Music Video</string>
+
+    <!-- My List: section headers when sorting by date added -->
+    <string name="mylist_date_today">Today</string>
+    <string name="mylist_date_yesterday">Yesterday</string>
+    <string name="mylist_date_this_week">This Week</string>
+    <string name="mylist_date_last_week">Last Week</string>
+    <string name="mylist_date_older">Older</string>
+    <string name="mylist_date_unknown">Added date unknown</string>
+    <string name="mylist_sort_added">Date added</string>
+    <string name="mylist_sort_start">Start date</string>
+    <string name="mylist_sort_end">End date</string>
+    <string name="mylist_sort_year">Release year</string>
+    <string name="mylist_sort_repeat">Repeat count</string>
 </resources>

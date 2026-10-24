@@ -353,6 +353,9 @@ internal fun MediaEntry.effectiveAddedSeconds(): Long {
     return com.kitsugi.animelist.model.normalizeToEpochSeconds(updatedAt)
 }
 
+internal fun addedSortTimestamp(entry: MediaEntry): Long = entry.effectiveAddedSeconds()
+
+
 /**
  * (Zaten eklenme tarihine göre sıralı) listeyi dönem bölümlerine ayırır.
  * Bölüm sırası, girdide ilk görülme sırasıdır — böylece azalan sıralamada

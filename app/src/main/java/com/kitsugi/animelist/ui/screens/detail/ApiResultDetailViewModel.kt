@@ -25,6 +25,12 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
+import com.kitsugi.animelist.data.remote.KitsugiMediaVideoAggregator
+import com.kitsugi.animelist.data.remote.KitsugiTheme
+import com.kitsugi.animelist.data.remote.KnownVideoMediaIds
+import com.kitsugi.animelist.data.remote.MediaVideoCategory
+import com.kitsugi.animelist.data.remote.MediaVideoItem
+import com.kitsugi.animelist.data.remote.TmdbApiClient
 import com.kitsugi.animelist.ui.components.HeroArtworkImagePolicy
 import com.kitsugi.animelist.data.remote.resolveMediaGalleryIdentity
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -67,6 +73,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val translationManager = TranslationManager(context)
     private val settingsDataStore = SettingsDataStore(context)
     private val TAG = "ApiResultDetailVM"
+
+    private val tmdbVideoClient = TmdbApiClient()
 
     // --- StateFlows ---
 
@@ -239,6 +247,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
     private val galleryTracker = GalleryLoadTracker()
     val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
+
+    private val _videoItems = MutableStateFlow<List<MediaVideoItem>>(emptyList())
+    val videoItems: StateFlow<List<MediaVideoItem>> = _videoItems.asStateFlow()
+
+    private val videosTracker = GalleryLoadTracker()
+    val videosLoading: StateFlow<Boolean> = videosTracker.loading
 
     /** Her yeni sonuç navigasyonunda artar — UI bu trigger’ı izleyerek tab’ı 0’a sıfırlar. */
     private val _pageResetTrigger = MutableStateFlow(0)
@@ -418,6 +432,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             DetailCache.removeMediaRecommendations(result.source, result.malId)
             DetailCache.removeMediaReviews(result.source, result.malId, result.type.name)
             DetailCache.removeMediaEpisodes(result.source, result.malId)
+            DetailCache.removeMediaVideos(result.source, result.malId)
             DetailCache.clearFanartCache() // Fanart galeri önbelleğini temizle
         }
 
@@ -436,6 +451,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         val cachedDetail = DetailCache.getMediaDetail(result.source, result.malId)
         val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", result.source, result.malId)
+        val cachedVideos = DetailCache.getMediaVideos(result.source, result.malId, _targetSeason.value)
+        _videoItems.value = cachedVideos ?: KitsugiMediaVideoAggregator.seedFromDetail(cachedDetail, result.source)
+        videosTracker.reset()
 
         _detailState.value = cachedDetail
         _detailLoading.value = cachedDetail == null
@@ -520,6 +538,19 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         }
 
+        // Ortak videolar sekmesi: tüm video sağlayan kaynakları paralel sorgular
+        val videosToken = videosTracker.begin()
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                fetchAggregatedVideos(result, newKey)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Error fetching aggregated videos: ${e.message}", e)
+            } finally {
+                videosTracker.end(videosToken)
+            }
+        }
+
         // MDBList puanları — bağımsız, gecikme kabul edilebilir
         viewModelScope.launch {
             try {
@@ -554,6 +585,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             // The detail gallery has its own season-aware cache and includes TMDB season logos.
             if (_galleryItems.value.isNotEmpty()) {
                 runCatching { fetchFanartGallery(result) }
+            }
+            val seasonVideoToken = videosTracker.begin()
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    fetchAggregatedVideos(result, currentFetchKey)
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                } finally {
+                    videosTracker.end(seasonVideoToken)
+                }
             }
         }
     }
@@ -1739,6 +1781,92 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             lowerUrl.contains("banner") -> GalleryCategory.BANNER
             else -> defaultCategory
         }
+    }
+
+    private suspend fun fetchAggregatedVideos(result: JikanSearchResult, expectedKey: String?) {
+        if (expectedKey != null && currentFetchKey != expectedKey) return
+        val season = _targetSeason.value
+        DetailCache.getMediaVideos(result.source, result.malId, season)?.let { cached ->
+            if (expectedKey == null || currentFetchKey == expectedKey) {
+                _videoItems.value = cached
+                enrichDetailWithCrossSourceVideos(result, cached)
+            }
+            return
+        }
+
+        val currentDetail = _detailState.value
+        val initialSeed = KitsugiMediaVideoAggregator.seedFromDetail(currentDetail, result.source)
+        if (initialSeed.isNotEmpty() && _videoItems.value.isEmpty()) {
+            _videoItems.value = initialSeed
+        }
+
+        val imdbFromLinks = currentDetail?.externalLinks
+            ?.firstOrNull { it.url.contains("imdb.com/title/") }
+            ?.url?.substringAfter("/title/")?.substringBefore("/")?.substringBefore("?")
+
+        val knownIds = KnownVideoMediaIds(
+            malId = (currentDetail?.realMalId ?: result.realMalId)?.takeIf { it in 1..99_999_999 },
+            tmdbId = (currentDetail?.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value)?.takeIf { it > 0 },
+            imdbId = imdbFromLinks
+        )
+
+        val fallbackTitle = listOfNotNull(
+            currentDetail?.title,
+            result.title,
+            currentDetail?.titleEnglish ?: result.titleEnglish,
+            currentDetail?.titleRomaji ?: result.titleRomaji,
+            currentDetail?.titleJapanese ?: result.titleJapanese
+        ).firstOrNull { it.isNotBlank() }
+
+        val merged = KitsugiMediaVideoAggregator.aggregateVideos(
+            id = result.malId,
+            source = result.source,
+            mediaType = currentDetail?.type ?: result.type,
+            detail = currentDetail,
+            tmdbClient = tmdbVideoClient,
+            knownIds = knownIds,
+            fallbackTitle = fallbackTitle,
+            seasonNumber = season,
+            onProgress = { partial ->
+                if (expectedKey == null || currentFetchKey == expectedKey) {
+                    _videoItems.value = partial
+                }
+            }
+        )
+
+        if (expectedKey == null || currentFetchKey == expectedKey) {
+            _videoItems.value = merged
+            enrichDetailWithCrossSourceVideos(result, merged)
+        }
+    }
+
+    private fun enrichDetailWithCrossSourceVideos(result: JikanSearchResult, videos: List<MediaVideoItem>) {
+        val current = _detailState.value ?: return
+        val firstTrailer = videos.firstOrNull {
+            it.category == MediaVideoCategory.TRAILER && !it.videoUrl.isNullOrBlank()
+        }
+        val crossOps = if (current.openings.isEmpty()) {
+            videos.filter { it.category == MediaVideoCategory.OPENING }
+                .map { KitsugiTheme(label = it.title, videoUrl = it.videoUrl, source = it.source) }
+        } else emptyList()
+        val crossEds = if (current.endings.isEmpty()) {
+            videos.filter { it.category == MediaVideoCategory.ENDING }
+                .map { KitsugiTheme(label = it.title, videoUrl = it.videoUrl, source = it.source) }
+        } else emptyList()
+
+        val needsTrailer = current.trailerUrl.isNullOrBlank() && firstTrailer != null
+        val needsOps = current.openings.isEmpty() && crossOps.isNotEmpty()
+        val needsEds = current.endings.isEmpty() && crossEds.isNotEmpty()
+        if (!needsTrailer && !needsOps && !needsEds) return
+
+        val updated = current.copy(
+            trailerUrl = if (needsTrailer) firstTrailer!!.videoUrl else current.trailerUrl,
+            trailerSource = if (needsTrailer) firstTrailer!!.source else current.trailerSource,
+            openings = if (needsOps) crossOps else current.openings,
+            endings = if (needsEds) crossEds else current.endings
+        )
+        _detailState.value = updated
+        DetailCache.putMediaDetail(result.source, result.malId, updated)
     }
 }
 

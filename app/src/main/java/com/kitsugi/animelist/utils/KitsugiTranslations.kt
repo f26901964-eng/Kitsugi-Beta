@@ -1349,6 +1349,8 @@ fun String.toFriendlySourceLabel(): String {
         "simkl"        -> "Simkl"
         "bangumi", "bgm" -> "Bangumi"
         "fanart.tv", "fanart" -> "Fanart.tv"
+        "animethemes", "animethemes.moe" -> "AnimeThemes"
+        "fandom"       -> "Fandom"
         "manual"       -> "Manual"
         else           -> this
     }

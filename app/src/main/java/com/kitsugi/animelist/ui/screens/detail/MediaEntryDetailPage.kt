@@ -223,6 +223,8 @@ fun MediaEntryDetailPage(
     val targetSeason by viewModel.targetSeason.collectAsState()
     val galleryItems by viewModel.galleryItems.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
+    val videoItems by viewModel.videoItems.collectAsState()
+    val videosLoading by viewModel.videosLoading.collectAsState()
     val translationLoading by viewModel.translationLoading.collectAsState()
     // Otomatik çeviri sürerken sayfadaki çeviri butonları galeri butonuyla aynı animasyonu gösterir.
     CompositionLocalProvider(
@@ -626,7 +628,13 @@ fun MediaEntryDetailPage(
                     }
                     2 -> {
                         if (selectedTab == DETAIL_VIDEO_PAGE_INDEX) {
-                            KitsugiMediaVideosTab(detail = detailState, mediaTitle = displayEntry.title)
+                            KitsugiMediaVideosTab(
+                                detail = detailState,
+                                mediaTitle = displayEntry.title,
+                                primarySource = displayEntry.source,
+                                aggregatedVideos = videoItems,
+                                isLoading = videosLoading
+                            )
                         }
                     }
                     3 -> {
