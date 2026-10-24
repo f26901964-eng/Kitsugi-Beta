@@ -161,6 +161,11 @@ object SimklImportManager {
                             else -> item.optInt("total_episodes_count", 0).takeIf { it > 0 }
                         }
 
+                        // `added_to_watchlist_at`: Simkl'in kütüphaneye eklenme zamanı.
+                        // "Son eklenen / İlk eklenen" sıralaması bu alana dayanır; status
+                        // veya puan güncellemeleri bu değeri değiştirmez.
+                        val addedAt = parseSimklTimestamp(item.optString("added_to_watchlist_at"))
+
                         // Parse rating if present (Simkl user_rating or rating)
                         val score = item.optInt("user_rating", 0).takeIf { it > 0 }
                             ?: item.optInt("rating", 0).takeIf { it > 0 }
@@ -195,7 +200,8 @@ object SimklImportManager {
                                 year = year,
                                 synopsis = null,
                                 tmdbId = tmdbId,
-                                simklId = simklId
+                                simklId = simklId,
+                                addedAt = addedAt
                             )
                         )
                     }
@@ -218,6 +224,19 @@ object SimklImportManager {
         throw IllegalStateException("Simkl [$type]: hız sınırı nedeniyle liste alınamadı (4 deneme)")
     }
 }
+
+    /**
+     * Simkl zaman damgaları (`2026-05-20T03:00:00-04:00`) → epoch saniye.
+     * `Z` ile biten biçim de kabul edilir.
+     */
+    private fun parseSimklTimestamp(value: String?): Long {
+        if (value.isNullOrBlank() || value == "null") return 0L
+        return runCatching {
+            java.time.OffsetDateTime.parse(value).toInstant().epochSecond
+        }.recoverCatching {
+            java.time.Instant.parse(value).epochSecond
+        }.getOrDefault(0L)
+    }
 
     private fun mapSimklStatus(status: String?): WatchStatus {
         return when (status?.lowercase()) {

@@ -907,6 +907,22 @@ fun MyListContentPage(
             // PERF: aktif olmayan pager sayfası için durum gruplaması her yeniden
             // kompozisyonda yeniden hesaplanıyordu (kompozisyon sırasında 6 × tam liste
             // taraması — kaydırma jesti sırasında komşu sayfalar da kompoze olur).
+            // "Son eklenen / İlk eklenen": liste durum grupları yerine eklenme tarihine
+            // göre bölümlenir (Bugün → Dün → Bu Hafta → Geçen Hafta → Daha Eski →
+            // Eklendiği Tarih Bilinmiyor). Bölümleme `MediaEntry.addedAt` üzerinden
+            // yapılır; böylece aynı yapım tüm sekmelerde aynı bölümde görünür.
+            val isActivePage = pageTabIndex == selectedTabIndex || useGlobalSearchResults
+            val useDateSections = isActivePage && usesAddedDateGrouping(selectedSortId)
+            val displayDateGrouped = if (useDateSections) {
+                remember(displayEntries, selectedSortId) {
+                    groupMyListEntriesByAddedDate(
+                        entries = displayEntries,
+                        ascending = selectedSortId == "oldest" || selectedSortId == "added_asc"
+                    )
+                }
+            } else {
+                emptyList()
+            }
             val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
                 groupedVisibleEntries
             } else {
@@ -959,6 +975,20 @@ fun MyListContentPage(
                     // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
                     MyListFlatContent(
                         visibleEntries = displayEntries,
+                        selectedListLayoutId = selectedListLayoutId,
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        blurAdultMedia = appSettings.blurAdultMedia,
+                        gridColumns = gridColumns,
+                        sourceBadgesByEntryId = sourceBadgesByEntryId,
+                        onEntryClick = onEntryClick,
+                        onIncrementProgress = onIncrementProgress,
+                        onPosterLongClick = onPosterLongClick
+                    )
+                } else if (useDateSections) {
+                    MyListDateGroupedContent(
+                        groupedEntries = displayDateGrouped,
                         selectedListLayoutId = selectedListLayoutId,
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,

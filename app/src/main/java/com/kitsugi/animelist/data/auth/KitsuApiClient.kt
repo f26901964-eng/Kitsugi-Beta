@@ -106,6 +106,8 @@ object KitsuApiClient {
         val animeId: Int?,
         val mangaId: Int?,
         val updatedAt: Long,
+        /** Kütüphaneye eklenme anı (`createdAt`, epoch saniye). */
+        val addedAt: Long = 0L,
         val title: String = "",
         val titleEnglish: String? = null,
         val titleJapanese: String? = null,
@@ -406,6 +408,11 @@ object KitsuApiClient {
                     val updatedAt = runCatching {
                         java.time.Instant.parse(updatedAtStr).epochSecond
                     }.getOrDefault(0L)
+                    // Kitsu kütüphane kaydı `createdAt` taşır: "Son eklenen" için doğru alan.
+                    val createdAtStr = attrs.optString("createdAt", "")
+                    val addedAt = runCatching {
+                        java.time.Instant.parse(createdAtStr).epochSecond
+                    }.getOrDefault(0L)
                     val notes = if (attrs.isNull("notes")) null else attrs.optString("notes").takeIf { it.isNotBlank() }
                     val isPrivate = attrs.optBoolean("private", false)
                     val startedAt = fromKitsuDateTime(if (attrs.isNull("startedAt")) null else attrs.optString("startedAt"))
@@ -433,6 +440,7 @@ object KitsuApiClient {
                             animeId = animeId,
                             mangaId = mangaId,
                             updatedAt = updatedAt,
+                            addedAt = addedAt,
                             title = info?.title ?: if (animeId != null) "Kitsu Anime #$animeId" else "Kitsu Manga #$mangaId",
                             titleEnglish = info?.titleEn,
                             titleJapanese = info?.titleJp,

@@ -178,6 +178,11 @@ object BangumiImportManager {
                 aniListEntryId = null,
                 source = BangumiIdNamespace.SOURCE,
                 updatedAt = parseBangumiTimestamp(collection.updatedAt),
+                // Bangumi koleksiyon ucu `created_at` döndürmez; API notu `updated_at`in
+                // koleksiyon zamanı olmadığını söylese de elde edilen tek zaman damgası bu.
+                // "En iyi çaba" olarak eklenme zamanına yazılır; sonraki içe aktarımlarda
+                // repository bu değeri korur (bkz. MediaEntryRepository.smartImport).
+                addedAt = parseBangumiTimestamp(collection.updatedAt),
                 year = slim?.date?.take(4)?.toIntOrNull(),
                 isPrivate = collection.private,
                 tags = collection.tags.takeIf { it.isNotEmpty() }?.joinToString(", "),
@@ -188,7 +193,10 @@ object BangumiImportManager {
     }
 
     /**
-     * Bangumi zaman damgası (`2022-06-19T18:44:13.6140127+08:00`) → epoch millis.
+     * Bangumi zaman damgası (`2022-06-19T18:44:13.6140127+08:00`) → **epoch saniye**.
+     *
+     * `MediaEntry.updatedAt` / `addedAt` saniye cinsindendir; milisaniye yazıldığında
+     * Bangumi satırları "Son güncelleme" sıralamasında yapay olarak en üste çıkıyordu.
      *
      * API notu: bu alan koleksiyon **oluşturma** zamanını değil son değişiklik zamanını
      * temsil eder ve puan/yorum değişikliklerinde güncellenmemesi bir hata olarak
@@ -207,7 +215,7 @@ object BangumiImportManager {
                 java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
                     .parse(value.take(19))?.time ?: 0L
             }.getOrDefault(0L)
-        }
+        } / 1000L
     }
 
     /**

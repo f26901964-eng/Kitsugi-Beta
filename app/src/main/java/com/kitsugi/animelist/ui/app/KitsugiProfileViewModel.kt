@@ -2021,7 +2021,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         total = total,
                         source = "kitsu",
                         year = startYear,
-                        startDate = startedAt
+                        startDate = startedAt,
+                        updatedAt = updatedAt,
+                        addedAt = addedAt
                     )
                 }
                 val kitsuAnimeEntries = entries.mapIndexedNotNull { index, entry ->
@@ -2218,7 +2220,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         total = total,
                         source = "shikimori",
                         year = startYear,
-                        volumeProgress = volumes
+                        volumeProgress = volumes,
+                        updatedAt = updatedAt,
+                        addedAt = addedAt
                     )
                 }
                 val shikimoriAnimeEntries = rates.filter { it.targetType.equals("Anime", ignoreCase = true) }

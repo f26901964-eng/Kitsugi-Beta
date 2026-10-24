@@ -26,7 +26,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PersistentDetailCacheEntity::class,  // 📂 Media details cache
         CustomButton::class
     ],
-    version = 29,
+    version = 30,
     exportSchema = true  // T3-03/TASK-106: KSP → $projectDir/schemas/ konumuna yazar
 )
 abstract class KitsugiDatabase : RoomDatabase() {
@@ -403,6 +403,37 @@ abstract class KitsugiDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v30: "Listem → Son eklenen / İlk eklenen" ve tarih bölümleri için
+         * `media_entries.addedAt` (koleksiyona eklenme anı, epoch saniye).
+         *
+         * "Son eklenen" o güne kadar yerel satır `id`'sine göre sıralanıyordu; satır id'si
+         * içe aktarma sırasına bağlı olduğu için her senkron/gece yeniden yazımı sırayı
+         * değiştiriyor, aynı yapım bir sekmede "Bugün", diğerinde "Dün" görünüyordu.
+         *
+         * Eski satırlarda gerçek eklenme zamanı bulunmadığından en yakın sinyal olan
+         * `updatedAt` ile doldurulur; sonraki içe aktarımlar kaynağın kendi
+         * `created_at`/`added_to_watchlist_at` değerini yazar ve değer korunur.
+         */
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE media_entries ADD COLUMN addedAt INTEGER NOT NULL DEFAULT 0")
+                // Eski Bangumi satırlarında `updatedAt` yanlışlıkla milisaniye olarak
+                // yazılmıştı; bu satırlar "Bugün" bölümüne düşmesin diye saniyeye çevrilir.
+                db.execSQL(
+                    "UPDATE media_entries SET addedAt = " +
+                        "CASE WHEN updatedAt > 100000000000 THEN updatedAt / 1000 ELSE updatedAt END " +
+                        "WHERE updatedAt > 0"
+                )
+                // Aynı düzeltme `updatedAt`in kendisi için de yapılır: "Son güncelleme"
+                // sıralaması eski Bangumi satırlarını yapay olarak en üste çıkarıyordu.
+                db.execSQL(
+                    "UPDATE media_entries SET updatedAt = updatedAt / 1000 " +
+                        "WHERE updatedAt > 100000000000"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): KitsugiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
@@ -437,7 +468,8 @@ abstract class KitsugiDatabase : RoomDatabase() {
                         MIGRATION_25_26,
                         MIGRATION_26_27,
                         MIGRATION_27_28,
-                        MIGRATION_28_29
+                        MIGRATION_28_29,
+                        MIGRATION_29_30
                     )
                 
                 // T3-03: Güvenlik sertleştirmesi — Üretim sürümünde verilerin kazara sıfırlanmasını engeller.

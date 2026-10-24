@@ -99,7 +99,12 @@ class TvChannelSyncService @Inject constructor(
                     runCatching { WatchStatus.valueOf(entity.status) }
                         .getOrDefault(WatchStatus.Planned) == WatchStatus.Watching
                 }
-                .sortedByDescending { it.id } // Yakin zamanda guncellenen once
+                // "Yakın zamanda güncellenen önce": yerel satır id'si içe aktarma sırasına
+                // bağlı olduğu için `updatedAt` kullanılır (0 ise id ile kararlı sıra).
+                .sortedWith(
+                    compareByDescending<com.kitsugi.animelist.data.local.MediaEntryEntity> { it.updatedAt }
+                        .thenByDescending { it.id }
+                )
                 .take(MAX_CHANNEL_ITEMS)
 
             val watchProgressList = watchingEntries.mapNotNull { entity ->

@@ -41,7 +41,12 @@ data class MediaEntryEntity(
     val aniListEntryId: Int? = null,
     val malListId: Long? = null,
     val tmdbId: Int? = null,
-    val simklId: Int? = null
+    val simklId: Int? = null,
+    /**
+     * Kullanıcının bu yapımı listesine eklediği an (epoch saniye).
+     * `updatedAt` (son değişiklik) ile karıştırılmamalıdır; 0 = bilinmiyor.
+     */
+    val addedAt: Long = 0L
 )
 
 fun MediaEntryEntity.toDomain(): MediaEntry {
@@ -82,7 +87,8 @@ fun MediaEntryEntity.toDomain(): MediaEntry {
         aniListEntryId = aniListEntryId,
         malListId = malListId,
         tmdbId = tmdbId,
-        simklId = simklId
+        simklId = simklId,
+        addedAt = addedAt
     )
 }
 
@@ -120,6 +126,7 @@ fun MediaEntry.toEntity(): MediaEntryEntity {
         aniListEntryId = aniListEntryId,
         malListId = malListId,
         tmdbId = tmdbId,
-        simklId = simklId
+        simklId = simklId,
+        addedAt = addedAt
     )
 }

@@ -121,6 +121,28 @@ internal fun groupMyListEntriesByStatus(
         .filter { (_, statusEntries) -> statusEntries.isNotEmpty() }
 }
 
+/**
+ * "Son eklenen / İlk eklenen" sıralamasının kullandığı zaman damgası (epoch saniye).
+ *
+ * Kök neden: bu sıralama yerel satır `id`'sine dayanıyordu. `id` otomatik artan bir
+ * veritabanı anahtarıdır; her içe aktarma / gece senkronu satırları sildiği ya da
+ * yeniden eklediği için id değişir ve liste kendiliğinden başka bir sıraya döner.
+ * Aynı yapım bir sekmede "Bugün", diğerinde "Dün" görünmesinin nedeni buydu.
+ *
+ * Artık kaynağın kendi "koleksiyona eklenme" zamanı (`MediaEntry.addedAt`) kullanılır.
+ * Eski kayıtlarda alan boşsa son değişiklik zamanına (`updatedAt`), o da yoksa `0`'a
+ * düşülür; `0` değerler çağıran tarafından listenin sonuna atılır.
+ */
+internal fun addedSortTimestamp(entry: MediaEntry): Long {
+    if (entry.addedAt > 0L) return com.kitsugi.animelist.model.normalizeEpochSeconds(entry.addedAt)
+    if (entry.updatedAt > 0L) return com.kitsugi.animelist.model.normalizeEpochSeconds(entry.updatedAt)
+    return 0L
+}
+
+/** Bilinmeyen eklenme zamanı olan satırlar, sıralamanın sonunda kalsın. */
+private fun addedSortKey(entry: MediaEntry): Long =
+    addedSortTimestamp(entry).takeIf { it > 0L } ?: Long.MAX_VALUE
+
 internal fun applySort(
     entries: List<MediaEntry>,
     sortId: String
@@ -138,8 +160,15 @@ internal fun applySort(
     }
 
     return when (sortId) {
-        "newest" -> entries.sortedByDescending { it.id }
-        "oldest" -> entries.sortedBy { it.id }
+        // "Son eklenen / İlk eklenen": sağlayıcının verdiği gerçek eklenme zamanı.
+        // `id` yalnızca eşit zaman damgalarında (ör. aynı saniyede içe aktarılan toplu
+        // kayıtlar) kararlı bir sıra üretmek için son ölçüt olarak kullanılır.
+        "newest", "added", "added_desc" -> entries.sortedWith(
+            compareByDescending<MediaEntry> { addedSortTimestamp(it) }.thenByDescending { it.id }
+        )
+        "oldest", "added_asc" -> entries.sortedWith(
+            compareBy<MediaEntry> { addedSortKey(it) }.thenBy { it.id }
+        )
         "title" -> sortedByTitleKey(descending = false)
         "title_desc" -> sortedByTitleKey(descending = true)
         "score" -> entries.sortedWith(
@@ -195,7 +224,9 @@ internal fun applySort(
         "priority_asc" -> entries.sortedWith(
             compareBy<MediaEntry> { it.priority ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() }
         )
-        else -> entries.sortedByDescending { it.id }
+        else -> entries.sortedWith(
+            compareByDescending<MediaEntry> { addedSortTimestamp(it) }.thenByDescending { it.id }
+        )
     }
 }
 

@@ -6364,6 +6364,13 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="mylist_extra_private">Özel / Gizli</string>
     <string name="mylist_extra_ongoing">Tamamlanmamış</string>
     <string name="mylist_sort_newest">Son eklenen</string>
+    <!-- Listem: "Son eklenen / İlk eklenen" bölüm başlıkları (eklenme tarihine göre) -->
+    <string name="mylist_date_today">Bugün</string>
+    <string name="mylist_date_yesterday">Dün</string>
+    <string name="mylist_date_this_week">Bu Hafta</string>
+    <string name="mylist_date_last_week">Geçen Hafta</string>
+    <string name="mylist_date_older">Daha Eski</string>
+    <string name="mylist_date_unknown">Eklendiği Tarih Bilinmiyor</string>
     <string name="mylist_sort_oldest">İlk eklenen</string>
     <string name="mylist_sort_title">Ada göre</string>
     <string name="mylist_sort_progress">İlerleme</string>

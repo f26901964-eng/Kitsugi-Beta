@@ -322,7 +322,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                             android.util.Log.d("KitsugiAutoSync", "AniList listesi yenileniyor...")
                             val entries = com.kitsugi.animelist.data.auth.AniListImportManager.fetchAllLists(aniListToken)
                             // +18 işaretleri sil-yaz döngüsünde kaybolmasın
-                            repo.replaceSourcePreservingAdultFlags("anilist", entries)
+                            repo.replaceSourcePreservingMetadata("anilist", entries)
                             syncCount += entries.size
                             android.util.Log.d("KitsugiAutoSync", "AniList: ${entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {
@@ -338,7 +338,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                             val dataStore = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication)
                             val showAdult = dataStore.settingsFlow.first().showAdultContent
                             val entries = com.kitsugi.animelist.data.auth.MalImportManager.fetchAllLists(malToken, showAdult)
-                            repo.replaceSourcePreservingAdultFlags("mal", entries)
+                            repo.replaceSourcePreservingMetadata("mal", entries)
                             syncCount += entries.size
                             android.util.Log.d("KitsugiAutoSync", "MAL: ${entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {
@@ -354,7 +354,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                             val entries = com.kitsugi.animelist.data.auth.SimklImportManager.fetchAllLists(simklToken)
                             // Simkl liste API'si `adult` taşımaz → eski +18 işaretleri
                             // korunmalı ve hemen ardından kimlik üzerinden tamamlanmalı.
-                            repo.replaceSourcePreservingAdultFlags("simkl", entries)
+                            repo.replaceSourcePreservingMetadata("simkl", entries)
                             syncCount += entries.size
                             android.util.Log.d("KitsugiAutoSync", "Simkl: ${entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {

@@ -6359,6 +6359,13 @@
     <string name="mylist_extra_private">Private / Hidden</string>
     <string name="mylist_extra_ongoing">Incomplete</string>
     <string name="mylist_sort_newest">Recently added</string>
+    <!-- My List: section headers when sorting by date added -->
+    <string name="mylist_date_today">Today</string>
+    <string name="mylist_date_yesterday">Yesterday</string>
+    <string name="mylist_date_this_week">This Week</string>
+    <string name="mylist_date_last_week">Last Week</string>
+    <string name="mylist_date_older">Older</string>
+    <string name="mylist_date_unknown">Added date unknown</string>
     <string name="mylist_sort_oldest">Oldest added</string>
     <string name="mylist_sort_title">Title</string>
     <string name="mylist_sort_progress">Progress</string>

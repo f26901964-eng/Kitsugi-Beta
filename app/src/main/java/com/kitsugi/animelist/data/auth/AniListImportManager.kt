@@ -115,6 +115,7 @@ object AniListImportManager {
                         repeat
                         hiddenFromStatusLists
                         updatedAt
+                        createdAt
                         startedAt {
                             year
                             month
@@ -256,6 +257,10 @@ object AniListImportManager {
                 val volumeProgress = item.optInt("progressVolumes", 0)
                 val isHiddenFromStatusLists = item.optBoolean("hiddenFromStatusLists", false)
                 val updatedAt = item.optLong("updatedAt", 0L)
+                // AniList `createdAt`: kullanıcının bu kaydı listesine eklediği an.
+                // "Son eklenen / İlk eklenen" sıralaması buna dayanır (`updatedAt` her
+                // puan/ilerleme değişikliğinde kayar, eklenme zamanı kaymaz).
+                val addedAt = item.optLong("createdAt", 0L)
                 val titleEnglish = english
                 val titleJapanese = native
 
@@ -291,6 +296,7 @@ object AniListImportManager {
                     repeatCount = repeatCount,
                     volumeProgress = volumeProgress,
                     updatedAt = updatedAt,
+                    addedAt = addedAt,
                     titleEnglish = titleEnglish,
                     titleJapanese = titleJapanese,
                     aniListEntryId = aniListEntryId

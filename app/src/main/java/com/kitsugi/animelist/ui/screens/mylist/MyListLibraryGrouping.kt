@@ -267,8 +267,18 @@ internal fun groupMyListEntries(
         MyListLibraryItem(
             // Adult metadata from any linked provider is authoritative for the combined
             // tile: don't let a non-adult representative unblur a copy flagged +18 elsewhere.
+            //
+            // EKLENME ZAMANI: birleşik kartta "bu yapım listeme ne zaman girdi" sorusunun
+            // cevabı, kopyalardan EN YENİ eklenmiş olanıdır. Kullanıcı bir yapımı bugün
+            // Shikimori'ye eklediyse (AniList kopyası eski olsa bile) Tümü sekmesinde
+            // "Son eklenen" sıralamasının en üstünde görmelidir. Sekme bazlı listeler kendi
+            // satırlarının (sağlayıcının verdiği) tarihini korur.
             entry = group.representative.copy(
-                isAdult = group.members.any { it.entry.isAdult }
+                isAdult = group.members.any { it.entry.isAdult },
+                addedAt = group.members
+                    .mapNotNull { it.entry.addedAt.takeIf { value -> value > 0L } }
+                    .maxOrNull()
+                    ?: group.representative.addedAt
             ),
             sourceIds = group.sourceIds.toList()
         )

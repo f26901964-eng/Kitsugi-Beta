@@ -186,16 +186,11 @@ fun KitsugiUserMediaListScreen(
             selectedExtraFilterId = selectedExtraFilterId
         )
     }
-    val visibleEntries = remember(filteredEntries, selectedSortId, sourceItemByListEntryId) {
-        when (selectedSortId) {
-            "newest" -> filteredEntries.sortedByDescending { entry ->
-                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
-            }
-            "oldest" -> filteredEntries.sortedBy { entry ->
-                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
-            }
-            else -> applySort(filteredEntries, selectedSortId)
-        }
+    // "Son eklenen / İlk eklenen" artık `MediaEntry.addedAt` üzerinden yürür; başka bir
+    // kullanıcının listesinde bu alan AniList `MediaList.createdAt` değerinden doldurulur
+    // (bkz. toListemMediaEntry). Böylece kişisel Listem ile aynı sözleşme kullanılır.
+    val visibleEntries = remember(filteredEntries, selectedSortId) {
+        applySort(filteredEntries, selectedSortId)
     }
     val groupedVisibleEntries = remember(visibleEntries) {
         groupMyListEntriesByStatus(visibleEntries)
@@ -625,6 +620,7 @@ private fun UserMediaListItem.toListemMediaEntry(): MediaEntry = MediaEntry(
     isPrivate = isPrivate,
     isHiddenFromStatusLists = isHiddenFromStatusLists,
     updatedAt = updatedAt,
+    addedAt = createdAt,
     titleEnglish = titleEnglish,
     titleJapanese = titleNative,
     aniListEntryId = listEntryId

@@ -56,6 +56,8 @@ object MediaEntryBackup {
                 .put("malListId", entry.malListId)
                 .put("tmdbId", entry.tmdbId)
                 .put("simklId", entry.simklId)
+                // Koleksiyona eklenme anı: "Son eklenen" sırası ve tarih bölümleri buna bağlı.
+                .put("addedAt", entry.addedAt)
 
             array.put(item)
         }
@@ -128,12 +130,16 @@ object MediaEntryBackup {
                 volumeProgress = item.optInt("volumeProgress", 0),
                 isPrivate = item.optBoolean("isPrivate", false),
                 isHiddenFromStatusLists = item.optBoolean("isHiddenFromStatusLists", false),
-                updatedAt = item.optLong("updatedAt", 0L),
+                // Eski yedeklerde Bangumi satırlarının `updatedAt`i milisaniye olabilir.
+                updatedAt = com.kitsugi.animelist.model.normalizeEpochSeconds(item.optLong("updatedAt", 0L)),
                 titleEnglish = item.optionalString("titleEnglish"),
                 titleJapanese = item.optionalString("titleJapanese"),
                 malListId = if (item.has("malListId") && !item.isNull("malListId")) item.getLong("malListId") else null,
                 tmdbId = item.optionalInt("tmdbId"),
-                simklId = item.optionalInt("simklId")
+                simklId = item.optionalInt("simklId"),
+                addedAt = com.kitsugi.animelist.model.normalizeEpochSeconds(
+                    item.optLong("addedAt", 0L).coerceAtLeast(0L)
+                )
             )
 
             result.add(entry)

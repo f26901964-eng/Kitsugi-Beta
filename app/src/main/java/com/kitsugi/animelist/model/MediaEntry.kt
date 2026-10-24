@@ -69,5 +69,28 @@ data class MediaEntry(
     val aniListEntryId: Int? = null,
     val malListId: Long? = null,
     val tmdbId: Int? = null,
-    val simklId: Int? = null
+    val simklId: Int? = null,
+    /**
+     * Kullanıcının bu yapımı **listesine eklediği** an (epoch saniye).
+     *
+     * `updatedAt`'ten ayrıdır: bir kaydın durum/puan/ilerleme değişikliği bu alanı
+     * DEĞİŞTİRMEZ. "Son eklenen / İlk eklenen" sıralaması ve Listem'deki tarih
+     * bölümleri (Bugün / Dün / Bu Hafta …) yalnızca bu alanı kullanır.
+     *
+     * Değer, kaynağın kendi "koleksiyona eklenme" zamanından gelir
+     * (AniList `createdAt`, Kitsu `createdAt`, Shikimori `created_at`,
+     * Simkl `added_to_watchlist_at`). Kaynak bu alanı sunmuyorsa (MAL, Bangumi)
+     * ilk içe aktarımda `updated_at` "en iyi çaba" değeri olarak yazılır ve
+     * sonraki içe aktarımlarda KORUNUR. `0` = bilinmiyor.
+     */
+    val addedAt: Long = 0L
 )
+
+/**
+ * Zaman damgalarımız **epoch saniye** cinsindendir. Eski sürümlerde Bangumi koleksiyon
+ * zamanı yanlışlıkla milisaniye olarak yazılıyordu (bkz. `BangumiImportManager`);
+ * v30 göçünden kalan satırlar ve eski yedekler bu değerle gelebilir. 1e11 saniye
+ * (yaklaşık 5138 yılı) üzerindeki her değer milisaniye kabul edilip saniyeye çevrilir.
+ */
+fun normalizeEpochSeconds(value: Long): Long =
+    if (value > 100_000_000_000L) value / 1000L else value

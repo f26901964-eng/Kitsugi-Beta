@@ -99,6 +99,7 @@ object ShikimoriImportManager {
                         repeatCount = rate.rewatches,
                         volumeProgress = if (isManga) rate.volumes else 0,
                         updatedAt = rate.updatedAt,
+                        addedAt = rate.addedAt,
                         year = rate.startYear
                     )
                 )

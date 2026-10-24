@@ -214,7 +214,12 @@ object ShikimoriApiClient {
         /** Tekrar izleme/okuma sayısı (`rewatches`). */
         val rewatches: Int = 0,
         /** Okunan cilt sayısı (`volumes`, yalnızca manga). */
-        val volumes: Int = 0
+        val volumes: Int = 0,
+        /**
+         * Kütüphaneye eklenme anı (`created_at`, epoch saniye). `updated_at` her puan/
+         * bölüm değişikliğinde kayar; "Son eklenen" sırası bu alanı kullanır.
+         */
+        val addedAt: Long = 0L
     )
 
     const val DEFAULT_CLIENT_ID = "poB5DHHfiPP-DiphGJoelAnUeQ3PNkhPXwuUgXusl20"
@@ -715,6 +720,9 @@ object ShikimoriApiClient {
                             val updatedAt = runCatching {
                                 java.time.Instant.parse(updatedAtStr).epochSecond
                             }.getOrDefault(0L)
+                            val addedAt = runCatching {
+                                java.time.Instant.parse(item.optString("created_at", "")).epochSecond
+                            }.getOrDefault(0L)
 
                             val mediaObj = if (targetType == "Anime") item.optJSONObject("anime") else item.optJSONObject("manga")
                             val targetId = mediaObj?.optInt("id", 0)?.takeIf { it > 0 } ?: item.optInt("target_id", 0)
@@ -773,7 +781,8 @@ object ShikimoriApiClient {
                                     isAdult = isAdult,
                                     notes = rateNotes,
                                     rewatches = rewatches,
-                                    volumes = volumes
+                                    volumes = volumes,
+                                    addedAt = addedAt
                                 )
                             )
                         }

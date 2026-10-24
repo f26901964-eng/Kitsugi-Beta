@@ -258,6 +258,9 @@ object MalImportManager {
             repeatValue = repeatValue,
             volumeProgress = volumeProgress,
             updatedAt = updatedAt,
+            // MAL list_status `added_at` alanını SUNMAZ; `updated_at` tek zaman sinyalidir.
+            // İlk içe aktarımda "en iyi çaba" olarak yazılır, sonraki aktarımlarda korunur.
+            addedAt = updatedAt,
             titleEnglish = titleEnglish,
             titleJapanese = titleJapanese
         )
