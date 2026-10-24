@@ -104,9 +104,12 @@ fun DetailPageScaffold(
     val leftPanelFocusRequester = remember { FocusRequester() }
     val tabBarFocusRequester = remember { FocusRequester() }
     val selectedTab = pagerState.currentPage
-    // Hero (0) + yapışkan sekmeler (1) + pager içeriği (2) düzeninde mini üst bar
-    // içerik görünür olduğunda açılır; sekme sınırındaki histerezis titremeyi önler.
-    val showFloatingHeader = rememberDetailStickyHeaderVisible(listState = listState)
+    // Yapışkan başlık yüksekliği index == 2 sınırında gidip gelmesin.
+    val showFloatingHeader = rememberDetailStickyHeaderVisible(
+        listState = listState,
+        showAtIndex = 3,
+        hideAtIndex = 1
+    )
 
     when {
         isLoading -> loadingScreen()
@@ -309,17 +312,10 @@ fun DetailPageScaffold(
                                 // ── Sekme İçerikleri ──
                                 item(key = "content") {
                                     val pageHeights = remember { mutableStateMapOf<Int, Int>() }
-                                    val currentPage = pagerState.currentPage
-                                    val currentHeightPx = pageHeights[currentPage] ?: 0
-                                    // Swipe fraction'ı burada OKUNMAZ. Önceki interpolasyon her kaydırma
-                                    // karesinde layout'u geçersiz kılıyor ve sınırsız-yükseklik ölçümünü
-                                    // bütün aktif sekme için tekrarlatıyordu. Yükseklik yalnızca gerçek
-                                    // içerik / seçili sayfa değişiminde güncellenir.
-                                    val currentHeightDp = if (currentHeightPx > 0) {
-                                        with(density) { currentHeightPx.toDp() }
-                                    } else {
-                                        null
-                                    }
+                                    // PERF: pagerState.currentPageOffsetFraction ve pageHeights okumaları
+                                    // composition yerine doğrudan Modifier.layout fazına taşındı.
+                                    // Böylece yatay sekme kaydırma (60-120fps) ve sekme boyu güncellemeleri
+                                    // sıfır recomposition ile yalnızca yerleşim fazında işlenir.
                                     val screenHeightDp = LocalConfiguration.current.screenHeightDp
 
                                     HorizontalPager(
@@ -331,15 +327,29 @@ fun DetailPageScaffold(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .layout { measurable, constraints ->
-                                                val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
+                                                val minPagerHeightPx = (screenHeightDp - 64).dp.roundToPx().coerceAtLeast(0)
                                                 val placeable = measurable.measure(
                                                     constraints.copy(
                                                         minHeight = minPagerHeightPx,
                                                         maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                                                     )
                                                 )
-                                                val height = (currentHeightDp?.roundToPx()
-                                                    ?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                                                val cp = pagerState.currentPage
+                                                val offset = pagerState.currentPageOffsetFraction
+                                                val tp = when {
+                                                    offset > 0f -> cp + 1
+                                                    offset < 0f -> cp - 1
+                                                    else -> cp
+                                                }
+                                                val curH = pageHeights[cp] ?: 0
+                                                val tgtH = pageHeights[tp] ?: curH
+                                                val interpPx = when {
+                                                    curH > 0 && tgtH > 0 ->
+                                                        (curH + (tgtH - curH) * kotlin.math.abs(offset)).toInt()
+                                                    curH > 0 -> curH
+                                                    else -> 0
+                                                }
+                                                val height = (if (interpPx > 0) interpPx.coerceAtLeast(minPagerHeightPx) else placeable.height)
                                                     .coerceIn(minPagerHeightPx, 16_000_000)
                                                 layout(placeable.width, height) { placeable.placeRelative(0, 0) }
                                             }

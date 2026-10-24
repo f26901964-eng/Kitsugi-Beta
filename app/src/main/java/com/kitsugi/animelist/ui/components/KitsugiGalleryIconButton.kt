@@ -17,8 +17,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
@@ -39,8 +39,9 @@ val LocalKitsugiGalleryLoading = compositionLocalOf { false }
  *   görünür ve buton devre dışıdır (dokunulmaz).
  * - Hazır: ikon normal parlaklıkta, dokunulabilir.
  *
- * Mevcut bir hero/başlık kutusunun içinde kullanılmak üzere tasarlanmıştır (dış kutunun
- * arka planını kendisi çizmez).
+ * Performans notu: `rememberInfiniteTransition` yalnızca [isLoading] açıkken yaprak bileşende
+ * kurulur ve `graphicsLayer` çizim aşamasında okunur; böylece her detay sayfasında yer alan
+ * iki galeri butonu (vitrin + yapışkan başlık) boşta sıfır kare saati tüketir.
  */
 @Composable
 fun KitsugiGalleryIconButton(
@@ -49,41 +50,32 @@ fun KitsugiGalleryIconButton(
     modifier: Modifier = Modifier,
     isLoading: Boolean = LocalKitsugiGalleryLoading.current
 ) {
-    // Sonsuz nabız (pulse) transition'ı YALNIZCA yükleme sürerken kurulur.
-    // Eski yapıda transition boştayken de yaşıyor, detay sayfası açık kaldığı
-    // sürece HER KAREDE bu alt ağacı yeniden kompoze edip kaydırma karelerini
-    // çalıyordu (aynı hata sınıfı KitsugiTranslateIconButton'da düzeltilmişti).
-    if (isLoading) {
-        PulsingGalleryIconButton(
-            onClick = onClick,
-            accentColor = accentColor,
-            modifier = modifier
-        )
-    } else {
-        IconButton(
-            onClick = onClick,
-            enabled = true,
-            modifier = modifier
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(40.dp)) {
+    IconButton(
+        onClick = onClick,
+        enabled = !isLoading,
+        modifier = modifier
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(40.dp)) {
+            if (isLoading) {
+                PulsingLoadingGalleryIcon(accentColor = accentColor)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(34.dp),
+                    color = accentColor,
+                    strokeWidth = 2.dp
+                )
+            } else {
                 Icon(
                     imageVector = Icons.Rounded.Image,
                     contentDescription = stringResource(R.string.action_gallery),
-                    tint = accentColor,
-                    modifier = Modifier.alpha(1f)
+                    tint = accentColor
                 )
             }
         }
     }
 }
 
-/** Yükleme sürerken çalışan izole alt ağaç: sonsuz animasyon yalnızca burada yaşar. */
 @Composable
-private fun PulsingGalleryIconButton(
-    onClick: () -> Unit,
-    accentColor: Color,
-    modifier: Modifier
-) {
+private fun PulsingLoadingGalleryIcon(accentColor: Color) {
     val transition = rememberInfiniteTransition(label = "galleryLoadingTransition")
     val pulseAlpha by transition.animateFloat(
         initialValue = 0.30f,
@@ -94,24 +86,10 @@ private fun PulsingGalleryIconButton(
         ),
         label = "galleryLoadingPulse"
     )
-
-    IconButton(
-        onClick = onClick,
-        enabled = false,
-        modifier = modifier
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(40.dp)) {
-            Icon(
-                imageVector = Icons.Rounded.Image,
-                contentDescription = stringResource(R.string.action_gallery),
-                tint = accentColor,
-                modifier = Modifier.alpha(pulseAlpha * 0.6f)
-            )
-            CircularProgressIndicator(
-                modifier = Modifier.size(34.dp),
-                color = accentColor,
-                strokeWidth = 2.dp
-            )
-        }
-    }
+    Icon(
+        imageVector = Icons.Rounded.Image,
+        contentDescription = stringResource(R.string.action_gallery),
+        tint = accentColor,
+        modifier = Modifier.graphicsLayer { alpha = pulseAlpha * 0.6f }
+    )
 }

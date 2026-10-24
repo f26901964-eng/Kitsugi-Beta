@@ -26,7 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.IconButton
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,8 +102,13 @@ internal fun StaffCharacterRoleCard(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!role.characterImageUrl.isNullOrBlank()) {
+                val roleThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = role.characterImageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = role.characterImageUrl,
+                    model = roleThumb ?: role.characterImageUrl,
                     contentDescription = role.characterName,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -158,8 +169,13 @@ internal fun StaffMediaWorkRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!work.mediaImageUrl.isNullOrBlank()) {
+                val workThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = work.mediaImageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = work.mediaImageUrl,
+                    model = workThumb ?: work.mediaImageUrl,
                     contentDescription = displayTitle,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -506,8 +522,17 @@ internal fun StaffCharacterRolesTabContent(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val allRoles = detail.characterRoles
+    var selectedChunk by remember(allRoles.size) { mutableIntStateOf(0) }
+    val chunkCount = (allRoles.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+    val visibleRoles = remember(allRoles, safeChunk) {
+        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allRoles.size)
+        if (start < allRoles.size) allRoles.subList(start, end) else emptyList()
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (detail.characterRoles.isEmpty()) {
+        if (allRoles.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_character_roles),
                 color = KitsugiColors.TextSecondary,
@@ -515,14 +540,26 @@ internal fun StaffCharacterRolesTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.characterRoles.forEach { role ->
-                StaffCharacterRoleCard(
-                    role = role,
-                    titleLanguage = titleLanguage,
-                    onCharacterClick = onCharacterClick,
-                    onMediaClick = onMediaClick
-                )
+            DetailChunkSelectorRow(
+                totalCount = allRoles.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
+            visibleRoles.forEachIndexed { idx, role ->
+                key("${role.characterSource}_${role.characterId}_${role.mediaId}_${safeChunk}_$idx") {
+                    StaffCharacterRoleCard(
+                        role = role,
+                        titleLanguage = titleLanguage,
+                        onCharacterClick = onCharacterClick,
+                        onMediaClick = onMediaClick
+                    )
+                }
             }
+            DetailChunkSelectorRow(
+                totalCount = allRoles.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
         }
     }
 }
@@ -534,8 +571,17 @@ internal fun StaffMediaWorksTabContent(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val allWorks = detail.mediaWorks
+    var selectedChunk by remember(allWorks.size) { mutableIntStateOf(0) }
+    val chunkCount = (allWorks.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+    val visibleWorks = remember(allWorks, safeChunk) {
+        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allWorks.size)
+        if (start < allWorks.size) allWorks.subList(start, end) else emptyList()
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (detail.mediaWorks.isEmpty()) {
+        if (allWorks.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_media_works),
                 color = KitsugiColors.TextSecondary,
@@ -543,13 +589,25 @@ internal fun StaffMediaWorksTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.mediaWorks.forEach { work ->
-                StaffMediaWorkRow(
-                    work = work,
-                    titleLanguage = titleLanguage,
-                    onMediaClick = onMediaClick
-                )
+            DetailChunkSelectorRow(
+                totalCount = allWorks.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
+            visibleWorks.forEachIndexed { idx, work ->
+                key("${work.source}_${work.mediaId}_${work.staffRole}_${safeChunk}_$idx") {
+                    StaffMediaWorkRow(
+                        work = work,
+                        titleLanguage = titleLanguage,
+                        onMediaClick = onMediaClick
+                    )
+                }
             }
+            DetailChunkSelectorRow(
+                totalCount = allWorks.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
         }
     }
 }

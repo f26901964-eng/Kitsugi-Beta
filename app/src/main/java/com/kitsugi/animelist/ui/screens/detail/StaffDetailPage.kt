@@ -272,7 +272,11 @@ fun StaffDetailPage(
                     }
                 ) {
                 val listState = rememberLazyListState()
-                val showFloatingHeader = rememberDetailStickyHeaderVisible(listState = listState)
+                val showFloatingHeader = rememberDetailStickyHeaderVisible(
+                    listState = listState,
+                    showAtIndex = 2,
+                    hideAtIndex = 0
+                )
                 // Wiki çözümlemesi ham detayla yapılır (ad gösterim tercihinden bağımsız).
                 LaunchedEffect(rawDetail, source, staffId) {
                     wikiViewModel.bindStaff(rawDetail, source, staffId)
@@ -516,25 +520,6 @@ fun StaffDetailPage(
                             // Tab content rendering
                             item(key = "content") {
                                 val pageHeights = remember { androidx.compose.runtime.mutableStateMapOf<Int, Int>() }
-                                val density = androidx.compose.ui.platform.LocalDensity.current
-                                val currentPage = pagerState.currentPage
-                                val currentPageOffset = pagerState.currentPageOffsetFraction
-                                val targetPage = if (currentPageOffset > 0f) currentPage + 1 else if (currentPageOffset < 0f) currentPage - 1 else currentPage
-
-                                val currentHeightPx = pageHeights[currentPage] ?: 0
-                                val targetHeightPx = pageHeights[targetPage] ?: currentHeightPx
-
-                                val interpolatedHeightDp = remember(currentHeightPx, targetHeightPx, currentPageOffset) {
-                                    val heightPx = if (currentHeightPx > 0 && targetHeightPx > 0) {
-                                        currentHeightPx + (targetHeightPx - currentHeightPx) * kotlin.math.abs(currentPageOffset)
-                                    } else if (currentHeightPx > 0) {
-                                        currentHeightPx.toFloat()
-                                    } else {
-                                        0f
-                                    }
-                                    if (heightPx > 0f) with(density) { heightPx.toDp() } else null
-                                }
-
                                 val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
 
                                 @OptIn(ExperimentalFoundationApi::class)
@@ -547,14 +532,29 @@ fun StaffDetailPage(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .layout { measurable, constraints ->
-                                            val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
+                                            val minPagerHeightPx = (screenHeightDp - 64).dp.roundToPx().coerceAtLeast(0)
                                             val placeable = measurable.measure(
                                                 constraints.copy(
                                                     minHeight = minPagerHeightPx,
                                                     maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                                                 )
                                             )
-                                            val height = (interpolatedHeightDp?.roundToPx()?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                                            val cp = pagerState.currentPage
+                                            val offset = pagerState.currentPageOffsetFraction
+                                            val tp = when {
+                                                offset > 0f -> cp + 1
+                                                offset < 0f -> cp - 1
+                                                else -> cp
+                                            }
+                                            val curH = pageHeights[cp] ?: 0
+                                            val tgtH = pageHeights[tp] ?: curH
+                                            val interpPx = when {
+                                                curH > 0 && tgtH > 0 ->
+                                                    (curH + (tgtH - curH) * kotlin.math.abs(offset)).toInt()
+                                                curH > 0 -> curH
+                                                else -> 0
+                                            }
+                                            val height = (if (interpPx > 0) interpPx.coerceAtLeast(minPagerHeightPx) else placeable.height)
                                                 .coerceIn(minPagerHeightPx, 16_000_000)
                                             layout(placeable.width, height) {
                                                 placeable.placeRelative(0, 0)

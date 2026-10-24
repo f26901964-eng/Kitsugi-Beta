@@ -213,15 +213,18 @@ fun KitsugiTagsCard(
 
     // Çeviriden sonra aynı anlama gelen yazımlar tek çipte toplanır; kopyalardan
     // herhangi biri spoiler ise `isSpoiler = true` ve `rank` korunur.
-    val distinctTags = tags.distinctByLocalizedLabel()
-    val nonSpoilerTags = distinctTags.filter { !it.isSpoiler }
-    val spoilerTags = distinctTags.filter { it.isSpoiler }
+    val (distinctTags, nonSpoilerTags, spoilerTags) = remember(tags) {
+        val merged = tags.distinctByLocalizedLabel()
+        Triple(merged, merged.filter { !it.isSpoiler }, merged.filter { it.isSpoiler })
+    }
 
-    val visibleTags = when {
-        expanded && showSpoilers -> distinctTags
-        expanded -> nonSpoilerTags
-        showSpoilers -> nonSpoilerTags.take(VISIBLE_TAG_COUNT) + spoilerTags
-        else -> nonSpoilerTags.take(VISIBLE_TAG_COUNT)
+    val visibleTags = remember(distinctTags, nonSpoilerTags, spoilerTags, expanded, showSpoilers) {
+        when {
+            expanded && showSpoilers -> distinctTags
+            expanded -> nonSpoilerTags
+            showSpoilers -> nonSpoilerTags.take(VISIBLE_TAG_COUNT) + spoilerTags
+            else -> nonSpoilerTags.take(VISIBLE_TAG_COUNT)
+        }
     }
 
     val hasSpoilers = spoilerTags.isNotEmpty()

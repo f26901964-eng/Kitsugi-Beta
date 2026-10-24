@@ -166,6 +166,15 @@ private fun SeasonAccordion(
     var expandedSeason by remember(targetSeason) {
         mutableStateOf(targetSeason ?: 1)
     }
+    val defaultSeason = targetSeason ?: 1
+    val episodesBySeason = remember(episodes, totalSeasons, defaultSeason) {
+        val grouped = HashMap<Int, MutableList<KitsugiStreamingEpisode>>(totalSeasons * 2)
+        for (ep in episodes) {
+            val s = ep.seasonNumber ?: defaultSeason
+            grouped.getOrPut(s) { ArrayList() }.add(ep)
+        }
+        grouped
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (season in 1..totalSeasons) {
@@ -175,9 +184,7 @@ private fun SeasonAccordion(
                 seasonNumber = season,
                 isAdult = isAdult,
                 isExpanded = isExpanded,
-                episodes = episodes.filter {
-                    it.seasonNumber == season || (season == (targetSeason ?: 1) && it.seasonNumber == null)
-                },
+                episodes = episodesBySeason[season].orEmpty(),
                 episodeRatings = episodeRatings,
                 targetSeason = season,
                 accentColor = accentColor,
@@ -382,27 +389,32 @@ private fun PaginatedEpisodesList(
         val startIndex = safeChunkIndex * CHUNK_SIZE
         val endIndex = minOf(startIndex + CHUNK_SIZE, episodes.size)
         val visibleEpisodes = if (startIndex < episodes.size) episodes.subList(startIndex, endIndex) else emptyList()
+        // PERF: Sezon üst sınırları ve ilk bölüm eşleşme tablosu her satır için (50x) yeniden
+        // oluşturulmak yerine yalnızca episodeRatings değiştiğinde O(R) tek geçişte hazırlanır.
+        val ratingIndex = remember(episodeRatings) { EpisodeRatingIndex.build(episodeRatings) }
 
         visibleEpisodes.forEachIndexed { i, episode ->
             val index = startIndex + i
-            val rating = resolveRating(episode, targetSeason, episodeRatings)
-            val seasonKey = targetSeason ?: episode.seasonNumber ?: 1
-            val epNum = episode.episodeNumber ?: (index + 1)
-            val download = downloadMap[seasonKey to epNum]
+            androidx.compose.runtime.key("${episode.seasonNumber ?: 0}_${episode.episodeNumber ?: index}_$index") {
+                val rating = ratingIndex.resolve(episode, targetSeason)
+                val seasonKey = targetSeason ?: episode.seasonNumber ?: 1
+                val epNum = episode.episodeNumber ?: (index + 1)
+                val download = downloadMap[seasonKey to epNum]
 
-            EpisodeRow(
-                episode = episode,
-                index = index,
-                isAdult = isAdult,
-                accentColor = accentColor,
-                imdbRating = rating,
-                download = download,
-                onClick = { onEpisodeClick(episode) },
-                onRatingClick = if (onRatingClick != null && episode.episodeNumber != null) {
-                    { onRatingClick(targetSeason ?: episode.seasonNumber ?: 1, episode.episodeNumber) }
-                } else null,
-                onDownloadClick = { onDownloadClick(episode) }
-            )
+                EpisodeRow(
+                    episode = episode,
+                    index = index,
+                    isAdult = isAdult,
+                    accentColor = accentColor,
+                    imdbRating = rating,
+                    download = download,
+                    onClick = { onEpisodeClick(episode) },
+                    onRatingClick = if (onRatingClick != null && episode.episodeNumber != null) {
+                        { onRatingClick(targetSeason ?: episode.seasonNumber ?: 1, episode.episodeNumber) }
+                    } else null,
+                    onDownloadClick = { onDownloadClick(episode) }
+                )
+            }
         }
     }
 }
@@ -435,50 +447,65 @@ private fun EmptyEpisodesMessage() {
 }
 
 // ---------------------------------------------------------------------------
-//  Yardımcı: Rating çözücü
+//  Yardımcı: Rating çözücü (önbelleklenmiş sezon aralıklarıyla O(S) / O(1))
 // ---------------------------------------------------------------------------
 
-private fun resolveRating(
-    episode: KitsugiStreamingEpisode,
-    targetSeason: Int?,
-    episodeRatings: Map<Pair<Int, Int>, Double>
-): Double? {
-    val epNum = episode.episodeNumber ?: return null
-    val sNum = targetSeason ?: episode.seasonNumber ?: 1
+private class EpisodeRatingIndex(
+    private val ratings: Map<Pair<Int, Int>, Double>,
+    private val firstByEpisodeNumber: Map<Int, Double>,
+    private val seasonMaxEpisodes: List<Pair<Int, Int>>
+) {
+    fun resolve(episode: KitsugiStreamingEpisode, targetSeason: Int?): Double? {
+        if (ratings.isEmpty()) return null
+        val epNum = episode.episodeNumber ?: return null
+        val sNum = targetSeason ?: episode.seasonNumber ?: 1
 
-    // 1. Doğrudan sezon numarası ve bölüm numarası eşleşmesi
-    val direct = episodeRatings[sNum to epNum]
-        ?: episodeRatings[1 to epNum]
-    if (direct != null) return direct
+        // 1. Doğrudan sezon numarası ve bölüm numarası eşleşmesi
+        val direct = ratings[sNum to epNum] ?: ratings[1 to epNum]
+        if (direct != null) return direct
 
-    // 2. Herhangi bir sezonda aynı bölüm numarasının doğrudan bulunması
-    val simpleMatch = episodeRatings.keys.firstOrNull { it.second == epNum }?.let { episodeRatings[it] }
-    if (simpleMatch != null) return simpleMatch
+        // 2. Herhangi bir sezonda aynı bölüm numarasının doğrudan bulunması
+        val simpleMatch = firstByEpisodeNumber[epNum]
+        if (simpleMatch != null) return simpleMatch
 
-    // 3. Mutlak bölüm numarası (Absolute Episode Number) → Sezon İçi Bölüm Hesaplama
-    // (Örn: MHA 26. bölüm → 2. Sezon 13. Bölüm gibi birikimli sezon aralıklarıyla eşleştirme)
-    if (episodeRatings.isNotEmpty() && epNum > 0) {
-        val seasonMaxEpisodes = episodeRatings.keys
-            .filter { it.first >= 1 }
-            .groupBy { it.first }
-            .mapValues { entry -> entry.value.maxOf { it.second } }
-            .toSortedMap()
-
-        if (seasonMaxEpisodes.isNotEmpty()) {
+        // 3. Mutlak bölüm numarası (Absolute Episode Number) → Sezon İçi Bölüm Hesaplama
+        if (epNum > 0 && seasonMaxEpisodes.isNotEmpty()) {
             var cumulative = 0
             for ((season, maxEpInSeason) in seasonMaxEpisodes) {
                 if (epNum <= cumulative + maxEpInSeason) {
                     val inSeasonEp = epNum - cumulative
-                    val mappedRating = episodeRatings[season to inSeasonEp]
-                    if (mappedRating != null) return mappedRating
-                    break
+                    return ratings[season to inSeasonEp]
                 }
                 cumulative += maxEpInSeason
             }
         }
+        return null
     }
 
-    return null
+    companion object {
+        fun build(episodeRatings: Map<Pair<Int, Int>, Double>): EpisodeRatingIndex {
+            if (episodeRatings.isEmpty()) {
+                return EpisodeRatingIndex(emptyMap(), emptyMap(), emptyList())
+            }
+            val firstByEp = HashMap<Int, Double>(episodeRatings.size)
+            val maxBySeason = java.util.TreeMap<Int, Int>()
+            for ((key, value) in episodeRatings) {
+                val (season, ep) = key
+                firstByEp.putIfAbsent(ep, value)
+                if (season >= 1) {
+                    val prev = maxBySeason[season]
+                    if (prev == null || ep > prev) {
+                        maxBySeason[season] = ep
+                    }
+                }
+            }
+            return EpisodeRatingIndex(
+                ratings = episodeRatings,
+                firstByEpisodeNumber = firstByEp,
+                seasonMaxEpisodes = maxBySeason.entries.map { it.key to it.value }
+            )
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -518,8 +545,14 @@ private fun EpisodeRow(
             contentAlignment = Alignment.Center
         ) {
             if (hasThumbnail) {
+                val epThumbModel = com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
+                    .rememberThumbnailImageRequest(
+                        url = episode.thumbnail,
+                        widthDp = 100.dp,
+                        heightDp = 60.dp
+                    )
                 com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
-                    model = episode.thumbnail,
+                    model = epThumbModel ?: episode.thumbnail,
                     contentDescription = episode.title,
                     isAdult = isAdult,
                     modifier = Modifier.fillMaxSize(),

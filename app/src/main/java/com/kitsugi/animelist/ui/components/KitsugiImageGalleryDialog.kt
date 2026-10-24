@@ -245,19 +245,12 @@ fun KitsugiImageGalleryDialog(
         }
     }
 
-    // Download button pulse animation
-    val downloadPulse = rememberInfiniteTransition(label = "download_pulse")
-    val downloadGlow by downloadPulse.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "download_glow"
-    )
 
-    // Mevcut sayfa için indirme butonu durumu:
+    // PERF: Boştayken bile tüm diyaloğu (arka plan, 4K görsel katmanları,
+    // küçük resim şeritleri, rozetler) saniyede 60-120 kez yeniden compose eden sonsuz
+    // rememberInfiniteTransition kaldırıldı; sabit parlaklık sıfır kare maliyetiyle kullanılır.
+    val downloadGlow = 1f
+
     //  • Yerel dosya (file:// / content://) ise buton hiç gösterilmez — içerik zaten cihazda.
     //  • allowDownload=false ise buton hiç gösterilmez (örn. İndirilenler ekranı).
     //  • Daha önce indirilmişse buton "indirildi" (tik) durumunda gösterilir.
@@ -645,12 +638,17 @@ private fun GalleryLandscapeLayout(
                         label = "ls_thumb_alpha_$index"
                     )
 
+                    val thumbModel = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                        url = item.url,
+                        widthDp = 62.dp,
+                        heightDp = 80.dp
+                    )
                     Box(
                         modifier = Modifier
                             .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
                     ) {
                         KitsugiNsfwImage(
-                            model = item.url,
+                            model = thumbModel,
                             contentDescription = stringResource(R.string.gallery_thumbnail_description, index),
                             isAdult = isAdult,
                             modifier = Modifier
@@ -1538,12 +1536,17 @@ private fun GalleryPortraitLayout(
                             label = "thumb_alpha_$index"
                         )
 
+                        val thumbModel = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                            url = item.url,
+                            widthDp = 48.dp,
+                            heightDp = 64.dp
+                        )
                         Box(
                             modifier = Modifier
                                 .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
                         ) {
                             KitsugiNsfwImage(
-                                model = item.url,
+                                model = thumbModel,
                                 contentDescription = stringResource(R.string.gallery_thumbnail_description, index),
                                 isAdult = isAdult,
                                 modifier = Modifier
@@ -2092,13 +2095,18 @@ private fun GalleryImagePage(
                 isAdult = isAdult,
                 modifier = Modifier
                     .fillMaxSize(0.88f)
-                    .graphicsLayer(
-                        scaleX = zoomScale * dominoScale,
-                        scaleY = zoomScale * dominoScale,
-                        translationX = offset.x + dominoTranslationX,
-                        translationY = offset.y,
+                    .graphicsLayer {
+                        val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        val zoomed = zoomScale > 1f
+                        val dominoScale = if (zoomed) 1f else (1f - (abs(pageOffset) * 0.15f)).coerceIn(0.75f, 1f)
+                        val dominoAlpha = if (zoomed) 1f else (1f - (abs(pageOffset) * 0.45f)).coerceIn(0.35f, 1f)
+                        val dominoTranslationX = if (zoomed) 0f else (pageOffset * 60f)
+                        scaleX = zoomScale * dominoScale
+                        scaleY = zoomScale * dominoScale
+                        translationX = offset.x + dominoTranslationX
+                        translationY = offset.y
                         alpha = dominoAlpha
-                    )
+                    }
                     .clip(RoundedCornerShape(18.dp)),
                 contentScale = ContentScale.Fit
             )

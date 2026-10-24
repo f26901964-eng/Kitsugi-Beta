@@ -38,8 +38,14 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,8 +102,13 @@ internal fun MediaAppearanceRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!appearance.imageUrl.isNullOrBlank()) {
+                val appThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = appearance.imageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = appearance.imageUrl,
+                    model = appThumb ?: appearance.imageUrl,
                     contentDescription = displayTitle,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -158,8 +169,13 @@ internal fun VoiceActorRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!actor.imageUrl.isNullOrBlank()) {
+                val actorThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = actor.imageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = actor.imageUrl,
+                    model = actorThumb ?: actor.imageUrl,
                     contentDescription = actor.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -498,8 +514,17 @@ internal fun CharacterAppearancesTabContent(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val allAppearances = detail.mediaAppearances
+    var selectedChunk by remember(allAppearances.size) { mutableIntStateOf(0) }
+    val chunkCount = (allAppearances.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+    val visibleAppearances = remember(allAppearances, safeChunk) {
+        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allAppearances.size)
+        if (start < allAppearances.size) allAppearances.subList(start, end) else emptyList()
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (detail.mediaAppearances.isEmpty()) {
+        if (allAppearances.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_appearances),
                 color = KitsugiColors.TextSecondary,
@@ -507,13 +532,25 @@ internal fun CharacterAppearancesTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.mediaAppearances.forEach { appearance ->
-                MediaAppearanceRow(
-                    appearance = appearance,
-                    titleLanguage = titleLanguage,
-                    onMediaClick = onMediaClick
-                )
+            DetailChunkSelectorRow(
+                totalCount = allAppearances.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
+            visibleAppearances.forEachIndexed { idx, appearance ->
+                key("${appearance.source}_${appearance.mediaId}_${appearance.mediaType}_${safeChunk}_$idx") {
+                    MediaAppearanceRow(
+                        appearance = appearance,
+                        titleLanguage = titleLanguage,
+                        onMediaClick = onMediaClick
+                    )
+                }
             }
+            DetailChunkSelectorRow(
+                totalCount = allAppearances.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
         }
     }
 }
@@ -524,8 +561,17 @@ internal fun CharacterVoiceActorsTabContent(
     onStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val allVoiceActors = detail.voiceActors
+    var selectedChunk by remember(allVoiceActors.size) { mutableIntStateOf(0) }
+    val chunkCount = (allVoiceActors.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+    val visibleVoiceActors = remember(allVoiceActors, safeChunk) {
+        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allVoiceActors.size)
+        if (start < allVoiceActors.size) allVoiceActors.subList(start, end) else emptyList()
+    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (detail.voiceActors.isEmpty()) {
+        if (allVoiceActors.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_voice_actors),
                 color = KitsugiColors.TextSecondary,
@@ -533,12 +579,24 @@ internal fun CharacterVoiceActorsTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.voiceActors.forEach { actor ->
-                VoiceActorRow(
-                    actor = actor,
-                    onClick = { onStaffClick(actor.id, actor.source, actor.name, actor.imageUrl) }
-                )
+            DetailChunkSelectorRow(
+                totalCount = allVoiceActors.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
+            visibleVoiceActors.forEachIndexed { idx, actor ->
+                key("${actor.source}_${actor.id}_${actor.language}_${safeChunk}_$idx") {
+                    VoiceActorRow(
+                        actor = actor,
+                        onClick = { onStaffClick(actor.id, actor.source, actor.name, actor.imageUrl) }
+                    )
+                }
             }
+            DetailChunkSelectorRow(
+                totalCount = allVoiceActors.size,
+                selectedChunk = safeChunk,
+                onSelectChunk = { selectedChunk = it }
+            )
         }
     }
 }

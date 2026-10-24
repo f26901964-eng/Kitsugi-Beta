@@ -24,9 +24,11 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
-import androidx.compose.runtime.remember
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -63,7 +65,9 @@ fun RelationsTabContent(
         is DetailTabState.Success -> {
             // +18 UYUMU (2026-10-14): ilişkili başlıklar da göster/gizle sözleşmesine uyar.
             val showAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
-            val list = if (showAdult) state.data else state.data.filter { !it.isAdult }
+            val list = remember(state.data, showAdult) {
+                if (showAdult) state.data else state.data.filter { !it.isAdult }
+            }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.inline_no_related_titles_found_736beb1),
@@ -72,17 +76,32 @@ fun RelationsTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
-                val visibleList = list.take(visibleCount)
+                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
+                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+                val visibleList = remember(list, safeChunk) {
+                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
+                    if (start < list.size) list.subList(start, end) else emptyList()
+                }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    visibleList.forEach { rel ->
-                        RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
+                    visibleList.forEachIndexed { idx, rel ->
+                        key("${rel.source}_${rel.malId}_${rel.relationType}_${safeChunk}_$idx") {
+                            RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
+                        }
                     }
-                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
-                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
-                    }
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
                 }
             }
         }
@@ -114,8 +133,13 @@ fun RelationCard(
                 .clip(RoundedCornerShape(8.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
+            val relThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                url = rel.imageUrl,
+                widthDp = 50.dp,
+                heightDp = 70.dp
+            )
             KitsugiNsfwImage(
-                model = rel.imageUrl,
+                model = relThumb ?: rel.imageUrl,
                 contentDescription = displayTitle,
                 isAdult = rel.isAdult,
                 blurAdultMedia = blurAdultMedia,

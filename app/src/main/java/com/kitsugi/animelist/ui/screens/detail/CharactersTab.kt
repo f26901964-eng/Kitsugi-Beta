@@ -22,6 +22,9 @@ import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiStaff
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -142,7 +145,6 @@ fun CharactersTabContent(
                     )
                 }
             }
-            var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.detail_characters_empty),
@@ -151,48 +153,65 @@ fun CharactersTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                val visibleList = list.take(visibleCount)
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Bangumi kadrosu topluluk katkılı bir kaynaktır; liste gizlenmez ama kaynağı
-                    // belirtilir (canlı çekim kayıtlarda animasyon uyarlaması sanatı/rolü görülebiliyor).
-                    val fromBangumi = list.any {
+                // Bangumi kadrosu topluluk katkılı bir kaynaktır; liste gizlenmez ama kaynağı
+                // belirtilir (canlı çekim kayıtlarda animasyon uyarlaması sanatı/rolü görülebiliyor).
+                val fromBangumi = remember(list) {
+                    list.any {
                         it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true)
                     }
-                    if (fromBangumi) {
-                        Text(
-                            text = stringResource(R.string.characters_bangumi_source_note),
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
-                        )
-                    }
+                }
+                if (fromBangumi) {
+                    Text(
+                        text = stringResource(R.string.characters_bangumi_source_note),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    )
+                }
+                // PERF: 100-500+ karakterli yapımlarda Constraints.Infinity altında tüm kartları
+                // aynı karede compose edip yüzlerce AsyncImage başlatmayı önlemek için 40'lık sayfalar.
+                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
+                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+                val visibleList = remember(list, safeChunk) {
+                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
+                    if (start < list.size) list.subList(start, end) else emptyList()
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
                     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                     if (isLandscape) {
-                        // Yatay mod: 2 sütunlu grid
-                        val chunks = visibleList.chunked(2)
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            chunks.forEach { rowItems ->
+                        val chunks = remember(visibleList) { visibleList.chunked(2) }
+                        chunks.forEachIndexed { rowIdx, rowItems ->
+                            key("char_row_${safeChunk}_$rowIdx") {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    rowItems.forEach { char ->
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            CharacterVoiceActorCard(
-                                                char = char,
-                                                onCharacterClick = onCharacterClick,
-                                                onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                                onShowVoiceActors = { char ->
-                                                    sheetVoiceActors = char.voiceActors
-                                                    selectedCharacterForVoiceActors = char
-                                                }
-                                            )
+                                    rowItems.forEachIndexed { colIdx, char ->
+                                        key("${char.source}_${char.id}_${colIdx}") {
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                CharacterVoiceActorCard(
+                                                    char = char,
+                                                    onCharacterClick = onCharacterClick,
+                                                    onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
+                                                    onShowVoiceActors = { c ->
+                                                        sheetVoiceActors = c.voiceActors
+                                                        selectedCharacterForVoiceActors = c
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
-                                    // Eğer tek öğe kaldıysa boş weight doldurucu
                                     if (rowItems.size == 1) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
@@ -200,26 +219,25 @@ fun CharactersTabContent(
                             }
                         }
                     } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            visibleList.forEach { char ->
+                        visibleList.forEachIndexed { idx, char ->
+                            key("${char.source}_${char.id}_${safeChunk}_$idx") {
                                 CharacterVoiceActorCard(
                                     char = char,
                                     onCharacterClick = onCharacterClick,
                                     onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                    onShowVoiceActors = { char ->
-                                        sheetVoiceActors = char.voiceActors
-                                        selectedCharacterForVoiceActors = char
+                                    onShowVoiceActors = { c ->
+                                        sheetVoiceActors = c.voiceActors
+                                        selectedCharacterForVoiceActors = c
                                     }
                                 )
                             }
                         }
                     }
-                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
-                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
-                    }
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
                 }
             }
         }
@@ -358,8 +376,13 @@ fun CharacterVoiceActorCard(
                     .background(KitsugiColors.SurfaceSoft)
             ) {
                 if (!char.imageUrl.isNullOrBlank()) {
+                    val charThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                        url = char.imageUrl,
+                        widthDp = 44.dp,
+                        heightDp = 44.dp
+                    )
                     AsyncImage(
-                        model = char.imageUrl,
+                        model = charThumb ?: char.imageUrl,
                         contentDescription = char.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -435,8 +458,13 @@ fun CharacterVoiceActorCard(
                         .background(KitsugiColors.SurfaceSoft)
                 ) {
                     if (!va.imageUrl.isNullOrBlank()) {
+                        val vaThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                            url = va.imageUrl,
+                            widthDp = 44.dp,
+                            heightDp = 44.dp
+                        )
                         AsyncImage(
-                            model = va.imageUrl,
+                            model = vaThumb ?: va.imageUrl,
                             contentDescription = va.name,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -510,7 +538,6 @@ fun StaffTabContent(
                     )
                 }
             }
-            var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.detail_staff_empty),
@@ -519,24 +546,37 @@ fun StaffTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                val visibleList = list.take(visibleCount)
-                Column(modifier = Modifier.fillMaxWidth()) {
+                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
+                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+                val visibleList = remember(list, safeChunk) {
+                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
+                    if (start < list.size) list.subList(start, end) else emptyList()
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
                     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                     if (isLandscape) {
-                        // Yatay mod: 2 sütunlu grid
-                        val chunks = visibleList.chunked(2)
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            chunks.forEach { rowItems ->
+                        val chunks = remember(visibleList) { visibleList.chunked(2) }
+                        chunks.forEachIndexed { rowIdx, rowItems ->
+                            key("staff_row_${safeChunk}_$rowIdx") {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    rowItems.forEach { staff ->
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            StaffRow(staff = staff, onStaffClick = onStaffClick)
+                                    rowItems.forEachIndexed { colIdx, staff ->
+                                        key("${staff.source}_${staff.id}_${staff.role}_$colIdx") {
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                StaffRow(staff = staff, onStaffClick = onStaffClick)
+                                            }
                                         }
                                     }
                                     if (rowItems.size == 1) {
@@ -546,18 +586,17 @@ fun StaffTabContent(
                             }
                         }
                     } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            visibleList.forEach { staff ->
+                        visibleList.forEachIndexed { idx, staff ->
+                            key("${staff.source}_${staff.id}_${staff.role}_${safeChunk}_$idx") {
                                 StaffRow(staff = staff, onStaffClick = onStaffClick)
                             }
                         }
                     }
-                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
-                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
-                    }
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
                 }
             }
         }
@@ -585,8 +624,13 @@ fun StaffRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!staff.imageUrl.isNullOrBlank()) {
+                val staffThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = staff.imageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = staff.imageUrl,
+                    model = staffThumb ?: staff.imageUrl,
                     contentDescription = staff.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop

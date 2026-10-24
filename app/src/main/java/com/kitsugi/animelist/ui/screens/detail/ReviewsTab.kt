@@ -234,7 +234,10 @@ fun ReviewsTabContent(
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(forumTopics) { topic ->
+                    items(
+                        items = forumTopics,
+                        key = { topic -> "${topic.source}_${topic.id}" }
+                    ) { topic ->
                         TopicCard(
                             topic = topic,
                             onUserProfileClick = handleUserProfileClick,
@@ -316,7 +319,10 @@ fun ReviewsTabContent(
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(activitiesList) { activity ->
+                    items(
+                        items = activitiesList,
+                        key = { activity -> "act_${activity.id}" }
+                    ) { activity ->
                         ActivityCard(
                             activity = activity,
                             titleLanguage = titleLanguage,
@@ -426,7 +432,10 @@ fun ReviewsTabContent(
                             contentPadding = PaddingValues(horizontal = 14.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(reviewsList) { rev ->
+                            items(
+                                items = reviewsList,
+                                key = { rev -> "${rev.source}_${rev.id}" }
+                            ) { rev ->
                                 KitsugiReviewCard(
                                     rev = rev,
                                     modifier = Modifier.width(280.dp),

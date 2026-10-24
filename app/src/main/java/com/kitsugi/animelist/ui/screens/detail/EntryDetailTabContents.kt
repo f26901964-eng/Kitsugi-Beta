@@ -37,16 +37,22 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
@@ -176,43 +182,35 @@ internal fun EntryDetailOverviewTab(
             (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty() || detail.serializations.isNotEmpty())) {
             // Rol bazlı yönlendirme: yazar çipleri kişi sayfasına, dergi çipleri
             // filtreli aramaya, stüdyo/yapımcı/yayıncı çipleri stüdyo sayfasına gider.
-            // (2026-10-23 perf fix) lambda remember ile stabilize edildi: her
-            // recompose'da yeni instance üretilirse KitsugiStudiosCard gövdesi
-            // (tüm çip FlowRow'ları) baştan kuruluyordu.
-            val studioChipClick: (com.kitsugi.animelist.data.remote.KitsugiStudio) -> Unit =
-                remember(onStaffClick, onMagazineClick, onStudioClick, entry.source, entry.type) {
-                    { chip ->
-                        when (chip.role) {
-                            com.kitsugi.animelist.data.remote.StudioRole.AUTHOR ->
-                                onStaffClick(chip.id, chip.source, chip.name, chip.imageUrl)
-                            com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE -> {
-                                val magSource = chip.source.lowercase(java.util.Locale.ROOT).trim()
-                                val safeMagId = chip.id.takeIf {
-                                    it > 0 && (magSource == "jikan" || magSource == "mal" || magSource == "myanimelist")
-                                } ?: 0
-                                onMagazineClick(safeMagId, chip.name)
-                            }
-                            else -> {
-                                val resolvedSource = resolveStudioClickSource(
-                                    studioSource = chip.source,
-                                    mediaSource = entry.source.lowercase(),
-                                    mediaType = entry.type,
-                                    role = chip.role
-                                )
-                                onStudioClick(chip.id, resolvedSource, chip.name, chip.imageUrl)
-                            }
-                        }
+            val studioChipClick: (com.kitsugi.animelist.data.remote.KitsugiStudio) -> Unit = { chip ->
+                when (chip.role) {
+                    com.kitsugi.animelist.data.remote.StudioRole.AUTHOR ->
+                        onStaffClick(chip.id, chip.source, chip.name, chip.imageUrl)
+                    com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE -> {
+                        val magSource = chip.source.lowercase(java.util.Locale.ROOT).trim()
+                        val safeMagId = chip.id.takeIf {
+                            it > 0 && (magSource == "jikan" || magSource == "mal" || magSource == "myanimelist")
+                        } ?: 0
+                        onMagazineClick(safeMagId, chip.name)
+                    }
+                    else -> {
+                        val resolvedSource = resolveStudioClickSource(
+                            studioSource = chip.source,
+                            mediaSource = entry.source.lowercase(),
+                            mediaType = entry.type,
+                            role = chip.role
+                        )
+                        onStudioClick(chip.id, resolvedSource, chip.name, chip.imageUrl)
                     }
                 }
+            }
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
-                networks = detail.networks,
+                networks = detail.networks + detail.serializations,
                 onStudioClick = studioChipClick,
                 onProducerClick = studioChipClick,
-                onNetworkClick = studioChipClick,
-                serializations = detail.serializations,
-                onSerializationClick = studioChipClick
+                onNetworkClick = studioChipClick
             )
         }
 
@@ -255,6 +253,140 @@ internal fun EntryDetailOverviewTab(
     }
 }
 
+private val GalleryOrderedCategories = listOf(
+    GalleryCategory.POSTER,
+    GalleryCategory.BACKDROP,
+    GalleryCategory.LOGO,
+    GalleryCategory.CLEARART,
+    GalleryCategory.SQUARE,
+    GalleryCategory.CHARACTER,
+    GalleryCategory.PERSON,
+    GalleryCategory.THUMBNAIL,
+    GalleryCategory.BANNER,
+    GalleryCategory.OTHER
+)
+
+private val GalleryThumbScrimBrush = Brush.verticalGradient(
+    colors = listOf(
+        Color.Transparent,
+        Color.Black.copy(alpha = 0.55f)
+    )
+)
+
+private class GalleryIndexedEntry(
+    val item: GalleryItem,
+    val globalIndex: Int,
+    val stableKey: String,
+    val aspectRatio: Float,
+    val cardWidthDp: Float
+)
+
+private class GallerySourceRowModel(
+    val sourceName: String,
+    val entries: List<GalleryIndexedEntry>
+)
+
+private class GalleryCategorySectionModel(
+    val category: GalleryCategory,
+    val emoji: String,
+    val sourceRows: List<GallerySourceRowModel>
+)
+
+private class GalleryPrecomputedModel(
+    val availableCategories: List<GalleryCategory>,
+    val categoryCounts: Map<GalleryCategory, Int>,
+    val availableSources: List<Pair<String, Int>>,
+    val sections: List<GalleryCategorySectionModel>
+)
+
+private fun galleryItemAspectRatio(category: GalleryCategory): Float = when (category) {
+    GalleryCategory.BACKDROP -> 16f / 9f
+    GalleryCategory.CLEARART -> 16f / 9f
+    GalleryCategory.BANNER   -> 5.4f / 1f
+    GalleryCategory.POSTER   -> 2f / 3f
+    GalleryCategory.SQUARE   -> 1f
+    GalleryCategory.LOGO     -> 3f / 1.4f
+    else                     -> 1f
+}
+
+private fun gallerySourceBadgeColor(sourceLower: String, fallback: Color): Color = when (sourceLower) {
+    "tmdb"                        -> Color(0xFFFFB800)
+    "fanart.tv"                   -> Color(0xFF9C27B0)
+    "anilist"                     -> Color(0xFF02A9FF)
+    "simkl"                       -> Color(0xFFE50914)
+    "kitsu"                       -> Color(0xFFE35A02)
+    "shikimori"                   -> Color(0xFF4C86C8)
+    "bangumi", "bgm"              -> Color(0xFFF09199)
+    "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
+    else                          -> fallback
+}
+
+private fun precomputeGalleryModel(items: List<GalleryItem>): GalleryPrecomputedModel {
+    val byCategory = java.util.EnumMap<GalleryCategory, MutableList<GalleryIndexedEntry>>(GalleryCategory::class.java)
+    val sourceBuckets = LinkedHashMap<String, Pair<String, Int>>()
+
+    items.forEachIndexed { index, item ->
+        val aspect = galleryItemAspectRatio(item.category)
+        val entry = GalleryIndexedEntry(
+            item = item,
+            globalIndex = index,
+            stableKey = "${index}_${item.url}",
+            aspectRatio = aspect,
+            cardWidthDp = 100f * aspect
+        )
+        byCategory.getOrPut(item.category) { ArrayList() }.add(entry)
+
+        val trimmedSource = item.source.trim()
+        if (trimmedSource.isNotEmpty()) {
+            val lower = trimmedSource.lowercase()
+            val prev = sourceBuckets[lower]
+            sourceBuckets[lower] = if (prev == null) trimmedSource to 1 else prev.first to (prev.second + 1)
+        }
+    }
+
+    val availableCategories = ArrayList<GalleryCategory>(GalleryOrderedCategories.size)
+    val categoryCounts = java.util.EnumMap<GalleryCategory, Int>(GalleryCategory::class.java)
+    val sections = ArrayList<GalleryCategorySectionModel>(GalleryOrderedCategories.size)
+
+    for (category in GalleryOrderedCategories) {
+        val catEntries = byCategory[category]
+        if (!catEntries.isNullOrEmpty()) {
+            availableCategories.add(category)
+            categoryCounts[category] = catEntries.size
+
+            val sourceMap = java.util.TreeMap<String, MutableList<GalleryIndexedEntry>>()
+            for (entry in catEntries) {
+                val srcKey = entry.item.source.trim().lowercase()
+                sourceMap.getOrPut(srcKey) { ArrayList() }.add(entry)
+            }
+            val rows = sourceMap.values.map { rowEntries ->
+                GallerySourceRowModel(
+                    sourceName = rowEntries.firstOrNull()?.item?.source.orEmpty(),
+                    entries = rowEntries
+                )
+            }
+            sections.add(
+                GalleryCategorySectionModel(
+                    category = category,
+                    emoji = galleryCategoryEmoji(category),
+                    sourceRows = rows
+                )
+            )
+        }
+    }
+
+    val availableSources = sourceBuckets.entries
+        .sortedBy { it.key }
+        .map { it.value }
+
+    return GalleryPrecomputedModel(
+        availableCategories = availableCategories,
+        categoryCounts = categoryCounts,
+        availableSources = availableSources,
+        sections = sections
+    )
+}
+
 /**
  * Fanart.tv + çok kaynaklı galeri önizleme kartı.
  * Yatay kaydırılabilir küçük resim listesi; her görselin üzerinde
@@ -272,6 +404,20 @@ internal fun DetailGalleryCard(
     val accentColor = LocalKitsugiAccent.current
     // Galeri tüm kaynaklardan yüklenene kadar görseller ve kategori butonu tıklanamaz.
     val galleryLoading = LocalKitsugiGalleryLoading.current
+    val galleryLoadingState = rememberUpdatedState(galleryLoading)
+    val latestOnItemClickState = rememberUpdatedState(onItemClick)
+
+    val precomputed = remember(items) { precomputeGalleryModel(items) }
+    val initialSectionBatch = 3
+    var mountedSectionCount by remember(precomputed) {
+        mutableIntStateOf(minOf(initialSectionBatch, precomputed.sections.size))
+    }
+    LaunchedEffect(precomputed) {
+        while (mountedSectionCount < precomputed.sections.size) {
+            withFrameNanos { }
+            mountedSectionCount = minOf(precomputed.sections.size, mountedSectionCount + 2)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -283,22 +429,6 @@ internal fun DetailGalleryCard(
     ) {
         // Section header and source/category picker sheet.
         var showCategoryMenu by remember { mutableStateOf(false) }
-
-        val availableCategories = remember(items) {
-            val order = listOf(
-                GalleryCategory.POSTER, GalleryCategory.BACKDROP, GalleryCategory.LOGO,
-                GalleryCategory.CLEARART, GalleryCategory.SQUARE, GalleryCategory.CHARACTER,
-                GalleryCategory.PERSON, GalleryCategory.THUMBNAIL, GalleryCategory.BANNER,
-                GalleryCategory.OTHER
-            )
-            order.filter { category -> items.any { it.category == category } }
-        }
-        val availableSources = remember(items) {
-            items.map { it.source.trim() }
-                .filter { it.isNotBlank() }
-                .distinctBy { it.lowercase() }
-                .sortedBy { it.lowercase() }
-        }
 
         Row(
             modifier = Modifier
@@ -315,7 +445,7 @@ internal fun DetailGalleryCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.gallery_summary, items.size, availableCategories.size),
+                    text = stringResource(R.string.gallery_summary, items.size, precomputed.availableCategories.size),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -382,8 +512,8 @@ internal fun DetailGalleryCard(
                             onOpenGallery?.invoke(null)
                         }
                     )
-                    availableCategories.forEach { category ->
-                        val count = items.count { it.category == category }
+                    precomputed.availableCategories.forEach { category ->
+                        val count = precomputed.categoryCounts[category] ?: 0
                         GalleryPickerRow(
                             emoji = galleryCategoryEmoji(category),
                             label = "${category.localizedLabel()} ($count)",
@@ -395,7 +525,7 @@ internal fun DetailGalleryCard(
                         )
                     }
 
-                    if (availableSources.isNotEmpty()) {
+                    if (precomputed.availableSources.isNotEmpty()) {
                         Text(
                             text = stringResource(R.string.gallery_field_source),
                             color = KitsugiColors.TextMuted,
@@ -403,8 +533,7 @@ internal fun DetailGalleryCard(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 6.dp)
                         )
-                        availableSources.forEach { source ->
-                            val count = items.count { it.source.equals(source, ignoreCase = true) }
+                        precomputed.availableSources.forEach { (source, count) ->
                             GalleryPickerRow(
                                 emoji = null,
                                 label = "$source ($count)",
@@ -423,187 +552,176 @@ internal fun DetailGalleryCard(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        val orderedCategories = listOf(
-            GalleryCategory.POSTER,
-            GalleryCategory.BACKDROP,
-            GalleryCategory.LOGO,
-            GalleryCategory.CLEARART,
-            GalleryCategory.SQUARE,
-            GalleryCategory.CHARACTER,
-            GalleryCategory.PERSON,
-            GalleryCategory.THUMBNAIL,
-            GalleryCategory.BANNER,
-            GalleryCategory.OTHER
+        precomputed.sections.forEachIndexed { sectionIndex, section ->
+            if (sectionIndex < mountedSectionCount) {
+                GalleryCategorySectionBlock(
+                    section = section,
+                    isAdult = isAdult,
+                    accentColor = accentColor,
+                    galleryLoadingState = galleryLoadingState,
+                    onItemClickState = latestOnItemClickState
+                )
+            } else {
+                // Henüz monte edilmemiş alt kategoriler için deterministik yükseklik ayır
+                // (ilk karede 20 LazyRow yaratmadan sayfa boyunu sabit tutar).
+                val placeholderHeight = 42.dp + (128.dp * section.sourceRows.size)
+                Spacer(modifier = Modifier.fillMaxWidth().height(placeholderHeight))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GalleryCategorySectionBlock(
+    section: GalleryCategorySectionModel,
+    isAdult: Boolean,
+    accentColor: Color,
+    galleryLoadingState: androidx.compose.runtime.State<Boolean>,
+    onItemClickState: androidx.compose.runtime.State<(Int) -> Unit>
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp)
+    ) {
+        val localizedCategoryLabel = section.category.localizedLabel()
+
+        Text(
+            text = "${section.emoji} $localizedCategoryLabel",
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
         )
 
-        val grouped = androidx.compose.runtime.remember(items) {
-            items.groupBy { it.category }
-        }
+        section.sourceRows.forEach { rowModel ->
+            val sourceName = rowModel.sourceName
+            val sourceLower = remember(sourceName) { sourceName.lowercase() }
+            val sourceLogoRes = remember(sourceName) { KitsugiPlatformLogos.resFor(sourceName) }
+            val badgeBgColor = remember(sourceLower, accentColor) {
+                gallerySourceBadgeColor(sourceLower, accentColor)
+            }
+            val badgeTextColor = if (sourceLower == "tmdb" || badgeBgColor == Color(0xFFFFB800)) {
+                Color.Black
+            } else {
+                Color.White
+            }
 
-        orderedCategories.forEach { category ->
-            val categoryItems = grouped[category]
-            if (!categoryItems.isNullOrEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp)
-                ) {
-                    val emoji = when (category) {
-                        GalleryCategory.LOGO -> "🎨"
-                        GalleryCategory.CLEARART -> "✨"
-                        GalleryCategory.BACKDROP -> "🖼"
-                        GalleryCategory.POSTER -> "📋"
-                        GalleryCategory.SQUARE -> "🟩"
-                        GalleryCategory.CHARACTER -> "🎭"
-                        GalleryCategory.PERSON    -> "👤"
-                        GalleryCategory.THUMBNAIL -> "🌐"
-                        GalleryCategory.BANNER -> "🎫"
-                        GalleryCategory.OTHER -> "📁"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (sourceLogoRes != null) {
+                    KitsugiPlatformLogo(platformId = sourceName, size = 18.dp, cornerRadius = 4.dp)
+                }
+                Text(
+                    text = "$sourceName · ${rowModel.entries.size}",
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
+            LazyRow(
+                state = snapRowState,
+                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
+                contentPadding = PaddingValues(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .graphicsLayer {
+                        alpha = if (galleryLoadingState.value) 0.5f else 1f
                     }
-
-                    val turkishLabel = category.localizedLabel()
-
-                    Text(
-                        text = "$emoji $turkishLabel",
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                itemsIndexed(
+                    items = rowModel.entries,
+                    key = { _, entry -> entry.stableKey },
+                    contentType = { _, _ -> "gallery_thumb" }
+                ) { _, entry ->
+                    val item = entry.item
+                    val thumbRequest = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                        url = item.url,
+                        widthDp = entry.cardWidthDp.dp,
+                        heightDp = 100.dp
                     )
+                    val cardShape = RoundedCornerShape(12.dp)
 
-                    val sourceGroups = categoryItems.groupBy { it.source.trim().lowercase() }.toSortedMap()
-                    sourceGroups.values.forEach { sourceItems ->
-                        val sourceName = sourceItems.firstOrNull()?.source.orEmpty()
-                        Row(
+                    Box(
+                        modifier = Modifier
+                            .size(width = entry.cardWidthDp.dp, height = 100.dp)
+                            .clip(cardShape)
+                            .border(1.dp, KitsugiColors.Border, cardShape)
+                            .tvClickable(shape = cardShape) {
+                                if (!galleryLoadingState.value) {
+                                    onItemClickState.value(entry.globalIndex)
+                                }
+                            }
+                    ) {
+                        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
+                            model = thumbRequest ?: item.url,
+                            contentDescription = "$localizedCategoryLabel – $sourceName",
+                            isAdult = isAdult,
+                            modifier = Modifier.matchParentSize(),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val logoRes = KitsugiPlatformLogos.resFor(sourceName)
-                            if (logoRes != null) {
-                                KitsugiPlatformLogo(platformId = sourceName, size = 18.dp, cornerRadius = 4.dp)
-                            }
-                            Text(
-                                text = "$sourceName · ${sourceItems.size}",
-                                color = KitsugiColors.TextMuted,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold
+                                .matchParentSize()
+                                .background(GalleryThumbScrimBrush)
+                        )
+
+                        if (sourceLogoRes != null) {
+                            KitsugiPlatformLogo(
+                                platformId = sourceName,
+                                size = 20.dp,
+                                cornerRadius = 4.dp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(6.dp)
                             )
-                        }
-                        val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
-                        LazyRow(
-                            state = snapRowState,
-                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
-                            contentPadding = PaddingValues(horizontal = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            itemsIndexed(sourceItems) { _, item ->
-                            val mainIndex = items.indexOf(item)
-
-                            val aspectRatio = when (item.category) {
-                                GalleryCategory.BACKDROP -> 16f / 9f
-                                GalleryCategory.CLEARART -> 16f / 9f
-                                GalleryCategory.BANNER   -> 5.4f / 1f
-                                GalleryCategory.POSTER   -> 2f / 3f
-                                GalleryCategory.SQUARE   -> 1f
-                                GalleryCategory.LOGO     -> 3f / 1.4f
-                                else                     -> 1f
-                            }
-
-                            val badgeBgColor = when (item.source.lowercase()) {
-                                "tmdb"                        -> Color(0xFFFFB800)
-                                "fanart.tv"                   -> Color(0xFF9C27B0)
-                                "anilist"                     -> Color(0xFF02A9FF)
-                                "simkl"                       -> Color(0xFFE50914)
-                                "kitsu"                       -> Color(0xFFE35A02)
-                                "shikimori"                   -> Color(0xFF4C86C8)
-                                "bangumi", "bgm"               -> Color(0xFFF09199)
-                                "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
-                                else                          -> accentColor
-                            }
-
+                        } else {
                             Box(
                                 modifier = Modifier
-                                    .height(100.dp)
-                                    .aspectRatio(aspectRatio)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
-                                    .alpha(if (galleryLoading) 0.5f else 1f)
-                                    .tvClickable(enabled = !galleryLoading, shape = RoundedCornerShape(12.dp)) { onItemClick(mainIndex) }
+                                    .align(Alignment.BottomStart)
+                                    .padding(6.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(badgeBgColor)
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
                             ) {
-                                com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
-                                    model = item.url,
-                                    contentDescription = "${item.category.localizedLabel()} – ${item.source}",
-                                    isAdult = isAdult,
-                                    modifier = Modifier.matchParentSize(),
-                                    contentScale = ContentScale.Crop
+                                Text(
+                                    text = sourceName,
+                                    color = badgeTextColor,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.Transparent,
-                                                    Color.Black.copy(alpha = 0.55f)
-                                                )
-                                            )
-                                        )
-                                )
-
-                                val logoRes = KitsugiPlatformLogos.resFor(item.source)
-                                if (logoRes != null) {
-                                    KitsugiPlatformLogo(
-                                        platformId = item.source,
-                                        size = 20.dp,
-                                        cornerRadius = 4.dp,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomStart)
-                                            .padding(6.dp)
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomStart)
-                                            .padding(6.dp)
-                                            .clip(RoundedCornerShape(5.dp))
-                                            .background(badgeBgColor)
-                                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = item.source,
-                                            color = if (item.source.equals("tmdb", ignoreCase = true) || badgeBgColor == Color(0xFFFFB800)) Color.Black else Color.White,
-                                            fontSize = 8.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-
-                                if (!item.description.isNullOrBlank()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .padding(6.dp)
-                                            .clip(RoundedCornerShape(5.dp))
-                                            .background(Color.Black.copy(alpha = 0.65f))
-                                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = item.description,
-                                            color = Color.White,
-                                            fontSize = 8.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
                             }
                         }
-                    }
+
+                        if (!item.description.isNullOrBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(6.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = item.description,
+                                    color = Color.White,
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
             }

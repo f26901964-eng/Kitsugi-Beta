@@ -55,6 +55,10 @@ class TranslationManager(context: Context) {
 
         private const val MAX_CHUNK_CHARS = 1400
 
+        /** Akışlı (streaming) çeviri sırasında UI'yı saniyede onlarca kez yeniden çizip
+         * KitsugiMarkdownText regex ayrıştırmasını kilitlememek için minimum kısmi yayın aralığı. */
+        private const val PARTIAL_EMIT_MIN_INTERVAL_MS = 250L
+
         /**
          * "Bu metin zaten hedef dilde" bilgisinin bellek içi defteri.
          *
@@ -164,9 +168,10 @@ class TranslationManager(context: Context) {
         // 1. Check local Room database cache
         val cached = runCatching { dao.getTranslation(hash) }.getOrNull()
         if (!cached.isNullOrBlank()) {
-            val cleanedCached = cached.cleanShikimoriBbCode()
-            onPartial?.let { runCatching { it(cleanedCached) } }
-            return@withContext cleanedCached
+            // PERF: Tam önbellek isabetinde hem onPartial hem dönüş değeri ile iki kez arka arkaya
+            // StateFlow/Map güncellemesi ve Markdown yeniden ayrıştırması tetiklenmez; çağıran
+            // doğrudan dönüş değerini işler.
+            return@withContext cached.cleanShikimoriBbCode()
         }
 
         // 2. If not cached, fetch translation from Google Translate.
@@ -733,6 +738,8 @@ class TranslationManager(context: Context) {
             var allSucceeded = true
             var detectedLang: String? = null
 
+            var lastPartialEmitMs = 0L
+
             for ((index, chunk) in chunks.withIndex()) {
                 val raw = fetchSingleChunkWithRetry(chunk, sourceLang, targetLang)
                 val chunkLang = raw?.detectedSourceLang
@@ -760,9 +767,13 @@ class TranslationManager(context: Context) {
                 }
                 translatedChunks.add(translated)
                 if (onPartial != null && index < chunks.lastIndex) {
-                    val remaining = chunks.subList(index + 1, chunks.size).joinToString("\n\n")
-                    runCatching {
-                        onPartial(mask.unmask(translatedChunks.joinToString("\n\n") + "\n\n" + remaining))
+                    val nowMs = android.os.SystemClock.uptimeMillis()
+                    if (nowMs - lastPartialEmitMs >= PARTIAL_EMIT_MIN_INTERVAL_MS) {
+                        lastPartialEmitMs = nowMs
+                        val remaining = chunks.subList(index + 1, chunks.size).joinToString("\n\n")
+                        runCatching {
+                            onPartial(mask.unmask(translatedChunks.joinToString("\n\n") + "\n\n" + remaining))
+                        }
                     }
                 }
             }

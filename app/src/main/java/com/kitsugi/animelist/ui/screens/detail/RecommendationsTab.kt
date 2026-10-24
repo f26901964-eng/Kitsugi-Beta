@@ -27,9 +27,11 @@ import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
-import androidx.compose.runtime.remember
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -70,7 +72,9 @@ fun RecommendationsTabContent(
         is DetailTabState.Success -> {
             // +18 UYUMU (2026-10-14): benzer başlıklar da göster/gizle sözleşmesine uyar.
             val showAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
-            val list = if (showAdult) state.data else state.data.filter { !it.isAdult }
+            val list = remember(state.data, showAdult) {
+                if (showAdult) state.data else state.data.filter { !it.isAdult }
+            }
             if (list.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -85,20 +89,35 @@ fun RecommendationsTabContent(
                     )
                 }
             } else {
-                var visibleCount by remember { mutableStateOf(DETAIL_LIST_PAGE_SIZE) }
-                val visibleList = list.take(visibleCount)
+                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
+                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
+                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
+                val visibleList = remember(list, safeChunk) {
+                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
+                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
+                    if (start < list.size) list.subList(start, end) else emptyList()
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    visibleList.forEach { rel ->
-                        RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
+                    visibleList.forEachIndexed { idx, rel ->
+                        key("${rel.source}_${rel.malId}_${rel.mediaType}_${safeChunk}_$idx") {
+                            RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
+                        }
                     }
-                    DetailLoadMoreButton(remainingCount = list.size - visibleList.size) {
-                        visibleCount = (visibleCount + DETAIL_LIST_PAGE_SIZE).coerceAtMost(list.size)
-                    }
+                    DetailChunkSelectorRow(
+                        totalCount = list.size,
+                        selectedChunk = safeChunk,
+                        onSelectChunk = { selectedChunk = it }
+                    )
                 }
             }
         }
@@ -131,8 +150,13 @@ fun RecommendationCard(
                 .clip(RoundedCornerShape(10.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
+            val recThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                url = rel.imageUrl,
+                widthDp = 54.dp,
+                heightDp = 76.dp
+            )
             KitsugiNsfwImage(
-                model = rel.imageUrl,
+                model = recThumb ?: rel.imageUrl,
                 contentDescription = displayTitle,
                 isAdult = rel.isAdult,
                 blurAdultMedia = blurAdultMedia,
