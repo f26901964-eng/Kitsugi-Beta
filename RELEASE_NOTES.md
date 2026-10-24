@@ -1,5 +1,41 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+# Kitsugi Beta v2.4.357
+
+## 🇹🇷 Türkçe
+
+### 🔔 Akıllı Bildirim Butonu — Sekme ve Kaynak Duyarlı Yönlendirme
+- **Kaynak Odaklı Açılış:** Hangi sekmede hangi platform seçiliyse 🔔 butonuna basıldığında bildirimler doğrudan o kaynağın sekmesiyle açılır:
+  - 🧭 **Keşfet:** Seçili platform sekmesi (AniList, MAL, TMDB/Simkl, Kitsu, Shikimori, Bangumi).
+  - 🔍 **Arama:** Arama çubuğundaki seçili motor (Arama sekmesine eksik olan 🔔 butonu eklendi).
+  - 👤 **Profil:** Seçili profil sağlayıcısı.
+  - 📋 **Listem:** Seçili liste sağlayıcısı (Tümü seçiliyken varsayılan/bağlı ilk kaynak).
+- **Akıllı Navigasyon & Durum Koruması:** `DetailScreen.Notifications` ve `AppStateKey.Notifications` artık kaynak bilgisini taşır; aynı kaynakta kaydırma durumu korunurken farklı kaynak taze hedef olarak açılır. Sayfa içinde kullanıcı elle başka sekmeye geçerse seçimi ezilmez.
+
+### 🔁 Altı Kaynak Arası Eşitleme — "Değişiklik Yok" Hatası Giderildi
+- **Kök Neden & Çözüm:** Eşitleme alan bazlı çalışırken hedefte kaydın var olup olmadığına bakılmıyordu. Kitsu'dan aktarılmış bir yapımda favori/etiket değiştiğinde diğer kaynaklarda kayıt hiç oluşmuyordu.
+- **Kalıcı Varlık Kaydı (`RemoteListPresence`):** Her yapım ve sağlayıcı için uzakta kayıt varlığı kalıcı tutulur. Doğrulanana kadar tam yazım (upsert) yapılır; boş yerel alanlar gönderilmediğinden hedefteki dolu değerler korunur.
+- **Onarım Turu:** Hiçbir alan değişmese dahi 10 dakikada en fazla bir kez tüm kaynaklara tam onarım turu çalışır; eksik kayıtlar kendiliğinden tamamlanır.
+- **Dürüst Rapor:** "Değişiklik yok" etiketi yalnızca kayıt uzakta doğrulanıp gerçekten eşitse gösterilir ve adı **"zaten eşit"** oldu.
+
+## 🇬🇧 English
+
+### 🔔 Smart Notification Button — Tab & Source Context Routing
+- **Context-Aware Navigation:** Tapping the 🔔 notification bell opens the notification screen directly on the currently active provider:
+  - 🧭 **Explore:** Matches active explore platform (AniList, MAL, TMDB/Simkl, Kitsu, Shikimori, Bangumi).
+  - 🔍 **Search:** Matches active search engine (added missing 🔔 button to Search header).
+  - 👤 **Profile:** Matches active profile provider.
+  - 📋 **My List:** Matches selected list provider (or default connected provider if "All" is selected).
+- **Navigation State & Pager Memory:** `preferredSource` is propagated through `DetailScreen.Notifications` and `AppStateKey.Notifications`. Preserves scroll state when returning to the same source, and honors manual page swipes without forcing revert.
+
+### 🔁 Six-Source Sync — "No Changes" Bug Fixed
+- **Root Cause & Fix:** Writes were diff-based without verifying if remote libraries held the record. Entries imported from one provider skipped creation on others when changing unsupported fields like favorites.
+- **Presence Tracking (`RemoteListPresence`):** Tracks verified remote entries. Unverified targets receive full upsert writes with non-empty local fields, guaranteeing entry creation without wiping remote custom data.
+- **Self-Healing Repair Pass:** Throttled (≤1 per 10 min) full sync runs even with no local diffs so missing remote records self-heal.
+- **Accurate Reporting:** Renamed "no changes" to **"already equal"**, displayed only when remote parity is confirmed.
+
+---
+
 # Kitsugi Beta v2.4.355
 
 ## 🇹🇷 Türkçe
