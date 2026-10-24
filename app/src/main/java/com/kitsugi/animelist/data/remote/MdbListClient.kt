@@ -197,6 +197,7 @@ object MdbListClient {
                         type = item.optString("type")
                     ) ?: continue
                     val raw = firstNumber(item.opt("value"), item.opt("rating"))
+                        ?.let { value -> normalizeValue(value, category) }
                         ?: scoreFallback(item.opt("score"), category)
                         ?: continue
 
@@ -229,7 +230,7 @@ object MdbListClient {
                 tomatoesAudience = firstNumber(root.opt("tomatoesaudiencerating"))?.toInt()?.coerceIn(0, 100),
                 metacritic = firstNumber(root.opt("metacriticrating"))?.toInt()?.coerceIn(0, 100),
                 letterboxd = firstNumber(root.opt("letterboxdrating")),
-                tmdb = firstNumber(root.opt("tmdbrating")),
+                tmdb = firstNumber(root.opt("tmdbrating"))?.let { normalizeValue(it, ScoreCategory.TMDB) },
                 trakt = firstNumber(root.opt("traktrating")),
                 imdbId = imdbId ?: root.optString("imdbid").takeIf(imdbIdPattern::matches)
             ).withoutEmptyScores()
@@ -263,8 +264,9 @@ object MdbListClient {
     private fun scoreCategory(source: String, name: String, type: String): ScoreCategory? {
         val normalized = "$source $name $type".lowercase().filter(Char::isLetterOrDigit)
         return when {
-            normalized.contains("tomato") &&
-                (normalized.contains("audience") || normalized.contains("user")) -> ScoreCategory.TOMATOES_AUDIENCE
+            normalized.contains("popcorn") ||
+                (normalized.contains("tomato") &&
+                    (normalized.contains("audience") || normalized.contains("user"))) -> ScoreCategory.TOMATOES_AUDIENCE
             normalized.contains("tomato") || normalized.contains("tomatometer") -> ScoreCategory.TOMATOES
             normalized.contains("metacritic") || normalized.contains("metascore") -> ScoreCategory.METACRITIC
             normalized.contains("letterboxd") -> ScoreCategory.LETTERBOXD
@@ -289,14 +291,24 @@ object MdbListClient {
         return match.value.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
     }
 
+    /** MDBList's value uses the source scale; TMDB is commonly returned as 0–100. */
+    private fun normalizeValue(value: Double, category: ScoreCategory): Double = when (category) {
+        ScoreCategory.TMDB -> if (value > 10.0 && value <= 100.0) value / 10.0 else value
+        else -> value
+    }
+
     private fun scoreFallback(value: Any?, category: ScoreCategory): Double? {
         val score = parseNumber(value) ?: return null
         return when (category) {
-            ScoreCategory.IMDB, ScoreCategory.TMDB, ScoreCategory.TRAKT ->
+            ScoreCategory.IMDB, ScoreCategory.TMDB ->
                 if (score > 10.0 && score <= 100.0) score / 10.0 else score
             ScoreCategory.LETTERBOXD ->
                 if (score > 5.0 && score <= 100.0) score / 20.0 else score
-            ScoreCategory.TOMATOES, ScoreCategory.TOMATOES_AUDIENCE, ScoreCategory.METACRITIC -> score
+            // Trakt is displayed as a percentage, just like MDBList's value/score fields.
+            ScoreCategory.TRAKT,
+            ScoreCategory.TOMATOES,
+            ScoreCategory.TOMATOES_AUDIENCE,
+            ScoreCategory.METACRITIC -> score
         }
     }
 

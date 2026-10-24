@@ -26,6 +26,7 @@ import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.ui.components.HeroArtworkImagePolicy
 import com.kitsugi.animelist.data.remote.resolveMediaGalleryIdentity
+import com.kitsugi.animelist.data.remote.resolveMdbListMediaIds
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.PreferenceHelpers
@@ -372,6 +373,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _logoUrl.value = null
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
+        _mdbListRatings.value = null
+        _mdbListLoading.value = false
         _galleryItems.value = emptyList()
         _heroArtwork.value = null
         heroArtworkKey = null
@@ -446,15 +449,6 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 Log.e(TAG, "Error fetching Fanart gallery: ${e.message}", e)
             } finally {
                 galleryTracker.end(galleryToken)
-            }
-        }
-
-        // MDBList puanları — bağımsız, gecikme kabul edilebilir
-        viewModelScope.launch {
-            try {
-                fetchMdbListRatings(result)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
             }
         }
 
@@ -596,6 +590,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         }
 
         _detailState.value = detail
+
+        // MDBList, birincil detaydaki IMDb/TMDB/MAL kimlikleri hazır olduktan sonra başlar.
+        // Böylece detay çağrısıyla yarışıp kimlik yok sanılarak sessizce kapanmaz.
+        viewModelScope.launch {
+            try {
+                fetchMdbListRatings(result)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
+            }
+        }
+
         _detailErrorCode.value = if (detail == null) {
             com.kitsugi.animelist.data.platform.PlatformFailureRegistry.latest(result.source)?.code
                 ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
@@ -1392,48 +1397,45 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _mdbListLoading.value = true
 
         try {
-            val malId = result.malId
-            val aniListId = if (result.source.equals("anilist", ignoreCase = true) && malId >= 100_000_000) {
-                // Saf AniList ID (100M+ offset)
-                malId - 100_000_000
-            } else {
-                null
-            }
-            // stableId < 100M → AniList kaynaklı olsa bile MAL ID ile dönmüş
-            val realMalId = when {
-                aniListId != null -> null
-                result.source.equals("anilist", ignoreCase = true) -> null
-                // Bangumi stableId'si MAL ID değildir → çözülen çapraz kimlik kullanılır.
-                result.source.equals("bangumi", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
-                        ?: KitsugiBangumiDetailClient.resolveCrossIds(malId, result.type).malId
-                // Shikimori ID'si MAL ID değildir → gerçek MAL ID'si çözülür.
-                result.source.equals("shikimori", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it > 0 }
-                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(malId)
-                else -> malId
-            }
-
             val detail = _detailState.value
-            val tmdbId = detail?.tmdbId ?: result.tmdbId
+            val baseIds = resolveMdbListMediaIds(
+                source = result.source,
+                storedId = result.malId,
+                resolvedMalId = result.realMalId ?: detail?.realMalId,
+                resolvedTmdbId = detail?.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value
+            )
+            val ids = if (baseIds.malId == null && baseIds.shikimoriId != null) {
+                baseIds.copy(
+                    malId = withContext(Dispatchers.IO) {
+                        KitsugiIdResolver.resolveMalIdFromShikimori(baseIds.shikimoriId)
+                    }
+                )
+            } else {
+                baseIds
+            }
 
             var imdbId: String? = detail?.externalLinks?.firstOrNull { it.url.contains("imdb.com") }
                 ?.url?.substringAfter("/title/")?.substringBefore("/")
+            var lookupTmdbId = ids.tmdbId
 
-            if (imdbId.isNullOrBlank()) {
+            if (imdbId.isNullOrBlank() && ids.hasLookupIdentity) {
                 val resolved = KitsugiIdResolver.resolveIds(
-                    malId = realMalId,
-                    aniListId = aniListId,
-                    tmdbId = tmdbId,
-                    mediaType = result.type
+                    malId = ids.malId,
+                    aniListId = ids.aniListId,
+                    tmdbId = ids.tmdbId,
+                    mediaType = result.type,
+                    kitsuId = ids.kitsuId,
+                    bangumiId = ids.bangumiId
                 )
                 imdbId = resolved.imdbId
+                // ARM/TMDB can resolve a TMDB ID even when no IMDb mapping exists.
+                lookupTmdbId = lookupTmdbId ?: resolved.tmdbId
             }
 
-            if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
+            if (!imdbId.isNullOrBlank() || (lookupTmdbId != null && lookupTmdbId > 0)) {
                 val ratings = MdbListClient.fetchRatings(
                     imdbId = imdbId,
-                    tmdbId = tmdbId,
+                    tmdbId = lookupTmdbId,
                     apiKey = settings.mdbListApiKey
                 )
                 _mdbListRatings.value = ratings
