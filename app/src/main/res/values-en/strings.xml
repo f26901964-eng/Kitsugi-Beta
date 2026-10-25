@@ -17757,4 +17757,5 @@
     <string name="inline_video_unsupported_title">This video could not be played inline</string>
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
+    <string name="cs_subtitle_plugins_notice">Subtitle plugin detected: %1$s. It cannot run in this build (no subtitle plugin engine); subtitles come from Stremio subtitle addons and from subtitles embedded in streams.</string>
 </resources>

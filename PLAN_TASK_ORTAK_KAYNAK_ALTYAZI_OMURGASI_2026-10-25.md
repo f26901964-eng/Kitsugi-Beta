@@ -256,10 +256,13 @@ grep -rn "subtitleTypes" app/src/main/java/com/kitsugi/animelist/ui/ | head -40
 
 ### 9.3 Kalan işler (öncelik sırası)
 
-1. **R11** — CS altyazı eklentisi sınıflandırması: AAR'da `SubtitleAPI` **yok** (doğrulandı,
-   `classes.jar` içinde yalnız `SubtitleFile`/`SubtitleHelper` var). İki seçenek:
-   (a) eklenti tipini "altyazı" olarak işaretle ve akış listesinden çıkar (dürüst davranış),
-   (b) kendi `SubtitleProvider` köprümüzü yaz (plugin `newSubtitleFile` üretiyorsa kullan).
+1. **R11** — ✅ (a) seçildi ve uygulandı: `CsPluginCapability` `.cs3` arşivindeki
+   `classes.dex` içinde `cloudstream3/SubtitleAPI` referansını arar (ZIP + ham DEX desteği,
+   sonuç önbellekli). Altyazı eklentisi ise: akış olarak sorgulanmaz, satırda gerçek neden
+   gösterilir, eklenti sekmesinde bilgi bandı çıkar, boşuna yüklenmez.
+   (b) yani çalışma zamanına `SubtitleAPI` köprüsü yazmak **opsiyonel gelecek işi**:
+   `classes.jar` içinde yalnız `SubtitleFile`/`newSubtitleFile`/`SubtitleHelper` var;
+   köprü için upstream imzasının birebir kopyası gerekir (risk yüksek).
 2. **R8** — `parseIdPrefixes()` (ölü kod) → `ManagedAddonEntity.idPrefixes` ile sorgu kimliği seçimi.
 3. **R10** — devre kesici politikasının kalıcılığı (süreç ömrü yerine oturum + kullanıcı geri bildirimi).
 4. `WatchHistoryScreen` geçmiş girişinde yalnız `title` geçiyor → Room migration ile id taşınmalı.

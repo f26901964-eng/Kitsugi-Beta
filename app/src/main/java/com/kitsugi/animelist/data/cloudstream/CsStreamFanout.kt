@@ -104,6 +104,22 @@ object CsStreamFanout {
             )
         }
 
+        // 1b) Altyazı eklentisi mi? Bu çalışma zamanında `SubtitleAPI` yok (bkz.
+        //     CsPluginCapability); akış sağlayıcısı gibi sorgulamak boşa ağ + yanıltıcı
+        //     "kaynak hatası" üretir. Dürüst etiket döneriz.
+        if (CsPluginCapability.isSubtitlePlugin(context, plugin.id)) {
+            Log.i(TAG, "[$display] altyazı eklentisi — akış olarak sorgulanmıyor")
+            return@withContext PluginOutcome(
+                pluginId = plugin.id,
+                pluginName = plugin.name,
+                displayName = display,
+                error = "Altyazı eklentisi: bu sürümde çalıştırılamıyor (SubtitleAPI yok). " +
+                    "Altyazılar Stremio altyazı addon'larından ve kaynakların gömülü altyazılarından gelir.",
+                errorCode = com.kitsugi.animelist.data.diagnostics.PlatformErrorCode.CloudStreamPluginUnsupported.id,
+                unsupported = true,
+            )
+        }
+
         // 2) Yükleme
         val apis = try {
             CsPluginLoader.loadExtension(context, plugin.id)

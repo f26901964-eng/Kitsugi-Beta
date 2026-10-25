@@ -66,7 +66,10 @@ internal fun CsInstalledPluginRow(
     // Eklenti etkinse arka planda sessizce yükle (henüz yüklenmemişse),
     // böylece hasSettings reaktif olarak doğru sonuç verebilir.
     LaunchedEffect(plugin.id, plugin.enabled) {
-        if (plugin.enabled) {
+        // Altyazı eklentileri bu çalışma zamanında yüklenemez (SubtitleAPI yok);
+        // yüklemeye çalışmak her açılışta boşuna DEX/NoClassDefFoundError üretiyordu.
+        if (plugin.enabled && !com.kitsugi.animelist.data.cloudstream.CsPluginCapability
+                .isSubtitlePlugin(context, plugin.id)) {
             val alreadyLoaded = com.kitsugi.animelist.data.cloudstream.CsPluginLoader
                 .getPluginInstance(plugin.id, context) != null
             if (!alreadyLoaded) {

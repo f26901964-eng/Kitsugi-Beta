@@ -37,7 +37,10 @@ import com.kitsugi.animelist.data.local.ManagedAddonEntity
 import com.kitsugi.animelist.data.remote.CsPlugin
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.LocalContext
 
 private enum class CsTabSection { REPOS, INSTALLED }
 
@@ -78,6 +81,19 @@ internal fun CloudstreamExtensionsTab(
     var activeSection by rememberSaveable { mutableStateOf(CsTabSection.REPOS) }
     var newRepoUrl by rememberSaveable { mutableStateOf("") }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    val localContext = LocalContext.current
+
+    // ── Altyazı eklentisi tespiti (dürüst etiket) ────────────────────────────
+    // Bu çalışma zamanında `SubtitleAPI` yok; altyazı eklentileri akış sağlayıcısı gibi
+    // sorgulanınca sessizce "kaynak hatası" veriyordu. Dosya içeriğinden tespit edilip
+    // kullanıcıya nedeni açıkça gösterilir (bkz. CsPluginCapability).
+    val subtitlePluginNames by produceState(initialValue = emptyList<String>(), key1 = csPlugins) {
+        value = withContext(Dispatchers.IO) {
+            csPlugins
+                .filter { com.kitsugi.animelist.data.cloudstream.CsPluginCapability.isSubtitlePlugin(localContext, it.id) }
+                .map { it.name }
+        }
+    }
 
     val pluginInstallStates = remember { mutableStateMapOf<String, PluginInstallState>() }
     val reinstallStates = remember { mutableStateMapOf<String, PluginInstallState>() }
@@ -553,6 +569,29 @@ internal fun CloudstreamExtensionsTab(
                                 )
                             }
                             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+                if (subtitlePluginNames.isNotEmpty()) {
+                    item(key = "cs_subtitle_plugins_notice") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(KitsugiColors.SurfaceSoft)
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text("\u2139\uFE0F", fontSize = 15.sp)
+                            Text(
+                                text = stringResource(
+                                    R.string.cs_subtitle_plugins_notice,
+                                    subtitlePluginNames.joinToString(", ")
+                                ),
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 11.5.sp
+                            )
                         }
                     }
                 }

@@ -188,7 +188,7 @@ Kullanıcı için sonuç: "altyazı eklentim yüklü ama çalışmıyor".
 | R8 | idPrefixes / tip tahmini | Boş sonuçlar | ⏳ Faz 3 |
 | R9 | Yanlış "altyazı yok" durumu | Algı hatası | ✅ Düzeltildi |
 | R10 | Oturum bloğu / sessiz eleme | Liste daralması | 🟡 Kısmi (yenilemede sıfırlanıyor; kalıcı politika Faz 3) |
-| R11 | Altyazı eklentisi sınıflandırması, CS SubtitleAPI yokluğu | "Yüklü ama çalışmıyor" | ⏳ Faz 3 (AAR'da `SubtitleAPI` yok — doğrulandı) |
+| R11 | Altyazı eklentisi sınıflandırması, CS SubtitleAPI yokluğu | "Yüklü ama çalışmıyor" | 🟡 **Tespit + dürüst etiket yapıldı** (`CsPluginCapability`); gerçek destek için runtime köprüsü gerekli |
 | R12 | Altyazı devre kesici eşiği (3) çok düşük | Çok sorgulu taramada sağlıklı eklenti 5 dk bloklanıyor | ✅ Düzeltildi (eşik 8 + `resetCircuitBreakers()`) |
 | R13 | Sağlayıcı altyazı linklerinin 3 gün saklanması | İmzalı linkler ölü → "altyazı var ama açılmıyor" | ✅ Düzeltildi (24 saat) |
 | R14 | Tohum satırının eklenti ID'siyle adlandırılması | Aynı eklenti iki satır / yeniden deneme eşleşmiyor | ✅ Düzeltildi (`seedLabel`) |
