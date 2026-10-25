@@ -20,7 +20,8 @@ object CrossSyncClusterEngine {
         SIMKL,
         KITSU,
         SHIKIMORI,
-        BANGUMI
+        BANGUMI,
+        TMDB
     }
 
     data class ClusterGroup(
@@ -30,13 +31,14 @@ object CrossSyncClusterEngine {
         var kitsu: MediaEntry? = null,
         var shikimori: MediaEntry? = null,
         var bangumi: MediaEntry? = null,
+        var tmdb: MediaEntry? = null,
         var identityReviewRequired: Boolean = false,
         var identityReviewDetails: String? = null,
         /** Yalnız şüpheli gelen satırlar; doğrulanabilir küme çekirdeği bunların dışında kalır. */
         var identityReviewEntryIds: Set<Int> = emptySet()
     ) {
         val candidates: List<MediaEntry>
-            get() = listOfNotNull(aniList, mal, simkl, kitsu, shikimori, bangumi)
+            get() = listOfNotNull(aniList, mal, simkl, kitsu, shikimori, bangumi, tmdb)
 
         val actionableCandidates: List<MediaEntry>
             get() = candidates.filterNot { it.id in identityReviewEntryIds }
@@ -51,6 +53,7 @@ object CrossSyncClusterEngine {
                 Slot.KITSU -> kitsu = entry
                 Slot.SHIKIMORI -> shikimori = entry
                 Slot.BANGUMI -> bangumi = entry
+                Slot.TMDB -> tmdb = entry
             }
         }
 
@@ -61,6 +64,7 @@ object CrossSyncClusterEngine {
             Slot.KITSU -> kitsu
             Slot.SHIKIMORI -> shikimori
             Slot.BANGUMI -> bangumi
+            Slot.TMDB -> tmdb
         }
 
         fun absorbFrom(other: ClusterGroup) {
@@ -70,6 +74,7 @@ object CrossSyncClusterEngine {
             if (kitsu == null) kitsu = other.kitsu
             if (shikimori == null) shikimori = other.shikimori
             if (bangumi == null) bangumi = other.bangumi
+            if (tmdb == null) tmdb = other.tmdb
             if (other.identityReviewRequired) {
                 identityReviewRequired = true
                 identityReviewEntryIds = identityReviewEntryIds + other.identityReviewEntryIds

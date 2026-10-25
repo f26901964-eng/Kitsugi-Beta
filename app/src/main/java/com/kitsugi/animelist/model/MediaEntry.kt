@@ -70,6 +70,10 @@ data class MediaEntry(
     val malListId: Long? = null,
     val tmdbId: Int? = null,
     val simklId: Int? = null,
+    /** Native TMDB Watchlist membership; null means unknown/not applicable to this row. */
+    val tmdbWatchlist: Boolean? = null,
+    /** Native TMDB rating (0.5..10); the shared Kitsugi score remains an Int. */
+    val tmdbRating: Double? = null,
     /**
      * Kaydın listeye EKLENME zamanı (epoch saniye; 0 = bilinmiyor).
      *
@@ -104,4 +108,4 @@ data class MediaEntry(
 fun normalizeToEpochSeconds(value: Long): Long =
     if (value > 100_000_000_000L) value / 1000L else value
 
-fun normalizeEpochSeconds(value: Long): Long = normalizeToEpochSeconds(value)
+fun normalizeEpochSeconds(value: Long): Long = normalizeToEpochSeconds(value)

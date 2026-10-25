@@ -57,6 +57,8 @@ object MediaEntryBackup {
                 .put("malListId", entry.malListId)
                 .put("tmdbId", entry.tmdbId)
                 .put("simklId", entry.simklId)
+                .put("tmdbWatchlist", entry.tmdbWatchlist)
+                .put("tmdbRating", entry.tmdbRating)
 
             array.put(item)
         }
@@ -136,7 +138,9 @@ object MediaEntryBackup {
                 titleJapanese = item.optionalString("titleJapanese"),
                 malListId = if (item.has("malListId") && !item.isNull("malListId")) item.getLong("malListId") else null,
                 tmdbId = item.optionalInt("tmdbId"),
-                simklId = item.optionalInt("simklId")
+                simklId = item.optionalInt("simklId"),
+                tmdbWatchlist = item.optionalBoolean("tmdbWatchlist"),
+                tmdbRating = item.optionalDouble("tmdbRating")
             )
 
             result.add(entry)
@@ -229,6 +233,8 @@ object MediaEntryBackup {
                     malId = malId ?: existing.malId,
                     simklId = imported.simklId ?: existing.simklId,
                     tmdbId = imported.tmdbId ?: existing.tmdbId,
+                    tmdbWatchlist = imported.tmdbWatchlist ?: existing.tmdbWatchlist,
+                    tmdbRating = imported.tmdbRating ?: existing.tmdbRating,
                     aniListEntryId = imported.aniListEntryId ?: existing.aniListEntryId,
                     malListId = imported.malListId ?: existing.malListId,
                     updatedAt = imported.updatedAt,
@@ -263,6 +269,25 @@ object MediaEntryBackup {
 
     private fun JSONObject.optionalString(key: String): String? =
         if (!has(key) || isNull(key)) null else getString(key)
+
+    private fun JSONObject.optionalBoolean(key: String): Boolean? {
+        if (!has(key) || isNull(key)) return null
+        return when (val raw = opt(key)) {
+            is Boolean -> raw
+            is Number -> raw.toInt() != 0
+            is String -> raw.toBooleanStrictOrNull()
+            else -> null
+        }
+    }
+
+    private fun JSONObject.optionalDouble(key: String): Double? {
+        if (!has(key) || isNull(key)) return null
+        return when (val raw = opt(key)) {
+            is Number -> raw.toDouble()
+            is String -> raw.toDoubleOrNull()
+            else -> null
+        }
+    }
 
     private fun JSONObject.optionalInt(key: String): Int? {
         if (!has(key) || isNull(key)) return null

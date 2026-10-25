@@ -105,6 +105,53 @@ class MyListLibraryGroupingTest {
     }
 
     @Test
+    fun animeMovieCopiesMergeOnlyWithVerifiedCrosswalkIdentity() {
+        val anime = entry(id = 30, title = "Demon Slayer: Infinity Castle", source = "anilist", malId = 52991)
+        val movie = entry(id = 31, title = "Demon Slayer: Infinity Castle", source = "simkl", type = MediaType.Movie)
+            .copy(tmdbId = 101)
+
+        // A shared title/year is only a lookup candidate, not proof of identity.
+        assertEquals(2, groupMyListEntries(listOf(anime, movie)).size)
+
+        val grouped = groupMyListEntries(
+            entries = listOf(anime, movie),
+            identityExtras = mapOf(movie.id to setOf("Movie:mal:52991"))
+        )
+        assertEquals(1, grouped.size)
+        assertEquals(anime.id, grouped.single().entry.id)
+        assertEquals(setOf("anilist", "simkl"), grouped.single().sourceIds.toSet())
+    }
+
+    @Test
+    fun crossTypeVideoIdNeedsMatchingTitleAndYear() {
+        val anime = entry(id = 32, title = "A film", source = "anilist").copy(tmdbId = 777)
+        val sameMovie = entry(id = 33, title = "A film", source = "simkl", type = MediaType.Movie)
+            .copy(tmdbId = 777)
+        val otherYear = sameMovie.copy(id = 34, year = 2023)
+        val otherTitle = sameMovie.copy(id = 35, title = "Another film")
+
+        assertEquals(1, groupMyListEntries(listOf(anime, sameMovie)).size)
+        assertEquals(2, groupMyListEntries(listOf(anime, otherYear)).size)
+        assertEquals(2, groupMyListEntries(listOf(anime, otherTitle)).size)
+    }
+
+    @Test
+    fun crossTypeConflictingIdsAndMovieTvShowPairsStaySeparate() {
+        val anime = entry(id = 36, title = "A film", source = "mal", malId = 100)
+        val conflictingMovie = entry(id = 37, title = "A film", source = "simkl", type = MediaType.Movie)
+            .copy(tmdbId = 888)
+        val tvShow = entry(id = 38, title = "A film", source = "simkl", type = MediaType.TvShow)
+            .copy(tmdbId = 888)
+
+        val conflicting = groupMyListEntries(
+            entries = listOf(anime, conflictingMovie),
+            identityExtras = mapOf(conflictingMovie.id to setOf("Movie:mal:999", "Movie:tmdb:888"))
+        )
+        assertEquals(2, conflicting.size)
+        assertEquals(2, groupMyListEntries(listOf(conflictingMovie, tvShow)).size)
+    }
+
+    @Test
     fun bangumiTabOnlyShowsStableBangumiCollectionEntries() {
         val importedBangumi = entry(
             id = 3,
@@ -129,6 +176,22 @@ class MyListLibraryGroupingTest {
         assertFalse(myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, manualLocal.source, manualLocal.malId))
         assertFalse(myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, simklCopy.source, simklCopy.malId))
         assertEquals(1, listOf(importedBangumi, manualLocal, simklCopy).count { isBangumiListMember(it.source, it.malId) })
+    }
+
+    @Test
+    fun tmdbTabShowsOnlyRealAccountRowsAndCombinedViewStillGroupsThem() {
+        val account = entry(id = 40, title = "Same film", source = "tmdb_account", type = MediaType.Movie)
+            .copy(tmdbId = 550)
+        val catalog = entry(id = 41, title = "Same film", source = "tmdb", type = MediaType.Movie)
+            .copy(tmdbId = 550)
+        val simkl = entry(id = 42, title = "Same film", source = "simkl", type = MediaType.Movie)
+            .copy(tmdbId = 550)
+
+        assertTrue(myListSourceMatchesTab(MY_LIST_TMDB_TAB_INDEX, account.source))
+        assertFalse(myListSourceMatchesTab(MY_LIST_TMDB_TAB_INDEX, catalog.source))
+        assertEquals("tmdb", sourceBadgeId(account.source))
+        assertEquals(1, groupMyListEntries(listOf(account, simkl)).size)
+        assertEquals(MY_LIST_TAB_COUNT, 8)
     }
 
     @Test

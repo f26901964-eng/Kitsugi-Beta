@@ -191,10 +191,18 @@ object PlatformErrorCatalog {
         }
 
         ListPlatform.TMDB -> when {
-            http == 401 || t.contains("api_key") || t.contains("api key") ->
-                PlatformErrorCode.TMD_7001
-            http == 429 -> PlatformErrorCode.TMD_7004
-            http == 404 -> PlatformErrorCode.TMD_7003
+            t.contains("tmdb-33:") -> PlatformErrorCode.TMD_7005
+            t.contains("tmdb-41:") || t.contains("tmdb-36:") ||
+                t.contains("tmdb-3:") || t.contains("tmdb-14:") || t.contains("tmdb-16:") ||
+                t.contains("tmdb-17:") || t.contains("tmdb-30:") || t.contains("tmdb-31:") ||
+                t.contains("tmdb-32:") || t.contains("tmdb-37:") || t.contains("tmdb-38:") ||
+                t.contains("tmdb-39:") -> PlatformErrorCode.TMD_7006
+            t.contains("tmdb-7:") || t.contains("tmdb-10:") || http == 401 || t.contains("401") ||
+                t.contains("api_key") || t.contains("api key") -> PlatformErrorCode.TMD_7001
+            t.contains("tmdb-25:") || http == 429 || t.contains("429") -> PlatformErrorCode.TMD_7004
+            t.contains("tmdb-34:") || http == 404 || t.contains("404") -> PlatformErrorCode.TMD_7003
+            t.contains("tmdb-8:") || t.contains("tmdb-18:") -> PlatformErrorCode.TMD_7007
+            t.contains("tmdb-9:") || t.contains("tmdb-46:") -> PlatformErrorCode.TMD_7008
             t.contains("language") || t.contains("dil") -> PlatformErrorCode.TMD_7002
             else -> null
         }

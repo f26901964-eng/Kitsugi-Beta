@@ -8,6 +8,7 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_KITSU_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_MAL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SHIKIMORI_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TMDB_TAB_INDEX
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -23,7 +24,8 @@ class NotificationSourceRoutingTest {
         assertEquals(NOTIF_PAGE_MAL, notificationPageForSource("jikan"))
         assertEquals(NOTIF_PAGE_MAL, notificationPageForSource("MyAnimeList"))
 
-        assertEquals(NOTIF_PAGE_TMDB_SIMKL, notificationPageForSource("tmdb"))
+        assertEquals(NOTIF_PAGE_TMDB_ACCOUNT, notificationPageForSource("tmdb"))
+        assertEquals(NOTIF_PAGE_TMDB_ACCOUNT, notificationPageForSource("tmdb_account"))
         assertEquals(NOTIF_PAGE_TMDB_SIMKL, notificationPageForSource("simkl"))
         assertEquals(NOTIF_PAGE_TMDB_SIMKL, notificationPageForSource("tmdb_simkl"))
 
@@ -68,6 +70,7 @@ class NotificationSourceRoutingTest {
         assertEquals("kitsu", notificationSourceIdForMyListTab(MY_LIST_KITSU_TAB_INDEX))
         assertEquals("shikimori", notificationSourceIdForMyListTab(MY_LIST_SHIKIMORI_TAB_INDEX))
         assertEquals("bangumi", notificationSourceIdForMyListTab(MY_LIST_BANGUMI_TAB_INDEX))
+        assertEquals("tmdb", notificationSourceIdForMyListTab(MY_LIST_TMDB_TAB_INDEX))
         // ALL tab returns null (uses default fallback)
         assertNull(notificationSourceIdForMyListTab(MY_LIST_ALL_TAB_INDEX))
     }

@@ -8,6 +8,7 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_KITSU_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_MAL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SHIKIMORI_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TMDB_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.profile.ProfilePlatform
 
 /**
@@ -21,24 +22,22 @@ const val NOTIF_PAGE_TMDB_SIMKL = 2
 const val NOTIF_PAGE_KITSU = 3
 const val NOTIF_PAGE_SHIKIMORI = 4
 const val NOTIF_PAGE_BANGUMI = 5
+const val NOTIF_PAGE_TMDB_ACCOUNT = 6
 
 /**
  * Verilen kaynak kimliğini bildirim sayfasındaki sekme indeksine çevirir.
  *
  * Dönen değer `null` ise kaynak ya "Tümü" ya da bildirim sekmesi bulunmayan bir
  * kaynaktır (ör. eklentiler) — çağıran taraf varsayılan (bağlı ilk hesap) seçime düşer.
- *
- * Not: MAL verisi uygulama içinde hem "mal" hem "jikan" kimliğiyle dolaşır; ikisi de
- * aynı bildirim sekmesine (MyAnimeList) yönlendirilir. TMDB ile Simkl ise bildirim
- * ekranında tek sekmede ("TMDB & Simkl") birleşiktir.
  */
 fun notificationPageForSource(source: String?): Int? = when (source?.trim()?.lowercase()) {
     "anilist" -> NOTIF_PAGE_ANILIST
     "mal", "jikan", "myanimelist" -> NOTIF_PAGE_MAL
-    "tmdb", "simkl", "tmdb_simkl" -> NOTIF_PAGE_TMDB_SIMKL
+    "simkl", "tmdb_simkl" -> NOTIF_PAGE_TMDB_SIMKL
     "kitsu" -> NOTIF_PAGE_KITSU
     "shikimori" -> NOTIF_PAGE_SHIKIMORI
     "bangumi" -> NOTIF_PAGE_BANGUMI
+    "tmdb", "tmdb_account" -> NOTIF_PAGE_TMDB_ACCOUNT
     else -> null
 }
 
@@ -73,6 +72,7 @@ fun notificationSourceIdForMyListTab(tabIndex: Int): String? = when (tabIndex) {
     MY_LIST_KITSU_TAB_INDEX -> "kitsu"
     MY_LIST_SHIKIMORI_TAB_INDEX -> "shikimori"
     MY_LIST_BANGUMI_TAB_INDEX -> "bangumi"
+    MY_LIST_TMDB_TAB_INDEX -> "tmdb"
     MY_LIST_ALL_TAB_INDEX -> null
     else -> null
 }

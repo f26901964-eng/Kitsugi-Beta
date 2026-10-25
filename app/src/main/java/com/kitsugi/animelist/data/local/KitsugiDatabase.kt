@@ -26,7 +26,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PersistentDetailCacheEntity::class,  // 📂 Media details cache
         CustomButton::class
     ],
-    version = 30,
+    version = 31,
     exportSchema = true  // T3-03/TASK-106: KSP → $projectDir/schemas/ konumuna yazar
 )
 abstract class KitsugiDatabase : RoomDatabase() {
@@ -424,6 +424,25 @@ abstract class KitsugiDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v31: `media_entries.tmdbWatchlist` & `media_entries.tmdbRating`.
+         * Native TMDB Watchlist üyeliği ve yarım puan (0.5..10) saklama desteği.
+         */
+        private val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Native TMDB Watchlist membership is independent from Kitsugi WatchStatus.
+                db.execSQL("ALTER TABLE media_entries ADD COLUMN tmdbWatchlist INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE media_entries ADD COLUMN tmdbRating REAL DEFAULT NULL")
+            }
+        }
+
+        private val MIGRATION_29_31 = object : Migration(29, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_29_30.migrate(db)
+                MIGRATION_30_31.migrate(db)
+            }
+        }
+
         fun getDatabase(context: Context): KitsugiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
@@ -459,7 +478,9 @@ abstract class KitsugiDatabase : RoomDatabase() {
                         MIGRATION_26_27,
                         MIGRATION_27_28,
                         MIGRATION_28_29,
-                        MIGRATION_29_30  // 📅 Listeye eklenme zamanı (addedAt)
+                        MIGRATION_29_30,  // 📅 Listeye eklenme zamanı (addedAt)
+                        MIGRATION_30_31,  // 🎬 TMDB Watchlist & Rating
+                        MIGRATION_29_31
                     )
                 
                 // T3-03: Güvenlik sertleştirmesi — Üretim sürümünde verilerin kazara sıfırlanmasını engeller.

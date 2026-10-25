@@ -40,6 +40,7 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_KITSU_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SHIKIMORI_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_BANGUMI_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TMDB_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.search.SearchScreen
 import com.kitsugi.animelist.ui.components.BackupImportMode
 import kotlinx.coroutines.CoroutineScope
@@ -139,6 +140,8 @@ fun AppRootTabPages(
                     isKitsuConnected = ctx.authViewModel.isKitsuConnected,
                     isShikimoriConnected = ctx.authViewModel.isShikimoriConnected,
                     isBangumiConnected = ctx.authViewModel.isBangumiConnected,
+                    isTmdbConnected = ctx.authViewModel.isTmdbConnected,
+                    tmdbUsername = ctx.authViewModel.tmdbUsername,
                     profileName = ctx.appSettings.profileName,
                     listTitle = ctx.appSettings.listTitle,
                     profileImageUri = ctx.appSettings.profileImageUri,
@@ -153,6 +156,7 @@ fun AppRootTabPages(
                     onLoginAniList = { ctx.authViewModel.startExternalAuth("anilist") },
                     onLoginMal = { ctx.authViewModel.startMalOAuthWebSession() },
                     onLoginSimkl = { ctx.authViewModel.startExternalAuth("simkl") },
+                    onLoginTmdb = { ctx.authViewModel.startExternalAuth("tmdb") },
                     onLoginKitsu = {},
                     onLoginShikimori = {},
                     onKitsuAuthSubmit = { username, password, onComplete ->
@@ -231,7 +235,7 @@ fun AppRootTabPages(
                     onOpenStatsClick = {
                         ctx.navState.navigateToDetail(DetailScreen.Stats)
                     },
-                    isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
+                    isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected || ctx.authViewModel.isTmdbConnected,
                     // AKILLI BİLDİRİM: profilde hangi kaynak seçiliyse (AniList / MAL / Simkl /
                     // Kitsu / Shikimori / Bangumi) bildirimler doğrudan o kaynakla açılır.
                     onOpenNotifications = {
@@ -317,7 +321,7 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
                 )
             )
         },
-        isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
+        isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected || ctx.authViewModel.isTmdbConnected,
         showAnimeLogos = ctx.appSettings.showAnimeLogos,
         isSimklConnected = ctx.authViewModel.isSimklConnected,
         // TMDB hata yönlendirmesi: Ayarlar → Entegrasyonlar bölümüne git
@@ -514,6 +518,9 @@ private fun MyListTabPageWrapper(
         isKitsuConnected = authViewModel.isKitsuConnected,
         isShikimoriConnected = authViewModel.isShikimoriConnected,
         isBangumiConnected = authViewModel.isBangumiConnected,
+        isTmdbConnected = authViewModel.isTmdbConnected,
+        tmdbUsername = authViewModel.tmdbUsername,
+        onLoginTmdb = { authViewModel.startExternalAuth("tmdb") },
         onLoginAniList = { authViewModel.startExternalAuth("anilist") },
         onLoginMal = { authViewModel.startMalOAuthWebSession() },
         onLoginSimkl = { authViewModel.startExternalAuth("simkl") },
@@ -536,11 +543,29 @@ private fun MyListTabPageWrapper(
                 MY_LIST_KITSU_TAB_INDEX -> authViewModel.isKitsuImportRunning
                 MY_LIST_SHIKIMORI_TAB_INDEX -> authViewModel.isShikimoriImportRunning
                 MY_LIST_BANGUMI_TAB_INDEX -> authViewModel.isBangumiImportRunning
+                MY_LIST_TMDB_TAB_INDEX -> authViewModel.isTmdbImportRunning
                 else -> authViewModel.isSyncAllListsRunning ||
                     authViewModel.isAniListImportRunning || authViewModel.isMalImportRunning ||
                     authViewModel.isSimklImportRunning || authViewModel.isKitsuImportRunning ||
-                    authViewModel.isShikimoriImportRunning || authViewModel.isBangumiImportRunning
+                    authViewModel.isShikimoriImportRunning || authViewModel.isBangumiImportRunning ||
+                    authViewModel.isTmdbImportRunning
             }
+        },
+        onSyncTmdb = { authViewModel.importTmdbWatchlist(mediaEntries, mediaRepository) },
+        onAddTmdbApiSelectionToList = { selection ->
+            appViewModel.addApiSelectionToList(
+                selection = selection,
+                isAniListConnected = authViewModel.isAniListConnected,
+                isMalConnected = authViewModel.isMalConnected,
+                isSimklConnected = authViewModel.isSimklConnected,
+                isKitsuConnected = authViewModel.isKitsuConnected,
+                isShikimoriConnected = authViewModel.isShikimoriConnected,
+                isBangumiConnected = authViewModel.isBangumiConnected,
+                isTmdbConnected = authViewModel.isTmdbConnected,
+                currentEntries = mediaEntries,
+                repository = mediaRepository,
+                preferredSource = com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+            )
         },
         onKitsuAuthSubmit = { username, password, onComplete ->
             authViewModel.loginKitsu(
@@ -576,9 +601,9 @@ private fun MyListTabPageWrapper(
         },
         isBottomBarVisible = isBottomBarVisible,
         onScrollReset = onScrollReset,
-        isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected,
+        isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected || authViewModel.isTmdbConnected,
         // AKILLI BİLDİRİM: listem sayfasında seçili kaynak sekmesi hangisiyse (AniList / MAL /
-        // Simkl / Kitsu / Shikimori / Bangumi) bildirimler doğrudan o kaynakla açılır.
+        // Simkl / Kitsu / Shikimori / Bangumi / TMDB) bildirimler doğrudan o kaynakla açılır.
         // "Tümü" (birleşik liste) seçiliyse tek bir kaynak yoktur → varsayılan seçim.
         onOpenNotifications = {
             navState.navigateToDetail(

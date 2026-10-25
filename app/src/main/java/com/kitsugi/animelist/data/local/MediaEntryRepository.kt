@@ -78,7 +78,7 @@ class MediaEntryRepository(
 
     /**
      * @param skipBangumiWrite kayıt için Bangumi yazması çağrıda zaten yapıldıysa `true`;
-     * canlı çapraz eşitleme diğer beş kaynağa yine yayılır.
+     * canlı çapraz eşitleme diğer altı kaynağa yine yayılır.
      */
     suspend fun insert(
         entry: MediaEntry,
@@ -102,7 +102,13 @@ class MediaEntryRepository(
         // Yeni satır eklendiği için "tam yazım" kümesi geçilir; ayna yine de monoton ve
         // yapışkan kurallara uyar (kardeş satırın 12 ilerlemesi 0'a çekilmez — E57).
         mirrorUserFieldsToSiblings(persistedEntry, SyncField.ALL)
-        if (syncExternal) syncEntryIfPossible(persistedEntry, skipBangumiWrite = skipBangumiWrite)
+        if (syncExternal) {
+            syncEntryIfPossible(
+                persistedEntry,
+                skipBangumiWrite = skipBangumiWrite,
+                tmdbFields = com.kitsugi.animelist.data.auth.tmdbWriteFieldsForInsert(persistedEntry)
+            )
+        }
     }
 
     suspend fun insertAll(entries: List<MediaEntry>) {
@@ -476,16 +482,6 @@ class MediaEntryRepository(
         // Uzak hedeflere yalnızca bu alanlar yazılır; hedefte uygulama dışında girilmiş
         // puan/not/tarih böylece EZİLMEZ (bkz. [SyncField], [SyncFieldDiff]).
         // ── ÖNCEKİ HÂL OKUMASI (E56) ────────────────────────────────────────────────
-        // Alan farkı bu okumaya bağlıdır. Okuma başarısız olduğunda `previous = null`
-        // bırakmak, `SyncFieldDiff`in TÜM alanları değişmiş saymasına ve altı hedefe tam
-        // yazım gitmesine yol açıyordu — yani bir DB aksaklığı, kullanıcının başka
-        // sağlayıcıda elle girdiği puan/not/tarihi ezebilirdi.
-        // 1) Room'un geçici hataları (kapanan imleç, "database is locked") tek seferde
-        //    geçebildiği için okuma BİR KEZ tekrarlanır.
-        // 2) Hâlâ okunamıyorsa TAM yazım bilinçli olarak seçilir: bu yolda `fullWrite`
-        //    semantiği geçerlidir (boş puan/not/tarih GÖNDERİLMEZ), yani uzak değerler
-        //    korunur; buna karşılık kullanıcının bu düzenlemesi sessizce kaybolmaz.
-        //    (Ağa hiç çıkmamak, E56'nın "diğer yarısı" olan veri kaybını üretirdi.)
         var previousRead = if (entry.id > 0) {
             runSyncCatching { dao.getById(entry.id)?.toDomain() }
         } else {
@@ -501,7 +497,7 @@ class MediaEntryRepository(
         } else {
             SyncFieldDiff.between(previous, entryWithTime)
         }
-
+        val tmdbFields = com.kitsugi.animelist.data.auth.tmdbWriteFieldsForUpdate(previous, entryWithTime)
         dao.update(
             entryWithTime.toEntity()
         )
@@ -512,18 +508,6 @@ class MediaEntryRepository(
         mirrorUserFieldsToSiblings(entryWithTime, changedFields)
 
         if (syncExternal) {
-            // ── ONARIM TURU ─────────────────────────────────────────────────────────
-            // Hiçbir kullanıcı alanı değişmese bile hedef kaynaklarda KAYIT EKSİK olabilir
-            // (ör. Kitsu'dan içe aktarılmış satır Simkl/Shikimori/Bangumi'de hiç yoktur;
-            // veya daha önceki bir yazım başarısız olmuştur). Eski kod bu durumda hiç ağa
-            // çıkmıyor, kullanıcı ise "Simkl/Kitsu/Shikimori/Bangumi: değişiklik yok"
-            // mesajını görüp kayıtların eşitlenmediğine tanık oluyordu.
-            //
-            // `ExternalListSyncManager` her sağlayıcı için varlık kaydına bakar: kayıt VARSA
-            // ve yazılacak alan yoksa istek atmaz (hedefteki elle girilmiş değerler ezilmez);
-            // kayıt YOK/doğrulanmadıysa tam yazımla oluşturur. Aynı satır için onarım en
-            // fazla [com.kitsugi.animelist.data.auth.RemoteListPresence.REPAIR_THROTTLE_MS]
-            // sıklığında denenir — her kaydırmada ağa çıkılmaz.
             val appContext = context
                 ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
             val repairDue = changedFields.isEmpty() && appContext != null &&
@@ -532,17 +516,17 @@ class MediaEntryRepository(
                     RemoteListPresence.keyFor(entryWithTime)
                 )
             if (changedFields.isNotEmpty()) {
-                syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields)
+                syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, changedFields, tmdbFields)
             } else if (repairDue) {
                 // Onarım turu: yerelde değişen alan yok, ama hedefler arasında fark olabilir.
                 // TAM yazım gönderilir (boş yerel alanlar gönderilmez → hedefteki değer
-                // silinmez) ve altı kaynak aynı duruma getirilir. Kullanıcının şikâyeti tam
-                // buydu: "veriler diğer kaynaklarda var ama eşitlenmiyor".
+                // silinmez) ve yedi kaynak aynı duruma getirilir.
                 syncEntryIfPossible(
                     entryWithTime,
                     advancedScores,
                     skipBangumiWrite,
-                    SyncField.ALL
+                    SyncField.ALL,
+                    tmdbFields
                 )
             }
         }
@@ -624,6 +608,37 @@ class MediaEntryRepository(
         return PendingSyncDrainer.drain(ctx, queueDao, freshBudget = freshBudget)
     }
 
+    /** A remote snapshot must not delete a row while any local intent is still queued. */
+    suspend fun hasPendingSyncJobs(): Boolean =
+        runSyncCatching { pendingSyncDao?.getAll()?.isNotEmpty() == true }.getOrDefault(true)
+
+    /**
+     * Mirror only TMDB's native account fields. Status/progress are deliberately excluded:
+     * Watchlist membership is not evidence that a sibling was completed or started.
+     */
+    suspend fun mirrorTmdbAccountFieldsToSiblings(entry: MediaEntry) {
+        if (!com.kitsugi.animelist.data.auth.isTmdbAccountSource(entry.source)) return
+        runSyncCatching {
+            findSiblingRows(entry).forEach { sibling ->
+                val mirroredRating = if (com.kitsugi.animelist.data.auth.isTmdbAccountSource(sibling.source)) {
+                    entry.tmdbRating
+                } else sibling.tmdbRating
+                if (sibling.isFavorite != entry.isFavorite || sibling.score != entry.score ||
+                    sibling.tmdbRating != mirroredRating
+                ) {
+                    dao.update(
+                        sibling.copy(
+                            isFavorite = entry.isFavorite,
+                            score = entry.score,
+                            tmdbRating = mirroredRating,
+                            updatedAt = maxOf(sibling.updatedAt, entry.updatedAt)
+                        ).toEntity()
+                    )
+                }
+            }
+        }
+    }
+
     // ────────────────────────────────────────────────
     // Kardeş satır tutarlılığı (aynı yapım, farklı kaynak kopyaları)
     // ────────────────────────────────────────────────
@@ -682,7 +697,10 @@ class MediaEntryRepository(
     private suspend fun mirrorUserFieldsToSiblings(entry: MediaEntry, fields: Set<SyncField>) {
         runSyncCatching {
             findSiblingRows(entry).forEach { sibling ->
-                val mirrored = SiblingMirrorPolicy.mirrored(sibling, entry, fields)
+                var mirrored = SiblingMirrorPolicy.mirrored(sibling, entry, fields)
+                if (com.kitsugi.animelist.data.auth.isTmdbAccountSource(sibling.source) && sibling.score != entry.score) {
+                    mirrored = mirrored.copy(tmdbRating = null)
+                }
                 // Değişmeyen satırı yazmak gereksiz akış yenilemesi (ve gereksiz Room yazımı)
                 // üretirdi.
                 if (mirrored != sibling) dao.update(mirrored.toEntity())
@@ -699,9 +717,13 @@ class MediaEntryRepository(
         advancedScores: List<Double>? = null,
         skipBangumiWrite: Boolean = false,
         /** Uzak hedeflere yazılacak alanlar; boş küme "hiçbir şey değişmedi" demektir. */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All
     ) {
         val appContext = context ?: return
+        // Zero means "no TMDB account at intent time" and is intentionally different
+        // from null (legacy/unscoped queue record).
+        val expectedTmdbAccountId = com.kitsugi.animelist.data.auth.TmdbAuthStore.accountId(appContext) ?: 0
         // Senkronizasyon için geçerli koşullar:
         // 1) malId var (MAL veya gerçek bir MAL ID'si olan AniList kaydı)
         // 2) aniListEntryId var (kaynak ne olursa olsun AniList liste kaydı)
@@ -720,7 +742,9 @@ class MediaEntryRepository(
                 entry = entry,
                 advancedScores = advancedScores,
                 skipBangumiWrite = skipBangumiWrite,
-                fields = fields
+                fields = fields,
+                tmdbFields = tmdbFields,
+                expectedTmdbAccountId = expectedTmdbAccountId
             )
         }
 
@@ -760,7 +784,7 @@ class MediaEntryRepository(
 
             if (messages.isNotEmpty()) drainPendingQueue()
         } else {
-            enqueuePending("UPDATE", entry, fields)
+            enqueuePending("UPDATE", entry, fields, tmdbFields, expectedTmdbAccountId)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
             // (E74) Yetki kontrolü tek yerden ve fırlatılan istisna mesajını da kapsar;
             // aksi hâlde istisna yolu kullanıcıya yanlışlıkla "çevrimdışı" gösteriyordu.
@@ -786,6 +810,7 @@ class MediaEntryRepository(
 
     private suspend fun syncDeleteIfPossible(entry: MediaEntry) {
         val appContext = context ?: return
+        val expectedTmdbAccountId = com.kitsugi.animelist.data.auth.TmdbAuthStore.accountId(appContext) ?: 0
         // Silme için geçerli koşullar (syncEntryIfPossible ile aynı mantık)
         val hasAniListLink = entry.aniListEntryId != null || entry.source == "anilist"
         val hasMalLink = entry.malId != null
@@ -797,7 +822,8 @@ class MediaEntryRepository(
         val result = runSyncCatching {
             ExternalListSyncManager.deleteEntry(
                 context = appContext,
-                entry = entry
+                entry = entry,
+                expectedTmdbAccountId = expectedTmdbAccountId
             )
         }
 
@@ -812,7 +838,7 @@ class MediaEntryRepository(
             notifySyncResult(messages)
             if (messages.isNotEmpty()) drainPendingQueue()
         } else {
-            enqueuePending("DELETE", entry)
+            enqueuePending("DELETE", entry, expectedTmdbAccountId = expectedTmdbAccountId)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
             val isAuthError = PendingSyncPolicy.isAuthError(
                 listOf(allErrors, result.exceptionOrNull()?.message)
@@ -832,12 +858,14 @@ class MediaEntryRepository(
     private suspend fun enqueuePending(
         operation: String,
         entry: MediaEntry,
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
     ) {
         val queueDao = pendingSyncDao ?: return
         // Alan kümesi kuyruğa birlikte yazılır: bağlantı gelince yalnız bu alanlar yazılır,
         // böylece bekleyen bir iş hedeflerdeki diğer değerleri EZMEZ.
-        PendingSyncDrainer.enqueue(queueDao, operation, entry, fields)
+        PendingSyncDrainer.enqueue(queueDao, operation, entry, fields, tmdbFields, expectedTmdbAccountId)
     }
 
     /**

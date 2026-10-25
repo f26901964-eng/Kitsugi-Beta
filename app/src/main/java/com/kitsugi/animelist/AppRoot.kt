@@ -585,6 +585,7 @@ fun AppRoot(
                             "kitsu"     -> "Kitsu bağlantısı başarılı, liste aktarılıyor..."
                             "shikimori" -> "Shikimori bağlantısı başarılı, liste aktarılıyor..."
                             "bangumi"   -> "Bangumi bağlantısı başarılı, koleksiyon aktarılıyor..."
+                            "tmdb"      -> "TMDB bağlantısı başarılı, Watchlist, favoriler ve puanlar aktarılıyor..."
                             else        -> "MyAnimeList bağlantısı başarılı, liste aktarılıyor..."
                         }
                     )
@@ -595,6 +596,7 @@ fun AppRoot(
                         "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository)
                         "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository)
                         "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository)
+                        "tmdb"      -> authViewModel.importTmdbWatchlist(latestMediaEntries, mediaRepository)
                         else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
                     }
 
@@ -666,6 +668,7 @@ fun AppRoot(
             isMalConnected = authViewModel.isMalConnected,
             isSimklConnected = authViewModel.isSimklConnected,
             isBangumiConnected = authViewModel.isBangumiConnected,
+            isTmdbConnected = authViewModel.isTmdbConnected,
             isKitsuConnected = authViewModel.isKitsuConnected,
             isShikimoriConnected = authViewModel.isShikimoriConnected
         )
@@ -1022,7 +1025,7 @@ fun AppRoot(
                 coroutineScope.launch { mediaRepository.deleteById(entry.id) }
                 isAddingBangumiEntry = false
             },
-            onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
+            onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores, tmdbWatchlist, tmdbRating ->
                 val entry = editingEntry ?: return@AppDialogHost
                 val addBangumiMembership = isAddingBangumiEntry
                 val isBangumiEntry = canonicalMediaSourceId(entry.source) == "bangumi"
@@ -1060,11 +1063,13 @@ fun AppRoot(
                     repeatValue = repeatValue,
                     volumeProgress = volumeProgress,
                     isPrivate = isPrivate,
-                    isHiddenFromStatusLists = isHiddenFromStatusLists
+                    isHiddenFromStatusLists = isHiddenFromStatusLists,
+                    tmdbWatchlist = tmdbWatchlist,
+                    tmdbRating = tmdbRating
                 )
                 if (isBangumiEntry) {
                     // Diğer kaynaklarla AYNI hat: önce yerele yaz, sonra ExternalListSyncManager
-                    // Bangumi dahil altı kaynağa birden yaysın. Eski akış önce Bangumi'ye yazıp
+                    // Bangumi ve TMDB dahil yedi kaynağa birden yaysın. Eski akış önce Bangumi'ye yazıp
                     // başarısızlıkta (token/kapsam/ağ) kaydı yerele bile kaydetmiyordu — kullanıcının
                     // seçtiği durum/puan/tarih/bölüm tümüyle kayboluyor, diğer kaynaklara da
                     // hiç gidilmiyordu. Artık başarısız yazımlar bekleyen senkron kuyruğuna girer.
@@ -1329,6 +1334,7 @@ private fun AppNavigationContent(
                                 isMalConnected = authViewModel.isMalConnected,
                                 isSimklConnected = authViewModel.isSimklConnected,
                                 isBangumiConnected = authViewModel.isBangumiConnected,
+                                isTmdbConnected = authViewModel.isTmdbConnected,
                                 isKitsuConnected = authViewModel.isKitsuConnected,
                                 isShikimoriConnected = authViewModel.isShikimoriConnected
                             )

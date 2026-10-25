@@ -112,11 +112,13 @@ fun KitsugiPreferencesSettingsDialog(
     onSimklNotificationsChanged: (Boolean) -> Unit = {},
     onKitsuNotificationsChanged: (Boolean) -> Unit = {},
     onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
+    onTmdbNotificationsChanged: (Boolean) -> Unit = {},
     isAniListConnected: Boolean = false,
     isMalConnected: Boolean = false,
     isSimklConnected: Boolean = false,
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
     onNotificationIntervalChanged: (Int) -> Unit = {},
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
@@ -250,12 +252,14 @@ fun KitsugiPreferencesSettingsDialog(
                         onSimklNotificationsChanged = onSimklNotificationsChanged,
                         onKitsuNotificationsChanged = onKitsuNotificationsChanged,
                         onShikimoriNotificationsChanged = onShikimoriNotificationsChanged,
+                        onTmdbNotificationsChanged = onTmdbNotificationsChanged,
                         isAniListConnected = isAniListConnected,
                         isMalConnected = isMalConnected,
                         isSimklConnected = isSimklConnected,
                         isKitsuConnected = isKitsuConnected,
                         isShikimoriConnected = isShikimoriConnected,
                         isBangumiConnected = isBangumiConnected,
+                        isTmdbConnected = isTmdbConnected,
                         onNotificationIntervalChanged = onNotificationIntervalChanged,
                         onSearchHistoryEnabledChanged = onSearchHistoryEnabledChanged,
                         accentColor = accentColor,
@@ -712,12 +716,14 @@ private fun ListScoreTab(
     onSimklNotificationsChanged: (Boolean) -> Unit = {},
     onKitsuNotificationsChanged: (Boolean) -> Unit = {},
     onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
+    onTmdbNotificationsChanged: (Boolean) -> Unit = {},
     isAniListConnected: Boolean = false,
     isMalConnected: Boolean = false,
     isSimklConnected: Boolean = false,
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
     onNotificationIntervalChanged: (Int) -> Unit = {},
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
     accentColor: Color,
@@ -840,6 +846,33 @@ private fun ListScoreTab(
             if (granted) onShikimoriNotificationsChanged(true)
         }
     } else null
+
+    val tmdbPermissionLauncher = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) onTmdbNotificationsChanged(true)
+        }
+    } else null
+
+    fun handleTmdbNotificationsToggle(enabled: Boolean) {
+        if (!enabled) {
+            onTmdbNotificationsChanged(false)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                onTmdbNotificationsChanged(true)
+            } else {
+                tmdbPermissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            onTmdbNotificationsChanged(true)
+        }
+    }
 
     fun handleAiringNotificationsToggle(enabled: Boolean) {
         if (!enabled) {
@@ -1392,7 +1425,7 @@ private fun ListScoreTab(
             }
 
             val hasAnyNotificationAccount = isAniListConnected || isMalConnected || isSimklConnected ||
-                isKitsuConnected || isShikimoriConnected || isBangumiConnected
+                isKitsuConnected || isShikimoriConnected || isBangumiConnected || isTmdbConnected
 
             KitsugiSettingsDivider()
 
@@ -1488,6 +1521,22 @@ private fun ListScoreTab(
                 checked = isShikimoriConnected && appSettings.shikimoriNotificationsEnabled,
                 enabled = isShikimoriConnected,
                 onCheckedChange = { if (isShikimoriConnected) handleShikimoriNotificationsToggle(it) }
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = stringResource(R.string.settings_notif_tmdb),
+                description = when {
+                    !isTmdbConnected -> stringResource(R.string.settings_notifications_connect_account, "TMDB")
+                    appSettings.tmdbNotificationsEnabled -> stringResource(R.string.settings_notif_tmdb_on)
+                    else -> stringResource(R.string.settings_notif_tmdb_off)
+                },
+                icon = Icons.Rounded.Settings,
+                iconColor = accentColor,
+                checked = isTmdbConnected && appSettings.tmdbNotificationsEnabled,
+                enabled = isTmdbConnected,
+                onCheckedChange = { if (isTmdbConnected) handleTmdbNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()

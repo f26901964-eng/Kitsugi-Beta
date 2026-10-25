@@ -18,6 +18,10 @@ import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.local.NetworkMonitor
 import com.kitsugi.animelist.data.local.toDomain
 import com.kitsugi.animelist.data.local.toEntity
+import com.kitsugi.animelist.data.auth.TmdbAuthStore
+import com.kitsugi.animelist.data.auth.TmdbSyncManager
+import com.kitsugi.animelist.data.auth.TmdbWriteFields
+import com.kitsugi.animelist.data.auth.shouldAttemptTmdbWrite
 
 /**
  * Bir listedeki değişikliği **altı kaynağın tamamına** yayan CANLI ve EŞZAMANLI eşitleme hattı.
@@ -57,6 +61,8 @@ object ExternalListSyncManager {
     internal const val OUTCOME_UP_TO_DATE = "zaten eşit"
 
     /** Bangumi yazması çağrıda zaten yapıldı (`skipBangumiWrite`). */
+    internal const val OUTCOME_NO_NATIVE_CHANGES = "native değişiklik yok"
+    internal const val OUTCOME_ACCOUNT_CHANGED = "hesap değişti"
     internal const val OUTCOME_WRITTEN_BY_CALLER = "çağıran yazdı"
 
     /** Tek kaynağın yanıtını bundan fazla beklemeyiz; kilitlenen kaynak diğerlerini durdurmaz. */
@@ -68,6 +74,7 @@ object ExternalListSyncManager {
     private const val KITSU = "Kitsu"
     private const val SHIKIMORI = "Shikimori"
     private const val BANGUMI = "Bangumi"
+    private const val TMDB = "TMDB"
 
     private fun Context.sourceFailure(platform: String, error: Throwable): String =
         getString(
@@ -98,7 +105,9 @@ object ExternalListSyncManager {
          * böylece hedefteki (uygulama dışında girilmiş) puan/not/tarih EZİLMEZ.
          * bkz. [SyncField], [SyncFieldDiff], [ProviderCapabilitiesCatalog].
          */
-        val fields: Set<SyncField>
+        val fields: Set<SyncField>,
+        val tmdbFields: TmdbWriteFields = TmdbWriteFields.All,
+        val expectedTmdbAccountId: Int? = null
     ) {
         /** Bu sağlayıcıya yazılacak alanlar (desteklenmeyenler süzülür). */
         fun fieldsFor(provider: String): Set<SyncField> = fields.narrowTo(provider)
@@ -176,12 +185,14 @@ object ExternalListSyncManager {
          * Yerel satırda DEĞİŞEN alanlar ([SyncFieldDiff.between]). Varsayılan [SyncField.ALL]
          * "tam yazım"dır ve yalnızca yeni kayıt/kuyruk yeniden denemesi için doğrudur.
          */
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        tmdbFields: TmdbWriteFields = TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
-        val prepared = prepare(context, entry, advancedScores, skipBangumiWrite, fields)
+        val prepared = prepare(context, entry, advancedScores, skipBangumiWrite, fields, tmdbFields, expectedTmdbAccountId)
         val run = prepared.run
 
-        // ── EŞZAMANLI YAYILIM: altı kaynak aynı anda, birbirini beklemeden ──────────
+        // ── EŞZAMANLI YAYILIM: yedi kaynak aynı anda, birbirini beklemeden ──────────
         val results = coroutineScope {
             listOf(
                 async { timed(ANILIST) { syncAniList(run) } },
@@ -189,7 +200,8 @@ object ExternalListSyncManager {
                 async { timed(SIMKL) { syncSimkl(run) } },
                 async { timed(KITSU) { syncKitsu(run) } },
                 async { timed(SHIKIMORI) { syncShikimori(run) } },
-                async { timed(BANGUMI) { syncBangumi(run) } }
+                async { timed(BANGUMI) { syncBangumi(run) } },
+                async { timed(TMDB) { syncTmdb(run) } }
             ).awaitAll()
         }
 
@@ -228,19 +240,26 @@ object ExternalListSyncManager {
         entry: MediaEntry,
         advancedScores: List<Double>?,
         skipBangumiWrite: Boolean,
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        tmdbFields: TmdbWriteFields = TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
     ): Prepared {
         val skipped = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
         val settings = runSyncCatching { SettingsDataStore(context).settingsFlow.first() }.getOrNull()
+        val syncEnabledTmdb = settings?.syncEnabledTmdb ?: true
+        val tmdbWriteEnabled = shouldAttemptTmdbWrite(syncEnabledTmdb, entry.source)
+        val tmdbConnected = tmdbWriteEnabled && TmdbAuthStore.isConnected(context)
+
         val enabled = mapOf(
             "anilist" to (settings?.syncEnabledAnilist ?: true),
             "mal" to (settings?.syncEnabledMal ?: true),
             "simkl" to (settings?.syncEnabledSimkl ?: true),
             "kitsu" to (settings?.syncEnabledKitsu ?: true),
             "shikimori" to (settings?.syncEnabledShikimori ?: true),
-            "bangumi" to (settings?.syncEnabledBangumi ?: true)
+            "bangumi" to (settings?.syncEnabledBangumi ?: true),
+            "tmdb" to tmdbWriteEnabled
         )
 
         val aniListToken = ExternalAuthManager.getAniListToken(context)
@@ -258,7 +277,8 @@ object ExternalListSyncManager {
             kitsu = enabled["kitsu"] == true && !kitsuToken.isNullOrBlank(),
             shikimori = enabled["shikimori"] == true && !shikimoriToken.isNullOrBlank(),
             simkl = enabled["simkl"] == true && !simklToken.isNullOrBlank(),
-            bangumi = !bangumiToken.isNullOrBlank()
+            bangumi = !bangumiToken.isNullOrBlank(),
+            tmdb = tmdbConnected
         )
 
         val isBangumiRow = canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE
@@ -341,10 +361,13 @@ object ExternalListSyncManager {
                     "simkl" to simklToken,
                     "kitsu" to kitsuToken,
                     "shikimori" to shikimoriToken,
-                    "bangumi" to bangumiToken
+                    "bangumi" to bangumiToken,
+                    "tmdb" to if (tmdbConnected) "connected" else null
                 ),
                 verdictBlocked = verdictBlocked,
-                fields = fields
+                fields = fields,
+                tmdbFields = tmdbFields,
+                expectedTmdbAccountId = expectedTmdbAccountId
             )
         // Satırın KENDİ kaynağında kaydın var olduğu bilinir (içe aktarılmış satır oradan
         // geldi). Diğer beş kaynak için varlık doğrulanana kadar tam yazım uygulanır.
@@ -371,6 +394,7 @@ object ExternalListSyncManager {
         SHIKIMORI -> "shikimori"
         BANGUMI -> "bangumi"
         SIMKL -> "simkl"
+        TMDB -> "tmdb"
         else -> source.lowercase()
     }
 
@@ -737,15 +761,68 @@ object ExternalListSyncManager {
     // SİLME
     // ────────────────────────────────────────────────────────────────────────────────
 
+    private suspend fun syncTmdb(run: Run): SourceResult {
+        val context = run.context
+        val enabled = run.isOn("tmdb")
+        val isConnected = !run.token("tmdb").isNullOrBlank()
+        val applicable = CrossSyncPolicy.supportsTmdb(run.entry.type) && run.allowFanOut && run.allows("tmdb")
+
+        if (!enabled) return SourceResult(TMDB, OUTCOME_DISABLED)
+        if (!run.tmdbFields.any) return SourceResult(TMDB, OUTCOME_NO_NATIVE_CHANGES)
+        if (!isConnected) return SourceResult(TMDB, OUTCOME_NOT_CONNECTED)
+        if (!applicable) {
+            return SourceResult(TMDB, if (run.allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY)
+        }
+        if (run.verdictBlocked) {
+            val malIdStr = run.identity.malId?.toString() ?: run.entry.malId?.toString() ?: ""
+            return SourceResult(
+                TMDB,
+                OUTCOME_SKIPPED_IDENTITY,
+                skipped = listOf(context.getString(R.string.cross_sync_reason_identity_unverified, malIdStr))
+            )
+        }
+
+        return runSyncCatching {
+            PlatformRateLimiter.acquire("tmdb")
+            TmdbSyncManager.syncEntryToTmdb(
+                context = context,
+                entry = run.remoteEntry,
+                fields = run.tmdbFields,
+                expectedAccountId = run.expectedTmdbAccountId
+            )
+        }.fold(
+            onSuccess = { tmdbResult ->
+                when {
+                    tmdbResult.isSuccess -> SourceResult(TMDB, OUTCOME_SYNCED, synced = true)
+                    tmdbResult.accountMismatch -> SourceResult(
+                        TMDB,
+                        OUTCOME_ACCOUNT_CHANGED,
+                        skipped = listOf(context.getString(R.string.account_sync_tmdb_account_changed))
+                    )
+                    tmdbResult.unresolvedMedia -> SourceResult(
+                        TMDB,
+                        OUTCOME_SKIPPED_IDENTITY,
+                        skipped = tmdbResult.errors
+                    )
+                    else -> SourceResult(TMDB, OUTCOME_FAILED, errors = tmdbResult.errors)
+                }
+            },
+            onFailure = { error ->
+                SourceResult(TMDB, OUTCOME_FAILED, errors = listOf(context.sourceFailure("TMDB", error)))
+            }
+        )
+    }
+
     suspend fun deleteEntry(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        expectedTmdbAccountId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
         // Silme de tıpkı güncelleme gibi DOĞRULANMIŞ kimlikle çalışır: satır ilk kez
         // siliniyorsa (daha önce hiç yayılmamış içe aktarım satırı gibi) kimlik daha önce
         // çözülmemiş olabilir ve eski "ağ araması yok" kuralı yalnızca satırın kendi
         // kaynağından silinmesine izin veriyor, diğer kaynaklarda hayalet kayıt kalıyordu.
-        val prepared = prepare(context, entry, advancedScores = null, skipBangumiWrite = false, fields = SyncField.ALL)
+        val prepared = prepare(context, entry, advancedScores = null, skipBangumiWrite = false, fields = SyncField.ALL, expectedTmdbAccountId = expectedTmdbAccountId)
         val run = prepared.run
 
         val results = coroutineScope {
@@ -755,7 +832,8 @@ object ExternalListSyncManager {
                 async { timed(SIMKL) { deleteSimkl(run) } },
                 async { timed(KITSU) { deleteKitsu(run) } },
                 async { timed(SHIKIMORI) { deleteShikimori(run) } },
-                async { timed(BANGUMI) { deleteBangumi(run) } }
+                async { timed(BANGUMI) { deleteBangumi(run) } },
+                async { timed(TMDB) { deleteTmdb(run) } }
             ).awaitAll()
         }
 
@@ -994,6 +1072,56 @@ object ExternalListSyncManager {
     // TOPLAMA / YARDIMCILAR
     // ────────────────────────────────────────────────────────────────────────────────
 
+    private suspend fun deleteTmdb(run: Run): SourceResult {
+        val context = run.context
+        val enabled = run.isOn("tmdb")
+        val isConnected = !run.token("tmdb").isNullOrBlank()
+        val applicable = CrossSyncPolicy.supportsTmdb(run.entry.type) && run.allowFanOut && run.allows("tmdb")
+
+        if (!enabled || !isConnected || !applicable) {
+            return SourceResult(TMDB, deleteGateOutcome(enabled, isConnected, applicable))
+        }
+
+        return runSyncCatching {
+            PlatformRateLimiter.acquire("tmdb")
+            TmdbSyncManager.deleteEntryFromTmdb(
+                context = context,
+                entry = run.remoteEntry,
+                expectedAccountId = run.expectedTmdbAccountId
+            )
+        }.fold(
+            onSuccess = { tmdbResult ->
+                when {
+                    tmdbResult.isSuccess -> SourceResult(TMDB, OUTCOME_SYNCED, synced = true)
+                    tmdbResult.accountMismatch -> SourceResult(
+                        TMDB,
+                        OUTCOME_ACCOUNT_CHANGED,
+                        skipped = listOf(context.getString(R.string.account_sync_tmdb_account_changed))
+                    )
+                    tmdbResult.unresolvedMedia -> SourceResult(
+                        TMDB,
+                        OUTCOME_SKIPPED_IDENTITY,
+                        skipped = tmdbResult.errors
+                    )
+                    else -> SourceResult(TMDB, OUTCOME_FAILED, errors = tmdbResult.errors)
+                }
+            },
+            onFailure = { error ->
+                SourceResult(
+                    TMDB,
+                    OUTCOME_FAILED,
+                    errors = listOf(
+                        context.getString(
+                            R.string.account_sync_delete_error,
+                            "TMDB",
+                            error.message ?: context.getString(R.string.account_sync_unknown_error)
+                        )
+                    )
+                )
+            }
+        )
+    }
+
     private fun aggregate(
         context: Context,
         prepared: Prepared,
@@ -1047,6 +1175,7 @@ object ExternalListSyncManager {
                 key == rowSourceKey ||
                     (key == "anilist" && prepared.run.entry.aniListEntryId != null) ||
                     (key == "simkl" && (prepared.run.entry.simklId ?: 0) > 0) ||
+                    (key == "tmdb" && TmdbAuthStore.isConnected(context)) ||
                     // Daha önce bağlanmış ama oturumu düşmüş hesap: token yenilemesi
                     // başarısız olduğu için "bağlı değil" dendi. Bu bir DEĞİŞİKLİK KAYBIDIR;
                     // kullanıcı yeniden bağlandığında yazılması için kuyruğa girmelidir.

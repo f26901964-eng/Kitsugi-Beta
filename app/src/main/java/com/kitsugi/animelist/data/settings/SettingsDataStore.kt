@@ -227,6 +227,7 @@ class SettingsDataStore(
         val SimklNotificationsEnabled = booleanPreferencesKey("simkl_notifications_enabled")
         val KitsuNotificationsEnabled = booleanPreferencesKey("kitsu_notifications_enabled")
         val ShikimoriNotificationsEnabled = booleanPreferencesKey("shikimori_notifications_enabled")
+        val TmdbNotificationsEnabled = booleanPreferencesKey("tmdb_notifications_enabled")
         val NotificationInterval = intPreferencesKey("notification_interval")
         val SearchHistoryEnabled = booleanPreferencesKey("search_history_enabled")
         // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────
@@ -259,6 +260,7 @@ class SettingsDataStore(
         val SyncEnabledKitsu = booleanPreferencesKey("sync_enabled_kitsu")
         val SyncEnabledShikimori = booleanPreferencesKey("sync_enabled_shikimori")
         val SyncEnabledBangumi = booleanPreferencesKey("sync_enabled_bangumi")
+        val SyncEnabledTmdb = booleanPreferencesKey("sync_enabled_tmdb")
         val KitsuUsername = stringPreferencesKey("kitsu_username")
         val KitsuProfileImageUri = stringPreferencesKey("kitsu_profile_image_uri")
         val ShikimoriUsername = stringPreferencesKey("shikimori_username")
@@ -476,7 +478,8 @@ class SettingsDataStore(
                     syncEnabledSimkl = preferences[Keys.SyncEnabledSimkl] ?: true,
                     syncEnabledKitsu = preferences[Keys.SyncEnabledKitsu] ?: true,
                     syncEnabledShikimori = preferences[Keys.SyncEnabledShikimori] ?: true,
-                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true
+                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true,
+                    syncEnabledTmdb = preferences[Keys.SyncEnabledTmdb] ?: true
                 ),
                 themeUi = ThemeAndAppUiSettings(
                     selectedThemeId = preferences[Keys.SelectedThemeId] ?: "mint",
@@ -679,6 +682,7 @@ class SettingsDataStore(
                     simklNotificationsEnabled = preferences[Keys.SimklNotificationsEnabled] ?: false,
                     kitsuNotificationsEnabled = preferences[Keys.KitsuNotificationsEnabled] ?: false,
                     shikimoriNotificationsEnabled = preferences[Keys.ShikimoriNotificationsEnabled] ?: false,
+                    tmdbNotificationsEnabled = preferences[Keys.TmdbNotificationsEnabled] ?: false,
                     notificationInterval = preferences[Keys.NotificationInterval] ?: 180
                 ),
                 downloads = DownloadAndMangaSettings(
@@ -1544,6 +1548,11 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.ShikimoriNotificationsEnabled] = enabled }
     }
 
+    /** TMDB account polling/dedupe notifications (not a TMDB native notification feed). */
+    suspend fun setTmdbNotificationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.TmdbNotificationsEnabled] = enabled }
+    }
+
     suspend fun setNotificationInterval(minutes: Int) {
         context.settingsDataStore.edit { it[Keys.NotificationInterval] = minutes }
     }
@@ -1643,6 +1652,10 @@ class SettingsDataStore(
 
     suspend fun setSyncEnabledBangumi(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.SyncEnabledBangumi] = enabled }
+    }
+
+    suspend fun setSyncEnabledTmdb(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledTmdb] = enabled }
     }
 
     suspend fun saveKitsuProfileInfo(username: String, avatarUrl: String? = null) {

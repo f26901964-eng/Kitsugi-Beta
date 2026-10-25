@@ -43,7 +43,10 @@ data class MediaEntryEntity(
     val tmdbId: Int? = null,
     val simklId: Int? = null,
     /** Listeye eklenme zamanı, epoch saniye (0 = bilinmiyor). Bkz. [MediaEntry.addedAt]. */
-    val addedAt: Long = 0L
+    val addedAt: Long = 0L,
+    val tmdbWatchlist: Boolean? = null,
+    /** Native TMDB rating (0.5..10); the shared Kitsugi score remains an Int. */
+    val tmdbRating: Double? = null,
 )
 
 fun MediaEntryEntity.toDomain(): MediaEntry {
@@ -85,6 +88,8 @@ fun MediaEntryEntity.toDomain(): MediaEntry {
         aniListEntryId = aniListEntryId,
         malListId = malListId,
         tmdbId = tmdbId,
+        tmdbWatchlist = tmdbWatchlist,
+        tmdbRating = tmdbRating,
         simklId = simklId
     )
 }
@@ -124,6 +129,8 @@ fun MediaEntry.toEntity(): MediaEntryEntity {
         aniListEntryId = aniListEntryId,
         malListId = malListId,
         tmdbId = tmdbId,
+        tmdbWatchlist = tmdbWatchlist,
+        tmdbRating = tmdbRating,
         simklId = simklId
     )
 }

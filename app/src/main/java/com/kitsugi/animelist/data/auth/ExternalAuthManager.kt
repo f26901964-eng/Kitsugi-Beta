@@ -17,14 +17,17 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import kotlin.concurrent.thread
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.remote.TmdbAccountClient
 import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -98,7 +101,8 @@ object ExternalAuthManager {
         val isSimklConnected: Boolean,
         val isKitsuConnected: Boolean = false,
         val isShikimoriConnected: Boolean = false,
-        val isBangumiConnected: Boolean = false
+        val isBangumiConnected: Boolean = false,
+        val isTmdbConnected: Boolean = false
     )
 
     sealed class AuthEvent {
@@ -124,7 +128,8 @@ object ExternalAuthManager {
             isSimklConnected = prefs.getString(KEY_SIMKL_TOKEN, null) != null,
             isKitsuConnected = prefs.getString(KEY_KITSU_TOKEN, null) != null,
             isShikimoriConnected = prefs.getString(KEY_SHIKIMORI_TOKEN, null) != null,
-            isBangumiConnected = BangumiAuthStore.isConnected(context)
+            isBangumiConnected = BangumiAuthStore.isConnected(context),
+            isTmdbConnected = TmdbAuthStore.isConnected(context)
         )
     }
 
@@ -495,6 +500,7 @@ object ExternalAuthManager {
 
     fun getAuthUrlAndPrepare(context: Context, serviceName: String): String {
         val sharedPreferences = prefs(context)
+        if (serviceName != "tmdb") TmdbAuthStore.clearPendingRequestToken(context)
         return when (serviceName) {
             "anilist" -> {
                 val codeVerifier = generateCodeVerifier()
@@ -551,8 +557,30 @@ object ExternalAuthManager {
     ) {
         try {
             val sharedPreferences = prefs(context)
+            if (serviceName != "tmdb") TmdbAuthStore.clearPendingRequestToken(context)
 
             when (serviceName) {
+                "tmdb" -> {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val authUrl = TmdbAccountClient.createAuthorizationUrl(context)
+                            withContext(Dispatchers.Main) {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                })
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            val message = authFailureMessage(
+                                "tmdb",
+                                error.message ?: "TMDB yetkilendirme başlatılamadı",
+                                error = error
+                            )
+                            withContext(Dispatchers.Main) { onError(message) }
+                        }
+                    }
+                }
                 "anilist" -> {
                     val codeVerifier = generateCodeVerifier()
                     val codeChallenge = generateCodeChallengeS256(codeVerifier)
@@ -666,6 +694,65 @@ object ExternalAuthManager {
         }
 
         if (uri.scheme != "malapp" || uri.host != "auth") return
+
+        // TMDB redirects after approval without an OAuth `code`. Exchange a fresh,
+        // callback-bound request token exactly once; never confuse it with the catalog key.
+        val pendingTmdbRequest = TmdbAuthStore.pendingRequestToken(context)
+        val callbackTmdbRequest = uri.getQueryParameter("request_token")
+        val tmdbCallbackShape = pendingTmdbRequest != null || callbackTmdbRequest != null ||
+            uri.getQueryParameter("approved") != null
+        if (tmdbCallbackShape && uri.getQueryParameter("code") == null) {
+            val denied = uri.getQueryParameter("error")
+            val notApproved = uri.getQueryParameter("approved")?.equals("false", ignoreCase = true) == true ||
+                uri.getQueryParameter("denied")?.equals("true", ignoreCase = true) == true
+            if (denied != null || notApproved) {
+                // A delayed denial from an old browser must not erase a newer login attempt.
+                // The callback-bound token remains usable until its short TTL or a new login.
+                val reason = denied ?: "kullanıcı onay vermedi"
+                val failure = IllegalStateException("TMDB-41: TMDB yetkilendirme iptal edildi: $reason")
+                val message = authFailureMessage("tmdb", failure.message.orEmpty(), error = failure)
+                onError(message)
+                _authEvents.tryEmit(AuthEvent.Error(message))
+                return
+            }
+            val requestToken = TmdbAuthStore.consumePendingRequestToken(context, callbackTmdbRequest)
+            if (requestToken == null) {
+                val failure = IllegalStateException(
+                    "TMDB-33: TMDB giriş isteğinin süresi doldu, kullanıldı veya callback eşleşmedi. Yeniden giriş yapın."
+                )
+                val message = authFailureMessage("tmdb", failure.message.orEmpty(), error = failure)
+                onError(message)
+                _authEvents.tryEmit(AuthEvent.Error(message))
+                return
+            }
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val session = TmdbAccountClient.createSession(requestToken)
+                    TmdbAccountOperationMutex.lock.withLock {
+                        TmdbAuthStore.saveSession(
+                            context = context,
+                            sessionId = session.sessionId,
+                            accountId = session.accountId,
+                            username = session.username
+                        )
+                    }
+                    withContext(Dispatchers.Main) { onSuccess("tmdb") }
+                    _authEvents.tryEmit(AuthEvent.Success("tmdb"))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    // The token was already consumed. Do not clear a newer login attempt.
+                    val message = authFailureMessage(
+                        "tmdb",
+                        error.message ?: "TMDB oturumu oluşturulamadı",
+                        error = error
+                    )
+                    withContext(Dispatchers.Main) { onError(message) }
+                    _authEvents.tryEmit(AuthEvent.Error(message))
+                }
+            }
+            return
+        }
 
         val code = uri.getQueryParameter("code")
         if (code == null) {
@@ -943,6 +1030,10 @@ object ExternalAuthManager {
                 BangumiAuthStore.logout(context)
                 return
             }
+            "tmdb" -> {
+                TmdbAuthStore.clear(context)
+                return
+            }
             else -> {
                 editor.remove(KEY_MAL_TOKEN)
                 editor.remove(KEY_MAL_REFRESH_TOKEN)
@@ -950,6 +1041,15 @@ object ExternalAuthManager {
             }
         }
         editor.apply()
+    }
+
+    /** Suspends instead of blocking the UI while an account snapshot/write is finishing. */
+    suspend fun disconnectAccountCoordinated(context: Context, serviceName: String) {
+        if (serviceName.equals("tmdb", ignoreCase = true)) {
+            TmdbAccountOperationMutex.lock.withLock { TmdbAuthStore.clear(context) }
+        } else {
+            disconnectAccount(context, serviceName)
+        }
     }
 
     private fun exchangeAniListCodeForToken(

@@ -148,7 +148,9 @@ fun KitsugiEditMediaSheet(
         volumeProgress: Int,
         isPrivate: Boolean,
         isHiddenFromStatusLists: Boolean,
-        advancedScores: List<Double>?
+        advancedScores: List<Double>?,
+        tmdbWatchlist: Boolean?,
+        tmdbRating: Double?
     ) -> Unit
 ) {
     val isEditing = initialEntry?.id?.let { it > 0 } == true
@@ -156,6 +158,8 @@ fun KitsugiEditMediaSheet(
         initialEntry?.let { "${it.source}:${it.id}:${it.malId}:${it.title}" } ?: "new:$source"
     }
     val accentColor  = LocalKitsugiAccent.current
+    val isTmdbAccount = com.kitsugi.animelist.data.auth.isTmdbAccountSource(source) ||
+        initialEntry?.source?.let { com.kitsugi.animelist.data.auth.isTmdbAccountSource(it) } == true
     val isKitsu = when (source.lowercase()) {
         "kitsu" -> true
         else -> initialEntry?.source?.lowercase() == "kitsu"
@@ -173,20 +177,20 @@ fun KitsugiEditMediaSheet(
     }
     val isAniList = when (source.lowercase()) {
         "anilist" -> true
-        "mal", "jikan", "myanimelist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm", "bgm.tv" -> false
-        else -> !isKitsu && !isShikimori && !isBangumi && initialEntry?.aniListEntryId != null
+        "mal", "jikan", "myanimelist", "kitsu", "shikimori", "simkl", "tmdb", "tmdb_account", "bangumi", "bgm", "bgm.tv" -> false
+        else -> !isTmdbAccount && !isKitsu && !isShikimori && !isBangumi && initialEntry?.aniListEntryId != null
     }
     val isMal = when (source.lowercase()) {
         "mal", "jikan", "myanimelist" -> true
-        "anilist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm", "bgm.tv" -> false
-        else -> !isKitsu && !isShikimori && !isBangumi && !isAniList && (initialEntry?.malId != null || initialEntry?.source == "mal")
+        "anilist", "kitsu", "shikimori", "simkl", "tmdb", "tmdb_account", "bangumi", "bgm", "bgm.tv" -> false
+        else -> !isTmdbAccount && !isKitsu && !isShikimori && !isBangumi && !isAniList && (initialEntry?.malId != null || initialEntry?.source == "mal")
     }
     val isSimkl = when (source.lowercase()) {
         "simkl", "tmdb" -> true
-        "anilist", "mal", "jikan", "myanimelist", "kitsu", "shikimori", "bangumi", "bgm", "bgm.tv" -> false
-        else -> !isKitsu && !isShikimori && !isBangumi && !isAniList && !isMal && (initialEntry?.simklId != null || initialEntry?.source == "simkl")
+        "anilist", "mal", "jikan", "myanimelist", "kitsu", "shikimori", "tmdb_account", "bangumi", "bgm", "bgm.tv" -> false
+        else -> !isTmdbAccount && !isKitsu && !isShikimori && !isBangumi && !isAniList && !isMal && (initialEntry?.simklId != null || initialEntry?.source == "simkl")
     }
-    val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori && !isBangumi
+    val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori && !isBangumi && !isTmdbAccount
 
     // ── State ──────────────────────────────────────────────────────────────
     // Otomatik tarih/ilerleme kuralı panel açılır açılmaz uygulanır: böylece
@@ -227,10 +231,21 @@ fun KitsugiEditMediaSheet(
 
     // AniHyou paritesi: 0,5 puanlama adımı seçiliyken kullanılan kayan puan durumu (0-10)
     var scoreHalf by rememberSaveable(editorEntryKey) {
-        mutableFloatStateOf((initialEntry?.score ?: 0).toFloat())
+        mutableFloatStateOf((initialEntry?.tmdbRating ?: initialEntry?.score?.toDouble() ?: 0.0).toFloat())
     }
 
     var isFavorite     by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.isFavorite ?: false) }
+    var tmdbWatchlist  by rememberSaveable(editorEntryKey) {
+        mutableStateOf(initialEntry?.tmdbWatchlist ?: (initialEntry?.status == WatchStatus.Planned))
+    }
+    var showTmdbListsDialog by rememberSaveable(editorEntryKey) { mutableStateOf(false) }
+    var isTmdbStateLoading by rememberSaveable(editorEntryKey) {
+        mutableStateOf(isTmdbAccount && initialEntry?.tmdbId != null)
+    }
+    var tmdbWatchlistEdited by rememberSaveable(editorEntryKey) { mutableStateOf(false) }
+    var tmdbFavoriteEdited by rememberSaveable(editorEntryKey) { mutableStateOf(false) }
+    var tmdbRatingEdited by rememberSaveable(editorEntryKey) { mutableStateOf(false) }
+    var tmdbStateError by remember(editorEntryKey) { mutableStateOf<String?>(null) }
     var startDateText  by rememberSaveable(editorEntryKey) { mutableStateOf(autoOnOpen.startDate.orEmpty()) }
     var endDateText    by rememberSaveable(editorEntryKey) { mutableStateOf(autoOnOpen.endDate.orEmpty()) }
     var notes          by rememberSaveable(editorEntryKey) { mutableStateOf(initialEntry?.notes.orEmpty()) }
@@ -247,6 +262,43 @@ fun KitsugiEditMediaSheet(
     // AniList Metadata / Advanced Scoring / Custom Lists
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LaunchedEffect(editorEntryKey, isTmdbAccount) {
+        if (!isTmdbAccount) return@LaunchedEffect
+        val tmdbId = initialEntry?.tmdbId?.takeIf { it > 0 }
+        val entryType = initialEntry?.type
+        val sessionId = com.kitsugi.animelist.data.auth.TmdbAuthStore.sessionId(context)
+        val accountId = com.kitsugi.animelist.data.auth.TmdbAuthStore.accountId(context)
+        if (tmdbId == null || entryType == null || sessionId.isNullOrBlank() || accountId == null) {
+            isTmdbStateLoading = false
+            return@LaunchedEffect
+        }
+        isTmdbStateLoading = true
+        tmdbStateError = null
+        try {
+            val accountState = withContext(Dispatchers.IO) {
+                com.kitsugi.animelist.data.remote.TmdbAccountClient.fetchAccountState(
+                    sessionId = sessionId,
+                    type = entryType,
+                    tmdbId = tmdbId
+                )
+            }
+            if (!com.kitsugi.animelist.data.auth.TmdbAuthStore.matchesSession(context, sessionId, accountId)) {
+                return@LaunchedEffect
+            }
+            if (!tmdbWatchlistEdited) tmdbWatchlist = accountState.watchlist
+            if (!tmdbFavoriteEdited) isFavorite = accountState.favorite
+            if (!tmdbRatingEdited) scoreHalf = accountState.rating?.toFloat() ?: 0f
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            com.kitsugi.animelist.data.platform.PlatformFailureRegistry.reportAndResolve("tmdb", error)
+            tmdbStateError = error.message ?: context.getString(R.string.tmdb_editor_account_state_fallback)
+        } finally {
+            isTmdbStateLoading = false
+        }
+    }
+
     val aniListToken = androidx.compose.runtime.remember { ExternalAuthManager.getAniListToken(context) }
     var showCustomListsDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
     var isLoadingMetadata by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -323,8 +375,8 @@ fun KitsugiEditMediaSheet(
     val advancedAverage = if (activeAdvancedScores.isNotEmpty()) activeAdvancedScores.average() else 0.0
     // AniHyou paritesi: "Puanlama adımları" 0,5 ise yıldızlar yerine ±0,5 stepper geçer.
     val scoreStepPref = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.scoreStep
-    val halfStepMode = scoreStepPref == 0.5f && !advancedScoresEnabled &&
-        (scoreFormat == "POINT_10" || scoreFormat == "POINT_100" || scoreFormat == "POINT_5")
+    val halfStepMode = isTmdbAccount || (scoreStepPref == 0.5f && !advancedScoresEnabled &&
+        (scoreFormat == "POINT_10" || scoreFormat == "POINT_100" || scoreFormat == "POINT_5"))
     val effectiveScoreRaw = if (advancedScoresEnabled && advancedScoresCategories.isNotEmpty()) {
         advancedAverage.roundToInt()
     } else if (halfStepMode) {
@@ -333,7 +385,9 @@ fun KitsugiEditMediaSheet(
         scoreRaw
     }
 
-    val parsedScore: Int? = if (effectiveScoreRaw <= 0) null else when (scoreFormat) {
+    val parsedScore: Int? = if (isTmdbAccount) {
+        scoreHalf.roundToInt().takeIf { scoreHalf > 0f }
+    } else if (effectiveScoreRaw <= 0) null else when (scoreFormat) {
         "POINT_100"      -> (effectiveScoreRaw / 10).coerceIn(0, 10)
         "POINT_10_DECIMAL" -> effectiveScoreRaw.coerceIn(0, 10)
         "POINT_5"        -> (effectiveScoreRaw * 2).coerceIn(0, 10)
@@ -348,7 +402,7 @@ fun KitsugiEditMediaSheet(
         !EntryAutoRules.isBlankDate(endDateText) &&
         startDateText.isValidDateOrBlank() && endDateText.isValidDateOrBlank() &&
         endDateText < startDateText
-    val canSave = (isManual && title.isNotBlank() || !isManual) &&
+    val canSave = !isTmdbStateLoading && (isManual && title.isNotBlank() || !isManual) &&
             startDateText.trim().isValidDateOrBlank() &&
             endDateText.trim().isValidDateOrBlank()
 
@@ -357,6 +411,7 @@ fun KitsugiEditMediaSheet(
 
     // ── Platform info ──────────────────────────────────────────────────────
     val platformName = when {
+        isTmdbAccount -> "TMDB"
         isKitsu     -> "Kitsu"
         isShikimori -> "Shikimori"
         isBangumi   -> "Bangumi"
@@ -366,6 +421,7 @@ fun KitsugiEditMediaSheet(
         else        -> "Yerel Kitaplık"
     }
     val platformColor = when {
+        isTmdbAccount -> Color(0xFF01B4E4)
         isKitsu     -> Color(0xFFFD755C)
         isShikimori -> Color(0xFF8E44AD)
         isBangumi   -> Color(0xFFF09199)
@@ -452,13 +508,17 @@ fun KitsugiEditMediaSheet(
                             if (isManual) selectedType else initialEntry?.type ?: MediaType.Anime,
                             selectedStatus,
                             if (isManual) isAdult else initialEntry?.isAdult ?: false,
-                            parsedProgress, parsedTotal, parsedScore, isFavorite,
+                            parsedProgress, parsedTotal,
+                            if (isTmdbAccount && !tmdbRatingEdited) initialEntry?.score else parsedScore,
+                            if (isTmdbAccount && !tmdbFavoriteEdited) initialEntry?.isFavorite ?: false else isFavorite,
                             normalizedStart, normalizedEnd,
                             notes.trim().takeIf { it.isNotBlank() },
                             tags.trim().takeIf { it.isNotBlank() },
                             priority, isRepeating, repeatCount, repeatValue, volumeProgress,
                             isPrivate, isHiddenFromStatusLists,
-                            advancedScoresList
+                            advancedScoresList,
+                            if (isTmdbAccount && tmdbWatchlistEdited) tmdbWatchlist else initialEntry?.tmdbWatchlist,
+                            if (isTmdbAccount && tmdbRatingEdited) scoreHalf.toDouble().takeIf { it > 0.0 } else initialEntry?.tmdbRating
                         )
                     }
                 ) {
@@ -611,6 +671,68 @@ fun KitsugiEditMediaSheet(
                     }
                 }
 
+                if (isTmdbAccount) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.tmdb_editor_account),
+                        color = platformColor,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                    SheetRow(
+                        icon = Icons.Rounded.Bookmark,
+                        label = stringResource(R.string.tmdb_editor_watchlist),
+                        switchChecked = tmdbWatchlist,
+                        onSwitchCheckedChange = {
+                            tmdbWatchlist = it
+                            tmdbWatchlistEdited = true
+                        }
+                    )
+                    SheetRow(
+                        icon = Icons.Rounded.Star,
+                        label = stringResource(R.string.tmdb_editor_favorite),
+                        switchChecked = isFavorite,
+                        onSwitchCheckedChange = {
+                            isFavorite = it
+                            tmdbFavoriteEdited = true
+                        }
+                    )
+                    SheetRow(
+                        icon = Icons.Rounded.List,
+                        label = stringResource(R.string.tmdb_editor_custom_lists),
+                        onClick = if (initialEntry?.type == MediaType.Movie && initialEntry.tmdbId != null) {
+                            { showTmdbListsDialog = true }
+                        } else null
+                    )
+                    if (isTmdbStateLoading) {
+                        Text(
+                            text = stringResource(R.string.tmdb_editor_account_state_loading),
+                            color = KitsugiColors.TextMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                    tmdbStateError?.let { message ->
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                    Text(
+                        text = if (initialEntry?.type == MediaType.Movie) {
+                            stringResource(R.string.tmdb_editor_native_movie_description)
+                        } else {
+                            stringResource(R.string.tmdb_editor_native_tv_description)
+                        },
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+
                 // ── Star Rating ────────────────────────────────────────────
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(
@@ -645,8 +767,14 @@ fun KitsugiEditMediaSheet(
                             icon = Icons.Rounded.Star,
                             label = "Puan (0,5 adım)",
                             value = String.format(java.util.Locale.US, "%.1f", scoreHalf),
-                            onDecrement = { scoreHalf = (scoreHalf - 0.5f).coerceAtLeast(0f) },
-                            onIncrement = { scoreHalf = (scoreHalf + 0.5f).coerceAtMost(10f) }
+                            onDecrement = {
+                                scoreHalf = (scoreHalf - 0.5f).coerceAtLeast(0f)
+                                if (isTmdbAccount) tmdbRatingEdited = true
+                            },
+                            onIncrement = {
+                                scoreHalf = (scoreHalf + 0.5f).coerceAtMost(10f)
+                                if (isTmdbAccount) tmdbRatingEdited = true
+                            }
                         )
                     }
                     if (!halfStepMode) Row(
@@ -1073,6 +1201,7 @@ fun KitsugiEditMediaSheet(
                 Spacer(modifier = Modifier.height(18.dp))
                 // Bu platforma gönderilmeyen alanları açıkça belirt (kullanıcı yanılmasın)
                 val unsyncedHint = when {
+                    isTmdbAccount -> stringResource(R.string.tmdb_editor_local_fields_note)
                     isShikimori -> "Tarihler ve favori Shikimori'ye gönderilmez; yalnızca Kitsugi'de saklanır."
                     isBangumi   -> "Tarihler ve favori Bangumi'ye gönderilmez; yalnızca Kitsugi'de saklanır."
                     isSimkl     -> "Not, tarih ve favori Simkl'e gönderilmez; yalnızca Kitsugi'de saklanır."
@@ -1088,6 +1217,7 @@ fun KitsugiEditMediaSheet(
                     )
                 }
                 val syncNote = when {
+                    isTmdbAccount -> stringResource(R.string.tmdb_editor_sync_note)
                     isKitsu     -> "Not: Değişiklikler otomatik olarak Kitsu hesabınızla senkronize edilecektir."
                     isShikimori -> "Not: Değişiklikler otomatik olarak Shikimori hesabınızla senkronize edilecektir."
                     isBangumi   -> "Not: Değişiklikler otomatik olarak Bangumi hesabınızla senkronize edilecektir."
@@ -1107,6 +1237,13 @@ fun KitsugiEditMediaSheet(
                 }
             }
         }
+    }
+
+    if (showTmdbListsDialog && initialEntry != null) {
+        KitsugiTmdbListsDialog(
+            entry = initialEntry,
+            onDismiss = { showTmdbListsDialog = false }
+        )
     }
 
     if (showCustomListsDialog && viewerCustomLists.isNotEmpty()) {

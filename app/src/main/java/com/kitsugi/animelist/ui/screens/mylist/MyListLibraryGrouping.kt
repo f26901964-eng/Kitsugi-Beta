@@ -5,9 +5,10 @@ import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
 import com.kitsugi.animelist.utils.PreferenceHelpers
+import com.kitsugi.animelist.model.MediaType
 
 /**
- * Sekme sırası: 0 = Tümü (birleşik kütüphane), 1..5 = platform kütüphaneleri.
+ * Sekme sırası: 0 = Tümü (birleşik kütüphane), 1..7 = platform kütüphaneleri.
  * "Tümü" artık en başta durur; pager ve hap butonlar aynı sırayı paylaşır.
  */
 internal const val MY_LIST_ALL_TAB_INDEX = 0
@@ -17,7 +18,8 @@ internal const val MY_LIST_SIMKL_TAB_INDEX = 3
 internal const val MY_LIST_KITSU_TAB_INDEX = 4
 internal const val MY_LIST_SHIKIMORI_TAB_INDEX = 5
 internal const val MY_LIST_BANGUMI_TAB_INDEX = 6
-internal const val MY_LIST_TAB_COUNT = 7
+internal const val MY_LIST_TMDB_TAB_INDEX = 7
+internal const val MY_LIST_TAB_COUNT = 8
 
 /** Verilen kaynağın hangi platform sekmesine ait olduğunu döner (Tümü için null). */
 internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId(source)) {
@@ -27,6 +29,7 @@ internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId
     "kitsu" -> MY_LIST_KITSU_TAB_INDEX
     "shikimori" -> MY_LIST_SHIKIMORI_TAB_INDEX
     "bangumi" -> MY_LIST_BANGUMI_TAB_INDEX
+    "tmdb" -> MY_LIST_TMDB_TAB_INDEX
     else -> null
 }
 
@@ -38,10 +41,15 @@ internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId
 internal fun isBangumiListMember(source: String, malId: Int?): Boolean =
     sourceBadgeId(source) == "bangumi" && malId != null && malId in 500_000_001..599_999_999
 
+/** Only a real account row is membership; a catalog-only TMDB row is not. */
+internal fun isTmdbAccountListMember(source: String): Boolean =
+    com.kitsugi.animelist.data.auth.isTmdbAccountSource(source)
+
 /** Bir kaydın verilen platform sekmesinde görünüp görünmeyeceğini söyler. */
 internal fun myListSourceMatchesTab(tabIndex: Int, source: String, malId: Int? = null): Boolean = when {
     tabIndex == MY_LIST_ALL_TAB_INDEX -> false
     tabIndex == MY_LIST_BANGUMI_TAB_INDEX -> isBangumiListMember(source, malId)
+    tabIndex == MY_LIST_TMDB_TAB_INDEX -> isTmdbAccountListMember(source)
     else -> myListTabIndexForSource(source) == tabIndex
 }
 
@@ -56,6 +64,7 @@ internal fun defaultMyListSourceForTab(tabIndex: Int): String = when (tabIndex) 
     MY_LIST_SHIKIMORI_TAB_INDEX -> "shikimori"
     // Manual entries have no verified Bangumi collection membership.
     MY_LIST_BANGUMI_TAB_INDEX -> "manual"
+    MY_LIST_TMDB_TAB_INDEX -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
     else -> "anilist"
 }
 
@@ -231,7 +240,8 @@ internal fun buildMyListLibrarySnapshot(
                     a = existing.entry,
                     b = entry,
                     keysA = existing.keys,
-                    keysB = identity.keys
+                    keysB = identity.keys,
+                    allowCrossType = true
                 )
             }
         }
@@ -290,7 +300,8 @@ internal fun buildMyListLibrarySnapshot(
                         a = existing.entry,
                         b = candidate.entry,
                         keysA = existing.keys,
-                        keysB = candidate.keys
+                        keysB = candidate.keys,
+                        allowCrossType = true
                     )
                 }
             }
@@ -513,7 +524,7 @@ internal fun sourceBadgeId(source: String): String? = when (source.trim().lowerc
     "kitsu" -> "kitsu"
     "shikimori", "shiki" -> "shikimori"
     "bangumi", "bgm", "bgm.tv" -> "bangumi"
-    "tmdb", "themoviedb" -> "tmdb"
+    "tmdb", "themoviedb", "tmdb_account" -> "tmdb"
     else -> null
 }
 
@@ -523,10 +534,20 @@ internal fun sourceBadgeId(source: String): String? = when (source.trim().lowerc
  * key can only ever produce a candidate, never a merge.
  */
 private fun identityCandidateKeys(identity: IdentityKeysOf): Set<String> = buildSet {
-    identity.keys.forEach { add("id:$it") }
     val entry = identity.entry
+    val watchable = entry.type == MediaType.Anime || entry.type == MediaType.Movie || entry.type == MediaType.TvShow
+    identity.keys.forEach { key ->
+        add("id:$key")
+        if (watchable) {
+            val parts = key.split(':')
+            if (parts.size == 3) add("xid:${parts[1]}:${parts[2]}")
+        }
+    }
     listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese).forEach { title ->
         val normalized = MediaIdentity.normalizedTitle(title)
-        if (normalized.isNotBlank()) add("title:${entry.type.name}:$normalized")
+        if (normalized.isNotBlank()) {
+            add("title:${entry.type.name}:$normalized")
+            if (watchable) add("xtitle:${entry.year ?: 0}:$normalized")
+        }
     }
 }

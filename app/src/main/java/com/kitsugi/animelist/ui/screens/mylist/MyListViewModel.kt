@@ -75,6 +75,9 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         // Bozuk Simkl subtitle'larını ve kaynak etiketlerini tek seferlik onar
         viewModelScope.launch {
             val dao = KitsugiDatabase.getDatabase(context).mediaEntryDao()
+            // Önce eski TMDB katalog satırlarını gerçek Simkl üyeliğine taşı; bu işlem
+            // yalnızca yerel DB'de çalışır ve uzak listeden hiçbir kayıt silmez.
+            TmdbLibraryEntryMigration.run(dao)
             repairBrokenSimklSubtitles(dao)
             repairMisclassifiedSources(dao)
             // Kitsu kimlik alanını kanonik stableId uzayına taşı (eski sürüm import'ları
@@ -259,7 +262,7 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
 
     /**
      * Bangumi liste ekranından ekleme/düzenleme: diğer kaynaklarla aynı hat kullanılır —
-     * kayıt önce yerele yazılır, sonra canlı eşitleme Bangumi dahil altı kaynağa birden
+     * kayıt önce yerele yazılır, sonra canlı eşitleme Bangumi ve TMDB dahil yedi kaynağa birden
      * yayılır (AniList · MAL · Simkl · Kitsu · Shikimori · Bangumi).
      *
      * Eski akış önce Bangumi'ye yazıyor, başarısız olursa kaydı yerele bile kaydetmiyordu:

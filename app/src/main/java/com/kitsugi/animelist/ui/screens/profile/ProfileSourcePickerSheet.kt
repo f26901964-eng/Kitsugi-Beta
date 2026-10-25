@@ -77,6 +77,11 @@ enum class ProfilePlatform(
         id = "bangumi",
         label = "Bangumi",
         description = KitsugiStrings.get(R.string.anime_manga_oyun_ve_muzik_koleksiyonlari_ilerleme_ve_puanlar_fav)
+    ),
+    TMDB(
+        id = "tmdb",
+        label = "TMDB",
+        description = KitsugiStrings.get(R.string.tmdb_profile_source_desc)
     )
 }
 
@@ -159,6 +164,8 @@ fun ProfileSourcePickerSheet(
     shikimoriUsername: String? = null,
     isBangumiConnected: Boolean = false,
     bangumiUsername: String? = null,
+    isTmdbConnected: Boolean = false,
+    tmdbUsername: String? = null,
     onSelectPlatform: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -210,6 +217,7 @@ fun ProfileSourcePickerSheet(
                     ProfilePlatform.KITSU -> isKitsuConnected
                     ProfilePlatform.SHIKIMORI -> isShikimoriConnected
                     ProfilePlatform.BANGUMI -> isBangumiConnected
+                    ProfilePlatform.TMDB -> isTmdbConnected
                 }
                 val username = when (platform) {
                     ProfilePlatform.ANILIST -> aniListUsername
@@ -218,6 +226,7 @@ fun ProfileSourcePickerSheet(
                     ProfilePlatform.KITSU -> kitsuUsername
                     ProfilePlatform.SHIKIMORI -> shikimoriUsername
                     ProfilePlatform.BANGUMI -> bangumiUsername
+                    ProfilePlatform.TMDB -> tmdbUsername
                 }
 
                 Row(

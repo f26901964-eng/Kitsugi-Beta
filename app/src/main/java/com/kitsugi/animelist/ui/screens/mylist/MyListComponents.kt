@@ -481,6 +481,8 @@ fun MyListTabBar(
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
+    tmdbUsername: String = "",
     anilistUsername: String = "",
     malUsername: String = "",
     simklUsername: String = "",
@@ -509,6 +511,8 @@ fun MyListTabBar(
         ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_SHIKIMORI_TAB_INDEX, it.source, it.malId) } }
     val countBangumi = tabCounts?.getOrNull(MY_LIST_BANGUMI_TAB_INDEX)
         ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_BANGUMI_TAB_INDEX, it.source, it.malId) } }
+    val countTmdb = tabCounts?.getOrNull(MY_LIST_TMDB_TAB_INDEX)
+        ?: remember(allEntries) { allEntries.count { myListSourceMatchesTab(MY_LIST_TMDB_TAB_INDEX, it.source, it.malId) } }
 
     val platforms = listOf(
         MyListPlatformSource(
@@ -582,6 +586,18 @@ fun MyListTabBar(
             username = bangumiUsername,
             count = countBangumi,
             description = "Çin'in anime/manga topluluk veritabanı (bgm.tv)"
+        ),
+        MyListPlatformSource(
+            index = MY_LIST_TMDB_TAB_INDEX,
+            id = "tmdb",
+            name = "TMDB",
+            shortName = "TMDB",
+            emoji = "🎬",
+            brandColor = Color(0xFF01B4E4),
+            isConnected = isTmdbConnected,
+            username = tmdbUsername,
+            count = countTmdb,
+            description = "TMDB hesap Watchlist, favoriler ve puanlar"
         )
     )
 

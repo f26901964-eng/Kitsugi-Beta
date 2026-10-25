@@ -44,7 +44,9 @@ object PendingSyncDrainer {
         dao: PendingSyncDao,
         operation: String,
         entry: MediaEntry,
-        fields: Set<SyncField> = SyncField.ALL
+        fields: Set<SyncField> = SyncField.ALL,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
     ) = withContext(Dispatchers.IO) {
         drainMutex.withLock {
             // Aynı satır için bekleyen işler bulunur. Yeni iş eskileri EZER (satır en güncel
@@ -72,7 +74,7 @@ object PendingSyncDrainer {
             }
             val mergedFields = PendingSyncPolicy.mergedFields(fields, olderFieldSets)
             // Insert first: a failed insert must not destroy the previous recoverable job.
-            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(mergedFields)))
+            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(mergedFields, tmdbFields, expectedTmdbAccountId)))
             older.forEach { dao.deleteById(it.id) }
 
             // ── "Sildim, sonra tekrar ekledim" koruması ────────────────────────────
@@ -187,12 +189,38 @@ object PendingSyncDrainer {
         context: Context,
         dao: PendingSyncDao,
         freshBudget: Boolean = false
-    ): Int = drain(dao, freshBudget) { operation, entry, fields ->
+    ): Int = drain(dao, freshBudget) { operation, entry, fields, tmdbFields, expectedTmdbAccountId ->
         when (operation) {
-            "UPDATE" -> ExternalListSyncManager.syncEntry(context, entry, fields = fields)
-            "DELETE" -> ExternalListSyncManager.deleteEntry(context, entry)
+            "UPDATE" -> ExternalListSyncManager.syncEntry(
+                context = context,
+                entry = entry,
+                fields = fields,
+                tmdbFields = tmdbFields,
+                expectedTmdbAccountId = expectedTmdbAccountId
+            )
+            "DELETE" -> ExternalListSyncManager.deleteEntry(
+                context = context,
+                entry = entry,
+                expectedTmdbAccountId = expectedTmdbAccountId
+            )
             else -> null
         }
+    }
+
+    /**
+     * Geriye uyumluluk: TMDB alanları gerekmeyen testler ve çağrıcılar için 3 parametreli aşırı yükleme.
+     */
+    @JvmName("drainLegacy")
+    internal suspend fun drain(
+        dao: PendingSyncDao,
+        freshBudget: Boolean = false,
+        execute: suspend (
+            operation: String,
+            entry: MediaEntry,
+            fields: Set<SyncField>
+        ) -> ExternalListSyncManager.SyncResult?
+    ): Int = drain(dao, freshBudget) { operation, entry, fields, _, _ ->
+        execute(operation, entry, fields)
     }
 
     /**
@@ -210,7 +238,9 @@ object PendingSyncDrainer {
         execute: suspend (
             operation: String,
             entry: MediaEntry,
-            fields: Set<SyncField>
+            fields: Set<SyncField>,
+            tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields,
+            expectedTmdbAccountId: Int?
         ) -> ExternalListSyncManager.SyncResult?
     ): Int = withContext(Dispatchers.IO) {
         // Exhausted jobs remain inspectable/recoverable; never silently delete user intent.
@@ -224,7 +254,7 @@ object PendingSyncDrainer {
 
         for (item in pending) {
             val decoded = runSyncCatching { item.entryJson.decodeJob() }.getOrNull()
-            val entry = decoded?.first
+            val entry = decoded?.entry
             if (entry == null) {
                 // Preserve malformed jobs for recovery rather than destroying them.
                 dao.incrementRetry(item.id)
@@ -232,9 +262,11 @@ object PendingSyncDrainer {
             }
 
             val result = runSyncCatching {
-                val fields = decoded?.second ?: SyncField.ALL
+                val fields = decoded.fields
+                val tmdbFields = decoded.tmdbFields
+                val expectedTmdbAccountId = decoded.expectedTmdbAccountId
                 when (item.operation) {
-                    "UPDATE", "DELETE" -> execute(item.operation, entry, fields)
+                    "UPDATE", "DELETE" -> execute(item.operation, entry, fields, tmdbFields, expectedTmdbAccountId)
                     else -> null
                 }
             }
@@ -273,34 +305,58 @@ object PendingSyncDrainer {
     // JSON Serializasyon / Deserializasyon
     // ────────────────────────────────────────────────
 
-    /** İşin kendi alan kümesi JSON'a `_syncFields` olarak gömülür (şema değişikliği gerekmez). */
-    private fun MediaEntry.toJson(fields: Set<SyncField>): String {
+    private data class DecodedJob(
+        val entry: MediaEntry,
+        val fields: Set<SyncField>,
+        val tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields,
+        val expectedTmdbAccountId: Int?
+    )
+
+    /** İşin kendi alan kümesi JSON'a `_syncFields` ve `_tmdbWriteFields` olarak gömülür (şema değişikliği gerekmez). */
+    private fun MediaEntry.toJson(
+        fields: Set<SyncField>,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
+    ): String {
         val names = org.json.JSONArray()
         fields.forEach { names.put(it.name) }
         return JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
             .getJSONArray("entries").getJSONObject(0)
             .put("id", id)
             .put(KEY_FIELDS, names)
+            .put(TMDB_FIELDS_KEY, tmdbFields.toToken())
+            .apply {
+                if (expectedTmdbAccountId != null) put(TMDB_ACCOUNT_ID_KEY, expectedTmdbAccountId)
+            }
             .toString()
     }
 
     /**
-     * Kuyruk kaydını (satır, alanlar) çiftine çevirir. `_syncFields` yoksa (eski kayıtlar)
-     * tam yazım kabul edilir.
+     * Kuyruk kaydını satır, alanlar, tmdbFields ve expectedTmdbAccountId bilgilerine çevirir.
      */
-    private fun String.decodeJob(): Pair<MediaEntry, Set<SyncField>> {
+    private fun String.decodeJob(): DecodedJob {
         val item = JSONObject(this)
         val fields = item.optJSONArray(KEY_FIELDS)?.let { names ->
             (0 until names.length()).mapNotNull { index ->
                 runSyncCatching { SyncField.valueOf(names.getString(index)) }.getOrNull()
             }.toSet()
         }?.takeIf { it.isNotEmpty() } ?: SyncField.ALL
+
+        val tmdbFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.fromToken(
+            if (item.has(TMDB_FIELDS_KEY)) item.optString(TMDB_FIELDS_KEY) else null
+        ) ?: com.kitsugi.animelist.data.auth.TmdbWriteFields.All
+
+        val expectedTmdbAccountId = if (item.has(TMDB_ACCOUNT_ID_KEY)) item.optInt(TMDB_ACCOUNT_ID_KEY, 0) else null
+
         item.remove(KEY_FIELDS)
+        item.remove(TMDB_FIELDS_KEY)
+        item.remove(TMDB_ACCOUNT_ID_KEY)
+
         val backup = JSONObject().put("schemaVersion", 2)
             .put("entries", org.json.JSONArray().put(item))
         val entry = MediaEntryBackup.importFromJson(backup.toString()).single()
             .copy(id = item.optInt("id", 0))
-        return entry to fields
+        return DecodedJob(entry, fields, tmdbFields, expectedTmdbAccountId)
     }
 
     /** Kayıttaki alan kümesini okur (yoksa tam yazım). */
@@ -311,4 +367,6 @@ object PendingSyncDrainer {
     }?.takeIf { it.isNotEmpty() } ?: SyncField.ALL
 
     private const val KEY_FIELDS = "_syncFields"
+    private const val TMDB_FIELDS_KEY = "_tmdbWriteFields"
+    private const val TMDB_ACCOUNT_ID_KEY = "_tmdbAccountId"
 }

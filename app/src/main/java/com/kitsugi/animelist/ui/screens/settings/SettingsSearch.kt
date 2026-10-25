@@ -234,6 +234,7 @@ internal fun settingsSearchEntries(): List<SettingsSearchEntry> {
         entry("Kitsu", path(accountBase, "Kitsu"), "kitsu anime manga hesap giriş login bağlantı import içe aktar eşitleme", Icons.Rounded.Sync, KitsugiColors.AccentPurple, route = SettingsRoute.KitsuSettings),
         entry("Shikimori", path(accountBase, "Shikimori"), "shikimori anime manga hesap giriş login bağlantı import içe aktar eşitleme", Icons.Rounded.Sync, KitsugiColors.AccentPink, route = SettingsRoute.ShikimoriSettings),
         entry("Bangumi", path(accountBase, "Bangumi"), "bgm.tv anime manga hesap giriş login bağlantı import içe aktar eşitleme", Icons.Rounded.Sync, KitsugiColors.AccentTeal, route = SettingsRoute.BangumiSettings),
+        entry("TMDB Watchlist", path(accountBase, "TMDB Watchlist"), "tmdb hesap giriş login watchlist izleme listesi film dizi import içe aktar", Icons.Rounded.Sync, KitsugiColors.AccentBlue, route = SettingsRoute.TmdbSettings),
 
         // Appearance, navigation and list preferences
         entry(appearanceTitle, appearanceBase, "görünüm tercihler tema renk arayüz kişiselleştirme settings appearance preferences", Icons.Rounded.Palette, LocalKitsugiAccent.current, route = SettingsRoute.AppearancePreferences),
