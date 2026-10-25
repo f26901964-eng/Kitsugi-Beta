@@ -188,65 +188,49 @@ class AnimeDownloader(private val context: Context) {
                 val dAniListId = download.aniListId
                 val dTmdbId = download.tmdbId ?: if (dMalId == null && dAniListId == null) download.animeId.toIntOrNull() else null
                 
-                if (dMalId != null || dAniListId != null || dTmdbId != null) {
-                    val resolvedIds = com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
-                        malId = dMalId,
-                        aniListId = dAniListId,
-                        tmdbId = dTmdbId
+                // ── Ortak Altyazı Omurgası ────────────────────────────────────
+                // Eskiden indirme yolu kendi ID/sorgu mantığını kuruyordu: yalnız IMDb +
+                // Kitsu, tek başlık, önbellek yok. Artık altyazılar oynatıcıyla AYNI
+                // merkezden geliyor → indirilen bölüm ile oynatılan bölüm aynı altyazı
+                // havuzunu kullanır (kaynak kayırmama).
+                val isMovieType = download.season == 0 && download.episode <= 1
+                val guessedFilename = download.url.let { url ->
+                    try {
+                        val lastSeg = android.net.Uri.parse(url).lastPathSegment
+                        if (!lastSeg.isNullOrBlank() && lastSeg.contains(".")) lastSeg else null
+                    } catch (_: Exception) { null }
+                }
+                val cleanedFilename = guessedFilename?.substringBefore("\n")?.substringBefore("\r")?.trim()
+
+                val downloadIdentity = com.kitsugi.animelist.core.identity.MediaIdentity(
+                    title = download.animeTitle,
+                    isMovie = isMovieType,
+                    malId = dMalId,
+                    aniListId = dAniListId,
+                    tmdbId = dTmdbId,
+                    season = if (download.season <= 0) 1 else download.season,
+                    episode = if (download.episode <= 0) 1 else download.episode
+                )
+                val hubResult = com.kitsugi.animelist.core.subtitle.SubtitleHub(context).load(
+                    identity = downloadIdentity,
+                    videoUrl = download.url,
+                    videoHeaders = download.requestHeaders,
+                    filename = cleanedFilename
+                )
+                android.util.Log.d(
+                    "AnimeDownloader",
+                    "Altyazı (ortak merkez): bellek=" + hubResult.cached.size + " ağ=" + hubResult.remote.size
+                )
+
+                for (sub in hubResult.all()) {
+                    val friendlyLangName = com.kitsugi.animelist.core.player.PlayerSubtitleUtils.getFriendlyLanguageName(sub.lang)
+                    allResolvedSubtitles.add(
+                        com.kitsugi.animelist.core.player.SubtitleInput(
+                            url = sub.url,
+                            name = "$friendlyLangName (${sub.addonName})",
+                            lang = sub.lang
+                        )
                     )
-                    val imdbId = resolvedIds.imdbId
-                    val kitsuId = resolvedIds.kitsuId
-                    
-                    val isMovieType = download.season == 0 && download.episode <= 1
-                    val type = if (isMovieType) "movie" else "series"
-                    val queryIds = mutableListOf<String>()
-                    if (!imdbId.isNullOrBlank()) {
-                        queryIds.add(if (isMovieType) imdbId else "$imdbId:${download.season}:${download.episode}")
-                    }
-                    if (kitsuId != null) {
-                        queryIds.add(if (isMovieType) "kitsu:$kitsuId" else "kitsu:$kitsuId:${download.episode}")
-                    }
-                    
-                    if (queryIds.isNotEmpty()) {
-                        val guessedFilename = download.url.let { url ->
-                            try {
-                                val lastSeg = android.net.Uri.parse(url).lastPathSegment
-                                if (!lastSeg.isNullOrBlank() && lastSeg.contains(".")) lastSeg else null
-                            } catch (_: Exception) { null }
-                        }
-                        val cleanedFilename = guessedFilename?.substringBefore("\n")?.substringBefore("\r")?.trim()
-                        
-                        val subRepo = com.kitsugi.animelist.data.repository.SubtitleRepositoryImpl(context)
-                        val remoteSubs = mutableListOf<com.kitsugi.animelist.core.player.model.Subtitle>()
-                        for (queryId in queryIds) {
-                            try {
-                                val subs = subRepo.getSubtitles(
-                                    type = type,
-                                    id = queryId,
-                                    videoUrl = download.url,
-                                    videoHeaders = download.requestHeaders,
-                                    filename = cleanedFilename,
-                                    aniListId = dAniListId,
-                                    animeTitle = download.animeTitle,
-                                    episode = download.episode
-                                )
-                                remoteSubs.addAll(subs)
-                            } catch (e: Exception) {
-                                android.util.Log.e("AnimeDownloader", "Failed to fetch subtitles for queryId=$queryId", e)
-                            }
-                        }
-                        
-                        for (sub in remoteSubs.distinctBy { it.url }) {
-                            val friendlyLangName = com.kitsugi.animelist.core.player.PlayerSubtitleUtils.getFriendlyLanguageName(sub.lang)
-                            allResolvedSubtitles.add(
-                                com.kitsugi.animelist.core.player.SubtitleInput(
-                                    url = sub.url,
-                                    name = "$friendlyLangName (${sub.addonName})",
-                                    lang = sub.lang
-                                )
-                            )
-                        }
-                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("AnimeDownloader", "Failed to resolve subtitles in downloader", e)

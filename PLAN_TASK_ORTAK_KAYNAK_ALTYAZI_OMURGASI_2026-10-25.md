@@ -20,6 +20,9 @@
 | 2b | Oynatıcı entegrasyonu (kaynak değişiminde kayıp yok) | ✅ kodlandı |
 | 2c | Akış tarafı eşitlik (doğrudan URL = tohum, erken çıkış kaldırıldı) | ✅ kodlandı |
 | 2d | Hash önbelleği | ✅ kodlandı |
+| 2e | R8/Proguard: kalıcı JSON sınıfları | ✅ kodlandı |
+| 2f | İndirme (AnimeDownloader) ortak merkeze bağlandı | ✅ kodlandı |
+| 2g | Aynı anda çift altyazı taraması engellendi + bellek tazelik penceresi | ✅ kodlandı |
 | 3 | Altyazı eklentisi sınıflandırma / idPrefixes / CS SubtitleAPI | ⏳ bekliyor |
 | 4 | Cihaz testi + sürüm notu | ⏳ bekliyor |
 
@@ -76,6 +79,19 @@ Bilinen eksikler: `ui/screens/history/WatchHistoryScreen.kt` (~L162) yalnızca `
   - Tekilleştirme URL yerine **dil+ad** ile; yerel dosya yolu uzak URL'ye tercih edilir (çift parça önlenir).
 - `core/player/OpenSubtitlesHasher.kt`
   - 10 dakikalık, 12 kayıtlı hash önbelleği (`clearCache()`); başarısız hash önbelleğe yazılmaz.
+- `SubtitleMemoryStore` **tazelik** API'si: `lastUpdatedAt(keys)`, `isFresh(keys, maxAgeMs)`.
+- `SubtitleHub.load(..., forceRefresh: Boolean = false)`:
+  bellek 2 saat içinde doldurulduysa ağ turu **atlanır** (kaynak değişimi anında);
+  `forceRefresh = true` ile (kullanıcı "yenile") ağa çıkılır.
+- `KitsugiPlayerViewModel`:
+  - `subtitleFetchJob` ile **eşzamanlı çift tarama** engellendi (init + kaynak değişimi + retry yarışı).
+  - `initialize()` içinde `publishKnownSubtitles(...)`: video hazır olmadan da bilinen altyazılar listede.
+  - `refreshSubtitles()` → `fetchAutoSubtitles(forceNetwork = true)`.
+- `core/download/AnimeDownloader.kt`: kendi ID/sorgu mantığı kaldırıldı, **`SubtitleHub`** kullanıyor.
+  İndirilen bölüm ile oynatılan bölüm aynı altyazı havuzunu paylaşır.
+- `app/proguard-rules.pro`: `MediaIdentityRegistry$Entry` ve `SubtitleMemoryStore$StoredSubtitle`
+  için R8 keep kuralları. **Bu olmadan release derlemede JSON geri okunamaz ve tüm ortak omurga
+  sessizce devre dışı kalırdı** (alanlar kırpılır/yeniden adlandırılır).
 
 ---
 
@@ -131,6 +147,7 @@ Bilinen eksikler: `ui/screens/history/WatchHistoryScreen.kt` (~L162) yalnızca `
 
 ## 6. Cihaz testi kontrol listesi (derleme sonrası İLK iş)
 
+0. **Birim test:** `./gradlew :app:testDebugUnitTest --tests '*MediaIdentityTest*'` (9 test).
 1. **Eşitlik:** Frieren S01E01'i (a) AniList detayı, (b) bir CS eklentisinin kataloğu, (c) izleme geçmişi üzerinden aç.
    → "Kaynak seç" ekranındaki **eklenti sayısı ve video sayısı aynı** olmalı (küçük oynama normal, tek kaynağa düşme HATA).
 2. **Altyazı sürekliliği:** A kaynağında altyazı listesini aç (not al) → oynatıcıda kaynak değiştir (B) → **aynı altyazılar hâlâ listede** olmalı.
@@ -153,13 +170,22 @@ Bu çalışma **derlenmeden** teslim edildi: sandbox'ta JDK, Android SDK ve Grad
 - ✅ Tüm yeni dosyalar için parantez/süslü parantez dengesi kontrolü
 - ✅ Kullanılan API imzalarının kaynak koddan doğrulanması (`ResolvedIds`, `KitsugiIdResolver.resolveIds`,
   `SubtitleRepositoryImpl.getSubtitles`, `StreamSource`, `SubtitleInput`, `JikanSearchResult.tmdbId: Int?` vb.)
-- ❌ Gerçek derleme (kotlinc/AGP) yapılmadı
+- ✅ **4 yeni dosya GERÇEKTEN DERLENDİ** — Kotlin derleyici npm üzerinden (`kotlin-compiler@2.4.21`,
+  `kotlin-compiler@2.0.21`) + JDK (pypi `jdk4py`, Temurin 25) çekildi; yeni dosyalar için
+  Android/Gson/coroutines/uygulama tipleri stub'landı ve `kotlinc` ile **0 hata** alındı
+  (`MediaIdentity`, `MediaIdentityRegistry`, `SubtitleMemoryStore`, `SubtitleHub`).
+- ✅ Tip çıkarımı riskli ifadeler ayrı bir "harness" dosyasında birebir kopyalanıp derlendi
+  (`runCatching{}.getOrDefault(emptyList())`, `firstNotNullOfOrNull`, destructuring, dedupe).
+- ✅ Değiştirilen 4 dosya **sözdizimi** açısından derleyiciden geçirildi (yalnızca "unresolved
+  reference" hataları var; sözdizimi hatası yok).
+- ❌ Tam **AGP/Gradle derlemesi** yapılmadı (Android SDK ve bağımlılıklar yok).
 
 **Derlemede ilk bakılacak yerler:**
-1. `SubtitleHub.enrichIdentity()` — `firstNotNullOfOrNull` üzerinde `var current` yakalaması
-2. `KitsugiPlayerViewModel` — `subtitleHub` lazy alanının sınıf gövdesinde mi kaldığı (satır ~1818 civarı)
-3. `StreamViewModel` — `directSeed` destructuring (`takeIf { (name, _) -> … }`)
-4. `OpenSubtitlesHasher` — `cache[key]?.let { … return entry.result }` non-local return
+1. `KitsugiPlayerViewModel` — `subtitleHub` lazy alanının sınıf gövdesinde mi kaldığı (satır ~1848 civarı)
+2. `StreamViewModel` — `directSeed` destructuring (`takeIf { (name, _) -> … }`) → harness ile doğrulandı
+3. `OpenSubtitlesHasher` — `cache[key]?.let { … return entry.result }` non-local return
+4. `AnimeDownloader` — yeni `MediaIdentity(...)`/`SubtitleHub(...)` çağrılarının import biçimi
+   (tam nitelikli yazıldı, import gerekmez)
 
 ---
 
@@ -172,6 +198,9 @@ Bu çalışma **derlenmeden** teslim edildi: sandbox'ta JDK, Android SDK ve Grad
 | `core/subtitle/SubtitleMemoryStore.kt` | YENİ | Kalıcı altyazı belleği (prefs) |
 | `core/subtitle/SubtitleHub.kt` | YENİ | Altyazı orkestrasyonu |
 | `core/player/OpenSubtitlesHasher.kt` | DEĞİŞTİ | Hash önbelleği |
+| `core/download/AnimeDownloader.kt` | DEĞİŞTİ | Altyazılar `SubtitleHub`'a bağlandı |
+| `app/proguard-rules.pro` | DEĞİŞTİ | R8 keep kuralları (JSON kalıcılığı) |
+| `app/src/test/.../core/identity/MediaIdentityTest.kt` | YENİ | 9 birim test (anahtar sözleşmesi) |
 | `ui/screens/stream/StreamViewModel.kt` | DEĞİŞTİ | Tohum modeli + kimlik yayını |
 | `ui/screens/fullscreen/KitsugiPlayerViewModel.kt` | DEĞİŞTİ | Ortak altyazı entegrasyonu |
 

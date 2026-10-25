@@ -820,6 +820,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentEpisode.value = episode
         if (initialIndex in streamSources.indices) {
             _currentAddonName.value = streamSources[initialIndex].addonName
+            // Ortak bellekten bilinen altyazılar hemen listeye eklenir (videoUrl henüz
+            // hazır olmasa bile kullanıcı altyazı menüsünde görür).
+            runCatching { publishKnownSubtitles(currentIdentity()) }
             // İlk kaynağın gömülü altyazılarını ortak belleğe yaz: başka bir kaynağa
             // geçildiğinde de aynı altyazılar listede kalsın (kaynak kayırmama).
             if (initialSubtitles.isNotEmpty()) {
@@ -1742,7 +1745,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         val currentEp = _currentEpisode.value
         val currentS = seasonNum
         val movieType = _isMovie.value || (currentS == 0 && currentEp <= 1)
+        // Kimlik defteri: ana başlık bulunamazsa İngilizce/romaji/native/eş anlamlılarla ara.
+        // (Katalog ve geçmiş girişlerinde başlık dili detay sayfasından farklı olabiliyor.)
         val remembered = MediaIdentityRegistry.lookupByTitle(animeTitle, startYear)
+            ?: (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
+                .asSequence()
+                .filter { it.isNotBlank() }
+                .firstNotNullOfOrNull { MediaIdentityRegistry.lookupByTitle(it, startYear) }
         return MediaIdentity(
             title = animeTitle,
             alternativeTitles = listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms,
@@ -1852,12 +1861,28 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
     private val subtitleHub: SubtitleHub by lazy { SubtitleHub(context) }
 
-    fun fetchAutoSubtitles() {
+    /**
+     * Aynı anda birden fazla altyazı taramasını engeller.
+     *
+     * Kaynak değişimi, yeniden deneme ve otomatik başlatma aynı anda tetiklenebiliyordu;
+     * her biri 7 sorgu × N eklenti ağ isteği atıp liste üzerinde yarışıyordu (sonuç:
+     * gecikme + son gelen listeyi ezip altyazı kaybı).
+     */
+    private var subtitleFetchJob: Job? = null
+
+    /**
+     * Altyazıları yeniden toplar.
+     *
+     * @param forceNetwork true → ortak bellek taze olsa bile ağa çıkılır
+     *        (UI'daki "altyazıları yenile" eylemi için).
+     */
+    fun fetchAutoSubtitles(forceNetwork: Boolean = false) {
         val currentEp = _currentEpisode.value
         val currentS = seasonNum
         val identity = currentIdentity()
 
-        viewModelScope.launch {
+        subtitleFetchJob?.cancel()
+        subtitleFetchJob = viewModelScope.launch {
             _subtitleSearchStatus.value = SubtitleSearchStatus.LOADING
             try {
                 // 0) ORTAK BELLEK: daha önce (hangi kaynakta olursa olsun) bulunan altyazılar
@@ -1890,7 +1915,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     identity = identity,
                     videoUrl = _currentVideoUrl.value,
                     videoHeaders = _currentHeaders.value,
-                    filename = finalFilename
+                    filename = finalFilename,
+                    forceRefresh = forceNetwork
                 )
                 Log.d(
                     "KitsugiPlayerViewModel",
@@ -1976,6 +2002,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             }
         }
     }
+
+    /** Kullanıcı "altyazıları yenile" dediğinde: bellek taze olsa bile ağa çık. */
+    fun refreshSubtitles() = fetchAutoSubtitles(forceNetwork = true)
 
     // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────────
 

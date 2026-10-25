@@ -36,6 +36,8 @@ class SubtitleHub(private val context: Context) {
         private const val TAG = "SubtitleHub"
         /** Ağa çıkacak en fazla sorgu sayısı (eklenti koruması + hız). */
         private const val MAX_REMOTE_QUERIES = 7
+        /** Bellek bu süre içinde doldurulduysa ağ turu atlanır (kaynak değişimi hızı). */
+        private const val FRESH_WINDOW_MS = 2L * 60 * 60 * 1000
     }
 
     private val repository = SubtitleRepositoryImpl(context)
@@ -72,10 +74,21 @@ class SubtitleHub(private val context: Context) {
         identity: MediaIdentity,
         videoUrl: String? = null,
         videoHeaders: Map<String, String>? = null,
-        filename: String? = null
+        filename: String? = null,
+        /** true → bellek taze olsa bile ağa çık (kullanıcı "altyazıları yenile" dedi). */
+        forceRefresh: Boolean = false
     ): Result = withContext(Dispatchers.IO) {
         val enriched = enrichIdentity(identity)
-        val cached = SubtitleMemoryStore.recall(enriched.subtitleKeyCandidates)
+        val keys = enriched.subtitleKeyCandidates
+        val cached = SubtitleMemoryStore.recall(keys)
+
+        // HIZ: kaynak değişiminde aynı bölüm için ağ turunu tekrarlama.
+        // Bellek son [FRESH_WINDOW_MS] içinde doldurulduysa doğrudan bellek döner.
+        if (!forceRefresh && cached.isNotEmpty() && SubtitleMemoryStore.isFresh(keys, FRESH_WINDOW_MS)) {
+            Log.d(TAG, "Bellek taze (${cached.size} altyazı) — ağ sorgusu atlandı")
+            return@withContext Result(enriched, cached, emptyList(), emptyList())
+        }
+
         val queries = buildQueries(enriched)
 
         if (queries.isEmpty()) {

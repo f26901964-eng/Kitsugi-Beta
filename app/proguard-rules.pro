@@ -197,6 +197,19 @@
 -keep class com.kitsugi.animelist.data.** { *; }
 -keepclassmembers class com.kitsugi.animelist.data.** { *; }
 
+# ── Ortak Omurga: SharedPreferences + Gson ile kalıcı saklanan sınıflar ───────
+# v2.4.341 (2026-10-25): MediaIdentityRegistry.Entry ve
+# SubtitleMemoryStore.StoredSubtitle JSON olarak diske yazılıyor. R8 bu sınıfların
+# alanlarını kırparsa/yeniden adlandırırsa JSON geri okunamaz → kimlik defteri ve
+# altyazı belleği sessizce boşalır (release derlemede "kaynak kayırma" geri döner).
+-keep class com.kitsugi.animelist.core.identity.MediaIdentityRegistry$Entry { *; }
+-keep class com.kitsugi.animelist.core.subtitle.SubtitleMemoryStore$StoredSubtitle { *; }
+-keepclassmembers class com.kitsugi.animelist.core.identity.MediaIdentityRegistry$Entry { <fields>; }
+-keepclassmembers class com.kitsugi.animelist.core.subtitle.SubtitleMemoryStore$StoredSubtitle { <fields>; }
+# Gson generic TypeToken imzaları için (Signature zaten yukarıda açık).
+-keep,allowobfuscation class com.kitsugi.animelist.core.identity.** { *; }
+-keep,allowobfuscation class com.kitsugi.animelist.core.subtitle.** { *; }
+
 # ── FileProvider manifest bağlantısı ──────────────────────────────────────────
 -keep class androidx.core.content.FileProvider
 

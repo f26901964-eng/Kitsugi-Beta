@@ -104,6 +104,33 @@ object SubtitleMemoryStore {
         }
     }
 
+    /**
+     * Verilen anahtarlar için en son ne zaman altyazı bulunduğunu döndürür (0 = hiç yok).
+     *
+     * Amaç: kaynak değişiminde aynı bölüm için tekrar tekrar 7 sorgu × N eklenti ağ isteği
+     * atılmasını önlemek. Bellek taze ise ağ turu atlanır (hız), kullanıcı "yenile" derse
+     * `forceRefresh` ile yine sorgulanır (tazelik).
+     */
+    fun lastUpdatedAt(keys: List<String>): Long {
+        if (keys.isEmpty()) return 0L
+        synchronized(lock) {
+            val map = load()
+            var newest = 0L
+            for (key in keys) {
+                val list = map[key] ?: continue
+                val t = list.maxOfOrNull { it.addedAt } ?: 0L
+                if (t > newest) newest = t
+            }
+            return newest
+        }
+    }
+
+    /** Bellekte bu bölüm için `maxAgeMs`'ten yeni kayıt var mı? */
+    fun isFresh(keys: List<String>, maxAgeMs: Long): Boolean {
+        val last = lastUpdatedAt(keys)
+        return last > 0L && System.currentTimeMillis() - last <= maxAgeMs
+    }
+
     /** Bir bölüm için bulunan altyazıları (birden fazla anahtar altında) saklar. */
     fun remember(
         keys: List<String>,

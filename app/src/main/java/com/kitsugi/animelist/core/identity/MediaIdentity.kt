@@ -111,8 +111,23 @@ data class MediaIdentity(
      */
     val subtitleKeyCandidates: List<String>
         get() {
-            val titleBased = "title=${titleKey(title, startYear)}|s=$effectiveSeason|e=$effectiveEpisode"
-            return listOf(subtitleKey, titleBased).distinct()
+            val s = effectiveSeason
+            val e = effectiveEpisode
+            val candidates = mutableListOf(subtitleKey)
+            // Yıl bilgisi giriş noktasına göre değişebiliyor (detay sayfası yılı bilir,
+            // katalog/geçmiş bilmez). Bu yüzden yıllı VE yılsız başlık anahtarı birlikte
+            // aranır; aksi halde aynı bölüm "bulunamadı" görünür.
+            if (startYear != null && startYear > 0) {
+                candidates.add("title=${titleKey(title, startYear)}|s=$s|e=$e")
+            }
+            candidates.add("title=${titleKey(title, null)}|s=$s|e=$e")
+            // Alternatif başlıklarla saklanmış kayıtlar (farklı dilde giriş) da bulunsun.
+            alternativeTitles.asSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && it != title }
+                .take(3)
+                .forEach { alt -> candidates.add("title=${titleKey(alt, null)}|s=$s|e=$e") }
+            return candidates.distinct()
         }
 
     companion object {

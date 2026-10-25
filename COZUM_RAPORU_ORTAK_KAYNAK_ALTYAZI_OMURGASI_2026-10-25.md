@@ -36,6 +36,18 @@ hangi kaynaktan izlenirse izlensin aynı kimlik, aynı eklenti havuzu ve aynı a
 | Aynı altyazı iki biçimde (uzak URL + yerel dosya) | İki satır | Tek satır (yerel dosya tercih edilir) |
 | Ağdan yeni sonuç yok, elde altyazı var | "Bulunamadı" + `LoadFailed` | `SUCCESS`, mevcut liste korunur |
 
+### 2.4 Ek düzeltmeler (denetim sonrası)
+
+| Konu | ÖNCE | SONRA |
+|---|---|---|
+| Release derleme (R8) | Yeni Gson sınıfları korunmuyordu → JSON geri okunamaz, omurga sessizce ölür | `proguard-rules.pro`'a keep kuralları eklendi |
+| İndirme akışı | Kendi ID/sorgu mantığı: yalnız IMDb+Kitsu, önbellek yok | `SubtitleHub` kullanıyor → indirilen/oynatılan aynı havuz |
+| Eşzamanlı tarama | init + kaynak değişimi + retry aynı anda 2-3 tarama başlatıyordu | `subtitleFetchJob` ile önceki iptal edilir |
+| Kaynak değişiminde ağ | Her değişimde 7 sorgu × N eklenti | Bellek 2 saat içinde doluysa ağ atlanır (`forceRefresh` ile zorlanabilir) |
+| Oynatıcı açılışı | Altyazılar yalnız ağ sonrası | `initialize()`'da bellekten anında yayınlanır |
+| Kimlik geri kazanımı | Yalnız ana başlıkla arayış | Ana başlık + İngilizce/romaji/native/synonyms ile arayış |
+| Yıl farkı | Yıl bilinmeyen girişte anahtar tutmuyordu | Aday anahtarlara **yılsız** ve **alternatif başlıklı** varyantlar eklendi |
+
 ### 2.3 Performans
 
 | Konu | ÖNCE | SONRA |
