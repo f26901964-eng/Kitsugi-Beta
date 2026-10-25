@@ -554,6 +554,32 @@ object KitsugiBangumiClient {
             ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("publishingManga", it) }
 
+    /** "Yeni Eklenen Mangalar" — çizgi roman kategorisini yayın tarihine göre sıralar. */
+    suspend fun newlyAddedManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
+        runCatching {
+            BangumiApiClient.browseSubjects(
+                type = BangumiApiClient.SubjectType.BOOK,
+                token = tokenOrNull(context),
+                cat = BangumiApiClient.Category.BOOK_COMIC,
+                sort = "date",
+                limit = limit,
+                offset = offset
+            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
+        }.getOrElse { logAndEmpty("newlyAddedManga", it) }
+
+    /** Bangumi BOOK_NOVEL alt kategorisi — ayrı roman / light-novel rafı. */
+    suspend fun novelsShelf(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
+        runCatching {
+            BangumiApiClient.browseSubjects(
+                type = BangumiApiClient.SubjectType.BOOK,
+                token = tokenOrNull(context),
+                cat = BangumiApiClient.Category.BOOK_NOVEL,
+                sort = "rank",
+                limit = limit,
+                offset = offset
+            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
+        }.getOrElse { logAndEmpty("novelsShelf", it) }
+
     /** "Popüler Mangalar" — koleksiyon sayısı sıralaması. */
     suspend fun trendingManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {

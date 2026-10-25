@@ -6789,6 +6789,7 @@
     <string name="explore_source_top_rated_movies">Top Rated Movies</string>
     <string name="explore_source_airing_anime">Currently Airing Anime</string>
     <string name="explore_source_airing_tv">Currently Airing TV Shows</string>
+    <string name="explore_source_airing_manga">Publishing Manga</string>
     <string name="explore_source_upcoming_anime">Upcoming Anime</string>
     <string name="explore_source_upcoming_tv_movies">Upcoming Movies and TV Shows</string>
     <string name="explore_source_anime_movies">Anime Movies</string>

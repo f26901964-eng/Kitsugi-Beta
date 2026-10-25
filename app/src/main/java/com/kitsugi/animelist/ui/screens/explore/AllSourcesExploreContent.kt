@@ -67,6 +67,7 @@ internal fun localizedExploreSectionTitle(title: String): String {
         "En Yüksek Puanlı Diziler" -> R.string.explore_source_top_rated_tv
         "En Yüksek Puanlı Filmler" -> R.string.explore_source_top_rated_movies
         "Yayındaki Animeler" -> R.string.explore_source_airing_anime
+        "Yayındaki Mangalar" -> R.string.explore_source_airing_manga
         "Yayındaki Diziler" -> R.string.explore_source_airing_tv
         "Yaklaşan Animeler" -> R.string.explore_source_upcoming_anime
         "Yaklaşan Film ve Diziler" -> R.string.explore_source_upcoming_tv_movies
@@ -109,6 +110,11 @@ fun LazyListScope.allSourcesExploreSections(
     startIndex: Int,
     onJumpToIndex: (Int) -> Unit,
     onRetrySource: (ExplorePlatform) -> Unit,
+    loadedCategories: Set<ExploreCategoryType>,
+    loadingCategories: Set<ExploreCategoryType>,
+    failedCategories: Set<ExploreCategoryType>,
+    onLoadCategory: (ExplorePlatform, ExploreCategoryType) -> Unit,
+    onRetryCategory: (ExplorePlatform, ExploreCategoryType) -> Unit,
     alreadyInList: (JikanSearchResult) -> Boolean,
     getMediaEntry: (JikanSearchResult) -> MediaEntry?,
     onItemClick: (JikanSearchResult) -> Unit,
@@ -200,11 +206,11 @@ fun LazyListScope.allSourcesExploreSections(
                 onCategory = { index ->
                     sourceSections.getOrNull(index)?.let { section ->
                         val sectionTitle = sectionTitles.getOrNull(index) ?: section.title
-                        openAllSourcesSectionSeeAll(
-                            platformLabel = platformLabel,
-                            sectionTitle = sectionTitle,
-                            section = section,
-                            onSeeAllSection = onSeeAllSection
+                        onSeeAllSection(
+                            "$platformLabel • $sectionTitle",
+                            section.category,
+                            section.results,
+                            platform
                         )
                     }
                 }
@@ -214,31 +220,28 @@ fun LazyListScope.allSourcesExploreSections(
             items(sourceSections, key = { "all_${it.key}" }) { section ->
                 val sectionTitle = localizedExploreSectionTitle(section.title)
                 val platformLabel = platform.localizedLabel()
-                Column(Modifier.padding(top = 6.dp, bottom = 20.dp)) {
-                    // The source heading owns the rows; don't repeat its name on every title.
-                    CompositionLocalProviderForSource(platform) {
-                        KitsugiHorizontalMediaSection(
-                            title = sectionTitle,
-                            results = section.results,
-                            isLoading = false,
-                            alreadyInList = alreadyInList,
-                            getMediaEntry = getMediaEntry,
-                            onItemClick = onItemClick,
-                            onLongClickItem = onLongClickItem,
-                            onSeeAllClick = {
-                                openAllSourcesSectionSeeAll(
-                                    platformLabel = platformLabel,
-                                    sectionTitle = sectionTitle,
-                                    section = section,
-                                    onSeeAllSection = onSeeAllSection
-                                )
-                            },
-                            titleLanguage = titleLanguage,
-                            scoreFormat = scoreFormat,
-                            hideScores = hideScores,
-                            blurAdultMedia = blurAdultMedia
-                        )
-                    }
+                // The source heading owns the rows; the same row model is used in single-source mode.
+                CompositionLocalProviderForSource(platform) {
+                    ExploreSourceShelfRow(
+                        section = section.copy(title = sectionTitle),
+                        isProviderLoading = state.isLoading,
+                        isCategoryLoaded = section.category in loadedCategories,
+                        isCategoryLoading = section.category in loadingCategories,
+                        isCategoryFailed = section.category in failedCategories,
+                        onLoadCategory = { onLoadCategory(platform, section.category) },
+                        onRetryCategory = { onRetryCategory(platform, section.category) },
+                        isAlreadyInList = alreadyInList,
+                        getMediaEntry = getMediaEntry,
+                        onItemClick = onItemClick,
+                        onLongClickItem = onLongClickItem,
+                        onSeeAllSection = { title, category, results ->
+                            onSeeAllSection("$platformLabel · $title", category, results, platform)
+                        },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores,
+                        blurAdultMedia = blurAdultMedia
+                    )
                 }
             }
             item(key = "all_source_footer_${platform.name}") {

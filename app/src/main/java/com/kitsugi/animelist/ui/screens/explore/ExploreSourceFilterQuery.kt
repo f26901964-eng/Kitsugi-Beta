@@ -217,22 +217,28 @@ private suspend fun aniListPage(
     val termName = term?.let { ENGLISH_TERM_CANONICAL[it.lowercase()] ?: it }
     val officialGenre = termName?.takeIf { CanonicalFilterBridge.isOfficialAniListGenre(it) }
     val tagGenre = termName?.takeIf { officialGenre == null }
-    return clients.jikan.searchAniListPaged(
-        query = "",
-        mediaType = spec.mediaType,
-        showAdultContent = showAdultContent,
-        // Formatsız (tür/sıralama dışında hiç facet yokken) istek boşa düşmesin diye tüm
-        // formatlar geçilir; liste zaten mediaType ile sınırlıdır.
-        formats = spec.aniListFormats ?: aniListAllFormats(isManga),
-        statuses = spec.aniListStatuses,
-        season = if (isSeasonal) season?.lowercase() else null,
-        seasonYear = if (isSeasonal) year else null,
-        genres = officialGenre?.let { listOf(it) },
-        tags = tagGenre?.let { listOf(it) },
-        sort = listOf(aniListSort(sort)),
-        page = page,
-        perPage = ANILIST_PAGE_SIZE
-    ).results
+    val countries: List<String?> = spec.aniListCountries?.map { it } ?: listOf(null)
+    val merged = mutableListOf<JikanSearchResult>()
+    for (country in countries) {
+        merged += clients.jikan.searchAniListPaged(
+            query = "",
+            mediaType = spec.mediaType,
+            showAdultContent = showAdultContent,
+            // Formatsız (tür/sıralama dışında hiç facet yokken) istek boşa düşmesin diye tüm
+            // formatlar geçilir; liste zaten mediaType ile sınırlıdır.
+            formats = spec.aniListFormats ?: aniListAllFormats(isManga),
+            statuses = spec.aniListStatuses,
+            season = if (isSeasonal) season?.lowercase() else null,
+            seasonYear = if (isSeasonal) year else null,
+            genres = officialGenre?.let { listOf(it) },
+            tags = tagGenre?.let { listOf(it) },
+            sort = listOf(aniListSort(sort)),
+            country = country,
+            page = page,
+            perPage = ANILIST_PAGE_SIZE
+        ).results
+    }
+    return merged.distinctBy { it.exploreIdentity() }
 }
 
 private suspend fun malPage(
@@ -559,6 +565,7 @@ private data class ExploreShelfSpec(
     /** null → "tüm formatlar" geçilir (AniList isteği boşa düşmesin). */
     val aniListFormats: List<String>? = null,
     val aniListStatuses: List<String>? = null,
+    val aniListCountries: List<String>? = null,
     /** Bir raf birden fazla MAL formatını birleştirebilir (roman → novel + lightnovel). */
     val malFormats: List<String>? = null,
     val malStatus: String? = null,
@@ -582,21 +589,26 @@ private val unsupportedMangaShelves = setOf(
 
 private fun shelfSpec(platform: ExplorePlatform, categoryType: ExploreCategoryType): ExploreShelfSpec? =
     when (platform) {
-        // AniList manhwa/manhua'yı ayrı raf olarak sunmaz; Bangumi REAL ve TMDB "yakında"
-        // raflarının da AniList karşılığı yoktur (temel sayfalama da boş döner).
-        ExplorePlatform.AniList -> if (categoryType == ExploreCategoryType.MANHWA_MANHUA ||
-            categoryType == ExploreCategoryType.BANGUMI_TV ||
+        // AniList classifies manhwa/manhua through countryOfOrigin (KR/CN), not a separate format.
+        // Bangumi REAL and TMDB "upcoming" shelves have no AniList equivalent.
+        ExplorePlatform.AniList -> if (categoryType == ExploreCategoryType.BANGUMI_TV ||
             categoryType == ExploreCategoryType.BANGUMI_MOVIES ||
             categoryType == ExploreCategoryType.UPCOMING_MEDIA_TMDB
         ) null else ExploreShelfSpec(
             mediaType = printMediaType(categoryType),
             aniListFormats = when (categoryType) {
                 ExploreCategoryType.MOVIE_ANIME -> listOf("MOVIE")
+                ExploreCategoryType.MANHWA_MANHUA -> listOf("MANGA")
+                ExploreCategoryType.NOVELS -> listOf("NOVEL")
                 else -> null
             },
             aniListStatuses = when (categoryType) {
                 ExploreCategoryType.AIRING_ANIME -> listOf("RELEASING")
                 ExploreCategoryType.UPCOMING_ANIME -> listOf("NOT_YET_RELEASED")
+                else -> null
+            },
+            aniListCountries = when (categoryType) {
+                ExploreCategoryType.MANHWA_MANHUA -> listOf("KR", "CN")
                 else -> null
             }
         )
@@ -616,9 +628,8 @@ private fun shelfSpec(platform: ExplorePlatform, categoryType: ExploreCategoryTy
                 else -> null
             }
         )
-        // Kitsu'nun roman/manhwa ve Bangumi REAL rafları yoktur (temel sayfalama da boş döner).
-        ExplorePlatform.KITSU -> if (categoryType == ExploreCategoryType.MANHWA_MANHUA ||
-            categoryType == ExploreCategoryType.NOVELS ||
+        // Kitsu manga subtype filtresi manhwa/manhua ve novel raflarını destekler.
+        ExplorePlatform.KITSU -> if (
             categoryType == ExploreCategoryType.BANGUMI_TV ||
             categoryType == ExploreCategoryType.BANGUMI_MOVIES ||
             categoryType == ExploreCategoryType.UPCOMING_MEDIA_TMDB
@@ -656,7 +667,6 @@ private fun shelfSpec(platform: ExplorePlatform, categoryType: ExploreCategoryTy
             }
         )
         ExplorePlatform.BANGUMI -> if (categoryType == ExploreCategoryType.MANHWA_MANHUA ||
-            categoryType == ExploreCategoryType.NOVELS ||
             categoryType == ExploreCategoryType.UPCOMING_MEDIA_TMDB
         ) null else ExploreShelfSpec(
             mediaType = when (categoryType) {

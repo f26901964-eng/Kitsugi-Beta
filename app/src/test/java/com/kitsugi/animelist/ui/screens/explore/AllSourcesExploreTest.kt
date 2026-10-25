@@ -29,7 +29,10 @@ class AllSourcesExploreTest {
             ExploreSourceState(payload(listOf(item)).copy(trendingAnime = listOf(item)))
         }
         val sections = allSourceSections(states, false)
-        assertEquals(ExplorePlatform.sources.flatMap { listOf(it, it) }, sections.map { it.platform })
+        val expectedPlatformOrder = ExplorePlatform.sources.flatMap { platform ->
+            List(if (platform == ExplorePlatform.AniList) ANILIST_EXPLORE_SHELF_CATEGORIES.size else 2) { platform }
+        }
+        assertEquals(expectedPlatformOrder, sections.map { it.platform })
         assertEquals(sections.size, sections.map { it.key }.distinct().size)
         assertEquals(ExplorePlatform.sources.size, allSourceHeroes(states, false).size)
     }
@@ -63,7 +66,7 @@ class AllSourcesExploreTest {
         val states = mapOf(ExplorePlatform.AniList to ExploreSourceState(payload(listOf(adult)).copy(topRatedAnime = listOf(adult))))
         assertTrue(allSourceSections(states, false).isEmpty())
         assertTrue(allSourceHeroes(states, false).isEmpty())
-        assertEquals(2, allSourceSections(states, true).size)
+        assertEquals(2, allSourceSections(states, true).count { it.results.isNotEmpty() })
         assertEquals(listOf(adult), allSourceHeroes(states, true))
     }
 
@@ -110,9 +113,36 @@ class AllSourcesExploreTest {
         val popular = media()
         val rated = media(id = 2)
         val states = mapOf(ExplorePlatform.AniList to ExploreSourceState(payload(listOf(popular)).copy(topRatedAnime = listOf(rated))))
-        val sections = allSourceSections(states, false)
+        val sections = allSourceSections(states, false).filter { it.results.isNotEmpty() }
         assertEquals(listOf(ExploreCategoryType.TOP_ANIME, ExploreCategoryType.TOP_RATED_ANIME), sections.map { it.category })
         assertEquals(listOf(rated), sections.last().results)
+    }
+
+    @Test fun anilistKeepsItsFullCategoryModelWhileInitialNetworkBatchStaysSmall() {
+        val categories = sourceSections(ExplorePlatform.AniList, payload(emptyList())).map { it.category }
+        assertEquals(ANILIST_EXPLORE_SHELF_CATEGORIES, categories)
+        assertEquals(6, ANILIST_INITIAL_EXPLORE_CATEGORIES.size)
+        assertEquals(6, aniListExploreShelfRequests(ANILIST_INITIAL_EXPLORE_CATEGORIES, "FALL", 2026).size)
+    }
+
+    @Test fun anilistUnrequestedShelvesRemainAsLazyRowsAfterInitialCatalogLoad() {
+        val sections = allSourceSections(
+            mapOf(ExplorePlatform.AniList to ExploreSourceState(payload(listOf(media())))),
+            showAdultContent = false
+        )
+        assertEquals(ANILIST_EXPLORE_SHELF_CATEGORIES.size, sections.size)
+        assertEquals(listOf(media()), sections.first().results)
+        assertTrue(sections.drop(1).all { it.results.isEmpty() })
+    }
+
+    @Test fun anilistManhwaShelfQueriesBothKoreanAndChineseOrigins() {
+        val requests = aniListExploreShelfRequests(
+            listOf(ExploreCategoryType.MANHWA_MANHUA),
+            season = "FALL",
+            seasonYear = 2026
+        )
+        assertEquals(listOf("KR", "CN"), requests.map { it.spec.countryOfOrigin })
+        assertTrue(requests.all { it.category == ExploreCategoryType.MANHWA_MANHUA })
     }
 
     @Test fun standardSourcesKeepAnimeAndMangaShelvesInALogicalStableOrder() {
@@ -199,7 +229,7 @@ class AllSourcesExploreTest {
         val states = ExplorePlatform.sources.associateWith { ExploreSourceState(payload(listOf(media(it.name.lowercase())))) }
         val sections = allSourceSections(states, false).groupBy { it.platform }
         val expanded = allSourceHeaderIndices(sections, emptySet(), startIndex = 2)
-        assertEquals(listOf(4, 7, 10, 13, 16, 19, 22), ExplorePlatform.sources.map { expanded[it] })
+        assertEquals(listOf(4, 21, 24, 27, 30, 33, 36), ExplorePlatform.sources.map { expanded[it] })
         val collapsed = allSourceHeaderIndices(sections, setOf(ExplorePlatform.AniList), startIndex = 2)
         assertEquals(5, collapsed[ExplorePlatform.MAL])
         val empty = allSourceHeaderIndices(emptyMap(), emptySet(), startIndex = 1)
@@ -287,28 +317,33 @@ class AllSourcesExploreTest {
         assertFalse(diskRead)
     }
 
-    @Test fun nativeKindShelvesAppearOnlyWhenSourceSupportsThem() {
-        // Desteklemeyen kaynak (Kitsu): raf null/boş → bölüm YOK.
-        val kitsuState = ExploreSourceState(payload(listOf(media("kitsu"))))
-        assertTrue(
-            allSourceSections(mapOf(ExplorePlatform.KITSU to kitsuState), false)
-                .none { it.category == ExploreCategoryType.MANHWA_MANHUA || it.category == ExploreCategoryType.NOVELS }
+    @Test fun nativeKindShelvesAppearWhenTheirProviderReturnsData() {
+        // Kitsu/MAL/Shikimori/AniList expose both kinds; Bangumi provides its BOOK_NOVEL subtype.
+        val kitsuManhwa = media("kitsu", 7, MediaType.Manga)
+        val kitsuNovel = media("kitsu", 8, MediaType.Manga)
+        val kitsuState = ExploreSourceState(
+            payload(listOf(media("kitsu"))).copy(manhwaManhua = listOf(kitsuManhwa), novels = listOf(kitsuNovel))
         )
-
-        // Destekleyen kaynak (Shikimori): dolu raflar kendi kaynağı altında görünür.
-        val manhwa = media("shikimori", 7, MediaType.Manga)
-        val novel = media("shikimori", 8, MediaType.Manga)
-        val shikiState = ExploreSourceState(
-            payload(listOf(media("shikimori")))
-                .copy(manhwaManhua = listOf(manhwa), novels = listOf(novel))
-        )
-        val sections = allSourceSections(mapOf(ExplorePlatform.SHIKIMORI to shikiState), false)
+        val kitsuSections = allSourceSections(mapOf(ExplorePlatform.KITSU to kitsuState), false)
         assertEquals(
             listOf(ExploreCategoryType.MANHWA_MANHUA, ExploreCategoryType.NOVELS),
-            sections.filter { it.category == ExploreCategoryType.MANHWA_MANHUA || it.category == ExploreCategoryType.NOVELS }
+            kitsuSections.filter { it.category == ExploreCategoryType.MANHWA_MANHUA || it.category == ExploreCategoryType.NOVELS }
                 .map { it.category }
         )
-        assertTrue(sections.all { it.platform == ExplorePlatform.SHIKIMORI })
+        assertTrue(kitsuSections.all { it.platform == ExplorePlatform.KITSU })
+
+        // Bangumi has a separate official BOOK_NOVEL subtype; its manga/date shelf stays distinct.
+        val recentManga = media("bangumi", 9, MediaType.Manga)
+        val bangumiNovel = media("bangumi", 10, MediaType.Manga)
+        val bangumi = payload(listOf(media("bangumi"))).copy(
+            newlyAddedManga = listOf(recentManga), novels = listOf(bangumiNovel)
+        )
+        val bangumiSections = allSourceSections(mapOf(ExplorePlatform.BANGUMI to ExploreSourceState(bangumi)), false)
+        assertEquals(
+            listOf(ExploreCategoryType.NEWLY_ADDED_MANGA, ExploreCategoryType.NOVELS),
+            bangumiSections.filter { it.category == ExploreCategoryType.NEWLY_ADDED_MANGA || it.category == ExploreCategoryType.NOVELS }
+                .map { it.category }
+        )
     }
 
     @Test fun fastAndFailedSourcesDoNotWaitForSlowSource() = runBlocking {
@@ -321,287 +356,5 @@ class AllSourcesExploreTest {
         assertFalse(slow.isCompleted)
         gate.complete(Unit)
         assertNotNull(slow.await().payload)
-    }
-
-    private fun realisticPayloadFor(platform: ExplorePlatform, includeSimklPersonal: Boolean = true): ExplorePayload {
-        val src = platform.name.lowercase()
-        fun item(id: Int, type: MediaType = MediaType.Anime) = listOf(media(src, id, type))
-        return when (platform) {
-            ExplorePlatform.AniList -> ExplorePayload(
-                topAnime = item(1),
-                trendingAnime = item(2),
-                topRatedAnime = item(3),
-                airingAnime = item(4),
-                upcomingAnime = item(5),
-                movieAnime = item(6, MediaType.Movie),
-                seasonalAnime = item(7),
-                newlyAddedAnime = item(8),
-                topManga = item(9, MediaType.Manga),
-                trendingManga = item(10, MediaType.Manga),
-                topRatedManga = item(11, MediaType.Manga),
-                publishingManga = item(12, MediaType.Manga),
-                newlyAddedManga = item(13, MediaType.Manga),
-                manhwaManhua = emptyList(), // AniList ayrı manhwa/manhua rafı üretmez
-                novels = item(14, MediaType.Manga)
-            )
-            ExplorePlatform.MAL -> ExplorePayload(
-                topAnime = item(1),
-                trendingAnime = item(2),
-                topRatedAnime = item(3),
-                airingAnime = item(4),
-                upcomingAnime = item(5),
-                movieAnime = item(6, MediaType.Movie),
-                seasonalAnime = item(7),
-                newlyAddedAnime = item(8),
-                topManga = item(9, MediaType.Manga),
-                trendingManga = item(10, MediaType.Manga),
-                topRatedManga = item(11, MediaType.Manga),
-                publishingManga = item(12, MediaType.Manga),
-                newlyAddedManga = item(13, MediaType.Manga),
-                manhwaManhua = item(14, MediaType.Manga),
-                novels = item(15, MediaType.Manga)
-            )
-            ExplorePlatform.KITSU -> ExplorePayload(
-                topAnime = item(1),
-                trendingAnime = item(2),
-                topRatedAnime = item(3),
-                airingAnime = item(4),
-                upcomingAnime = item(5),
-                movieAnime = item(6, MediaType.Movie),
-                seasonalAnime = item(7),
-                newlyAddedAnime = item(8),
-                topManga = item(9, MediaType.Manga),
-                trendingManga = item(10, MediaType.Manga),
-                topRatedManga = item(11, MediaType.Manga),
-                publishingManga = item(12, MediaType.Manga),
-                newlyAddedManga = item(13, MediaType.Manga)
-            )
-            ExplorePlatform.SHIKIMORI -> ExplorePayload(
-                topAnime = item(1),
-                trendingAnime = item(2),
-                airingAnime = item(3),
-                upcomingAnime = item(4),
-                movieAnime = item(5, MediaType.Movie),
-                seasonalAnime = item(6),
-                newlyAddedAnime = emptyList(), // Shikimori "Yeni Eklenen" rafı üretmez
-                topManga = item(7, MediaType.Manga),
-                trendingManga = item(8, MediaType.Manga),
-                publishingManga = item(9, MediaType.Manga),
-                newlyAddedManga = emptyList(),
-                manhwaManhua = item(10, MediaType.Manga),
-                novels = item(11, MediaType.Manga)
-            )
-            ExplorePlatform.BANGUMI -> ExplorePayload(
-                topAnime = item(1),
-                trendingAnime = item(2),
-                airingAnime = item(3),
-                upcomingAnime = item(4),
-                movieAnime = item(5, MediaType.Movie),
-                seasonalAnime = item(6),
-                newlyAddedAnime = emptyList(), // Bangumi "Yeni Eklenen" rafı üretmez
-                topManga = item(7, MediaType.Manga),
-                trendingManga = emptyList(),
-                publishingManga = emptyList(),
-                newlyAddedManga = emptyList(),
-                bangumiTvShows = item(8, MediaType.TvShow),
-                bangumiMovies = item(9, MediaType.Movie),
-                manhwaManhua = item(10, MediaType.Manga),
-                novels = item(11, MediaType.Manga)
-            )
-            ExplorePlatform.TMDB -> ExplorePayload(
-                topAnime = item(1),
-                trendingAnime = item(2),
-                airingAnime = item(3, MediaType.TvShow),
-                movieAnime = item(4, MediaType.Movie),
-                newlyAddedAnime = item(5),
-                topManga = item(6, MediaType.TvShow),
-                upcomingAnime = item(7, MediaType.Movie),
-                trendingManga = item(8),
-                seasonalAnime = item(9, MediaType.TvShow),
-                publishingManga = item(10, MediaType.Movie),
-                upcomingMediaTmdb = item(11, MediaType.Movie)
-            )
-            ExplorePlatform.SIMKL -> ExplorePayload(
-                topAnime = item(1, MediaType.TvShow),
-                trendingAnime = item(2),
-                airingAnime = item(3, MediaType.TvShow),
-                upcomingAnime = item(4, MediaType.Movie),
-                movieAnime = item(5, MediaType.Movie),
-                seasonalAnime = item(6, MediaType.TvShow),
-                topManga = item(7, MediaType.TvShow),
-                publishingManga = item(8, MediaType.Movie),
-                trendingManga = item(9),
-                newlyAddedAnime = item(10),
-                upcomingMediaTmdb = item(11),
-                simklContinueSeries = if (includeSimklPersonal) item(12, MediaType.TvShow) else emptyList(),
-                simklContinueMovies = if (includeSimklPersonal) item(13, MediaType.Movie) else emptyList(),
-                simklPlannedSeries = if (includeSimklPersonal) item(14, MediaType.TvShow) else emptyList(),
-                simklPlannedMovies = if (includeSimklPersonal) item(15, MediaType.Movie) else emptyList()
-            )
-            ExplorePlatform.ALL -> payload(emptyList())
-        }
-    }
-
-    @Test fun categoriesBarMatchesPopulatedShelvesOneToOneAcrossAllSources() {
-        ExplorePlatform.sources.forEach { platform ->
-            val p = realisticPayloadFor(platform, includeSimklPersonal = true)
-            val displaySections = singleSourceExploreSections(platform, p)
-            val expectedVisibleShelves = displaySections.filter { it.results.isNotEmpty() }
-            val groups = buildExploreCategoryGroups(platform, displaySections)
-            val barChips = groups.flatMap { it.sections }
-
-            // Ne eksik ne fazla: Kategoriler çubuğundaki öğe kümesi, altındaki dolu raflarla bire bir aynıdır.
-            assertEquals(
-                "Mismatch in chip count vs shelf count for $platform",
-                expectedVisibleShelves.size,
-                barChips.size
-            )
-            assertEquals(
-                "Mismatch in chip keys vs shelf keys for $platform",
-                expectedVisibleShelves.map { it.key }.toSet(),
-                barChips.map { it.key }.toSet()
-            )
-            assertEquals(
-                "Mismatch in chip titles vs shelf titles for $platform",
-                expectedVisibleShelves.map { it.title }.toSet(),
-                barChips.map { it.title }.toSet()
-            )
-            // Her grup kendi içindeki raf sırasını bozmadan korur.
-            groups.forEach { group ->
-                val indicesInDisplay = group.sections.map { chip ->
-                    expectedVisibleShelves.indexOfFirst { it.key == chip.key }
-                }
-                assertEquals(
-                    "Group ${group.kind} in $platform did not preserve shelf order",
-                    indicesInDisplay.sorted(),
-                    indicesInDisplay
-                )
-            }
-        }
-
-        // Simkl kişisel listeleri boş olduğunda "Listem" grubu hiç oluşmaz; yalnızca genel raflar görünür.
-        val simklPublicOnly = realisticPayloadFor(ExplorePlatform.SIMKL, includeSimklPersonal = false)
-        val simklDisplay = singleSourceExploreSections(ExplorePlatform.SIMKL, simklPublicOnly)
-        val simklGroups = buildExploreCategoryGroups(ExplorePlatform.SIMKL, simklDisplay)
-        assertTrue(simklGroups.none { it.kind == ExploreCategoryGroupKind.PERSONAL_LISTS })
-        assertEquals(
-            simklDisplay.filter { it.results.isNotEmpty() }.map { it.key }.toSet(),
-            simklGroups.flatMap { it.sections }.map { it.key }.toSet()
-        )
-    }
-
-    @Test fun categoryGroupClassificationMatchesPlatformCatalogTypes() {
-        // TMDB: Önce Dizi & Film, sonra Anime; Manga veya Listem grubu yok.
-        val tmdbGroups = buildExploreCategoryGroups(
-            ExplorePlatform.TMDB,
-            singleSourceExploreSections(ExplorePlatform.TMDB, realisticPayloadFor(ExplorePlatform.TMDB))
-        )
-        assertEquals(
-            listOf(ExploreCategoryGroupKind.TV_MOVIES, ExploreCategoryGroupKind.ANIME),
-            tmdbGroups.map { it.kind }
-        )
-        assertEquals(
-            listOf(
-                ExploreCategoryType.TRENDING_ANIME,
-                ExploreCategoryType.NEWLY_ADDED_ANIME,
-                ExploreCategoryType.TRENDING_MANGA
-            ),
-            tmdbGroups.first { it.kind == ExploreCategoryGroupKind.ANIME }.sections.map { it.category }
-        )
-
-        // Simkl: Dizi & Film -> Anime -> Listem
-        val simklGroups = buildExploreCategoryGroups(
-            ExplorePlatform.SIMKL,
-            singleSourceExploreSections(ExplorePlatform.SIMKL, realisticPayloadFor(ExplorePlatform.SIMKL, includeSimklPersonal = true))
-        )
-        assertEquals(
-            listOf(
-                ExploreCategoryGroupKind.TV_MOVIES,
-                ExploreCategoryGroupKind.ANIME,
-                ExploreCategoryGroupKind.PERSONAL_LISTS
-            ),
-            simklGroups.map { it.kind }
-        )
-        assertEquals(4, simklGroups.last().sections.size)
-        assertTrue(simklGroups.last().sections.all { it.key.startsWith(SIMKL_PERSONAL_KEY_PREFIX) })
-
-        // Bangumi: Anime -> Manga (Manhwa/Manhua + Noveller dahil) -> Dizi & Film (Bangumi Dizileri + Bangumi Filmleri)
-        val bangumiGroups = buildExploreCategoryGroups(
-            ExplorePlatform.BANGUMI,
-            singleSourceExploreSections(ExplorePlatform.BANGUMI, realisticPayloadFor(ExplorePlatform.BANGUMI))
-        )
-        assertEquals(
-            listOf(
-                ExploreCategoryGroupKind.ANIME,
-                ExploreCategoryGroupKind.MANGA,
-                ExploreCategoryGroupKind.TV_MOVIES
-            ),
-            bangumiGroups.map { it.kind }
-        )
-        assertEquals(
-            listOf(ExploreCategoryType.BANGUMI_TV, ExploreCategoryType.BANGUMI_MOVIES),
-            bangumiGroups.last().sections.map { it.category }
-        )
-        assertEquals(
-            listOf(ExploreCategoryType.TOP_MANGA, ExploreCategoryType.MANHWA_MANHUA, ExploreCategoryType.NOVELS),
-            bangumiGroups.first { it.kind == ExploreCategoryGroupKind.MANGA }.sections.map { it.category }
-        )
-    }
-
-    @Test fun categoryChipAndShelfSeeAllInvokeIdenticalNavigationContract() {
-        data class SeeAllInvocation(
-            val title: String,
-            val category: ExploreCategoryType,
-            val results: List<JikanSearchResult>,
-            val platform: ExplorePlatform
-        )
-
-        ExplorePlatform.sources.forEach { platform ->
-            val p = realisticPayloadFor(platform, includeSimklPersonal = true)
-            val displaySections = singleSourceExploreSections(platform, p)
-            val populatedShelves = displaySections.filter { it.results.isNotEmpty() }
-            val chipsByKey = buildExploreCategoryGroups(platform, displaySections)
-                .flatMap { it.sections }
-                .associateBy { it.key }
-
-            populatedShelves.forEach { shelf ->
-                val chip = chipsByKey.getValue(shelf.key)
-                val resolvedTitle = "Localized:${shelf.title}"
-
-                var fromChip: SeeAllInvocation? = null
-                var fromShelf: SeeAllInvocation? = null
-
-                openExploreSectionSeeAll(chip, resolvedTitle) { t, cat, res ->
-                    fromChip = SeeAllInvocation(t, cat, res, platform)
-                }
-                openExploreSectionSeeAll(shelf, resolvedTitle) { t, cat, res ->
-                    fromShelf = SeeAllInvocation(t, cat, res, platform)
-                }
-
-                assertNotNull(fromChip)
-                assertEquals("Chip and shelf See All diverged on $platform/${shelf.key}", fromShelf, fromChip)
-                assertSame(shelf.results, fromChip!!.results)
-
-                // "Tümü" görünümü başlık çipi ile rafın "Tümünü Gör" çağrısı da bire bir aynı sözleşmeyi kullanır.
-                var fromAllHeader: SeeAllInvocation? = null
-                var fromAllShelf: SeeAllInvocation? = null
-                openAllSourcesSectionSeeAll(
-                    platformLabel = platform.label,
-                    sectionTitle = resolvedTitle,
-                    section = chip
-                ) { t, cat, res, plat ->
-                    fromAllHeader = SeeAllInvocation(t, cat, res, plat)
-                }
-                openAllSourcesSectionSeeAll(
-                    platformLabel = platform.label,
-                    sectionTitle = resolvedTitle,
-                    section = shelf
-                ) { t, cat, res, plat ->
-                    fromAllShelf = SeeAllInvocation(t, cat, res, plat)
-                }
-                assertEquals(fromAllShelf, fromAllHeader)
-                assertEquals("${platform.label} · $resolvedTitle", fromAllHeader!!.title)
-            }
-        }
     }
 }

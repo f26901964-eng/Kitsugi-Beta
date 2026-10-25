@@ -256,6 +256,24 @@ object KitsuExploreClient {
         return fetchMangaList("/manga?sort=-createdAt&page[limit]=$safeLimit&page[offset]=$safeOffset")
     }
 
+    /** Kitsu'nun subtype filtresiyle ayrı Manhwa ve Manhua kataloğu. */
+    suspend fun manhwaManhua(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList(
+            "/manga?filter[subtype]=manhwa,manhua&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset"
+        )
+    }
+
+    /** Kitsu'nun subtype filtresiyle light novel / roman rafı. */
+    suspend fun novelsShelf(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList(
+            "/manga?filter[subtype]=novel&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset"
+        )
+    }
+
     // ── Internal HTTP ─────────────────────────────────────────────────────────
 
     private suspend fun fetchAnimeList(pathAndQuery: String): List<JikanSearchResult> =

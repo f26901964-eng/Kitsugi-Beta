@@ -103,6 +103,7 @@ fun ExploreScreen(
     onRedirectToAuth: (() -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val onSeeAllForSelected: (String, ExploreCategoryType, List<JikanSearchResult>) -> Unit = { title, category, results ->
         onSeeAllSection(title, category, results, viewModel.selectedPlatform)
     }
@@ -179,12 +180,14 @@ fun ExploreScreen(
         if (viewModel.selectedPlatform == ExplorePlatform.ALL) emptyList()
         else sourceSections(viewModel.selectedPlatform, filteredSourcePayload)
     }
-    val singleSourceDisplaySections = remember(viewModel.selectedPlatform, selectedSourceSections, filteredSourcePayload) {
-        singleSourceExploreSections(
-            platform = viewModel.selectedPlatform,
-            p = filteredSourcePayload,
-            baseSections = selectedSourceSections
-        )
+    val visibleSelectedSourceSections = remember(selectedSourceSections, separateNovelsManga) {
+        selectedSourceSections.filter { separateNovelsManga || it.category != ExploreCategoryType.NOVELS }
+    }
+    // Single-source shortcuts are derived from the same rows below. Providers with eager
+    // catalogs omit empty categories; AniList retains supported-but-not-yet-loaded shelves.
+    val selectedCategorySections = remember(visibleSelectedSourceSections, viewModel.selectedPlatform) {
+        if (viewModel.selectedPlatform == ExplorePlatform.AniList) visibleSelectedSourceSections
+        else visibleSelectedSourceSections.filter { it.results.isNotEmpty() }
     }
 
     // "Tümü" modu bölümleri: yalnızca kaynak durumları/ayar değişince hesaplanır.
@@ -231,7 +234,7 @@ fun ExploreScreen(
 
     // The video-only hero uses one item per source/shelf in ALL, two in a selected
     // source, plus the countdown rail. Artwork is verified before it can be displayed.
-    val heroSourceSections = if (viewModel.selectedPlatform == ExplorePlatform.ALL) allSectionsList else selectedSourceSections
+    val heroSourceSections = if (viewModel.selectedPlatform == ExplorePlatform.ALL) allSectionsList else visibleSelectedSourceSections
     val heroSections = remember(heroSourceSections) {
         heroSourceSections.map { section ->
             section.copy(results = section.results.filter(::isHomeHeroMedia))
@@ -276,7 +279,7 @@ fun ExploreScreen(
         (if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
             allSectionsList.isNotEmpty() || sharedAiringSoon.isNotEmpty()
         } else {
-            singleSourceDisplaySections.any { it.results.isNotEmpty() } || filteredAiringSoonAnime.isNotEmpty()
+            selectedSourceSections.any { it.results.isNotEmpty() } || filteredAiringSoonAnime.isNotEmpty()
         })
     val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
         contentReady = hasCatalogContent,
@@ -327,7 +330,7 @@ fun ExploreScreen(
 
     val isCatalogEmpty = viewModel.selectedPlatform != ExplorePlatform.ALL &&
         !viewModel.isLoading && viewModel.errorMessage == null &&
-        singleSourceDisplaySections.none { it.results.isNotEmpty() } &&
+        visibleSelectedSourceSections.none { it.results.isNotEmpty() } &&
         filteredAiringSoonAnime.isEmpty()
 
     Row(
@@ -452,7 +455,7 @@ fun ExploreScreen(
                                                                 )
                                                             } else {
                                                                 randomPool.addAll(
-                                                                    singleSourceDisplaySections
+                                                                    visibleSelectedSourceSections
                                                                         .flatMap { it.results }
                                                                         .distinctBy { it.exploreIdentity() }
                                                                 )
@@ -657,6 +660,11 @@ fun ExploreScreen(
                                         lazyListState.animateScrollToItem(index, stickyToggleHeight)
                                     } },
                                     onRetrySource = viewModel::retrySource,
+                                    loadedCategories = viewModel.aniListLoadedCategories,
+                                    loadingCategories = viewModel.aniListLoadingCategories,
+                                    failedCategories = viewModel.aniListFailedCategories,
+                                    onLoadCategory = viewModel::loadExploreSection,
+                                    onRetryCategory = viewModel::retryExploreSection,
                                     alreadyInList = isAlreadyInList,
                                     getMediaEntry = getMediaEntry,
                                     onItemClick = onOpenApiDetail,
@@ -680,19 +688,15 @@ fun ExploreScreen(
                             } else {
                                 val isTmdbFamilySource = viewModel.selectedPlatform == ExplorePlatform.TMDB ||
                                     viewModel.selectedPlatform == ExplorePlatform.SIMKL
-                                if (singleSourceDisplaySections.any { it.results.isNotEmpty() } || viewModel.isLoading) {
-                                    item(key = "selected_categories_${viewModel.selectedPlatform.name}") {
-                                        ExploreCategoriesSection(
-                                            platform = viewModel.selectedPlatform,
-                                            sections = singleSourceDisplaySections,
-                                            isLoading = viewModel.isLoading,
-                                            isExpanded = isCategoriesExpanded,
-                                            onExpandedChange = { isCategoriesExpanded = it },
-                                            accentColor = accentColor,
-                                            onSeeAllSection = onSeeAllForSelected
-                                        )
-                                        Spacer(modifier = Modifier.height(26.dp))
-                                    }
+                                item(key = "selected_explore_categories") {
+                                    ExploreCategoriesSection(
+                                        isExpanded = isCategoriesExpanded,
+                                        onExpandedChange = { isCategoriesExpanded = it },
+                                        accentColor = accentColor,
+                                        sections = selectedCategorySections,
+                                        onSeeAllSection = onSeeAllForSelected
+                                    )
+                                    Spacer(modifier = Modifier.height(26.dp))
                                 }
 
                                 // Tüm kaynaklardaki ortak yayın şeridi aynı noktada: kategori
@@ -717,8 +721,14 @@ fun ExploreScreen(
 
                                 if (!isTmdbFamilySource || viewModel.tmdbModernHomeEnabled) {
                                     sourceExploreSections(
-                                        sections = singleSourceDisplaySections,
+                                        sections = visibleSelectedSourceSections,
+                                        platform = viewModel.selectedPlatform,
                                         isLoading = viewModel.isLoading,
+                                        loadedCategories = viewModel.aniListLoadedCategories,
+                                        loadingCategories = viewModel.aniListLoadingCategories,
+                                        failedCategories = viewModel.aniListFailedCategories,
+                                        onLoadCategory = viewModel::loadExploreSection,
+                                        onRetryCategory = viewModel::retryExploreSection,
                                         isAlreadyInList = isAlreadyInList,
                                         getMediaEntry = getMediaEntry,
                                         onItemClick = onOpenApiDetail,
@@ -729,6 +739,22 @@ fun ExploreScreen(
                                         hideScores = hideScores,
                                         blurAdultMedia = blurAdultMedia
                                     )
+                                    if (viewModel.selectedPlatform == ExplorePlatform.SIMKL) {
+                                        simklUserExploreSections(
+                                            viewModel = viewModel,
+                                            isAlreadyInList = isAlreadyInList,
+                                            getMediaEntry = getMediaEntry,
+                                            onItemClick = onOpenApiDetail,
+                                            onLongClickItem = onLongClickItem,
+                                            onSeeAllSection = onSeeAllForSelected,
+                                            onNavigateToWatchHistory = onNavigateToWatchHistory,
+                                            titleLanguage = titleLanguage,
+                                            scoreFormat = scoreFormat,
+                                            hideScores = hideScores,
+                                            blurAdultMedia = blurAdultMedia,
+                                            context = context
+                                        )
+                                    }
                                 }
                             }
                         }
