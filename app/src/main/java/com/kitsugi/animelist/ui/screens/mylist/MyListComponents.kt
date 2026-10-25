@@ -475,6 +475,8 @@ fun MyListTabBar(
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
+    tmdbUsername: String = "",
     anilistUsername: String = "",
     malUsername: String = "",
     simklUsername: String = "",
@@ -497,6 +499,7 @@ fun MyListTabBar(
     val countKitsu = remember(allEntries) { allEntries.count { it.source.equals("kitsu", ignoreCase = true) } }
     val countShikimori = remember(allEntries) { allEntries.count { it.source.equals("shikimori", ignoreCase = true) } }
     val countBangumi = remember(allEntries) { allEntries.count { isBangumiListMember(it.source, it.malId) } }
+    val countTmdb = remember(allEntries) { allEntries.count { isTmdbAccountListMember(it.source) } }
 
     val platforms = listOf(
         MyListPlatformSource(
@@ -570,6 +573,18 @@ fun MyListTabBar(
             username = bangumiUsername,
             count = countBangumi,
             description = "Çin'in anime/manga topluluk veritabanı (bgm.tv)"
+        ),
+        MyListPlatformSource(
+            index = MY_LIST_TMDB_TAB_INDEX,
+            id = "tmdb",
+            name = "TMDB",
+            shortName = "TMDB",
+            emoji = "🎬",
+            brandColor = Color(0xFF01B4E4),
+            isConnected = isTmdbConnected,
+            username = tmdbUsername,
+            count = countTmdb,
+            description = "TMDB hesap Watchlist, favoriler ve puanlar"
         )
     )
 
@@ -902,7 +917,8 @@ fun MyListContentPage(
                 item { MyListSyncPromptState() }
             }
         } else {
-            val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX
+            val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX &&
+                selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX && selectedTabIndex != MY_LIST_TMDB_TAB_INDEX
             val displayEntries = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) visibleEntries else pageEntries
             // PERF: aktif olmayan pager sayfası için durum gruplaması her yeniden
             // kompozisyonda yeniden hesaplanıyordu (kompozisyon sırasında 6 × tam liste

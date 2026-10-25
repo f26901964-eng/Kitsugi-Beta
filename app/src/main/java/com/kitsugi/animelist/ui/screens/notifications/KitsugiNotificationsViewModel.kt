@@ -14,6 +14,7 @@ import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
 import com.kitsugi.animelist.data.auth.MalImportManager
 import com.kitsugi.animelist.data.auth.ShikimoriApiClient
+import com.kitsugi.animelist.data.auth.TmdbAuthStore
 import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
@@ -185,6 +186,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     private val _tmdbSimkl = MutableStateFlow(NotifUiState())
     val tmdbSimkl: StateFlow<NotifUiState> = _tmdbSimkl.asStateFlow()
 
+    // ── TMDB account changes (locally archived; TMDB has no notification API) ──
+    private val _tmdbAccount = MutableStateFlow(NotifUiState())
+    val tmdbAccount: StateFlow<NotifUiState> = _tmdbAccount.asStateFlow()
+
     // ── Kitsu ──
     private val _kitsu = MutableStateFlow(NotifUiState())
     val kitsu: StateFlow<NotifUiState> = _kitsu.asStateFlow()
@@ -245,9 +250,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     private fun archiveAndMerge(
         source: String,
         live: List<NotifItem>,
-        retainOldWhere: ((NotificationArchiveStore.ArchivedNotif) -> Boolean)? = null
+        retainOldWhere: ((NotificationArchiveStore.ArchivedNotif) -> Boolean)? = null,
+        writeLive: Boolean = true
     ): List<NotifItem> {
-        writeArchive(source, live, retainOldWhere = retainOldWhere)
+        if (writeLive) writeArchive(source, live, retainOldWhere = retainOldWhere)
 
         val liveIds = live.map { it.id }.toSet()
         val stored = NotificationArchiveStore.loadSource(ctx, source)
@@ -1291,6 +1297,38 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             }
         }
         return resolvedTitles
+    }
+
+    fun loadTmdbAccount() {
+        if (_tmdbAccount.value.isLoading) return
+        viewModelScope.launch {
+            _tmdbAccount.value = _tmdbAccount.value.copy(isLoading = true, error = null, errorCode = null)
+            try {
+                val notificationsEnabled = settingsDataStore.settingsFlow.first().tmdbNotificationsEnabled
+                val live = if (TmdbAuthStore.isConnected(ctx) && notificationsEnabled) {
+                    val result = com.kitsugi.animelist.core.notifications.TmdbAccountNotificationPoller.poll(ctx) { polled ->
+                        com.kitsugi.animelist.core.notifications.archiveTmdbAccountNotifications(
+                            ctx, polled.archivedNotifications
+                        )
+                    }
+                    result.archivedNotifications.map { it.toNotifItem() }
+                } else emptyList()
+                _tmdbAccount.value = NotifUiState(
+                    items = archiveAndMerge("TMDB", live, writeLive = false),
+                    isLoading = false,
+                    hasMore = false,
+                    notice = ctx.getString(R.string.notif_notice_tmdb_account)
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _tmdbAccount.value = _tmdbAccount.value.copy(
+                    isLoading = false,
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName),
+                    errorCode = PlatformFailureRegistry.reportAndResolve("tmdb", e)
+                )
+            }
+        }
     }
 
     fun loadBangumi(mediaEntries: List<MediaEntry> = emptyList(), titleLanguage: String? = null) {

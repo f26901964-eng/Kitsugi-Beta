@@ -178,6 +178,16 @@ private fun PlatformConnectionsPage(
                 isConnected = profile.isBangumiConnected,
                 onClick = { onNavigate(SettingsRoute.BangumiSettings) }
             )
+            KitsugiSettingsDivider()
+
+            // TMDB user account: separate from the public metadata catalog.
+            AccountHubItem(
+                title = "TMDB Watchlist",
+                subtitle = if (profile.isTmdbConnected) stringResource(R.string.bagli_x, profile.tmdbUsername) else stringResource(R.string.inline_not_connected_2c7d104),
+                platformId = "tmdb",
+                isConnected = profile.isTmdbConnected,
+                onClick = { onNavigate(SettingsRoute.TmdbSettings) }
+            )
         }
     }
 }
@@ -194,7 +204,8 @@ private fun CrossSyncConnectionsPage(
             (if (profile.isSimklConnected) 1 else 0) +
             (if (profile.isKitsuConnected) 1 else 0) +
             (if (profile.isShikimoriConnected) 1 else 0) +
-            (if (profile.isBangumiConnected) 1 else 0)
+            (if (profile.isBangumiConnected) 1 else 0) +
+            (if (profile.isTmdbConnected) 1 else 0)
 
     Column(
         modifier = Modifier
@@ -889,7 +900,79 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
     }
 }
 // ─────────────────────────────────────────────────────────────────────────────
-// 7. Çapraz Eşitleme (Cross-Sync) Alt Sayfası
+// 7. TMDB kullanıcı watchlist'i (katalog oturumundan ayrı)
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+internal fun TmdbSettingsContent(profile: ProfileSettings) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        ConnectionStatusCard(
+            platformName = "TMDB",
+            platformId = "tmdb",
+            username = profile.tmdbUsername,
+            isConnected = profile.isTmdbConnected
+        )
+
+        SectionHeader(stringResource(R.string.settings_section_actions))
+        SettingsNavCard {
+            if (profile.isTmdbConnected) {
+                KitsugiSettingsItem(
+                    title = "TMDB hesabını tam eşitle",
+                    description = if (profile.isTmdbImportRunning) {
+                        "Watchlist, favoriler ve puanlar getiriliyor..."
+                    } else {
+                        "TMDB hesap snapshot'ını al; ilerlemeni ve notlarını koru"
+                    },
+                    icon = Icons.Rounded.Sync,
+                    iconColor = KitsugiColors.AccentGreen,
+                    onClick = { if (!profile.isTmdbImportRunning) profile.onTmdbImportClick() }
+                )
+                KitsugiSettingsDivider()
+                KitsugiSettingsSwitchItem(
+                    title = stringResource(R.string.otomatik_esitleme),
+                    description = "Kitsugi değişikliklerini TMDB Watchlist, favori ve puanına yaz",
+                    icon = Icons.Rounded.CloudSync,
+                    iconColor = KitsugiColors.AccentBlue,
+                    checked = profile.syncEnabledTmdb,
+                    onCheckedChange = profile.onSyncEnabledTmdbChanged,
+                    platformId = "tmdb"
+                )
+                KitsugiSettingsDivider()
+                KitsugiSettingsItem(
+                    title = "TMDB bağlantısını kes",
+                    description = "TMDB oturumunu uygulamadan kaldır; liste kayıtlarını silme",
+                    icon = Icons.Rounded.LinkOff,
+                    iconColor = KitsugiColors.AccentRed,
+                    onClick = profile.onTmdbAuthClick
+                )
+            } else {
+                KitsugiSettingsItem(
+                    title = "TMDB hesabını bağla",
+                    description = "TMDB'de Kitsugi'ye izin ver ve Watchlist'i içe aktar",
+                    icon = Icons.Rounded.Link,
+                    iconColor = KitsugiColors.AccentBlue,
+                    onClick = profile.onTmdbAuthClick
+                )
+            }
+        }
+        Text(
+            text = "TMDB kullanıcı oturumu Watchlist, favori ve puan okuma/yazma içindir; katalog API anahtarı hesap girişi değildir. Tam snapshot ilerlemeni ve notlarını korur. TMDB'de Kitsugi'nin Watching/Completed durumları yoktur: Planlandı Watchlist'e, favori ve puan kendi alanlarına eşlenir. v3 özel liste yazımı film içindir; TV/karışık özel listeler v4 kullanıcı tokenı gerektirir.",
+            color = KitsugiColors.TextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Çapraz Eşitleme (Cross-Sync) Alt Sayfası
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -903,7 +986,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
             (if (profile.isSimklConnected) 1 else 0) +
             (if (profile.isKitsuConnected) 1 else 0) +
             (if (profile.isShikimoriConnected) 1 else 0) +
-            (if (profile.isBangumiConnected) 1 else 0)
+            (if (profile.isBangumiConnected) 1 else 0) +
+            (if (profile.isTmdbConnected) 1 else 0)
 
     val connectedNames = mutableListOf<String>().apply {
         if (profile.isAniListConnected) add("AniList")
@@ -912,6 +996,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
         if (profile.isKitsuConnected) add("Kitsu")
         if (profile.isShikimoriConnected) add("Shikimori")
         if (profile.isBangumiConnected) add("Bangumi")
+        if (profile.isTmdbConnected) add("TMDB")
     }.joinToString(", ")
 
     Column(

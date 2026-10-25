@@ -203,6 +203,27 @@ class MediaEntryMatchesTest {
     }
 
     @Test
+    fun `simkl lookup never treats a tmdb id as a simkl id`() {
+        val tmdbRow = entry(
+            title = "Demon Slayer: Infinity Castle",
+            source = "tmdb",
+            type = MediaType.Movie,
+            tmdbId = 12345
+        )
+        val simklRow = entry(
+            title = "Demon Slayer: Infinity Castle",
+            source = "simkl",
+            type = MediaType.Movie,
+            tmdbId = 12345
+        ).copy(simklId = 98765)
+
+        assertFalse(tmdbRow.matchesInSource(12345, "simkl"))
+        assertFalse(simklRow.matchesInSource(12345, "simkl"))
+        assertTrue(simklRow.matchesInSource(98765, "simkl"))
+        assertTrue(simklRow.matchesInSource(12345, "tmdb"))
+    }
+
+    @Test
     fun `source scoped lookup accepts Bangumi aliases and exact source ids`() {
         val storedBangumi = entry(
             title = "Old title",
@@ -217,6 +238,94 @@ class MediaEntryMatchesTest {
 
         assertTrue(storedBangumi.matchesInSource(bangumiResult))
         assertTrue(listOf(storedBangumi).firstMatchingInSource(bangumiResult) === storedBangumi)
+    }
+
+    @Test
+    fun `tmdb movie detail recognises the Simkl list membership`() {
+        val simklMovie = entry(
+            title = "Demon Slayer: Infinity Castle",
+            source = "simkl",
+            type = MediaType.Movie,
+            year = 2025,
+            tmdbId = 12345
+        )
+        val tmdbResult = result(
+            title = "Demon Slayer: Infinity Castle",
+            malId = 12345,
+            source = "tmdb",
+            type = MediaType.Movie,
+            year = 2025,
+            tmdbId = 12345
+        )
+
+        assertTrue(simklMovie.matchesInSource(tmdbResult))
+        assertTrue(simklMovie.matchesInSource(12345, "tmdb"))
+        assertTrue(listOf(simklMovie).firstMatchingInSource(tmdbResult) === simklMovie)
+    }
+
+    @Test
+    fun `tmdb account lookup does not borrow Simkl or legacy catalog membership`() {
+        val accountResult = result(
+            title = "Demon Slayer: Infinity Castle",
+            malId = 12345,
+            source = "tmdb_account",
+            type = MediaType.Movie,
+            year = 2025,
+            tmdbId = 12345
+        )
+        val simklMovie = entry(
+            title = "Demon Slayer: Infinity Castle",
+            source = "simkl",
+            type = MediaType.Movie,
+            year = 2025,
+            tmdbId = 12345
+        )
+        val accountMovie = simklMovie.copy(source = "tmdb_account")
+
+        assertFalse(simklMovie.matchesInSource(accountResult))
+        assertFalse(simklMovie.copy(source = "tmdb").matchesInSource(accountResult))
+        assertTrue(accountMovie.matchesInSource(accountResult))
+    }
+
+    @Test
+    fun `tmdb simkl alias does not open Bangumi provider scope`() {
+        val bangumi = entry(
+            title = "Demon Slayer: Infinity Castle",
+            source = "bangumi",
+            type = MediaType.Movie,
+            year = 2025,
+            tmdbId = 12345
+        )
+        val tmdbResult = result(
+            title = "Demon Slayer: Infinity Castle",
+            malId = 12345,
+            source = "tmdb",
+            type = MediaType.Movie,
+            year = 2025,
+            tmdbId = 12345
+        )
+        assertFalse(bangumi.matchesInSource(tmdbResult))
+    }
+
+    @Test
+    fun `same title does not override conflicting TMDB account ids`() {
+        val remake = entry(
+            title = "Dune",
+            source = "tmdb_account",
+            type = com.kitsugi.animelist.model.MediaType.Movie,
+            tmdbId = 438631,
+            year = 2021
+        )
+        val otherMovie = result(
+            title = "Dune",
+            source = "tmdb_account",
+            type = com.kitsugi.animelist.model.MediaType.Movie,
+            malId = 841,
+            tmdbId = 841,
+            year = 2021
+        )
+        assertFalse(remake.matchesInSource(otherMovie))
+        assertTrue(remake.matchesInSource(otherMovie.copy(malId = 438631, tmdbId = 438631)))
     }
 
     @Test

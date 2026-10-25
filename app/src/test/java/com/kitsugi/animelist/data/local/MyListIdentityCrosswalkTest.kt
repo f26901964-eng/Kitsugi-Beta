@@ -109,6 +109,19 @@ class MyListIdentityCrosswalkTest {
     }
 
     @Test
+    fun onlyExactTitleYearCrossTypeCandidatesRequestBridgeResolution() {
+        val anime = entry(id = 40, title = "Same film", source = "anilist", year = 2025)
+        val movie = entry(id = 41, title = "Same film", source = "simkl", type = MediaType.Movie, year = 2025)
+        val otherYear = entry(id = 42, title = "Same film", source = "simkl", type = MediaType.Movie, year = 2024)
+        val manga = entry(id = 43, title = "Same film", source = "mal", type = MediaType.Manga, year = 2025)
+
+        assertEquals(
+            setOf(40, 41),
+            MyListIdentityCrosswalk.crossTypeResolutionCandidates(listOf(anime, movie, otherYear, manga))
+        )
+    }
+
+    @Test
     fun nonAnimeMangaPreferenceEntriesAreIgnored() {
         val raw = mapOf(
             "bgm_r_52991" to 900,        // REAL (film/dizi) — no MAL axis for that type

@@ -9,6 +9,7 @@ object MediaIdentity {
 
     fun canonicalSource(source: String): String = when (val value = source.trim().lowercase(Locale.ROOT)) {
         "jikan", "myanimelist" -> "mal"
+        "themoviedb", "tmdb_account" -> "tmdb"
         else -> value
     }
 
@@ -27,6 +28,9 @@ object MediaIdentity {
         val source = canonicalSource(entry.source)
         entry.malId?.let { id ->
             when {
+                // Legacy TMDB catalog rows stored the TMDB number in malId. Never expose
+                // that value as MAL; retain it on the TMDB axis until migration rewrites it.
+                source == "tmdb" && id > 0 -> add("$prefix:tmdb:$id")
                 source == "shikimori" && id in 1..99_999_999 -> add("$prefix:shikimori:$id")
                 source == "bangumi" && id in 1..99_999_999 -> add("$prefix:bangumi:$id")
                 id in 1..99_999_999 && isRealMalIdSource(source) && entry.type in identityCapableTypes ->
@@ -141,26 +145,78 @@ object MediaIdentity {
         groupBy({ it.substringBeforeLast(':') }, { it.substringAfterLast(':') })
             .mapValues { (_, values) -> values.toSet() }
 
-    fun sameMedia(a: MediaEntry, b: MediaEntry, allowTitle: Boolean = true): Boolean =
-        sameMedia(a, b, keys(a), keys(b), allowTitle)
+    fun sameMedia(
+        a: MediaEntry,
+        b: MediaEntry,
+        allowTitle: Boolean = true,
+        allowCrossType: Boolean = false
+    ): Boolean = sameMedia(a, b, keys(a), keys(b), allowTitle, allowCrossType)
 
     /**
      * [sameMedia] against precomputed identity keys. [keysA]/[keysB] may carry crosswalk keys
      * (`MediaIdentity.keys(entry, extras)`) — everything else about the decision is identical.
+     *
+     * [allowCrossType] is intentionally opt-in for the combined library view. Import/update
+     * code keeps provider categories separate; only that view may join an Anime row with a
+     * Movie/TvShow row, and only with verified shared provider IDs (never title alone).
      */
     fun sameMedia(
         a: MediaEntry,
         b: MediaEntry,
         keysA: Set<String>,
         keysB: Set<String>,
-        allowTitle: Boolean = true
+        allowTitle: Boolean = true,
+        allowCrossType: Boolean = false
     ): Boolean {
-        if (a.type != b.type) return false
+        if (a.type != b.type) {
+            if (!allowCrossType) return false
+            return sameVerifiedWatchableMedia(a, b, keysA, keysB)
+        }
         if (conflictingIdentityKeys(a.type, b.type, keysA, keysB).isNotEmpty()) return false
         if (keysA.intersect(keysB).isNotEmpty()) return true
         if (!allowTitle) return false
         return titleMatch(a, b)
     }
+
+    private val strongAnimeProviders = setOf("mal", "anilist", "kitsu", "shikimori", "bangumi")
+
+    private fun sameVerifiedWatchableMedia(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String>,
+        keysB: Set<String>
+    ): Boolean {
+        val compatibleTypes = (a.type == MediaType.Anime && b.type in listOf(MediaType.Movie, MediaType.TvShow)) ||
+            (b.type == MediaType.Anime && a.type in listOf(MediaType.Movie, MediaType.TvShow))
+        if (!compatibleTypes) return false
+
+        val providersA = keysA.groupByProviderNamespace()
+        val providersB = keysB.groupByProviderNamespace()
+        val sharedNamespaces = providersA.keys.intersect(providersB.keys)
+        // A conflict in any common namespace blocks the merge even if another ID agrees.
+        // This preserves the same conservative rule used for same-type identities.
+        if (sharedNamespaces.any { namespace ->
+                providersA.getValue(namespace).intersect(providersB.getValue(namespace)).isEmpty()
+            }
+        ) return false
+
+        val agreeingNamespaces = sharedNamespaces.filterTo(mutableSetOf()) { namespace ->
+            providersA.getValue(namespace).intersect(providersB.getValue(namespace)).isNotEmpty()
+        }
+        if (agreeingNamespaces.any { it in strongAnimeProviders }) return true
+
+        // TMDB/Simkl movie and TV namespaces can overlap. A shared video ID is accepted only
+        // together with an exact known release year and a matching title variant.
+        return agreeingNamespaces.any { it == "tmdb" || it == "simkl" } &&
+            a.year != null && b.year != null && a.year == b.year && titleMatch(a, b)
+    }
+
+    /** Removes only the media-type prefix; provider namespaces remain isolated. */
+    private fun Set<String>.groupByProviderNamespace(): Map<String, Set<String>> =
+        mapNotNull { key ->
+            val parts = key.split(':')
+            if (parts.size == 3) parts[1] to parts[2] else null
+        }.groupBy({ it.first }, { it.second }).mapValues { (_, values) -> values.toSet() }
 
     /**
      * The two rows look like the same production but share no verified ID, so the catalog title

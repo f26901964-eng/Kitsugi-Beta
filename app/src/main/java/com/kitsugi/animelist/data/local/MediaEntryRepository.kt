@@ -40,7 +40,7 @@ class MediaEntryRepository(
 
     /**
      * @param skipBangumiWrite kayıt için Bangumi yazması çağrıda zaten yapıldıysa `true`;
-     * canlı çapraz eşitleme diğer beş kaynağa yine yayılır.
+     * canlı çapraz eşitleme diğer altı kaynağa yine yayılır.
      */
     suspend fun insert(
         entry: MediaEntry,
@@ -57,7 +57,13 @@ class MediaEntryRepository(
         val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
         // Aynı yapımın başka kaynaklardaki yerel satırları da aynı kullanıcı değerlerini alsın.
         mirrorUserFieldsToSiblings(persistedEntry)
-        if (syncExternal) syncEntryIfPossible(persistedEntry, skipBangumiWrite = skipBangumiWrite)
+        if (syncExternal) {
+            syncEntryIfPossible(
+                persistedEntry,
+                skipBangumiWrite = skipBangumiWrite,
+                tmdbFields = com.kitsugi.animelist.data.auth.tmdbWriteFieldsForInsert(persistedEntry)
+            )
+        }
     }
 
     suspend fun insertAll(entries: List<MediaEntry>) {
@@ -217,7 +223,9 @@ class MediaEntryRepository(
         advancedScores: List<Double>? = null,
         skipBangumiWrite: Boolean = false
     ) {
+        val previousEntry = dao.getById(entry.id)?.toDomain()
         val entryWithTime = entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+        val tmdbFields = com.kitsugi.animelist.data.auth.tmdbWriteFieldsForUpdate(previousEntry, entryWithTime)
         dao.update(
             entryWithTime.toEntity()
         )
@@ -226,7 +234,7 @@ class MediaEntryRepository(
         mirrorUserFieldsToSiblings(entryWithTime)
 
         if (syncExternal) {
-            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite)
+            syncEntryIfPossible(entryWithTime, advancedScores, skipBangumiWrite, tmdbFields)
         }
     }
 
@@ -281,6 +289,37 @@ class MediaEntryRepository(
         val ctx = context ?: return 0
         val queueDao = pendingSyncDao ?: return 0
         return PendingSyncDrainer.drain(ctx, queueDao, freshBudget = freshBudget)
+    }
+
+    /** A remote snapshot must not delete a row while any local intent is still queued. */
+    suspend fun hasPendingSyncJobs(): Boolean =
+        runSyncCatching { pendingSyncDao?.getAll()?.isNotEmpty() == true }.getOrDefault(true)
+
+    /**
+     * Mirror only TMDB's native account fields. Status/progress are deliberately excluded:
+     * Watchlist membership is not evidence that a sibling was completed or started.
+     */
+    suspend fun mirrorTmdbAccountFieldsToSiblings(entry: MediaEntry) {
+        if (!com.kitsugi.animelist.data.auth.isTmdbAccountSource(entry.source)) return
+        runSyncCatching {
+            findSiblingRows(entry).forEach { sibling ->
+                val mirroredRating = if (com.kitsugi.animelist.data.auth.isTmdbAccountSource(sibling.source)) {
+                    entry.tmdbRating
+                } else sibling.tmdbRating
+                if (sibling.isFavorite != entry.isFavorite || sibling.score != entry.score ||
+                    sibling.tmdbRating != mirroredRating
+                ) {
+                    dao.update(
+                        sibling.copy(
+                            isFavorite = entry.isFavorite,
+                            score = entry.score,
+                            tmdbRating = mirroredRating,
+                            updatedAt = maxOf(sibling.updatedAt, entry.updatedAt)
+                        ).toEntity()
+                    )
+                }
+            }
+        }
     }
 
     // ────────────────────────────────────────────────
@@ -342,6 +381,12 @@ class MediaEntryRepository(
                     sibling.copy(
                         status = entry.status,
                         score = entry.score,
+                        // The shared Int changed: an old native half rating is now stale and
+                        // must not win over the user's new value in the TMDB write resolver.
+                        tmdbRating = if (
+                            com.kitsugi.animelist.data.auth.isTmdbAccountSource(sibling.source) &&
+                            sibling.score != entry.score
+                        ) null else sibling.tmdbRating,
                         progress = entry.progress,
                         volumeProgress = entry.volumeProgress,
                         startDate = entry.startDate,
@@ -369,9 +414,13 @@ class MediaEntryRepository(
     private suspend fun syncEntryIfPossible(
         entry: MediaEntry,
         advancedScores: List<Double>? = null,
-        skipBangumiWrite: Boolean = false
+        skipBangumiWrite: Boolean = false,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All
     ) {
         val appContext = context ?: return
+        // Zero means "no TMDB account at intent time" and is intentionally different
+        // from null (legacy/unscoped queue record).
+        val expectedTmdbAccountId = com.kitsugi.animelist.data.auth.TmdbAuthStore.accountId(appContext) ?: 0
         // Senkronizasyon için geçerli koşullar:
         // 1) malId var (MAL veya gerçek bir MAL ID'si olan AniList kaydı)
         // 2) aniListEntryId var (kaynak ne olursa olsun AniList liste kaydı)
@@ -389,7 +438,9 @@ class MediaEntryRepository(
                 context = appContext,
                 entry = entry,
                 advancedScores = advancedScores,
-                skipBangumiWrite = skipBangumiWrite
+                skipBangumiWrite = skipBangumiWrite,
+                tmdbFields = tmdbFields,
+                expectedTmdbAccountId = expectedTmdbAccountId
             )
         }
 
@@ -412,7 +463,7 @@ class MediaEntryRepository(
 
             if (messages.isNotEmpty()) drainPendingQueue()
         } else {
-            enqueuePending("UPDATE", entry)
+            enqueuePending("UPDATE", entry, tmdbFields, expectedTmdbAccountId)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
             val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
             val displayMessage = if (isAuthError) {
@@ -429,6 +480,7 @@ class MediaEntryRepository(
 
     private suspend fun syncDeleteIfPossible(entry: MediaEntry) {
         val appContext = context ?: return
+        val expectedTmdbAccountId = com.kitsugi.animelist.data.auth.TmdbAuthStore.accountId(appContext) ?: 0
         // Silme için geçerli koşullar (syncEntryIfPossible ile aynı mantık)
         val hasAniListLink = entry.aniListEntryId != null || entry.source == "anilist"
         val hasMalLink = entry.malId != null
@@ -440,7 +492,8 @@ class MediaEntryRepository(
         val result = runSyncCatching {
             ExternalListSyncManager.deleteEntry(
                 context = appContext,
-                entry = entry
+                entry = entry,
+                expectedTmdbAccountId = expectedTmdbAccountId
             )
         }
 
@@ -453,7 +506,7 @@ class MediaEntryRepository(
             notifySyncResult(messages)
             if (messages.isNotEmpty()) drainPendingQueue()
         } else {
-            enqueuePending("DELETE", entry)
+            enqueuePending("DELETE", entry, expectedTmdbAccountId = expectedTmdbAccountId)
             val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
             val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
             val displayMessage = if (isAuthError) {
@@ -468,9 +521,14 @@ class MediaEntryRepository(
         }
     }
 
-    private suspend fun enqueuePending(operation: String, entry: MediaEntry) {
+    private suspend fun enqueuePending(
+        operation: String,
+        entry: MediaEntry,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
+    ) {
         val queueDao = pendingSyncDao ?: return
-        PendingSyncDrainer.enqueue(queueDao, operation, entry)
+        PendingSyncDrainer.enqueue(queueDao, operation, entry, tmdbFields, expectedTmdbAccountId)
     }
 
     /**

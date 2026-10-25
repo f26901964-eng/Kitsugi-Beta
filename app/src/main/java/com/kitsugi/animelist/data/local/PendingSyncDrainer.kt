@@ -25,6 +25,8 @@ import org.json.JSONObject
 object PendingSyncDrainer {
 
     private const val MAX_RETRIES = 5
+    private const val TMDB_FIELDS_KEY = "_tmdbWriteFields"
+    private const val TMDB_ACCOUNT_ID_KEY = "_tmdbAccountId"
     private val drainMutex = Mutex()
 
     // ────────────────────────────────────────────────
@@ -34,7 +36,9 @@ object PendingSyncDrainer {
     suspend fun enqueue(
         dao: PendingSyncDao,
         operation: String,
-        entry: MediaEntry
+        entry: MediaEntry,
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields = com.kitsugi.animelist.data.auth.TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
     ) = withContext(Dispatchers.IO) {
         drainMutex.withLock {
             val older = dao.getAll().filter { pending ->
@@ -45,7 +49,7 @@ object PendingSyncDrainer {
                 }.getOrDefault(false)
             }
             // Insert first: a failed insert must not destroy the previous recoverable job.
-            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson()))
+            dao.insert(PendingSyncEntity(operation = operation, entryJson = entry.toJson(tmdbFields, expectedTmdbAccountId)))
             older.forEach { dao.deleteById(it.id) }
         }
     }
@@ -79,7 +83,21 @@ object PendingSyncDrainer {
 
         for (item in pending) {
             val entry = runSyncCatching { item.entryJson.toMediaEntry() }.getOrNull()
-            if (entry == null) {
+            val tmdbFields = if (item.operation == "UPDATE") {
+                runSyncCatching {
+                    val json = JSONObject(item.entryJson)
+                    com.kitsugi.animelist.data.auth.TmdbWriteFields.fromToken(
+                        if (json.has(TMDB_FIELDS_KEY)) json.optString(TMDB_FIELDS_KEY) else null
+                    )
+                }.getOrNull()
+            } else {
+                com.kitsugi.animelist.data.auth.TmdbWriteFields.All
+            }
+            val expectedTmdbAccountId = runSyncCatching {
+                val json = JSONObject(item.entryJson)
+                if (json.has(TMDB_ACCOUNT_ID_KEY)) json.optInt(TMDB_ACCOUNT_ID_KEY, 0) else null
+            }.getOrNull()
+            if (entry == null || tmdbFields == null) {
                 // Preserve malformed jobs for recovery rather than destroying them.
                 dao.incrementRetry(item.id)
                 continue
@@ -87,8 +105,12 @@ object PendingSyncDrainer {
 
             val result = runSyncCatching {
                 when (item.operation) {
-                    "UPDATE" -> ExternalListSyncManager.syncEntry(context, entry)
-                    "DELETE" -> ExternalListSyncManager.deleteEntry(context, entry)
+                    "UPDATE" -> ExternalListSyncManager.syncEntry(
+                        context, entry, tmdbFields = tmdbFields, expectedTmdbAccountId = expectedTmdbAccountId
+                    )
+                    "DELETE" -> ExternalListSyncManager.deleteEntry(
+                        context, entry, expectedTmdbAccountId = expectedTmdbAccountId
+                    )
                     else -> null
                 }
             }
@@ -98,7 +120,8 @@ object PendingSyncDrainer {
             // Yalnızca gerçek hata yeniden denemeyi haklı çıkarır; "kimlik çözülemedi"
             // (atlandı) durumları kuyrukta sonsuza kadar dönmez.
             val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty() &&
-                (syncResult.messages.isNotEmpty() || syncResult.skipped.isNotEmpty())
+                (syncResult.messages.isNotEmpty() || syncResult.skipped.isNotEmpty() ||
+                    syncResult.outcomes.containsValue(ExternalListSyncManager.OUTCOME_NO_NATIVE_CHANGES))
 
             if (success) {
                 dao.deleteById(item.id)
@@ -122,8 +145,17 @@ object PendingSyncDrainer {
     // JSON Serializasyon / Deserializasyon
     // ────────────────────────────────────────────────
 
-    private fun MediaEntry.toJson(): String = JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
-        .getJSONArray("entries").getJSONObject(0).put("id", id).toString()
+    private fun MediaEntry.toJson(
+        tmdbFields: com.kitsugi.animelist.data.auth.TmdbWriteFields,
+        expectedTmdbAccountId: Int?
+    ): String = JSONObject(MediaEntryBackup.exportToJson(listOf(this)))
+        .getJSONArray("entries").getJSONObject(0)
+        .put("id", id)
+        .put(TMDB_FIELDS_KEY, tmdbFields.toToken())
+        .apply {
+            if (expectedTmdbAccountId != null) put(TMDB_ACCOUNT_ID_KEY, expectedTmdbAccountId)
+        }
+        .toString()
 
     private fun String.toMediaEntry(): MediaEntry {
         val item = JSONObject(this)

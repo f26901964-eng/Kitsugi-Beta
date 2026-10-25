@@ -8,33 +8,9 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
-import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
-
-internal data class NotificationAccountLinks(
-    val aniList: Boolean,
-    val mal: Boolean,
-    val simkl: Boolean,
-    val kitsu: Boolean,
-    val shikimori: Boolean,
-    val bangumi: Boolean
-) {
-    val any: Boolean
-        get() = aniList || mal || simkl || kitsu || shikimori || bangumi
-}
-
-internal fun shouldScheduleNotificationWork(
-    settings: AppSettings,
-    accounts: NotificationAccountLinks
-): Boolean =
-    (settings.airingNotificationsEnabled && accounts.any) ||
-        (settings.aniListNotificationsEnabled && accounts.aniList) ||
-        (settings.malNotificationsEnabled && accounts.mal) ||
-        (settings.simklNotificationsEnabled && accounts.simkl) ||
-        (settings.kitsuNotificationsEnabled && accounts.kitsu) ||
-        (settings.shikimoriNotificationsEnabled && accounts.shikimori)
 
 object NotificationScheduler {
     private const val TAG = "NotificationScheduler"
@@ -94,7 +70,8 @@ object NotificationScheduler {
             simkl = !ExternalAuthManager.getSimklToken(context).isNullOrBlank(),
             kitsu = !ExternalAuthManager.getKitsuToken(context).isNullOrBlank(),
             shikimori = !ExternalAuthManager.getShikimoriToken(context).isNullOrBlank(),
-            bangumi = ExternalAuthManager.getAuthState(context).isBangumiConnected
+            bangumi = ExternalAuthManager.getAuthState(context).isBangumiConnected,
+            tmdb = com.kitsugi.animelist.data.auth.TmdbAuthStore.isConnected(context)
         )
 
     private fun enqueuePeriodicWork(context: Context, intervalMinutes: Int) {

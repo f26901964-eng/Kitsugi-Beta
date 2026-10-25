@@ -69,5 +69,9 @@ data class MediaEntry(
     val aniListEntryId: Int? = null,
     val malListId: Long? = null,
     val tmdbId: Int? = null,
-    val simklId: Int? = null
+    val simklId: Int? = null,
+    /** Native TMDB Watchlist membership; null means unknown/not applicable to this row. */
+    val tmdbWatchlist: Boolean? = null,
+    /** Native TMDB rating (0.5..10); the shared Kitsugi score remains an Int. */
+    val tmdbRating: Double? = null,
 )

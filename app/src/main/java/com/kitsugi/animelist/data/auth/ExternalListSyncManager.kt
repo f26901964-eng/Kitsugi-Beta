@@ -43,6 +43,8 @@ object ExternalListSyncManager {
 
     /** Bangumi yazması çağrıda zaten yapıldı (`skipBangumiWrite`). */
     internal const val OUTCOME_WRITTEN_BY_CALLER = "çağıran yazdı"
+    internal const val OUTCOME_NO_NATIVE_CHANGES = "native değişiklik yok"
+    internal const val OUTCOME_ACCOUNT_CHANGED = "hesap değişti"
 
     private fun Context.sourceFailure(platform: String, error: Throwable): String =
         getString(
@@ -54,13 +56,15 @@ object ExternalListSyncManager {
     /**
      * @param skipBangumiWrite Bangumi yazması çağrının kendisi tarafından zaten yapıldıysa
      * (Bangumi liste ekranlarından ekleme/düzenleme) `true` verilir; böylece koleksiyona
-     * iki kez yazılmaz, diğer beş kaynağa yayılım yine çalışır.
+     * iki kez yazılmaz, diğer altı kaynağa yayılım yine çalışır.
      */
     suspend fun syncEntry(
         context: Context,
         entry: MediaEntry,
         advancedScores: List<Double>? = null,
-        skipBangumiWrite: Boolean = false
+        skipBangumiWrite: Boolean = false,
+        tmdbFields: TmdbWriteFields = TmdbWriteFields.All,
+        expectedTmdbAccountId: Int? = null
     ): SyncResult {
         return withContext(Dispatchers.IO) {
             val messages = mutableListOf<String>()
@@ -77,6 +81,7 @@ object ExternalListSyncManager {
             val syncEnabledKitsu = settings?.syncEnabledKitsu ?: true
             val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
             val syncEnabledBangumi = settings?.syncEnabledBangumi ?: true
+            val syncEnabledTmdb = settings?.syncEnabledTmdb ?: true
 
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
@@ -84,6 +89,8 @@ object ExternalListSyncManager {
             val kitsuToken = ExternalAuthManager.getKitsuToken(context)
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
             val bangumiToken = if (syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
+            val tmdbWriteEnabled = shouldAttemptTmdbWrite(syncEnabledTmdb, entry.source)
+            val tmdbConnected = tmdbWriteEnabled && TmdbAuthStore.isConnected(context)
 
             // Kimlik araması yalnızca BAĞLI kaynaklar için yapılır: bağlı olmayan servis
             // adına katalog araması yapmak eşitlemeyi geciktirir, sonuç vermez.
@@ -93,7 +100,8 @@ object ExternalListSyncManager {
                 kitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank(),
                 shikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank(),
                 simkl = syncEnabledSimkl && !simklToken.isNullOrBlank(),
-                bangumi = !bangumiToken.isNullOrBlank()
+                bangumi = !bangumiToken.isNullOrBlank(),
+                tmdb = tmdbConnected
             )
 
             val isBangumiRow = canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE
@@ -110,7 +118,7 @@ object ExternalListSyncManager {
                 CrossProviderIdentityResolver.resolve(context, entry, connected = connectedSources)
             }.getOrNull()?.mergedWith(fallbackIdentity) ?: fallbackIdentity
 
-            // Bangumi'nin kendi koleksiyon yazması her zaman serbest; diğer beş kaynağa
+            // Bangumi'nin kendi koleksiyon yazması her zaman serbest; diğer altı kaynağa
             // yayılmak için doğrulanmış MAL/AniList kimliği gerekir.
             val allowFanOut = CrossSyncPolicy.allowFanOut(isBangumiRow, identity)
             if (isBangumiRow && !allowFanOut) {
@@ -132,31 +140,28 @@ object ExternalListSyncManager {
             // ── Çapraz-yazım kimlik önkapısı (CrossSyncIdentityGuard doktrini) ──────
             // Guard'ın kendi dokümanı: "her çapraz hesaplı yazma yolu, kaynak MAL
             // kimliğini resmî katalogda başlık/tür/yıl ile yeniden doğrulamalıdır".
-            // Bu kapı tarihsel olarak yalnız AniList yolunda çalışıyordu; diğer beş
+            // Bu kapı tarihsel olarak yalnız AniList yolunda çalışıyordu; diğer altı
             // hedef tek-hatalı bir mapping ile yanlış eserin durumunu/puanını/tarihini/
             // bölümünü ezebilirdi ("sürekli yanlış eşleşmeler" şikâyeti). Satırın KENDİ
             // kaynağına yazım kapı-dışı; doğrulama önbellekli, sefer başına bir kez.
             // Rejected/Unverifiable → ATLANDI (OUTCOME_SKIPPED_IDENTITY; kuyruğa girmez
             // — yeniden deneme kimliği düzeltmez, hata olarak şişmesin).
             val rowSource = canonicalMediaSourceId(entry.source)
-            var sourceIdentityVerified: Boolean? = null
-            suspend fun crossWriteBlocked(target: String): Boolean {
-                if (target == rowSource || realMalId == null) return false
-                sourceIdentityVerified?.let { return it }
-                val verified = try {
-                    CrossSyncIdentityGuard.verifyMalId(
-                        malId = realMalId,
-                        // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
-                        // guard'ın Anime kümesi bu tipleri kapsar. Manga hariç Anime'ye sabit.
-                        mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
-                        localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
-                        localYear = entry.year
-                    ) is CrossSyncIdentityGuard.Verdict.Verified
-                } catch (_: Exception) {
-                    false
-                }
-                sourceIdentityVerified = verified
-                return !verified
+            val crossWriteGate = CrossWriteVerificationGate()
+            suspend fun crossWriteBlocked(target: String): Boolean = crossWriteGate.isBlocked(
+                target = target,
+                rowSource = rowSource,
+                realMalId = realMalId
+            ) {
+                val malId = realMalId ?: return@isBlocked false
+                CrossSyncIdentityGuard.verifyMalId(
+                    malId = malId,
+                    // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
+                    // guard'ın Anime kümesi bu tipleri kapsar. Manga hariç Anime'ye sabit.
+                    mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
+                    localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                    localYear = entry.year
+                ) is CrossSyncIdentityGuard.Verdict.Verified
             }
 
             // ── AniList Senkronizasyonu (Anime & Manga) ──────────────────────────
@@ -300,6 +305,48 @@ object ExternalListSyncManager {
                 }.onFailure { error ->
                     outcomes["Simkl"] = OUTCOME_FAILED
                     errors.add(context.sourceFailure("Simkl", error))
+                }
+            }
+
+            // ── TMDB Senkronizasyonu (Watchlist + favori + puan; film/TV) ─────────
+            if (!tmdbWriteEnabled) {
+                outcomes["TMDB"] = OUTCOME_DISABLED
+            } else if (!tmdbFields.any) {
+                outcomes["TMDB"] = OUTCOME_NO_NATIVE_CHANGES
+            } else if (!tmdbConnected) {
+                outcomes["TMDB"] = OUTCOME_NOT_CONNECTED
+            } else if (!CrossSyncPolicy.supportsTmdb(entry.type) || !allowFanOut) {
+                outcomes["TMDB"] = if (allowFanOut) OUTCOME_SKIPPED_TYPE else OUTCOME_SKIPPED_IDENTITY
+            } else if (crossWriteBlocked("tmdb")) {
+                outcomes["TMDB"] = OUTCOME_SKIPPED_IDENTITY
+                skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
+            } else {
+                runSyncCatching {
+                    TmdbSyncManager.syncEntryToTmdb(
+                        context, remoteEntry, fields = tmdbFields, expectedAccountId = expectedTmdbAccountId
+                    )
+                }.onSuccess { tmdbResult ->
+                    when {
+                        tmdbResult.isSuccess -> {
+                            syncedSources.add("TMDB")
+                            outcomes["TMDB"] = OUTCOME_SYNCED
+                        }
+                        tmdbResult.accountMismatch -> {
+                            outcomes["TMDB"] = OUTCOME_ACCOUNT_CHANGED
+                            skipped.add(context.getString(R.string.account_sync_tmdb_account_changed))
+                        }
+                        tmdbResult.unresolvedMedia -> {
+                            outcomes["TMDB"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(tmdbResult.errors)
+                        }
+                        else -> {
+                            outcomes["TMDB"] = OUTCOME_FAILED
+                            errors.addAll(tmdbResult.errors)
+                        }
+                    }
+                }.onFailure { error ->
+                    outcomes["TMDB"] = OUTCOME_FAILED
+                    errors.add(context.sourceFailure("TMDB", error))
                 }
             }
 
@@ -470,7 +517,8 @@ object ExternalListSyncManager {
 
     suspend fun deleteEntry(
         context: Context,
-        entry: MediaEntry
+        entry: MediaEntry,
+        expectedTmdbAccountId: Int? = null
     ): SyncResult {
         return withContext(Dispatchers.IO) {
             val messages = mutableListOf<String>()
@@ -486,6 +534,7 @@ object ExternalListSyncManager {
             val syncEnabledKitsu = settings?.syncEnabledKitsu ?: true
             val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
             val syncEnabledBangumi = settings?.syncEnabledBangumi ?: true
+            val syncEnabledTmdb = settings?.syncEnabledTmdb ?: true
 
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
@@ -493,6 +542,8 @@ object ExternalListSyncManager {
             val kitsuToken = ExternalAuthManager.getKitsuToken(context)
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
             val bangumiToken = if (syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
+            val tmdbWriteEnabled = shouldAttemptTmdbWrite(syncEnabledTmdb, entry.source)
+            val tmdbConnected = tmdbWriteEnabled && TmdbAuthStore.isConnected(context)
 
             // Kimlik araması yalnızca BAĞLI kaynaklar için yapılır (eşitleme ile aynı kural).
             val connectedSources = ConnectedSources(
@@ -501,7 +552,8 @@ object ExternalListSyncManager {
                 kitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank(),
                 shikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank(),
                 simkl = syncEnabledSimkl && !simklToken.isNullOrBlank(),
-                bangumi = !bangumiToken.isNullOrBlank()
+                bangumi = !bangumiToken.isNullOrBlank(),
+                tmdb = tmdbConnected
             )
 
             val isBangumiRow = canonicalMediaSourceId(entry.source) == BangumiIdNamespace.SOURCE
@@ -540,31 +592,28 @@ object ExternalListSyncManager {
             // ── Çapraz-yazım kimlik önkapısı (CrossSyncIdentityGuard doktrini) ──────
             // Guard'ın kendi dokümanı: "her çapraz hesaplı yazma yolu, kaynak MAL
             // kimliğini resmî katalogda başlık/tür/yıl ile yeniden doğrulamalıdır".
-            // Bu kapı tarihsel olarak yalnız AniList yolunda çalışıyordu; diğer beş
+            // Bu kapı tarihsel olarak yalnız AniList yolunda çalışıyordu; diğer altı
             // hedef tek-hatalı bir mapping ile yanlış eserin durumunu/puanını/tarihini/
             // bölümünü ezebilirdi ("sürekli yanlış eşleşmeler" şikâyeti). Satırın KENDİ
             // kaynağına yazım kapı-dışı; doğrulama önbellekli, sefer başına bir kez.
             // Rejected/Unverifiable → ATLANDI (OUTCOME_SKIPPED_IDENTITY; kuyruğa girmez
             // — yeniden deneme kimliği düzeltmez, hata olarak şişmesin).
             val rowSource = canonicalMediaSourceId(entry.source)
-            var sourceIdentityVerified: Boolean? = null
-            suspend fun crossWriteBlocked(target: String): Boolean {
-                if (target == rowSource || realMalId == null) return false
-                sourceIdentityVerified?.let { return it }
-                val verified = try {
-                    CrossSyncIdentityGuard.verifyMalId(
-                        malId = realMalId,
-                        // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
-                        // guard'ın Anime kümesi bu tipleri kapsar. Manga hariç Anime'ye sabit.
-                        mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
-                        localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
-                        localYear = entry.year
-                    ) is CrossSyncIdentityGuard.Verdict.Verified
-                } catch (_: Exception) {
-                    false
-                }
-                sourceIdentityVerified = verified
-                return !verified
+            val crossWriteGate = CrossWriteVerificationGate()
+            suspend fun crossWriteBlocked(target: String): Boolean = crossWriteGate.isBlocked(
+                target = target,
+                rowSource = rowSource,
+                realMalId = realMalId
+            ) {
+                val malId = realMalId ?: return@isBlocked false
+                CrossSyncIdentityGuard.verifyMalId(
+                    malId = malId,
+                    // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
+                    // guard'ın Anime kümesi bu tipleri kapsar. Manga hariç Anime'ye sabit.
+                    mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
+                    localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                    localYear = entry.year
+                ) is CrossSyncIdentityGuard.Verdict.Verified
             }
             val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
 
@@ -642,6 +691,42 @@ object ExternalListSyncManager {
                 }
             } else {
                 outcomes["Simkl"] = deleteGateOutcome(syncEnabledSimkl, !simklToken.isNullOrBlank(), entry.type != MediaType.Manga && allowFanOut && !crossWriteBlocked("simkl"))
+            }
+
+            if (tmdbWriteEnabled && tmdbConnected && CrossSyncPolicy.supportsTmdb(entry.type) && allowFanOut && !crossWriteBlocked("tmdb")) {
+                runSyncCatching {
+                    TmdbSyncManager.deleteEntryFromTmdb(
+                        context, remoteEntry, expectedAccountId = expectedTmdbAccountId
+                    )
+                }.onSuccess { tmdbResult ->
+                    when {
+                        tmdbResult.isSuccess -> {
+                            deletedSources.add("TMDB")
+                            outcomes["TMDB"] = OUTCOME_SYNCED
+                        }
+                        tmdbResult.accountMismatch -> {
+                            outcomes["TMDB"] = OUTCOME_ACCOUNT_CHANGED
+                            skipped.add(context.getString(R.string.account_sync_tmdb_account_changed))
+                        }
+                        tmdbResult.unresolvedMedia -> {
+                            outcomes["TMDB"] = OUTCOME_SKIPPED_IDENTITY
+                            skipped.addAll(tmdbResult.errors)
+                        }
+                        else -> {
+                            outcomes["TMDB"] = OUTCOME_FAILED
+                            errors.addAll(tmdbResult.errors)
+                        }
+                    }
+                }.onFailure { error ->
+                    outcomes["TMDB"] = OUTCOME_FAILED
+                    errors.add(context.getString(R.string.account_sync_delete_error, "TMDB", error.message ?: context.getString(R.string.account_sync_unknown_error)))
+                }
+            } else {
+                outcomes["TMDB"] = deleteGateOutcome(
+                    tmdbWriteEnabled,
+                    tmdbConnected,
+                    CrossSyncPolicy.supportsTmdb(entry.type) && allowFanOut && !crossWriteBlocked("tmdb")
+                )
             }
 
             if (syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && !crossWriteBlocked("kitsu")) {

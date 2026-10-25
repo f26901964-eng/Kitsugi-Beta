@@ -90,12 +90,15 @@ internal fun SettingsContext.buildSettingsParams() =
             onKitsuNotificationsChanged = { onKitsuNotificationsChanged(it) },
             shikimoriNotificationsEnabled = appSettings.shikimoriNotificationsEnabled,
             onShikimoriNotificationsChanged = { onShikimoriNotificationsChanged(it) },
+            tmdbNotificationsEnabled = appSettings.tmdbNotificationsEnabled,
+            onTmdbNotificationsChanged = { onTmdbNotificationsChanged(it) },
             isAniListConnected = authViewModel.isAniListConnected,
             isMalConnected = authViewModel.isMalConnected,
             isSimklConnected = authViewModel.isSimklConnected,
             isKitsuConnected = authViewModel.isKitsuConnected,
             isShikimoriConnected = authViewModel.isShikimoriConnected,
             isBangumiConnected = authViewModel.isBangumiConnected,
+            isTmdbConnected = authViewModel.isTmdbConnected,
             notificationInterval = appSettings.notificationInterval,
             onNotificationIntervalChanged = { onNotificationIntervalChanged(it) },
             splashAnimationEnabled = appSettings.splashAnimationEnabled,
@@ -157,6 +160,13 @@ internal fun SettingsContext.buildSettingsParams() =
             onMalImportClick = { onMalImportClick() },
             onSimklAuthClick = { onSimklAuthClick() },
             onSimklImportClick = { onSimklImportClick() },
+            isTmdbConnected = authViewModel.isTmdbConnected,
+            tmdbUsername = authViewModel.tmdbUsername,
+            isTmdbImportRunning = authViewModel.isTmdbImportRunning,
+            onTmdbAuthClick = { onTmdbAuthClick() },
+            onTmdbImportClick = { authViewModel.importTmdbWatchlist(mediaEntries, mediaRepository) },
+            syncEnabledTmdb = appSettings.syncEnabledTmdb,
+            onSyncEnabledTmdbChanged = { onSyncEnabledTmdbChanged(it) },
             onDeleteAllEntries = { onDeleteAllEntries() },
             onCreateBackupText = { onCreateBackupText() },
             onImportBackupText = { onImportBackupText() },
@@ -597,6 +607,11 @@ internal fun SettingsContext.onSimklAuthClick() {
     else authViewModel.startExternalAuth("simkl")
 }
 
+internal fun SettingsContext.onTmdbAuthClick() {
+    if (authViewModel.isTmdbConnected) authViewModel.disconnectExternalAccount("tmdb")
+    else authViewModel.startExternalAuth("tmdb")
+}
+
 internal fun SettingsContext.onAdultContentChanged(show: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setShowAdultContent(show)
@@ -701,6 +716,23 @@ internal fun SettingsContext.onShikimoriNotificationsChanged(enabled: Boolean) {
         }
         settingsDataStore.setShikimoriNotificationsEnabled(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.shikimori_bildirimleri_etkinlestirildi) else KitsugiStrings.get(R.string.shikimori_bildirimleri_devre_disi_birakildi))
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
+    }
+}
+
+internal fun SettingsContext.onTmdbNotificationsChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        if (enabled && !authViewModel.isTmdbConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "TMDB")
+            )
+            return@launch
+        }
+        settingsDataStore.setTmdbNotificationsEnabled(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.tmdb_bildirimleri_etkinlestirildi)
+            else KitsugiStrings.get(R.string.tmdb_bildirimleri_devre_disi_birakildi)
+        )
         com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
@@ -1206,6 +1238,17 @@ internal fun SettingsContext.onSyncEnabledBangumiChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledBangumi(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.bangumi_esitlemesi_acildi) else KitsugiStrings.get(R.string.bangumi_esitlemesi_kapatildi))
+    }
+}
+
+internal fun SettingsContext.onSyncEnabledTmdbChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSyncEnabledTmdb(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.tmdb_esitlemesi_acildi)
+            else KitsugiStrings.get(R.string.tmdb_esitlemesi_kapatildi)
+        )
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 

@@ -26,7 +26,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PersistentDetailCacheEntity::class,  // 📂 Media details cache
         CustomButton::class
     ],
-    version = 29,
+    version = 30,
     exportSchema = true  // T3-03/TASK-106: KSP → $projectDir/schemas/ konumuna yazar
 )
 abstract class KitsugiDatabase : RoomDatabase() {
@@ -403,6 +403,14 @@ abstract class KitsugiDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Native TMDB Watchlist membership is independent from Kitsugi WatchStatus.
+                db.execSQL("ALTER TABLE media_entries ADD COLUMN tmdbWatchlist INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE media_entries ADD COLUMN tmdbRating REAL DEFAULT NULL")
+            }
+        }
+
         fun getDatabase(context: Context): KitsugiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
@@ -437,7 +445,8 @@ abstract class KitsugiDatabase : RoomDatabase() {
                         MIGRATION_25_26,
                         MIGRATION_26_27,
                         MIGRATION_27_28,
-                        MIGRATION_28_29
+                        MIGRATION_28_29,
+                        MIGRATION_29_30
                     )
                 
                 // T3-03: Güvenlik sertleştirmesi — Üretim sürümünde verilerin kazara sıfırlanmasını engeller.

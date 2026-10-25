@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit
  *
  * Sonuç: plugin_diagnostic_report.md
  */
+@org.junit.Ignore("Live network diagnostic suite")
 class CsLivePluginTest {
 
     // ── HTTP Client ────────────────────────────────────────────────────────────

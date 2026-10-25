@@ -148,6 +148,20 @@ class MediaIdentityDisambiguationTest {
     }
 
     @Test
+    fun legacyTmdbIdStaysOnTmdbAxisAndNeverBecomesMal() {
+        val legacy = testEntry(
+            id = 1,
+            title = "Demon Slayer: Infinity Castle",
+            source = "tmdb",
+            type = MediaType.Movie,
+            malId = 12345
+        )
+
+        assertEquals(setOf("Movie:tmdb:12345"), MediaIdentity.keys(legacy))
+        assertEquals(null, MediaIdentity.realMalId(legacy))
+    }
+
+    @Test
     fun aSingleAgreeingIdInANameSpaceProvesIdentityEvenWithLegacyExtras() {
         val enriched = testEntry(id = 1, title = "Köprü", source = "bangumi", malId = 500_057_162)
         val other = testEntry(id = 2, title = "Frieren", source = "anilist", malId = 52991)

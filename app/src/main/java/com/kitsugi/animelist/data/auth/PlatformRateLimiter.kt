@@ -55,8 +55,10 @@ object PlatformRateLimiter {
         }
         val mutex = getMutex(key)
         mutex.withLock {
-            lastCallTime[key] = System.currentTimeMillis() + waitMs
+            // Wait once. Writing a future timestamp before sleeping made the next acquire()
+            // wait the same Retry-After period a second time.
             delay(waitMs)
+            lastCallTime[key] = System.currentTimeMillis()
         }
     }
 }

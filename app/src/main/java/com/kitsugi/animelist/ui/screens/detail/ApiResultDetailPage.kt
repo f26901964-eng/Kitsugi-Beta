@@ -192,6 +192,7 @@ fun ApiResultDetailPage(
     isMalConnected: Boolean = false,
     isSimklConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
     onLoginAniList: () -> Unit = {},
     onLoginMal: () -> Unit = {},
     onLoginSimkl: () -> Unit = {},
@@ -327,7 +328,8 @@ fun ApiResultDetailPage(
         isAniListConnected,
         isMalConnected,
         isSimklConnected,
-        isBangumiConnected
+        isBangumiConnected,
+        isTmdbConnected
     ) {
         val hasRealMalId = displayResult.realMalId != null ||
             (displayResult.malId != null && displayResult.malId > 0 && displayResult.malId < 100_000_000)
@@ -337,8 +339,8 @@ fun ApiResultDetailPage(
             sourceId == "bangumi" -> isBangumiConnected
             sourceId == "anilist" -> isAniListConnected || (isMalConnected && hasRealMalId)
             sourceId == "mal" || sourceId == "jikan" -> isMalConnected || isAniListConnected
-            sourceId == "simkl" || sourceId == "tmdb" -> isSimklConnected
-            displayResult.type == MediaType.TvShow || displayResult.type == MediaType.Movie -> isSimklConnected
+            sourceId == "simkl" || sourceId == "tmdb" || sourceId == "tmdb_account" -> isSimklConnected || isTmdbConnected
+            displayResult.type == MediaType.TvShow || displayResult.type == MediaType.Movie -> isSimklConnected || isTmdbConnected
             else -> true
         }
     }

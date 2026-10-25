@@ -256,6 +256,7 @@ class MainActivity : AppCompatActivity() {
                             "anilist"   -> "AniList bağlantısı başarılı."
                             "simkl"     -> "Simkl bağlantısı başarılı."
                             "shikimori" -> "Shikimori bağlantısı başarılı."
+                            "tmdb"      -> "TMDB bağlantısı başarılı."
                             else        -> "MyAnimeList bağlantısı başarılı."
                         },
                         Toast.LENGTH_SHORT

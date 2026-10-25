@@ -31,11 +31,18 @@ import com.kitsugi.animelist.data.auth.BangumiAuthManager
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.BangumiImportManager
 import com.kitsugi.animelist.data.auth.BangumiSyncManager
+import com.kitsugi.animelist.data.auth.TmdbAuthStore
+import com.kitsugi.animelist.data.auth.TmdbAccountSyncCoordinator
+import com.kitsugi.animelist.data.auth.TmdbSyncManager
+import com.kitsugi.animelist.data.auth.supportsTmdbAccountType
+import com.kitsugi.animelist.data.auth.tmdbWatchlistValue
+import com.kitsugi.animelist.data.remote.TmdbAccountClient
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaIdentity
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
@@ -177,6 +184,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     var isBangumiConnected by mutableStateOf(false)
         private set
 
+    var isTmdbConnected by mutableStateOf(false)
+        private set
+
+    var tmdbUsername by mutableStateOf("")
+        private set
+
     var isSimklSessionExpired by mutableStateOf(false)
         private set
 
@@ -196,6 +209,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var isBangumiImportRunning by mutableStateOf(false)
+        private set
+
+    var isTmdbImportRunning by mutableStateOf(false)
         private set
 
     var isCrossSyncRunning by mutableStateOf(false)
@@ -270,6 +286,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         isKitsuConnected = state.isKitsuConnected
         isShikimoriConnected = state.isShikimoriConnected
         isBangumiConnected = state.isBangumiConnected
+        isTmdbConnected = state.isTmdbConnected
+        tmdbUsername = TmdbAuthStore.username(context)
 
         isSimklSessionExpired = context.getSharedPreferences("MyWebViewPrefs", Context.MODE_PRIVATE)
             .getBoolean("simkl_session_expired", false)
@@ -451,12 +469,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun disconnectExternalAccount(serviceName: String) {
-        ExternalAuthManager.disconnectAccount(
-            context = context,
-            serviceName = serviceName
-        )
-
         viewModelScope.launch {
+            ExternalAuthManager.disconnectAccountCoordinated(
+                context = context,
+                serviceName = serviceName
+            )
             val settings = SettingsDataStore(context)
             when (serviceName) {
                 "anilist" -> settings.clearAniListProfileInfo()
@@ -471,6 +488,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 "kitsu" -> settings.clearKitsuProfileInfo()
                 "shikimori" -> settings.clearShikimoriProfileInfo()
                 "bangumi" -> settings.clearBangumiProfileInfo()
+                "tmdb" -> Unit // Session/profile are owned by TmdbAuthStore.
             }
             refreshAuthState()
             com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
@@ -494,9 +512,51 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             "kitsu" -> "Kitsu"
             "shikimori" -> "Shikimori"
             "bangumi" -> "Bangumi"
+            "tmdb" -> "TMDB"
             else -> "MyAnimeList"
         }
         onShowMessage?.invoke(context.getString(R.string.account_sync_disconnected, displayName))
+    }
+
+    /**
+     * Full TMDB account refresh: Watchlist + favorites + ratings. The native account rows
+     * live in their own source so the TMDB tab is real, while the combined tab groups them
+     * with verified siblings. Progress/status/notes are preserved by the snapshot merger.
+     */
+    fun importTmdbWatchlist(
+        currentEntries: List<MediaEntry>,
+        repository: MediaEntryRepository
+    ) {
+        val sessionId = TmdbAuthStore.sessionId(context)
+        val accountId = TmdbAuthStore.accountId(context)
+        if (sessionId.isNullOrBlank() || accountId == null) {
+            onShowMessage?.invoke(context.getString(R.string.account_sync_token_missing, "TMDB"))
+            return
+        }
+        if (isTmdbImportRunning) {
+            onShowMessage?.invoke(context.getString(R.string.account_sync_import_running, "TMDB"))
+            return
+        }
+        isTmdbImportRunning = true
+        onShowMessage?.invoke(context.getString(R.string.account_sync_import_fetching, "TMDB"))
+        viewModelScope.launch(Dispatchers.IO) {
+            runSyncCatching {
+                com.kitsugi.animelist.data.auth.TmdbAccountSyncCoordinator.refresh(
+                    context = context,
+                    repository = repository,
+                    fallbackEntries = currentEntries
+                )
+            }.onSuccess { snapshot ->
+                onShowMessage?.invoke(
+                    context.getString(R.string.account_sync_import_success, snapshot.entries.size, "TMDB")
+                )
+            }.onFailure { error ->
+                onShowMessage?.invoke(
+                    error.message ?: context.getString(R.string.account_sync_import_failed, "TMDB")
+                )
+            }
+            isTmdbImportRunning = false
+        }
     }
 
     fun importAniListAnimeList(
@@ -607,6 +667,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         var aniList: MediaEntry? = null,
         var mal: MediaEntry? = null,
         var simkl: MediaEntry? = null,
+        var tmdb: MediaEntry? = null,
         var kitsu: MediaEntry? = null,
         var shikimori: MediaEntry? = null,
         var bangumi: MediaEntry? = null,
@@ -614,7 +675,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         var identityReviewDetails: String? = null
     ) {
         val candidates: List<MediaEntry>
-            get() = listOfNotNull(aniList, mal, simkl, kitsu, shikimori, bangumi)
+            get() = listOfNotNull(aniList, mal, simkl, tmdb, kitsu, shikimori, bangumi)
 
         val primaryTitle: String
             get() = candidates.firstOrNull()?.titleEnglish?.takeIf { it.isNotBlank() }
@@ -816,6 +877,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
             }
             val bangumiToken = if (syncSettings.syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
+            val tmdbSessionId = if (syncSettings.syncEnabledTmdb) TmdbAuthStore.sessionId(context) else null
+            val tmdbAccountId = if (syncSettings.syncEnabledTmdb) TmdbAuthStore.accountId(context) else null
 
             val isAniList = syncSettings.syncEnabledAnilist && !aniListToken.isNullOrBlank()
             val isMal = syncSettings.syncEnabledMal && !malToken.isNullOrBlank()
@@ -823,6 +886,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val isKitsu = syncSettings.syncEnabledKitsu && !kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()
             val isShikimori = syncSettings.syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && shikimoriUserId != null
             val isBangumi = syncSettings.syncEnabledBangumi && !bangumiToken.isNullOrBlank()
+            val isTmdb = syncSettings.syncEnabledTmdb && !tmdbSessionId.isNullOrBlank() && tmdbAccountId != null
 
             val connectedPlatforms = mutableListOf<String>()
             if (isAniList) connectedPlatforms.add("AniList")
@@ -831,6 +895,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (isKitsu) connectedPlatforms.add("Kitsu")
             if (isShikimori) connectedPlatforms.add("Shikimori")
             if (isBangumi) connectedPlatforms.add("Bangumi")
+            if (isTmdb) connectedPlatforms.add("TMDB")
 
             if (connectedPlatforms.size < 2) {
                 val message = context.getString(R.string.cross_sync_vm_minimum_accounts)
@@ -905,9 +970,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     list
                 } else emptyList()
 
+                val tmdbEntries = if (isTmdb) {
+                    updateProgress(context.getString(R.string.cross_sync_vm_fetching_platform_list, "TMDB"), context.getString(R.string.cross_sync_vm_reading_library))
+                    val list = TmdbAccountClient.fetchAccountSnapshot(tmdbSessionId!!, tmdbAccountId!!).entries
+                    statsMap["TMDB"] = statsMap["TMDB"]!!.copy(initialCount = list.size)
+                    logEvent("TMDB", context.getString(R.string.cross_sync_log_imported_entries, "TMDB", list.size))
+                    list
+                } else emptyList()
+
                 // ── FAZ 2: Çoklu İndeks ile Unified Eşleştirme ────────────────────
                 val sourceEntryTotal = aniListEntries.size + malEntries.size + simklEntries.size +
-                    kitsuEntries.size + shikimoriEntries.size + bangumiEntries.size
+                    kitsuEntries.size + shikimoriEntries.size + bangumiEntries.size + tmdbEntries.size
                 updateProgress(
                     context.getString(R.string.cross_sync_vm_matching_entries),
                     if (sourceEntryTotal > 0) context.getString(R.string.cross_sync_vm_scan_source_entries, sourceEntryTotal) else context.getString(R.string.cross_sync_vm_no_matchable_entries),
@@ -1131,6 +1204,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 clusterEntries(aniListEntries) { item, entry -> item.aniList = entry }
                 clusterEntries(malEntries) { item, entry -> item.mal = entry }
                 clusterEntries(simklEntries) { item, entry -> item.simkl = entry }
+                clusterEntries(tmdbEntries) { item, entry -> item.tmdb = entry }
                 clusterEntries(kitsuEntries) { item, entry -> item.kitsu = entry }
                 clusterEntries(shikimoriEntries) { item, entry -> item.shikimori = entry }
                 clusterEntries(bangumiEntries) { item, entry -> item.bangumi = entry }
@@ -1207,6 +1281,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         if (isKitsu && item.kitsu == null && reviewIsAnimeOrManga) countSafetySkip("Kitsu")
                         if (isShikimori && item.shikimori == null && reviewIsAnimeOrManga) countSafetySkip("Shikimori")
                         if (isBangumi && item.bangumi == null && BangumiSyncManager.supportsMediaType(reviewType)) countSafetySkip("Bangumi")
+                        if (isTmdb && item.tmdb == null && supportsTmdbAccountType(reviewType)) countSafetySkip("TMDB")
                         if ((index + 1) % 2 == 0 || index == unifiedItems.lastIndex) {
                             updateProgress(
                                 step = context.getString(R.string.cross_sync_vm_identity_review_skipped, title),
@@ -1279,7 +1354,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         (isKitsu && isAnimeOrManga && item.kitsu == null) ||
                         (isShikimori && isAnimeOrManga && item.shikimori == null) ||
                         (isBangumi && BangumiSyncManager.supportsMediaType(newest.type) && item.bangumi == null) ||
-                        (isSimkl && item.simkl == null)
+                        (isSimkl && item.simkl == null) ||
+                        (isTmdb && supportsTmdbAccountType(newest.type) && item.tmdb == null)
                     val identityVerdict: com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict? =
                         if (realMalId != null && needsAnyAddition) {
                             val holderSources = candidates
@@ -1506,6 +1582,87 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     (bestScore != null && current.score != bestScore))
                             if (needsUpdate) {
                                 simklEntriesToSync.add(mergedEntry.copy(simklId = current.simklId))
+                            }
+                        }
+                    }
+
+                    // ── TMDB native account states (movie/TV only) ──
+                    if (isTmdb && supportsTmdbAccountType(mergedEntry.type)) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                        val current = item.tmdb
+                        val desiredWatchlist = current?.tmdbWatchlist ?: tmdbWatchlistValue(bestStatus)
+                        val desiredRating = if (current != null && bestScore != null && current.score != bestScore) {
+                            null // Use the merged integer score; do not keep a stale native half rating.
+                        } else current?.tmdbRating
+                        val writeFields = if (current == null) {
+                            com.kitsugi.animelist.data.auth.tmdbWriteFieldsForInsert(
+                                mergedEntry.copy(
+                                    status = bestStatus,
+                                    isFavorite = isFav,
+                                    score = bestScore,
+                                    tmdbWatchlist = desiredWatchlist,
+                                    tmdbRating = desiredRating
+                                )
+                            )
+                        } else {
+                            com.kitsugi.animelist.data.auth.TmdbWriteFields(
+                                // A missing legacy native flag may be backfilled, but an unknown
+                                // remote Watchlist must never be cleared by a status-only merge.
+                                watchlist = current.tmdbWatchlist == null && desiredWatchlist,
+                                favorite = !singleSourceGroup && current.isFavorite != isFav,
+                                rating = !singleSourceGroup && bestScore != null && current.score != bestScore
+                            )
+                        }
+                        when {
+                            !writeFields.any -> if (current == null) {
+                                recordSkip(
+                                    platform = "TMDB",
+                                    reasonKey = context.getString(R.string.cross_sync_reason_tmdb_no_native_membership),
+                                    title = mergedEntry.title,
+                                    message = context.getString(
+                                        R.string.cross_sync_log_skipped,
+                                        "TMDB",
+                                        context.getString(R.string.cross_sync_reason_tmdb_no_native_membership)
+                                    ),
+                                    details = context.getString(R.string.tmdb_editor_local_fields_note)
+                                )
+                            }
+                            current == null && !additionsAllowed ->
+                                recordIdentitySkip("TMDB", mergedEntry.title)
+                            mergedEntry.tmdbId == null || mergedEntry.tmdbId <= 0 -> recordSkip(
+                                platform = "TMDB",
+                                reasonKey = context.getString(R.string.cross_sync_reason_tmdb_id_unverified),
+                                title = mergedEntry.title,
+                                message = context.getString(R.string.cross_sync_log_skipped, "TMDB", context.getString(R.string.cross_sync_reason_tmdb_id_unverified)),
+                                details = context.getString(R.string.tmdb_identity_unresolved)
+                            )
+                            else -> {
+                                val outcome = runSyncCatching {
+                                    TmdbSyncManager.syncEntryToTmdb(
+                                        context,
+                                        mergedEntry.copy(
+                                            tmdbWatchlist = desiredWatchlist,
+                                            tmdbRating = desiredRating
+                                        ),
+                                        fields = writeFields
+                                    )
+                                }
+                                val result = outcome.getOrNull()
+                                if (result != null && result.isSuccess) {
+                                    if (current == null) {
+                                        statsMap["TMDB"] = statsMap["TMDB"]!!.let { it.copy(addedCount = it.addedCount + 1) }
+                                        logEvent("TMDB", context.getString(R.string.cross_sync_log_added, "TMDB", mergedEntry.title, bestStatus.plainLabel()), isAddition = true, details = mappingDetails)
+                                    } else {
+                                        statsMap["TMDB"] = statsMap["TMDB"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
+                                        logEvent("TMDB", context.getString(R.string.cross_sync_log_updated, "TMDB", mergedEntry.title), isUpdate = true, details = mappingDetails)
+                                    }
+                                } else {
+                                    val failure = outcome.exceptionOrNull()?.crossSyncDiagnostic(context)
+                                        ?: result?.errors?.joinToString("; ")
+                                        ?: context.getString(R.string.cross_sync_vm_unknown_error)
+                                    statsMap["TMDB"] = statsMap["TMDB"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                    logEvent("TMDB", context.getString(R.string.cross_sync_log_failed_update, "TMDB", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
+                                }
                             }
                         }
                     }
@@ -1873,6 +2030,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error(context.getString(R.string.cross_sync_simkl_disconnected))
                     runSyncCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
                         .onFailure { logEvent("Simkl", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context)) }
+                }
+                if (isTmdb) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress(context.getString(R.string.cross_sync_vm_verifying_platform_list, "TMDB"), context.getString(R.string.cross_sync_vm_latest_server_list), processed = 0, total = 0, unit = "")
+                    runSyncCatching {
+                        TmdbAccountSyncCoordinator.refresh(context, repository, allowRemoteDelete = false)
+                    }.onFailure {
+                        logEvent("TMDB", context.getString(R.string.cross_sync_log_local_update_failed, it.message ?: context.getString(R.string.cross_sync_vm_unknown_error)), isError = true, details = it.crossSyncDiagnostic(context))
+                    }
                 }
                 if (isBangumi) {
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()

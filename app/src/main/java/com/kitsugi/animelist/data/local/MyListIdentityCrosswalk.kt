@@ -1,12 +1,15 @@
 package com.kitsugi.animelist.data.local
 
 import android.content.Context
+import com.kitsugi.animelist.data.auth.ConnectedSources
 import com.kitsugi.animelist.data.auth.CrossProviderIdentityCache
+import com.kitsugi.animelist.data.auth.CrossProviderIdentityResolver
 import com.kitsugi.animelist.data.auth.CrossProviderIds
 import com.kitsugi.animelist.data.remote.BangumiLocalMappingCache
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -24,12 +27,16 @@ import kotlinx.coroutines.withContext
  * sekmesinde ayrı bir kart olur ve sayaç şişer (rapor: 786 tekil yapım → 1502 kart).
  *
  * ## Çözüm
- * Çapraz eşitlemenin ZATEN çözüp kalıcı yazdığı iki kimlik kaynağı okunur — ağa çıkılmaz:
+ * Çapraz eşitlemenin ZATEN çözüp kalıcı yazdığı iki kimlik kaynağı okunur:
  *  1. [CrossProviderIdentityCache] (`cross_provider_identity_v1`): satır başına altı kimlik.
  *  2. [BangumiLocalMappingCache] (`bangumi_id_mapping`): `bgm_a_<malId> → subject_id`.
  *     Bangumi'nin resmî MAL eşleme ucu olmadığı için tek güvenilir köprü budur; burada **tersine**
  *     çevrilir (`subject_id → malId`). Bir eşleme birden fazla MAL ID'ye çıkıyorsa **kullanılmaz**
  *     (belirsiz eşleme, yanlış yapımı birleştirmektense ayrı bırakmayı yeğleriz).
+ *
+ * Normal okuma ağa çıkmaz. Yalnız aynı başlık/yıl altında Anime↔Movie/TvShow adayı olan
+ * satırlar için isteğe bağlı, hesap bağımsız ARM kimlik çözümü yapılır; başlık tek başına
+ * birleştirme kanıtı değildir.
  *
  * Bulunan kimlikler satıra YAZILMAZ; eşitleme anında "ek kimlik anahtarı" olarak verilir. Böylece
  *  • platform sekmeleri ve dış API yazmaları kendi kaynağının kimliğini kullanmaya devam eder,
@@ -48,10 +55,15 @@ object MyListIdentityCrosswalk {
      * Yalnızca kendi uzayında eşleştirilebilir kimliği olmayan satırlar döner; boş harita
      * "köprü gerekmiyor/yok" demektir ve çağıran taraf davranışı değiştirmez.
      */
-    suspend fun build(context: Context, entries: List<MediaEntry>): Map<Int, Set<String>> {
+    suspend fun build(
+        context: Context,
+        entries: List<MediaEntry>,
+        allowNetwork: Boolean = false
+    ): Map<Int, Set<String>> {
         if (entries.isEmpty()) return emptyMap()
         return withContext(Dispatchers.IO) {
-            val pending = entries.filter { needsCrosswalk(it) }
+            val crossTypeCandidates = if (allowNetwork) crossTypeResolutionCandidates(entries) else emptySet()
+            val pending = entries.filter { needsCrosswalk(it) || it.id in crossTypeCandidates }
             if (pending.isEmpty()) return@withContext emptyMap()
 
             val bangumiSubjectToMal = runCatching { BangumiLocalMappingCache.snapshot(context) }
@@ -61,10 +73,55 @@ object MyListIdentityCrosswalk {
 
             val result = LinkedHashMap<Int, Set<String>>(pending.size)
             pending.forEach { entry ->
-                val extras = extraKeysFor(entry, cachedIds(context, entry), bangumiSubjectToMal)
+                val cached = cachedIds(context, entry)
+                // Normal crosswalk reads are cache-only. Only the small set of exact
+                // title/year cross-type candidates may ask ARM for a verified anime↔video
+                // bridge; account-specific provider searches stay disabled.
+                val resolved = if (allowNetwork && entry.id in crossTypeCandidates) {
+                    try {
+                        CrossProviderIdentityResolver.resolve(
+                            context = context,
+                            entry = entry,
+                            connected = ConnectedSources.None,
+                            allowNetwork = true,
+                            requireAnimeVideoBridge = true
+                        )
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else null
+                val extras = extraKeysFor(entry, resolved ?: cached, bangumiSubjectToMal)
                 if (extras.isNotEmpty()) result[entry.id] = extras
             }
             result
+        }
+    }
+
+    /**
+     * Network work is limited to rows that could actually be the same anime film/show under
+     * different provider type labels. Title/year here only selects candidates for ID lookup;
+     * it is never sufficient to merge them (MediaIdentity still requires a shared ID).
+     */
+    internal fun crossTypeResolutionCandidates(entries: List<MediaEntry>): Set<Int> {
+        val buckets = HashMap<String, MutableList<MediaEntry>>()
+        entries.forEach { entry ->
+            val watchable = entry.type == MediaType.Anime || entry.type == MediaType.Movie || entry.type == MediaType.TvShow
+            val year = entry.year
+            if (!watchable || year == null) return@forEach
+            listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese)
+                .map(MediaIdentity::normalizedTitle)
+                .filter { it.length >= 2 }
+                .toSet()
+                .forEach { normalized ->
+                    buckets.getOrPut("$year:$normalized") { mutableListOf() }.add(entry)
+                }
+        }
+        return buckets.values.flatMapTo(LinkedHashSet()) { bucket ->
+            val hasAnime = bucket.any { it.type == MediaType.Anime }
+            val hasVideo = bucket.any { it.type == MediaType.Movie || it.type == MediaType.TvShow }
+            if (hasAnime && hasVideo) bucket.map { it.id } else emptyList()
         }
     }
 
@@ -82,20 +139,51 @@ object MyListIdentityCrosswalk {
         }
     }
 
-    private fun cachedIds(context: Context, entry: MediaEntry): CrossProviderIds? = runCatching {
-        // Anahtar, CrossProviderIdentityResolver'ın yazdığıyla birebir aynı olmalı.
-        CrossProviderIdentityCache.read(
-            context = context,
-            key = CrossProviderIds.cacheKey(
-                type = entry.type,
-                storedId = entry.malId,
-                title = entry.title,
-                titleEnglish = entry.titleEnglish,
-                year = entry.year,
-                source = entry.source
+    private suspend fun cachedIds(context: Context, entry: MediaEntry): CrossProviderIds? {
+        val crossProvider = runCatching {
+            // Anahtar, CrossProviderIdentityResolver'ın yazdığıyla birebir aynı olmalı.
+            CrossProviderIdentityCache.read(
+                context = context,
+                key = CrossProviderIds.cacheKey(
+                    type = entry.type,
+                    storedId = entry.malId,
+                    title = entry.title,
+                    titleEnglish = entry.titleEnglish,
+                    year = entry.year,
+                    source = entry.source
+                )
             )
-        )
-    }.getOrNull()?.ids
+        }.getOrNull()?.ids
+
+        // Detay sayfalarının daha eski kalıcı köprüsünü de oku. Bu sayede çevrimdışı
+        // açılışta, daha önce doğrulanmış MAL/AniList ↔ TMDB eşlemesi varsa kartlar
+        // ağ beklemeden birleşir. Film/dizi için legacy malId alanını MAL sanıp sorgulama.
+        val meta = runCatching {
+            val dao = KitsugiDatabase.getDatabase(context).mediaMetaCacheDao()
+            val byTmdb = entry.tmdbId?.takeIf { it > 0 }?.let { dao.getByTmdbId(it) }
+            val byAniList = MediaIdentity.aniListId(entry)?.let { dao.getByAniListId(it) }
+            val byMal = if (entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
+                MediaIdentity.realMalId(entry)?.let { dao.getByMalId(it) }
+            } else null
+            val byKitsu = MediaIdentity.kitsuId(entry)?.let { dao.getByKitsuId(it.toString()) }
+            (byTmdb ?: byAniList ?: byMal ?: byKitsu)?.let { cached ->
+                val ownMal = if (entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
+                    MediaIdentity.realMalId(entry)
+                } else null
+                val ownAniList = MediaIdentity.aniListId(entry)
+                val consistent = (ownMal == null || cached.malId == null || ownMal == cached.malId) &&
+                    (ownAniList == null || cached.aniListId == null || ownAniList == cached.aniListId)
+                if (!consistent) return@let null
+                CrossProviderIds(
+                    malId = cached.malId,
+                    aniListId = cached.aniListId,
+                    kitsuId = cached.kitsuId?.toIntOrNull(),
+                    tmdbId = cached.tmdbId
+                )
+            }
+        }.getOrNull()
+        return crossProvider?.mergedWith(meta) ?: meta
+    }
 
     /**
      * Eşitlemeye katılacak ek anahtarlar. [ids] çapraz kimlik önbelleğinden, [bangumiSubjectToMal]

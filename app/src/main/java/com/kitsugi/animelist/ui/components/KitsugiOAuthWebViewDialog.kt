@@ -30,6 +30,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.remote.TmdbAccountClient
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
@@ -78,6 +79,7 @@ fun KitsugiOAuthWebViewDialog(
     val serviceHost = when (serviceName.lowercase()) {
         "mal" -> "myanimelist.net"
         "anilist" -> "anilist.co"
+        "tmdb" -> "themoviedb.org"
         else -> "simkl.com"
     }
 
@@ -92,30 +94,56 @@ fun KitsugiOAuthWebViewDialog(
      * [ExternalAuthManager.handleAuthIntent] token'ı takas eder.
      */
     val openInExternalBrowser: () -> Unit = {
-        try {
-            val extUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
-            CookieManager.getInstance().flush()
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(extUrl)).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (serviceName.equals("tmdb", ignoreCase = true)) {
+            // Reuse the exact request token shown in WebView. Creating a second token here
+            // can race the first request and leave the browser/pending-store mismatched.
+            val preparedUrl = authUrl
+            if (preparedUrl.isNullOrBlank()) {
+                errorMessage = KitsugiStrings.get(R.string.tmdb_external_auth_preparing)
+            } else {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(preparedUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+                }.onSuccess {
+                    CookieManager.getInstance().flush()
+                    onDismiss()
+                }.onFailure { error ->
+                    errorMessage = error.message ?: KitsugiStrings.get(R.string.tmdb_external_browser_error)
+                    platformErrorCode = PlatformFailureRegistry.reportAndResolve("tmdb", error)
+                    onError(errorMessage.orEmpty())
                 }
-            )
-            android.widget.Toast.makeText(
-                context,
-                KitsugiStrings.get(R.string.oauth_webview_tarayici_toast),
-                android.widget.Toast.LENGTH_LONG
-            ).show()
-            // Dialog kapanır: kullanıcı tarayıcıda; dönüşte deep link ile bağlanır.
-            onDismiss()
-        } catch (e: Exception) {
-            errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
-            platformErrorCode = PlatformFailureRegistry.reportAndResolve(serviceName, e)
+            }
+        } else {
+            try {
+                val extUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
+                CookieManager.getInstance().flush()
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(extUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                )
+                android.widget.Toast.makeText(
+                    context,
+                    KitsugiStrings.get(R.string.oauth_webview_tarayici_toast),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                // Dialog kapanır: kullanıcı tarayıcıda; dönüşte deep link ile bağlanır.
+                onDismiss()
+            } catch (e: Exception) {
+                errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
+                platformErrorCode = PlatformFailureRegistry.reportAndResolve(serviceName, e)
+            }
         }
     }
 
     LaunchedEffect(serviceName) {
         try {
-            authUrl = ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
+            authUrl = if (serviceName.equals("tmdb", ignoreCase = true)) {
+                TmdbAccountClient.createAuthorizationUrl(context)
+            } else {
+                ExternalAuthManager.getAuthUrlAndPrepare(context, serviceName)
+            }
         } catch (e: Exception) {
             errorMessage = e.message ?: KitsugiStrings.get(R.string.auth_url_olusturulamadi)
             platformErrorCode = PlatformFailureRegistry.reportAndResolve(serviceName, e)
@@ -127,6 +155,7 @@ fun KitsugiOAuthWebViewDialog(
         "mal", "myanimelist" -> stringResource(R.string.myanimelist_girisi)
         "anilist" -> "AniList Girişi"
         "simkl" -> "Simkl Girişi"
+        "tmdb" -> "TMDB Girişi"
         else -> "Hesap Girişi"
     }
 
@@ -166,6 +195,7 @@ fun KitsugiOAuthWebViewDialog(
                             text = when (serviceName.lowercase()) {
                                 "mal" -> stringResource(R.string.mal_hesabinizla_giris_yapin_ve_izin_verin)
                                 "anilist" -> "AniList hesabınızla giriş yapın"
+                                "tmdb" -> "TMDB hesabınızla giriş yapın ve Kitsugi'ye izin verin"
                                 else -> "Hesabınızla giriş yapın"
                             },
                             color = KitsugiColors.TextSecondary,

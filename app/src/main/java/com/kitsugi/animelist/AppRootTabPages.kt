@@ -130,6 +130,8 @@ fun AppRootTabPages(
                     isKitsuConnected = ctx.authViewModel.isKitsuConnected,
                     isShikimoriConnected = ctx.authViewModel.isShikimoriConnected,
                     isBangumiConnected = ctx.authViewModel.isBangumiConnected,
+                    isTmdbConnected = ctx.authViewModel.isTmdbConnected,
+                    tmdbUsername = ctx.authViewModel.tmdbUsername,
                     profileName = ctx.appSettings.profileName,
                     listTitle = ctx.appSettings.listTitle,
                     profileImageUri = ctx.appSettings.profileImageUri,
@@ -144,6 +146,7 @@ fun AppRootTabPages(
                     onLoginAniList = { ctx.authViewModel.startExternalAuth("anilist") },
                     onLoginMal = { ctx.authViewModel.startMalOAuthWebSession() },
                     onLoginSimkl = { ctx.authViewModel.startExternalAuth("simkl") },
+                    onLoginTmdb = { ctx.authViewModel.startExternalAuth("tmdb") },
                     onLoginKitsu = {},
                     onLoginShikimori = {},
                     onKitsuAuthSubmit = { username, password, onComplete ->
@@ -222,7 +225,7 @@ fun AppRootTabPages(
                     onOpenStatsClick = {
                         ctx.navState.navigateToDetail(DetailScreen.Stats)
                     },
-                    isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
+                    isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected || ctx.authViewModel.isTmdbConnected,
                     onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
                     onGenreClick = ctx.onSearchByGenre,
                     onTagClick = ctx.onSearchByTag,
@@ -292,7 +295,7 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         hideScores = ctx.appSettings.hideScores,
         separateNovelsManga = ctx.appSettings.separateNovelsManga,
         onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
-        isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
+        isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected || ctx.authViewModel.isTmdbConnected,
         showAnimeLogos = ctx.appSettings.showAnimeLogos,
         isSimklConnected = ctx.authViewModel.isSimklConnected,
         // TMDB hata yönlendirmesi: Ayarlar → Entegrasyonlar bölümüne git
@@ -477,6 +480,9 @@ private fun MyListTabPageWrapper(
         isKitsuConnected = authViewModel.isKitsuConnected,
         isShikimoriConnected = authViewModel.isShikimoriConnected,
         isBangumiConnected = authViewModel.isBangumiConnected,
+        isTmdbConnected = authViewModel.isTmdbConnected,
+        tmdbUsername = authViewModel.tmdbUsername,
+        onLoginTmdb = { authViewModel.startExternalAuth("tmdb") },
         onLoginAniList = { authViewModel.startExternalAuth("anilist") },
         onLoginMal = { authViewModel.startMalOAuthWebSession() },
         onLoginSimkl = { authViewModel.startExternalAuth("simkl") },
@@ -486,6 +492,22 @@ private fun MyListTabPageWrapper(
         onSyncKitsu = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
         onSyncShikimori = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
         onSyncBangumi = { authViewModel.importBangumiList(mediaEntries, mediaRepository) },
+        onSyncTmdb = { authViewModel.importTmdbWatchlist(mediaEntries, mediaRepository) },
+        onAddTmdbApiSelectionToList = { selection ->
+            appViewModel.addApiSelectionToList(
+                selection = selection,
+                isAniListConnected = authViewModel.isAniListConnected,
+                isMalConnected = authViewModel.isMalConnected,
+                isSimklConnected = authViewModel.isSimklConnected,
+                isKitsuConnected = authViewModel.isKitsuConnected,
+                isShikimoriConnected = authViewModel.isShikimoriConnected,
+                isBangumiConnected = authViewModel.isBangumiConnected,
+                isTmdbConnected = authViewModel.isTmdbConnected,
+                currentEntries = mediaEntries,
+                repository = mediaRepository,
+                preferredSource = com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+            )
+        },
         onKitsuAuthSubmit = { username, password, onComplete ->
             authViewModel.loginKitsu(
                 username = username,
@@ -520,7 +542,7 @@ private fun MyListTabPageWrapper(
         },
         isBottomBarVisible = isBottomBarVisible,
         onScrollReset = onScrollReset,
-        isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected,
+        isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected || authViewModel.isTmdbConnected,
         onOpenNotifications = { navState.navigateToDetail(DetailScreen.Notifications) }
     )
 }

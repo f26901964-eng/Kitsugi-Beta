@@ -56,7 +56,8 @@ data class ProfileAndListSettings(
     val syncEnabledSimkl: Boolean = false,
     val syncEnabledKitsu: Boolean = false,
     val syncEnabledShikimori: Boolean = false,
-    val syncEnabledBangumi: Boolean = false
+    val syncEnabledBangumi: Boolean = false,
+    val syncEnabledTmdb: Boolean = false
 )
 
 data class ThemeAndAppUiSettings(
@@ -252,6 +253,7 @@ data class IntegrationsAndNotificationsSettings(
     val simklNotificationsEnabled: Boolean = false,
     val kitsuNotificationsEnabled: Boolean = false,
     val shikimoriNotificationsEnabled: Boolean = false,
+    val tmdbNotificationsEnabled: Boolean = false,
     val notificationInterval: Int = 180
 )
 
@@ -436,6 +438,7 @@ data class AppSettings(
     val simklNotificationsEnabled: Boolean get() = integrations.simklNotificationsEnabled
     val kitsuNotificationsEnabled: Boolean get() = integrations.kitsuNotificationsEnabled
     val shikimoriNotificationsEnabled: Boolean get() = integrations.shikimoriNotificationsEnabled
+    val tmdbNotificationsEnabled: Boolean get() = integrations.tmdbNotificationsEnabled
     val notificationInterval: Int get() = integrations.notificationInterval
     val searchHistoryEnabled: Boolean get() = themeUi.searchHistoryEnabled
     val stillWatchingEnabled: Boolean get() = playback.stillWatchingEnabled
@@ -463,6 +466,7 @@ data class AppSettings(
     val syncEnabledKitsu: Boolean get() = profile.syncEnabledKitsu
     val syncEnabledShikimori: Boolean get() = profile.syncEnabledShikimori
     val syncEnabledBangumi: Boolean get() = profile.syncEnabledBangumi
+    val syncEnabledTmdb: Boolean get() = profile.syncEnabledTmdb
     val subtitleSpeed: Float get() = mpvSubtitle.subtitleSpeed
     val videoFiltersJson: String get() = mpvSubtitle.videoFiltersJson
     val speedPresets: String get() = mpvSubtitle.speedPresets

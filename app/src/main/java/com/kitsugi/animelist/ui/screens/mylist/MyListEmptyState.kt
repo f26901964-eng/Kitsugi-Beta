@@ -26,6 +26,7 @@ internal fun MyListNotConnectedState(
         MY_LIST_KITSU_TAB_INDEX -> "Kitsu"
         MY_LIST_SHIKIMORI_TAB_INDEX -> "Shikimori"
         MY_LIST_BANGUMI_TAB_INDEX -> "Bangumi"
+        MY_LIST_TMDB_TAB_INDEX -> "TMDB"
         else -> "Kitsugi"
     }
     val simklSessionExpired = selectedTabIndex == MY_LIST_SIMKL_TAB_INDEX && isSimklSessionExpired

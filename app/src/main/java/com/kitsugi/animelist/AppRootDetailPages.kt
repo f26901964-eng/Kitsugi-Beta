@@ -288,6 +288,7 @@ fun AppRootDetailPages(
                     isMalConnected = authViewModel.isMalConnected,
                     isSimklConnected = authViewModel.isSimklConnected,
                     isBangumiConnected = authViewModel.isBangumiConnected,
+                    isTmdbConnected = authViewModel.isTmdbConnected,
                     onLoginBangumi = onLoginBangumi,
                     onLoginAniList = {
                         authViewModel.startExternalAuth("anilist")
@@ -318,45 +319,22 @@ fun AppRootDetailPages(
                                 mediaRepository.update(updatedEntry)
                             }
                         } else {
-                            // Auto-insert as favorited for non-library entries.
-                            // Durum, Ayarlar'daki "Listeye eklerken varsayılan durum"
-                            // tercihinden gelir; otomatik tarih kuralı da aynı şekilde
-                            // uygulanır (yeni kayıt = durum değişti).
-                            val result = selection.result
-                            val defaultStatus = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.defaultAddStatusValue()
-                            val auto = com.kitsugi.animelist.model.EntryAutoRules.resolveOnStatusChange(
-                                status = defaultStatus,
-                                startDate = null,
-                                endDate = null,
-                                progress = 0,
-                                total = result.total,
-                                statusChanged = true
+                            // Kalp de normal "listeye ekle" zincirini kullanır. Ayrı bir doğrudan
+                            // insert, TMDB katalog satırını sahte bir liste kaynağına dönüştürüyor;
+                            // sağlayıcı seçimini ve çapraz kimlik çözümünü atlıyordu.
+                            appViewModel.addApiSelectionToList(
+                                selection = selection,
+                                currentEntries = mediaEntries,
+                                repository = mediaRepository,
+                                isAniListConnected = authViewModel.isAniListConnected,
+                                isMalConnected = authViewModel.isMalConnected,
+                                isSimklConnected = authViewModel.isSimklConnected,
+                                isBangumiConnected = authViewModel.isBangumiConnected,
+                                isTmdbConnected = authViewModel.isTmdbConnected,
+                                isKitsuConnected = authViewModel.isKitsuConnected,
+                                isShikimoriConnected = authViewModel.isShikimoriConnected,
+                                markFavorite = true
                             )
-                            val newEntry = com.kitsugi.animelist.model.MediaEntry(
-                                id = 0,
-                                title = result.title,
-                                subtitle = result.subtitle,
-                                type = result.type,
-                                status = defaultStatus,
-                                score = result.score,
-                                progress = auto.progress,
-                                total = result.total,
-                                isFavorite = true,
-                                isAdult = result.isAdult,
-                                source = result.source,
-                                malId = result.realMalId ?: result.malId,
-                                imageUrl = result.imageUrl,
-                                year = result.year,
-                                synopsis = selection.synopsis,
-                                startDate = auto.startDate,
-                                endDate = auto.endDate,
-                                tmdbId = result.tmdbId,
-                                titleEnglish = result.titleEnglish,
-                                titleJapanese = result.titleJapanese
-                            )
-                            coroutineScope.launch {
-                                mediaRepository.insert(newEntry)
-                            }
                         }
                     }
                 )
@@ -668,6 +646,8 @@ fun AppRootDetailPages(
                     isKitsuConnected = authViewModel.isKitsuConnected,
                     isShikimoriConnected = authViewModel.isShikimoriConnected,
                     isBangumiConnected = authViewModel.isBangumiConnected,
+                    isTmdbConnected = authViewModel.isTmdbConnected,
+                    tmdbUsername = authViewModel.tmdbUsername,
                     onBack = { navState.popDetailStack() },
                     malSessionRefreshToken = authViewModel.malSessionReadyToken,
                     onOpenMalAccountSettings = {
