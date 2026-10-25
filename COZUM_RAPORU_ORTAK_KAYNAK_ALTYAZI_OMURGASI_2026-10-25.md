@@ -85,6 +85,13 @@ PlayerVM (bölüm) ┘        (tip filtresi · blok · ID ön çözümü · tohu
 Stremio tarafı da tek: `/subtitles` yalnızca `SubtitleRepositoryImpl` (SubtitleHub üzerinden),
 `/stream` yalnızca `buildStremioStreamTasks` + `AddonStreamClient` + `EpisodeStreamFilter`.
 
+Altyazı tarafında da toplama anı değişti:
+
+| Durum | ÖNCE | SONRA |
+|---|---|---|
+| Bir eklentinin gömülü altyazıları | Yalnız o kaynak **oynatılınca** havuza yazılıyordu | **Tarama anında** tüm eklentilerin altyazıları havuza yazılır (R18) |
+| ID'siz giriş (geçmiş/katalog) | Defter yalnız yazılıyor, okunmuyordu | Akış ekranı da defterden ID kurtarır (R19) |
+
 Ek düzeltmeler:
 - Çevrimdışı oynatım (`DownloadsScreen`) artık kimlik (MAL/AniList/TMDB + sezon/bölüm) taşıyor.
 - `PlayerGeneratorViewModel` ölü kod olarak işaretlendi; ileride bağlanırsa `CsStreamFanout` kullanmalı.

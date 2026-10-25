@@ -144,16 +144,8 @@ class SubtitleHub(private val context: Context) {
     ) {
         if (subtitles.isEmpty()) return
         SubtitleMemoryStore.initialize(context)
-        val mapped = subtitles.map { input ->
-            Subtitle(
-                id = input.url,
-                url = input.url,
-                lang = input.lang,
-                addonName = if (input.isExternal) input.name else "$addonName (kaynak)",
-                format = input.url.substringAfterLast('.', "").takeIf { it.length in 2..5 }
-            )
-        }
-        SubtitleMemoryStore.remember(identity.subtitleKeyCandidates, mapped, providerBound = true)
+        // Biçim dönüşümü tek yerde: [SubtitleMemoryStore.rememberProviderSubtitles].
+        SubtitleMemoryStore.rememberProviderSubtitles(identity.subtitleKeyCandidates, addonName, subtitles)
     }
 
     /** Ortak belleği temizler (ayarlar → "altyazı belleğini temizle"). */

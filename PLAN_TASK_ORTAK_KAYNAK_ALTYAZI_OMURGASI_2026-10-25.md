@@ -241,6 +241,19 @@ grep -rn "subtitleTypes" app/src/main/java/com/kitsugi/animelist/ui/ | head -40
 > Not: Drive'da dosya güncellemek için `update_file_content` KULLANMA (kabuk ikamesini
 > yorumlamıyor, literal `$(cat …)` yazıyor). Sil + `upload_file` ile yeniden yükle.
 
+### 9.2b Tek yol haritası (2026-10-25 sonrası)
+
+| Toplama işi | Tek sahibi |
+|---|---|
+| CS eklenti akış sorgusu | `CsStreamFanout` (`queryPlugin` / `resolveAll`) |
+| CS eklenti gömülü altyazıları | `CsStreamFanout` → `SubtitleMemoryStore.rememberProviderSubtitles` |
+| Stremio `/stream` | `buildStremioStreamTasks` + `AddonStreamClient` + `EpisodeStreamFilter` |
+| Stremio `/subtitles` | `SubtitleRepositoryImpl` (yalnız `SubtitleHub` çağırır) |
+| Kimlik çözümü | `KitsugiIdResolver` + `MediaIdentityRegistry` + `SubtitleHub.enrichIdentity` |
+| Oynatıcı bölüm geçişi | `KitsugiPlayerViewModel.fetchStreamsForEpisode` → `CsStreamFanout` |
+| İndirme | `AnimeDownloader` → `SubtitleHub` |
+| Çevrimdışı oynatım | `DownloadsScreen` → kimlik aktarımı → aynı oynatıcı |
+
 ### 9.3 Kalan işler (öncelik sırası)
 
 1. **R11** — CS altyazı eklentisi sınıflandırması: AAR'da `SubtitleAPI` **yok** (doğrulandı,

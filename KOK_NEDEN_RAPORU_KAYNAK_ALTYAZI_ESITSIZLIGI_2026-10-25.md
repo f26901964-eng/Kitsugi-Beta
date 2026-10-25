@@ -195,5 +195,7 @@ Kullanıcı için sonuç: "altyazı eklentim yüklü ama çalışmıyor".
 | R15 | **Oynatıcı içi bölüm geçişi ayrı toplama yolu** (`fetchStreamsForEpisode`) | Sonraki bölümde kaynak/altyazı sayısı düşüyordu: tip filtresi yok, blok kontrolü yok, `preResolvedIds` yok, cs3 modunda erken çıkış | ✅ Düzeltildi (`CsStreamFanout.resolveAll`) |
 | R16 | **Çevrimdışı oynatımda kimlik kaybı** (`DownloadsScreen` → `startWithStreamUrls`) | İndirilen bölümde altyazı "yok" görünüyordu (yalnız başlık geçiyordu) | ✅ Düzeltildi (malId/anilistId/tmdbId/sezon/bölüm aktarımı) |
 | R17 | Akış sorgusu politikasının iki kopyası (StreamViewModel + PlayerVM) | Bir düzeltme sadece bir ekranda kalıyordu | ✅ Düzeltildi (tek `CsStreamFanout`) |
+| R18 | Gömülü altyazılar yalnız **seçilen** kaynaktan toplanıyordu | A kaynağında 4, B kaynağında 0 altyazı; taranan diğer eklentilerin altyazıları çöpe gidiyordu | ✅ Düzeltildi (tarama anında TÜM eklentilerin altyazıları ortak havuza) |
+| R19 | Akış ekranı kimlik defterine yazıyor ama **okumuyordu** | Geçmiş/katalog girişinde ID yoksa IMDb/Kitsu tabanlı addon'lar boş dönüyordu | ✅ Düzeltildi (defterden kurtarma) |
 
 Devam eden plan: `PLAN_TASK_ORTAK_KAYNAK_ALTYAZI_OMURGASI_2026-10-25.md`

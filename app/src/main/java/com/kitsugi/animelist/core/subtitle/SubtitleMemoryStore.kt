@@ -81,6 +81,33 @@ object SubtitleMemoryStore {
             prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         }
     }
+    /**
+     * Sağlayıcı akışından çıkarılan altyazıları ortak havuza yazar.
+     *
+     * Akış taraması sırasında HER eklentinin döndürdüğü gömülü altyazılar buraya
+     * yazılır; kullanıcı hangi kaynağı seçerse seçsin tüm eklentilerin altyazıları
+     * listede görünür (kaynak kayırmama). [SubtitleHub] ile aynı biçimi kullanır.
+     */
+    fun rememberProviderSubtitles(
+        keys: List<String>,
+        addonName: String,
+        inputs: List<com.kitsugi.animelist.core.player.SubtitleInput>
+    ) {
+        if (keys.isEmpty() || inputs.isEmpty()) return
+        val mapped = inputs.mapNotNull { input ->
+            val url = input.url.trim()
+            if (url.isEmpty() || url.startsWith("data:", ignoreCase = true)) null
+            else Subtitle(
+                id = url,
+                url = url,
+                lang = input.lang,
+                addonName = if (input.isExternal) input.name else "$addonName (kaynak)",
+                format = url.substringAfterLast('.', "").takeIf { it.length in 2..5 }
+            )
+        }
+        if (mapped.isNotEmpty()) remember(keys, mapped, providerBound = true)
+    }
+
 
     /**
      * Verilen anahtarlardan (ID ve başlık tabanlı) tüm geçerli altyazıları döndürür.

@@ -179,6 +179,24 @@ object CsStreamFanout {
             collected.distinctBy { it.url ?: it.infoHash }
         } else collected
 
+        // ── Ortak altyazı havuzu (kaynak kayırmama) ───────────────────────────
+        // Eklentilerin döndürdüğü gömülü altyazılar, kullanıcı o kaynağı SEÇMESE BİLE
+        // ortak havuza yazılır. Böylece "A kaynağında altyazı vardı, B'de yok" durumu
+        // oluşmaz: tarama anında tüm eklentilerin altyazıları toplanmış olur.
+        try {
+            val embedded = deduped.flatMap { it.subtitles }
+            if (embedded.isNotEmpty()) {
+                com.kitsugi.animelist.core.subtitle.SubtitleMemoryStore.initialize(context)
+                com.kitsugi.animelist.core.subtitle.SubtitleMemoryStore.rememberProviderSubtitles(
+                    keys = identity.subtitleKeyCandidates,
+                    addonName = plugin.name,
+                    inputs = embedded,
+                )
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "[$display] gömülü altyazılar havuza yazılamadı: ${e.message}")
+        }
+
         PluginOutcome(
             pluginId = plugin.id,
             pluginName = plugin.name,

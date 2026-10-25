@@ -528,7 +528,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
 
         // Detay sayfasının bildiği IMDb (tt...) çözücü sonucundan önce gelir: aynı kayıt, güvenilir kaynak.
         val knownImdb = knownImdbId?.trim()?.takeIf { Regex("tt[0-9]{5,12}").matches(it) }
-        val resolvedIds = KitsugiIdResolver.resolveIds(
+        val resolvedIdsRaw = KitsugiIdResolver.resolveIds(
             malId = realMalId,
             aniListId = realAniListId,
             tmdbId = tmdbId,
@@ -538,6 +538,37 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             // Akış yolu: IMDb yoksa Wikidata P345 köprüsünü dene (IMDb ile sorgulanan addon'lar için).
             wikidataImdbFallback = true
         ).let { r -> if (knownImdb != null) r.copy(imdbId = knownImdb) else r }
+
+        // ── Ortak kimlik defterinden KURTARMA ─────────────────────────────────
+        // Bu giriş noktası ID taşımıyorsa (geçmiş, katalog, arama sonucu, eklenti
+        // kataloğu) daha önce detay sayfasında çözülmüş ID'ler kullanılır. Aksi halde
+        // IMDb/Kitsu ile sorgulanan Stremio addon'ları bu girişte SESSİZCE boş döner
+        // (kaynak kayırmama ihlali). Önceden deftere yalnızca YAZILIYOR, okunmuyordu.
+        val resolvedIds = if (resolvedIdsRaw.imdbId == null && resolvedIdsRaw.kitsuId == null) {
+            val remembered = runCatching {
+                MediaIdentityRegistry.initialize(context)
+                MediaIdentityRegistry.lookupByTitle(title, startYear)
+                    ?: alternativeTitles.asSequence()
+                        .filter { it.isNotBlank() }
+                        .firstNotNullOfOrNull { MediaIdentityRegistry.lookupByTitle(it, startYear) }
+            }.getOrNull()
+            if (remembered == null) {
+                resolvedIdsRaw
+            } else {
+                Log.i(
+                    TAG,
+                    "Kimlik defterinden kurtarıldı: imdb=${remembered.imdbId} kitsu=${remembered.kitsuId} " +
+                        "mal=${remembered.malId} anilist=${remembered.aniListId}"
+                )
+                resolvedIdsRaw.copy(
+                    imdbId = resolvedIdsRaw.imdbId ?: remembered.imdbId,
+                    kitsuId = resolvedIdsRaw.kitsuId ?: remembered.kitsuId,
+                    malId = resolvedIdsRaw.malId ?: remembered.malId,
+                    aniListId = resolvedIdsRaw.aniListId ?: remembered.aniListId,
+                    tmdbId = resolvedIdsRaw.tmdbId ?: remembered.tmdbId
+                )
+            }
+        } else resolvedIdsRaw
         _isResolvingId.value = false
 
         val resolvedImdbId = resolvedIds.imdbId
