@@ -1,5 +1,7 @@
 # PLAN & TASK — Ortak Kaynak/Altyazı Omurgası (Kaynak Kayırmama)
 **Oluşturma:** 2026-10-25 · **Dal:** `arena/8eba864b-kitsugi-beta`
+**Commit:** `36c1c1f` (dal: `arena/8eba864b-kitsugi-beta`, GitHub'a push edildi)
+**Drive:** https://drive.google.com/drive/folders/1n8IODscB408nymMEWlRe0Uh_i3sZY6yJ
 **Durum:** 🟡 Faz 1+2 kodlandı (derleme doğrulaması YAPILMADI — bkz. §7), Faz 3 bekliyor
 **Bu dosya kaldığın yerden devam etmek için tasarlandı.** Her fazın altında "SONRAKİ ADIM" maddesi var.
 
