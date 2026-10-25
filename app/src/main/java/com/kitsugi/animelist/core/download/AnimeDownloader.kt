@@ -205,6 +205,8 @@ class AnimeDownloader(private val context: Context) {
                 val downloadIdentity = com.kitsugi.animelist.core.identity.MediaIdentity(
                     title = download.animeTitle,
                     isMovie = isMovieType,
+                    // Film/dizi ayrımı çözümleyiciye açıkça verilir (tahmin gerekmesin).
+                    mediaType = if (isMovieType) com.kitsugi.animelist.model.MediaType.Movie else null,
                     malId = dMalId,
                     aniListId = dAniListId,
                     tmdbId = dTmdbId,
