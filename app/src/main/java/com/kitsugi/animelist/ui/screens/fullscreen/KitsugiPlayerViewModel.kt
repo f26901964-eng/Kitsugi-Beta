@@ -1190,6 +1190,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
         val combined = stremioStreams + csStreams
         StreamSorter.sort(combined)
+    }
 
     fun playEpisode(targetEp: Int, activity: android.app.Activity?, onAlternativeRequired: () -> Unit, onResolutionFailed: () -> Unit) {
         userCancelledBinge = false
