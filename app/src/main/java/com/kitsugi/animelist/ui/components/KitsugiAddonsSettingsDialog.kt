@@ -82,6 +82,7 @@ fun KitsugiAddonsSettingsDialog(
     mangaSources: List<MangaSource> = emptyList(),
     onInstallMangaExtension: (Uri) -> Unit = {},
     onDeleteMangaExtension: (MangaSource) -> Unit = {},
+    onDeleteMangaExtensions: (List<MangaSource>, (Int) -> Unit) -> Unit = { sources, done -> done(sources.size) },
     // Manga repos (Keiyoushi / native)
     mangaRepos: List<String> = emptyList(),
     mangaRepoExtensions: Map<String, List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>?> = emptyMap(),
@@ -339,6 +340,7 @@ fun KitsugiAddonsSettingsDialog(
                             accentColor = accentColor,
                             onInstallExtension = onInstallMangaExtension,
                             onDeleteExtension = onDeleteMangaExtension,
+                            onDeleteExtensions = onDeleteMangaExtensions,
                             repos = mangaRepos,
                             repoExtensions = mangaRepoExtensions,
                             repoLoadingState = mangaRepoLoadingState,

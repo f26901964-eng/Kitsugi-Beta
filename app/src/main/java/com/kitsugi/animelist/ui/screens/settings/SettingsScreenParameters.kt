@@ -375,6 +375,7 @@ data class MangaSettings(
     val mangaSources: List<com.kitsugi.animelist.data.manga.MangaSource> = emptyList(),
     val onInstallMangaExtension: (android.net.Uri) -> Unit = {},
     val onDeleteMangaExtension: (com.kitsugi.animelist.data.manga.MangaSource) -> Unit = {},
+    val onDeleteMangaExtensions: (List<com.kitsugi.animelist.data.manga.MangaSource>, (Int) -> Unit) -> Unit = { sources, done -> done(sources.size) },
     val mangaRepos: List<String> = emptyList(),
     val mangaRepoExtensions: Map<String, List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>?> = emptyMap(),
     val mangaRepoLoadingState: Map<String, Boolean> = emptyMap(),

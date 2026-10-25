@@ -29,7 +29,9 @@ import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.Su
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.SubtitleTrackInfo
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.AudioTracksSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.AudioTrackInfo
-import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.QualitySheet
+import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.SourcesSheet
+import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.VideoQualitySheet
+import com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.MoreSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.ScreenshotSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.ArtType
@@ -75,7 +77,12 @@ fun PlayerSheetsHost(
     onSelectAudio: (Int) -> Unit = {},
     onAddAudioFile: () -> Unit = {},
 
-    // Quality / Stream Sources
+    // Only tracks belonging to the currently prepared video, never provider links.
+    videoQualityTracks: List<TrackOption> = emptyList(),
+    isVideoQualityAuto: Boolean = true,
+    onSelectVideoQuality: (TrackOption?) -> Unit = {},
+
+    // Stream Sources
     streamSources: List<StreamSource> = emptyList(),
     selectedSourceIndex: Int = -1,
     onSelectSource: (Int) -> Unit = {},
@@ -206,7 +213,17 @@ fun PlayerSheetsHost(
                 }
 
                 KitsugiSheets.QualityTracks -> {
-                    QualitySheet(
+                    VideoQualitySheet(
+                        tracks = videoQualityTracks,
+                        isAuto = isVideoQualityAuto,
+                        onSelect = onSelectVideoQuality,
+                        onDismissRequest = onDismissRequest,
+                        dismissSheet = dismissSheet,
+                    )
+                }
+
+                KitsugiSheets.Sources -> {
+                    SourcesSheet(
                         streamSources = streamSources,
                         selectedIndex = selectedSourceIndex,
                         isLoading = isQualityLoading,

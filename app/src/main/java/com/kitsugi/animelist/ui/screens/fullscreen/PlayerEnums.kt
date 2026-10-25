@@ -47,6 +47,7 @@ enum class KitsugiSheets {
     SubtitleTracks,
     AudioTracks,
     QualityTracks,
+    Sources,
     Chapters,
     More,
     Screenshot,

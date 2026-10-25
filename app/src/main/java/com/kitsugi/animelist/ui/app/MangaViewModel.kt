@@ -235,6 +235,27 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteMangaExtensions(sources: List<MangaSource>, onComplete: (Int) -> Unit) {
+        viewModelScope.launch {
+            val failures = withContext(Dispatchers.IO) {
+                // Resolve all IDs before unloading: one APK can expose several sources.
+                val targets = sources.distinctBy {
+                    com.kitsugi.animelist.data.manga.MangaExtensionLoader.getExtensionIdForSource(it) ?: it.name
+                }
+                targets.count { source ->
+                    try {
+                        !mangaRepository.deleteExtension(source)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        true
+                    }
+                }
+            }
+            mangaSources = withContext(Dispatchers.IO) { mangaRepository.getAvailableSources() }
+            onComplete(failures)
+        }
+    }
+
     fun deleteMangaExtension(source: MangaSource) {
         viewModelScope.launch(Dispatchers.IO) {
             mangaRepository.deleteExtension(source)

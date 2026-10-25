@@ -7432,6 +7432,15 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_auto_update_repo_fetch_failed">Depo dizini alınamadı</string>
     <string name="manga_auto_update_skipped">ℹ️ Atlandı: sonraki kontrol %1$d dakika sonra</string>
     <string name="manga_auto_update_success">✅ %1$d eklenti güncellendi: %2$s</string>
+    <string name="manga_bulk_select">Toplu sil</string>
+    <string name="manga_bulk_select_all">Tümünü seç / bırak</string>
+    <string name="manga_bulk_delete_count">Seçilenleri sil (%1$d)</string>
+    <string name="manga_bulk_warning">Seçilen eklenti dosyaları ve aynı pakete bağlı tüm kaynaklar kaldırılacak. Yerleşik kaynaklar silinmez. Devam edilsin mi?</string>
+    <string name="manga_bulk_result">Toplu silme tamamlandı. Silinemeyen: %1$d</string>
+    <string name="player_video_quality">Kalite</string>
+    <string name="player_stream_sources">Kaynaklar</string>
+    <string name="player_video_quality_auto">Otomatik</string>
+    <string name="player_video_quality_unavailable">Bu video veya oynatıcı motoru seçilebilir kalite sunmuyor. Kalite seçenekleri yalnızca açık videonun desteklenen video parçalarından gösterilir.</string>
     <string name="manga_bulk_download_all">Download All</string>
     <string name="manga_bulk_download_language">Download %1$s</string>
     <string name="manga_bulk_install_complete">✅ %1$d eklenti başarıyla yüklendi!</string>

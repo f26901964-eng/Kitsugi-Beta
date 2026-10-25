@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Subtitles
@@ -26,6 +29,7 @@ fun TopRightPlayerControls(
     onAudioClick: () -> Unit,
     onAudioLongClick: () -> Unit,
     onQualityClick: () -> Unit,
+    onSourcesClick: () -> Unit,
     isEpisodeOnline: Boolean?,
     onMoreClick: () -> Unit,
     onMoreLongClick: () -> Unit,
@@ -59,8 +63,18 @@ fun TopRightPlayerControls(
         if (isEpisodeOnline == true) {
             ControlsButton(
                 icon = Icons.Default.HighQuality,
+                title = stringResource(R.string.player_video_quality),
                 onClick = onQualityClick,
                 onLongClick = onQualityClick,
+                horizontalSpacing = 8.dp,
+            )
+        }
+        if (isEpisodeOnline == true) {
+            ControlsButton(
+                icon = Icons.Default.VideoLibrary,
+                title = stringResource(R.string.player_stream_sources),
+                onClick = onSourcesClick,
+                onLongClick = onSourcesClick,
                 horizontalSpacing = 8.dp,
             )
         }

@@ -137,6 +137,12 @@ interface PlayerEngine {
     fun setAspectMode(mode: com.kitsugi.animelist.core.player.PlayerAspectMode)
 
     fun handleKey(event: android.view.KeyEvent): Boolean = false
+    /** Real video renditions of the currently loaded media; empty when unsupported. */
+    val videoQualityTracks: List<TrackOption> get() = emptyList()
+    val isVideoQualityAuto: Boolean get() = true
+    /** null restores adaptive selection. Never changes the provider or media URL. */
+    fun selectVideoQuality(track: TrackOption?) {}
+
     fun selectTrack(trackOption: TrackOption)
     fun disableSubtitles()
 

@@ -370,6 +370,7 @@ internal fun SettingsContext.buildSettingsParams() =
             mangaSources = mangaViewModel.mangaSources,
             onInstallMangaExtension = { mangaViewModel.installMangaExtension(it) },
             onDeleteMangaExtension = { mangaViewModel.deleteMangaExtension(it) },
+            onDeleteMangaExtensions = { sources, done -> mangaViewModel.deleteMangaExtensions(sources, done) },
             mangaRepos = mangaViewModel.mangaReposState,
             mangaRepoExtensions = mangaViewModel.mangaRepoExtensionsState,
             mangaRepoLoadingState = mangaViewModel.mangaRepoLoadingState,

@@ -341,6 +341,8 @@ fun KitsugiFullscreenPlayerScreen(
     // Track selections
     var textTrackOptions by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
     var audioTrackOptions by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
+    var videoQualityTracks by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
+    var isVideoQualityAuto by remember { mutableStateOf(true) }
     var isSubtitleDisabled by remember { mutableStateOf(false) }
 
     // Subtitle style, delay, hız ve video filtreleri
@@ -478,11 +480,11 @@ fun KitsugiFullscreenPlayerScreen(
             targetEp = targetEp,
             activity = activity,
             onAlternativeRequired = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.Sources)
                 Toast.makeText(context, KitsugiStrings.get(R.string.ayni_kaynak_bulunamadi_diger_kaynaklar_listeleniyor), Toast.LENGTH_LONG).show()
             },
             onResolutionFailed = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.Sources)
                 Toast.makeText(context, KitsugiStrings.get(R.string.secilen_kaynak_cozumlenemedi_lutfen_listeden_baska_bir_kaynak_se), Toast.LENGTH_LONG).show()
             }
         )
@@ -492,11 +494,11 @@ fun KitsugiFullscreenPlayerScreen(
         viewModel.playNextEpisode(
             activity = activity,
             onAlternativeRequired = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.Sources)
                 Toast.makeText(context, KitsugiStrings.get(R.string.ayni_kaynak_bulunamadi_diger_kaynaklar_listeleniyor), Toast.LENGTH_LONG).show()
             },
             onResolutionFailed = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.Sources)
                 Toast.makeText(context, KitsugiStrings.get(R.string.secilen_kaynak_cozumlenemedi_lutfen_listeden_baska_bir_kaynak_se), Toast.LENGTH_LONG).show()
             }
         )
@@ -568,7 +570,7 @@ fun KitsugiFullscreenPlayerScreen(
                     onRetry = { viewModel.retryCurrentSource() },
                     onSwitchSource = {
                         if (currentStreamSources.isNotEmpty()) {
-                            viewModel.showSheet(KitsugiSheets.QualityTracks)
+                            viewModel.showSheet(KitsugiSheets.Sources)
                         } else {
                             KitsugiStreamActivity.start(
                                 context = context,
@@ -785,6 +787,11 @@ fun KitsugiFullscreenPlayerScreen(
                     }
                 }
 
+                LaunchedEffect(playerEngine, currentVideoUrl) {
+                    videoQualityTracks = emptyList()
+                    isVideoQualityAuto = true
+                }
+
                 // Poll metadata/cache even while paused; save history only during playback.
                 LaunchedEffect(playerEngine, mediaIdForHistory, currentEpisode, currentAddonName, resumeIdentity) {
                     run {
@@ -793,6 +800,8 @@ fun KitsugiFullscreenPlayerScreen(
                             duration = playerEngine.duration.coerceAtLeast(0L)
                             isPlayingState = playerEngine.isPlaying
                             viewModel.updateReadAhead(playerEngine.bufferedPosition / 1000)
+                            videoQualityTracks = playerEngine.videoQualityTracks
+                            isVideoQualityAuto = playerEngine.isVideoQualityAuto
                             if (currentPosition > 0L && duration > 0L && playerEngine.isPlaying) {
                                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                     resumeStore.save(resumeIdentity, currentPosition, duration)
@@ -930,6 +939,8 @@ fun KitsugiFullscreenPlayerScreen(
                             Log.d("KitsugiPlayerDebug", "onTracksChanged: audioTracks=${audioTracks.size}, subTracks=${subtitleTracks.size}")
                             audioTrackOptions = audioTracks
                             textTrackOptions = subtitleTracks
+                            videoQualityTracks = playerEngine.videoQualityTracks
+                            isVideoQualityAuto = playerEngine.isVideoQualityAuto
                             isSubtitleDisabled = playerEngine.isSubtitleDisabled
                             streamInfoData = playerEngine.activeStreamInfo
                         }
@@ -1770,6 +1781,13 @@ fun KitsugiFullscreenPlayerScreen(
                         onAddAudioFile = {
                             if (playerEngine.supportsExternalTracks) audioPicker.launch(arrayOf("*/*"))
                             else switchToMpvForFeature("Harici ses ekleme")
+                        },
+                        videoQualityTracks = videoQualityTracks,
+                        isVideoQualityAuto = isVideoQualityAuto,
+                        onSelectVideoQuality = { track ->
+                            playerEngine.selectVideoQuality(track)
+                            isVideoQualityAuto = playerEngine.isVideoQualityAuto
+                            viewModel.showSheet(KitsugiSheets.None)
                         },
                         streamSources = currentStreamSources,
                         selectedSourceIndex = currentSourceIndex,

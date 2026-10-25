@@ -449,6 +449,10 @@ fun PlayerControls(
                             viewModel.showSheet(KitsugiSheets.QualityTracks)
                             resetTimer()
                         },
+                        onSourcesClick       = {
+                            viewModel.showSheet(KitsugiSheets.Sources)
+                            resetTimer()
+                        },
                         isEpisodeOnline      = currentTitle.isNotBlank(),
                         onMoreClick          = {
                             viewModel.showSheet(KitsugiSheets.More)

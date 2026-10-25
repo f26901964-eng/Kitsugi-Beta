@@ -7427,6 +7427,15 @@
     <string name="manga_auto_update_repo_fetch_failed">Could not fetch the repository index</string>
     <string name="manga_auto_update_skipped">ℹ️ Skipped: next check in %1$d min</string>
     <string name="manga_auto_update_success">✅ Updated %1$d extension(s): %2$s</string>
+    <string name="manga_bulk_select">Bulk delete</string>
+    <string name="manga_bulk_select_all">Select / deselect all</string>
+    <string name="manga_bulk_delete_count">Delete selected (%1$d)</string>
+    <string name="manga_bulk_warning">Selected extension files and all sources in the same packages will be removed. Built-in sources are not deleted. Continue?</string>
+    <string name="manga_bulk_result">Bulk deletion finished. Failed: %1$d</string>
+    <string name="player_video_quality">Quality</string>
+    <string name="player_stream_sources">Sources</string>
+    <string name="player_video_quality_auto">Automatic</string>
+    <string name="player_video_quality_unavailable">This video or player engine does not expose selectable qualities. Only supported video tracks of the current video appear here.</string>
     <string name="manga_bulk_download_all">Download All</string>
     <string name="manga_bulk_download_language">Download %1$s</string>
     <string name="manga_bulk_install_complete">✅ Successfully installed %1$d extension(s)!</string>

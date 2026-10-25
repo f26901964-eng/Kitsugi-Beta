@@ -24,7 +24,7 @@ import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
 @Composable
-fun QualitySheet(
+fun SourcesSheet(
     streamSources: List<StreamSource>,
     selectedIndex: Int,
     isLoading: Boolean,
@@ -35,7 +35,7 @@ fun QualitySheet(
 ) {
     PlayerSheet(onDismissRequest = onDismissRequest, dismissEvent = dismissSheet) {
         Column(modifier = modifier) {
-            TrackSheetTitle(title = "Kalite / Kaynak")
+            TrackSheetTitle(title = androidx.compose.ui.res.stringResource(com.kitsugi.animelist.R.string.player_stream_sources))
 
             if (isLoading) {
                 Row(

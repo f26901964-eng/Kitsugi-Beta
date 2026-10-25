@@ -97,7 +97,6 @@ class Media3PlayerEngine(
      */
     @Volatile private var renderedFirstVideoFrame = false
 
-
     /**
      * Zaman çizgisi darbesi. Media3 konum değişimlerini `Player.Listener` üzerinden
      * bildirmediği için detay sayfasındaki küçük oynatıcı sayacı 00:00'da donmuş
@@ -200,7 +199,6 @@ class Media3PlayerEngine(
      */
     override val hasRenderedVideoFrame: Boolean
         get() = renderedFirstVideoFrame
-
         
     override val currentSpeed: Float
         get() = exoPlayer?.playbackParameters?.speed ?: settings.playerSpeed
@@ -799,9 +797,10 @@ class Media3PlayerEngine(
             initializePlayer()
             val player = exoPlayer
             if (player != null) {
-                // Ensure subtitle/text tracks are enabled by default
+                // A fixed rendition belongs to the old media, never to the next source/episode.
                 player.trackSelectionParameters = player.trackSelectionParameters
                     .buildUpon()
+                    .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
                     .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
                     .build()
             }
@@ -1142,6 +1141,41 @@ class Media3PlayerEngine(
      */
     private fun trackLabelWithSupport(baseLabel: String, supported: Boolean): String =
         if (supported) baseLabel else "$baseLabel ⚠️ (cihaz desteklemiyor)"
+
+    override val videoQualityTracks: List<TrackOption>
+        get() = exoPlayer?.currentTracks?.groups?.flatMapIndexed { groupIndex, group ->
+            if (group.type != C.TRACK_TYPE_VIDEO) emptyList() else {
+                (0 until group.length).mapNotNull { index ->
+                    val format = group.getTrackFormat(index)
+                    if (!group.isTrackSupported(index) || format.height <= 0) null else {
+                        val bitrate = format.bitrate.takeIf { it > 0 }?.let { " · ${it / 1000} kbps" }.orEmpty()
+                        TrackOption(group, groupIndex, index, "${format.height}p$bitrate", group.isTrackSelected(index))
+                    }
+                }
+            }
+        }.orEmpty().sortedByDescending { it.group.getTrackFormat(it.trackIndex).height }
+
+    override val isVideoQualityAuto: Boolean
+        get() = exoPlayer?.trackSelectionParameters?.overrides?.values
+            ?.none { it.mediaTrackGroup.type == C.TRACK_TYPE_VIDEO } ?: true
+
+    override fun selectVideoQuality(track: TrackOption?) {
+        runOnMainThread {
+            val player = exoPlayer ?: return@runOnMainThread
+            // Ignore stale rows after an episode/source/engine switch.
+            if (track != null && (track.group.type != C.TRACK_TYPE_VIDEO ||
+                    track.trackIndex !in 0 until track.group.length ||
+                    player.currentTracks.groups.none { it.mediaTrackGroup == track.group.mediaTrackGroup } ||
+                    !track.group.isTrackSupported(track.trackIndex))) return@runOnMainThread
+            val parameters = player.trackSelectionParameters.buildUpon()
+                .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, false)
+            if (track != null) parameters.setOverrideForType(
+                TrackSelectionOverride(track.group.mediaTrackGroup, track.trackIndex)
+            )
+            player.trackSelectionParameters = parameters.build()
+        }
+    }
 
     override fun selectTrack(trackOption: TrackOption) {
         runOnMainThread {
