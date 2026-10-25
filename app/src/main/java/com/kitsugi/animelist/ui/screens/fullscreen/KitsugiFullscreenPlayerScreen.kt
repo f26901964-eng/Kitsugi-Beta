@@ -1645,7 +1645,7 @@ fun KitsugiFullscreenPlayerScreen(
                             .padding(top = 80.dp)
                     )
 
-                    val hasNextEpisode = episodesList.any { it.episodeNumber == nextEpNum } || currentEpisode < (episodesList.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+                    val hasNextEpisode = episodesList.isNotEmpty() && (episodesList.any { it.episodeNumber == nextEpNum } || currentEpisode < (episodesList.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE))
                     PlaybackEndedOverlay(
                         visible = isPlaybackEnded && !isAutoplayEnabled && !isInPipMode,
                         hasNextEpisode = hasNextEpisode,

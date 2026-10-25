@@ -245,6 +245,8 @@ fun AppRootTabPages(
                             )
                         )
                     },
+                    onOpenWatchHistory = { ctx.navState.navigateToDetail(DetailScreen.WatchHistory) },
+                    onOpenDownloads = { ctx.navState.navigateToDetail(DetailScreen.Downloads) },
                     onGenreClick = ctx.onSearchByGenre,
                     onTagClick = ctx.onSearchByTag,
                     onUserProfileClick = { userId, username, avatarUrl ->
@@ -322,6 +324,7 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
             )
         },
         isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected || ctx.authViewModel.isTmdbConnected,
+        onOpenDownloads = { ctx.navState.navigateToDetail(DetailScreen.Downloads) },
         showAnimeLogos = ctx.appSettings.showAnimeLogos,
         isSimklConnected = ctx.authViewModel.isSimklConnected,
         // TMDB hata yönlendirmesi: Ayarlar → Entegrasyonlar bölümüne git
@@ -421,7 +424,9 @@ private fun SearchTabPage(ctx: TabPagesContext) {
                     imageUrl = imageUrl
                 )
             )
-        }
+        },
+        onOpenWatchHistory = { ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.WatchHistory) },
+        onOpenDownloads = { ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.Downloads) }
     )
 }
 
@@ -611,6 +616,8 @@ private fun MyListTabPageWrapper(
                     preferredSource = notificationSourceIdForMyListTab(appViewModel.myListTabIndex)
                 )
             )
-        }
+        },
+        onOpenWatchHistory = { navState.navigateToDetail(DetailScreen.WatchHistory) },
+        onOpenDownloads = { navState.navigateToDetail(DetailScreen.Downloads) }
     )
 }

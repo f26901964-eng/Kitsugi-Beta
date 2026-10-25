@@ -59,42 +59,14 @@ class KitsugiMediaTabsClient {
                     else -> emptyList()
                 }
 
-                var finalTotalEpisodes = totalEpisodes
-                if (finalTotalEpisodes == null && context != null) {
-                    try {
-                        val db = KitsugiDatabase.getDatabase(context.applicationContext)
-                        val entry = db.mediaEntryDao().getByMalId(effectiveId)
-                            ?: if (realMalId != null) db.mediaEntryDao().getByMalId(realMalId) else null
-                        if (entry != null) {
-                            finalTotalEpisodes = entry.total
-                        }
-                    } catch (e: Exception) {
-                        Log.e("KitsugiMediaTabsClient", "Error querying total episodes from DB", e)
-                    }
-                }
-
-                // Check if the media is currently airing
-                val cachedDetail = DetailCache.getMediaDetail(source, effectiveId)
-                    ?: if (realMalId != null) DetailCache.getMediaDetail("mal", realMalId) else null
-                    ?: if (realMalId != null) DetailCache.getMediaDetail("anilist", realMalId) else null
-                val isAiring = cachedDetail?.status?.let { s ->
-                    s.contains("airing", ignoreCase = true) ||
-                    s.contains("releasing", ignoreCase = true) ||
-                    s.contains("yayında", ignoreCase = true) ||
-                    s.contains("devam eden", ignoreCase = true) ||
-                    s.contains("yapımda", ignoreCase = true) ||
-                    s.contains("yayımlanıyor", ignoreCase = true)
-                } == true
-
                 val maxFetchedEp = list.maxOfOrNull { it.episodeNumber ?: 0 } ?: 0
-                val limit = if (isAiring && maxFetchedEp > 0) {
-                    maxFetchedEp
-                } else {
-                    maxOf(finalTotalEpisodes ?: 0, maxFetchedEp)
-                }
-                val finalLimit = if (limit > 0) limit else 12
+                // Hiçbir zaman getirilen bölüm sayısının üzerine çıkma: DB toplamına
+                // göre padding yapmak, filmler/tamamlanmış diziler ve API yanıtını
+                // kısıtlayan kaynaklar için hayali bölümler (12/24/100) yaratır.
+                // Yalnızca en yüksek çekilen bölüm numarası kadar boşluk doldurulur.
+                val finalLimit = maxFetchedEp
 
-                if (list.size < finalLimit) {
+                if (finalLimit > 0 && list.size < finalLimit) {
                     val existingMap = list.associateBy { it.episodeNumber ?: -1 }
                     val paddedList = mutableListOf<KitsugiStreamingEpisode>()
                     for (epNum in 1..finalLimit) {
@@ -116,7 +88,12 @@ class KitsugiMediaTabsClient {
                     }
                     return@withContext applyLocalCustomThumbnails(context, effectiveId, realMalId, paddedList)
                 }
-                return@withContext applyLocalCustomThumbnails(context, effectiveId, realMalId, list)
+                // Sıralı yükseliş: AniList streamingEpisodes sırası garanti edilmez;
+                // ters/karışık gelen listeler 1, 2, 3... olacak şekilde düzeltilir.
+                return@withContext applyLocalCustomThumbnails(
+                    context, effectiveId, realMalId,
+                    list.sortedBy { it.episodeNumber ?: 0 }
+                )
             }
 
             // Shikimori: kimlik uzayı MAL'dan farklı olabilir. Bölüm listesi ve TMDB
@@ -172,20 +149,6 @@ class KitsugiMediaTabsClient {
                     } else emptyList()
                 }
                 else -> emptyList()
-            }
-
-            var finalTotalEpisodes = totalEpisodes
-            if (finalTotalEpisodes == null && context != null) {
-                try {
-                    val db = KitsugiDatabase.getDatabase(context.applicationContext)
-                    val entry = db.mediaEntryDao().getByMalId(externalId)
-                        ?: if (realMalId != null) db.mediaEntryDao().getByMalId(realMalId) else null
-                    if (entry != null) {
-                        finalTotalEpisodes = entry.total
-                    }
-                } catch (e: Exception) {
-                    Log.e("KitsugiMediaTabsClient", "Error querying total episodes from DB", e)
-                }
             }
 
             if ((mediaType == MediaType.Anime || mediaType == MediaType.TvShow) && isTmdbEpisodeFallbackEnabled(context)) {
@@ -289,28 +252,10 @@ class KitsugiMediaTabsClient {
                     filteredTmdbEpisodes.maxOfOrNull { it.episodeNumber } ?: 0
                 )
 
-                // Check if the media is currently airing
-                val cachedDetail = DetailCache.getMediaDetail(source, effectiveId)
-                    ?: if (realMalId != null) DetailCache.getMediaDetail("mal", realMalId) else null
-                    ?: if (realMalId != null) DetailCache.getMediaDetail("anilist", realMalId) else null
-                val isAiring = cachedDetail?.status?.let { s ->
-                    s.contains("airing", ignoreCase = true) ||
-                    s.contains("releasing", ignoreCase = true) ||
-                    s.contains("yayında", ignoreCase = true) ||
-                    s.contains("devam eden", ignoreCase = true) ||
-                    s.contains("yapımda", ignoreCase = true) ||
-                    s.contains("yayımlanıyor", ignoreCase = true)
-                } == true
-
-                val limit = if (filteredTmdbEpisodes.isNotEmpty() || (isAiring && maxFetchedEp > 0)) {
-                    // TMDB season episodes are fetched or currently airing:
-                    // They define the season's episode count. We don't pad to the entire show's total episodes.
-                    maxFetchedEp
-                } else {
-                    // Fallback to Jikan/AniList list and/or total episodes
-                    maxOf(finalTotalEpisodes ?: 0, maxFetchedEp)
-                }
-                val finalLimit = if (limit > 0) limit else 12
+                // TMDB bölümleri mevcut veya yayındaysa season bölüm sayısı onlardan gelir;
+                // yoksa çekilen gerçek bölüm sayısı kadar boşluk doldurulur — DB toplamına
+                // göre padding hayali bölümler (12/24/100) yaratır.
+                val finalLimit = maxFetchedEp
 
                 val existingMap = list.associateBy { it.episodeNumber ?: -1 }
                 val tmdbMap = filteredTmdbEpisodes.associateBy { it.episodeNumber }
@@ -369,7 +314,12 @@ class KitsugiMediaTabsClient {
                 }
                 applyLocalCustomThumbnails(context, effectiveId, realMalId, resultList)
             } else {
-                applyLocalCustomThumbnails(context, effectiveId, realMalId, list)
+                // Sıralı yükseliş: Bangumi/Kitsu/Simkl/Shikimori kaynaklarından
+                // gelen listeler garanti edilen sırada değil; 1, 2, 3... olacak şekilde düzeltilir.
+                applyLocalCustomThumbnails(
+                    context, effectiveId, realMalId,
+                    list.sortedBy { it.episodeNumber ?: 0 }
+                )
             }
         }
     }
@@ -414,40 +364,47 @@ class KitsugiMediaTabsClient {
     }
 
     private suspend fun fetchEpisodesFromJikan(malId: Int): List<KitsugiStreamingEpisode> {
-        val list = mutableListOf<KitsugiStreamingEpisode>()
+        // (mal_id, (rawTitle, url)) — mal_id is sequential per anime, sorting by it
+        // gives correct episode order regardless of API response ordering.
+        val rawList = mutableListOf<Pair<Int, Pair<String, String?>>>()
         for (page in 1..3) {
             val url = URL("https://api.jikan.moe/v4/anime/$malId/episodes?page=$page")
             val pageList = runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList<KitsugiStreamingEpisode>()
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList<Pair<Int, Pair<String, String?>>>()
                     val root = JSONObject(response)
-                    val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList<KitsugiStreamingEpisode>()
-                    val pageItems = mutableListOf<KitsugiStreamingEpisode>()
+                    val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList<Pair<Int, Pair<String, String?>>>()
+                    val pageItems = mutableListOf<Pair<Int, Pair<String, String?>>>()
                     for (i in 0 until data.length()) {
                         val ep = data.optJSONObject(i) ?: continue
-                        val epNum = ep.optInt("mal_id", i + 1)
+                        val malIdVal = ep.optInt("mal_id", (page - 1) * 100 + i + 1)
                         val titleRomaji = ep.optNullableString("title")
                         val titleEn = ep.optNullableString("title_english")
-                        val epTitle = titleRomaji ?: titleEn ?: "Bölüm $epNum"
-                        pageItems.add(
-                            KitsugiStreamingEpisode(
-                                title = "#$epNum – $epTitle",
-                                thumbnail = null,
-                                url = ep.optNullableString("url"),
-                                site = "MyAnimeList",
-                                seasonNumber = 1,
-                                episodeNumber = epNum
-                            )
-                        )
+                        val epTitle = titleRomaji ?: titleEn ?: "Bölüm $malIdVal"
+                        pageItems.add(malIdVal to (epTitle to ep.optNullableString("url")))
                     }
                     pageItems
                 }
             }.getOrElse { emptyList() }
 
-            list.addAll(pageList)
+            rawList.addAll(pageList)
             if (pageList.size < 100) break
         }
-        return list
+        if (rawList.isEmpty()) return emptyList()
+        // Sort by mal_id ascending → correct episode order (1, 2, 3, ...)
+        // Then build episodes with sequential episode numbers and proper titles.
+        return rawList.sortedBy { it.first }.mapIndexed { index, (_, titleAndUrl) ->
+            val epNum = index + 1
+            val (rawTitle, url) = titleAndUrl
+            KitsugiStreamingEpisode(
+                title = "#$epNum – $rawTitle",
+                thumbnail = null,
+                url = url,
+                site = "MyAnimeList",
+                seasonNumber = 1,
+                episodeNumber = epNum
+            )
+        }
     }
 
     private suspend fun fetchEpisodesFromAniList(externalId: Int): List<KitsugiStreamingEpisode> {

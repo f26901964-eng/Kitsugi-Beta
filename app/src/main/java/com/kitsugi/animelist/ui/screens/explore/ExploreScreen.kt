@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Login
 import androidx.compose.material3.*
@@ -89,6 +91,7 @@ fun ExploreScreen(
     separateNovelsManga: Boolean = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.separateNovelsManga,
     onOpenNotifications: () -> Unit = {},
     isNotificationsVisible: Boolean = false,
+    onOpenDownloads: () -> Unit = {},
     /** Alt navigasyon barı görünüyor mu? — "Yukarı Çık" FAB'ı alt barın üstünde hizalanır. */
     isBottomBarVisible: Boolean = true,
     bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState? = null,
@@ -485,6 +488,46 @@ fun ExploreScreen(
                                                             modifier = Modifier.size(20.dp)
                                                         )
                                                     }
+                                                }
+
+                                                // 🕐 İzleme Geçmişi butonu
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(KitsugiColors.SurfaceElevated)
+                                                        .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                                        .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                                            onNavigateToWatchHistory()
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.History,
+                                                        contentDescription = stringResource(R.string.settings_watch_history),
+                                                        tint = KitsugiColors.TextPrimary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+
+                                                // ⬇️ İndirilenler butonu
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(KitsugiColors.SurfaceElevated)
+                                                        .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                                        .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                                            onOpenDownloads()
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Download,
+                                                        contentDescription = stringResource(R.string.settings_downloads),
+                                                        tint = KitsugiColors.TextPrimary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
                                                 }
                                             }
                                         }

@@ -1115,6 +1115,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private suspend fun loadEpisodes() {
+        // Filmler ve tek bölümlük içerikler için bölüm listesi çekilmez:
+        // MediaType.Anime ile çekilecek olsaydı padding mantığı hayali bölümler
+        // (12/24/100) yaratır ve film içerikleri dizi içerikleriyle karışırdı.
+        if (_isMovie.value) {
+            _episodesList.value = emptyList()
+            return
+        }
         if (malId != null || aniListId != null) {
             val client = KitsugiMediaTabsClient()
             val source = if (malId != null) "mal" else "anilist"
@@ -1762,7 +1769,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val hasNextEpisode: StateFlow<Boolean> = combine(_episodesList, _currentEpisode, _isMovie) { episodes, current, isMovie ->
-        !isMovie && (
+        !isMovie && episodes.isNotEmpty() && (
             episodes.any { it.episodeNumber == current + 1 } ||
                 current < (episodes.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
             )
@@ -1777,7 +1784,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             }
 
             val settings = SettingsDataStore(context).settingsFlow.first()
-            val hasNext = !_isMovie.value && (
+            val hasNext = !_isMovie.value && _episodesList.value.isNotEmpty() && (
                 _episodesList.value.any { it.episodeNumber == _currentEpisode.value + 1 } ||
                     _currentEpisode.value < (_episodesList.value.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
                 )

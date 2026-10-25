@@ -39,6 +39,8 @@ import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ViewStream
 import androidx.compose.material3.HorizontalDivider
@@ -494,7 +496,9 @@ fun MyListTabBar(
     accentColor: Color,
     horizontalPadding: Dp,
     isNotificationsVisible: Boolean = false,
-    onOpenNotifications: () -> Unit = {}
+    onOpenNotifications: () -> Unit = {},
+    onOpenWatchHistory: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {}
 ) {
     val KitsugiColors = LocalKitsugiColors.current
     var showSourcePickerSheet by rememberSaveable { mutableStateOf(false) }
@@ -683,6 +687,50 @@ fun MyListTabBar(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+
+        // 🕐 İzleme Geçmişi butonu
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(KitsugiColors.surface)
+                .border(
+                    width = 1.dp,
+                    color = KitsugiColors.border.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .tvClickable(shape = RoundedCornerShape(14.dp), onClick = onOpenWatchHistory),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.History,
+                contentDescription = "İzleme Geçmişi",
+                tint = KitsugiColors.textPrimary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // ⬇️ İndirilenler butonu
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(KitsugiColors.surface)
+                .border(
+                    width = 1.dp,
+                    color = KitsugiColors.border.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .tvClickable(shape = RoundedCornerShape(14.dp), onClick = onOpenDownloads),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Download,
+                contentDescription = "İndirilenler",
+                tint = KitsugiColors.textPrimary,
+                modifier = Modifier.size(20.dp)
+            )
         }
 
         // Rastgele öğe butonu

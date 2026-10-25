@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.*
@@ -132,7 +134,9 @@ fun SearchScreen(
     // "Tümünü Gör" → kaynağa özel tam arama sayfasını ayrı ekranda açar
     onOpenSourceSearch: (SearchSourceEngine, SearchScope, List<JikanSearchResult>) -> Unit = { _, _, _ -> },
     // Alt sayfa olarak kullanıldığında büyük başlığı gizlemek için null verilebilir
-    pageTitle: String? = "Arama"
+    pageTitle: String? = "Arama",
+    onOpenWatchHistory: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val accentColor = LocalKitsugiAccent.current
@@ -288,111 +292,134 @@ fun SearchScreen(
                 .padding(horizontal = 20.dp)
                 .then(if (isTv) Modifier.dpadVerticalFastScroll(lazyListState) else Modifier)
         ) {
-            // Title & Search Input Section
-            item {
-                if (pageTitle != null) {
-                    Spacer(modifier = Modifier.height(28.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+            // Title & Search Input Section — STICKY HEADER (kaydırılınca üstte kalır)
+            stickyHeader(key = "search_title_and_bar") {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = KitsugiColors.Background.copy(alpha = 0.96f)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp)
                     ) {
-                        Text(
-                            text = pageTitle,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        if (isNotificationsVisible) {
-                            Spacer(modifier = Modifier.width(10.dp))
-                            // 🔔 Bildirim butonu (Keşfet / Listem ile aynı görünüm)
+                        if (pageTitle != null) {
+                            Text(
+                                text = pageTitle,
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        } else {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        val placeholder = if (uiState.selectedEngine == SearchSourceEngine.ALL) {
+                            stringResource(R.string.search_placeholder_all_sources)
+                        } else {
+                            stringResource(
+                                R.string.search_placeholder_source_scope,
+                                uiState.selectedEngine.localizedLabel(),
+                                uiState.selectedScope.localizedLabel()
+                            )
+                        }
+
+                        // Uiverse Lakshay-art Cosmic Search Bar & Companion Button + üst-sağ butonlar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            KitsugiCosmicSearchBar(
+                                query = uiState.query,
+                                onQueryChange = viewModel::setQuery,
+                                onSearch = {
+                                    // Arama yalnızca burada tetiklenir (buton veya klavyedeki
+                                    // "Ara" onay tuşu) — yazarken kendiliğinden arama yok.
+                                    viewModel.onSearchAction()
+                                    keyboardController?.hide()
+                                },
+                                onClearQuery = {
+                                    viewModel.clearQuery()
+                                    keyboardController?.hide()
+                                },
+                                placeholder = placeholder,
+                                leadingContent = {
+                                    SourceEngineSelectorPill(
+                                        selectedEngine = uiState.selectedEngine,
+                                        onClick = { showEnginePickerSheet = true },
+                                        // Yazarken motor adı gizlenir → arama butonuna yer açılır.
+                                        compact = uiState.query.isNotBlank()
+                                    )
+                                },
+                                onFilterClick = {
+                                    showSourceEngineFilterSheet = true
+                                },
+                                isFilterActive = uiState.hasFiltersApplied,
+                                focusRequester = searchBarFocusRequester,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // 🔔 Bildirim butonu
+                            if (isNotificationsVisible) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(KitsugiColors.SurfaceElevated)
+                                        .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                        .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                            onOpenNotifications()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Notifications,
+                                        contentDescription = stringResource(R.string.notif_title),
+                                        tint = KitsugiColors.TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            // 🕐 İzleme Geçmişi butonu
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(KitsugiColors.SurfaceElevated)
-                                    .border(
-                                        1.dp,
-                                        KitsugiColors.SurfaceElevated.copy(alpha = 0.6f),
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onOpenNotifications),
+                                    .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                    .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                        onOpenWatchHistory()
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Notifications,
-                                    contentDescription = stringResource(R.string.notif_title),
+                                    imageVector = Icons.Rounded.History,
+                                    contentDescription = stringResource(R.string.settings_watch_history),
                                     tint = KitsugiColors.TextPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+
+                            // Eklenti Portalı butonu (Uiverse cosmic companion button)
+                            CosmicCompanionButton(
+                                onClick = { onOpenPluginPicker() },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Extension,
+                                        contentDescription = stringResource(R.string.eklenti_portali),
+                                        tint = KitsugiColors.TextMuted,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            )
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Spacer(modifier = Modifier.height(18.dp))
-                } else {
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
-
-                val placeholder = if (uiState.selectedEngine == SearchSourceEngine.ALL) {
-                    stringResource(R.string.search_placeholder_all_sources)
-                } else {
-                    stringResource(
-                        R.string.search_placeholder_source_scope,
-                        uiState.selectedEngine.localizedLabel(),
-                        uiState.selectedScope.localizedLabel()
-                    )
-                }
-
-                // Uiverse Lakshay-art Cosmic Search Bar & Companion Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    KitsugiCosmicSearchBar(
-                        query = uiState.query,
-                        onQueryChange = viewModel::setQuery,
-                        onSearch = {
-                            // Arama yalnızca burada tetiklenir (buton veya klavyedeki
-                            // "Ara" onay tuşu) — yazarken kendiliğinden arama yok.
-                            viewModel.onSearchAction()
-                            keyboardController?.hide()
-                        },
-                        onClearQuery = {
-                            viewModel.clearQuery()
-                            keyboardController?.hide()
-                        },
-                        placeholder = placeholder,
-                        leadingContent = {
-                            SourceEngineSelectorPill(
-                                selectedEngine = uiState.selectedEngine,
-                                onClick = { showEnginePickerSheet = true },
-                                // Yazarken motor adı gizlenir → arama butonuna yer açılır.
-                                compact = uiState.query.isNotBlank()
-                            )
-                        },
-                        onFilterClick = {
-                            showSourceEngineFilterSheet = true
-                        },
-                        isFilterActive = uiState.hasFiltersApplied,
-                        focusRequester = searchBarFocusRequester,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Eklenti Portalı butonu (Uiverse cosmic companion button)
-                    CosmicCompanionButton(
-                        onClick = { onOpenPluginPicker() },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Extension,
-                                contentDescription = stringResource(R.string.eklenti_portali),
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
             }
 
             // ── Kompakt Arama Seçenekleri Özeti ─────────────────────────────

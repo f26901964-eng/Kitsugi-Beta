@@ -68,6 +68,8 @@ fun KitsugiProfileScreen(
     onOpenStatsClick: (() -> Unit)? = null,
     isNotificationsVisible: Boolean = false,
     onOpenNotifications: (() -> Unit)? = null,
+    onOpenWatchHistory: (() -> Unit)? = null,
+    onOpenDownloads: (() -> Unit)? = null,
     onGenreClick: (String) -> Unit = {},
     onTagClick: (String) -> Unit = {},
     onLoginAniList: () -> Unit = {},
@@ -176,6 +178,36 @@ fun KitsugiProfileScreen(
                         Icon(
                             imageVector = Icons.Rounded.Notifications,
                             contentDescription = stringResource(R.string.notif_title),
+                            tint = accentColor
+                        )
+                    }
+                }
+
+                // 🕐 İzleme Geçmişi butonu
+                if (onOpenWatchHistory != null) {
+                    IconButton(
+                        onClick = onOpenWatchHistory,
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.Surface),
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(16.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.History,
+                            contentDescription = stringResource(R.string.settings_watch_history),
+                            tint = accentColor
+                        )
+                    }
+                }
+
+                // ⬇️ İndirilenler butonu
+                if (onOpenDownloads != null) {
+                    IconButton(
+                        onClick = onOpenDownloads,
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.Surface),
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(16.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = stringResource(R.string.settings_downloads),
                             tint = accentColor
                         )
                     }
