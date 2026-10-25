@@ -582,8 +582,17 @@ object NotificationDiagnostics {
             }
         }
 
-    private suspend fun httpPostJson(url: String, json: String, token: String): Pair<Int, String> =
-        withContext(Dispatchers.IO) {
+    private suspend fun httpPostJson(url: String, json: String, token: String): Pair<Int, String> {
+        // Teşhis isteği de AniList kotasından yer: kapıyı atlaması, "teşhis
+        // çalıştırmak" yüzünden kullanıcının bildirimlerinin 429 almasına yol açıyordu.
+        if (url.contains("anilist.co") &&
+            !com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGate(
+                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.BACKGROUND
+            )
+        ) {
+            return Pair(429, "{\"errors\":[{\"message\":\"AniList kotası dolu; teşhis ertelendi.\"}]}")
+        }
+        return withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
@@ -595,4 +604,5 @@ object NotificationDiagnostics {
                 Pair(response.code, response.body?.string().orEmpty())
             }
         }
+    }
 }

@@ -45,7 +45,8 @@ class AddonStreamRepository(private val context: Context) {
         season: Int,
         episode: Int,
         tmdbId: Int? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        preferredAddonName: String? = null
     ): List<StreamSource> = coroutineScope {
         // Step 1: Resolve IMDb + Kitsu IDs in one ARM API call
         val resolvedIds = KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId, wikidataImdbFallback = true)
@@ -73,7 +74,13 @@ class AddonStreamRepository(private val context: Context) {
         // Step 2: Her (addon, video ID) çifti için istek görevleri. Addon hangi kimlik ailesini
         // (kitsu / tt) kabul ediyorsa o ID ile sorgulanır ve istek yolunda addon'un KENDİ ilan ettiği
         // tür kullanılır (ör. yalnızca "anime" ilan eden addon /stream/anime/... ile sorgulanır).
-        val allAddons = addonDao.getEnabledAddons()
+        val enabledAddons = addonDao.getEnabledAddons()
+        val preferredAddons = preferredAddonName?.takeIf { it.isNotBlank() }?.let { preferred ->
+            enabledAddons.filter { it.name.equals(preferred, ignoreCase = true) }
+        }.orEmpty()
+        // When a provider is specified, keep this lookup scoped to its manifest. An empty
+        // result is handled by the caller's explicit broad-search fallback.
+        val allAddons = if (preferredAddonName.isNullOrBlank()) enabledAddons else preferredAddons
         val tasks = buildStremioStreamTasks(
             routes = allAddons.map { it.toStreamRoute() },
             contentType = contentType,

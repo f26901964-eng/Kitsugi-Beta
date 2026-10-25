@@ -52,6 +52,8 @@ fun KitsugiProfileScreen(
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
+    tmdbUsername: String = "",
     profileName: String,
     listTitle: String,
     profileImageUri: String,
@@ -74,6 +76,7 @@ fun KitsugiProfileScreen(
     onLoginKitsu: () -> Unit = {},
     onLoginShikimori: () -> Unit = {},
     onLoginBangumi: () -> Unit = {},
+    onLoginTmdb: () -> Unit = {},
     onKitsuAuthSubmit: ((String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onShikimoriAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onBangumiAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
@@ -95,6 +98,7 @@ fun KitsugiProfileScreen(
     val kitsuState by viewModel.kitsuState.collectAsState()
     val shikimoriState by viewModel.shikimoriState.collectAsState()
     val bangumiState by viewModel.bangumiState.collectAsState()
+    val tmdbState by viewModel.tmdbState.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -116,7 +120,7 @@ fun KitsugiProfileScreen(
         onSheetItemClick = onClick
     }
 
-    LaunchedEffect(activeSubTab, isAniListConnected, isMalConnected, isSimklConnected, isKitsuConnected, isShikimoriConnected, isBangumiConnected) {
+    LaunchedEffect(activeSubTab, isAniListConnected, isMalConnected, isSimklConnected, isKitsuConnected, isShikimoriConnected, isBangumiConnected, isTmdbConnected) {
         when (activeSubTab) {
             0 -> if (isAniListConnected && aniListState.userId == null && !aniListState.isLoading) viewModel.fetchAniListProfile()
             1 -> if (isMalConnected && malState.name.isBlank() && !malState.isLoading) viewModel.fetchMalProfile()
@@ -124,6 +128,7 @@ fun KitsugiProfileScreen(
             3 -> if (isKitsuConnected && kitsuState.name.isBlank() && !kitsuState.isLoading) viewModel.fetchKitsuProfile()
             4 -> if (isShikimoriConnected && shikimoriState.name.isBlank() && !shikimoriState.isLoading) viewModel.fetchShikimoriProfile()
             5 -> if (isBangumiConnected && bangumiState.lastUpdatedMs == 0L && !bangumiState.isLoading) viewModel.fetchBangumiProfile()
+            6 -> if (isTmdbConnected && tmdbState.lastUpdatedMs == 0L && !tmdbState.isLoading) viewModel.fetchTmdbProfile()
         }
     }
 
@@ -142,6 +147,7 @@ fun KitsugiProfileScreen(
                 ProfilePlatform.KITSU -> isKitsuConnected
                 ProfilePlatform.SHIKIMORI -> isShikimoriConnected
                 ProfilePlatform.BANGUMI -> isBangumiConnected
+                ProfilePlatform.TMDB -> isTmdbConnected
             }
 
             Row(
@@ -198,6 +204,7 @@ fun KitsugiProfileScreen(
                 3 -> kitsuState.isLoading
                 4 -> shikimoriState.isLoading
                 5 -> bangumiState.isLoading
+                6 -> tmdbState.isLoading
                 else -> false
             }
             val pullRefreshState = rememberPullToRefreshState()
@@ -364,6 +371,24 @@ fun KitsugiProfileScreen(
                                 }
                             )
                         }
+                        6 -> ExternalProfileWrapper(
+                            isConnected = isTmdbConnected,
+                            isLoading = tmdbState.isLoading,
+                            error = tmdbState.error,
+                            errorCode = tmdbState.errorCode,
+                            onConnectClick = onLoginTmdb,
+                            accentColor = accentColor,
+                            platformName = "TMDB",
+                            onRetry = { viewModel.fetchTmdbProfile(forceRefresh = true) }
+                        ) {
+                            TmdbProfileContent(
+                                state = tmdbState,
+                                accentColor = accentColor,
+                                onMediaClick = { mediaId, mediaType, title, imageUrl ->
+                                    onFavoriteMediaClick(mediaId, mediaType, "tmdb", title, imageUrl)
+                                }
+                            )
+                        }
                         4 -> ExternalProfileWrapper(
                             isConnected = isShikimoriConnected,
                             isLoading = shikimoriState.isLoading,
@@ -488,6 +513,8 @@ fun KitsugiProfileScreen(
             shikimoriUsername = shikimoriState.name.ifBlank { null },
             isBangumiConnected = isBangumiConnected,
             bangumiUsername = bangumiState.userName.ifBlank { null },
+            isTmdbConnected = isTmdbConnected,
+            tmdbUsername = tmdbState.userName.ifBlank { tmdbUsername }.ifBlank { null },
             onSelectPlatform = { index ->
                 viewModel.activeSubTab = index
                 showSourcePickerSheet = false

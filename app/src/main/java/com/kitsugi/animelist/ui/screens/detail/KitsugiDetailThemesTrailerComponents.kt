@@ -3,6 +3,7 @@ import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.util.Log
 import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
+import com.kitsugi.animelist.ui.components.animateDetailContentSize
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +31,6 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ButtonDefaults
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -39,6 +39,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +65,19 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.rounded.PlayCircle
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.data.remote.KitsugiMediaVideoAggregator
+import com.kitsugi.animelist.data.remote.MediaVideoCategory
+import com.kitsugi.animelist.data.remote.MediaVideoItem
+import com.kitsugi.animelist.data.remote.canonicalVideoSource
+import com.kitsugi.animelist.data.remote.extractCanonicalYouTubeId
+import com.kitsugi.animelist.data.remote.mergeAndOrderMediaVideos
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
+import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -93,6 +107,7 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(KitsugiColors.Surface)
+            .animateDetailContentSize()
             .padding(16.dp)
     ) {
         Text(
@@ -225,11 +240,43 @@ fun ThemePlayerContainer(
 
     if (videoId != null) {
         KitsugiYouTubePlayer(videoId = videoId, modifier = modifier)
+    } else if (isYouTubePageUrl(url)) {
+        // YouTube sayfası ama video kimliği yok (arama sonucu, kanal veya oynatma
+        // listesi). Eskiden bu adres doğrudan Media3'e veriliyor, oynatıcı bir HTML
+        // sayfasını indirmeye çalışıp hata veriyordu. Artık dürüst bir yönlendirme var.
+        Box(
+            modifier = modifier.background(Color.Black).padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.inline_video_unsupported_title),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                KitsugiButton(
+                    onClick = { runCatching { uriHandler.openUri(url) } },
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                ) {
+                    Text(
+                        stringResource(R.string.inline_open_in_browser_eed20ab),
+                        color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor)
+                    )
+                }
+            }
+        }
     } else {
         val dataStore = remember { com.kitsugi.animelist.data.settings.SettingsDataStore(context.applicationContext) }
         val appSettingsState = dataStore.settingsFlow.collectAsState(initial = null)
         val appSettings = appSettingsState.value
-        val safeSettings = remember(appSettings) { appSettings ?: com.kitsugi.animelist.data.settings.AppSettings() }
+        val safeSettings = remember(appSettings) {
+            (appSettings ?: com.kitsugi.animelist.data.settings.AppSettings()).forCompactInlinePlayback()
+        }
 
         // Kompakt oynatıcı HER ZAMAN Media3 (TextureView) ile başlar.
         //
@@ -245,7 +292,10 @@ fun ThemePlayerContainer(
             mutableStateOf(preferredEngineType)
         }
         var didTryAlternateEngine by remember(url) { mutableStateOf(false) }
-        val playerEngine = remember(context, activeEngineType, url) {
+        // Her yeniden deneme TAZE motor örneği kurar: hata sonrası serbest bırakılmış
+        // çözücü/yüzey kalıntıları aynı örnekte yeni denemeyi de bozabiliyordu.
+        var engineAttempt by remember(url) { mutableIntStateOf(0) }
+        val playerEngine = remember(context, activeEngineType, url, engineAttempt) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
                 else -> Media3PlayerEngine(context, safeSettings)
@@ -265,6 +315,13 @@ fun ThemePlayerContainer(
                 didTryAlternateEngine = true
                 val alternate = failedEngine.alternateInlineEngine()
                 Log.w("ThemePlayerContainer", "$failedEngine did not start ($reason); trying $alternate")
+                // Yeni motor ilk kareyi üretene kadar tampon göstergesi görünmeli;
+                // önceki motorun "oynatma başladı" bilgisi taşınmamalı.
+                hasStartedPlayback = false
+                // Eski motorun "oynatıyor" bilgisi yeni motora taşınmamalı; aksi hâlde
+                // düğme duraklat ikonu gösterip ilk dokunuşta `pause()` çağırıyordu.
+                isPlayingState = false
+                isPlayerLoading = true
                 activeEngineType = alternate
             } else {
                 Log.e("ThemePlayerContainer", "Both inline engines failed for $url ($reason)")
@@ -283,6 +340,18 @@ fun ThemePlayerContainer(
                     isPlayerLoading = state == PlayerEngine.State.BUFFERING
                 }
 
+                /**
+                 * MPV motorunda duraklat/oynat geçişi yalnızca `onPlayingChanged` ile
+                 * bildirilir; `onStateChanged` READY olarak kalır. Bu geri çağrı
+                 * uygulanmadığı için arayüzdeki `isPlayingState` eski değerinde donuyor,
+                 * kullanıcı duraklattıktan sonra oynat düğmesine bastığında tekrar
+                 * `pause()` çağrılıyor ve video "açılmıyor" gibi görünüyordu.
+                 */
+                override fun onPlayingChanged(isPlaying: Boolean) {
+                    if (released) return
+                    isPlayingState = isPlaying
+                }
+
                 override fun onPlaybackError(errorCode: Int, errorMsg: String, cause: Throwable?) {
                     if (released) return
                     isPlayerLoading = false
@@ -294,7 +363,8 @@ fun ThemePlayerContainer(
                     if (released) return
                     currentPosition = positionMs
                     duration = durationMs
-                    if (positionMs > 0L) hasStartedPlayback = true
+                    // Resume konumu ilk frame kanıtı değildir; gerçek video çıkışını bekle.
+                    if (inlineVideoVisible(playerEngine)) hasStartedPlayback = true
                 }
 
                 override fun onTracksChanged(
@@ -318,7 +388,7 @@ fun ThemePlayerContainer(
             }
         }
 
-        LaunchedEffect(url, retryTrigger, activeEngineType) {
+        LaunchedEffect(url, retryTrigger, activeEngineType, engineAttempt) {
             val attemptedEngine = engineTypeForPlayer
             isPlayerError = false
             isPlayerLoading = true
@@ -352,11 +422,15 @@ fun ThemePlayerContainer(
                 if (!reachedReady) return@LaunchedEffect
 
                 // Doğrudan OP/ED dosyaları çoğunlukla VP9 `.webm`. Cihazın VP9 çözücüsü
-                // yoksa Media3 hata vermez; ses çalar, görüntü hiç gelmez. MPV yazılım
-                // çözücüyle aynı dosyayı oynatabildiği için bekçi motoru değiştirir.
+                // yoksa Media3 hata vermez; ses çalar, görüntü hiç gelmez. Bekçi motoru
+                // değiştirmeden önce çözücüyü 1 ms'lik bir seek ile dürtmeyi dener;
+                // birçok donanım/GPU sürücüsü ilk kareyi ancak bu şekilde üretiyor.
                 val audioOnly = waitForInlineVideoTrack(
                     engine = playerEngine,
-                    isResumed = { resumedState.value }
+                    isResumed = { resumedState.value },
+                    nudgeRenderer = {
+                        playerEngine.seekTo(playerEngine.currentPosition + 1L)
+                    }
                 )
                 Log.i(
                     "ThemePlayerContainer",
@@ -446,8 +520,10 @@ fun ThemePlayerContainer(
                         }
                         KitsugiButton(
                             onClick = {
+                                // Taze motor örneği + baştan hazırlık.
                                 didTryAlternateEngine = false
                                 activeEngineType = preferredEngineType
+                                engineAttempt++
                                 retryTrigger++
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -455,6 +531,24 @@ fun ThemePlayerContainer(
                             )
                         ) {
                             Text(stringResource(R.string.action_retry), color = Color.White)
+                        }
+                    }
+                    // MPV SurfaceView, kırpılmış/ölçüsü animasyonla değişen bir Compose
+                    // kabında görüntü üretemeyebilir. Bu yüzden aynı dosya için tek
+                    // çare motor değiştirmek değil; kullanıcıya elle de seçim sunulur.
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KitsugiButton(
+                            onClick = {
+                                activeEngineType = activeEngineType.alternateInlineEngine()
+                                didTryAlternateEngine = false
+                                engineAttempt++
+                                retryTrigger++
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.15f)
+                            )
+                        ) {
+                            Text(stringResource(R.string.inline_try_other_engine), color = Color.White)
                         }
                     }
                 }
@@ -470,6 +564,10 @@ fun ThemePlayerContainer(
                         playerEngine.seekTo(target)
                     },
                     modifier = Modifier.fillMaxSize(),
+                    isBuffering = !hasStartedPlayback && !isPlayerError,
+                    doubleTapSeekSeconds = safeSettings.doubleTapSeekSeconds,
+                    controlsAutoHideMs = com.kitsugi.animelist.core.player.PlayerUiPolicy
+                        .clampOsdHideDelayMs(safeSettings.playerTimeToDisappearMs),
                     onFullscreen = {
                         playerEngine.pause()
                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
@@ -491,10 +589,9 @@ fun ThemePlayerContainer(
                         )
                     }
                 }
-                
-                if (isPlayerLoading && !hasStartedPlayback) {
-                    CircularProgressIndicator(color = accentColor)
-                }
+                // Tampon göstergesi artık kontrol katmanının merkez durumunda
+                // (`InlineCenterOverlay.Buffering`) çiziliyor; burada ikinci bir halka
+                // çizmek animasyonların üst üste binmesine yol açıyordu.
             }
         }
     }
@@ -503,8 +600,74 @@ fun ThemePlayerContainer(
 private data class DetailVideoItem(
     val key: String,
     val title: String,
-    val videoUrl: String?
+    val videoUrl: String?,
+    val sources: List<String> = emptyList()
 )
+
+/**
+ * Video kartı başlığının sağ üst köşesinde ve çok kaynaklı satırlarda gösterilen
+ * [Logo + Kaynak Adı] rozeti (hero bölümündeki [DetailSourcePill] ile uyumlu görsel dil).
+ */
+@Composable
+private fun DetailVideoSourceBadge(
+    source: String,
+    accentColor: Color,
+    isSelected: Boolean = false,
+    compact: Boolean = false,
+    onClick: (() -> Unit)? = null
+) {
+    val cleanSource = canonicalVideoSource(source)
+    if (cleanSource.isEmpty()) return
+    val label = cleanSource.toFriendlySourceLabel()
+    val pillShape = RoundedCornerShape(50)
+    val bgColor = when {
+        isSelected -> accentColor.copy(alpha = 0.18f)
+        compact -> KitsugiColors.Surface.copy(alpha = 0.85f)
+        else -> KitsugiColors.SurfaceSoft
+    }
+    val borderColor = when {
+        isSelected -> accentColor.copy(alpha = 0.75f)
+        else -> KitsugiColors.Border.copy(alpha = 0.5f)
+    }
+    val logoSize = if (compact) 12.dp else 14.dp
+    val baseModifier = Modifier
+        .clip(pillShape)
+        .background(bgColor)
+        .border(1.dp, borderColor, pillShape)
+        .let { mod ->
+            if (onClick != null) mod.tvClickable(shape = pillShape, onClick = onClick) else mod
+        }
+        .padding(
+            horizontal = if (compact) 6.dp else 8.dp,
+            vertical = if (compact) 2.dp else 4.dp
+        )
+
+    Row(
+        modifier = baseModifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 5.dp)
+    ) {
+        if (KitsugiPlatformLogos.resFor(cleanSource) != null) {
+            KitsugiPlatformLogo(
+                platformId = cleanSource,
+                size = logoSize,
+                cornerRadius = if (compact) 3.dp else 4.dp
+            )
+        } else {
+            DetailPlatformBadge(
+                source = cleanSource,
+                modifier = Modifier.size(logoSize)
+            )
+        }
+        Text(
+            text = label,
+            color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+    }
+}
 
 /**
  * Video bağlantısını paylaşır. Oynatılabilir bağlantı yoksa (YouTube araması gerekiyorsa)
@@ -519,37 +682,90 @@ private fun shareDetailVideo(context: android.content.Context, mediaTitle: Strin
 
 /**
  * Dedicated Videos tab shared by API-backed and list-backed media detail pages.
- * Exactly one selected item owns the inline player; changing or closing a row removes
- * the previous player immediately instead of keeping it alive for an exit animation.
+ * Aggregates trailers, openings, endings, and extra videos across all video-providing
+ * sources and displays source logo + name badges on each group header and video row.
  */
 @Composable
 fun KitsugiMediaVideosTab(
     detail: com.kitsugi.animelist.data.remote.KitsugiMediaDetail?,
     /** Paylaşımda video başlığının önüne eklenen yapım adı (boşsa yalnızca video adı). */
-    mediaTitle: String = ""
+    mediaTitle: String = "",
+    /** Açılan detay sayfasının birincil kaynağı (ör. "anilist", "mal", "tmdb"). */
+    primarySource: String = "",
+    /** Çok kaynaklı video toplayıcıdan gelen birleştirilmiş video listesi. */
+    aggregatedVideos: List<MediaVideoItem> = emptyList(),
+    /** Arka planda diğer kaynaklardan video sorgusu devam ediyor mu? */
+    isLoading: Boolean = false
 ) {
-    val trailerUrl = detail?.trailerUrl?.takeIf { it.isNotBlank() }
     val shareContext = LocalContext.current
     val onShareVideo: (DetailVideoItem) -> Unit = { item ->
         shareDetailVideo(shareContext, mediaTitle, item)
     }
-    val openingItems = remember(detail?.openings) {
-        detail?.openings.orEmpty().mapIndexed { index, theme ->
-            DetailVideoItem("opening-$index", theme.label, theme.videoUrl)
+
+    val effectiveVideos = remember(aggregatedVideos, detail, primarySource) {
+        val seeded = KitsugiMediaVideoAggregator.seedFromDetail(detail, primarySource)
+        when {
+            aggregatedVideos.isEmpty() -> seeded
+            seeded.isEmpty() -> aggregatedVideos
+            else -> {
+                val existingYtIds = aggregatedVideos.mapNotNull { extractCanonicalYouTubeId(it.videoUrl) }.toSet()
+                val existingUrls = aggregatedVideos.mapNotNull { it.videoUrl?.trim()?.lowercase() }.toSet()
+                val extraSeeded = seeded.filter { s ->
+                    val yt = extractCanonicalYouTubeId(s.videoUrl)
+                    val u = s.videoUrl?.trim()?.lowercase()
+                    when {
+                        yt != null -> yt !in existingYtIds
+                        !u.isNullOrBlank() -> u !in existingUrls
+                        else -> false
+                    }
+                }
+                if (extraSeeded.isEmpty()) aggregatedVideos
+                else mergeAndOrderMediaVideos(aggregatedVideos + extraSeeded, preferredSource = primarySource)
+            }
         }
     }
-    val endingItems = remember(detail?.endings) {
-        detail?.endings.orEmpty().mapIndexed { index, theme ->
-            DetailVideoItem("ending-$index", theme.label, theme.videoUrl)
-        }
+
+    val trailerItems = remember(effectiveVideos) {
+        effectiveVideos
+            .filter { it.category == MediaVideoCategory.TRAILER }
+            .map { DetailVideoItem(it.key, it.title, it.videoUrl, it.sources) }
     }
+    val openingItems = remember(effectiveVideos) {
+        effectiveVideos
+            .filter { it.category == MediaVideoCategory.OPENING }
+            .map { DetailVideoItem(it.key, it.title, it.videoUrl, it.sources) }
+    }
+    val endingItems = remember(effectiveVideos) {
+        effectiveVideos
+            .filter { it.category == MediaVideoCategory.ENDING }
+            .map { DetailVideoItem(it.key, it.title, it.videoUrl, it.sources) }
+    }
+    val extraItems = remember(effectiveVideos) {
+        effectiveVideos
+            .filter { it.category == MediaVideoCategory.EXTRA }
+            .map { DetailVideoItem(it.key, it.title, it.videoUrl, it.sources) }
+    }
+
     val uriHandler = LocalUriHandler.current
     val accentColor = LocalKitsugiAccent.current
-    var activeVideoKey by remember(trailerUrl, openingItems, endingItems) { mutableStateOf<String?>(null) }
+    var activeVideoKey by remember { mutableStateOf<String?>(null) }
 
-    val hasVideos = trailerUrl != null || openingItems.isNotEmpty() || endingItems.isNotEmpty()
+    LaunchedEffect(effectiveVideos) {
+        val currentKey = activeVideoKey
+        if (currentKey != null && effectiveVideos.none { it.key == currentKey }) {
+            activeVideoKey = null
+        }
+    }
+
+    val hasVideos = trailerItems.isNotEmpty() ||
+        openingItems.isNotEmpty() ||
+        endingItems.isNotEmpty() ||
+        extraItems.isNotEmpty()
+
     Column(
-        modifier = Modifier.padding(top = 12.dp, bottom = 16.dp),
+        modifier = Modifier
+            .padding(top = 12.dp, bottom = 16.dp)
+            .animateDetailContentSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (!hasVideos) {
@@ -561,11 +777,29 @@ fun KitsugiMediaVideosTab(
                     .padding(28.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = stringResource(R.string.detail_video_empty),
-                    color = KitsugiColors.TextMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                if (isLoading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = accentColor,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = stringResource(R.string.ui_videos_loading),
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.detail_video_empty),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         } else {
             val onSearchVideo: (DetailVideoItem) -> Unit = { item ->
@@ -579,21 +813,16 @@ fun KitsugiMediaVideosTab(
                 if (activeVideoKey?.let { it in hiddenKeys } == true) activeVideoKey = null
             }
 
-            if (trailerUrl != null) {
+            if (trailerItems.isNotEmpty()) {
                 DetailVideoGroup(
                     title = stringResource(R.string.inline_preview_c9d9dd2),
                     icon = Icons.Rounded.Movie,
-                    items = listOf(
-                        DetailVideoItem(
-                            key = "trailer",
-                            title = stringResource(R.string.inline_watch_trailer_8b06108),
-                            videoUrl = trailerUrl
-                        )
-                    ),
+                    items = trailerItems,
                     activeVideoKey = activeVideoKey,
                     accentColor = accentColor,
                     onVideoSelected = selectVideo,
                     onSearch = onSearchVideo,
+                    onCollapseHiddenItems = collapseHidden,
                     onShare = onShareVideo
                 )
             }
@@ -625,18 +854,52 @@ fun KitsugiMediaVideosTab(
                     onShare = onShareVideo
                 )
             }
+
+            if (extraItems.isNotEmpty()) {
+                DetailVideoGroup(
+                    title = stringResource(R.string.detail_video_extras),
+                    icon = Icons.Rounded.PlayCircle,
+                    items = extraItems,
+                    activeVideoKey = activeVideoKey,
+                    accentColor = accentColor,
+                    onVideoSelected = selectVideo,
+                    onSearch = onSearchVideo,
+                    onCollapseHiddenItems = collapseHidden,
+                    onShare = onShareVideo
+                )
+            }
+
+            if (isLoading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        color = accentColor,
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.ui_videos_loading),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Videolar sekmesinin tek bir grubu (fragman / açılış / kapanış).
+ * Videolar sekmesinin tek bir grubu (fragman / açılış / kapanış / klipler).
  *
- * Tasarım hedefi: "derli toplu + premium". Grup artık tek bir yüzey kartı; başlık,
- * parça sayısı rozeti ve genişletme düğmesi aynı satırda. Satırlar 44 dp yüksekliğinde,
- * 12 dp köşeli ve durum rengiyle (vurgu %14) işaretli. Seçili video açıldığında oynatıcı
- * satırın hemen altına, aynı kartın içine yerleşir; ayrı bir "Kapat" satırı yerine sağa
- * yaslı küçük bir kapatma düğmesi kullanılır.
+ * Sağ üst köşede bu gruptaki videoları sağlayan kaynakların [Logo + İsim] rozetleri
+ * yer alır; birden fazla kaynak varsa rozete dokunarak o kaynağa göre filtreleme
+ * yapılabilir.
  */
 @Composable
 private fun DetailVideoGroup(
@@ -651,8 +914,24 @@ private fun DetailVideoGroup(
     onShare: (DetailVideoItem) -> Unit = {}
 ) {
     val initialCount = 3
-    var expanded by remember(items) { mutableStateOf(false) }
-    val hasMore = items.size > initialCount
+    val groupSources = remember(items) {
+        items.flatMap { it.sources }
+            .map { canonicalVideoSource(it) }
+            .filter { it.isNotEmpty() }
+            .distinct()
+    }
+    var selectedSourceFilter by remember(groupSources) { mutableStateOf<String?>(null) }
+    val filteredItems = remember(items, selectedSourceFilter) {
+        val activeFilter = selectedSourceFilter
+        if (activeFilter == null || activeFilter !in groupSources) {
+            items
+        } else {
+            items.filter { item -> item.sources.any { canonicalVideoSource(it) == activeFilter } }
+        }
+    }
+    var expanded by remember(selectedSourceFilter) { mutableStateOf(false) }
+    val hasMore = filteredItems.size > initialCount
+    val showPerRowSources = groupSources.size > 1 || filteredItems.any { it.sources.size > 1 }
     val cardShape = RoundedCornerShape(20.dp)
 
     Column(
@@ -662,91 +941,107 @@ private fun DetailVideoGroup(
             // olası bir SurfaceView (MPV yedeği) kırpma katmanına takılmaz.
             .background(KitsugiColors.Surface, cardShape)
             .border(1.dp, KitsugiColors.Border.copy(alpha = 0.35f), cardShape)
+            .animateDetailContentSize()
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(accentColor.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(15.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = title,
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            if (items.size > 1) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = items.size.toString(),
-                    color = accentColor,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(accentColor.copy(alpha = 0.12f))
-                        .padding(horizontal = 5.dp, vertical = 1.dp)
-                )
-            }
-            if (hasMore) {
-                Row(
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .tvClickable(shape = RoundedCornerShape(8.dp)) {
-                            if (expanded) {
-                                onCollapseHiddenItems(items.drop(initialCount).map { it.key }.toSet())
-                            }
-                            expanded = !expanded
-                        }
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(accentColor.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (expanded) stringResource(R.string.daha_az)
-                        else stringResource(R.string.x_daha, items.size - initialCount),
-                        color = accentColor,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
                     Icon(
-                        imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        imageVector = icon,
                         contentDescription = null,
                         tint = accentColor,
                         modifier = Modifier.size(15.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (filteredItems.size > 1) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = filteredItems.size.toString(),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(accentColor.copy(alpha = 0.12f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
+            }
+
+            if (groupSources.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Row(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    val canFilter = groupSources.size > 1
+                    groupSources.forEach { src ->
+                        val isFilterActive = canFilter && selectedSourceFilter == src
+                        DetailVideoSourceBadge(
+                            source = src,
+                            accentColor = accentColor,
+                            isSelected = isFilterActive,
+                            compact = false,
+                            onClick = if (canFilter) {
+                                {
+                                    val next = if (selectedSourceFilter == src) null else src
+                                    if (next != null) {
+                                        val hidden = items
+                                            .filterNot { item -> item.sources.any { canonicalVideoSource(it) == next } }
+                                            .map { it.key }
+                                            .toSet()
+                                        onCollapseHiddenItems(hidden)
+                                    }
+                                    selectedSourceFilter = next
+                                }
+                            } else null
+                        )
+                    }
+                }
             }
         }
 
-        items.forEachIndexed { index, item ->
+        filteredItems.forEachIndexed { index, item ->
             key(item.key) {
                 KitsugiDetailReveal(visible = expanded || index < initialCount) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateDetailContentSize()
+                    ) {
                         Spacer(modifier = Modifier.height(8.dp))
                         val isSelected = activeVideoKey == item.key && !item.videoUrl.isNullOrBlank()
                         DetailVideoRow(
                             item = item,
                             isSelected = isSelected,
                             accentColor = accentColor,
+                            showSourceBadges = showPerRowSources,
                             onClick = {
                                 if (item.videoUrl.isNullOrBlank()) onSearch(item)
                                 else onVideoSelected(item.key)
@@ -757,10 +1052,6 @@ private fun DetailVideoGroup(
                         // Oynatıcı aynı kartın içinde, satırın hemen altında açılır.
                         if (isSelected) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            // Kırpma burada YAPILMAZ: MPV yedeği bir SurfaceView kullanır ve
-                            // kırpılmış bir Compose kabında görüntü üretemeyebilir. Yuvarlak
-                            // köşe/kırpma sorumluluğu `ThemePlayerContainer`'ın içinde, yalnızca
-                            // Media3 (TextureView) dalında.
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -802,6 +1093,42 @@ private fun DetailVideoGroup(
                 }
             }
         }
+
+        if (hasMore) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                            if (expanded) {
+                                onCollapseHiddenItems(filteredItems.drop(initialCount).map { it.key }.toSet())
+                            }
+                            expanded = !expanded
+                        }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = if (expanded) stringResource(R.string.daha_az)
+                        else stringResource(R.string.x_daha, filteredItems.size - initialCount),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -810,6 +1137,7 @@ private fun DetailVideoRow(
     item: DetailVideoItem,
     isSelected: Boolean,
     accentColor: Color,
+    showSourceBadges: Boolean = false,
     onClick: () -> Unit,
     onShare: () -> Unit
 ) {
@@ -847,7 +1175,10 @@ private fun DetailVideoRow(
                     modifier = Modifier.size(15.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
                     text = item.title,
                     color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
@@ -856,13 +1187,34 @@ private fun DetailVideoRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
-                    else stringResource(R.string.ui_play_in_app),
-                    color = KitsugiColors.TextMuted,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (item.videoUrl.isNullOrBlank()) stringResource(R.string.ui_open_youtube_search)
+                        else stringResource(R.string.ui_play_in_app),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (showSourceBadges && item.sources.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            item.sources.take(3).forEach { src ->
+                                DetailVideoSourceBadge(
+                                    source = src,
+                                    accentColor = accentColor,
+                                    compact = true
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
         // Material IconButton 48 dp'lik dokunma hedefi ekleyip kompakt satırı şişiriyordu.
@@ -903,6 +1255,7 @@ fun KitsugiThemesList(
             // `clip()` kullanılsaydı MPV yedeğinin SurfaceView'ı kırpma katmanına takılıp
             // ses çalarken görüntüyü hiç çizmeyebilirdi (2026-10-21 saha raporu).
             .background(KitsugiColors.Surface, RoundedCornerShape(22.dp))
+            .animateDetailContentSize()
             .padding(16.dp)
     ) {
         if (openings.isNotEmpty()) {
@@ -969,7 +1322,11 @@ private fun ThemeVideoSection(
     val initialCount = 3
     val hasMore = themes.size > initialCount
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateDetailContentSize()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1011,7 +1368,11 @@ private fun ThemeVideoSection(
         themes.forEachIndexed { index, theme ->
             key("${title}_${index}_${theme.label}") {
                 KitsugiDetailReveal(visible = expanded || index < initialCount) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateDetailContentSize()
+                    ) {
                         Spacer(modifier = Modifier.height(10.dp))
                         ThemeRow(
                             theme = theme,
@@ -1023,7 +1384,12 @@ private fun ThemeVideoSection(
                             visible = activeVideoUrl == theme.videoUrl && activeVideoUrl != null
                         ) {
                             theme.videoUrl?.let { url ->
-                                Column(modifier = Modifier.padding(top = 8.dp)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateDetailContentSize()
+                                        .padding(top = 8.dp)
+                                ) {
                                     ThemePlayerContainer(
                                         url = url,
                                         modifier = Modifier

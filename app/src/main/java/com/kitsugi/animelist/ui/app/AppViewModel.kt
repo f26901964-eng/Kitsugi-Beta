@@ -25,6 +25,7 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ALL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TAB_COUNT
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SORT_DEFAULT
 import com.kitsugi.animelist.ui.screens.mylist.duplicateListMessage
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
@@ -117,7 +118,18 @@ class AppViewModel : ViewModel() {
     var myListExtraFilterId by mutableStateOf("all")
         private set
 
-    var myListSortId by mutableStateOf("newest")
+    var myListSortId by mutableStateOf(MY_LIST_SORT_DEFAULT)
+        private set
+
+    /**
+     * Liste gruplaması — sıralamadan BAĞIMSIZ eksen.
+     *
+     * `added` (varsayılan): Bugün / Dün / Bu Hafta / Bu Ay … bölümleri.
+     * `status`: İzleniyor / Planlandı / İzlendi … bölümleri.
+     * `none`  : tek düz akış.
+     * Seçilen sıralama bu gruplamayı kaldırmaz; yalnızca bölümlerin içini sıralar.
+     */
+    var myListGroupId by mutableStateOf("added")
         private set
 
     // Scroll konumları bilinçli olarak Compose state'i DEĞİLDİR: bu değerler
@@ -200,7 +212,14 @@ class AppViewModel : ViewModel() {
         myListScoreFilterId = prefs.getString("score_filter", "all") ?: "all"
         myListYearFilterId = prefs.getString("year_filter", "all") ?: "all"
         myListExtraFilterId = prefs.getString("extra_filter", "all") ?: "all"
-        myListSortId = prefs.getString("sort", "newest") ?: "newest"
+        // Sıralama sözleşmesi değişti (2026-10-23): eskiden "newest" hem varsayılan
+        // hem de "Temizle" hedefiydi; kayıtlı değer kullanıcının bilinçli seçimi
+        // olmayabilir. Bir kez: kayıtlı "newest" gerçek varsayılana (durum bölümlü
+        // gezinme) taşınır ki güncelleme sonrası herkesin Listem görünümü aniden
+        // değişmesin — "Son eklenen"i isteyen tek dokunuşla yeniden seçer ve artık
+        // gerçek eklenme tarihine göre, global olarak çalışır.
+        myListSortId = migrateLegacyDefaultSort(prefs)
+        myListGroupId = prefs.getString("group", "added") ?: "added"
         // Kayıtlı sekme indeksi DOĞRUDAN geri yüklenir (mevcut sıra: 0 = Tümü … 6 = Bangumi).
         // Eski sıra göçü (migrateLegacyMyListTabIndex) bilinçli olarak kaldırıldı: koşulsuz
         // olarak her açılışta uygulanıyor ve son seçilen sekmeyi bir sıra kaydırıyordu
@@ -219,6 +238,29 @@ class AppViewModel : ViewModel() {
         if (restoredTabIndex != storedTabIndex) {
             prefs.edit().putInt("tab_index", restoredTabIndex).apply()
         }
+    }
+
+    /**
+     * Kayıtlı sıralama seçimini okur; eski varsayılan ("newest") yalnızca İLK
+     * okumada yeni varsayılana taşınır. Taşıma bayrağı yazıldıktan sonra kayıtlı
+     * değer (kullanıcının yeni sözleşmeyle bilinçli seçtiği "newest" dahil)
+     * aynen geri yüklenir — koşulsuz taşıma, sekme göçündeki hatanın aynısı olurdu.
+     */
+    private fun migrateLegacyDefaultSort(prefs: android.content.SharedPreferences): String {
+        // Kayıt yoksa yazma da yok: taze kurulum doğrudan yeni varsayılanla açılır.
+        val stored = prefs.getString("sort", null) ?: return MY_LIST_SORT_DEFAULT
+        val alreadyMigrated = prefs.getBoolean("sort_default_v2_done", false)
+        if (!alreadyMigrated && (stored == "newest" || stored == "added")) {
+            prefs.edit()
+                .putString("sort", MY_LIST_SORT_DEFAULT)
+                .putBoolean("sort_default_v2_done", true)
+                .apply()
+            return MY_LIST_SORT_DEFAULT
+        }
+        // Başka bir bilinçli seçim kayıtlı: dokunma. Bayrak, kullanıcı sıralamayı
+        // bir sonraki değiştirişinde updateMyListSort tarafından yazılır; o ana
+        // kadar kayıtlı değer "newest" olamayacağı için yanlış göç riski yoktur.
+        return stored.takeIf { it.isNotBlank() } ?: MY_LIST_SORT_DEFAULT
     }
 
     fun updateMyListTabIndex(context: Context, index: Int) {
@@ -302,7 +344,18 @@ class AppViewModel : ViewModel() {
         myListSortId = value
         resetMyListScroll()
         context.getSharedPreferences("Kitsugi_list_filters", Context.MODE_PRIVATE)
-            .edit().putString("sort", value).apply()
+            .edit()
+            .putString("sort", value)
+            // Bilinçli seçim işareti: eski varsayılan göçü bu değeri bir daha taşımasın.
+            .putBoolean("sort_default_v2_done", true)
+            .apply()
+    }
+
+    fun updateMyListGroup(context: Context, value: String) {
+        myListGroupId = value
+        resetMyListScroll()
+        context.getSharedPreferences("Kitsugi_list_filters", Context.MODE_PRIVATE)
+            .edit().putString("group", value).apply()
     }
 
     private fun resetMyListScroll() {
@@ -397,13 +450,29 @@ class AppViewModel : ViewModel() {
         isAniListConnected: Boolean,
         isMalConnected: Boolean,
         isSimklConnected: Boolean,
+        isTmdbConnected: Boolean,
         isBangumiConnected: Boolean,
         isKitsuConnected: Boolean,
-        isShikimoriConnected: Boolean
+        isShikimoriConnected: Boolean,
+        markFavorite: Boolean = false,
+        preferredSource: String? = null
     ): ApiInsertOutcome {
         val result = selection.result
+        val prefersTmdbAccount = preferredSource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+        if (prefersTmdbAccount && !isTmdbConnected) {
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                KitsugiStrings.get(R.string.tmdb_account_required)
+            )
+        }
+        if (prefersTmdbAccount && !com.kitsugi.animelist.data.auth.supportsTmdbAccountType(result.type)) {
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                KitsugiStrings.get(R.string.tmdb_identity_unresolved)
+            )
+        }
 
-        if (canonicalMediaSourceId(result.source) == "bangumi") {
+        if (!prefersTmdbAccount && canonicalMediaSourceId(result.source) == "bangumi") {
             if (!isBangumiConnected) {
                 return ApiInsertOutcome(
                     ApiInsertStatus.FAILED,
@@ -412,9 +481,14 @@ class AppViewModel : ViewModel() {
             }
             val existingBangumiEntry = currentEntries.firstOrNull { it.matchesInSource(result) }
             if (existingBangumiEntry != null) {
+                if (markFavorite && !existingBangumiEntry.isFavorite) {
+                    repository.update(existingBangumiEntry.copy(isFavorite = true))
+                }
                 return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingBangumiEntry))
             }
-            val newBangumiEntry = BangumiMediaEntryFactory.fromSearchResult(result, selection.synopsis)
+            val newBangumiEntry = BangumiMediaEntryFactory.fromSearchResult(result, selection.synopsis)?.let {
+                if (markFavorite) it.copy(isFavorite = true) else it
+            }
             if (newBangumiEntry == null) {
                 return ApiInsertOutcome(
                     ApiInsertStatus.FAILED,
@@ -428,7 +502,7 @@ class AppViewModel : ViewModel() {
                 )
             }
             // Diğer kaynaklarla aynı hat: kayıt önce yerele yazılır, canlı eşitleme Bangumi
-            // dahil altı kaynağa birden yayar. Eski akış önce Bangumi'ye yazıp başarısızlıkta
+            // dahil yedi kaynağa birden yayar. Eski akış önce Bangumi'ye yazıp başarısızlıkta
             // kaydı hiç eklemiyordu (token/kapsam/ağ hatasında ekleme tümüyle kayboluyordu);
             // artık başarısız yazımlar bekleyen senkron kuyruğunda yeniden denenir ve sonuç
             // repository geri çağrısıyla kullanıcıya bildirilir.
@@ -443,7 +517,7 @@ class AppViewModel : ViewModel() {
         // En az bir kaynak bağlı olmalı — Kitsu / Shikimori / Bangumi de artık tek başına yeterli,
         // çünkü ekleme sonrası çapraz eşitleme altı kaynağın tamamına yayılıyor.
         val anySourceConnected = isAniListConnected || isMalConnected || isSimklConnected ||
-            isKitsuConnected || isShikimoriConnected || isBangumiConnected
+            isKitsuConnected || isShikimoriConnected || isBangumiConnected || isTmdbConnected
         if (!anySourceConnected) {
             return ApiInsertOutcome(
                 ApiInsertStatus.FAILED,
@@ -452,7 +526,7 @@ class AppViewModel : ViewModel() {
         }
 
         // Film/dizi: Simkl bağlı değilse Bangumi (REAL türü) üzerinden de izlenebilir.
-        if ((result.type == MediaType.TvShow || result.type == MediaType.Movie) && !isSimklConnected && !isBangumiConnected) {
+        if ((result.type == MediaType.TvShow || result.type == MediaType.Movie) && !isSimklConnected && !isBangumiConnected && !isTmdbConnected) {
             return ApiInsertOutcome(
                 ApiInsertStatus.FAILED,
                 KitsugiStrings.get(R.string.film_ve_dizileri_eklemek_icin_once_simkl_hesabini_baglamalisin)
@@ -471,8 +545,12 @@ class AppViewModel : ViewModel() {
         val resultSource = com.kitsugi.animelist.data.remote.canonicalMediaSourceId(result.source)
         val primarySource = when {
             result.type == MediaType.TvShow || result.type == MediaType.Movie -> when {
+                prefersTmdbAccount && isTmdbConnected ->
+                    com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+                resultSource == "tmdb" && isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
                 isSimklConnected -> "simkl"
                 isBangumiConnected -> com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE
+                isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
                 else -> "simkl"
             }
             resultSource == "anilist" && isAniListConnected -> "anilist"
@@ -488,9 +566,21 @@ class AppViewModel : ViewModel() {
         }
 
         // Provider listeleri birbirinden bağımsızdır: başka bir kaynaktaki kopya, bu
-        // kaynağın ekleme işlemini engellememeli.
-        val existingEntry = currentEntries.firstOrNull { entry -> entry.matchesInSource(result) }
+        // kaynağın ekleme işlemini engellememeli. For an explicit TMDB target, probe the
+        // account namespace rather than the search result's original provider namespace.
+        val targetResult = if (primarySource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE) {
+            val targetId = result.tmdbId ?: result.malId.takeIf { resultSource == "tmdb" && it > 0 }
+            result.copy(
+                source = com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE,
+                malId = targetId ?: 0,
+                tmdbId = targetId
+            )
+        } else result
+        val existingEntry = currentEntries.firstOrNull { entry -> entry.matchesInSource(targetResult) }
         if (existingEntry != null) {
+            if (markFavorite && !existingEntry.isFavorite) {
+                repository.update(existingEntry.copy(isFavorite = true))
+            }
             return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingEntry))
         }
 
@@ -502,28 +592,48 @@ class AppViewModel : ViewModel() {
         val rawAniListId = if (result.source.equals("anilist", ignoreCase = true) && result.malId >= 100_000_000)
             result.malId - 100_000_000
         else null
+        // Legacy TMDB results keep their TMDB id in `malId`. Never reinterpret that number
+        // as MAL; use it only to resolve/fill the real TMDB field.
+        val rawTmdbId = result.tmdbId ?: result.malId.takeIf {
+            resultSource == "tmdb" && it > 0
+        }
+        val resultMalIdFallback = result.malId.takeIf {
+            resultSource != "tmdb" && it in 1 until 100_000_000
+        }
 
         val resolvedIds = runCatching {
             com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
                 malId = rawMalId,
                 aniListId = rawAniListId,
-                tmdbId = result.tmdbId,
+                tmdbId = rawTmdbId,
                 mediaType = result.type
             )
         }.getOrNull()
 
-        val finalMalId = resolvedIds?.malId ?: rawMalId ?: result.malId.takeIf { it in 1 until 100_000_000 }
-        val finalTmdbId = resolvedIds?.tmdbId ?: result.tmdbId
+        val finalMalId = resolvedIds?.malId ?: rawMalId ?: resultMalIdFallback
+        val finalTmdbId = resolvedIds?.tmdbId ?: rawTmdbId
+        if (primarySource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE && finalTmdbId == null) {
+            return ApiInsertOutcome(
+                ApiInsertStatus.FAILED,
+                KitsugiStrings.get(R.string.tmdb_identity_unresolved)
+            )
+        }
 
         // Çözülmüş kimliklerle ikinci kontrol: kullanıcı detay sayfasında zenginleştirme
         // (realMalId / tmdbId) tamamlanmadan tıkladıysa ön kontrol kaçmış olabilir; bu
         // kontrol çift kaydı engeller ve yine BULUNAN kaydı isimlendirir.
-        val resolvedProbe = result.copy(
+        val resolvedProbe = targetResult.copy(
             realMalId = result.realMalId ?: finalMalId,
-            tmdbId = result.tmdbId ?: finalTmdbId
+            malId = if (primarySource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE) {
+                finalTmdbId ?: targetResult.malId
+            } else targetResult.malId,
+            tmdbId = targetResult.tmdbId ?: finalTmdbId
         )
         val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matchesInSource(resolvedProbe) }
         if (existingAfterResolve != null) {
+            if (markFavorite && !existingAfterResolve.isFavorite) {
+                repository.update(existingAfterResolve.copy(isFavorite = true))
+            }
             return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingAfterResolve))
         }
 
@@ -569,16 +679,20 @@ class AppViewModel : ViewModel() {
             score = null,
             progress = auto.progress,
             total = result.total,
-            isFavorite = false,
+            isFavorite = markFavorite,
+            // Choosing the TMDB account tab is an explicit Watchlist-add intent. Kitsugi's
+            // local Watching/Completed default must not turn that into a remote no-op.
+            tmdbWatchlist = if (primarySource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE) true else null,
             isAdult = result.isAdult,
             source = primarySource,
             // Satır kendi kaynağının kimliğini taşımaya devam eder (Kitsu 300M, Shikimori 400M
             // aralığı); çözülen gerçek MAL ID yalnızca uzak çağrılarda kullanılır.
             malId = when (primarySource) {
+                com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE -> null
                 "kitsu" -> result.malId.takeIf { it in 300_000_001..399_999_999 }
                     ?: finalMalId ?: result.malId.takeIf { it > 0 }
                 "shikimori" -> result.malId.takeIf { it > 0 } ?: finalMalId
-                else -> finalMalId ?: result.malId.takeIf { it > 0 }
+                else -> finalMalId ?: resultMalIdFallback
             },
             imageUrl = result.imageUrl,
             year = result.year,
@@ -617,9 +731,12 @@ class AppViewModel : ViewModel() {
         isAniListConnected: Boolean,
         isMalConnected: Boolean,
         isSimklConnected: Boolean,
+        isTmdbConnected: Boolean = false,
         isBangumiConnected: Boolean = false,
         isKitsuConnected: Boolean = false,
-        isShikimoriConnected: Boolean = false
+        isShikimoriConnected: Boolean = false,
+        markFavorite: Boolean = false,
+        preferredSource: String? = null
     ) {
         viewModelScope.launch {
             val outcome = insertApiSelection(
@@ -629,9 +746,12 @@ class AppViewModel : ViewModel() {
                 isAniListConnected = isAniListConnected,
                 isMalConnected = isMalConnected,
                 isSimklConnected = isSimklConnected,
+                isTmdbConnected = isTmdbConnected,
                 isBangumiConnected = isBangumiConnected,
                 isKitsuConnected = isKitsuConnected,
-                isShikimoriConnected = isShikimoriConnected
+                isShikimoriConnected = isShikimoriConnected,
+                markFavorite = markFavorite,
+                preferredSource = preferredSource
             )
             showSnackbarMessage(outcome.message)
         }
@@ -651,6 +771,7 @@ class AppViewModel : ViewModel() {
         isAniListConnected: Boolean,
         isMalConnected: Boolean,
         isSimklConnected: Boolean,
+        isTmdbConnected: Boolean = false,
         isBangumiConnected: Boolean = false,
         isKitsuConnected: Boolean = false,
         isShikimoriConnected: Boolean = false
@@ -674,6 +795,7 @@ class AppViewModel : ViewModel() {
                         isAniListConnected = isAniListConnected,
                         isMalConnected = isMalConnected,
                         isSimklConnected = isSimklConnected,
+                        isTmdbConnected = isTmdbConnected,
                         isBangumiConnected = isBangumiConnected,
                         isKitsuConnected = isKitsuConnected,
                         isShikimoriConnected = isShikimoriConnected

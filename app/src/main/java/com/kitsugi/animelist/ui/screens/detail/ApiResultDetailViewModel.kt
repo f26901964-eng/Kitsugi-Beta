@@ -10,7 +10,9 @@ import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.MdbListClient
+import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
+import com.kitsugi.animelist.data.remote.resolveMdbListMediaIds
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
@@ -24,11 +26,16 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
+import com.kitsugi.animelist.data.remote.KitsugiMediaVideoAggregator
+import com.kitsugi.animelist.data.remote.KitsugiTheme
+import com.kitsugi.animelist.data.remote.KnownVideoMediaIds
+import com.kitsugi.animelist.data.remote.MediaVideoCategory
+import com.kitsugi.animelist.data.remote.MediaVideoItem
+import com.kitsugi.animelist.data.remote.TmdbApiClient
 import com.kitsugi.animelist.ui.components.HeroArtworkImagePolicy
 import com.kitsugi.animelist.data.remote.resolveMediaGalleryIdentity
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
-import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -50,12 +57,6 @@ private const val TAB_EPISODES = 8
 /** Bir sekme verisi bu süreden uzun sürerse "yüklenemedi" durumuna düşer (skeleton sonsuz kalmaz). */
 private const val TAB_FETCH_TIMEOUT_MS = 25_000L
 
-/**
- * Bangumi sekmesi ad/başlık zenginleştirmesinin arka plan bütçesi. İlk boyamayı ETKİLEMEZ:
- * ham liste anında gösterilir, Latin adlar bu bütçe içinde çözülünce aynı sekme güncellenir.
- */
-private const val BANGUMI_TAB_ENRICH_TIMEOUT_MS = 20_000L
-
 /** Bölüm listesi çok bölümlü serilerde (ör. 1000+ bölüm) sayfa sayfa çekilir; daha uzun sınır. */
 private const val TAB_EPISODES_FETCH_TIMEOUT_MS = 90_000L
 
@@ -74,6 +75,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val settingsDataStore = SettingsDataStore(context)
     private val TAG = "ApiResultDetailVM"
 
+    private val tmdbVideoClient = TmdbApiClient()
+
     // --- StateFlows ---
 
     private val _detailState = MutableStateFlow<KitsugiMediaDetail?>(null)
@@ -87,6 +90,77 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     val detailErrorCode: StateFlow<com.kitsugi.animelist.data.platform.PlatformErrorCode?> = _detailErrorCode.asStateFlow()
 
     /** Sekme hatası için kaynağın son `KTS-…` kodu; bilinmiyorsa genel sınıflandırılamayan kod. */
+    private fun isBangumiSource(source: String): Boolean {
+        val key = source.trim().lowercase()
+        return key == "bangumi" || key == "bgm"
+    }
+
+    /**
+     * Bangumi kadro adları için arka plan Latin adı çözümü: senkron geç süresi yetmediğinde
+     * CJK kalan karakter/kişi adlarını çözer, kalıcı önbelleğe yazar ve sekme hâlâ aynı
+     * veriyi gösteriyorsa ekranı günceller. İkinci ziyarette liste Latin adlarla açılır.
+     */
+    private fun warmBangumiCharacterNames(source: String, malId: Int, data: List<KitsugiCharacter>) {
+        if (!isBangumiSource(source) || data.isEmpty()) return
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichCharacterNamesFromBangumi(data, background = true)
+                }.getOrNull()
+            } ?: return@launch
+            if (updated == data) return@launch
+            if ((_charactersState.value as? DetailTabState.Success)?.data !== data) return@launch
+            DetailCache.putMediaCharacters(source, malId, updated)
+            _charactersState.value = DetailTabState.Success(updated)
+        }
+    }
+
+    private fun warmBangumiStaffNames(source: String, malId: Int, data: List<KitsugiStaff>) {
+        if (!isBangumiSource(source) || data.isEmpty()) return
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichStaffNamesFromBangumi(data, background = true)
+                }.getOrNull()
+            } ?: return@launch
+            if (updated == data) return@launch
+            if ((_staffState.value as? DetailTabState.Success)?.data !== data) return@launch
+            DetailCache.putMediaStaff(source, malId, updated)
+            _staffState.value = DetailTabState.Success(updated)
+        }
+    }
+
+    /**
+     * Bangumi ilişkiler/öneriler için arka plan başlık çözümü: p1 liste uçları slim subject
+     * döndürdüğünden CJK kalan başlıklar ortak çözümleyiciyle (AniList toplu arama + infobox
+     * + TMDB) çözülür, kalıcı önbelleğe yazılır ve sekme güncellenir.
+     */
+    private fun warmBangumiRelationTitles(
+        source: String,
+        malId: Int,
+        data: List<KitsugiRelation>,
+        recommendations: Boolean
+    ) {
+        if (!isBangumiSource(source) || data.isEmpty()) return
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching {
+                    KitsugiBangumiDetailClient.enrichRelationTitles(data, background = true)
+                }.getOrNull()
+            } ?: return@launch
+            if (updated == data) return@launch
+            val currentState = if (recommendations) _recommendationsState.value else _relationsState.value
+            if ((currentState as? DetailTabState.Success)?.data !== data) return@launch
+            if (recommendations) {
+                DetailCache.putMediaRecommendations(source, malId, updated)
+                _recommendationsState.value = DetailTabState.Success(updated)
+            } else {
+                DetailCache.putMediaRelations(source, malId, updated)
+                _relationsState.value = DetailTabState.Success(updated)
+            }
+        }
+    }
+
     private fun tabFailureCode(source: String): com.kitsugi.animelist.data.platform.PlatformErrorCode =
         com.kitsugi.animelist.data.platform.PlatformFailureRegistry.latest(source)?.code
             ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
@@ -175,19 +249,24 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val galleryTracker = GalleryLoadTracker()
     val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
 
+    private val _videoItems = MutableStateFlow<List<MediaVideoItem>>(emptyList())
+    val videoItems: StateFlow<List<MediaVideoItem>> = _videoItems.asStateFlow()
+
+    private val videosTracker = GalleryLoadTracker()
+    val videosLoading: StateFlow<Boolean> = videosTracker.loading
+
     /** Her yeni sonuç navigasyonunda artar — UI bu trigger’ı izleyerek tab’ı 0’a sıfırlar. */
     private val _pageResetTrigger = MutableStateFlow(0)
     val pageResetTrigger: StateFlow<Int> = _pageResetTrigger.asStateFlow()
 
     // --- Cache / Lock Key ---
-    private val bangumiTabEnriching = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private var currentFetchKey: String? = null
     private var lastResult: JikanSearchResult? = null
     private var synopsisTranslateJob: Job? = null
-    @Volatile private var charactersFetchedWithDetail: Boolean = false
 
     /** Çeviri işlerinin nesil sayacı — eski işlerin yüklenme durumunu kapatmasını engeller. */
     @Volatile private var translationGeneration = 0
+    @Volatile private var charactersFetchedWithDetail: Boolean = false
     private var lastAutoTranslateSetting: Boolean? = null
     private var lastTargetLangSetting: String? = null
 
@@ -200,20 +279,27 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 val base = current ?: cached ?: return@collect
                 var changed = false
                 val updated = base.map { ch ->
-                    val isActorDup = !ch.imageUrl.isNullOrBlank() && ch.imageUrl == ch.voiceActors.firstOrNull()?.imageUrl
+                    val isActorDup = !ch.imageUrl.isNullOrBlank() &&
+                        ch.voiceActors.any { va -> DetailCache.isSameImageResource(ch.imageUrl, va.imageUrl) }
                     if (!ch.imageUrl.isNullOrBlank() && !isActorDup) {
                         ch
                     } else {
                         val portrait = DetailCache.getCachedCharacterPortrait(ch.name)
+                            ?.takeUnless { p -> ch.voiceActors.any { va -> DetailCache.isSameImageResource(p, va.imageUrl) } }
                         if (!portrait.isNullOrBlank() && portrait != ch.imageUrl) {
                             changed = true
                             ch.copy(imageUrl = portrait, isRealMediaRole = false)
+                        } else if (!ch.isRealMediaRole && isActorDup) {
+                            changed = true
+                            ch.copy(imageUrl = null)
                         } else ch
                     }
                 }
                 if (changed) {
                     DetailCache.putMediaCharacters(res.source, res.malId, updated)
-                    _charactersState.value = DetailTabState.Success(updated)
+                    if (current != null) {
+                        _charactersState.value = DetailTabState.Success(updated)
+                    }
                 }
             }
         }
@@ -257,8 +343,14 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         if (!autoTranslate && !isRussian) return
 
         if (!forceRetranslate) {
-            val cachedTr = DetailCache.getTranslation("synopsis", result.source, result.malId)
-            if (!cachedTr.isNullOrBlank()) {
+            val cachedTr = DetailCache.getTranslation(
+                "synopsis", result.source, result.malId, sourceText = rawSynopsis
+            )
+            // Önbellekteki çeviri kaynak metinle eşdeğerse (Türkçe metnin "çevirisi")
+            // çeviri sayılmaz; orijinal gösterilir.
+            if (!cachedTr.isNullOrBlank() &&
+                !com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsis, cachedTr)
+            ) {
                 _translatedSynopsis.value = cachedTr
                 return
             }
@@ -289,15 +381,24 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 _translationLoading.value = true
                 val tr = withContext(Dispatchers.IO) {
                     translationManager.translateToTarget(rawSynopsis) { partial ->
-                        if (currentFetchKey == expectedFetchKey && partial.isNotBlank()) {
+                        if (currentFetchKey == expectedFetchKey &&
+                            partial.isNotBlank() &&
+                            !com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsis, partial)
+                        ) {
                             _translatedSynopsis.value = partial
                         }
                     }
                 }
                 if (currentFetchKey == expectedFetchKey && !tr.isNullOrBlank()) {
-                    if (tr != rawSynopsis) {
-                        DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
+                    if (com.kitsugi.animelist.utils.translationMatchesSource(rawSynopsis, tr)) {
+                        // Kaynak metin zaten hedef dilde: çeviri yok, düğme de yok.
+                        DetailCache.removeTranslation("synopsis", result.source, result.malId)
+                        _translatedSynopsis.value = null
+                        return@launch
                     }
+                    DetailCache.putTranslation(
+                        "synopsis", result.source, result.malId, tr, sourceText = rawSynopsis
+                    )
                     _translatedSynopsis.value = tr
                 }
             } finally {
@@ -347,6 +448,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             DetailCache.removeMediaRecommendations(result.source, result.malId)
             DetailCache.removeMediaReviews(result.source, result.malId, result.type.name)
             DetailCache.removeMediaEpisodes(result.source, result.malId)
+            DetailCache.removeMediaVideos(result.source, result.malId)
             DetailCache.clearFanartCache() // Fanart galeri önbelleğini temizle
         }
 
@@ -364,14 +466,26 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
 
         val cachedDetail = DetailCache.getMediaDetail(result.source, result.malId)
-        val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", result.source, result.malId)
+        val cachedDetailSynopsis = cachedDetail?.synopsis
+        val cachedSynopsisTranslation = cachedDetailSynopsis?.let { raw ->
+            DetailCache.getTranslation("synopsis", result.source, result.malId, sourceText = raw)
+        }
+        val cachedVideos = DetailCache.getMediaVideos(result.source, result.malId, _targetSeason.value)
+        _videoItems.value = cachedVideos ?: KitsugiMediaVideoAggregator.seedFromDetail(cachedDetail, result.source)
+        videosTracker.reset()
 
         _detailState.value = cachedDetail
         _detailLoading.value = cachedDetail == null
-        _translatedSynopsis.value = cachedSynopsisTranslation
+        // Çeviri yalnızca **aynı** özet metnine aitse gösterilir.
+        _translatedSynopsis.value = cachedSynopsisTranslation?.takeIf { tr ->
+            !cachedDetailSynopsis.isNullOrBlank() &&
+                !com.kitsugi.animelist.utils.translationMatchesSource(cachedDetailSynopsis, tr)
+        }
         _logoUrl.value = null
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
+        _mdbListRatings.value = null
+        _mdbListLoading.value = false
         _galleryItems.value = emptyList()
         _heroArtwork.value = null
         heroArtworkKey = null
@@ -449,14 +563,19 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         }
 
-        // MDBList puanları — bağımsız, gecikme kabul edilebilir
-        viewModelScope.launch {
+        // Ortak videolar sekmesi: tüm video sağlayan kaynakları paralel sorgular
+        val videosToken = videosTracker.begin()
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                fetchMdbListRatings(result)
+                fetchAggregatedVideos(result, newKey)
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Error fetching aggregated videos: ${e.message}", e)
+            } finally {
+                videosTracker.end(videosToken)
             }
         }
+
 
         // Logo — bağımsız, en düşük öncelikli
         viewModelScope.launch {
@@ -483,6 +602,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             // The detail gallery has its own season-aware cache and includes TMDB season logos.
             if (_galleryItems.value.isNotEmpty()) {
                 runCatching { fetchFanartGallery(result) }
+            }
+            val seasonVideoToken = videosTracker.begin()
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    fetchAggregatedVideos(result, currentFetchKey)
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                } finally {
+                    videosTracker.end(seasonVideoToken)
+                }
             }
         }
     }
@@ -602,6 +732,16 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         } else {
             null
         }
+
+        // MDBList, birincil detaydaki IMDb/TMDB/MAL kimlikleri hazır olduktan sonra başlar.
+        // Böylece detay çağrısıyla yarışıp kimlik yok sanılarak sessizce kapanmaz.
+        viewModelScope.launch {
+            try {
+                fetchMdbListRatings(result)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
+            }
+        }
         val expectedFetchKey = currentFetchKey
         val autoTranslate = settings?.autoTranslateEnabled ?: false
 
@@ -616,15 +756,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             )
         }
 
-        // ── Vitrin görseli: SAYFA AÇILMADAN ÖNCE çözülür ─────────────────────────
-        // Kullanıcı detay sayfasını görmeden en kaliteli TMDB (`/original`) /
-        // Fanart.tv yatay arka plan seçilir ve decode edilir. Böylece vitrin ilk
-        // kareden itibaren doğru ve tam çözünürlüklü görseli gösterir.
-        resolveHeroArtwork(result, detail)
-
+        // Birincil detay hazır olduğu anda sayfayı aç. TMDB/Fanart seçimi ve görsel
+        // preload'u loading ekranında bekletmez; mevcut kaynak görseliyle başlayan vitrin,
+        // yüksek kaliteli aday hazır olunca güncellenir.
         _detailLoading.value = false
 
         if (detail != null) {
+            viewModelScope.launch {
+                resolveHeroArtwork(result, detail)
+            }
             // ── Aşama 2: TMDB/TR ZENGİNLEŞTİRME — zaman tavanlı, arka planda ─────────
             // Bangumi'de bu adım aynı zamanda çapraz kimlik çözümü (AniList → MAL → ARM) ve
             // MAL/AniList/TMDB birleştirmesidir; TMDB kapalı olsa bile çalışmalıdır (TMDB'ye
@@ -984,43 +1124,6 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _logoUrl.value = logo
     }
 
-    /** Bangumi kaynağı mı? (kayıtlar `source = "bangumi"`; eski satırlarda `"bgm"`). */
-    private fun isBangumiDetailSource(source: String): Boolean =
-        source.equals("bangumi", ignoreCase = true) || source.equals("bgm", ignoreCase = true)
-
-    /**
-     * **Aşamalı boyama** için arka plan zenginleştirmesi.
-     *
-     * Sekme verisi ham (kanji) hâliyle hemen gösterilir; bu blok Latin adları/başlıkları
-     * çözer ve sekme hâlâ aynı isteğe aitse başarı durumunu günceller. Böylece kullanıcı
-     * AniList/Bangumi infobox zincirini beklemez; ağ yavaşsa bile ekran boş kalmaz.
-     */
-    private fun enrichBangumiTabInBackground(
-        label: String,
-        tabIndex: Int,
-        requestKey: String,
-        stillNeeded: () -> Boolean,
-        block: suspend () -> Unit
-    ) {
-        if (!stillNeeded()) return
-        val enrichKey = "$tabIndex|$requestKey"
-        if (!bangumiTabEnriching.add(enrichKey)) return
-        viewModelScope.launch {
-            try {
-                withTimeoutOrNull(BANGUMI_TAB_ENRICH_TIMEOUT_MS) { block() }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.w(TAG, "$label zenginleştirmesi başarısız: ${error.message}")
-            } finally {
-                bangumiTabEnriching.remove(enrichKey)
-            }
-        }
-    }
-
-    private fun tabStillCurrent(tabIndex: Int, requestKey: String): Boolean =
-        tabRequestKeys[tabIndex] == requestKey
-
     /**
      * Sekme verisini yükler.
      *
@@ -1088,10 +1191,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     realMalId = effectiveRealMalId,
                                     // Credits devre dışıysa ya da TMDB tamamen kapalıysa tmdbId gönderme
                                     tmdbId = if (tmdbEnabled && useCredits) tmdbId else null,
-                                    title = resolvedTitle,
-                                    // Bangumi'de ad zenginleştirmesi ayrı arka plan geçişinde
-                                    // yapılır; sekme ham listeyle ANINDA açılır.
-                                    enrichNames = !isBangumiDetailSource(result.source)
+                                    title = resolvedTitle
                                 )
                             } ?: run {
                                 if (currentSuccess == null || currentSuccess.data.isEmpty()) {
@@ -1105,35 +1205,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaCharacters(result.source, malId, data)
                             }
                             _charactersState.value = DetailTabState.Success(data)
-                        }
-                        // Aşamalı boyama: zenginleştirme `needsRefetch` dalının DIŞINDA. Sekme
-                        // önbellekteki ham (kanji) listeyle açıldığında da Latin adlar tamamlanır;
-                        // eskiden yalnızca ilk ağ çekiminde çalıştığı için önbelleklenmiş liste
-                        // kalıcı olarak Japonca kalıyordu.
-                        if (isBangumiDetailSource(result.source)) {
-                            val shown = (_charactersState.value as? DetailTabState.Success)?.data.orEmpty()
-                            enrichBangumiTabInBackground(
-                                label = "Karakter adları",
-                                tabIndex = 2,
-                                requestKey = requestKey,
-                                stillNeeded = {
-                                    shown.any { PreferenceHelpers.hasCjkCharacters(it.name) } ||
-                                        shown.any { character ->
-                                            character.voiceActors.any { PreferenceHelpers.hasCjkCharacters(it.name) }
-                                        }
-                                }
-                            ) {
-                                val enriched = apiClient.enrichBangumiCharacters(
-                                    shown,
-                                    result.type,
-                                    effectiveRealMalId,
-                                    result.malId
-                                )
-                                if (enriched != shown && tabStillCurrent(2, requestKey)) {
-                                    DetailCache.putMediaCharacters(result.source, malId, enriched)
-                                    _charactersState.value = DetailTabState.Success(enriched)
-                                }
-                            }
+                            warmBangumiCharacterNames(result.source, malId, data)
                         }
                     }
                     3 -> {
@@ -1146,8 +1218,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 apiClient.fetchStaff(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useCredits) tmdbId else null,
-                                    realMalId = effectiveRealMalId,
-                                    enrichNames = !isBangumiDetailSource(result.source)
+                                    realMalId = effectiveRealMalId
                                 )
                             } ?: run {
                                 _staffState.value = DetailTabState.Error(tabFailureCode(result.source))
@@ -1158,26 +1229,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaStaff(result.source, malId, data)
                             }
                             _staffState.value = DetailTabState.Success(data)
-                        }
-                        if (isBangumiDetailSource(result.source)) {
-                            val shown = (_staffState.value as? DetailTabState.Success)?.data.orEmpty()
-                            enrichBangumiTabInBackground(
-                                label = "Ekip adları",
-                                tabIndex = 3,
-                                requestKey = requestKey,
-                                stillNeeded = { shown.any { PreferenceHelpers.hasCjkCharacters(it.name) } }
-                            ) {
-                                val enriched = apiClient.enrichBangumiStaff(
-                                    shown,
-                                    result.type,
-                                    effectiveRealMalId,
-                                    result.malId
-                                )
-                                if (enriched != shown && tabStillCurrent(3, requestKey)) {
-                                    DetailCache.putMediaStaff(result.source, malId, enriched)
-                                    _staffState.value = DetailTabState.Success(enriched)
-                                }
-                            }
+                            warmBangumiStaffNames(result.source, malId, data)
                         }
                     }
                     4 -> {
@@ -1191,8 +1243,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useMoreLikeThis) tmdbId else null,
                                     realMalId = effectiveRealMalId,
-                                    title = result.title,
-                                    enrichTitles = !isBangumiDetailSource(result.source)
+                                    title = result.title
                                 )
                             } ?: run {
                                 _recommendationsState.value = DetailTabState.Error(tabFailureCode(result.source))
@@ -1203,21 +1254,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaRecommendations(result.source, malId, data)
                             }
                             _recommendationsState.value = DetailTabState.Success(data)
-                        }
-                        if (isBangumiDetailSource(result.source)) {
-                            val shown = (_recommendationsState.value as? DetailTabState.Success)?.data.orEmpty()
-                            enrichBangumiTabInBackground(
-                                label = "Öneri başlıkları",
-                                tabIndex = 4,
-                                requestKey = requestKey,
-                                stillNeeded = { shown.any { PreferenceHelpers.hasCjkCharacters(it.title) } }
-                            ) {
-                                val enriched = KitsugiBangumiDetailClient.enrichRelationListTitles(shown)
-                                if (enriched != shown && tabStillCurrent(4, requestKey)) {
-                                    DetailCache.putMediaRecommendations(result.source, malId, enriched)
-                                    _recommendationsState.value = DetailTabState.Success(enriched)
-                                }
-                            }
+                            warmBangumiRelationTitles(result.source, malId, data, recommendations = true)
                         }
                     }
                     5 -> {
@@ -1231,8 +1268,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useCollections) tmdbId else null,
                                     realMalId = effectiveRealMalId,
-                                    title = result.title,
-                                    enrichTitles = !isBangumiDetailSource(result.source)
+                                    title = result.title
                                 )
                             } ?: run {
                                 _relationsState.value = DetailTabState.Error(tabFailureCode(result.source))
@@ -1243,21 +1279,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 DetailCache.putMediaRelations(result.source, malId, data)
                             }
                             _relationsState.value = DetailTabState.Success(data)
-                        }
-                        if (isBangumiDetailSource(result.source)) {
-                            val shown = (_relationsState.value as? DetailTabState.Success)?.data.orEmpty()
-                            enrichBangumiTabInBackground(
-                                label = "İlişki başlıkları",
-                                tabIndex = 5,
-                                requestKey = requestKey,
-                                stillNeeded = { shown.any { PreferenceHelpers.hasCjkCharacters(it.title) } }
-                            ) {
-                                val enriched = KitsugiBangumiDetailClient.enrichRelationListTitles(shown)
-                                if (enriched != shown && tabStillCurrent(5, requestKey)) {
-                                    DetailCache.putMediaRelations(result.source, malId, enriched)
-                                    _relationsState.value = DetailTabState.Success(enriched)
-                                }
-                            }
+                            warmBangumiRelationTitles(result.source, malId, data, recommendations = false)
                         }
                     }
                     6 -> {
@@ -1383,8 +1405,21 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private suspend fun fetchMdbListRatings(result: JikanSearchResult) {
+        val context = getApplication<android.app.Application>().applicationContext
         val settings = settingsDataStore.settingsFlow.first()
         if (!settings.mdbListEnabled || settings.mdbListApiKey.isBlank()) {
+            _mdbListRatings.value = null
+            // Özellik kapalı/anahtar yok: detay kartında bayat kota rozeti çizilmesin.
+            MdbListQuotaCenter.bind(context, "")
+            return
+        }
+
+        // Kota anahtara özgüdür: diskteki son kayıt bu anahtarla eşleşiyorsa anında gösterilir.
+        MdbListQuotaCenter.bind(context, settings.mdbListApiKey)
+
+        // Manga/MDBList uyumsuz: MDBList film ve dizi puanları verir, manga için yok.
+        val isManga = result.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        if (isManga) {
             _mdbListRatings.value = null
             return
         }
@@ -1392,48 +1427,50 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _mdbListLoading.value = true
 
         try {
-            val malId = result.malId
-            val aniListId = if (result.source.equals("anilist", ignoreCase = true) && malId >= 100_000_000) {
-                // Saf AniList ID (100M+ offset)
-                malId - 100_000_000
-            } else {
-                null
-            }
-            // stableId < 100M → AniList kaynaklı olsa bile MAL ID ile dönmüş
-            val realMalId = when {
-                aniListId != null -> null
-                result.source.equals("anilist", ignoreCase = true) -> null
-                // Bangumi stableId'si MAL ID değildir → çözülen çapraz kimlik kullanılır.
-                result.source.equals("bangumi", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
-                        ?: KitsugiBangumiDetailClient.resolveCrossIds(malId, result.type).malId
-                // Shikimori ID'si MAL ID değildir → gerçek MAL ID'si çözülür.
-                result.source.equals("shikimori", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it > 0 }
-                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(malId)
-                else -> malId
-            }
-
             val detail = _detailState.value
-            val tmdbId = detail?.tmdbId ?: result.tmdbId
+            val baseIds = resolveMdbListMediaIds(
+                source = result.source,
+                storedId = result.malId,
+                resolvedMalId = detail?.realMalId ?: result.realMalId,
+                resolvedTmdbId = detail?.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value
+            )
+
+            val ids = if (baseIds.malId == null) {
+                baseIds.copy(
+                    malId = when {
+                        result.source.equals("bangumi", ignoreCase = true) ->
+                            KitsugiBangumiDetailClient.resolveCrossIds(result.malId, result.type).malId
+                        result.source.equals("shikimori", ignoreCase = true) ->
+                            KitsugiIdResolver.resolveMalIdFromShikimori(baseIds.shikimoriId)
+                        else -> null
+                    }
+                )
+            } else {
+                baseIds
+            }
 
             var imdbId: String? = detail?.externalLinks?.firstOrNull { it.url.contains("imdb.com") }
                 ?.url?.substringAfter("/title/")?.substringBefore("/")
+            var lookupTmdbId = ids.tmdbId
 
-            if (imdbId.isNullOrBlank()) {
+            if (imdbId.isNullOrBlank() && ids.hasLookupIdentity) {
                 val resolved = KitsugiIdResolver.resolveIds(
-                    malId = realMalId,
-                    aniListId = aniListId,
-                    tmdbId = tmdbId,
-                    mediaType = result.type
+                    malId = ids.malId,
+                    aniListId = ids.aniListId,
+                    tmdbId = ids.tmdbId,
+                    mediaType = result.type,
+                    kitsuId = ids.kitsuId,
+                    bangumiId = ids.bangumiId
                 )
                 imdbId = resolved.imdbId
+                // ARM/TMDB can resolve a TMDB ID even when no IMDb mapping exists.
+                lookupTmdbId = lookupTmdbId ?: resolved.tmdbId
             }
 
-            if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
+            if (!imdbId.isNullOrBlank() || (lookupTmdbId != null && lookupTmdbId > 0)) {
                 val ratings = MdbListClient.fetchRatings(
                     imdbId = imdbId,
-                    tmdbId = tmdbId,
+                    tmdbId = lookupTmdbId,
                     apiKey = settings.mdbListApiKey
                 )
                 _mdbListRatings.value = ratings
@@ -1446,6 +1483,14 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             _mdbListRatings.value = null
         } finally {
             _mdbListLoading.value = false
+        }
+
+        // Puan yanıtı çoğu zaman `X-RateLimit-*` başlıklarıyla kotayı zaten günceller.
+        // Eski uç nokta başlık göndermediğinde sayı bayat kalmasın diye `/user` en fazla
+        // 10 dakikada bir doğrulanır. Ayrı iş olarak başlatılır: kart iskeletini bekletmez.
+        viewModelScope.launch {
+            // `refresh` ağ hatalarını kendi içinde yutar; yalnızca iptal durumunu yukarı iletir.
+            MdbListQuotaCenter.refresh(settings.mdbListApiKey, maxAgeMillis = 10L * 60_000L)
         }
     }
 
@@ -1773,6 +1818,92 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             lowerUrl.contains("banner") -> GalleryCategory.BANNER
             else -> defaultCategory
         }
+    }
+
+    private suspend fun fetchAggregatedVideos(result: JikanSearchResult, expectedKey: String?) {
+        if (expectedKey != null && currentFetchKey != expectedKey) return
+        val season = _targetSeason.value
+        DetailCache.getMediaVideos(result.source, result.malId, season)?.let { cached ->
+            if (expectedKey == null || currentFetchKey == expectedKey) {
+                _videoItems.value = cached
+                enrichDetailWithCrossSourceVideos(result, cached)
+            }
+            return
+        }
+
+        val currentDetail = _detailState.value
+        val initialSeed = KitsugiMediaVideoAggregator.seedFromDetail(currentDetail, result.source)
+        if (initialSeed.isNotEmpty() && _videoItems.value.isEmpty()) {
+            _videoItems.value = initialSeed
+        }
+
+        val imdbFromLinks = currentDetail?.externalLinks
+            ?.firstOrNull { it.url.contains("imdb.com/title/") }
+            ?.url?.substringAfter("/title/")?.substringBefore("/")?.substringBefore("?")
+
+        val knownIds = KnownVideoMediaIds(
+            malId = (currentDetail?.realMalId ?: result.realMalId)?.takeIf { it in 1..99_999_999 },
+            tmdbId = (currentDetail?.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value)?.takeIf { it > 0 },
+            imdbId = imdbFromLinks
+        )
+
+        val fallbackTitle = listOfNotNull(
+            currentDetail?.title,
+            result.title,
+            currentDetail?.titleEnglish ?: result.titleEnglish,
+            currentDetail?.titleRomaji ?: result.titleRomaji,
+            currentDetail?.titleJapanese ?: result.titleJapanese
+        ).firstOrNull { it.isNotBlank() }
+
+        val merged = KitsugiMediaVideoAggregator.aggregateVideos(
+            id = result.malId,
+            source = result.source,
+            mediaType = currentDetail?.type ?: result.type,
+            detail = currentDetail,
+            tmdbClient = tmdbVideoClient,
+            knownIds = knownIds,
+            fallbackTitle = fallbackTitle,
+            seasonNumber = season,
+            onProgress = { partial ->
+                if (expectedKey == null || currentFetchKey == expectedKey) {
+                    _videoItems.value = partial
+                }
+            }
+        )
+
+        if (expectedKey == null || currentFetchKey == expectedKey) {
+            _videoItems.value = merged
+            enrichDetailWithCrossSourceVideos(result, merged)
+        }
+    }
+
+    private fun enrichDetailWithCrossSourceVideos(result: JikanSearchResult, videos: List<MediaVideoItem>) {
+        val current = _detailState.value ?: return
+        val firstTrailer = videos.firstOrNull {
+            it.category == MediaVideoCategory.TRAILER && !it.videoUrl.isNullOrBlank()
+        }
+        val crossOps = if (current.openings.isEmpty()) {
+            videos.filter { it.category == MediaVideoCategory.OPENING }
+                .map { KitsugiTheme(label = it.title, videoUrl = it.videoUrl, source = it.source) }
+        } else emptyList()
+        val crossEds = if (current.endings.isEmpty()) {
+            videos.filter { it.category == MediaVideoCategory.ENDING }
+                .map { KitsugiTheme(label = it.title, videoUrl = it.videoUrl, source = it.source) }
+        } else emptyList()
+
+        val needsTrailer = current.trailerUrl.isNullOrBlank() && firstTrailer != null
+        val needsOps = current.openings.isEmpty() && crossOps.isNotEmpty()
+        val needsEds = current.endings.isEmpty() && crossEds.isNotEmpty()
+        if (!needsTrailer && !needsOps && !needsEds) return
+
+        val updated = current.copy(
+            trailerUrl = if (needsTrailer) firstTrailer!!.videoUrl else current.trailerUrl,
+            trailerSource = if (needsTrailer) firstTrailer!!.source else current.trailerSource,
+            openings = if (needsOps) crossOps else current.openings,
+            endings = if (needsEds) crossEds else current.endings
+        )
+        _detailState.value = updated
+        DetailCache.putMediaDetail(result.source, result.malId, updated)
     }
 }
 

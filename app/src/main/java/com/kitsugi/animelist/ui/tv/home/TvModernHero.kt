@@ -35,11 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -47,7 +43,9 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.trailer.InAppYouTubeExtractor
 import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
-import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
+import com.kitsugi.animelist.data.trailer.playbackCandidates
+import com.kitsugi.animelist.core.player.TrailerMediaSourceFactory
+import kotlinx.coroutines.CancellationException
 import com.kitsugi.animelist.model.MediaType
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -96,17 +94,21 @@ fun TvModernHero(
 
             LaunchedEffect(state.videoId) {
                 try {
-                    val extractor = InAppYouTubeExtractor()
-                    val source = extractor.extractPlaybackSource("https://www.youtube.com/watch?v=${state.videoId}")
+                    val source = InAppYouTubeExtractor.shared
+                        .extractPlaybackSource("https://www.youtube.com/watch?v=${state.videoId}")
                     if (source != null) {
                         playbackSource = source
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e("TvModernHero", "Extraction error for ${state.videoId}", e)
                 }
             }
 
             playbackSource?.let { source ->
+                val sourceCandidates = remember(source) { source.playbackCandidates() }
+                var activeSourceIndex by remember(source) { mutableStateOf(0) }
                 val exoPlayer = remember(playerPool, state.videoId) {
                     playerPool.reclaim()
                     playerPool.acquire()?.apply {
@@ -117,11 +119,21 @@ fun TvModernHero(
                 }
 
                 if (exoPlayer != null) {
-                    DisposableEffect(exoPlayer) {
+                    DisposableEffect(exoPlayer, source) {
                         val listener = object : Player.Listener {
                             override fun onPlaybackStateChanged(playbackState: Int) {
                                 if (playbackState == Player.STATE_READY) {
                                     isVideoReady = true
+                                }
+                            }
+
+                            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                isVideoReady = false
+                                if (activeSourceIndex + 1 < sourceCandidates.size) {
+                                    activeSourceIndex++
+                                } else {
+                                    InAppYouTubeExtractor.shared.invalidatePlaybackSource(state.videoId)
+                                    Log.e("TvModernHero", "All trailer sources failed: ${error.message}")
                                 }
                             }
                         }
@@ -132,16 +144,14 @@ fun TvModernHero(
                         }
                     }
 
-                    LaunchedEffect(source) {
-                        val videoUri = Uri.parse(source.videoUrl)
-                        if (!source.audioUrl.isNullOrBlank()) {
-                            val mediaSourceFactory = DefaultMediaSourceFactory(YoutubeChunkedDataSourceFactory())
-                            val videoSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(videoUri))
-                            val audioSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(Uri.parse(source.audioUrl)))
-                            exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
-                        } else {
-                            exoPlayer.setMediaItem(MediaItem.fromUri(videoUri))
-                        }
+                    LaunchedEffect(source, activeSourceIndex) {
+                        val activeSource = sourceCandidates[activeSourceIndex]
+                        isVideoReady = false
+                        exoPlayer.stop()
+                        exoPlayer.clearMediaItems()
+                        exoPlayer.setMediaSource(
+                            TrailerMediaSourceFactory.create(context, activeSource)
+                        )
                         exoPlayer.prepare()
                     }
 

@@ -656,6 +656,12 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
                 put("query", query)
                 put("variables", variables)
             }
+            if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGate(
+                    com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.INTERACTIVE
+                )
+            ) {
+                throw IllegalStateException("AniList kotası dolu; kullanıcı profili ertelendi.")
+            }
             val requestBuilder = Request.Builder()
                 .url("https://graphql.anilist.co")
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaTypeOrNull()))

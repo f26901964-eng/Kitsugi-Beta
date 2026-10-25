@@ -134,14 +134,12 @@ object KitsugiSpoilerRules {
         if (raw.isNullOrBlank()) return ""
         return raw
             .replace('İ', 'i')
-            .replace('I', 'ı')
             .replace(WRAPPER_REGEX, " ")
             .replace('_', ' ')
             .replace('-', ' ')
             .replace(WHITESPACE_REGEX, " ")
             .trim()
             .lowercase(Locale.ROOT)
-            .replace("\u0307", "")
     }
 
     /**
@@ -154,6 +152,9 @@ object KitsugiSpoilerRules {
 
         // 1) BangumiTagDictionary kanonik anahtarı (CJK + EN + TR destekler)
         BangumiTagDictionary.entryFor(trimmed)?.let { return it.key }
+
+        // 1b) Rusça (Shikimori) sözlük anahtarı — `Экшен` ≡ `Action` ≡ `Aksiyon`
+        RussianTaxonomyDictionary.entryFor(trimmed)?.let { return it.key }
 
         // 2) SearchTranslation üzerinden İngilizce karşılığı
         val en = SearchTranslation.translateToEnglishForSearch(trimmed).trim()
@@ -320,7 +321,7 @@ object KitsugiSpoilerRules {
     fun mergeTagsPreservingSpoilers(
         primary: List<KitsugiTag>,
         secondary: List<KitsugiTag>,
-        limit: Int = 48
+        limit: Int = 400
     ): List<KitsugiTag> {
         if (primary.isEmpty() && secondary.isEmpty()) return emptyList()
         val combined = normalizeAndMergeTags(primary + secondary)

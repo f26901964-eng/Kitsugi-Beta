@@ -100,12 +100,15 @@ data class GeneralSettings(
     val onKitsuNotificationsChanged: (Boolean) -> Unit = {},
     val shikimoriNotificationsEnabled: Boolean = false,
     val onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
+    val tmdbNotificationsEnabled: Boolean = false,
+    val onTmdbNotificationsChanged: (Boolean) -> Unit = {},
     val isAniListConnected: Boolean = false,
     val isMalConnected: Boolean = false,
     val isSimklConnected: Boolean = false,
     val isKitsuConnected: Boolean = false,
     val isShikimoriConnected: Boolean = false,
     val isBangumiConnected: Boolean = false,
+    val isTmdbConnected: Boolean = false,
     val notificationInterval: Int = 180,
     val onNotificationIntervalChanged: (Int) -> Unit = {},
     val splashAnimationEnabled: Boolean = true,
@@ -155,6 +158,12 @@ data class ProfileSettings(
     val simklUsername: String = "",
     val isSimklImportRunning: Boolean = false,
     val isSimklSessionExpired: Boolean = false,
+    /** `E95`: oturumu sunucu tarafında düşmüş diğer hesaplar (Ayarlar kartı "Oturum süresi doldu" gösterir). */
+    val isAniListSessionExpired: Boolean = false,
+    val isMalSessionExpired: Boolean = false,
+    val isKitsuSessionExpired: Boolean = false,
+    val isShikimoriSessionExpired: Boolean = false,
+    val isBangumiSessionExpired: Boolean = false,
     val onProfileInfoSave: (profileName: String, listTitle: String) -> Unit,
     val onPickProfileImageClick: () -> Unit,
     val onPickBannerImageClick: () -> Unit,
@@ -222,7 +231,15 @@ data class ProfileSettings(
     val onBangumiImportClick: () -> Unit = {},
     val syncEnabledBangumi: Boolean = false,
     val onSyncEnabledBangumiChanged: (Boolean) -> Unit = {},
-    val onLoginBangumi: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> }
+    val onLoginBangumi: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
+    // TMDB user watchlist import is deliberately separate from catalog metadata.
+    val isTmdbConnected: Boolean = false,
+    val tmdbUsername: String = "",
+    val isTmdbImportRunning: Boolean = false,
+    val onTmdbAuthClick: () -> Unit = {},
+    val onTmdbImportClick: () -> Unit = {},
+    val syncEnabledTmdb: Boolean = false,
+    val onSyncEnabledTmdbChanged: (Boolean) -> Unit = {}
 )
 
 data class PlayerSettings(

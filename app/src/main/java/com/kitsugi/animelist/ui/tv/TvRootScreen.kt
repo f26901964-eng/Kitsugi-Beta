@@ -516,6 +516,7 @@ fun TvRootScreen(
                                     isAniListConnected = authViewModel.isAniListConnected,
                                     isMalConnected = authViewModel.isMalConnected,
                                     isSimklConnected = authViewModel.isSimklConnected,
+                                    isTmdbConnected = authViewModel.isTmdbConnected,
                                     isBangumiConnected = authViewModel.isBangumiConnected
                                 )
                             },
@@ -880,7 +881,7 @@ fun TvRootScreen(
         onDeleteEditingEntry = { entry ->
             deletingEntry = entry
         },
-        onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
+        onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores, tmdbWatchlist, tmdbRating ->
             val entry = editingEntry ?: return@AppDialogHost
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             val resolvedStartDate = if (startDate.isNullOrBlank() &&
@@ -909,7 +910,9 @@ fun TvRootScreen(
                 repeatValue = repeatValue,
                 volumeProgress = volumeProgress,
                 isPrivate = isPrivate,
-                isHiddenFromStatusLists = isHiddenFromStatusLists
+                isHiddenFromStatusLists = isHiddenFromStatusLists,
+                tmdbWatchlist = tmdbWatchlist,
+                tmdbRating = tmdbRating
             )
             coroutineScope.launch { mediaRepository.update(updatedEntry, advancedScores = advancedScores) }
             editingEntry = null

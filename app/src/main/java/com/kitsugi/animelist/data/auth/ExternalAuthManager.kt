@@ -17,14 +17,17 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import kotlin.concurrent.thread
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.remote.TmdbAccountClient
 import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -61,8 +64,13 @@ object ExternalAuthManager {
 
     private const val KEY_KITSU_TOKEN = "kitsu_access_token"
     private const val KEY_KITSU_REFRESH_TOKEN = "kitsu_refresh_token"
+    private const val KEY_KITSU_TOKEN_EXPIRES_AT = "kitsu_token_expires_at"
     private const val KEY_KITSU_USER_ID = "kitsu_user_id"
     private const val KEY_KITSU_USERNAME = "kitsu_username"
+
+    private val kitsuRefreshMutex = kotlinx.coroutines.sync.Mutex()
+    private val shikimoriRefreshMutex = kotlinx.coroutines.sync.Mutex()
+    private val malRefreshMutex = kotlinx.coroutines.sync.Mutex()
 
     private const val KEY_SHIKIMORI_TOKEN = "shikimori_access_token"
     private const val KEY_SHIKIMORI_REFRESH_TOKEN = "shikimori_refresh_token"
@@ -93,7 +101,8 @@ object ExternalAuthManager {
         val isSimklConnected: Boolean,
         val isKitsuConnected: Boolean = false,
         val isShikimoriConnected: Boolean = false,
-        val isBangumiConnected: Boolean = false
+        val isBangumiConnected: Boolean = false,
+        val isTmdbConnected: Boolean = false
     )
 
     sealed class AuthEvent {
@@ -119,7 +128,8 @@ object ExternalAuthManager {
             isSimklConnected = prefs.getString(KEY_SIMKL_TOKEN, null) != null,
             isKitsuConnected = prefs.getString(KEY_KITSU_TOKEN, null) != null,
             isShikimoriConnected = prefs.getString(KEY_SHIKIMORI_TOKEN, null) != null,
-            isBangumiConnected = BangumiAuthStore.isConnected(context)
+            isBangumiConnected = BangumiAuthStore.isConnected(context),
+            isTmdbConnected = TmdbAuthStore.isConnected(context)
         )
     }
 
@@ -139,14 +149,112 @@ object ExternalAuthManager {
     fun getKitsuUserId(context: Context): String? = prefs(context).getString(KEY_KITSU_USER_ID, null)
     fun getKitsuUsername(context: Context): String? = prefs(context).getString(KEY_KITSU_USERNAME, null)
 
-    fun saveKitsuAuth(context: Context, token: String, refreshToken: String, userId: String, username: String) {
+    fun saveKitsuAuth(
+        context: Context,
+        token: String,
+        refreshToken: String,
+        userId: String,
+        username: String,
+        expiresInSeconds: Long = 2_592_000L,
+        notify: Boolean = true
+    ) {
+        val expiresAt = System.currentTimeMillis() + (expiresInSeconds.coerceAtLeast(60L) * 1000L)
         prefs(context).edit()
             .putString(KEY_KITSU_TOKEN, token)
             .putString(KEY_KITSU_REFRESH_TOKEN, refreshToken)
+            .putLong(KEY_KITSU_TOKEN_EXPIRES_AT, expiresAt)
             .putString(KEY_KITSU_USER_ID, userId)
             .putString(KEY_KITSU_USERNAME, username)
+            .remove(sessionExpiredKey("kitsu"))
             .apply()
-        _authEvents.tryEmit(AuthEvent.Success("kitsu"))
+        if (notify) _authEvents.tryEmit(AuthEvent.Success("kitsu"))
+    }
+
+    /**
+     * Kitsu erişim token'ını döndürür; süresi dolmuşsa (veya önceki sürümlerden yükseltmede
+     * `expiresAt == 0L` iken `refresh_token` mevcutsa) `kitsuRefreshMutex` kilidi altında
+     * OAuth yenilemesini çalıştırır (`E85`).
+     */
+    suspend fun getOrRefreshKitsuToken(context: Context): String? = withContext(Dispatchers.IO) {
+        kitsuRefreshMutex.lock()
+        try {
+            val p = prefs(context)
+            val token = p.getString(KEY_KITSU_TOKEN, null) ?: return@withContext null
+            val expiresAt = p.getLong(KEY_KITSU_TOKEN_EXPIRES_AT, 0L)
+            val refreshToken = p.getString(KEY_KITSU_REFRESH_TOKEN, null)
+            val needsProactiveRefresh = !refreshToken.isNullOrBlank() &&
+                (expiresAt == 0L || System.currentTimeMillis() + 300_000L >= expiresAt)
+            if (needsProactiveRefresh) {
+                val refreshed = try {
+                    KitsuApiClient.refreshToken(refreshToken!!)
+                } catch (e: KitsuApiClient.KitsuTokenException) {
+                    if (e.status == 400 || e.status == 401) {
+                        markSessionExpired(context, "kitsu")
+                        return@withContext null
+                    }
+                    null
+                } catch (_: Exception) {
+                    null
+                }
+                if (refreshed != null) {
+                    saveKitsuAuth(
+                        context = context,
+                        token = refreshed.accessToken,
+                        refreshToken = refreshed.refreshToken,
+                        userId = p.getString(KEY_KITSU_USER_ID, "") ?: "",
+                        username = p.getString(KEY_KITSU_USERNAME, "Kitsu") ?: "Kitsu",
+                        expiresInSeconds = refreshed.expiresIn,
+                        notify = false
+                    )
+                    return@withContext refreshed.accessToken
+                }
+            }
+            token
+        } finally {
+            kitsuRefreshMutex.unlock()
+        }
+    }
+
+    /**
+     * Kitsu uçlarından HTTP 401 alındığında zorla yeni `access_token` üretir (`E85`).
+     * Refresh token da geçersizse oturumu "süresi doldu" olarak işaretler.
+     */
+    suspend fun forceRefreshKitsuToken(context: Context): String? = withContext(Dispatchers.IO) {
+        kitsuRefreshMutex.lock()
+        try {
+            val p = prefs(context)
+            val refreshToken = p.getString(KEY_KITSU_REFRESH_TOKEN, null)
+            if (refreshToken.isNullOrBlank()) {
+                markSessionExpired(context, "kitsu")
+                return@withContext null
+            }
+            val refreshed = try {
+                KitsuApiClient.refreshToken(refreshToken)
+            } catch (e: KitsuApiClient.KitsuTokenException) {
+                if (e.status == 400 || e.status == 401) {
+                    markSessionExpired(context, "kitsu")
+                }
+                null
+            } catch (_: Exception) {
+                null
+            }
+            if (refreshed != null) {
+                saveKitsuAuth(
+                    context = context,
+                    token = refreshed.accessToken,
+                    refreshToken = refreshed.refreshToken,
+                    userId = p.getString(KEY_KITSU_USER_ID, "") ?: "",
+                    username = p.getString(KEY_KITSU_USERNAME, "Kitsu") ?: "Kitsu",
+                    expiresInSeconds = refreshed.expiresIn,
+                    notify = false
+                )
+                refreshed.accessToken
+            } else {
+                null
+            }
+        } finally {
+            kitsuRefreshMutex.unlock()
+        }
     }
 
     fun saveKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean, entryId: String) {
@@ -257,95 +365,99 @@ object ExternalAuthManager {
             .putLong(KEY_SHIKIMORI_TOKEN_EXPIRES_AT, expiresAt)
             .putInt(KEY_SHIKIMORI_USER_ID, userId)
             .putString(KEY_SHIKIMORI_USERNAME, username)
+            .remove(sessionExpiredKey("shikimori"))
             .apply()
         if (notify) _authEvents.tryEmit(AuthEvent.Success("shikimori"))
     }
 
     suspend fun getOrRefreshShikimoriToken(context: Context): String? = withContext(Dispatchers.IO) {
-        val p = prefs(context)
-        val token = p.getString(KEY_SHIKIMORI_TOKEN, null) ?: return@withContext null
-        val expiresAt = p.getLong(KEY_SHIKIMORI_TOKEN_EXPIRES_AT, 0L)
-        val refreshToken = p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null)
+        shikimoriRefreshMutex.lock()
+        try {
+            val p = prefs(context)
+            val token = p.getString(KEY_SHIKIMORI_TOKEN, null) ?: return@withContext null
+            val expiresAt = p.getLong(KEY_SHIKIMORI_TOKEN_EXPIRES_AT, 0L)
+            val refreshToken = p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null)
 
-        if (System.currentTimeMillis() + 60_000 >= expiresAt && !refreshToken.isNullOrBlank()) {
-            val clientId = getShikimoriClientId(context)
-            val clientSecret = getShikimoriClientSecret(context)
-            if (clientId.isNotBlank() && clientSecret.isNotBlank()) {
-                val refreshResult: ShikimoriApiClient.ShikimoriTokenResponse? = try {
-                    ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
-                } catch (e: ShikimoriApiClient.ShikimoriTokenException) {
-                    // Sunucu refresh token'ı net biçimde reddetti (invalid_grant/invalid_client):
-                    // ölü oturumu saklı tutma, temizle ve kullanıcıyı yeniden girişe yönlendir.
-                    if (e.status == 400 || e.status == 401) {
-                        p.edit()
-                            .remove(KEY_SHIKIMORI_TOKEN)
-                            .remove(KEY_SHIKIMORI_REFRESH_TOKEN)
-                            .remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
-                            .apply()
-                        _authEvents.tryEmit(AuthEvent.SessionExpired("shikimori"))
-                        return@withContext null
+            if (System.currentTimeMillis() + 60_000 >= expiresAt && !refreshToken.isNullOrBlank()) {
+                val clientId = getShikimoriClientId(context)
+                val clientSecret = getShikimoriClientSecret(context)
+                if (clientId.isNotBlank() && clientSecret.isNotBlank()) {
+                    val refreshResult: ShikimoriApiClient.ShikimoriTokenResponse? = try {
+                        ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
+                    } catch (e: ShikimoriApiClient.ShikimoriTokenException) {
+                        if (e.status == 400 || e.status == 401) {
+                            markSessionExpired(context, "shikimori")
+                            return@withContext null
+                        }
+                        null
+                    } catch (_: Exception) {
+                        null
                     }
-                    null // 5xx vb. geçici sunucu hatası: mevcut token'a düş
-                } catch (e: Exception) {
-                    null // Ağ hatası: mevcut token'a düş
-                }
-                if (refreshResult != null) {
-                    saveShikimoriAuth(context, refreshResult.accessToken, refreshResult.refreshToken, refreshResult.expiresIn, p.getInt(KEY_SHIKIMORI_USER_ID, 0), p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori")
-                    return@withContext refreshResult.accessToken
+                    if (refreshResult != null) {
+                        saveShikimoriAuth(
+                            context = context,
+                            token = refreshResult.accessToken,
+                            refreshToken = refreshResult.refreshToken.ifBlank { refreshToken },
+                            expiresInSeconds = refreshResult.expiresIn,
+                            userId = p.getInt(KEY_SHIKIMORI_USER_ID, 0),
+                            username = p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori",
+                            notify = false
+                        )
+                        return@withContext refreshResult.accessToken
+                    }
                 }
             }
+            token
+        } finally {
+            shikimoriRefreshMutex.unlock()
         }
-        token
     }
 
     /**
      * expiresAt kontrolünü atlayarak refresh token ile her koşulda yeni bir
-     * Shikimori access token almayı dener.
-     *
-     * Kullanım: `fetchAllUserRates` gibi çağrılar HTTP 401 aldığında çağrılır;
-     * böylece sunucunun token'ı iptal ettiği (ama yerel `expiresAt` geçerli
-     * göründüğü) durumda sessiz retry yapılabilir.
-     *
-     * @return Yeni access token ya da refresh mümkün değilse null.
+     * Shikimori access token almayı dener (`E90`).
      */
     suspend fun forceRefreshShikimoriToken(context: Context): String? = withContext(Dispatchers.IO) {
-        val p = prefs(context)
-        val refreshToken = p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null)
-        if (refreshToken.isNullOrBlank()) return@withContext null
-
-        val clientId = getShikimoriClientId(context)
-        val clientSecret = getShikimoriClientSecret(context)
-        if (clientId.isBlank() || clientSecret.isBlank()) return@withContext null
-
-        val refreshResult: ShikimoriApiClient.ShikimoriTokenResponse? = try {
-            ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
-        } catch (e: ShikimoriApiClient.ShikimoriTokenException) {
-            if (e.status == 400 || e.status == 401) {
-                // Refresh token geçersiz: oturumu temizle, kullanıcıya bildir.
-                p.edit()
-                    .remove(KEY_SHIKIMORI_TOKEN)
-                    .remove(KEY_SHIKIMORI_REFRESH_TOKEN)
-                    .remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
-                    .apply()
-                _authEvents.tryEmit(AuthEvent.SessionExpired("shikimori"))
+        shikimoriRefreshMutex.lock()
+        try {
+            val p = prefs(context)
+            val refreshToken = p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null)
+            if (refreshToken.isNullOrBlank()) {
+                markSessionExpired(context, "shikimori")
+                return@withContext null
             }
-            null
-        } catch (e: Exception) {
-            null
-        }
 
-        if (refreshResult != null) {
-            saveShikimoriAuth(
-                context,
-                refreshResult.accessToken,
-                refreshResult.refreshToken,
-                refreshResult.expiresIn,
-                p.getInt(KEY_SHIKIMORI_USER_ID, 0),
-                p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori"
-            )
-            refreshResult.accessToken
-        } else {
-            null
+            val clientId = getShikimoriClientId(context)
+            val clientSecret = getShikimoriClientSecret(context)
+            if (clientId.isBlank() || clientSecret.isBlank()) return@withContext null
+
+            val refreshResult: ShikimoriApiClient.ShikimoriTokenResponse? = try {
+                ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
+            } catch (e: ShikimoriApiClient.ShikimoriTokenException) {
+                if (e.status == 400 || e.status == 401) {
+                    markSessionExpired(context, "shikimori")
+                }
+                null
+            } catch (_: Exception) {
+                null
+            }
+
+            if (refreshResult != null) {
+                saveShikimoriAuth(
+                    context = context,
+                    token = refreshResult.accessToken,
+                    refreshToken = refreshResult.refreshToken.ifBlank { refreshToken },
+                    expiresInSeconds = refreshResult.expiresIn,
+                    userId = p.getInt(KEY_SHIKIMORI_USER_ID, 0),
+                    username = p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori",
+                    notify = false
+                )
+                refreshResult.accessToken
+            } else {
+                null
+            }
+        } finally {
+            shikimoriRefreshMutex.unlock()
         }
     }
 
@@ -388,6 +500,7 @@ object ExternalAuthManager {
 
     fun getAuthUrlAndPrepare(context: Context, serviceName: String): String {
         val sharedPreferences = prefs(context)
+        if (serviceName != "tmdb") TmdbAuthStore.clearPendingRequestToken(context)
         return when (serviceName) {
             "anilist" -> {
                 val codeVerifier = generateCodeVerifier()
@@ -444,8 +557,30 @@ object ExternalAuthManager {
     ) {
         try {
             val sharedPreferences = prefs(context)
+            if (serviceName != "tmdb") TmdbAuthStore.clearPendingRequestToken(context)
 
             when (serviceName) {
+                "tmdb" -> {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val authUrl = TmdbAccountClient.createAuthorizationUrl(context)
+                            withContext(Dispatchers.Main) {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                })
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            val message = authFailureMessage(
+                                "tmdb",
+                                error.message ?: "TMDB yetkilendirme başlatılamadı",
+                                error = error
+                            )
+                            withContext(Dispatchers.Main) { onError(message) }
+                        }
+                    }
+                }
                 "anilist" -> {
                     val codeVerifier = generateCodeVerifier()
                     val codeChallenge = generateCodeChallengeS256(codeVerifier)
@@ -559,6 +694,65 @@ object ExternalAuthManager {
         }
 
         if (uri.scheme != "malapp" || uri.host != "auth") return
+
+        // TMDB redirects after approval without an OAuth `code`. Exchange a fresh,
+        // callback-bound request token exactly once; never confuse it with the catalog key.
+        val pendingTmdbRequest = TmdbAuthStore.pendingRequestToken(context)
+        val callbackTmdbRequest = uri.getQueryParameter("request_token")
+        val tmdbCallbackShape = pendingTmdbRequest != null || callbackTmdbRequest != null ||
+            uri.getQueryParameter("approved") != null
+        if (tmdbCallbackShape && uri.getQueryParameter("code") == null) {
+            val denied = uri.getQueryParameter("error")
+            val notApproved = uri.getQueryParameter("approved")?.equals("false", ignoreCase = true) == true ||
+                uri.getQueryParameter("denied")?.equals("true", ignoreCase = true) == true
+            if (denied != null || notApproved) {
+                // A delayed denial from an old browser must not erase a newer login attempt.
+                // The callback-bound token remains usable until its short TTL or a new login.
+                val reason = denied ?: "kullanıcı onay vermedi"
+                val failure = IllegalStateException("TMDB-41: TMDB yetkilendirme iptal edildi: $reason")
+                val message = authFailureMessage("tmdb", failure.message.orEmpty(), error = failure)
+                onError(message)
+                _authEvents.tryEmit(AuthEvent.Error(message))
+                return
+            }
+            val requestToken = TmdbAuthStore.consumePendingRequestToken(context, callbackTmdbRequest)
+            if (requestToken == null) {
+                val failure = IllegalStateException(
+                    "TMDB-33: TMDB giriş isteğinin süresi doldu, kullanıldı veya callback eşleşmedi. Yeniden giriş yapın."
+                )
+                val message = authFailureMessage("tmdb", failure.message.orEmpty(), error = failure)
+                onError(message)
+                _authEvents.tryEmit(AuthEvent.Error(message))
+                return
+            }
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val session = TmdbAccountClient.createSession(requestToken)
+                    TmdbAccountOperationMutex.lock.withLock {
+                        TmdbAuthStore.saveSession(
+                            context = context,
+                            sessionId = session.sessionId,
+                            accountId = session.accountId,
+                            username = session.username
+                        )
+                    }
+                    withContext(Dispatchers.Main) { onSuccess("tmdb") }
+                    _authEvents.tryEmit(AuthEvent.Success("tmdb"))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    // The token was already consumed. Do not clear a newer login attempt.
+                    val message = authFailureMessage(
+                        "tmdb",
+                        error.message ?: "TMDB oturumu oluşturulamadı",
+                        error = error
+                    )
+                    withContext(Dispatchers.Main) { onError(message) }
+                    _authEvents.tryEmit(AuthEvent.Error(message))
+                }
+            }
+            return
+        }
 
         val code = uri.getQueryParameter("code")
         if (code == null) {
@@ -713,20 +907,114 @@ object ExternalAuthManager {
         }
     }
 
+    /**
+     * Bu sağlayıcıya ait **daha önce kurulmuş bir hesabın izi** duruyor mu?
+     *
+     * Amaç: "bağlı değil" sonucunun gerçek bir değişiklik kaybı mı (oturum/token süresi
+     * dolmuş, hesap hâlâ bağlı) yoksa kullanıcının hiç kullanmadığı bir servis mi olduğunu
+     * ayırmak. [disconnectAccount] token'ları **ve** kullanıcı kimliklerini temizlediği için
+     * kalan bir yenileme token'ı / kullanıcı kimliği "hesap bağlıydı, oturum düştü" demektir.
+     *
+     * Yalnız bu durumda değişiklik yeniden deneme kuyruğuna yazılır; hiç bağlanmamış
+     * servisler için gereksiz uyarı/kuyruk üretilmez.
+     */
+    private fun canonicalServiceKey(serviceName: String): String = when (serviceName.trim().lowercase()) {
+        "mal", "myanimelist" -> "mal"
+        "anilist" -> "anilist"
+        "simkl" -> "simkl"
+        "kitsu" -> "kitsu"
+        "shikimori" -> "shikimori"
+        "bangumi", "bgm", "bgm.tv" -> "bangumi"
+        else -> serviceName.trim().lowercase()
+    }
+
+    internal fun sessionExpiredKey(serviceName: String): String =
+        "${canonicalServiceKey(serviceName)}_session_expired"
+
+    fun isSessionExpired(context: Context, serviceName: String): Boolean =
+        prefs(context).getBoolean(sessionExpiredKey(serviceName), false)
+
+    fun clearSessionExpired(context: Context, serviceName: String) {
+        prefs(context).edit().remove(sessionExpiredKey(serviceName)).apply()
+    }
+
+    /**
+     * Sunucunun erişim/yenileme anahtarını reddettiği durumda ölü token'ları temizler ama
+     * hesap kimliğini ve `${provider}_session_expired` bayrağını korur (`E91`/`E95`).
+     *
+     * Böylece:
+     *  1. Ayarlar ekranı hangi hesabın oturumunun düştüğünü açıkça gösterir,
+     *  2. [hasStoredAccount] `true` döner → bu hesap tekrar bağlanana kadar yapılan tüm
+     *     düzenlemeler `PendingSyncQueue` içinde kayıpsız bekler,
+     *  3. [AuthEvent.SessionExpired] yayını arayüzü anında günceller.
+     */
+    fun markSessionExpired(context: Context, serviceName: String) {
+        val canonical = canonicalServiceKey(serviceName)
+        val editor = prefs(context).edit().putBoolean(sessionExpiredKey(canonical), true)
+        when (canonical) {
+            "anilist" -> editor.remove(KEY_ANILIST_TOKEN)
+            "mal" -> {
+                editor.remove(KEY_MAL_TOKEN)
+                editor.remove(KEY_MAL_REFRESH_TOKEN)
+                editor.remove(KEY_MAL_TOKEN_EXPIRES_AT)
+            }
+            "simkl" -> editor.remove(KEY_SIMKL_TOKEN)
+            "kitsu" -> {
+                editor.remove(KEY_KITSU_TOKEN)
+                editor.remove(KEY_KITSU_REFRESH_TOKEN)
+                editor.remove(KEY_KITSU_TOKEN_EXPIRES_AT)
+            }
+            "shikimori" -> {
+                editor.remove(KEY_SHIKIMORI_TOKEN)
+                editor.remove(KEY_SHIKIMORI_REFRESH_TOKEN)
+                editor.remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
+            }
+            "bangumi" -> BangumiAuthStore.dropSession(context)
+        }
+        editor.apply()
+        _authEvents.tryEmit(AuthEvent.SessionExpired(canonical))
+    }
+
+    fun hasStoredAccount(context: Context, serviceName: String): Boolean {
+        val p = prefs(context)
+        val canonical = canonicalServiceKey(serviceName)
+        if (p.getBoolean(sessionExpiredKey(canonical), false)) return true
+        return when (canonical) {
+            "mal" ->
+                !p.getString(KEY_MAL_REFRESH_TOKEN, null).isNullOrBlank() ||
+                    !p.getString(KEY_MAL_TOKEN, null).isNullOrBlank()
+            "kitsu" ->
+                !p.getString(KEY_KITSU_REFRESH_TOKEN, null).isNullOrBlank() ||
+                    !p.getString(KEY_KITSU_USER_ID, null).isNullOrBlank()
+            "shikimori" ->
+                !p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null).isNullOrBlank() ||
+                    (p.getInt(KEY_SHIKIMORI_USER_ID, 0) > 0)
+            "bangumi" ->
+                BangumiAuthStore.isConnected(context) ||
+                    !BangumiAuthStore.getUsername(context).isNullOrBlank()
+            else -> false
+        }
+    }
+
     fun disconnectAccount(
         context: Context,
         serviceName: String
     ) {
+        com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.clear(context)
+        // Başka bir hesaba geçildiğinde "hedefte kayıt VAR" bilgisi geçersizdir: eski hesabın
+        // kayıtları yeni hesapta yoktur. Temizlenmezse yeni hesapta eksik kayıtlar hiç
+        // oluşturulmaz ("zaten eşit" denip geçilirdi).
+        RemoteListPresence.clear(context)
+        val canonical = canonicalServiceKey(serviceName)
         val editor = prefs(context).edit()
-        when (serviceName.lowercase()) {
+            .remove(sessionExpiredKey(canonical))
+        when (canonical) {
             "anilist" -> editor.remove(KEY_ANILIST_TOKEN)
-            "simkl" -> {
-                editor.remove(KEY_SIMKL_TOKEN)
-                editor.remove("simkl_session_expired")
-            }
+            "simkl" -> editor.remove(KEY_SIMKL_TOKEN)
             "kitsu" -> {
                 editor.remove(KEY_KITSU_TOKEN)
                 editor.remove(KEY_KITSU_REFRESH_TOKEN)
+                editor.remove(KEY_KITSU_TOKEN_EXPIRES_AT)
                 editor.remove(KEY_KITSU_USER_ID)
                 editor.remove(KEY_KITSU_USERNAME)
             }
@@ -738,9 +1026,12 @@ object ExternalAuthManager {
                 editor.remove(KEY_SHIKIMORI_USERNAME)
             }
             "bangumi" -> {
-                // Bangumi oturumu kendi deposunda tutulur (bkz. BangumiAuthStore);
-                // App ID/Secret bilinçli olarak korunur.
+                editor.apply()
                 BangumiAuthStore.logout(context)
+                return
+            }
+            "tmdb" -> {
+                TmdbAuthStore.clear(context)
                 return
             }
             else -> {
@@ -750,6 +1041,15 @@ object ExternalAuthManager {
             }
         }
         editor.apply()
+    }
+
+    /** Suspends instead of blocking the UI while an account snapshot/write is finishing. */
+    suspend fun disconnectAccountCoordinated(context: Context, serviceName: String) {
+        if (serviceName.equals("tmdb", ignoreCase = true)) {
+            TmdbAccountOperationMutex.lock.withLock { TmdbAuthStore.clear(context) }
+        } else {
+            disconnectAccount(context, serviceName)
+        }
     }
 
     private fun exchangeAniListCodeForToken(
@@ -787,6 +1087,7 @@ object ExternalAuthManager {
                         prefs(context).edit()
                             .putString(KEY_ANILIST_TOKEN, accessToken)
                             .remove(KEY_ANILIST_CODE_VERIFIER)
+                            .remove(sessionExpiredKey("anilist"))
                             .apply()
 
                         onSuccess()
@@ -848,6 +1149,7 @@ object ExternalAuthManager {
                             .putString(KEY_MAL_REFRESH_TOKEN, refreshToken)
                             .putLong(KEY_MAL_TOKEN_EXPIRES_AT, expiresAt)
                             .remove(KEY_MAL_CODE_VERIFIER)
+                            .remove(sessionExpiredKey("mal"))
                             .apply()
 
                         onSuccess()
@@ -906,20 +1208,21 @@ object ExternalAuthManager {
     @Synchronized
     fun refreshMalTokenSync(context: Context): String? {
         val prefs = prefs(context)
-        val refreshToken = prefs.getString(KEY_MAL_REFRESH_TOKEN, null) ?: return null
+        val refreshToken = prefs.getString(KEY_MAL_REFRESH_TOKEN, null)?.takeIf { it.isNotBlank() } ?: return null
 
         try {
-            val secretParam = if (MAL_CLIENT_SECRET.isNotBlank()) "&client_secret=$MAL_CLIENT_SECRET" else ""
-            val postData =
-                "client_id=$MAL_CLIENT_ID" +
-                secretParam +
-                "&refresh_token=$refreshToken" +
-                "&grant_type=refresh_token"
+            val formBuilder = okhttp3.FormBody.Builder()
+                .add("client_id", MAL_CLIENT_ID)
+                .add("refresh_token", refreshToken)
+                .add("grant_type", "refresh_token")
+            if (MAL_CLIENT_SECRET.isNotBlank()) {
+                formBuilder.add("client_secret", MAL_CLIENT_SECRET)
+            }
 
             val request = Request.Builder()
                 .url("https://myanimelist.net/v1/oauth2/token")
-                .post(postData.toRequestBody("application/x-www-form-urlencoded; charset=utf-8".toMediaTypeOrNull()))
-                .header("Content-Type", "application/x-www-form-urlencoded")
+                .post(formBuilder.build())
+                .header("Accept", "application/json")
                 .build()
 
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
@@ -927,7 +1230,7 @@ object ExternalAuthManager {
                     val responseText = response.body?.string() ?: ""
                     val jsonObj = JSONObject(responseText)
                     val newAccessToken = jsonObj.getString("access_token")
-                    val newRefreshToken = jsonObj.optString("refresh_token", refreshToken)
+                    val newRefreshToken = jsonObj.optString("refresh_token", refreshToken).ifBlank { refreshToken }
                     val expiresIn = jsonObj.optLong("expires_in", 2419200L)
                     val expiresAt = System.currentTimeMillis() + (expiresIn * 1000L)
 
@@ -935,36 +1238,55 @@ object ExternalAuthManager {
                         .putString(KEY_MAL_TOKEN, newAccessToken)
                         .putString(KEY_MAL_REFRESH_TOKEN, newRefreshToken)
                         .putLong(KEY_MAL_TOKEN_EXPIRES_AT, expiresAt)
+                        .remove(sessionExpiredKey("mal"))
                         .apply()
 
                     return newAccessToken
                 } else {
                     if (response.code == 400 || response.code == 401) {
-                        prefs.edit()
-                            .remove(KEY_MAL_TOKEN)
-                            .remove(KEY_MAL_REFRESH_TOKEN)
-                            .remove(KEY_MAL_TOKEN_EXPIRES_AT)
-                            .apply()
+                        markSessionExpired(context, "mal")
                     }
                     return null
                 }
             }
         } catch (e: Exception) {
-            // T3-05: printStackTrace → Log.e
             android.util.Log.e("ExternalAuthManager", "refreshMalTokenSync failed: ${e.message}", e)
             return null
         }
     }
 
     suspend fun getOrRefreshMalToken(context: Context): String? = withContext(Dispatchers.IO) {
-        val prefs = prefs(context)
-        val token = prefs.getString(KEY_MAL_TOKEN, null) ?: return@withContext null
-        val expiresAt = prefs.getLong(KEY_MAL_TOKEN_EXPIRES_AT, 0L)
+        malRefreshMutex.lock()
+        try {
+            val prefs = prefs(context)
+            val token = prefs.getString(KEY_MAL_TOKEN, null) ?: return@withContext null
+            val expiresAt = prefs.getLong(KEY_MAL_TOKEN_EXPIRES_AT, 0L)
 
-        if (System.currentTimeMillis() + 60_000 >= expiresAt) {
+            if (System.currentTimeMillis() + 60_000 >= expiresAt) {
+                val refreshed = refreshMalTokenSync(context)
+                // Geçici ağ/DNS kesintisinde [refreshMalTokenSync] null döner ama token'ı silmez.
+                // Bu durumda mevcut token döndürülür ki çağıran "bağlı değil" yerine gerçek ağ
+                // hatası alıp işi çevrimdışı kuyruğa (`PendingSyncQueue`) yazabilsin (`E89`).
+                refreshed ?: prefs.getString(KEY_MAL_TOKEN, null)
+            } else {
+                token
+            }
+        } finally {
+            malRefreshMutex.unlock()
+        }
+    }
+
+    suspend fun forceRefreshMalToken(context: Context): String? = withContext(Dispatchers.IO) {
+        malRefreshMutex.lock()
+        try {
+            val prefs = prefs(context)
+            if (prefs.getString(KEY_MAL_REFRESH_TOKEN, null).isNullOrBlank()) {
+                markSessionExpired(context, "mal")
+                return@withContext null
+            }
             refreshMalTokenSync(context)
-        } else {
-            token
+        } finally {
+            malRefreshMutex.unlock()
         }
     }
 

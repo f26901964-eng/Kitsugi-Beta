@@ -16,23 +16,74 @@ class SearchHistoryRepository(private val searchHistoryDao: SearchHistoryDao) {
     }
 
     suspend fun insertSearchQuery(item: SearchHistoryItem) {
-        if (item.query.isBlank()) return
+        val trimmed = item.query.trim()
+        if (trimmed.length < 2) return
         val owner = KitsugiAccountRepository.currentUserId()
-        val entity = SearchHistoryMapper.toEntity(item)
+        val existingEntity = searchHistoryDao.findByQueryNormalized(trimmed)
+        val existingItem = existingEntity?.let { SearchHistoryMapper.toDomain(it) }
+
+        if (existingEntity != null && existingEntity.query != trimmed) {
+            searchHistoryDao.deleteByQueryNormalized(trimmed)
+        }
+
+        val merged = item.copy(
+            query = trimmed,
+            isPinned = item.isPinned || (existingItem?.isPinned == true),
+            searchCount = if (existingItem != null) existingItem.searchCount + 1 else item.searchCount.coerceAtLeast(1)
+        )
+        val entity = SearchHistoryMapper.toEntity(merged, timestampOverride = System.currentTimeMillis())
         searchHistoryDao.insertSearchQuery(entity)
         // Giriş yapılmışsa geçmişi buluta da yaz (giriş yoksa hiçbir şey yapmaz)
+        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
+    }
+
+    suspend fun restoreSearchQuery(item: SearchHistoryItem) {
+        val trimmed = item.query.trim()
+        if (trimmed.isBlank()) return
+        val owner = KitsugiAccountRepository.currentUserId()
+        val entity = SearchHistoryMapper.toEntity(
+            item = item.copy(query = trimmed),
+            timestampOverride = item.timestamp.takeIf { it > 0L } ?: System.currentTimeMillis()
+        )
+        searchHistoryDao.insertSearchQuery(entity)
+        KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
+    }
+
+    suspend fun togglePinSearchQuery(item: SearchHistoryItem) {
+        val trimmed = item.query.trim()
+        if (trimmed.isBlank()) return
+        val owner = KitsugiAccountRepository.currentUserId()
+        val existingEntity = searchHistoryDao.findByQueryNormalized(trimmed)
+        val current = existingEntity?.let { SearchHistoryMapper.toDomain(it) } ?: item
+        if (existingEntity != null && existingEntity.query != trimmed) {
+            searchHistoryDao.deleteByQueryNormalized(trimmed)
+        }
+        val updated = current.copy(
+            query = existingEntity?.query ?: trimmed,
+            isPinned = !current.isPinned
+        )
+        val entity = SearchHistoryMapper.toEntity(
+            item = updated,
+            timestampOverride = current.timestamp.takeIf { it > 0L } ?: System.currentTimeMillis()
+        )
+        searchHistoryDao.insertSearchQuery(entity)
         KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
     }
 
     suspend fun deleteSearchQuery(query: String) {
         val owner = KitsugiAccountRepository.currentUserId()
         searchHistoryDao.deleteSearchQuery(query)
+        searchHistoryDao.deleteByQueryNormalized(query)
         KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
     }
 
-    suspend fun clearSearchHistory() {
+    suspend fun clearSearchHistory(keepPinned: Boolean = false) {
         val owner = KitsugiAccountRepository.currentUserId()
-        searchHistoryDao.clearSearchHistory()
+        if (keepPinned) {
+            searchHistoryDao.clearUnpinnedSearchHistory()
+        } else {
+            searchHistoryDao.clearSearchHistory()
+        }
         KitsugiAccountRepository.onSearchHistoryChanged(searchHistoryDao, expectedOwner = owner)
     }
 }

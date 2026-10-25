@@ -26,6 +26,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Share
@@ -82,6 +84,8 @@ fun KitsugiImageGalleryDialog(
     galleryItems: List<GalleryItem>,
     initialIndex: Int = 0,
     initialCategory: GalleryCategory? = galleryItems.getOrNull(initialIndex)?.category,
+    /** Galeri açılışta tek bir kaynağa (TMDB / Fanart.tv / AniList…) filtrelensin mi? */
+    initialSource: String? = null,
     title: String,
     isAdult: Boolean = false,
     allowDownload: Boolean = true,
@@ -108,9 +112,40 @@ fun KitsugiImageGalleryDialog(
         } catch (_: Throwable) {}
     }
 
+    // ── Kaynak (source) grupları ───────────────────────────────────────────
+    // Galeri birden fazla API'den beslenir (TMDB, Fanart.tv, AniList, Jikan…).
+    // "Kaynaklar" ve "Detaylar" bölümlerinde kaynak listesi gösterilir;
+    // seçilen kaynak pager'ı ve kategori sekmelerini birlikte daraltır.
+    val availableSources = remember(galleryItems) {
+        galleryItems
+            .map { it.source.trim() }
+            .filter { it.isNotBlank() }
+            .groupBy { it.lowercase() }
+            .map { (_, sameSource) ->
+                GallerySourceGroup(source = sameSource.first(), count = sameSource.size)
+            }
+            // Alfabetik: detay sayfasındaki "Resimler" seçicisiyle aynı sıra.
+            .sortedBy { it.source.lowercase() }
+    }
+
+    var selectedSourceFilter by remember(initialSource, availableSources) {
+        mutableStateOf(
+            initialSource?.trim()?.takeIf { it.isNotBlank() }?.let { wanted ->
+                availableSources.firstOrNull { it.source.equals(wanted, ignoreCase = true) }?.source
+            }
+        )
+    }
+
+    // Kaynak filtresi uygulanmış küme — kategori sekmeleri ve sayıları bunun üzerinden hesaplanır.
+    val sourceScopedItems = remember(galleryItems, selectedSourceFilter) {
+        val source = selectedSourceFilter
+        if (source == null) galleryItems
+        else galleryItems.filter { it.source.equals(source, ignoreCase = true) }
+    }
+
     // We only show category tabs if there are multiple categories.
-    val availableCategories = remember(galleryItems) {
-        val cats = galleryItems.map { it.category }.distinct()
+    val availableCategories = remember(sourceScopedItems) {
+        val cats = sourceScopedItems.map { it.category }.distinct()
         if (cats.size > 1) {
             listOf(null) + cats.sortedBy { it.ordinal } // null representing "All" (Tümü)
         } else {
@@ -122,12 +157,22 @@ fun KitsugiImageGalleryDialog(
         mutableStateOf<GalleryCategory?>(initialCategory)
     }
 
-    // Filtered items based on selected category
-    val filteredItems = remember(galleryItems, selectedCategoryFilter) {
-        if (selectedCategoryFilter == null) {
-            galleryItems
+    // Seçili kategori yeni kaynakta bulunmuyorsa "Tümü"ne dön — aksi hâlde pager boş kalırdı.
+    val effectiveCategoryFilter = selectedCategoryFilter?.takeIf { cat ->
+        sourceScopedItems.any { it.category == cat }
+    }
+    LaunchedEffect(selectedCategoryFilter, sourceScopedItems) {
+        if (selectedCategoryFilter != null && effectiveCategoryFilter == null) {
+            selectedCategoryFilter = null
+        }
+    }
+
+    // Filtered items based on selected category + source
+    val filteredItems = remember(sourceScopedItems, effectiveCategoryFilter) {
+        if (effectiveCategoryFilter == null) {
+            sourceScopedItems
         } else {
-            galleryItems.filter { it.category == selectedCategoryFilter }
+            sourceScopedItems.filter { it.category == effectiveCategoryFilter }
         }
     }
 
@@ -145,8 +190,9 @@ fun KitsugiImageGalleryDialog(
 
     var isFirstLaunch by remember { mutableStateOf(true) }
 
-    // Reset to page 0 if selectedCategoryFilter changes to avoid index bounds error, ignoring first launch
-    LaunchedEffect(selectedCategoryFilter) {
+    // Reset to page 0 if selectedCategoryFilter / selectedSourceFilter changes to avoid index
+    // bounds error, ignoring first launch
+    LaunchedEffect(selectedCategoryFilter, selectedSourceFilter) {
         if (isFirstLaunch) {
             isFirstLaunch = false
         } else {
@@ -199,19 +245,12 @@ fun KitsugiImageGalleryDialog(
         }
     }
 
-    // Download button pulse animation
-    val downloadPulse = rememberInfiniteTransition(label = "download_pulse")
-    val downloadGlow by downloadPulse.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "download_glow"
-    )
 
-    // Mevcut sayfa için indirme butonu durumu:
+    // PERF: Boştayken bile tüm diyaloğu (arka plan, 4K görsel katmanları,
+    // küçük resim şeritleri, rozetler) saniyede 60-120 kez yeniden compose eden sonsuz
+    // rememberInfiniteTransition kaldırıldı; sabit parlaklık sıfır kare maliyetiyle kullanılır.
+    val downloadGlow = 1f
+
     //  • Yerel dosya (file:// / content://) ise buton hiç gösterilmez — içerik zaten cihazda.
     //  • allowDownload=false ise buton hiç gösterilmez (örn. İndirilenler ekranı).
     //  • Daha önce indirilmişse buton "indirildi" (tik) durumunda gösterilir.
@@ -450,7 +489,10 @@ fun KitsugiImageGalleryDialog(
                             onShare = onShare,
                             onDismiss = { dismissWithAnimation() },
                             density = density,
-                            galleryItems = galleryItems,
+                            sourceScopedItems = sourceScopedItems,
+                            sources = availableSources,
+                            selectedSource = selectedSourceFilter,
+                            onSourceSelected = { selectedSourceFilter = it },
                             isAdult = isAdult,
                             showDownloadButton = showDownloadButton,
                             isAlreadyDownloaded = isAlreadyDownloaded,
@@ -473,7 +515,10 @@ fun KitsugiImageGalleryDialog(
                             onShare = onShare,
                             onDismiss = { dismissWithAnimation() },
                             density = density,
-                            galleryItems = galleryItems,
+                            sourceScopedItems = sourceScopedItems,
+                            sources = availableSources,
+                            selectedSource = selectedSourceFilter,
+                            onSourceSelected = { selectedSourceFilter = it },
                             isAdult = isAdult,
                             showDownloadButton = showDownloadButton,
                             isAlreadyDownloaded = isAlreadyDownloaded,
@@ -526,7 +571,12 @@ private fun GalleryLandscapeLayout(
     onShare: () -> Unit,
     onDismiss: () -> Unit,
     density: androidx.compose.ui.unit.Density,
-    galleryItems: List<GalleryItem>,
+    sourceScopedItems: List<GalleryItem>,
+    /** Tüm galerideki kaynak grupları (Kaynak filtresi listesi için). */
+    sources: List<GallerySourceGroup> = emptyList(),
+    /** Etkin kaynak filtresi — null ise tüm kaynaklar görünür. */
+    selectedSource: String? = null,
+    onSourceSelected: (String?) -> Unit = {},
     isAdult: Boolean = false,
     showDownloadButton: Boolean = true,
     isAlreadyDownloaded: Boolean = false,
@@ -588,12 +638,17 @@ private fun GalleryLandscapeLayout(
                         label = "ls_thumb_alpha_$index"
                     )
 
+                    val thumbModel = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                        url = item.url,
+                        widthDp = 62.dp,
+                        heightDp = 80.dp
+                    )
                     Box(
                         modifier = Modifier
                             .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
                     ) {
                         KitsugiNsfwImage(
-                            model = item.url,
+                            model = thumbModel,
                             contentDescription = stringResource(R.string.gallery_thumbnail_description, index),
                             isAdult = isAdult,
                             modifier = Modifier
@@ -634,7 +689,7 @@ private fun GalleryLandscapeLayout(
         ) {
             // Category filter bar at top (compact)
             Column(modifier = Modifier.fillMaxSize()) {
-                if (availableCategories.isNotEmpty()) {
+                if (availableCategories.isNotEmpty() || selectedSource != null) {
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -642,9 +697,19 @@ private fun GalleryLandscapeLayout(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Etkin kaynak filtresi — dokununca temizlenir.
+                        if (selectedSource != null) {
+                            item(key = "active_source_chip") {
+                                GalleryActiveSourceChip(
+                                    source = selectedSource,
+                                    accentColor = accentColor,
+                                    onClick = { onSourceSelected(null) }
+                                )
+                            }
+                        }
                         itemsIndexed(availableCategories) { _, cat ->
                             val isSelected = selectedCategoryFilter == cat
-                            val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
+                            val count = if (cat == null) sourceScopedItems.size else sourceScopedItems.count { it.category == cat }
                             val label = if (cat == null) stringResource(R.string.action_all_count, count) else "${cat.localizedLabel()} ($count)"
                             Box(
                                 modifier = Modifier
@@ -905,7 +970,7 @@ private fun GalleryLandscapeLayout(
                         .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf(stringResource(R.string.gallery_tab_details), stringResource(R.string.gallery_tab_other_images)).forEachIndexed { idx, tabLabel ->
+                    listOf(stringResource(R.string.gallery_tab_details), stringResource(R.string.gallery_tab_sources)).forEachIndexed { idx, tabLabel ->
                         val sel = detailTab == idx
                         Box(
                             modifier = Modifier
@@ -1073,47 +1138,45 @@ private fun GalleryLandscapeLayout(
                         }
                     }
                 } else {
-                    // ── Other images tab: small grid of same-category items ──
-                    val sameCategory = remember(currentItem, galleryItems) {
-                        if (currentItem == null) emptyList()
-                        else galleryItems.filter { it.category == currentItem.category && it.url != currentItem.url }
-                    }
-                    if (sameCategory.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.gallery_no_more_images),
-                                color = KitsugiColors.TextMuted,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(16.dp)
-                            )
+                    // ── Kaynaklar sekmesi ──
+                    //  Seçilen kaynak görsel ızgarasını ve pager'ı birlikte daraltır.
+                    //  Kullanıcı tercihi doğrultusunda bu sekmede resim bulunmaz; yalnızca kaynaklar listelenir.
+                    val totalImages = remember(sources) { sources.sumOf { it.count } }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        item(key = "source_section_title") {
+                            GallerySourceSectionTitle(stringResource(R.string.gallery_tab_sources))
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            itemsIndexed(sameCategory) { _, relatedItem ->
-                                val relIdx = filteredItems.indexOf(relatedItem)
-                                KitsugiNsfwImage(
-                                    model = relatedItem.url,
-                                    contentDescription = stringResource(R.string.gallery_related_image),
-                                    isAdult = isAdult,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(90.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                        .tvClickable(shape = RoundedCornerShape(8.dp)) {
-                                            if (relIdx >= 0) {
-                                                scope.launch { pagerState.animateScrollToPage(relIdx) }
-                                            }
-                                        },
-                                    contentScale = ContentScale.Crop
+                        if (sources.isNotEmpty()) {
+                            item(key = "source_all") {
+                                GallerySourceRow(
+                                    label = stringResource(R.string.gallery_source_all),
+                                    source = null,
+                                    count = totalImages,
+                                    selected = selectedSource == null,
+                                    onClick = { onSourceSelected(null) }
+                                )
+                            }
+                            items(sources, key = { group -> "source_${group.source.lowercase()}" }) { group ->
+                                GallerySourceRow(
+                                    label = group.source,
+                                    source = group.source,
+                                    count = group.count,
+                                    selected = group.source.equals(selectedSource, ignoreCase = true),
+                                    onClick = { onSourceSelected(group.source) }
+                                )
+                            }
+                        } else {
+                            item(key = "no_sources") {
+                                Text(
+                                    text = stringResource(R.string.gallery_no_sources_found),
+                                    color = KitsugiColors.TextMuted,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)
                                 )
                             }
                         }
@@ -1142,7 +1205,12 @@ private fun GalleryPortraitLayout(
     onShare: () -> Unit,
     onDismiss: () -> Unit,
     density: androidx.compose.ui.unit.Density,
-    galleryItems: List<GalleryItem>,
+    sourceScopedItems: List<GalleryItem>,
+    /** Tüm galerideki kaynak grupları (Kaynak filtresi listesi için). */
+    sources: List<GallerySourceGroup> = emptyList(),
+    /** Etkin kaynak filtresi — null ise tüm kaynaklar görünür. */
+    selectedSource: String? = null,
+    onSourceSelected: (String?) -> Unit = {},
     isAdult: Boolean = false,
     showDownloadButton: Boolean = true,
     isAlreadyDownloaded: Boolean = false,
@@ -1184,7 +1252,7 @@ private fun GalleryPortraitLayout(
         )
 
         // Categories filter (if multiple categories available)
-        if (availableCategories.isNotEmpty()) {
+        if (availableCategories.isNotEmpty() || selectedSource != null) {
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1192,9 +1260,19 @@ private fun GalleryPortraitLayout(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Etkin kaynak filtresi — dokununca temizlenir.
+                if (selectedSource != null) {
+                    item(key = "active_source_chip") {
+                        GalleryActiveSourceChip(
+                            source = selectedSource,
+                            accentColor = accentColor,
+                            onClick = { onSourceSelected(null) }
+                        )
+                    }
+                }
                 itemsIndexed(availableCategories) { _, cat ->
                     val isSelected = selectedCategoryFilter == cat
-                    val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
+                    val count = if (cat == null) sourceScopedItems.size else sourceScopedItems.count { it.category == cat }
                     val label = if (cat == null) stringResource(R.string.action_all_count, count) else "${cat.localizedLabel()} ($count)"
 
                     Box(
@@ -1458,12 +1536,17 @@ private fun GalleryPortraitLayout(
                             label = "thumb_alpha_$index"
                         )
 
+                        val thumbModel = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                            url = item.url,
+                            widthDp = 48.dp,
+                            heightDp = 64.dp
+                        )
                         Box(
                             modifier = Modifier
                                 .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
                         ) {
                             KitsugiNsfwImage(
-                                model = item.url,
+                                model = thumbModel,
                                 contentDescription = stringResource(R.string.gallery_thumbnail_description, index),
                                 isAdult = isAdult,
                                 modifier = Modifier
@@ -1503,6 +1586,13 @@ private fun GalleryPortraitLayout(
             item = currentPortraitItem,
             page = pagerState.currentPage,
             total = filteredItems.size,
+            sources = sources,
+            selectedSource = selectedSource,
+            onSourceSelected = { source ->
+                // Kaynak seçimi galeriyi filtreler; levha kapanır ki sonuç hemen görünsün.
+                showDetailsSheet = false
+                onSourceSelected(source)
+            },
             onDismiss = { showDetailsSheet = false }
         )
     }
@@ -1520,6 +1610,9 @@ private fun GalleryDetailsSheet(
     item: GalleryItem,
     page: Int,
     total: Int,
+    sources: List<GallerySourceGroup> = emptyList(),
+    selectedSource: String? = null,
+    onSourceSelected: (String?) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -1660,6 +1753,35 @@ private fun GalleryDetailsSheet(
 
             Spacer(Modifier.height(4.dp))
             DetailRow(label = stringResource(R.string.gallery_field_page), value = "${page + 1} / $total")
+
+            // ── Kaynak (source) filtresi ──────────────────────────────────────
+            // Detay sayfasındaki "Resimler" levhasının kaynak bölümüyle aynı dil:
+            // her satır logo + kaynak adı + görsel sayısı; dokununca galeri o kaynağa
+            // iner (levha kapanır, sonuç hemen görünür). Tek kaynak varsa bölüm gizli.
+            if (sources.size > 1) {
+                Spacer(Modifier.height(10.dp))
+                GallerySourceSectionTitle(stringResource(R.string.gallery_field_source))
+                Spacer(Modifier.height(2.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    GallerySourceRow(
+                        label = stringResource(R.string.gallery_source_all),
+                        source = null,
+                        count = sources.sumOf { it.count },
+                        selected = selectedSource == null,
+                        onClick = { onSourceSelected(null) }
+                    )
+                    sources.forEach { group ->
+                        GallerySourceRow(
+                            label = group.source,
+                            source = group.source,
+                            count = group.count,
+                            selected = group.source.equals(selectedSource, ignoreCase = true),
+                            onClick = { onSourceSelected(group.source) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }
@@ -1702,6 +1824,114 @@ private fun DetailRow(
                 .fillMaxWidth()
                 .height(1.dp)
                 .background(KitsugiColors.Border.copy(alpha = 0.25f))
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KAYNAK (SOURCE) FİLTRESİ — yardımcılar
+//   Galeri tek bir kaynağa indirilebilir. Kaynak listesi hem yatay modun sağ
+//   panelindeki "Kaynaklar" sekmesinde hem de dikey modun detay levhasında
+//   aynı görünümle (logo + ad + sayı) çizilir.
+// ─────────────────────────────────────────────────────────────────────────────
+/** Bir kaynaktan gelen görsel sayısı (küçük/büyük harf farkı gözetilmez). */
+private data class GallerySourceGroup(val source: String, val count: Int)
+
+@Composable
+private fun GallerySourceSectionTitle(text: String) {
+    Text(
+        text = text,
+        color = KitsugiColors.TextMuted,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 0.6.sp,
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun GallerySourceRow(
+    label: String,
+    source: String?,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val accent = LocalKitsugiAccent.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) accent.copy(alpha = 0.14f) else Color.Transparent)
+            .border(
+                width = 1.dp,
+                color = if (selected) accent.copy(alpha = 0.45f) else KitsugiColors.Border.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onClick)
+            .padding(horizontal = 9.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (source == null) {
+            Icon(
+                imageVector = Icons.Rounded.Folder,
+                contentDescription = null,
+                tint = if (selected) accent else Color(0xFFFFB800),
+                modifier = Modifier.size(20.dp)
+            )
+        } else {
+            KitsugiPlatformLogo(platformId = source, size = 20.dp, cornerRadius = 5.dp)
+        }
+        Text(
+            text = label,
+            color = if (selected) accent else KitsugiColors.TextPrimary,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = count.toString(),
+            color = if (selected) accent else KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/** Galeride etkin kaynak filtresini gösteren küçük çip — dokununca filtre kalkar. */
+@Composable
+private fun GalleryActiveSourceChip(
+    source: String,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(accentColor.copy(alpha = 0.16f))
+            .border(1.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(999.dp))
+            .tvClickable(shape = RoundedCornerShape(999.dp), onClick = onClick)
+            .padding(start = 6.dp, end = 9.dp, top = 3.dp, bottom = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        KitsugiPlatformLogo(platformId = source, size = 16.dp, cornerRadius = 4.dp)
+        Text(
+            text = source,
+            color = accentColor,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Icon(
+            imageVector = Icons.Rounded.Close,
+            contentDescription = stringResource(R.string.gallery_clear_source_filter),
+            tint = accentColor,
+            modifier = Modifier.size(13.dp)
         )
     }
 }
@@ -1865,13 +2095,18 @@ private fun GalleryImagePage(
                 isAdult = isAdult,
                 modifier = Modifier
                     .fillMaxSize(0.88f)
-                    .graphicsLayer(
-                        scaleX = zoomScale * dominoScale,
-                        scaleY = zoomScale * dominoScale,
-                        translationX = offset.x + dominoTranslationX,
-                        translationY = offset.y,
+                    .graphicsLayer {
+                        val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        val zoomed = zoomScale > 1f
+                        val dominoScale = if (zoomed) 1f else (1f - (abs(pageOffset) * 0.15f)).coerceIn(0.75f, 1f)
+                        val dominoAlpha = if (zoomed) 1f else (1f - (abs(pageOffset) * 0.45f)).coerceIn(0.35f, 1f)
+                        val dominoTranslationX = if (zoomed) 0f else (pageOffset * 60f)
+                        scaleX = zoomScale * dominoScale
+                        scaleY = zoomScale * dominoScale
+                        translationX = offset.x + dominoTranslationX
+                        translationY = offset.y
                         alpha = dominoAlpha
-                    )
+                    }
                     .clip(RoundedCornerShape(18.dp)),
                 contentScale = ContentScale.Fit
             )

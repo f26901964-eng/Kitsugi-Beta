@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import android.app.Application
+import com.kitsugi.animelist.data.platform.ListPlatform
+import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.data.platform.PlatformFailureRegistry
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -56,6 +58,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var showAdultContentState = false
     private var searchHistoryEnabledState = true
     private var searchJob: Job? = null
+    private var undoHistoryDismissJob: Job? = null
 
     private val mixedMediaEngines = setOf(
         SearchSourceEngine.ANILIST, SearchSourceEngine.MAL,
@@ -215,6 +218,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             settingsDataStore.settingsFlow.collect { settings ->
                 showAdultContentState = settings.showAdultContent
                 searchHistoryEnabledState = settings.searchHistoryEnabled
+                _uiState.update { it.copy(searchHistoryEnabled = settings.searchHistoryEnabled) }
             }
         }
         viewModelScope.launch {
@@ -449,6 +453,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 genres = filters.genres,
                 excludedGenres = filters.excludedGenres,
                 tags = filters.tags,
+                organizations = filters.organizations,
                 startYear = filters.minYear,
                 endYear = filters.maxYear,
                 season = filters.season?.let { s -> KitsugiMediaSeason.entries.find { e -> e.apiValue == s } },
@@ -459,12 +464,22 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         search(resetPage = true)
     }
 
+    /** UI-only selection (v2.4.341); do not start an unfiltered provider search. */
+    fun updateOrganizations(organizations: List<OrgFilter>) {
+        _uiState.update { it.copy(organizations = organizations.distinctBy { org -> org.canonicalKey }) }
+        val filters = _uiState.value
+        android.util.Log.d("KitsugiSearch", "Arama filtreleri: tür=${filters.genres.size} " +
+            "etiket=${filters.tags.size} kurum=${filters.organizations.size} | " +
+            "kurum sağlayıcı eşlemesi henüz etkin değil")
+    }
+
     fun resetFilters() {
         _uiState.update { current ->
             val cleared = current.copy(
                 genres = emptyList(),
                 excludedGenres = emptyList(),
                 tags = emptyList(),
+                organizations = emptyList(),
                 selectedFormats = emptyList(),
                 selectedStatuses = emptyList(),
                 country = null,
@@ -1171,6 +1186,73 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * Bu aramada kullanıcıya gösterilecek kaynak hata rozetlerini süzer.
+     *
+     * KÖK NEDEN:
+     * [PlatformFailureRegistry] süreç genelindedir ve ağ katmanı (PlatformFailureInterceptor)
+     * her 4xx/5xx yanıtını kaydeder. Bir kaynak rafını başarıyla doldursa bile o kaynağın
+     * iç çağrılarından biri (yedek host denemesi, sayfa sondası, karakter araması, arka
+     * planda çalışan bildirim/takvim isteği) 404 döndüğünde, arama ekranı bu kaydı
+     * "Kayıt bulunamadı (HTTP 404)" rozeti olarak sonuçların üstüne basıyordu. Kullanıcı
+     * ise Kitsu/AniList raflarında sonuçları görüyordu → çelişkili, güven kırıcı rozet.
+     *
+     * KURAL:
+     *  - "Tümü" (raf) aramasında rozet yalnızca **planlanmış olduğu hâlde boş kalan**
+     *    kaynaklar için gösterilir; sonuç üreten kaynak başarılı sayılır.
+     *  - Tek kaynak sekmesinde rozet yalnızca o kaynağın sonucu hiç yoksa gösterilir.
+     */
+    private fun visibleSourceErrorCodes(
+        state: SearchUiState,
+        sinceMillis: Long,
+    ): Map<ListPlatform, PlatformErrorCode> {
+        val failures = PlatformFailureRegistry.failuresSince(sinceMillis)
+        if (failures.isEmpty()) return emptyMap()
+
+        val shelfSearch = (state.currentTab == KitsugiSearchTab.All ||
+            state.selectedEngine == SearchSourceEngine.ALL) &&
+            state.selectedScope != SearchScope.CHARACTER &&
+            state.selectedScope != SearchScope.STAFF
+
+        if (shelfSearch) {
+            val multi = state.multiResults
+            val plan = planAllSourcesForState(state, state.selectedScope)
+            // Planlanmış + sonuç üretmiş kaynaklar "başarılı" sayılır.
+            val healthy = buildSet {
+                if (plan.aniList && multi.aniListResults.isNotEmpty()) add(ListPlatform.ANILIST)
+                if (plan.mal && multi.malResults.isNotEmpty()) add(ListPlatform.MAL)
+                if (plan.tmdb && multi.tmdbResults.isNotEmpty()) add(ListPlatform.TMDB)
+                if (plan.shikimori && multi.shikimoriResults.isNotEmpty()) add(ListPlatform.SHIKIMORI)
+                if (plan.kitsu && multi.kitsuResults.isNotEmpty()) add(ListPlatform.KITSU)
+                if (plan.simkl && multi.simklResults.isNotEmpty()) add(ListPlatform.SIMKL)
+                if (plan.bangumi && multi.bangumiResults.isNotEmpty()) add(ListPlatform.BANGUMI)
+            }
+            return failures.filterKeys { it !in healthy }
+        }
+
+        // Tek kaynak sekmesi (AniList, MAL, Kitsu…): yalnızca sonuç yoksa rozet göster.
+        if (state.selectedEngine != SearchSourceEngine.ALL) {
+            if (state.results.isNotEmpty()) return emptyMap()
+            val platform = state.selectedEngine.toListPlatform() ?: return emptyMap()
+            return failures[platform]?.let { mapOf(platform to it) } ?: emptyMap()
+        }
+
+        // Karakter/Personel kapsamları: sonuç varsa rozet gösterilmez.
+        return if (state.results.isEmpty()) failures else emptyMap()
+    }
+
+    /** Arama motoru → hata kaydındaki liste kaynağı eşlemesi. */
+    private fun SearchSourceEngine.toListPlatform(): ListPlatform? = when (this) {
+        SearchSourceEngine.ANILIST -> ListPlatform.ANILIST
+        SearchSourceEngine.MAL -> ListPlatform.MAL
+        SearchSourceEngine.TMDB -> ListPlatform.TMDB
+        SearchSourceEngine.SHIKIMORI -> ListPlatform.SHIKIMORI
+        SearchSourceEngine.KITSU -> ListPlatform.KITSU
+        SearchSourceEngine.SIMKL -> ListPlatform.SIMKL
+        SearchSourceEngine.BANGUMI -> ListPlatform.BANGUMI
+        SearchSourceEngine.ALL -> null
+    }
+
+    /**
      * Aramanın tamamı başarısız olduğunda kodu seçer. Tek kaynaklı aramada o kaynağın
      * kaydı; "Tümü" aramasında bu süre içindeki en son kaynak hatası kullanılır.
      */
@@ -1205,7 +1287,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchHistoryItem(
                 query = state.query.trim(),
                 platform = state.selectedPlatform,
-                mediaType = state.selectedMediaType
+                mediaType = state.selectedMediaType,
+                timestamp = System.currentTimeMillis(),
+                engine = state.selectedEngine,
+                scope = state.selectedScope
             )
         } else null
 
@@ -1258,7 +1343,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         page = 1,
                         hasNextPage = hasNext,
                         errorMessage = if (visible.isEmpty()) KitsugiStrings.get(R.string.inline_no_results_found_5d2ab77) else null,
-                        sourceErrorCodes = PlatformFailureRegistry.failuresSince(searchStartedAt),
+                        sourceErrorCodes = visibleSourceErrorCodes(it, searchStartedAt),
                         platformErrorCode = null
                     )
                 }
@@ -1273,7 +1358,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         isLoading = false,
                         errorMessage = if (it.results.isEmpty()) e.message ?: KitsugiStrings.get(R.string.arama_sirasinda_bir_hata_olustu) else null,
                         platformErrorCode = if (it.results.isEmpty()) failureCode else null,
-                        sourceErrorCodes = PlatformFailureRegistry.failuresSince(searchStartedAt),
+                        sourceErrorCodes = visibleSourceErrorCodes(it, searchStartedAt),
                         hasNextPage = false
                     )
                 }
@@ -2333,24 +2418,133 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         executeSearchForPage(queryText, 1).first
 
     fun clearHistory() {
+        clearHistory(keepPinned = false)
+    }
+
+    fun clearHistory(keepPinned: Boolean) {
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = null) }
         viewModelScope.launch {
-            searchHistoryRepository.clearSearchHistory()
+            searchHistoryRepository.clearSearchHistory(keepPinned = keepPinned)
         }
     }
 
     fun removeHistoryItem(item: SearchHistoryItem) {
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = item) }
         viewModelScope.launch {
             searchHistoryRepository.deleteSearchQuery(item.query)
         }
+        undoHistoryDismissJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(5_000L)
+            _uiState.update { current ->
+                if (current.lastDeletedHistoryItem?.query == item.query) {
+                    current.copy(lastDeletedHistoryItem = null)
+                } else {
+                    current
+                }
+            }
+        }
+    }
+
+    fun undoRemoveHistoryItem() {
+        val deleted = _uiState.value.lastDeletedHistoryItem ?: return
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = null) }
+        viewModelScope.launch {
+            searchHistoryRepository.restoreSearchQuery(deleted)
+        }
+    }
+
+    fun dismissUndoHistory() {
+        undoHistoryDismissJob?.cancel()
+        _uiState.update { it.copy(lastDeletedHistoryItem = null) }
+    }
+
+    fun togglePinHistoryItem(item: SearchHistoryItem) {
+        viewModelScope.launch {
+            searchHistoryRepository.togglePinSearchQuery(item)
+        }
+    }
+
+    fun toggleSearchHistoryRecording() {
+        val nextEnabled = !_uiState.value.searchHistoryEnabled
+        viewModelScope.launch {
+            settingsDataStore.setSearchHistoryEnabled(nextEnabled)
+        }
+    }
+
+    fun fillQueryFromHistory(queryText: String) {
+        val cleaned = queryText.trim()
+        if (cleaned.isEmpty()) return
+        setQuery(cleaned)
     }
 
     fun applyHistoryItem(item: SearchHistoryItem) {
+        undoHistoryDismissJob?.cancel()
         _uiState.update {
             it.copy(
-                query = item.query
+                query = item.query.trim(),
+                lastDeletedHistoryItem = null
             )
         }
-        search()
+        search(resetPage = true)
+    }
+
+    fun applyHistoryItemWithSource(item: SearchHistoryItem) {
+        undoHistoryDismissJob?.cancel()
+        saveCurrentStateToCache()
+        val targetEngine = item.engine
+        val scopes = targetEngine.availableScopes()
+        val targetScope = if (item.scope in scopes) item.scope else scopes.first()
+
+        val mappedPlatform = when (targetEngine) {
+            SearchSourceEngine.ALL -> SearchPlatform.All
+            SearchSourceEngine.ANILIST -> SearchPlatform.AniList
+            SearchSourceEngine.MAL -> SearchPlatform.MAL
+            SearchSourceEngine.TMDB -> SearchPlatform.TMDB
+            SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
+            SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
+            SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+            SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
+        }
+        val mappedMediaType = when (targetScope) {
+            SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> MediaType.Manga
+            SearchScope.MOVIE -> MediaType.Movie
+            SearchScope.TV -> MediaType.TvShow
+            else -> MediaType.Anime
+        }
+        val mappedTab = when {
+            targetScope == SearchScope.CHARACTER -> KitsugiSearchTab.Character
+            targetScope == SearchScope.STAFF -> KitsugiSearchTab.Staff
+            targetEngine == SearchSourceEngine.ALL -> KitsugiSearchTab.All
+            targetEngine == SearchSourceEngine.ANILIST &&
+                targetScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) -> KitsugiSearchTab.Manga
+            targetEngine == SearchSourceEngine.ANILIST -> KitsugiSearchTab.Anime
+            targetEngine == SearchSourceEngine.MAL -> KitsugiSearchTab.MAL
+            targetEngine == SearchSourceEngine.TMDB -> KitsugiSearchTab.TMDB
+            targetEngine == SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
+            targetEngine == SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
+            targetEngine == SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            targetEngine == SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
+            else -> KitsugiSearchTab.All
+        }
+
+        _uiState.update {
+            it.copy(
+                query = item.query.trim(),
+                selectedEngine = targetEngine,
+                selectedScope = targetScope,
+                selectedPlatform = mappedPlatform,
+                selectedMediaType = mappedMediaType,
+                currentTab = mappedTab,
+                page = 1,
+                hasNextPage = true,
+                lastDeletedHistoryItem = null
+            )
+        }
+        persistSearchSelection()
+        search(resetPage = true)
     }
 
     fun clearResults() {

@@ -73,12 +73,15 @@ import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.screens.mylist.EmptyListResultCard
 import com.kitsugi.animelist.ui.screens.mylist.MyListFlatContent
-import com.kitsugi.animelist.ui.screens.mylist.MyListGroupedContent
+import com.kitsugi.animelist.ui.screens.mylist.MyListSectionedContent
 import com.kitsugi.animelist.ui.screens.mylist.MyListHeaderSection
 import com.kitsugi.animelist.ui.screens.mylist.MyListSingleSourceBar
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SORT_DEFAULT
+import com.kitsugi.animelist.ui.screens.mylist.MyListGroupingIds
 import com.kitsugi.animelist.ui.screens.mylist.applySort
 import com.kitsugi.animelist.ui.screens.mylist.filterMyListEntries
-import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntriesByStatus
+import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntries
+import com.kitsugi.animelist.ui.screens.mylist.isExplicitMyListSort
 import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiListStatusBottomSheet
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -139,7 +142,10 @@ fun KitsugiUserMediaListScreen(
     var selectedScoreFilterId by rememberSaveable(userId) { mutableStateOf("all") }
     var selectedYearFilterId by rememberSaveable(userId) { mutableStateOf("all") }
     var selectedExtraFilterId by rememberSaveable(userId) { mutableStateOf("all") }
-    var selectedSortId by rememberSaveable(userId) { mutableStateOf("newest") }
+    var selectedSortId by rememberSaveable(userId) { mutableStateOf(MY_LIST_SORT_DEFAULT) }
+    // Gruplama, sıralamadan bağımsız: profil listesi de Listem ile aynı varsayılan
+    // (eklenme tarihi) bölümlerini gösterir. Kullanıcı isterse durum/düz listeye geçer.
+    var selectedGroupId by rememberSaveable(userId) { mutableStateOf(MyListGroupingIds.ADDED) }
 
     var showSearchField by rememberSaveable(userId) { mutableStateOf(false) }
     var showFilterPanel by rememberSaveable(userId) { mutableStateOf(false) }
@@ -186,19 +192,14 @@ fun KitsugiUserMediaListScreen(
             selectedExtraFilterId = selectedExtraFilterId
         )
     }
-    val visibleEntries = remember(filteredEntries, selectedSortId, sourceItemByListEntryId) {
-        when (selectedSortId) {
-            "newest" -> filteredEntries.sortedByDescending { entry ->
-                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
-            }
-            "oldest" -> filteredEntries.sortedBy { entry ->
-                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
-            }
-            else -> applySort(filteredEntries, selectedSortId)
-        }
+    // Eklenme zamanı artık modelde taşınıyor (toListemMediaEntry, addedAt = AniList
+    // createdAt): "Son/İlk eklenen" için buradaki özel durum kalktı, tek motor
+    // (applySort) her iki ekranda da aynı sözleşmeyle sıralıyor.
+    val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
+        applySort(filteredEntries, selectedSortId, appSettings.titleLanguage)
     }
-    val groupedVisibleEntries = remember(visibleEntries) {
-        groupMyListEntriesByStatus(visibleEntries)
+    val groupedVisibleEntries = remember(visibleEntries, selectedGroupId) {
+        groupMyListEntries(visibleEntries, selectedGroupId)
     }
 
     val hasActiveFilters = selectedStatusFilterId != "all" ||
@@ -207,7 +208,8 @@ fun KitsugiUserMediaListScreen(
         selectedScoreFilterId != "all" ||
         selectedYearFilterId != "all" ||
         selectedExtraFilterId != "all" ||
-        (selectedSortId != "newest" && selectedSortId != "added")
+        selectedGroupId != MyListGroupingIds.ADDED ||
+        isExplicitMyListSort(selectedSortId)
 
     val showScrollToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 3 }
@@ -304,6 +306,7 @@ fun KitsugiUserMediaListScreen(
                 selectedYearFilterId = selectedYearFilterId,
                 selectedExtraFilterId = selectedExtraFilterId,
                 selectedSortId = selectedSortId,
+                selectedGroupId = selectedGroupId,
                 onStatusFilterChange = { selectedStatusFilterId = it },
                 onTypeFilterChange = { selectedTypeFilterId = it },
                 onFavoriteFilterChange = { selectedFavoriteFilterId = it },
@@ -311,6 +314,7 @@ fun KitsugiUserMediaListScreen(
                 onYearFilterChange = { selectedYearFilterId = it },
                 onExtraFilterChange = { selectedExtraFilterId = it },
                 onSortChange = { selectedSortId = it },
+                onGroupChange = { selectedGroupId = it },
                 activeTabScrollState = listState,
                 accentColor = accentColor,
                 horizontalPadding = horizontalPadding,
@@ -441,8 +445,12 @@ fun KitsugiUserMediaListScreen(
                                     selectedSortId = selectedSortId
                                 )
                             }
-                        } else if (selectedStatusFilterId == "completed" || !appSettings.separatedListStyle) {
-                            // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
+                        } else if (selectedGroupId == MyListGroupingIds.NONE ||
+                            selectedStatusFilterId == "completed" ||
+                            !appSettings.separatedListStyle
+                        ) {
+                            // "Düz liste" gruplaması, Tamamlandı filtresi ya da "Ayrılmış liste
+                            // tarzını kullan" kapalıysa düz akış.
                             MyListFlatContent(
                                 visibleEntries = visibleEntries,
                                 selectedListLayoutId = selectedListLayoutId,
@@ -452,15 +460,14 @@ fun KitsugiUserMediaListScreen(
                                 blurAdultMedia = appSettings.blurAdultMedia,
                                 gridColumns = gridColumns,
                                 onEntryClick = ::openEntry,
-                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
-                                onIncrementProgress = ::openEntry,
+                                // Başkasının listesi değiştirilemez; düzenleme kısayolu gizlenir.
                                 onPosterLongClick = { imageUrl ->
                                     activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
                                 }
                             )
                         } else {
-                            MyListGroupedContent(
-                                groupedEntries = groupedVisibleEntries,
+                            MyListSectionedContent(
+                                sections = groupedVisibleEntries,
                                 selectedListLayoutId = selectedListLayoutId,
                                 titleLanguage = appSettings.titleLanguage,
                                 scoreFormat = appSettings.scoreFormat,
@@ -468,8 +475,7 @@ fun KitsugiUserMediaListScreen(
                                 blurAdultMedia = appSettings.blurAdultMedia,
                                 gridColumns = gridColumns,
                                 onEntryClick = ::openEntry,
-                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
-                                onIncrementProgress = ::openEntry,
+                                // Başkasının listesi değiştirilemez; düzenleme kısayolu gizlenir.
                                 onPosterLongClick = { imageUrl ->
                                     activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
                                 }
@@ -625,6 +631,7 @@ private fun UserMediaListItem.toListemMediaEntry(): MediaEntry = MediaEntry(
     isPrivate = isPrivate,
     isHiddenFromStatusLists = isHiddenFromStatusLists,
     updatedAt = updatedAt,
+    addedAt = createdAt,
     titleEnglish = titleEnglish,
     titleJapanese = titleNative,
     aniListEntryId = listEntryId

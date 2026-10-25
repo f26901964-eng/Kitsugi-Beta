@@ -11,6 +11,7 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.BangumiLibraryTitleHydrator
+import com.kitsugi.animelist.data.remote.MalAxisLibraryTitleHydrator
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -52,25 +53,31 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     )
 
     /**
-     * Birleşik kütüphane ("Tümü" sekmesi) hesabının SON sonucu (UI önbelleği).
+     * Birleşik kütüphane ("Tümü") ve sekme bazlı kütüphane bölümlendirmesinin SON sonucu (UI önbelleği).
      *
-     * PERF: gruplama artık arka planda hesaplanıp yayınlanıyor; detay sayfasına gidilip
-     * dönüldüğünde ekran yeniden kompoze olurken sonuç hazır olsun ki liste bir-iki kare
-     * boşalıp dolmasın. Girdi değişince MyListScreen hesabı yeniden koşturup bunu günceller;
-     * eski veri en fazla bir kare görünür (kullanıcının son gördüğü listedir).
+     * PERF: gruplama ve kardeş başlık tamamlama arka planda hesaplanıp yayınlanıyor; detay sayfasına
+     * gidilip dönüldüğünde ekran yeniden kompoze olurken sonuç hazır olsun ki liste bir-iki kare
+     * boşalıp dolmasın.
      */
-    // internal: [CombinedMyListLibrary] internal bir tip; public üye internal tipi gösteremez.
-    internal var cachedCombinedLibrary: CombinedMyListLibrary = CombinedMyListLibrary.EMPTY
+    internal var cachedLibrarySnapshot: MyListLibrarySnapshot = MyListLibrarySnapshot.EMPTY
         private set
 
-    internal fun rememberCombinedLibrary(value: CombinedMyListLibrary) {
-        cachedCombinedLibrary = value
+    internal fun rememberLibrarySnapshot(value: MyListLibrarySnapshot) {
+        cachedLibrarySnapshot = value
     }
+
+    // Plain caches, not Compose state: retain the last complete search and prepared
+    // documents across detail navigation without invalidating the screen per keystroke.
+    internal var cachedPreparedSearch: PreparedMyListSearch? = null
+    internal var cachedSearchResult: MyListSearchUiCache? = null
 
     init {
         // Bozuk Simkl subtitle'larını ve kaynak etiketlerini tek seferlik onar
         viewModelScope.launch {
             val dao = KitsugiDatabase.getDatabase(context).mediaEntryDao()
+            // Önce eski TMDB katalog satırlarını gerçek Simkl üyeliğine taşı; bu işlem
+            // yalnızca yerel DB'de çalışır ve uzak listeden hiçbir kayıt silmez.
+            TmdbLibraryEntryMigration.run(dao)
             repairBrokenSimklSubtitles(dao)
             repairMisclassifiedSources(dao)
             // Kitsu kimlik alanını kanonik stableId uzayına taşı (eski sürüm import'ları
@@ -81,6 +88,10 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
             // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
+            // Eski/boş `addedAt` satırlarını eldeki tek zaman damgasıyla onar: aksi halde
+            // MAL/Bangumi gibi kaynaklarda eklenme zamanı vermeyen satırlar Listem'in
+            // "Eklenme Tarihi Bilinmiyor" kovasında birikip sıralamayı çorbaya çeviriyordu.
+            repairMissingAddedAt(dao)
         }
 
         // Bangumi koleksiyonundan içe aktarılan satırlar YALNIZCA özgün (Japonca/Çince)
@@ -104,14 +115,16 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     fun refreshBangumiTitles(titleLanguage: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val db = KitsugiDatabase.getDatabase(context)
                 val language = titleLanguage
                     ?: runCatching { SettingsDataStore(context).settingsFlow.first().titleLanguage }
                         .getOrDefault("ENGLISH")
-                BangumiLibraryTitleHydrator.hydrate(KitsugiDatabase.getDatabase(context), language)
+                BangumiLibraryTitleHydrator.hydrate(db, language)
+                MalAxisLibraryTitleHydrator.hydrate(db)
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                android.util.Log.w("MyListViewModel", "Bangumi başlık tamamlama atlandı: ${error.message}")
+                android.util.Log.w("MyListViewModel", "Kütüphane başlık tamamlama atlandı: ${error.message}")
             }
         }
     }
@@ -145,6 +158,38 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * `addedAt` alanı boş kalmış satırları onarır (tek yerden, tek yazımla).
+     *
+     * Neden gerekli: "Son eklenen" sıralaması ve dönem başlıkları `addedAt`e bakar.
+     * Alan v30 göçünde dolduruldu, ama o göçten sonra farklı yazma yollarından
+     * (yedek geri yükleme, çapraz eşitlemenin kardeş satır aynası, çok eski
+     * sürümlerden kalan 0 damgalı satırlar) geçen kayıtlar 0 kalabiliyor. Kaynak
+     * eklenme zamanı vermiyorsa (MAL, Bangumi) elimizdeki tek zaman damgası
+     * `updatedAt`'tir; bu, gerçek eklenme anının bir yaklaşığıdır ama satırın
+     * "bilinmiyor" kovasına düşüp sıralamayı bozmasından iyidir.
+     *
+     * Yalnızca `addedAt = 0` + `updatedAt > 0` satırlara dokunur, topluca tek
+     * `updateAll` çağrısı yapar ve düzeltilecek satır yoksa HİÇ yazmaz (Room
+     * invalidation / gereksiz yeniden hesaplama olmasın).
+     */
+    private suspend fun repairMissingAddedAt(
+        dao: com.kitsugi.animelist.data.local.MediaEntryDao
+    ) {
+        val rows = runCatching { dao.getAll() }.getOrNull() ?: return
+        if (rows.isEmpty()) return
+        val repaired = rows.mapNotNull { row ->
+            if (row.addedAt > 0L) return@mapNotNull null
+            // Bangumi milisaniye yazar; normalize edilmeden `addedAt`e kopyalanırsa
+            // satır ×1000 ile her zaman en üste çıkardı.
+            val fallback = com.kitsugi.animelist.model.normalizeToEpochSeconds(row.updatedAt)
+            if (fallback <= 0L) null else row.copy(addedAt = fallback)
+        }
+        if (repaired.isEmpty()) return
+        runCatching { dao.updateAll(repaired) }
+            .onFailure { android.util.Log.w("MyListViewModel", "addedAt onarımı atlandı: ${it.message}") }
+    }
+
     private suspend fun repairMisclassifiedSources(
         dao: com.kitsugi.animelist.data.local.MediaEntryDao
     ) {
@@ -153,7 +198,17 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
 
         if (isAniListConnected && !isMalConnected) {
             val all = dao.getAll()
-            val misclassified = all.filter { it.source == "jikan" || it.source == "mal" }
+            val ownedAniListIds = all.asSequence()
+                .filter { it.source.equals("anilist", ignoreCase = true) }
+                .mapNotNull { it.aniListEntryId?.takeIf { id -> id > 0 } }
+                .toHashSet()
+            val misclassified = all.filter { entity ->
+                (entity.source == "jikan" || entity.source == "mal") &&
+                    entity.malListId == null &&
+                    entity.aniListEntryId != null &&
+                    entity.aniListEntryId > 0 &&
+                    entity.aniListEntryId !in ownedAniListIds
+            }
             misclassified.forEach { entity ->
                 dao.update(entity.copy(source = "anilist"))
             }
@@ -207,7 +262,7 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
 
     /**
      * Bangumi liste ekranından ekleme/düzenleme: diğer kaynaklarla aynı hat kullanılır —
-     * kayıt önce yerele yazılır, sonra canlı eşitleme Bangumi dahil altı kaynağa birden
+     * kayıt önce yerele yazılır, sonra canlı eşitleme Bangumi ve TMDB dahil yedi kaynağa birden
      * yayılır (AniList · MAL · Simkl · Kitsu · Shikimori · Bangumi).
      *
      * Eski akış önce Bangumi'ye yazıyor, başarısız olursa kaydı yerele bile kaydetmiyordu:

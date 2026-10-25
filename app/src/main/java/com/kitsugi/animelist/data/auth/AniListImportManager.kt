@@ -55,6 +55,33 @@ object AniListImportManager {
         }
     }
 
+    /**
+     * **Fark (delta) çekimi**: yalnızca [sinceEpochSeconds]'ten sonra değişen liste
+     * kayıtlarını getirir (AniList `mediaList(updatedAt_greater: ...)` süzgeci).
+     *
+     * Neden: liste yenilemesi her seferinde tüm sayfaları (kullanıcı başına yüzlerce
+     * kayıt, 50'lik sayfalar) baştan çekiyordu. Kullanıcı yalnızca 1 bölüm işaretlediyse
+     * değişen tek satırı almak yeterli; tam uzlaştırma (silinenleri de yakalamak için)
+     * periyodik olarak [ListRefreshPolicy] tarafından yapılır.
+     *
+     * NOT: Delta silmeleri GÖREMEZ. Bu yüzden çağıran taraf `allowDelete = false` ile
+     * birleştirmelidir; silme yalnızca tam senkron turunda ele alınır.
+     *
+     * @throws IllegalStateException şema/parametre reddederse (çağıran tam listeye düşer)
+     */
+    suspend fun fetchListsSince(
+        accessToken: String,
+        sinceEpochSeconds: Long
+    ): List<MediaEntry> {
+        return withContext(Dispatchers.IO) {
+            val viewer = fetchViewer(accessToken)
+            val since = sinceEpochSeconds.coerceAtLeast(1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            val anime = fetchMediaEntries(accessToken, viewer.userId, "ANIME", since)
+            val manga = fetchMediaEntries(accessToken, viewer.userId, "MANGA", since)
+            anime + manga
+        }
+    }
+
     private fun fetchViewer(
         accessToken: String
     ): ViewerInfo {
@@ -90,19 +117,33 @@ object AniListImportManager {
     private fun fetchMediaEntries(
         accessToken: String,
         userId: Int,
-        mediaType: String
+        mediaType: String,
+        updatedSinceSec: Int? = null
     ): List<MediaEntry> {
         val allEntries = mutableListOf<MediaEntry>()
         var page = 1
         var hasNextPage = true
 
+        // Delta çekiminde sorguya `updatedAt_greater` süzgeci eklenir; değişken de
+        // yalnızca o durumda gönderilir (tam çekim sorgusu birebir aynı kalır).
+        val deltaFilter = if (updatedSinceSec != null) {
+            ", updatedAt_greater: ${'$'}updatedSince"
+        } else {
+            ""
+        }
+        val deltaVariable = if (updatedSinceSec != null) {
+            ", ${'$'}updatedSince: Int"
+        } else {
+            ""
+        }
+
         val query = """
-            query (${'$'}userId: Int, ${'$'}page: Int) {
+            query (${'$'}userId: Int, ${'$'}page: Int$deltaVariable) {
                 Page(page: ${'$'}page, perPage: 50) {
                     pageInfo {
                         hasNextPage
                     }
-                    mediaList(userId: ${'$'}userId, type: $mediaType, sort: [MEDIA_ID]) {
+                    mediaList(userId: ${'$'}userId, type: $mediaType, sort: [MEDIA_ID]$deltaFilter) {
                         id
                         status
                         progress
@@ -113,7 +154,9 @@ object AniListImportManager {
                         private
                         notes
                         repeat
+                        priority
                         hiddenFromStatusLists
+                        createdAt
                         updatedAt
                         startedAt {
                             year
@@ -159,6 +202,9 @@ object AniListImportManager {
             val variables = JSONObject()
                 .put("userId", userId)
                 .put("page", page)
+            if (updatedSinceSec != null) {
+                variables.put("updatedSince", updatedSinceSec)
+            }
 
             val response = postGraphQl(
                 accessToken = accessToken,
@@ -251,11 +297,20 @@ object AniListImportManager {
                 val endDate = item.optJSONObject("completedAt").toLocalDateString()
 
                 val isPrivate = item.optBoolean("private", false)
+                // AniList `priority` 0..255 (0 = yok). Sorgulanmadığı için öncelik bilgisi
+                // içe aktarmada tamamen kayboluyordu; alan `SyncField.PRIORITY` ile
+                // yazılabildiği hâlde okunmuyordu.
+                val priority = item.optInt("priority", 0).takeIf { it > 0 }
                 val notes = item.optNullableString("notes")
                 val repeatCount = item.optInt("repeat", 0)
                 val volumeProgress = item.optInt("progressVolumes", 0)
                 val isHiddenFromStatusLists = item.optBoolean("hiddenFromStatusLists", false)
                 val updatedAt = item.optLong("updatedAt", 0L)
+                // "Son eklenen" sıralamasının asıl anahtarı: kaydın AniList listesine
+                // eklendiği an (epoch sn). Yerel DB id'si bu iş için kullanılamaz —
+                // bu sorgu MEDIA_ID sırasıyla sayfaladığı için id sırası ekleme
+                // sırasıyla tamamen alakasızdır.
+                val addedAt = item.optLong("createdAt", 0L)
                 val titleEnglish = english
                 val titleJapanese = native
 
@@ -286,11 +341,18 @@ object AniListImportManager {
                     endDate = endDate,
                     notes = notes,
                     isPrivate = isPrivate,
+                    priority = priority,
                     isHiddenFromStatusLists = isHiddenFromStatusLists,
-                    isRepeating = repeatCount > 0,
+                    // `isRepeating` UI'da "Yeniden İzleniyor/Okunuyor" anahtarıdır, "geçmişte
+                    // tekrar yapıldı" anlamına GELMEZ. `repeat` sayısı > 0 olan her kaydı
+                    // tekrar-ediliyor saymak, MAL'a `is_rewatching=1`, Kitsu'ya
+                    // `reconsuming=true` yazılmasına ve kullanıcının bitmiş yapımlarının
+                    // "şu an tekrar izleniyor" görünmesine yol açıyordu.
+                    isRepeating = item.optNullableString("status") == "REPEATING",
                     repeatCount = repeatCount,
                     volumeProgress = volumeProgress,
                     updatedAt = updatedAt,
+                    addedAt = addedAt,
                     titleEnglish = titleEnglish,
                     titleJapanese = titleJapanese,
                     aniListEntryId = aniListEntryId
@@ -310,6 +372,12 @@ object AniListImportManager {
         query: String,
         variables: JSONObject
     ): String {
+        if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGateBlocking(
+                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.BACKGROUND
+            )
+        ) {
+            throw IllegalStateException("AniList kotası dolu; içe aktarma sonraki tura ertelendi.")
+        }
         val payload = JSONObject()
             .put("query", query)
             .put("variables", variables)
@@ -364,6 +432,10 @@ object AniListImportManager {
             "DROPPED" -> WatchStatus.Dropped
             "PLANNING" -> WatchStatus.Planned
             "PAUSED" -> WatchStatus.Paused
+            // AniList'in `REPEATING` durumu vardır ve MAL/Kitsu'dan farklı olarak ayrı bir
+            // durumdur. Eşlenmediği için "tekrar izleniyor" kayıtları `Planned` olarak
+            // içe aktarılıyordu (yani kütüphanede "planlandı" görünüyordu).
+            "REPEATING" -> WatchStatus.Repeating
             else -> WatchStatus.Planned
         }
     }

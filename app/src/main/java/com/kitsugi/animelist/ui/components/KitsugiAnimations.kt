@@ -77,7 +77,10 @@ private fun detailRevealEnterTransition(): EnterTransition =
     ) +
         fadeIn(
             animationSpec = tween(KitsugiMotion.detailRevealFadeMillis, easing = LinearOutSlowInEasing)
-        )
+        ) +
+        slideInVertically(
+            animationSpec = tween(KitsugiMotion.detailRevealMillis, easing = FastOutSlowInEasing)
+        ) { fullHeight -> -fullHeight / 8 }
 
 private fun detailRevealExitTransition(): ExitTransition =
     shrinkVertically(
@@ -86,7 +89,10 @@ private fun detailRevealExitTransition(): ExitTransition =
     ) +
         fadeOut(
             animationSpec = tween(KitsugiMotion.detailRevealFadeMillis, easing = FastOutLinearInEasing)
-        )
+        ) +
+        slideOutVertically(
+            animationSpec = tween(KitsugiMotion.detailCollapseMillis, easing = FastOutSlowInEasing)
+        ) { fullHeight -> -fullHeight / 8 }
 
 private fun stickyHeaderEnterTransition(): EnterTransition =
     expandVertically(
@@ -156,25 +162,43 @@ fun Modifier.animateDetailContentSize(): Modifier =
 /**
  * Hysteresis for mini toolbars tied to a LazyColumn: show after the hero boundary and
  * hide only after returning above it, so a boundary index cannot flicker the header.
+ *
+ * The standard detail layout has exactly three rows: hero (0), sticky tabs (1), and
+ * pager content (2). Keep those defaults shared by media, character, and staff pages;
+ * using an index above 2 makes the floating toolbar unreachable in that layout.
  */
 @Composable
 fun rememberDetailStickyHeaderVisible(
     listState: LazyListState,
-    showAtIndex: Int,
-    hideAtIndex: Int
+    showAtIndex: Int = 2,
+    hideAtIndex: Int = 0
 ): Boolean {
     require(hideAtIndex < showAtIndex) { "hideAtIndex must be smaller than showAtIndex" }
 
     var isVisible by remember(listState, showAtIndex, hideAtIndex) { mutableStateOf(false) }
     LaunchedEffect(listState, showAtIndex, hideAtIndex) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-            when {
-                index >= showAtIndex -> isVisible = true
-                index <= hideAtIndex -> isVisible = false
-            }
+            isVisible = resolveDetailStickyHeaderVisibility(
+                isCurrentlyVisible = isVisible,
+                firstVisibleItemIndex = index,
+                showAtIndex = showAtIndex,
+                hideAtIndex = hideAtIndex
+            )
         }
     }
     return isVisible
+}
+
+/** Pure state transition kept separate so the scroll boundary has regression coverage. */
+internal fun resolveDetailStickyHeaderVisibility(
+    isCurrentlyVisible: Boolean,
+    firstVisibleItemIndex: Int,
+    showAtIndex: Int,
+    hideAtIndex: Int
+): Boolean = when {
+    firstVisibleItemIndex >= showAtIndex -> true
+    firstVisibleItemIndex <= hideAtIndex -> false
+    else -> isCurrentlyVisible
 }
 
 // ─── Kaydırmaya Duyarlı Üst Bar (Diğer Sayfalarla Ortak Davranış) ───────────

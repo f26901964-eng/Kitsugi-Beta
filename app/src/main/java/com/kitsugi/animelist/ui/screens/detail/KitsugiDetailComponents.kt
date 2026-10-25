@@ -60,31 +60,48 @@ fun KitsugiStudiosCard(
     onStudioClick: (KitsugiStudio) -> Unit,
     onProducerClick: (KitsugiStudio) -> Unit,
     networks: List<KitsugiStudio> = emptyList(),
-    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick
+    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick,
+    /** Dergi / yayınevi kayıtları. Ayrı bölümde gösterilir; `networks`e karıştırılmaz. */
+    serializations: List<KitsugiStudio> = emptyList(),
+    onSerializationClick: (KitsugiStudio) -> Unit = onNetworkClick
 ) {
-    if (studios.isEmpty() && producers.isEmpty() && networks.isEmpty()) return
+    // Gösterimde adı temizlenince boşalan kayıtlar (kaomoji/infobox artığı) çizilmez:
+    // `sanitizeOrgName()` böyle adlar için boş döner — bkz. toLocalizedOrgName().
+    val visibleStudios = studios.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleProducers = producers.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleNetworks = networks.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    val visibleSerials = serializations.filter { it.name.toLocalizedOrgName().isNotBlank() }
+    if (visibleStudios.isEmpty() && visibleProducers.isEmpty() &&
+        visibleNetworks.isEmpty() && visibleSerials.isEmpty()
+    ) {
+        return
+    }
     val accentColor = LocalKitsugiAccent.current
 
     // Manga ayrıntılarında yazar/dergi/yayıncı kayıtları bu kartın listelerini kullanır;
     // başlıklar role göre doğru etiketi gösterir (örn. "Stüdyolar" yerine "Yazarlar").
     val studiosLabel = when {
-        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
+        visibleStudios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.AUTHOR } ->
             stringResource(R.string.detail_section_authors)
-        studios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+        visibleStudios.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_studios)
     }
     val producersLabel = when {
-        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+        visibleProducers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
-        producers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+        visibleProducers.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
             stringResource(R.string.detail_section_publishers)
         else -> stringResource(R.string.detail_section_producers)
     }
-    val networksLabel = when {
-        networks.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
+    val networksLabel = stringResource(R.string.detail_section_networks)
+    // Dergi / yayınevi bölümü: tek rolde geliyorsa o adı, karışıksa genel başlığı kullanır.
+    val serialsLabel = when {
+        visibleSerials.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.MAGAZINE } ->
             stringResource(R.string.detail_section_magazines)
-        else -> stringResource(R.string.detail_section_networks)
+        visibleSerials.all { it.role == com.kitsugi.animelist.data.remote.StudioRole.PUBLISHER } ->
+            stringResource(R.string.detail_section_publishers)
+        else -> stringResource(R.string.detail_section_serials)
     }
 
     Column(
@@ -95,13 +112,13 @@ fun KitsugiStudiosCard(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (studios.isNotEmpty()) {
+        if (visibleStudios.isNotEmpty()) {
             SectionLabel(studiosLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                studios.forEach { studio ->
+                visibleStudios.forEach { studio ->
                     KitsugiChip(
                         // Ad TR/EN dil dosyasından gelir (bangumi_studio_*); eşleşmeyen
                         // ad (komite vb.) Latin/orijinal hâliyle kalır — bkz. MASTER 2026-10-11.
@@ -110,45 +127,63 @@ fun KitsugiStudiosCard(
                         solid = true,
                         // Kimliği henüz çözülmemiş Bangumi yerel kayıtları da tıklanabilir:
                         // ad taşınır, hedef sayfa kurumu adıyla çözümler (bkz. KitsugiStudioClient).
-                        onClick = if (studio.name.isNotBlank()) {
+                        onClick = if (studio.name.isNotBlank() && isStudioChipClickable(studio)) {
                             { onStudioClick(studio) }
                         } else null
                     )
                 }
             }
         }
-        if (producers.isNotEmpty()) {
+        if (visibleProducers.isNotEmpty()) {
             SectionLabel(producersLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                producers.forEach { producer ->
+                visibleProducers.forEach { producer ->
                     KitsugiChip(
                         text = producer.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
-                        onClick = if (producer.name.isNotBlank()) {
+                        onClick = if (producer.name.isNotBlank() && isStudioChipClickable(producer)) {
                             { onProducerClick(producer) }
                         } else null
                     )
                 }
             }
         }
-        if (networks.isNotEmpty()) {
+        if (visibleSerials.isNotEmpty()) {
+            SectionLabel(serialsLabel)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                visibleSerials.forEach { serial ->
+                    KitsugiChip(
+                        text = serial.name.toLocalizedOrgName(),
+                        color = accentColor,
+                        solid = false,
+                        onClick = if (serial.name.isNotBlank() && isStudioChipClickable(serial)) {
+                            { onSerializationClick(serial) }
+                        } else null
+                    )
+                }
+            }
+        }
+        if (visibleNetworks.isNotEmpty()) {
             SectionLabel(networksLabel)
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                networks.forEach { network ->
+                visibleNetworks.forEach { network ->
                     KitsugiChip(
                         text = network.name.toLocalizedOrgName(),
                         color = accentColor,
                         solid = false,
                         // Yayıncı ağlar da Bangumi'de şirket (type=2) kaydıdır; kimlik
                         // çözülmemişse ad ile çözümleme hedef sayfada yapılır.
-                        onClick = if (network.name.isNotBlank()) {
+                        onClick = if (network.name.isNotBlank() && isStudioChipClickable(network)) {
                             { onNetworkClick(network) }
                         } else null
                     )
@@ -158,9 +193,23 @@ fun KitsugiStudiosCard(
     }
 }
 
+/**
+ * Çip kurum sayfasına gidebilir mi?
+ *
+ * Bangumi infobox'ındaki üretim komiteleri (`とらぶるダークネス2nd製作委員会` gibi) ayrı bir
+ * kurum kaydı **değildir**; tıklanınca hedef sayfa hiçbir kaynakta bulunamıyor ve kullanıcı
+ * "Stüdyo detayları yüklenemedi" (KTS-COM-1020) ekranına düşüyordu. Kimliği çözülmüş
+ * kayıtlar (id > 0) her zaman tıklanabilir kalır.
+ */
+internal fun isStudioChipClickable(chip: KitsugiStudio): Boolean =
+    chip.id > 0 || !com.kitsugi.animelist.data.remote.StudioSourceSupport.isCommitteeName(chip.name)
+
 // ---------------------------------------------------------------------------
 //  Etiketler (Tags) - Spoiler toggle + daha fazla expander
 // ---------------------------------------------------------------------------
+/** Daraltılmış görünümde gösterilen etiket sayısı. Genişletilince tümü listelenir. */
+private const val VISIBLE_TAG_COUNT = 30
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun KitsugiTagsCard(
@@ -175,19 +224,22 @@ fun KitsugiTagsCard(
 
     // Çeviriden sonra aynı anlama gelen yazımlar tek çipte toplanır; kopyalardan
     // herhangi biri spoiler ise `isSpoiler = true` ve `rank` korunur.
-    val distinctTags = tags.distinctByLocalizedLabel()
-    val nonSpoilerTags = distinctTags.filter { !it.isSpoiler }
-    val spoilerTags = distinctTags.filter { it.isSpoiler }
+    val (distinctTags, nonSpoilerTags, spoilerTags) = remember(tags) {
+        val merged = tags.distinctByLocalizedLabel()
+        Triple(merged, merged.filter { !it.isSpoiler }, merged.filter { it.isSpoiler })
+    }
 
-    val visibleTags = when {
-        expanded && showSpoilers -> distinctTags
-        expanded -> nonSpoilerTags
-        showSpoilers -> nonSpoilerTags.take(10) + spoilerTags
-        else -> nonSpoilerTags.take(10)
+    val visibleTags = remember(distinctTags, nonSpoilerTags, spoilerTags, expanded, showSpoilers) {
+        when {
+            expanded && showSpoilers -> distinctTags
+            expanded -> nonSpoilerTags
+            showSpoilers -> nonSpoilerTags.take(VISIBLE_TAG_COUNT) + spoilerTags
+            else -> nonSpoilerTags.take(VISIBLE_TAG_COUNT)
+        }
     }
 
     val hasSpoilers = spoilerTags.isNotEmpty()
-    val hasMore = nonSpoilerTags.size > 10
+    val hasMore = nonSpoilerTags.size > VISIBLE_TAG_COUNT
 
     Column(
         modifier = Modifier

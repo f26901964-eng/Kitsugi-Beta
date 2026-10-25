@@ -40,7 +40,8 @@ data class JikanSearchResult(
 
 data class KitsugiTheme(
     val label: String,       // Görüntülenecek metin: "We Are!" by Hiroshi Kitadani (OP1)
-    val videoUrl: String?    // animethemes.moe direkt .webm linki (yoksa null → YouTube araması)
+    val videoUrl: String?,   // animethemes.moe direkt .webm linki (yoksa null → YouTube araması)
+    val source: String = ""  // Kaynak kimliği ("animethemes", "mal", "shikimori", "tmdb"...)
 )
 
 enum class StudioRole {
@@ -115,6 +116,7 @@ data class KitsugiMediaDetail(
     val openings: List<KitsugiTheme> = emptyList(),
     val endings: List<KitsugiTheme> = emptyList(),
     val trailerUrl: String? = null,
+    val trailerSource: String = "",
     val title: String? = null,
     val imageUrl: String? = null,
     val bannerImage: String? = null,
@@ -159,7 +161,18 @@ data class KitsugiMediaDetail(
     val rawStatus: String? = null,
     val rawSourceMaterial: String? = null,
     val rawSeason: String? = null,
-    val seasonYear: Int? = null
+    val seasonYear: Int? = null,
+    /** Shikimori gibi sağlayıcıların ayrıntı yanıtında taşıdığı ek alanlar. */
+    val titleRussian: String? = null,
+    val episodesAired: Int? = null,
+    // Nullable kalır: Gson, eski kalıcı önbellek JSON'larında olmayan non-null List
+    // alanlarına emptyList() yerine null koyar; eski MAL/AniList kayıtları da güvenli okunur.
+    val publishers: List<String>? = null,
+    val licensors: List<String>? = null,
+    val fansubbers: List<String>? = null,
+    val fandubbers: List<String>? = null,
+    /** Kaynağın kendi topluluk istatistikleri; çapraz-servis yedeğinden önce kullanılır. */
+    val nativeStats: KitsugiStats? = null
 )
 
 data class KitsugiStreamingEpisode(
@@ -428,7 +441,7 @@ fun canonicalMediaSourceId(source: String): String = when (source.trim().lowerca
     "anilist", "al" -> "anilist"
     "mal", "myanimelist", "jikan", "jikan (mal)", "mal (jikan)" -> "mal"
     "simkl" -> "simkl"
-    "tmdb", "themoviedb" -> "tmdb"
+    "tmdb", "themoviedb", "tmdb_account" -> "tmdb"
     "kitsu" -> "kitsu"
     "shikimori", "shiki" -> "shikimori"
     "bangumi", "bgm", "bgm.tv" -> "bangumi"
@@ -441,13 +454,44 @@ fun canonicalMediaSourceId(source: String): String = when (source.trim().lowerca
  * in Bangumi's list (or vice versa).
  */
 fun MediaEntry.matchesInSource(result: JikanSearchResult): Boolean {
-    if (canonicalMediaSourceId(source) != canonicalMediaSourceId(result.source)) return false
-    return matchesProviderIdentity(result) || matchesTitleVariant(result)
+    if (!sharesListProviderScope(source, result.source, type, result.type)) return false
+    if (matchesProviderIdentity(result)) return true
+    // Same-title remakes are different titles. Title fallback is only an identity hint when
+    // neither side carries a conflicting ID in the provider namespace being queried.
+    if (hasConflictingProviderId(result)) return false
+    return matchesTitleVariant(result)
 }
 
 fun MediaEntry.matchesInSource(mediaId: Int, mediaSource: String): Boolean {
-    if (canonicalMediaSourceId(source) != canonicalMediaSourceId(mediaSource)) return false
+    if (!sharesListProviderScope(source, mediaSource, type, null)) return false
     return matchesProviderId(mediaId, mediaSource)
+}
+
+/**
+ * A TMDB catalog result is not itself a local list-provider row. Movie/TV pages opened
+ * from TMDB write to Simkl, so an existing Simkl membership must also be recognised there.
+ * The separate TMDB account Watchlist import still uses that same local library model.
+ * Other providers (notably Bangumi) deliberately remain isolated from one another.
+ */
+private fun sharesListProviderScope(
+    entrySource: String,
+    resultSource: String,
+    entryType: MediaType,
+    resultType: MediaType?
+): Boolean {
+    val entryAccount = entrySource.trim().equals("tmdb_account", ignoreCase = true)
+    val resultAccount = resultSource.trim().equals("tmdb_account", ignoreCase = true)
+    // Real TMDB account membership never borrows a Simkl or legacy catalog row.
+    if (entryAccount || resultAccount) return entryAccount && resultAccount
+    val entryCanonical = canonicalMediaSourceId(entrySource)
+    val resultCanonical = canonicalMediaSourceId(resultSource)
+    if (entryCanonical == resultCanonical) return true
+    if (entryType == MediaType.Manga || resultType == MediaType.Manga) return false
+    val tmdbSimklPair = (entryCanonical == "tmdb" && resultCanonical == "simkl") ||
+        (entryCanonical == "simkl" && resultCanonical == "tmdb")
+    // Anime-only pages can target AniList/MAL instead. Restrict the alias to rows where at
+    // least one side is explicitly a movie/TV show; this covers Simkl's anime-movie copies too.
+    return tmdbSimklPair && (entryType != MediaType.Anime || resultType != MediaType.Anime)
 }
 
 fun List<MediaEntry>.firstMatchingInSource(result: JikanSearchResult): MediaEntry? =
@@ -484,19 +528,53 @@ fun MediaEntry.matches(result: JikanSearchResult): Boolean {
 
 private fun MediaEntry.matchesProviderIdentity(result: JikanSearchResult): Boolean =
     matchesProviderId(result.malId, result.source) ||
+        (result.tmdbId?.let { matchesProviderId(it, "tmdb") } == true) ||
         (canonicalMediaSourceId(source) == "simkl" && (
             (simklId != null && simklId == result.malId) ||
             (result.realMalId != null && malId != null && malId == result.realMalId)
         ))
 
 private fun MediaEntry.matchesProviderId(mediaId: Int, mediaSource: String): Boolean {
-    if (canonicalMediaSourceId(source) != canonicalMediaSourceId(mediaSource)) return false
-    if (canonicalMediaSourceId(source) == "anilist") {
-        val rawEntryId = malId?.let { if (it >= 100_000_000) it - 100_000_000 else it }
-        val rawResultId = if (mediaId >= 100_000_000) mediaId - 100_000_000 else mediaId
-        return rawEntryId != null && rawEntryId == rawResultId
+    if (!sharesListProviderScope(source, mediaSource, type, null)) return false
+    if (mediaId <= 0) return false
+    val entrySource = canonicalMediaSourceId(source)
+    return when (canonicalMediaSourceId(mediaSource)) {
+        "anilist" -> {
+            val rawEntryId = malId?.let { if (it >= 100_000_000) it - 100_000_000 else it }
+            val rawResultId = if (mediaId >= 100_000_000) mediaId - 100_000_000 else mediaId
+            rawEntryId != null && rawEntryId == rawResultId
+        }
+        // A Simkl numeric ID and a TMDB numeric ID are different namespaces. The
+        // TMDB bridge is checked by the explicit "tmdb" branch below, never here.
+        "simkl" -> simklId == mediaId ||
+            (entrySource == "simkl" && malId == mediaId)
+        "tmdb" -> tmdbId == mediaId || (entrySource == "tmdb" && malId == mediaId)
+        else -> malId == mediaId
     }
-    return malId == mediaId || (canonicalMediaSourceId(source) == "simkl" && simklId == mediaId)
+}
+
+private fun MediaEntry.hasConflictingProviderId(result: JikanSearchResult): Boolean {
+    if (result.malId <= 0 && result.tmdbId == null) return false
+    val resultSource = canonicalMediaSourceId(result.source)
+    val entrySource = canonicalMediaSourceId(source)
+    return when (resultSource) {
+        "tmdb" -> {
+            val resultId = result.tmdbId ?: result.malId.takeIf { it > 0 }
+            val entryId = tmdbId ?: if (entrySource == "tmdb") malId?.takeIf { it > 0 } else null
+            resultId != null && entryId != null && resultId != entryId
+        }
+        "anilist" -> {
+            val resultId = result.malId.let { if (it >= 100_000_000) it - 100_000_000 else it }
+            val entryId = malId?.let { if (it >= 100_000_000) it - 100_000_000 else it }
+            resultId > 0 && entryId != null && entryId > 0 && resultId != entryId
+        }
+        "simkl" -> {
+            val resultId = result.malId.takeIf { it > 0 }
+            val entryId = simklId ?: if (entrySource == "simkl") malId?.takeIf { it > 0 } else null
+            resultId != null && entryId != null && resultId != entryId
+        }
+        else -> result.malId > 0 && malId != null && malId != result.malId
+    }
 }
 
 private fun MediaEntry.matchesTitleVariant(result: JikanSearchResult): Boolean {

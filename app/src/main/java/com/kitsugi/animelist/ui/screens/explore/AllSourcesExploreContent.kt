@@ -34,11 +34,21 @@ import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.components.kitsugiCardFrame
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
 @Composable
-private fun localizedExploreSectionTitle(title: String): String {
+internal fun localizedExploreSectionTitle(title: String): String {
+    if (title == "Yayındaki Mangalar") {
+        val locales = LocalConfiguration.current.locales
+        val lang = if (locales.isEmpty) "tr" else locales.get(0)?.language.orEmpty()
+        return if (lang.startsWith("tr", ignoreCase = true)) {
+            "Yayındaki Mangalar"
+        } else {
+            stringResource(R.string.explore_publishing_manga)
+        }
+    }
     val titleRes = when (title) {
         "Trend Her Şey" -> R.string.explore_source_trending_all
         "Trend Animeler" -> R.string.explore_source_trending_anime
@@ -69,6 +79,10 @@ private fun localizedExploreSectionTitle(title: String): String {
         "Noveller & Light Novel" -> R.string.explore_source_novels
         "Bangumi Dizileri" -> R.string.explore_source_bangumi_tv
         "Bangumi Filmleri" -> R.string.explore_source_bangumi_movies
+        SIMKL_PERSONAL_CONTINUE_SERIES_TITLE -> R.string.explore_simkl_continue_watching_series
+        SIMKL_PERSONAL_CONTINUE_MOVIES_TITLE -> R.string.explore_simkl_continue_watching_movies
+        SIMKL_PERSONAL_PLANNED_SERIES_TITLE -> R.string.explore_simkl_plantowatch_series
+        SIMKL_PERSONAL_PLANNED_MOVIES_TITLE -> R.string.explore_simkl_plantowatch_movies
         else -> return title
     }
     return stringResource(titleRes)
@@ -186,11 +200,11 @@ fun LazyListScope.allSourcesExploreSections(
                 onCategory = { index ->
                     sourceSections.getOrNull(index)?.let { section ->
                         val sectionTitle = sectionTitles.getOrNull(index) ?: section.title
-                        onSeeAllSection(
-                            "$platformLabel • $sectionTitle",
-                            section.category,
-                            section.results,
-                            platform
+                        openAllSourcesSectionSeeAll(
+                            platformLabel = platformLabel,
+                            sectionTitle = sectionTitle,
+                            section = section,
+                            onSeeAllSection = onSeeAllSection
                         )
                     }
                 }
@@ -212,8 +226,12 @@ fun LazyListScope.allSourcesExploreSections(
                             onItemClick = onItemClick,
                             onLongClickItem = onLongClickItem,
                             onSeeAllClick = {
-                                onSeeAllSection("$platformLabel · $sectionTitle",
-                                    section.category, section.results, platform)
+                                openAllSourcesSectionSeeAll(
+                                    platformLabel = platformLabel,
+                                    sectionTitle = sectionTitle,
+                                    section = section,
+                                    onSeeAllSection = onSeeAllSection
+                                )
                             },
                             titleLanguage = titleLanguage,
                             scoreFormat = scoreFormat,

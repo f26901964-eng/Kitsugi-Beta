@@ -109,6 +109,19 @@ class MyListIdentityCrosswalkTest {
     }
 
     @Test
+    fun onlyExactTitleYearCrossTypeCandidatesRequestBridgeResolution() {
+        val anime = entry(id = 40, title = "Same film", source = "anilist", year = 2025)
+        val movie = entry(id = 41, title = "Same film", source = "simkl", type = MediaType.Movie, year = 2025)
+        val otherYear = entry(id = 42, title = "Same film", source = "simkl", type = MediaType.Movie, year = 2024)
+        val manga = entry(id = 43, title = "Same film", source = "mal", type = MediaType.Manga, year = 2025)
+
+        assertEquals(
+            setOf(40, 41),
+            MyListIdentityCrosswalk.crossTypeResolutionCandidates(listOf(anime, movie, otherYear, manga))
+        )
+    }
+
+    @Test
     fun nonAnimeMangaPreferenceEntriesAreIgnored() {
         val raw = mapOf(
             "bgm_r_52991" to 900,        // REAL (film/dizi) — no MAL axis for that type
@@ -142,5 +155,42 @@ class MyListIdentityCrosswalkTest {
                 entry(id = 12, title = "x", source = "bangumi", type = MediaType.Movie, malId = 500_057_162)
             )
         )
+    }
+
+    @Test
+    fun kitsuRowGainsMalKeyFromInvertedKitsuMapping() {
+        val kitsuAnime = entry(id = 21, title = "Kaiju No. 8", source = "kitsu", malId = 300_046_900)
+        val kitsuManga = entry(
+            id = 22,
+            title = "Kaiju No. 8",
+            source = "kitsu",
+            malId = 300_057_000,
+            type = MediaType.Manga
+        )
+        val kitsuToMal = MyListIdentityCrosswalk.reverseKitsuMapping(
+            mapOf(
+                "kitsu_media_default_a_52588" to 46900,
+                "kitsu_media_user_42_m_127907" to 57000
+            )
+        )
+
+        assertEquals(
+            setOf("Anime:mal:52588"),
+            MyListIdentityCrosswalk.extraKeysFor(kitsuAnime, ids = null, kitsuMediaToMal = kitsuToMal)
+        )
+        assertEquals(
+            setOf("Manga:mal:127907"),
+            MyListIdentityCrosswalk.extraKeysFor(kitsuManga, ids = null, kitsuMediaToMal = kitsuToMal)
+        )
+    }
+
+    @Test
+    fun ambiguousKitsuMappingIsDropped() {
+        val raw = mapOf(
+            "kitsu_media_default_a_52588" to 46900,
+            "kitsu_media_default_a_52589" to 46900
+        )
+
+        assertTrue(MyListIdentityCrosswalk.reverseKitsuMapping(raw).isEmpty())
     }
 }

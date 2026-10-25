@@ -37,7 +37,43 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.340"
+    val versionPropsFile = rootProject.file("version.properties")
+    val versionProps = Properties()
+    if (!versionPropsFile.exists()) {
+        versionProps.setProperty("major", "2")
+        versionProps.setProperty("minor", "4")
+        versionProps.setProperty("patch", "348")
+        versionPropsFile.outputStream().use { versionProps.store(it, "Kitsugi Version Configuration") }
+    } else {
+        versionPropsFile.inputStream().use { versionProps.load(it) }
+    }
+
+    val major = versionProps.getProperty("major", "2")
+    val minor = versionProps.getProperty("minor", "4")
+    var patch = versionProps.getProperty("patch", "348").toIntOrNull() ?: 348
+
+    // Otomatik Sürüm Yükseltme:
+    // Ne zaman bir APK derleme görevi (assemble... veya package...) tetiklenirse,
+    // patch numarası otomatik olarak 1 artırılır ve version.properties dosyasına yazılır.
+    // Böylece APK her derlendiğinde sürüm numarası her zaman yükselmiş olur.
+    val isApkBuild = gradle.startParameter.taskNames.any { taskName ->
+        taskName.contains("assemble", ignoreCase = true) || taskName.contains("package", ignoreCase = true)
+    }
+
+    val customVersion = project.findProperty("version") as? String
+    val appVersionName = if (customVersion != null && customVersion != "unspecified" && customVersion.isNotBlank()) {
+        customVersion
+    } else {
+        if (isApkBuild && !project.hasProperty("noBump")) {
+            patch += 1
+            versionProps.setProperty("patch", patch.toString())
+            versionPropsFile.outputStream().use {
+                versionProps.store(it, "Kitsugi Auto-incremented Version")
+            }
+            logger.lifecycle("🚀 [Kitsugi Version] APK derleme tetiklendi. Sürüm otomatik artırıldı: $major.$minor.$patch")
+        }
+        "$major.$minor.$patch"
+    }
 
     compileSdk = 36
 
@@ -140,6 +176,15 @@ android {
         create("gms") {
             dimension = "version"
             versionNameSuffix = "-gms"
+        }
+    }
+
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val outputImpl = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val flavor = variant.flavorName
+            outputImpl?.outputFileName = "Kitsugi-Beta-v$appVersionName-$flavor.apk"
         }
     }
 
@@ -316,6 +361,9 @@ dependencies {
 
     implementation(libs.gson)
 
+    // AniSub RAR paketlerini cihazda açmak için (saf Java unrar).
+    // AniSub'un sunucu arşiv API'si RAR desteklemez; paketlerin önemli bölümü .rar'dır.
+    implementation("com.github.junrar:junrar:7.5.5")
 
     testImplementation(libs.junit)
     // JVM contract tests need a real JSON implementation, not Android stub methods.

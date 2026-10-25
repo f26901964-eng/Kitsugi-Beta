@@ -60,6 +60,7 @@ class AiringNotificationWorker(
         val kitsuTokenForGate = ExternalAuthManager.getKitsuToken(context)
         val shikimoriTokenForGate = ExternalAuthManager.getShikimoriToken(context)
         val bangumiConnected = ExternalAuthManager.getAuthState(context).isBangumiConnected
+        val tmdbConnected = com.kitsugi.animelist.data.auth.TmdbAuthStore.isConnected(context)
         val hasLinkedAccount = listOf(
             aniListTokenForGate,
             malTokenForGate,
@@ -74,10 +75,12 @@ class AiringNotificationWorker(
         val isSimklEnabled = settings.simklNotificationsEnabled && !simklTokenForGate.isNullOrBlank()
         val isKitsuEnabled = settings.kitsuNotificationsEnabled && !kitsuTokenForGate.isNullOrBlank()
         val isShikimoriEnabled = settings.shikimoriNotificationsEnabled && !shikimoriTokenForGate.isNullOrBlank()
+        val isTmdbEnabled = settings.tmdbNotificationsEnabled && tmdbConnected
+        val isTmdbSyncEnabled = settings.syncEnabledTmdb && tmdbConnected
 
         // If no notifications are enabled, stop immediately
         if (!isAiringEnabled && !isAniListEnabled && !isMalEnabled && !isSimklEnabled &&
-            !isKitsuEnabled && !isShikimoriEnabled
+            !isKitsuEnabled && !isShikimoriEnabled && !isTmdbEnabled && !isTmdbSyncEnabled
         ) {
             Log.d(TAG, "No linked notification sources are enabled. Canceling stale periodic work.")
             NotificationScheduler.cancelIfNoActiveSources(context)
@@ -198,10 +201,19 @@ class AiringNotificationWorker(
             if (!simklToken.isNullOrBlank()) {
                 try {
                     val importedEntries = SimklImportManager.fetchAllLists(simklToken)
-                    val repository = MediaEntryRepository(db.mediaEntryDao())
-                    // Sil-yeniden-yaz sırasında +18 işaretlerini koru (bkz. repository)
-                    repository.replaceSourcePreservingAdultFlags("simkl", importedEntries)
-                    Log.d(TAG, "Simkl background sync successful: ${importedEntries.size} entries")
+                    val repository = MediaEntryRepository(
+                        dao = db.mediaEntryDao(),
+                        pendingSyncDao = db.pendingSyncDao()
+                    )
+                    // Fark-tabanlı birleştirme: sil-yeniden-yaz YOK. Yalnızca değişen satırlar
+                    // yazılır, +18 işaretleri korunur ve Room tek invalidation yayar.
+                    val mergeStats = repository.mergeSourcePreservingAdultFlags("simkl", importedEntries)
+                    Log.d(
+                        TAG,
+                        "Simkl background sync: fetched=${mergeStats.fetched}, " +
+                            "added=${mergeStats.added}, updated=${mergeStats.updated}, " +
+                            "unchanged=${mergeStats.unchanged}"
+                    )
 
                     val calendarClient = SimklCalendarClient()
                     val watchingIds = runCatching { calendarClient.fetchWatchingIds(simklToken) }.getOrNull()
@@ -287,7 +299,32 @@ class AiringNotificationWorker(
             }
         }
 
-        // 6. Shikimori Polling (gerçek bildirim ucu: GET /api/users/:id/messages)
+        // 6. TMDB account polling (TMDB has no native notification feed). The first
+        // complete snapshot is only a baseline; later additions are deduped by media key.
+        if (isTmdbEnabled || isTmdbSyncEnabled) {
+            try {
+                TmdbAccountNotificationPoller.poll(context) { result ->
+                    if (isTmdbEnabled) {
+                        result.archivedNotifications.forEach { notification ->
+                            showNotification(
+                                id = notification.id.hashCode() and 0x7fffffff,
+                                title = notification.title,
+                                bodyText = notification.body,
+                                source = "TMDB",
+                                imageUrl = notification.imageUrl,
+                                isMedia = true,
+                                mediaId = notification.mediaId
+                            )
+                        }
+                        archiveTmdbAccountNotifications(context, result.archivedNotifications)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "TMDB account polling failed: ${e.message}", e)
+            }
+        }
+
+        // 7. Shikimori Polling (gerçek bildirim ucu: GET /api/users/:id/messages)
         //    `messages` OAuth izni gerekir; izin yoksa sessizce atlanır ve loglanır.
         if (isShikimoriEnabled) {
             val shikiToken = runCatching { ExternalAuthManager.getOrRefreshShikimoriToken(context) }

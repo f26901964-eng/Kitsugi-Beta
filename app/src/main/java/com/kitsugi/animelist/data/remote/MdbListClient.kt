@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.Request
+import okhttp3.Response
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -50,7 +51,8 @@ private fun MdbListRatings.withoutEmptyScores(): MdbListRatings = copy(
 object MdbListClient {
 
     private const val TAG = "MdbListClient"
-    private const val BASE_URL = "https://mdblist.com/api/"
+    private const val BASE_URL = "https://api.mdblist.com/"
+    private const val QUOTA_URL_HOST = "api.mdblist.com"
     private const val CACHE_TTL_MS = 30L * 60L * 1_000L
     private const val MAX_CACHE_ENTRIES = 500
     private val imdbIdPattern = Regex("^tt\\d{5,12}$", RegexOption.IGNORE_CASE)
@@ -58,13 +60,16 @@ object MdbListClient {
     private data class CacheEntry(val ratings: MdbListRatings, val expiresAt: Long)
     private val cache = BoundedCache<String, CacheEntry>("mdbList", 300)
 
+    /** Uygulama açılışında kalıcı kota deposunu bağlar (bkz. KitsugiApplication). */
+    fun initialize(context: android.content.Context) = MdbListQuotaCenter.bind(context, "")
+
     /**
      * API anahtarını Matrix'in bilinen IMDb ID'si ile sınar.
      * Başarılı HTTP cevabına ek olarak MDBList'in response alanı da doğrulanır.
      */
     suspend fun validateApiKey(apiKey: String): Boolean = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) return@withContext false
-        val url = buildLookupUrl(apiKey = apiKey, imdbId = "tt0133093", tmdbId = null)
+        val url = buildLookupUrl(apiKey = apiKey, imdbId = "tt0133093", tmdbId = null, mediaType = "movie")
             ?: return@withContext false
         val request = Request.Builder()
             .url(url)
@@ -73,7 +78,15 @@ object MdbListClient {
             .build()
 
         try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                // Doğrulama da gerçek bir API çağrısıdır: dönen başlıklar kotayı günceller.
+                recordQuotaFromResponse(apiKey, response)
+                if (response.code == 429) {
+                    // 429 = kimlik doğrulama geçti, günlük kota bitti. Anahtar geçerlidir;
+                    // burada "geçersiz anahtar" demek kullanıcıyı yanıltırdı.
+                    Log.w(TAG, "MDBList key validation reached the daily quota (HTTP 429)")
+                    return@withContext true
+                }
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList key validation failed: HTTP ${response.code}")
                     return@withContext false
@@ -96,15 +109,25 @@ object MdbListClient {
 
     /** Existing IMDb-ID API retained for callers. */
     suspend fun fetchRatings(imdbId: String, apiKey: String): MdbListRatings? =
-        fetchRatings(imdbId = imdbId, tmdbId = null, apiKey = apiKey)
+        fetchRatings(imdbId = imdbId, tmdbId = null, mediaType = null, apiKey = apiKey)
+
+    suspend fun fetchRatings(
+        imdbId: String?,
+        tmdbId: Int?,
+        apiKey: String
+    ): MdbListRatings? = fetchRatings(imdbId = imdbId, tmdbId = tmdbId, mediaType = null, apiKey = apiKey)
 
     /**
      * Gets scores by IMDb ID, with TMDB ID as a fallback for catalogs without an IMDb mapping.
      * IMDb is preferred if both IDs are available.
+     *
+     * @param mediaType "movie", "show", or "any" (default). Anime/TV shows map to "show",
+     * movies map to "movie". Manga is not supported by MDBList and should not be looked up.
      */
     suspend fun fetchRatings(
         imdbId: String?,
         tmdbId: Int?,
+        mediaType: String?,
         apiKey: String
     ): MdbListRatings? = withContext(Dispatchers.IO) {
         val normalizedImdbId = imdbId?.trim()?.lowercase()?.takeIf(imdbIdPattern::matches)
@@ -114,14 +137,20 @@ object MdbListClient {
         }
 
         val identity = normalizedImdbId?.let { "imdb:$it" } ?: "tmdb:$normalizedTmdbId"
-        val cacheKey = "${fingerprint(apiKey.trim())}:$identity"
+        val typeSuffix = mediaType?.let { ":$it" } ?: ""
+        val cacheKey = "${fingerprint(apiKey.trim())}:$identity$typeSuffix"
         val now = System.currentTimeMillis()
         cache[cacheKey]?.let { entry ->
             if (entry.expiresAt > now) return@withContext entry.ratings
-            cache.remove(cacheKey, entry)
         }
+        if (MdbListQuotaCenter.isExhausted(apiKey)) {
+            // Günlük kota bitti: boşuna 429 üretmek yerine son bilinen puanlar gösterilir.
+            // (Önbellek süresi dolmuş olsa bile, hiç yoktan iyidir.)
+            return@withContext cache[cacheKey]?.ratings
+        }
+        cache[cacheKey]?.let { entry -> cache.remove(cacheKey, entry) }
 
-        val url = buildLookupUrl(apiKey, normalizedImdbId, normalizedTmdbId)
+        val url = buildLookupUrl(apiKey, normalizedImdbId, normalizedTmdbId, mediaType)
             ?: return@withContext null
         val request = Request.Builder()
             .url(url)
@@ -130,7 +159,8 @@ object MdbListClient {
             .build()
 
         val parsed = try {
-            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                recordQuotaFromResponse(apiKey, response)
                 if (!response.isSuccessful) {
                     Log.w(TAG, "MDBList request failed: HTTP ${response.code} for $identity")
                     return@withContext null
@@ -155,22 +185,191 @@ object MdbListClient {
         parsed
     }
 
-    internal fun buildLookupUrl(apiKey: String, imdbId: String?, tmdbId: Int?): HttpUrl? {
+    internal fun buildLookupUrl(
+        apiKey: String,
+        imdbId: String?,
+        tmdbId: Int?,
+        mediaType: String? = null
+    ): HttpUrl? {
         if (apiKey.isBlank()) return null
         val normalizedImdbId = imdbId?.trim()?.lowercase()?.takeIf(imdbIdPattern::matches)
         val normalizedTmdbId = tmdbId?.takeIf { it > 0 }
         if (normalizedImdbId == null && normalizedTmdbId == null) return null
 
+        val provider = if (normalizedImdbId != null) "imdb" else "tmdb"
+        val id = normalizedImdbId ?: normalizedTmdbId.toString()
+        val type = mediaType?.takeIf { it in listOf("movie", "show", "any") } ?: "any"
+
         return HttpUrl.Builder()
             .scheme("https")
-            .host("mdblist.com")
-            .addPathSegments("api/")
+            .host("api.mdblist.com")
+            .addPathSegment(provider)
+            .addPathSegment(type)
+            .addPathSegment(id)
             .addQueryParameter("apikey", apiKey.trim())
-            .apply {
-                if (normalizedImdbId != null) addQueryParameter("i", normalizedImdbId)
-                else addQueryParameter("tmdb", normalizedTmdbId.toString())
-            }
             .build()
+    }
+
+    /**
+     * API anahtarının günlük istek hakkını `/user` uç noktasından okur.
+     *
+     * MDBList bu uç noktada hem gövdede (`api_requests` = limit, `api_requests_count` =
+     * kullanılan) hem de `X-RateLimit-*` başlıklarında güncel kotayı döndürür. Ücretsiz ve
+     * ücretli hesaplar aynı alanlarla geldiği için limit asla sabit bir sayı varsayılmaz.
+     *
+     * @return kota okunabildiyse doldurulmuş [MdbListQuota]; anahtar geçersizse `null`.
+     */
+    suspend fun fetchQuota(apiKey: String): MdbListQuota? = withContext(Dispatchers.IO) {
+        val key = apiKey.trim()
+        if (key.isEmpty()) return@withContext null
+
+        val url = HttpUrl.Builder()
+            .scheme("https")
+            .host(QUOTA_URL_HOST)
+            .addPathSegment("user")
+            .addQueryParameter("apikey", key)
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", "KitsugiAnimeList/1.0")
+            .build()
+
+        try {
+            KitsugiHttpClient.mdbListClient.newCall(request).execute().use { response ->
+                val headerQuota = parseQuotaHeaders(
+                    limitHeader = response.header("X-RateLimit-Limit") ?: response.header("RateLimit-Limit"),
+                    remainingHeader = response.header("X-RateLimit-Remaining") ?: response.header("RateLimit-Remaining"),
+                    resetHeader = response.header("X-RateLimit-Reset") ?: response.header("RateLimit-Reset")
+                )
+                if (response.code == 429) {
+                    Log.w(TAG, "MDBList quota request rate limited (HTTP 429)")
+                    return@withContext (headerQuota ?: MdbListQuota()).copy(
+                        remaining = 0,
+                        resetAtEpochSeconds = headerQuota?.resetAtEpochSeconds
+                            ?: resetFromRetryAfter(response),
+                        updatedAtMillis = System.currentTimeMillis()
+                    )
+                }
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "MDBList quota request failed: HTTP ${response.code}")
+                    return@withContext headerQuota
+                }
+                val body = response.body?.string()
+                parseUserQuota(body, headerQuota)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "MDBList quota request failed (${e.javaClass.simpleName})")
+            null
+        }
+    }
+
+    /**
+     * `/user` yanıtını kotaya çevirir. Gövde okunamazsa başlıklardan gelen değerler korunur.
+     * Test edilebilir olması için ağdan bağımsızdır.
+     */
+    internal fun parseUserQuota(body: String?, headers: MdbListQuota?): MdbListQuota? {
+        var limit = headers?.limit
+        var remaining = headers?.remaining
+        var plan = headers?.plan ?: MdbListPlan.UNKNOWN
+        val resetAt = headers?.resetAtEpochSeconds
+
+        if (!body.isNullOrBlank()) {
+            try {
+                val root = JSONObject(body)
+                val declaredLimit = root.optInt("api_requests", -1).takeIf { it > 0 }
+                val usedCount = root.optInt("api_requests_count", -1).takeIf { it >= 0 }
+                limit = limit ?: declaredLimit
+                val resolvedLimit = limit
+                if (remaining == null && resolvedLimit != null && usedCount != null) {
+                    remaining = (resolvedLimit - usedCount).coerceAtLeast(0)
+                }
+
+                val patronStatus = root.optString("patron_status").lowercase()
+                val pledge = root.optInt("patreon_pledge", 0)
+                if (patronStatus.isNotBlank() || pledge > 0) {
+                    plan = if (patronStatus.contains("active") || pledge > 0) {
+                        MdbListPlan.SUPPORTER
+                    } else {
+                        MdbListPlan.FREE
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "MDBList quota JSON parse failed (${e.javaClass.simpleName})")
+            }
+        }
+
+        if (limit == null && remaining == null) return null
+        return MdbListQuota(
+            limit = limit,
+            remaining = remaining,
+            resetAtEpochSeconds = resetAt,
+            plan = plan,
+            updatedAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    /**
+     * `X-RateLimit-Limit` / `-Remaining` / `-Reset` başlıklarını ayrıştırır.
+     * Değerler okunamazsa `null` döner; uydurma sayı üretilmez.
+     */
+    internal fun parseQuotaHeaders(
+        limitHeader: String?,
+        remainingHeader: String?,
+        resetHeader: String?
+    ): MdbListQuota? {
+        val limit = limitHeader?.trim()?.toIntOrNull()?.takeIf { it > 0 }
+        val remaining = remainingHeader?.trim()?.toIntOrNull()?.takeIf { it >= 0 }
+        if (limit == null && remaining == null) return null
+        return MdbListQuota(
+            limit = limit,
+            remaining = remaining,
+            resetAtEpochSeconds = normalizeEpochSeconds(resetHeader?.trim()?.toLongOrNull()),
+            updatedAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    /** Bazı sürümler sıfırlanma anını milisaniye olarak yollar; saniyeye indirger. */
+    internal fun normalizeEpochSeconds(value: Long?): Long? {
+        val raw = value?.takeIf { it > 0L } ?: return null
+        return if (raw > 100_000_000_000L) raw / 1_000L else raw
+    }
+
+    /**
+     * Her MDBList yanıtında bulunan kota başlıklarını merkeze yazar. Ağ/ayrıştırma hatası
+     * puanlama akışını asla bozmaz; bu yüzden tüm gövde korumalıdır.
+     */
+    private fun recordQuotaFromResponse(apiKey: String, response: Response) {
+        try {
+            val quota = parseQuotaHeaders(
+                limitHeader = response.header("X-RateLimit-Limit") ?: response.header("RateLimit-Limit"),
+                remainingHeader = response.header("X-RateLimit-Remaining") ?: response.header("RateLimit-Remaining"),
+                resetHeader = response.header("X-RateLimit-Reset") ?: response.header("RateLimit-Reset")
+            )
+            if (quota != null) {
+                MdbListQuotaCenter.recordHeaders(
+                    apiKey = apiKey,
+                    limit = quota.limit,
+                    remaining = quota.remaining,
+                    resetAtEpochSeconds = quota.resetAtEpochSeconds
+                )
+            }
+            if (response.code == 429) {
+                MdbListQuotaCenter.recordExhausted(
+                    apiKey = apiKey,
+                    resetAtEpochSeconds = quota?.resetAtEpochSeconds ?: resetFromRetryAfter(response)
+                )
+            }
+        } catch (_: Throwable) {
+            // Kota takibi yardımcı bir özelliktir; hiçbir koşulda puanlamayı düşürmemeli.
+        }
+    }
+
+    /** `Retry-After` saniye cinsinden bekleme süresidir; mutlak sıfırlanma anına çevrilir. */
+    private fun resetFromRetryAfter(response: Response): Long? {
+        val seconds = response.header("Retry-After")?.trim()?.toLongOrNull()
+            ?.takeIf { it > 0L } ?: return null
+        return System.currentTimeMillis() / 1_000L + seconds
     }
 
     /** Kept internal so the API response contract can be tested without network access. */
@@ -197,6 +396,7 @@ object MdbListClient {
                         type = item.optString("type")
                     ) ?: continue
                     val raw = firstNumber(item.opt("value"), item.opt("rating"))
+                        ?.let { value -> normalizeValue(value, category) }
                         ?: scoreFallback(item.opt("score"), category)
                         ?: continue
 
@@ -229,7 +429,7 @@ object MdbListClient {
                 tomatoesAudience = firstNumber(root.opt("tomatoesaudiencerating"))?.toInt()?.coerceIn(0, 100),
                 metacritic = firstNumber(root.opt("metacriticrating"))?.toInt()?.coerceIn(0, 100),
                 letterboxd = firstNumber(root.opt("letterboxdrating")),
-                tmdb = firstNumber(root.opt("tmdbrating")),
+                tmdb = firstNumber(root.opt("tmdbrating"))?.let { normalizeValue(it, ScoreCategory.TMDB) },
                 trakt = firstNumber(root.opt("traktrating")),
                 imdbId = imdbId ?: root.optString("imdbid").takeIf(imdbIdPattern::matches)
             ).withoutEmptyScores()
@@ -263,8 +463,9 @@ object MdbListClient {
     private fun scoreCategory(source: String, name: String, type: String): ScoreCategory? {
         val normalized = "$source $name $type".lowercase().filter(Char::isLetterOrDigit)
         return when {
-            normalized.contains("tomato") &&
-                (normalized.contains("audience") || normalized.contains("user")) -> ScoreCategory.TOMATOES_AUDIENCE
+            normalized.contains("popcorn") ||
+                (normalized.contains("tomato") &&
+                    (normalized.contains("audience") || normalized.contains("user"))) -> ScoreCategory.TOMATOES_AUDIENCE
             normalized.contains("tomato") || normalized.contains("tomatometer") -> ScoreCategory.TOMATOES
             normalized.contains("metacritic") || normalized.contains("metascore") -> ScoreCategory.METACRITIC
             normalized.contains("letterboxd") -> ScoreCategory.LETTERBOXD
@@ -289,14 +490,24 @@ object MdbListClient {
         return match.value.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
     }
 
+    /** MDBList's value uses the source scale; TMDB is commonly returned as 0–100. */
+    private fun normalizeValue(value: Double, category: ScoreCategory): Double = when (category) {
+        ScoreCategory.TMDB -> if (value > 10.0 && value <= 100.0) value / 10.0 else value
+        else -> value
+    }
+
     private fun scoreFallback(value: Any?, category: ScoreCategory): Double? {
         val score = parseNumber(value) ?: return null
         return when (category) {
-            ScoreCategory.IMDB, ScoreCategory.TMDB, ScoreCategory.TRAKT ->
+            ScoreCategory.IMDB, ScoreCategory.TMDB ->
                 if (score > 10.0 && score <= 100.0) score / 10.0 else score
             ScoreCategory.LETTERBOXD ->
                 if (score > 5.0 && score <= 100.0) score / 20.0 else score
-            ScoreCategory.TOMATOES, ScoreCategory.TOMATOES_AUDIENCE, ScoreCategory.METACRITIC -> score
+            // Trakt is displayed as a percentage, just like MDBList's value/score fields.
+            ScoreCategory.TRAKT,
+            ScoreCategory.TOMATOES,
+            ScoreCategory.TOMATOES_AUDIENCE,
+            ScoreCategory.METACRITIC -> score
         }
     }
 

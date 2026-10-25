@@ -173,6 +173,8 @@ class SettingsDataStore(
         // Açıklama Otomatik Çevirisi
         val WikiPageTheme = stringPreferencesKey("wiki_page_theme")
         val WikiTextZoom = intPreferencesKey("wiki_text_zoom")
+        /** Sayfa görünümü: true = masaüstü düzeni, false = mobil düzen (varsayılan). */
+        val WikiDesktopLayout = booleanPreferencesKey("wiki_desktop_layout")
         val WikiAdBlockDisabledHosts = stringSetPreferencesKey("wiki_adblock_disabled_hosts")
         val AutoTranslateEnabled = booleanPreferencesKey("auto_translate_enabled")
         val PreferredTranslator = stringPreferencesKey("preferred_translator")
@@ -195,6 +197,7 @@ class SettingsDataStore(
         val LastUsedTab = stringPreferencesKey("last_used_tab")
         val AppLanguage = stringPreferencesKey("app_language")
         val AccountBackupEnabled = booleanPreferencesKey("account_backup_enabled")
+        val AccountAddonSyncEnabled = booleanPreferencesKey("account_addon_sync_enabled")
         val AccountSearchSyncEnabled = booleanPreferencesKey("account_search_sync_enabled")
         val AccountNotificationSyncEnabled = booleanPreferencesKey("account_notification_sync_enabled")
         val FixedNavBar = booleanPreferencesKey("fixed_nav_bar")
@@ -225,6 +228,7 @@ class SettingsDataStore(
         val SimklNotificationsEnabled = booleanPreferencesKey("simkl_notifications_enabled")
         val KitsuNotificationsEnabled = booleanPreferencesKey("kitsu_notifications_enabled")
         val ShikimoriNotificationsEnabled = booleanPreferencesKey("shikimori_notifications_enabled")
+        val TmdbNotificationsEnabled = booleanPreferencesKey("tmdb_notifications_enabled")
         val NotificationInterval = intPreferencesKey("notification_interval")
         val SearchHistoryEnabled = booleanPreferencesKey("search_history_enabled")
         // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────
@@ -257,6 +261,7 @@ class SettingsDataStore(
         val SyncEnabledKitsu = booleanPreferencesKey("sync_enabled_kitsu")
         val SyncEnabledShikimori = booleanPreferencesKey("sync_enabled_shikimori")
         val SyncEnabledBangumi = booleanPreferencesKey("sync_enabled_bangumi")
+        val SyncEnabledTmdb = booleanPreferencesKey("sync_enabled_tmdb")
         val KitsuUsername = stringPreferencesKey("kitsu_username")
         val KitsuProfileImageUri = stringPreferencesKey("kitsu_profile_image_uri")
         val ShikimoriUsername = stringPreferencesKey("shikimori_username")
@@ -467,6 +472,7 @@ class SettingsDataStore(
                     hideScores = preferences[Keys.HideScores] ?: false,
                     showAnimeLogos = preferences[Keys.ShowAnimeLogos] ?: false,
                     accountBackupEnabled = preferences[Keys.AccountBackupEnabled] ?: true,
+                    accountAddonSyncEnabled = preferences[Keys.AccountAddonSyncEnabled] ?: true,
                     accountSearchSyncEnabled = preferences[Keys.AccountSearchSyncEnabled] ?: true,
                     accountNotificationSyncEnabled = preferences[Keys.AccountNotificationSyncEnabled] ?: true,
                     syncEnabledAnilist = preferences[Keys.SyncEnabledAnilist] ?: true,
@@ -474,7 +480,8 @@ class SettingsDataStore(
                     syncEnabledSimkl = preferences[Keys.SyncEnabledSimkl] ?: true,
                     syncEnabledKitsu = preferences[Keys.SyncEnabledKitsu] ?: true,
                     syncEnabledShikimori = preferences[Keys.SyncEnabledShikimori] ?: true,
-                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true
+                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true,
+                    syncEnabledTmdb = preferences[Keys.SyncEnabledTmdb] ?: true
                 ),
                 themeUi = ThemeAndAppUiSettings(
                     selectedThemeId = preferences[Keys.SelectedThemeId] ?: "mint",
@@ -661,8 +668,9 @@ class SettingsDataStore(
                     mdbListShowTrakt = preferences[Keys.MdbListShowTrakt] ?: false,
                     fanartTvApiKey = preferences[Keys.FanartTvApiKey] ?: "",
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
-                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "SITE",
+                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "APP",
                     wikiTextZoom = preferences[Keys.WikiTextZoom] ?: 100,
+                    wikiDesktopLayout = preferences[Keys.WikiDesktopLayout] ?: false,
                     wikiAdBlockDisabledHosts = preferences[Keys.WikiAdBlockDisabledHosts] ?: emptySet(),
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
@@ -676,6 +684,7 @@ class SettingsDataStore(
                     simklNotificationsEnabled = preferences[Keys.SimklNotificationsEnabled] ?: false,
                     kitsuNotificationsEnabled = preferences[Keys.KitsuNotificationsEnabled] ?: false,
                     shikimoriNotificationsEnabled = preferences[Keys.ShikimoriNotificationsEnabled] ?: false,
+                    tmdbNotificationsEnabled = preferences[Keys.TmdbNotificationsEnabled] ?: false,
                     notificationInterval = preferences[Keys.NotificationInterval] ?: 180
                 ),
                 downloads = DownloadAndMangaSettings(
@@ -1290,6 +1299,11 @@ class SettingsDataStore(
         }
     }
 
+    /** Wiki açılır sayfasının görünüm düzeni; seçim sekmeler ve oturumlar arasında korunur. */
+    suspend fun setWikiDesktopLayout(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.WikiDesktopLayout] = enabled }
+    }
+
     /** Local per-wiki exception; never changes filtering in other application WebViews. */
     suspend fun setWikiAdBlockEnabled(host: String, enabled: Boolean) {
         val normalized = host.lowercase(java.util.Locale.ROOT)
@@ -1410,6 +1424,12 @@ class SettingsDataStore(
     suspend fun setAccountBackupEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.AccountBackupEnabled] = enabled
+        }
+    }
+
+    suspend fun setAccountAddonSyncEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AccountAddonSyncEnabled] = enabled
         }
     }
 
@@ -1536,6 +1556,11 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.ShikimoriNotificationsEnabled] = enabled }
     }
 
+    /** TMDB account polling/dedupe notifications (not a TMDB native notification feed). */
+    suspend fun setTmdbNotificationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.TmdbNotificationsEnabled] = enabled }
+    }
+
     suspend fun setNotificationInterval(minutes: Int) {
         context.settingsDataStore.edit { it[Keys.NotificationInterval] = minutes }
     }
@@ -1635,6 +1660,10 @@ class SettingsDataStore(
 
     suspend fun setSyncEnabledBangumi(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.SyncEnabledBangumi] = enabled }
+    }
+
+    suspend fun setSyncEnabledTmdb(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledTmdb] = enabled }
     }
 
     suspend fun saveKitsuProfileInfo(username: String, avatarUrl: String? = null) {

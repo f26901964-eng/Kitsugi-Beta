@@ -123,20 +123,17 @@ private val genreMap = mapOf(
     "Mythology" to "Mitoloji",
 )
 
-/** API'dan gelen tür adını Türkçeye çevirir. Eşleme yoksa orijinali döner. */
+/**
+ * API'dan gelen tür adını arayüz diline çevirir. Eşleme yoksa orijinali döner.
+ *
+ * **Tek giriş noktası** [toLocalizedTaxonomyLabel]'dir: Bangumi (Çince/Japonca), Shikimori
+ * (Rusça) ve İngilizce kaynaklar aynı çözümleyiciden geçer; çözülemeyen Kiril metni Latin
+ * harflerine çevrilir, böylece ekranda Rusça tür adı görünmez.
+ */
 fun String.toTurkishGenre(): String {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
-    // Bangumi meta etiketleri Çince/Japonca gelir (恋爱, 日常, 游戏改 ...): önce bunlara bak.
-    cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
-    if (!isTurkish()) return this
-    val mapped = genreMap[cleaned]
-        ?: genreMap[cleaned.lowercase()]
-        ?: genreMap[cleaned.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }]
-        // Try case-insensitive lookup in keys
-        ?: genreMap.entries.find { it.key.equals(cleaned, ignoreCase = true) }?.value
-    if (mapped != null) return mapped
-    return com.kitsugi.animelist.ui.screens.search.SearchTranslation.displayLabel(cleaned)
+    return cleaned.toLocalizedTaxonomyLabel()
 }
 
 /** Tür listesini Türkçeye çevirir. */
@@ -154,45 +151,34 @@ fun List<String>.toTurkishGenres(): List<String> = map { it.toTurkishGenre() }
 fun isEnglish(): Boolean = java.util.Locale.getDefault().language.equals("en", ignoreCase = true)
 
 /**
- * İsimle string kaynağı okuma önbelleği (anahtar: `dil:kaynakAdı`).
+ * `bangumi_tag_*` kaynak araması sonucu önbelleği (anahtar: `dil:kaynakAdı`).
  *
- * Uygulamada ~40.000 `bangumi_*` dizesi var (üç vault modülü + uygulama). Android'in
- * `Resources.getIdentifier` çağrısı **her seferinde tüm kaynak tablosunu tarar**; isim
- * başına 20-40 ms sürebiliyor ve `Resources` içindeki kilit yüzünden tüm iş parçacıklarını
- * sıraya sokuyor. Bangumi ekranları (etiket çipleri, görev adları, kurum adları) bunu yüzlerce
- * kez tetiklediği için veri "dakikalarca geç" geliyordu.
- *
- * Bu önbellek hem bulunan hem **bulunamayan** isimleri saklar; böylece aynı isim ikinci kez
- * aranmaz. Anahtar arayüz dilini içerir, dil değişince yeni değerler okunur.
+ * Sözlükte ~770 etiket var ve `getIdentifier` her çağrıda isimle arama yapar; detay
+ * sayfasındaki her çip her yeniden çizimde buraya uğradığı için sonuç önbelleğe alınır.
+ * Bulunamayan kaynaklar boş metinle işaretlenir (negatif önbellek). Anahtar arayüz dilini
+ * içerdiğinden dil değişince otomatik olarak yeni değerler okunur.
  */
-private val stringResourceCache = java.util.concurrent.ConcurrentHashMap<String, String>()
-
-/**
- * [name] adlı string kaynağını (önbellekli) okur; yoksa `null` döner.
- *
- * `internal` — aynı modüldeki arama/çeviri yardımcıları da kullanır. Çağıranlar Çince/Japonca
- * etiketler için türetilmiş anahtarın boş kaldığını denetler; boş anahtar hiç aranmaz.
- */
-internal fun cachedStringResourceByName(name: String): String? {
-    if (name.isBlank()) return null
-    val context = com.kitsugi.animelist.KitsugiApplication.getInstance() ?: return null
-    val languageTag = runCatching {
-        context.resources.configuration.locales[0].toLanguageTag()
-    }.getOrNull()?.takeIf { it.isNotBlank() } ?: java.util.Locale.getDefault().language
-    val cacheKey = "$languageTag:$name"
-    stringResourceCache[cacheKey]?.let { return it.ifEmpty { null } }
-    val resolved = try {
-        val resId = context.resources.getIdentifier(name, "string", context.packageName)
-        if (resId != 0) context.getString(resId) else null
-    } catch (_: Throwable) {
-        null
-    }
-    stringResourceCache[cacheKey] = resolved.orEmpty()
-    return resolved
-}
+private val bangumiTagResourceCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
 /** `bangumi_tag_*` dil dosyası kaynağını ismiyle okur; bulunamazsa null. */
-private fun getStringResourceByName(name: String): String? = cachedStringResourceByName(name)
+private fun getStringResourceByName(name: String): String? {
+    val cacheKey = java.util.Locale.getDefault().language + ":" + name
+    bangumiTagResourceCache[cacheKey]?.let { return it.takeIf { cached -> cached.isNotEmpty() } }
+    val resolved = try {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()
+        if (context == null) {
+            null
+        } else {
+            val resId = context.resources.getIdentifier(name, "string", context.packageName)
+            if (resId != 0) context.getString(resId) else null
+        }
+    } catch (_: Throwable) { null }
+    // Uygulama bağlamı henüz yoksa önbelleğe yazma — ileride gerçek değer okunabilsin.
+    if (resolved != null || com.kitsugi.animelist.KitsugiApplication.getInstance() != null) {
+        bangumiTagResourceCache[cacheKey] = resolved.orEmpty()
+    }
+    return resolved
+}
 
 /** Bangumi etiketinin sözlük girişi (Türkçe + İngilizce karşılık); bilinmiyorsa null. */
 internal fun bangumiTagEntryOrNull(label: String?): BangumiTagEntry? = BangumiTagDictionary.entryFor(label)
@@ -200,14 +186,17 @@ internal fun bangumiTagEntryOrNull(label: String?): BangumiTagEntry? = BangumiTa
 /**
  * Bangumi Çince/Japonca etiketini arayüz diline göre yerelleştirir.
  *
- * Sözlük satırı (`bangumi/tags.tsv` + `values/values-en` aynı kaynaktan üretilir) hem Türkçe
- * hem İngilizce karşılığı taşır. Bu yüzden **`getIdentifier` çağrısı yapılmaz**: uygulamada
- * 50.000'den fazla `bangumi_*` dize kaynağı olduğu için her `getIdentifier` tüm kaynak
- * tablosunu tarar ve detay sayfasındaki onlarca çip bunu tekrar tekrar tetikliyordu.
- * Eşleme yoksa null döner ve çağıran taraf orijinal metni gösterir.
+ * Sıra: dil dosyası (`bangumi_tag_*`; yalnızca tr/en arayüzünde — diğer dillerde varsayılan
+ * kaynak Türkçe olduğu için yanlış sonuc verirdi) → sözlük tablosu. Eşleme yoksa null döner
+ * ve çağıran taraf orijinal metni gösterir.
  */
 fun String.toLocalizedBangumiTagOrNull(): String? {
     val tag = BangumiTagDictionary.entryFor(this) ?: return null
+    if (isTurkish() || isEnglish()) {
+        getStringResourceByName("bangumi_tag_${tag.key}")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+    }
     return if (isTurkish()) tag.turkish else tag.english
 }
 
@@ -221,67 +210,103 @@ fun bangumiTagEnglishOrNull(label: String): String? = BangumiTagDictionary.entry
 fun String.toEnglishBangumiTag(): String = bangumiTagEnglishOrNull(this) ?: this
 
 /**
+ * `taxonomy_tag_<key>` dil dosyası override'ı (tr/en arayüzünde).
+ *
+ * Sözlük tablosu koddadır; dil dosyaları çeviri ekibinin **kod değiştirmeden** düzeltme
+ * yapabilmesi için üretilir (`scripts/sync_taxonomy_tag_strings.py`). Diğer arayüz
+ * dillerinde varsayılan kaynak Türkçe olduğu için yanlış sonuç verirdi — okunmaz.
+ */
+internal fun taxonomyStringOverride(key: String): String? {
+    if (!isTurkish() && !isEnglish()) return null
+    return getStringResourceByName("taxonomy_tag_$key")?.takeIf { it.isNotBlank() }
+}
+
+/**
+ * Etiketin **kanonik İngilizce** adı; bilinmiyorsa null.
+ *
+ * Türkçe girdi (`Aksiyon`) da İngilizceye çevrilir (`Action`), böylece kanonik anahtar
+ * dilden bağımsız üretilebilir. Bilinmeyen değerde null döner — `translateToEnglishForSearch`
+ * bilinmeyen değerde girdiyi aynen döndürdüğü için bu ayrım burada yapılır.
+ */
+internal fun englishTaxonomyName(label: String?): String? {
+    val cleaned = label?.trim().orEmpty()
+    if (cleaned.isEmpty()) return null
+    genreMap[cleaned]?.let { return cleaned }
+    genreMap.keys.firstOrNull { it.equals(cleaned, ignoreCase = true) }?.let { return it }
+    com.kitsugi.animelist.ui.screens.search.SearchTranslation.englishToTurkish.keys
+        .firstOrNull { it.equals(cleaned, ignoreCase = true) }
+        ?.let { return it }
+    val english = com.kitsugi.animelist.ui.screens.search.SearchTranslation
+        .translateToEnglishForSearch(cleaned)
+    if (!english.equals(cleaned, ignoreCase = true)) return english
+    return null
+}
+
+/**
+ * Etiketin arayüz dili Türkçe iken gösterilecek karşılığı; bilinmiyorsa null.
+ *
+ * `SearchTranslation.translateToTurkishForDisplay` dil dosyası kaynaklarını, AniList/MAL/
+ * Kitsu ortak tablosunu ve Bangumi sözlüğünü birlikte kullanır. Bilinmeyen değeri
+ * değiştirmeden döndürdüğü için "çeviri var mı" ayrımı burada yapılır.
+ */
+internal fun englishTaxonomyToTurkish(label: String?): String? {
+    val cleaned = label?.trim().orEmpty()
+    if (cleaned.isEmpty()) return null
+    val display = com.kitsugi.animelist.ui.screens.search.SearchTranslation
+        .translateToTurkishForDisplay(cleaned)
+    if (!display.equals(cleaned, ignoreCase = true)) return display
+    return null
+}
+
+/**
  * Tür/etiket çiplerinde gösterilen metni arayüz diline çevirir.
  *
- * Bangumi sözlüğü önceliklidir; bilinmeyen Çince/Japonca değerler olduğu gibi kalır
- * (uydurma çeviri üretilmez). İngilizce kaynaklı türler yalnızca Türkçe arayüzde çevrilir.
+ * Tek çözümleyici: [String.toLocalizedTaxonomyLabel] — Bangumi (Çince/Japonca) ve
+ * Shikimori (Rusça) sözlükleri + İngilizce yerleşik tablolar. Çözülemeyen Kiril metni
+ * Latin harflerine çevrilir (**ekranda Rusça görünmez**); uydurma çeviri üretilmez.
  */
-fun String.toLocalizedTagLabel(): String {
-    val cleaned = this.trim()
-    if (cleaned.isEmpty()) return cleaned
-    cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
-    if (!isTurkish()) return cleaned
-    val mapped = genreMap[cleaned]
-        ?: genreMap[cleaned.lowercase()]
-        ?: genreMap.entries.firstOrNull { it.key.equals(cleaned, ignoreCase = true) }?.value
-    if (mapped != null) return mapped
-    return com.kitsugi.animelist.ui.screens.search.SearchTranslation.translateToTurkishForDisplay(cleaned)
-}
+fun String.toLocalizedTagLabel(): String = toLocalizedTaxonomyLabel()
 
-/** Metin Çince/Japonca karakter içeriyor mu? (CJK ideogram, hiragana, katakana) */
-private fun String.hasCjkCharacters(): Boolean = any { ch ->
-    val code = ch.code
-    code in 0x3040..0x30FF ||   // hiragana + katakana
-        code in 0x3400..0x4DBF || // CJK ext. A
-        code in 0x4E00..0x9FFF || // CJK ideogram
-        code in 0xF900..0xFAFF    // uyumluluk ideogramları
-}
 
 /**
- * Etiket sözlükte yok ve hâlâ Çince/Japonca mı? Böyle etiketler çevrilemediği için
- * (uydurma çeviri üretilmez) çip listesinin sonuna atılır — liste yarım yamalak görünmesin.
+ * Etiket sözlükte karşılık bulamadı ve hâlâ çözülememiş Çince/Japonca mı?
+ * Böyle etiketler gösterimden **çıkarılır** (modelde korunur) — uydurma çeviri üretilmez
+ * ve ekranda Çince/Japonca metin görünmez.
  */
-fun isUntranslatedCjkTag(value: String): Boolean {
-    val cleaned = value.trim()
-    if (cleaned.isEmpty() || !cleaned.hasCjkCharacters()) return false
-    if (bangumiTagEntryOrNull(cleaned) != null) return false
-    return cleaned.toLocalizedTagLabel().trim() == cleaned
-}
+fun isUntranslatedCjkTag(value: String): Boolean = isUnresolvedForeignLabel(value)
 
 /**
- * Etiket/tür listesini gösterime hazırlar: çeviri yapılır ve çeviriden sonra aynı anlama
- * gelen yazımlar tekilleştirilir (例: `催泪` + `催涙` + `Duygusal` → tek çip).
- * Modelde orijinal değer kalır; arama çipi orijinaliyle çalışmaya devam eder.
+ * Etiket/tür listesini gösterime hazırlar.
  *
- * Sözlükte karşılığı olmayan Çince/Japonca etiketler listenin **sonuna** alınır; önce
- * okunabilir (çevrilmiş) etiketler görünür.
+ *  • Çeviri tek çözümleyiciden geçer ([String.toLocalizedTaxonomyLabel]): Bangumi
+ *    (Çince/Japonca) + Shikimori (Rusça) sözlükleri + İngilizce tablolar.
+ *  • Çeviriden sonra aynı anlama gelen yazımlar tekilleştirilir
+ *    (`催泪` + `催涙` + `Duygusal` + `Tearjerker` → tek çip).
+ *  • Kanonik anahtar karşılaştırması diller arası çalışır
+ *    (`Экшен` ≡ `Action` ≡ `动作` ≡ `Aksiyon`).
+ *  • Çözülemeyen Çince/Japonca etiketler listeye **alınmaz**; çözülemeyen Kiril metni
+ *    Latin harflerine çevrilerek eklenir.
+ *
+ * Modelde orijinal değer kalır; çipe tıklanınca arama o değerle yapılır.
  */
-fun List<String>.localizedDistinctTags(limit: Int = 48): List<String> {
+fun List<String>.localizedDistinctTags(limit: Int = 200): List<String> {
     if (isEmpty()) return emptyList()
-    val translated = ArrayList<String>(minOf(size, limit))
-    val untranslated = ArrayList<String>()
+    val result = ArrayList<String>(minOf(size, limit))
     val seen = HashSet<String>()
     for (raw in this) {
         val value = raw.trim()
         if (value.isEmpty()) continue
+        // Sözlükte olmayan Çince/Japonca etiket gösterilmez.
+        if (isUnresolvedForeignLabel(value)) continue
         val label = value.toLocalizedTagLabel().trim()
         if (label.isEmpty()) continue
-        if (!seen.add(label.lowercase(java.util.Locale.ROOT))) continue
-        if (isUntranslatedCjkTag(value)) untranslated += value else translated += value
-        if (translated.size >= limit) break
+        val dedupKey = value.taxonomyCanonicalKey()
+            .ifEmpty { label.lowercase(java.util.Locale.ROOT) }
+        if (!seen.add(dedupKey)) continue
+        result.add(value)
+        if (result.size >= limit) break
     }
-    if (translated.size >= limit) return translated
-    return (translated + untranslated).take(limit)
+    return result
 }
 
 // Tersine dönüşüm: Türkçe → İngilizce (arama API'ları için)
@@ -448,8 +473,11 @@ fun String.toTurkishCharacterRole(): String = if (!isTurkish()) this else charac
  */
 private fun localizedBangumiRoleOrNull(label: String): String? {
     val entry = BangumiRoleDictionary.entryFor(label) ?: return null
-    // Sözlük girişi TR/EN karşılığı zaten taşır (dil dosyalarıyla aynı kaynaktan üretildi);
-    // `getIdentifier` çağrısı 50.000+ dize kaynağının taranmasına yol açtığı için kaldırıldı.
+    if (isTurkish() || isEnglish()) {
+        getStringResourceByName("bangumi_role_${entry.key}")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+    }
     return if (isTurkish()) entry.turkish else entry.english
 }
 
@@ -662,6 +690,8 @@ private val mediaTypeStringMap = mapOf(
     "ONA" to "ONA",
     "Special" to "Özel",
     "SPECIAL" to "Özel",
+    "TV Special" to "TV Özel Bölümü",
+    "TV_SPECIAL" to "TV Özel Bölümü",
     "Music" to "Müzik",
     "MUSIC" to "Müzik",
     "Manga" to "Manga",
@@ -1246,15 +1276,18 @@ fun String.toTurkishStaffRole(): String {
             .joinToString(", ")
     }
 
-    // Görev adı dil dosyası (`staff_role_*`, 25 kayıt). Önbellekli okunur: Bangumi ekip
-    // listeleri 100 satıra kadar çıkıyor ve her satır eskiden tam kaynak taraması yapıyordu.
-    // `lowercase()` yerine ROOT: Türkçe yerelde "I" → "ı" olup kaynak anahtarını bozuyordu.
-    val normalizedRole = trimmed.lowercase(java.util.Locale.ROOT)
-        .replace(Regex("[^a-z0-9_]"), "_")
-        .replace(Regex("__+"), "_")
-        .trim('_')
-    if (normalizedRole.isNotEmpty()) {
-        cachedStringResourceByName("staff_role_$normalizedRole")?.takeIf { it.isNotBlank() }?.let { return it }
+    // Dynamic resource lookup first
+    val context = com.kitsugi.animelist.KitsugiApplication.getInstance()
+    if (context != null) {
+        val normalized = trimmed.lowercase()
+            .replace(Regex("[^a-z0-9_]"), "_")
+            .replace(Regex("__+"), "_")
+            .trim('_')
+        val key = "staff_role_$normalized"
+        val resId = context.resources.getIdentifier(key, "string", context.packageName)
+        if (resId != 0) {
+            return context.getString(resId)
+        }
     }
 
     val exactMatch = staffRoleMap[trimmed]
@@ -1316,6 +1349,8 @@ fun String.toFriendlySourceLabel(): String {
         "simkl"        -> "Simkl"
         "bangumi", "bgm" -> "Bangumi"
         "fanart.tv", "fanart" -> "Fanart.tv"
+        "animethemes", "animethemes.moe" -> "AnimeThemes"
+        "fandom"       -> "Fandom"
         "manual"       -> "Manual"
         else           -> this
     }
@@ -1465,18 +1500,53 @@ private val studioLatinNameMap = mapOf(
  * Not: Arama/dedup daima Latin adla çalışır (`KitsugiStudio.name`), bu fonksiyon yalnızca
  * **gösterim** içindir.
  */
+/**
+ * Kurum adını **gösterimden önce** temizler.
+ *
+ * Bangumi infobox'ı ve kullanıcı katkıları zaman zaman kurum alanına ad değil çöp yazıyor:
+ *  • tırnak artefaktları — `"""アフタヌーン`, `I\\'ve`
+ *  • noktalı virgülle eklenmiş baskı notları — `芳文社; B6版`
+ *  • kaomoji — `っ´Д\`)っゼロ式の家`
+ *
+ * Bu adlar ekranda stüdyo/yayıncı olarak görünmemeli. Harf/rakam oranı yarıdan az olan
+ * değerler (kaomoji, salt sembol) **boş** döner; çağıran taraf bunları listeden düşürür.
+ * Gerçek adlar (kısa kısaltmalar dahil: `CR`, `MX`, `B站`) korunur.
+ */
+/** Ad değil, ifade/kaomoji göstergesi olan karakterler. */
+private val KAOMOJI_MARKERS = charArrayOf(
+    '\u00B4', '`', '\uFF40', '\u02CA', '\u02CB', '\uFF9F', '\u309C',
+    '\u03C9', '\u2200', '\uFF3E', '^', '\uFF5E', '~', '\u2267', '\u2266', '\uFF57'
+)
+
+fun String.sanitizeOrgName(): String {
+    var value = this.trim()
+    if (value.isEmpty()) return value
+    value = value.replace(Regex("^[\"'\u2018\u2019\u201C\u201D]+"), "")
+        .replace(Regex("[\"'\u2018\u2019\u201C\u201D]+$"), "")
+        .trim()
+    if (value.contains(';') || value.contains('；')) {
+        value = value.substringBefore(';').substringBefore('；').trim()
+    }
+    if (value.isEmpty()) return value
+    // Kaomoji işaretleri: gerçek stüdyo/yayıncı adlarında asla geçmez, infobox çöpünde geçer.
+    if (value.any { it in KAOMOJI_MARKERS }) return ""
+    val alphanumeric = value.count { it.isLetterOrDigit() }
+    if (alphanumeric == 0) return ""
+    if (alphanumeric * 2 < value.length) return ""
+    return value.replace(Regex("\\s+"), " ").trim()
+}
+
 fun String.toLocalizedOrgName(): String {
-    val cleaned = this.trim()
+    val cleaned = this.sanitizeOrgName()
     if (cleaned.isEmpty()) return cleaned
     val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
         ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
     if (key != null && (isTurkish() || isEnglish())) {
         getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
     }
-    val turkish = isTurkish()
-    return BangumiOrgDictionary.localizedNameFor(cleaned, turkish)
-        ?: BangumiOrgDictionary.localizedNameFor(toLatinStudioName(), turkish)
-        ?: toLatinStudioName()
+    // Kurum adları özel addır: dil bağımsız Latin yazımı. Kaynak bulunmazsa Kiril romanize edilir.
+    val fallback = BangumiOrgDictionary.latinNameFor(cleaned) ?: toLatinStudioName()
+    return if (fallback.hasCyrillicCharacters()) fallback.transliterateCyrillic() else fallback
 }
 
 /**
@@ -1484,7 +1554,7 @@ fun String.toLocalizedOrgName(): String {
  * göstermek isteyebilir (ör. çip tıklamasında ham adı korumak için).
  */
 fun String.toLocalizedOrgNameOrNull(): String? {
-    val cleaned = this.trim()
+    val cleaned = this.sanitizeOrgName()
     if (cleaned.isEmpty()) return null
     val turkish = isTurkish()
     val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
@@ -1493,8 +1563,8 @@ fun String.toLocalizedOrgNameOrNull(): String? {
     if (isTurkish() || isEnglish()) {
         getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
     }
-    return BangumiOrgDictionary.localizedNameFor(cleaned, turkish)
-        ?: BangumiOrgDictionary.latinNameFor(cleaned)
+    val fallback = BangumiOrgDictionary.latinNameFor(cleaned)
+    return if (fallback?.hasCyrillicCharacters() == true) fallback.transliterateCyrillic() else fallback
 }
 
 /**

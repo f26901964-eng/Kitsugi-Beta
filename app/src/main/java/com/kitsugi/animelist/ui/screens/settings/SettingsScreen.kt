@@ -85,6 +85,7 @@ enum class SettingsRoute {
     KitsuSettings,
     ShikimoriSettings,
     BangumiSettings,
+    TmdbSettings,
     CrossSyncSettings,
     AppearancePreferences,
     PlayerSettings,
@@ -173,6 +174,7 @@ fun SettingsScreen(
             SettingsRoute.KitsuSettings,
             SettingsRoute.ShikimoriSettings,
             SettingsRoute.BangumiSettings,
+            SettingsRoute.TmdbSettings,
             SettingsRoute.CrossSyncSettings -> SettingsRoute.AccountConnections
             else -> SettingsRoute.Main
         }
@@ -301,6 +303,15 @@ fun SettingsScreen(
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     BangumiSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.TmdbSettings -> {
+                SettingsSubPage(
+                    title = "TMDB",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    TmdbSettingsContent(profile = params.profile)
                 }
             }
 
@@ -894,7 +905,7 @@ private fun SettingsPreferencesContent(
         general.airingNotificationsEnabled, general.splashAnimationEnabled, general.splashSoundEnabled,
         general.mangaReadingMode, general.mangaColorFilter, general.mangaFitMode, general.mangaBrightness,
         general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled,
-        general.kitsuNotificationsEnabled, general.shikimoriNotificationsEnabled, general.notificationInterval,
+        general.kitsuNotificationsEnabled, general.shikimoriNotificationsEnabled, general.tmdbNotificationsEnabled, general.notificationInterval,
         general.staffNameLanguage, general.scoreStep, general.separatedListStyle, general.showLowPriority,
         general.priorityColorsJson, general.fuzzySearchEnabled, general.separateNovelsManga,
         general.autoDateOnStatusChange, general.autoProgressOnComplete, general.defaultAddStatus,
@@ -948,6 +959,7 @@ private fun SettingsPreferencesContent(
                 simklNotificationsEnabled = general.simklNotificationsEnabled,
                 kitsuNotificationsEnabled = general.kitsuNotificationsEnabled,
                 shikimoriNotificationsEnabled = general.shikimoriNotificationsEnabled,
+                tmdbNotificationsEnabled = general.tmdbNotificationsEnabled,
                 notificationInterval = general.notificationInterval
             ),
             downloads = com.kitsugi.animelist.data.settings.DownloadAndMangaSettings(
@@ -1001,11 +1013,13 @@ private fun SettingsPreferencesContent(
         onSimklNotificationsChanged = general.onSimklNotificationsChanged,
         onKitsuNotificationsChanged = general.onKitsuNotificationsChanged,
         onShikimoriNotificationsChanged = general.onShikimoriNotificationsChanged,
+        onTmdbNotificationsChanged = general.onTmdbNotificationsChanged,
         isAniListConnected = general.isAniListConnected,
         isMalConnected = general.isMalConnected,
         isSimklConnected = general.isSimklConnected,
         isKitsuConnected = general.isKitsuConnected,
         isShikimoriConnected = general.isShikimoriConnected,
+        isTmdbConnected = general.isTmdbConnected,
         isBangumiConnected = general.isBangumiConnected,
         onNotificationIntervalChanged = general.onNotificationIntervalChanged,
         onSplashAnimationEnabledChanged = general.onSplashAnimationEnabledChanged,

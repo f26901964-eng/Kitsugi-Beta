@@ -11,6 +11,7 @@ import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -31,6 +32,8 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,8 +61,10 @@ import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.platform.PlatformErrorCode
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -74,38 +79,64 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 private enum class NotifPlatform(
     val label: String,
     val logoId: String,
-    val description: String
+    val description: String,
+    /** Listem kaynak secicisiyle birebir ayni marka rengi (ortak tema dili). */
+    val brandColor: Color
 ) {
     ANILIST(
         label = "AniList",
         logoId = "anilist",
-        description = KitsugiStrings.get(R.string.yayin_takvimi_aktivite_begenileri_yorumlar_ve_forum_bildirimleri)
+        description = KitsugiStrings.get(R.string.yayin_takvimi_aktivite_begenileri_yorumlar_ve_forum_bildirimleri),
+        brandColor = Color(0xFF02A9FF)
     ),
     MAL(
         label = "MyAnimeList",
         logoId = "mal",
-        description = KitsugiStrings.get(R.string.kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri)
+        description = KitsugiStrings.get(R.string.kulup_mesajlari_arkadaslik_istekleri_ve_liste_bildirimleri),
+        brandColor = Color(0xFF2E51A2)
     ),
     TMDB_SIMKL(
         label = "TMDB & Simkl",
         logoId = "simkl",
-        description = KitsugiStrings.get(R.string.dizi_film_ve_anime_yeni_bolum_yayin_bildirimleri)
+        description = KitsugiStrings.get(R.string.dizi_film_ve_anime_yeni_bolum_yayin_bildirimleri),
+        brandColor = Color(0xFFE5A00D)
     ),
     KITSU(
         label = "Kitsu",
         logoId = "kitsu",
-        description = KitsugiStrings.get(R.string.topluluk_etkilesimleri_yorumlar_ve_takipci_bildirimleri)
+        description = KitsugiStrings.get(R.string.topluluk_etkilesimleri_yorumlar_ve_takipci_bildirimleri),
+        brandColor = Color(0xFFFD755C)
     ),
     SHIKIMORI(
         label = "Shikimori",
         logoId = "shikimori",
-        description = KitsugiStrings.get(R.string.kullanici_mesajlari_kulup_ve_yayin_guncellemeleri)
+        description = KitsugiStrings.get(R.string.kullanici_mesajlari_kulup_ve_yayin_guncellemeleri),
+        brandColor = Color(0xFF8E44AD)
     ),
     BANGUMI(
         label = "Bangumi",
         logoId = "bangumi",
-        description = KitsugiStrings.get(R.string.izleme_listesi_yayin_takvimi_bildirimleri)
+        description = KitsugiStrings.get(R.string.izleme_listesi_yayin_takvimi_bildirimleri),
+        brandColor = Color(0xFFF09199)
+    ),
+    TMDB_ACCOUNT(
+        label = "TMDB",
+        logoId = "tmdb",
+        description = KitsugiStrings.get(R.string.notif_notice_tmdb_account),
+        brandColor = Color(0xFF01B4E4)
     )
+}
+
+/** Bildirim kartındaki kaynak adından ("Simkl", "MyAnimeList"...) marka rengi. */
+private fun notifBrandColorForSource(source: String): Color = when (source.trim().lowercase()) {
+    "anilist" -> NotifPlatform.ANILIST.brandColor
+    "myanimelist", "mal", "jikan" -> NotifPlatform.MAL.brandColor
+    "simkl" -> NotifPlatform.TMDB_SIMKL.brandColor
+    "tmdb_account", "tmdb" -> NotifPlatform.TMDB_ACCOUNT.brandColor
+    "kitsu" -> NotifPlatform.KITSU.brandColor
+    "shikimori" -> NotifPlatform.SHIKIMORI.brandColor
+    "bangumi" -> NotifPlatform.BANGUMI.brandColor
+    else -> NotifPlatform.ANILIST.brandColor
 }
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
@@ -120,12 +151,25 @@ fun KitsugiNotificationsScreen(
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
+    tmdbUsername: String = "",
     onBack: () -> Unit,
     onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?, title: String?, imageUrl: String?) -> Unit)? = null,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
     onOpenMalAccountSettings: () -> Unit = {},
+    /** Bagli olmayan kaynagin "Hesabi Bagla" eylemi (sayfa sirasi: 0=AniList ... 5=Bangumi). */
+    onConnectPlatform: ((Int) -> Unit)? = null,
     /** MAL tek oturum kurulduğunda artan sayaç — bildirimler kendiliğinden tazelenir. */
     malSessionRefreshToken: Int = 0,
+    /**
+     * Akıllı bildirim butonu: kullanıcı bildirim butonuna hangi sekmeden bastıysa
+     * (Listem / Keşfet / Arama / Profil) orada seçili olan kaynağın kimliği.
+     * Sayfa doğrudan o kaynağın sekmesiyle açılır.
+     *
+     * `null` (veya "Tümü" / bildirimi olmayan bir kaynak) ise eski davranış korunur:
+     * bağlı olan ilk hesabın bildirimleri gösterilir.
+     */
+    preferredSource: String? = null,
     viewModel: KitsugiNotificationsViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -145,23 +189,42 @@ fun KitsugiNotificationsScreen(
     val kitsuState     by viewModel.kitsu.collectAsState()
     val shikimoriState by viewModel.shikimori.collectAsState()
     val bangumiState   by viewModel.bangumi.collectAsState()
+    val tmdbAccountState by viewModel.tmdbAccount.collectAsState()
     val aniListUnread  by viewModel.aniListUnread.collectAsState()
     val diagState      by viewModel.diagnostics.collectAsState()
     val resolvingMediaTitle by viewModel.resolvingMedia.collectAsState()
 
     // ── Sayfa + filtre state ──
+    //
+    // AKILLI BİLDİRİM BUTONU: butona basılan sekmede (Listem / Keşfet / Arama / Profil)
+    // hangi kaynak seçiliyse bildirimler doğrudan o kaynağın sekmesinde açılır.
+    // Kaynak "Tümü" ise ya da bildirim sekmesi yoksa eski davranış korunur
+    // (bağlı olan ilk hesabın bildirimleri).
+    val requestedPage = remember(preferredSource) { notificationPageForSource(preferredSource) }
+    val fallbackPage = when {
+        isAniListConnected   -> NOTIF_PAGE_ANILIST
+        isMalConnected       -> NOTIF_PAGE_MAL
+        isSimklConnected     -> NOTIF_PAGE_TMDB_SIMKL
+        isKitsuConnected     -> NOTIF_PAGE_KITSU
+        isShikimoriConnected -> NOTIF_PAGE_SHIKIMORI
+        isBangumiConnected   -> NOTIF_PAGE_BANGUMI
+        isTmdbConnected      -> NOTIF_PAGE_TMDB_ACCOUNT
+        else                 -> NOTIF_PAGE_ANILIST
+    }
+
     val pagerState = rememberPagerState(
-        initialPage = when {
-            isAniListConnected   -> 0
-            isMalConnected       -> 1
-            isSimklConnected     -> 2
-            isKitsuConnected     -> 3
-            isShikimoriConnected -> 4
-            isBangumiConnected   -> 5
-            else                 -> 0
-        },
-        pageCount = { 6 }
+        initialPage = requestedPage ?: fallbackPage,
+        pageCount = { 7 }
     )
+
+    // Kaynak kimliği değişirse (ör. arkada farklı bir kaynakla açılmış sayfa yeniden
+    // kullanılırsa) sayfa seçili kaynağa kaydırılır. Kullanıcı sayfa içinde kaynağı elle
+    // değiştirdiğinde bu efekt tetiklenmez — seçimi korunur.
+    LaunchedEffect(requestedPage) {
+        if (requestedPage != null && pagerState.currentPage != requestedPage) {
+            pagerState.scrollToPage(requestedPage)
+        }
+    }
 
     val aniListPagerState = rememberPagerState(
         initialPage = 0,
@@ -173,6 +236,10 @@ fun KitsugiNotificationsScreen(
     // Bangumi koleksiyon/takvim uçları yalnızca özgün (CJK) başlığı döndürür; başlık dili
     // ayarı değişince Bangumi sekmesi yeniden yüklenmezse eski dildeki/özgün başlık ekranda
     // kalıcı kalır (bkz. kullanıcı bildirimi — "Bangumi'nin her yerde seçili dile uyması").
+    // NOT: Bağlantı kapısı yalnızca AniList'te var. Diğer kaynakların ViewModel'i
+    // hesap bağlı değilken de yerel kayıt/takvim yedeği üretir (Kitsu, Simkl,
+    // Bangumi) ya da giriş gerektiğini state ile söyler (Shikimori); eskiden
+    // buradaki `if (isXConnected)` kapıları o yedekleri ulaşılamaz yapıyordu.
     LaunchedEffect(pagerState.currentPage, currentAniListFilter, appSettings.titleLanguage) {
         when (pagerState.currentPage) {
             0 -> if (isAniListConnected) viewModel.loadAniList(
@@ -181,10 +248,11 @@ fun KitsugiNotificationsScreen(
                 mediaEntries = mediaEntries
             )
             1 -> viewModel.loadMal(mediaEntries)
-            2 -> if (isSimklConnected) viewModel.loadTmdbSimkl(mediaEntries)
-            3 -> if (isKitsuConnected) viewModel.loadKitsu(mediaEntries)
-            4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
-            5 -> if (isBangumiConnected) viewModel.loadBangumi(mediaEntries, appSettings.titleLanguage)
+            2 -> viewModel.loadTmdbSimkl(mediaEntries)
+            3 -> viewModel.loadKitsu(mediaEntries)
+            4 -> viewModel.loadShikimori(mediaEntries)
+            5 -> viewModel.loadBangumi(mediaEntries, appSettings.titleLanguage)
+            6 -> if (isTmdbConnected) viewModel.loadTmdbAccount()
         }
     }
 
@@ -197,11 +265,37 @@ fun KitsugiNotificationsScreen(
     // A missing or mismatched website session is resolved from Settings → MAL account,
     // where the shared in-app OAuth WebView can complete/reconnect the account.
 
+    // Kaynak seçici + özet satırı için ortak sayaçlar (toplam / okunmamış).
+    // Eskiden yalnızca AniList'in okunmamış rozeti vardı; diğer kaynaklar sessizdi.
+    val aniListAllState by viewModel.getAniListState(AniListFilter.ALL).collectAsState()
+    val malTotalCount = remember(malState) {
+        viewModel.getMalCategoryCounts()[MalNotificationCategory.ALL] ?: malState.items.size
+    }
+    val platformItemCounts: Map<NotifPlatform, Int> = mapOf(
+        NotifPlatform.ANILIST to aniListAllState.items.size,
+        NotifPlatform.MAL to malTotalCount,
+        NotifPlatform.TMDB_SIMKL to simklState.items.size,
+        NotifPlatform.KITSU to kitsuState.items.size,
+        NotifPlatform.SHIKIMORI to shikimoriState.items.size,
+        NotifPlatform.BANGUMI to bangumiState.items.size,
+        NotifPlatform.TMDB_ACCOUNT to tmdbAccountState.items.size
+    )
+    val platformUnreadCounts: Map<NotifPlatform, Int> = mapOf(
+        NotifPlatform.ANILIST to (aniListUnread ?: aniListAllState.items.count { it.isUnread }),
+        NotifPlatform.MAL to malState.items.count { it.isUnread },
+        NotifPlatform.TMDB_SIMKL to simklState.items.count { it.isUnread },
+        NotifPlatform.KITSU to kitsuState.items.count { it.isUnread },
+        NotifPlatform.SHIKIMORI to shikimoriState.items.count { it.isUnread },
+        NotifPlatform.BANGUMI to bangumiState.items.count { it.isUnread },
+        NotifPlatform.TMDB_ACCOUNT to tmdbAccountState.items.count { it.isUnread }
+    )
+
     val malListState       = rememberLazyListState()
     val tmdbSimklListState = rememberLazyListState()
     val kitsuListState     = rememberLazyListState()
     val shikimoriListState = rememberLazyListState()
     val bangumiListState   = rememberLazyListState()
+    val tmdbAccountListState = rememberLazyListState()
 
     val configuration = LocalConfiguration.current
     val isLandscape   = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -215,6 +309,7 @@ fun KitsugiNotificationsScreen(
             3 -> viewModel.loadKitsu(mediaEntries)
             4 -> viewModel.loadShikimori(mediaEntries)
             5 -> viewModel.loadBangumi(mediaEntries, appSettings.titleLanguage)
+            6 -> viewModel.loadTmdbAccount()
         }
     }
 
@@ -312,7 +407,7 @@ fun KitsugiNotificationsScreen(
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
                     contentDescription = stringResource(R.string.notif_action_refresh),
-                    tint = accentColor
+                    tint = NotifPlatform.entries.getOrElse(pagerState.currentPage) { NotifPlatform.ANILIST }.brandColor
                 )
             }
         }
@@ -325,6 +420,7 @@ fun KitsugiNotificationsScreen(
             NotifPlatform.KITSU      -> isKitsuConnected
             NotifPlatform.SHIKIMORI  -> isShikimoriConnected
             NotifPlatform.BANGUMI    -> isBangumiConnected
+            NotifPlatform.TMDB_ACCOUNT -> isTmdbConnected
         }
 
         // ── Platform Seçici Buton (Listem sayfası açılır panel tarzı) ──
@@ -337,10 +433,26 @@ fun KitsugiNotificationsScreen(
             NotificationSourceSelectorPill(
                 selectedPlatform = currentPlatform,
                 isConnected = isCurrentConnected,
-                unreadCount = if (currentPlatform == NotifPlatform.ANILIST) (aniListUnread ?: 0) else 0,
-                accentColor = accentColor,
+                unreadCount = platformUnreadCounts[currentPlatform] ?: 0,
                 onClick = { showSourcePickerSheet = true }
             )
+            Spacer(Modifier.weight(1f))
+            val summaryTotal = platformItemCounts[currentPlatform] ?: 0
+            val summaryUnread = platformUnreadCounts[currentPlatform] ?: 0
+            if (summaryTotal > 0) {
+                Text(
+                    text = buildString {
+                        append(stringResource(R.string.notif_items_count, summaryTotal))
+                        if (summaryUnread > 0) {
+                            append(" • ")
+                            append(stringResource(R.string.x_yeni, summaryUnread.toString()))
+                        }
+                    },
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
         HorizontalDivider(
@@ -351,7 +463,7 @@ fun KitsugiNotificationsScreen(
         // ── Pager ──
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = false,
+            userScrollEnabled = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -360,7 +472,14 @@ fun KitsugiNotificationsScreen(
                 // ──────────────── Page 0: AniList ────────────────
                 0 -> {
                     if (!isAniListConnected) {
-                        CenteredEmptyState(stringResource(R.string.notif_login_required_anilist))
+                        NotifStatusState(
+                            platform = NotifPlatform.ANILIST,
+                            title = stringResource(R.string.notif_login_required_anilist),
+                            subtitle = NotifPlatform.ANILIST.description,
+                            actionText = if (onConnectPlatform != null) stringResource(R.string.hesabi_bagla) else null,
+                            onAction = onConnectPlatform?.let { connect -> { connect(0) } },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
                             AniListFilterHeader(
@@ -371,7 +490,7 @@ fun KitsugiNotificationsScreen(
                                     }
                                 },
                                 isWideScreen = isWideScreen,
-                                accentColor = accentColor
+                                accentColor = NotifPlatform.ANILIST.brandColor
                             )
 
                             HorizontalPager(
@@ -384,76 +503,40 @@ fun KitsugiNotificationsScreen(
                                 val filterState by viewModel.getAniListState(filter).collectAsState()
                                 val listState = rememberLazyListState()
 
-                                // Infinite scroll for this specific filter list
-                                val shouldLoadMore by remember {
-                                    derivedStateOf {
-                                        val total = listState.layoutInfo.totalItemsCount
-                                        val last  = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                                        last >= total - 5 && total > 0
-                                    }
-                                }
-                                LaunchedEffect(shouldLoadMore) {
-                                    if (shouldLoadMore && !filterState.isLoading && filterState.hasMore) {
+                                NotifListPage(
+                                    state = filterState,
+                                    isConnected = true,
+                                    platform = NotifPlatform.ANILIST,
+                                    accentColor = accentColor,
+                                    listState = listState,
+                                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                                    loginRequiredMessage = stringResource(R.string.notif_login_required_anilist),
+                                    onRetry = {
+                                        viewModel.loadAniList(
+                                            filter = filter,
+                                            resetPage = true,
+                                            mediaEntries = mediaEntries
+                                        )
+                                    },
+                                    onUserProfileClick = onUserProfileClick,
+                                    hasMore = filterState.hasMore,
+                                    onLoadMore = {
                                         viewModel.loadAniList(
                                             filter = filter,
                                             resetPage = false,
                                             mediaEntries = mediaEntries
                                         )
-                                    }
-                                }
-
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(bottom = 80.dp)
-                                ) {
-                                    when {
-                                        filterState.isLoading && filterState.items.isEmpty() -> {
-                                            item { LoadingState(accentColor) }
-                                        }
-                                        filterState.error != null && filterState.items.isEmpty() -> {
-                                            val errText = filterState.error.orEmpty()
-                                            item { CenteredEmptyState(errText) }
-                                            filterState.errorCode?.let { code ->
-                                                item(key = "filter_error_code_${filter}") {
-                                                    PlatformErrorCodeChip(code = code, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
-                                                }
-                                            }
-                                        }
-                                        filterState.items.isEmpty() -> {
-                                            item { CenteredEmptyState(stringResource(R.string.notif_empty_no_notifications)) }
-                                        }
-                                        else -> {
-                                            itemsIndexed(filterState.items, key = { idx, it -> "${idx}_${it.id}" }) { _, notif ->
-                                                NotifItemRow(
-                                                    notif = notif,
-                                                    accentColor = accentColor,
-                                                    onUserProfileClick = onUserProfileClick,
-                                                    onClick = {
-                                                        if (notif.activityId != null && notif.activityId > 0) {
-                                                            activeActivityIdForDetail = notif.activityId
-                                                        } else if (notif.mediaId != null) {
-                                                            onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
-                                                        } else if (notif.userId != null && notif.userName != null) {
-                                                            onUserProfileClick?.invoke(notif.userId, notif.userName, notif.userAvatarUrl)
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                            // Sayfa sonu yükleyici
-                                            if (filterState.isLoading) {
-                                                item {
-                                                    Box(
-                                                        Modifier.fillMaxWidth().padding(16.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        KitsugiPlasmaLoader(size = 26.dp)
-                                                    }
-                                                }
-                                            }
+                                    },
+                                    onItemClick = { notif ->
+                                        if (notif.activityId != null && notif.activityId > 0) {
+                                            activeActivityIdForDetail = notif.activityId
+                                        } else if (notif.mediaId != null) {
+                                            onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
+                                        } else if (notif.userId != null && notif.userName != null) {
+                                            onUserProfileClick?.invoke(notif.userId, notif.userName, notif.userAvatarUrl)
                                         }
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -467,62 +550,74 @@ fun KitsugiNotificationsScreen(
                         MalFilterHeader(
                             selectedCategory = malCategory,
                             counts = malCounts,
-                            accentColor = accentColor,
+                            accentColor = NotifPlatform.MAL.brandColor,
                             onCategorySelected = { cat -> viewModel.setMalFilter(cat) }
                         )
-                        SourceNotifPage(
+                        NotifListPage(
                             state = malState,
-                            // Keep the native feed visible; website-session repair is routed through the shared account connection.
+                            // Native akış her zaman denenir; web oturumu onarımı ayrı karttadır.
                             isConnected = true,
-                            loginRequiredMessage = stringResource(R.string.notif_login_required_mal),
+                            platform = NotifPlatform.MAL,
+                            accentColor = accentColor,
+                            listState = malListState,
                             emptyMessage = if (malCategory == MalNotificationCategory.ALL) {
                                 stringResource(R.string.notif_empty_no_notifications)
                             } else {
                                 stringResource(R.string.mal_notif_filter_empty)
                             },
-                            accentColor = accentColor,
-                            listState = malListState,
+                            loginRequiredMessage = stringResource(R.string.notif_login_required_mal),
+                            onRetry = { viewModel.loadMal(mediaEntries) },
                             onUserProfileClick = onUserProfileClick,
-                            malWebSessionTitle = stringResource(
-                                when {
-                                    malState.malAccountMismatch -> R.string.notif_mal_account_mismatch_action
-                                    malState.requiresMalWebLogin || !isMalConnected -> R.string.notif_mal_web_connect
-                                    else -> R.string.notif_mal_web_refresh
-                                }
-                            ),
-                            malWebSessionHint = when {
-                                malState.malAccountMismatch -> stringResource(
-                                    R.string.notif_mal_account_mismatch_hint,
-                                    malState.malOAuthUsername ?: "—",
-                                    malState.malWebUsername ?: "—"
-                                )
-                                malState.requiresMalWebLogin || !isMalConnected -> stringResource(R.string.notif_mal_web_login_hint)
-                                else -> stringResource(R.string.notif_mal_web_refresh_hint)
-                            },
-                            onMalWebSessionAction = {
-                                if (malState.malAccountMismatch || malState.requiresMalWebLogin || !isMalConnected) {
-                                    onOpenMalAccountSettings()
-                                } else {
-                                    viewModel.loadMal(mediaEntries)
-                                }
-                            },
                             onItemClick = { notif -> openMalNotification(notif) },
-                            // Daha eski bildirimler varsa kaydırdıkça gelir.
                             hasMore = malState.hasMore,
-                            onLoadMore = { viewModel.loadMalMore() }
+                            onLoadMore = { viewModel.loadMalMore() },
+                            topContent = {
+                                item(key = "mal_web_session_action") {
+                                    MalWebSessionActionCard(
+                                        title = stringResource(
+                                            when {
+                                                malState.malAccountMismatch -> R.string.notif_mal_account_mismatch_action
+                                                malState.requiresMalWebLogin || !isMalConnected -> R.string.notif_mal_web_connect
+                                                else -> R.string.notif_mal_web_refresh
+                                            }
+                                        ),
+                                        hint = when {
+                                            malState.malAccountMismatch -> stringResource(
+                                                R.string.notif_mal_account_mismatch_hint,
+                                                malState.malOAuthUsername ?: "—",
+                                                malState.malWebUsername ?: "—"
+                                            )
+                                            malState.requiresMalWebLogin || !isMalConnected ->
+                                                stringResource(R.string.notif_mal_web_login_hint)
+                                            else -> stringResource(R.string.notif_mal_web_refresh_hint)
+                                        },
+                                        accentColor = NotifPlatform.MAL.brandColor,
+                                        onClick = {
+                                            if (malState.malAccountMismatch || malState.requiresMalWebLogin || !isMalConnected) {
+                                                onOpenMalAccountSettings()
+                                            } else {
+                                                viewModel.loadMal(mediaEntries)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                         )
                     }
                 }
 
                 // ──────────────── Page 2: TMDB & Simkl ────────────────
-                2 -> SourceNotifPage(
+                2 -> NotifListPage(
                     state = simklState,
                     isConnected = isSimklConnected,
-                    loginRequiredMessage = stringResource(R.string.notif_login_required_simkl),
-                    emptyMessage = stringResource(R.string.notif_empty_list_simkl),
+                    platform = NotifPlatform.TMDB_SIMKL,
                     accentColor = accentColor,
                     listState = tmdbSimklListState,
+                    emptyMessage = stringResource(R.string.notif_empty_list_simkl),
+                    loginRequiredMessage = stringResource(R.string.notif_login_required_simkl),
+                    onRetry = { viewModel.loadTmdbSimkl(mediaEntries) },
                     onUserProfileClick = onUserProfileClick,
+                    onConnectClick = onConnectPlatform?.let { connect -> { connect(2) } },
                     onItemClick = { notif ->
                         notif.mediaId?.let { id ->
                             onOpenApiDetail?.invoke(id, "simkl", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
@@ -531,14 +626,17 @@ fun KitsugiNotificationsScreen(
                 )
 
                 // ──────────────── Page 3: Kitsu ────────────────
-                3 -> SourceNotifPage(
+                3 -> NotifListPage(
                     state = kitsuState,
                     isConnected = isKitsuConnected,
-                    loginRequiredMessage = stringResource(R.string.notif_notice_kitsu_not_connected),
-                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    platform = NotifPlatform.KITSU,
                     accentColor = accentColor,
                     listState = kitsuListState,
+                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    loginRequiredMessage = stringResource(R.string.notif_notice_kitsu_not_connected),
+                    onRetry = { viewModel.loadKitsu(mediaEntries) },
                     onUserProfileClick = onUserProfileClick,
+                    onConnectClick = onConnectPlatform?.let { connect -> { connect(3) } },
                     onItemClick = { notif ->
                         notif.mediaId?.let { id ->
                             onOpenApiDetail?.invoke(id, "kitsu", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
@@ -547,14 +645,17 @@ fun KitsugiNotificationsScreen(
                 )
 
                 // ──────────────── Page 4: Shikimori ────────────────
-                4 -> SourceNotifPage(
+                4 -> NotifListPage(
                     state = shikimoriState,
                     isConnected = isShikimoriConnected,
-                    loginRequiredMessage = stringResource(R.string.notif_login_required_shikimori),
-                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    platform = NotifPlatform.SHIKIMORI,
                     accentColor = accentColor,
                     listState = shikimoriListState,
+                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    loginRequiredMessage = stringResource(R.string.notif_login_required_shikimori),
+                    onRetry = { viewModel.loadShikimori(mediaEntries) },
                     onUserProfileClick = onUserProfileClick,
+                    onConnectClick = onConnectPlatform?.let { connect -> { connect(4) } },
                     onItemClick = { notif ->
                         notif.mediaId?.let { id ->
                             onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
@@ -562,18 +663,40 @@ fun KitsugiNotificationsScreen(
                     }
                 )
 
+                // ──────────────── Page 6: TMDB account changes ────────────────
+                6 -> NotifListPage(
+                    state = tmdbAccountState,
+                    isConnected = isTmdbConnected,
+                    platform = NotifPlatform.TMDB_ACCOUNT,
+                    accentColor = accentColor,
+                    listState = tmdbAccountListState,
+                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    loginRequiredMessage = stringResource(R.string.settings_notifications_connect_account, "TMDB"),
+                    onRetry = { viewModel.loadTmdbAccount() },
+                    onUserProfileClick = onUserProfileClick,
+                    onConnectClick = onConnectPlatform?.let { connect -> { connect(6) } },
+                    onItemClick = { notif ->
+                        notif.mediaId?.let { id ->
+                            onOpenApiDetail?.invoke(id, "tmdb", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
+                        }
+                    }
+                )
+
                 // ──────────────── Page 5: Bangumi ────────────────
-                5 -> SourceNotifPage(
+                5 -> NotifListPage(
                     state = bangumiState,
                     isConnected = isBangumiConnected,
-                    loginRequiredMessage = stringResource(R.string.notif_login_required_bangumi),
-                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    platform = NotifPlatform.BANGUMI,
                     accentColor = accentColor,
                     listState = bangumiListState,
+                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    loginRequiredMessage = stringResource(R.string.notif_login_required_bangumi),
+                    onRetry = { viewModel.loadBangumi(mediaEntries, appSettings.titleLanguage) },
                     onUserProfileClick = onUserProfileClick,
+                    onConnectClick = onConnectPlatform?.let { connect -> { connect(5) } },
                     onItemClick = { notif ->
-                        // mediaId Bangumi stableId'sidir (500M+); detay yönlendirmesi
-                        // bu kimlikle yerel kaydı bulur, bulamazsa API detay açar.
+                        // mediaId Bangumi stableId'sidir (500M+); detay yonlendirmesi
+                        // bu kimlikle yerel kaydi bulur, bulamazsa API detay acar.
                         notif.mediaId?.let { id ->
                             onOpenApiDetail?.invoke(id, "bangumi", notif.mediaType, notif.mediaTitle ?: notif.title, notif.imageUrl)
                         }
@@ -646,13 +769,17 @@ fun KitsugiNotificationsScreen(
             isKitsuConnected = isKitsuConnected,
             isShikimoriConnected = isShikimoriConnected,
             isBangumiConnected = isBangumiConnected,
+            isTmdbConnected = isTmdbConnected,
             aniListUsername = appSettings.anilistUsername,
             malUsername = appSettings.malUsername,
             simklUsername = appSettings.simklUsername,
             kitsuUsername = appSettings.kitsuUsername,
             shikimoriUsername = appSettings.shikimoriUsername,
             bangumiUsername = appSettings.bangumiUsername,
+            tmdbUsername = tmdbUsername,
             aniListUnread = aniListUnread ?: 0,
+            itemCounts = platformItemCounts.mapKeys { it.key.ordinal },
+            unreadCounts = platformUnreadCounts.mapKeys { it.key.ordinal },
             accentColor = accentColor,
             onSelectPlatform = { index ->
                 scope.launch {
@@ -664,35 +791,194 @@ fun KitsugiNotificationsScreen(
     }
 }
 
-// ─── Kaynak sayfası (MAL / Simkl / Kitsu / Shikimori) ─────────────────────────
+// ─── Ortak Bildirim Listesi (6 kaynağın tamamı) ─────────────────────────────
+
+private enum class NotifDateGroup(val labelResId: Int) {
+    UPCOMING(R.string.notif_group_upcoming),
+    TODAY(R.string.notif_group_today),
+    YESTERDAY(R.string.notif_group_yesterday),
+    THIS_WEEK(R.string.notif_group_this_week),
+    OLDER(R.string.notif_group_older),
+    NO_DATE(R.string.notif_group_other)
+}
+
+private fun notifDateGroup(tsMs: Long?, nowMs: Long): NotifDateGroup {
+    if (tsMs == null) return NotifDateGroup.NO_DATE
+    fun startOfDay(ms: Long): Long = java.util.Calendar.getInstance().apply {
+        timeInMillis = ms
+        set(java.util.Calendar.HOUR_OF_DAY, 0)
+        set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val todayStart = startOfDay(nowMs)
+    return when {
+        tsMs >= todayStart + 86_400_000L -> NotifDateGroup.UPCOMING
+        tsMs >= todayStart -> NotifDateGroup.TODAY
+        tsMs >= todayStart - 86_400_000L -> NotifDateGroup.YESTERDAY
+        tsMs >= todayStart - 6L * 86_400_000L -> NotifDateGroup.THIS_WEEK
+        else -> NotifDateGroup.OLDER
+    }
+}
+
+private fun LazyListScope.groupedNotifItems(
+    items: List<NotifItem>,
+    onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)?,
+    onItemClick: (NotifItem) -> Unit
+) {
+    val grouped = items.groupBy { notifDateGroup(it.tsMs, System.currentTimeMillis()) }
+    NotifDateGroup.entries.forEach { group ->
+        val groupItems = grouped[group].orEmpty()
+        if (groupItems.isEmpty()) return@forEach
+        item(key = "group_${group.name}") {
+            NotifDateGroupHeader(labelResId = group.labelResId, count = groupItems.size)
+        }
+        items(groupItems, key = { it.id }) { notif ->
+            NotifItemRow(
+                notif = notif,
+                brandColor = notifBrandColorForSource(notif.source),
+                onUserProfileClick = onUserProfileClick,
+                onClick = { onItemClick(notif) }
+            )
+        }
+    }
+}
 
 @Composable
-private fun SourceNotifPage(
+private fun NotifDateGroupHeader(labelResId: Int, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(labelResId),
+            color = KitsugiColors.TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = count.toString(),
+            color = KitsugiColors.TextMuted,
+            fontSize = 11.sp
+        )
+    }
+}
+
+/** Tüm kaynaklarda ortak durum ekranı: bağlı değil / hata / boş. */
+@Composable
+private fun NotifStatusState(
+    platform: NotifPlatform?,
+    title: String,
+    subtitle: String?,
+    modifier: Modifier = Modifier,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null,
+    isError: Boolean = false
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 32.dp, vertical = 48.dp)
+        ) {
+            if (platform != null) {
+                KitsugiPlatformLogo(platformId = platform.logoId, size = 56.dp)
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.Info,
+                    contentDescription = null,
+                    tint = if (isError) KitsugiColors.AccentRed else KitsugiColors.TextMuted,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = subtitle,
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+            if (actionText != null && onAction != null) {
+                Spacer(Modifier.height(18.dp))
+                KitsugiDetailActionButton(text = actionText, onClick = onAction)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadMoreErrorRow(
+    message: String,
+    errorCode: PlatformErrorCode?,
+    onRetry: (() -> Unit)?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.weight(1f),
+            color = KitsugiColors.TextMuted,
+            fontSize = 12.sp
+        )
+        TextButton(onClick = { onRetry?.invoke() }) {
+            Text(stringResource(R.string.notif_mal_load_more_retry))
+        }
+        errorCode?.let { code -> PlatformErrorCodeChip(code = code) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotifListPage(
     state: NotifUiState,
     isConnected: Boolean,
-    loginRequiredMessage: String,
-    emptyMessage: String,
+    platform: NotifPlatform,
     accentColor: Color,
     listState: androidx.compose.foundation.lazy.LazyListState,
-    onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)?,
+    emptyMessage: String,
+    loginRequiredMessage: String,
+    onRetry: () -> Unit,
     onItemClick: (NotifItem) -> Unit,
-    malWebSessionTitle: String? = null,
-    malWebSessionHint: String? = null,
-    onMalWebSessionAction: (() -> Unit)? = null,
-    /** Kaynağın daha eski bildirimleri var mı? (kaydırdıkça istenir) */
+    onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
+    onConnectClick: (() -> Unit)? = null,
     hasMore: Boolean = false,
-    onLoadMore: (() -> Unit)? = null
+    onLoadMore: (() -> Unit)? = null,
+    topContent: (LazyListScope.() -> Unit)? = null
 ) {
-    val hasMalWebSessionAction =
-        malWebSessionTitle != null && malWebSessionHint != null && onMalWebSessionAction != null
-
-    if (!isConnected && state.items.isEmpty() && !hasMalWebSessionAction) {
-        CenteredEmptyState(loginRequiredMessage)
+    // Bağlı değil + gösterilecek hiçbir şey yok: çıkmaz sokak yerine bağlantı eylemi.
+    // Yerel yedek üreten kaynaklarda (Kitsu/Simkl/Bangumi) liste dolu gelir ve
+    // açıklama notu bağlantı durumunu söyler; bu dal yalnızca gerçek boşlukta çalışır.
+    if (!isConnected && state.items.isEmpty() && !state.isLoading) {
+        NotifStatusState(
+            platform = platform,
+            title = loginRequiredMessage,
+            subtitle = platform.description,
+            actionText = if (onConnectClick != null) stringResource(R.string.hesabi_bagla) else null,
+            onAction = onConnectClick,
+            modifier = Modifier.fillMaxSize()
+        )
         return
     }
 
     // Sonsuz kaydırma: listenin sonuna yaklaşıldığında kaynağın sonraki sayfası istenir.
-    // MAL'ın web akışında akışın bittiği kararı veriyle verilir (ViewModel.loadMalMore).
     val nearListEnd by remember {
         derivedStateOf {
             val total = listState.layoutInfo.totalItemsCount
@@ -706,80 +992,77 @@ private fun SourceNotifPage(
         }
     }
 
-    LazyColumn(
-        state = listState,
+    val isRefreshing = state.isLoading && state.items.isNotEmpty()
+    val pullRefreshState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRetry,
+        state = pullRefreshState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 80.dp)
+        indicator = {
+            KitsugiPullToRefreshIndicator(
+                state = pullRefreshState,
+                isRefreshing = isRefreshing,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
     ) {
-        if (hasMalWebSessionAction && malWebSessionTitle != null && malWebSessionHint != null && onMalWebSessionAction != null) {
-            val sessionTitle = malWebSessionTitle
-            val sessionHint = malWebSessionHint
-            val sessionAction = onMalWebSessionAction
-            item(key = "mal_web_session_action") {
-                MalWebSessionActionCard(
-                    title = sessionTitle,
-                    hint = sessionHint,
-                    accentColor = accentColor,
-                    onClick = sessionAction
-                )
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            topContent?.invoke(this)
+
+            if (!state.notice.isNullOrBlank()) {
+                item(key = "notice") {
+                    SourceNoticeBanner(text = state.notice, platform = platform)
+                }
             }
-        }
 
-        if (!isConnected && state.items.isEmpty()) {
-            item(key = "login_required") { SourceNoticeBanner(text = loginRequiredMessage) }
-        } else if (!state.notice.isNullOrBlank()) {
-            item(key = "notice") { SourceNoticeBanner(text = state.notice) }
-        }
-
-        // MAL's account feed is fetched by the app and rendered in this native list.
-        if (isConnected || state.items.isNotEmpty() || !hasMalWebSessionAction) {
             when {
                 state.isLoading && state.items.isEmpty() -> {
                     item { LoadingState(accentColor) }
                 }
                 state.error != null && state.items.isEmpty() -> {
                     val errText = state.error.orEmpty()
-                    item { CenteredEmptyState(errText) }
+                    item {
+                        NotifStatusState(
+                            platform = null,
+                            title = errText,
+                            subtitle = null,
+                            actionText = stringResource(R.string.notif_mal_load_more_retry),
+                            onAction = onRetry,
+                            isError = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     state.errorCode?.let { code ->
                         item(key = "state_error_code") {
-                            PlatformErrorCodeChip(code = code, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+                            PlatformErrorCodeChip(
+                                code = code,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                            )
                         }
                     }
                 }
                 state.items.isEmpty() -> {
-                    item { CenteredEmptyState(emptyMessage) }
+                    item {
+                        NotifStatusState(
+                            platform = platform,
+                            title = emptyMessage,
+                            subtitle = stringResource(R.string.notif_empty_subtitle),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     state.loadMoreError?.let { message ->
-                        item(key = "mal_load_more_error_empty") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = message,
-                                    modifier = Modifier.weight(1f),
-                                    color = KitsugiColors.TextMuted,
-                                    fontSize = 12.sp
-                                )
-                                TextButton(onClick = { onLoadMore?.invoke() }) {
-                                    Text(stringResource(R.string.notif_mal_load_more_retry))
-                                }
-                                state.loadMoreErrorCode?.let { code -> PlatformErrorCodeChip(code = code) }
-                            }
+                        item(key = "load_more_error_empty") {
+                            LoadMoreErrorRow(message, state.loadMoreErrorCode, onLoadMore)
                         }
                     }
                 }
                 else -> {
-                    itemsIndexed(state.items, key = { idx, it -> "${idx}_${it.id}" }) { _, notif ->
-                        NotifItemRow(
-                            notif = notif,
-                            accentColor = accentColor,
-                            onUserProfileClick = onUserProfileClick,
-                            onClick = { onItemClick(notif) }
-                        )
-                    }
+                    groupedNotifItems(state.items, onUserProfileClick, onItemClick)
                     if (state.isLoading) {
                         item {
                             Box(
@@ -791,25 +1074,8 @@ private fun SourceNotifPage(
                         }
                     }
                     state.loadMoreError?.let { message ->
-                        item(key = "mal_load_more_error") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = message,
-                                    modifier = Modifier.weight(1f),
-                                    color = KitsugiColors.TextMuted,
-                                    fontSize = 12.sp
-                                )
-                                TextButton(onClick = { onLoadMore?.invoke() }) {
-                                    Text(stringResource(R.string.notif_mal_load_more_retry))
-                                }
-                                state.loadMoreErrorCode?.let { code -> PlatformErrorCodeChip(code = code) }
-                            }
+                        item(key = "load_more_error") {
+                            LoadMoreErrorRow(message, state.loadMoreErrorCode, onLoadMore)
                         }
                     }
                 }
@@ -866,23 +1132,32 @@ private fun MalWebSessionActionCard(
 // ─── Kaynak bilgi notu (neden boş / hangi uç nokta kullanılıyor) ──────────────
 
 @Composable
-private fun SourceNoticeBanner(text: String) {
+private fun SourceNoticeBanner(text: String, platform: NotifPlatform? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(KitsugiColors.Surface)
+            .border(
+                width = 1.dp,
+                color = (platform?.brandColor ?: KitsugiColors.TextMuted).copy(alpha = 0.25f),
+                shape = RoundedCornerShape(12.dp)
+            )
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Rounded.Info,
-            contentDescription = null,
-            tint = KitsugiColors.TextMuted,
-            modifier = Modifier.size(16.dp)
-        )
+        if (platform != null) {
+            KitsugiPlatformLogo(platformId = platform.logoId, size = 16.dp)
+        } else {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                tint = KitsugiColors.TextMuted,
+                modifier = Modifier.size(16.dp)
+            )
+        }
         Text(
             text = text,
             color = KitsugiColors.TextSecondary,
@@ -955,7 +1230,7 @@ private fun NotificationDiagnosticsSheet(
 
             if (state.error != null) {
                 Spacer(Modifier.height(8.dp))
-                Text(text = state.error, color = androidx.compose.ui.graphics.Color(0xFFFF6B6B), fontSize = 12.sp)
+                Text(text = state.error, color = KitsugiColors.AccentRed, fontSize = 12.sp)
                 state.errorCode?.let { code -> PlatformErrorCodeChip(code = code, modifier = Modifier.padding(top = 4.dp)) }
             }
 
@@ -990,7 +1265,7 @@ private fun DiagnosticRow(row: NotificationDiagnostics.Row) {
     val statusColor = when {
         !row.connected -> KitsugiColors.TextMuted
         row.ok -> KitsugiColors.AccentGreen
-        else -> Color(0xFFFF6B6B)
+        else -> KitsugiColors.AccentRed
     }
     Column(
         modifier = Modifier
@@ -1076,7 +1351,7 @@ private fun DiagnosticRow(row: NotificationDiagnostics.Row) {
         )
         row.error?.let { error ->
             Spacer(Modifier.height(3.dp))
-            Text(text = error, color = Color(0xFFFF6B6B), fontSize = 11.sp, lineHeight = 15.sp)
+            Text(text = error, color = KitsugiColors.AccentRed, fontSize = 11.sp, lineHeight = 15.sp)
         }
         row.hint?.let { hint ->
             Spacer(Modifier.height(3.dp))
@@ -1162,7 +1437,7 @@ private fun AniListFilterHeader(
                     ) {
                         Text(
                             text = stringResource(filter.labelResId),
-                            color = if (active) KitsugiColors.Background else KitsugiColors.TextSecondary,
+                            color = if (active) Color.White else KitsugiColors.TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                             maxLines = 1
@@ -1226,7 +1501,7 @@ private fun MalFilterHeader(
                         ) {
                             Text(
                                 text = stringResource(cat.labelResId),
-                                color = if (active) KitsugiColors.Background else KitsugiColors.TextSecondary,
+                                color = if (active) Color.White else KitsugiColors.TextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1
@@ -1236,7 +1511,7 @@ private fun MalFilterHeader(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(
-                                            if (active) KitsugiColors.Background.copy(alpha = 0.22f)
+                                            if (active) Color.White.copy(alpha = 0.25f)
                                             else accentColor.copy(alpha = 0.15f)
                                         )
                                         .padding(horizontal = 6.dp, vertical = 1.dp),
@@ -1244,7 +1519,7 @@ private fun MalFilterHeader(
                                 ) {
                                     Text(
                                         text = count.toString(),
-                                        color = if (active) KitsugiColors.Background else accentColor,
+                                        color = if (active) Color.White else accentColor,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1268,13 +1543,18 @@ private fun MalFilterHeader(
 @Composable
 private fun NotifItemRow(
     notif: NotifItem,
-    accentColor: Color,
+    brandColor: Color,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
     onClick: () -> Unit
 ) {
+    // Medya bağlantısı olmayan kullanıcı bildirimleri (takip vb.) avatar gibi
+    // yuvarlak, medya posterleri köşeli gösterilir. Eskiden userId varlığı
+    // yeterliydi; aktivite beğenilerinde medya posteri de yuvarlak kırpılıyordu.
+    val isUserAvatar = notif.mediaId == null && notif.userId != null
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (notif.isUnread) brandColor.copy(alpha = 0.06f) else Color.Transparent)
             .tvClickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
@@ -1283,12 +1563,12 @@ private fun NotifItemRow(
         Box(
             modifier = Modifier
                 .size(52.dp)
-                .clip(if (notif.userId != null) CircleShape else RoundedCornerShape(10.dp))
+                .clip(if (isUserAvatar) CircleShape else RoundedCornerShape(10.dp))
                 .background(KitsugiColors.SurfaceStrong)
                 .then(
-                    if (notif.userId != null && notif.userName != null && onUserProfileClick != null) {
+                    if (isUserAvatar && notif.userName != null && onUserProfileClick != null) {
                         Modifier.tvClickable(shape = CircleShape) {
-                            onUserProfileClick(notif.userId, notif.userName, notif.userAvatarUrl)
+                            onUserProfileClick(notif.userId!!, notif.userName, notif.userAvatarUrl)
                         }
                     } else Modifier
                 ),
@@ -1309,14 +1589,14 @@ private fun NotifItemRow(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            // Okunmamış göstergesi (Shikimori mesajları)
+            // Okunmamış göstergesi (MAL / Shikimori gerçek okundu bilgisi taşır)
             if (notif.isUnread) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(accentColor)
+                        .background(brandColor)
                 )
             }
         }
@@ -1329,7 +1609,7 @@ private fun NotifItemRow(
                     text = notif.title,
                     color = KitsugiColors.TextPrimary,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = if (notif.isUnread) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -1339,7 +1619,7 @@ private fun NotifItemRow(
                     horizontalArrangement = Arrangement.spacedBy(3.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.6f))
+                        .background(brandColor.copy(alpha = 0.14f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     KitsugiPlatformLogo(platformId = notif.source, size = 12.dp)
@@ -1390,28 +1670,6 @@ private fun LoadingState(accentColor: Color) {
     }
 }
 
-@Composable
-private fun CenteredEmptyState(message: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Rounded.Notifications,
-                contentDescription = null,
-                tint = KitsugiColors.TextMuted,
-                modifier = Modifier.size(56.dp)
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = message,
-                color = KitsugiColors.TextMuted,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
-        }
-    }
-}
-
 // ─── Bildirim Kaynak Seçici Hap Buton ─────────────────────────────────────────
 
 @Composable
@@ -1419,17 +1677,17 @@ private fun NotificationSourceSelectorPill(
     selectedPlatform: NotifPlatform,
     isConnected: Boolean,
     unreadCount: Int,
-    accentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val brandColor = selectedPlatform.brandColor
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(KitsugiColors.Surface)
             .border(
                 width = 1.dp,
-                color = accentColor.copy(alpha = 0.5f),
+                color = brandColor.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(16.dp)
             )
             .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick)
@@ -1452,13 +1710,13 @@ private fun NotificationSourceSelectorPill(
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(accentColor)
+                    .background(brandColor)
                     .padding(horizontal = 6.dp, vertical = 1.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                    color = KitsugiColors.Background,
+                    color = Color.White,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1474,7 +1732,7 @@ private fun NotificationSourceSelectorPill(
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
             contentDescription = stringResource(R.string.bildirim_kaynagi_sec),
-            tint = accentColor,
+            tint = brandColor,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -1492,13 +1750,17 @@ private fun NotificationSourcePickerSheet(
     isKitsuConnected: Boolean,
     isShikimoriConnected: Boolean,
     isBangumiConnected: Boolean,
+    isTmdbConnected: Boolean,
     aniListUsername: String,
     malUsername: String,
     simklUsername: String,
     kitsuUsername: String,
     shikimoriUsername: String,
     bangumiUsername: String,
+    tmdbUsername: String,
     aniListUnread: Int,
+    itemCounts: Map<Int, Int> = emptyMap(),
+    unreadCounts: Map<Int, Int> = emptyMap(),
     accentColor: Color,
     onSelectPlatform: (Int) -> Unit,
     onDismiss: () -> Unit
@@ -1548,6 +1810,7 @@ private fun NotificationSourcePickerSheet(
                     NotifPlatform.KITSU -> isKitsuConnected
                     NotifPlatform.SHIKIMORI -> isShikimoriConnected
                     NotifPlatform.BANGUMI -> isBangumiConnected
+                    NotifPlatform.TMDB_ACCOUNT -> isTmdbConnected
                 }
                 val username = when (platform) {
                     NotifPlatform.ANILIST -> aniListUsername
@@ -1556,20 +1819,28 @@ private fun NotificationSourcePickerSheet(
                     NotifPlatform.KITSU -> kitsuUsername
                     NotifPlatform.SHIKIMORI -> shikimoriUsername
                     NotifPlatform.BANGUMI -> bangumiUsername
+                    NotifPlatform.TMDB_ACCOUNT -> tmdbUsername
                 }
 
+                val brandColor = platform.brandColor
+                val itemCount = itemCounts[index] ?: 0
+                val unreadCount = if (platform == NotifPlatform.ANILIST) {
+                    maxOf(aniListUnread, unreadCounts[index] ?: 0)
+                } else {
+                    unreadCounts[index] ?: 0
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(
-                            if (isSelected) accentColor.copy(alpha = 0.14f)
-                            else KitsugiColors.SurfaceElevated.copy(alpha = 0.5f)
+                            if (isSelected) brandColor.copy(alpha = 0.14f)
+                            else KitsugiColors.SurfaceSoft.copy(alpha = 0.5f)
                         )
                         .border(
                             width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) accentColor else Color.Transparent,
+                            color = if (isSelected) brandColor else Color.Transparent,
                             shape = RoundedCornerShape(16.dp)
                         )
                         .tvClickable(shape = RoundedCornerShape(16.dp)) {
@@ -1594,19 +1865,19 @@ private fun NotificationSourcePickerSheet(
                                 text = platform.label,
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary
+                                    color = KitsugiColors.TextPrimary
                                 )
                             )
                             if (isConnected) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFF27AE60).copy(alpha = 0.18f))
+                                        .background(KitsugiColors.AccentGreen.copy(alpha = 0.18f))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = if (username.isNotBlank()) "@$username" else stringResource(R.string.notif_diag_connected),
-                                        color = Color(0xFF27AE60),
+                                        color = KitsugiColors.AccentGreen,
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1627,16 +1898,16 @@ private fun NotificationSourcePickerSheet(
                                 }
                             }
 
-                            if (platform == NotifPlatform.ANILIST && aniListUnread > 0) {
+                            if (unreadCount > 0) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(accentColor.copy(alpha = 0.2f))
+                                        .background(brandColor)
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.x_yeni, aniListUnread),
-                                        color = accentColor,
+                                        text = stringResource(R.string.x_yeni, unreadCount.toString()),
+                                        color = Color.White,
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1646,7 +1917,11 @@ private fun NotificationSourcePickerSheet(
 
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            text = platform.description,
+                            text = if (itemCount > 0) {
+                                platform.description + " • " + stringResource(R.string.notif_items_count, itemCount)
+                            } else {
+                                platform.description
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = KitsugiColors.TextSecondary,
                                 fontSize = 12.sp,
@@ -1660,13 +1935,13 @@ private fun NotificationSourcePickerSheet(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(accentColor),
+                                .background(brandColor),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = stringResource(R.string.secili),
-                                tint = KitsugiColors.Background,
+                                tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
                         }

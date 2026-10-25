@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.*
@@ -117,6 +118,9 @@ fun SearchScreen(
     onOpenPluginPicker: () -> Unit = {},
     // Eklenti Keşfet tam ekran navigasyonu
     onOpenAddonExplore: (String) -> Unit = {},
+    // Akıllı bildirim butonu — seçili kaynağın bildirimleri doğrudan açılır
+    isNotificationsVisible: Boolean = false,
+    onOpenNotifications: () -> Unit = {},
     // AniHyou Karakter ve Personel detay yönlendirmeleri
     onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
     onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
@@ -137,6 +141,7 @@ fun SearchScreen(
     )
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val searchBarFocusRequester = remember { FocusRequester() }
     val context = androidx.compose.ui.platform.LocalContext.current
     // Otomatik sayfalama emniyeti (bkz. aşağıdaki shouldLoadMore açıklaması).
     var autoLoadBudget by remember { mutableIntStateOf(AUTO_LOAD_BUDGET_PER_SCROLL) }
@@ -255,6 +260,7 @@ fun SearchScreen(
 
     var showEnginePickerSheet by remember { mutableStateOf(false) }
     var showSourceEngineFilterSheet by remember { mutableStateOf(false) }
+    var showOrgFilterSheet by remember { mutableStateOf(false) }
 
     // Keep canonical English values in state/API filters; localize only the visible labels.
     val tmdbGenres = listOf(
@@ -285,12 +291,42 @@ fun SearchScreen(
             item {
                 if (pageTitle != null) {
                     Spacer(modifier = Modifier.height(28.dp))
-                    Text(
-                        text = pageTitle,
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = pageTitle,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (isNotificationsVisible) {
+                            Spacer(modifier = Modifier.width(10.dp))
+                            // 🔔 Bildirim butonu (Keşfet / Listem ile aynı görünüm)
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(KitsugiColors.SurfaceElevated)
+                                    .border(
+                                        1.dp,
+                                        KitsugiColors.SurfaceElevated.copy(alpha = 0.6f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onOpenNotifications),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Notifications,
+                                    contentDescription = stringResource(R.string.notif_title),
+                                    tint = KitsugiColors.TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(18.dp))
                 } else {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -338,6 +374,7 @@ fun SearchScreen(
                             showSourceEngineFilterSheet = true
                         },
                         isFilterActive = uiState.hasFiltersApplied,
+                        focusRequester = searchBarFocusRequester,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -368,21 +405,60 @@ fun SearchScreen(
                     onClick = { showSourceEngineFilterSheet = true }
                 )
             }
-
+            if (uiState.organizations.isNotEmpty()) {
+                item(key = "selected_organizations") {
+                    SearchOrganizationChips(
+                        organizations = uiState.organizations,
+                        onRemove = { filter ->
+                            viewModel.updateOrganizations(uiState.organizations - filter)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
 
             // Active Filters Inline Dismissible Chips Row
             // (Active filter pills removed – chips themselves show active state)
 
-            // Search History Section
-            if (showIdleContent && uiState.searchHistory.isNotEmpty()) {
-                item {
+            // Search History Section (Tarayıcı tarzı kompakt geçmiş & canlı öneriler)
+            val shouldRenderHistoryBlock = showIdleContent && (
+                uiState.searchHistory.isNotEmpty() ||
+                    !uiState.searchHistoryEnabled ||
+                    uiState.lastDeletedHistoryItem != null
+                )
+            if (shouldRenderHistoryBlock) {
+                item(key = "search_history_section") {
                     SearchHistorySection(
                         history = uiState.searchHistory,
+                        currentQuery = uiState.query,
+                        currentEngine = uiState.selectedEngine,
+                        currentScope = uiState.selectedScope,
+                        searchHistoryEnabled = uiState.searchHistoryEnabled,
+                        lastDeletedItem = uiState.lastDeletedHistoryItem,
                         onHistoryItemClick = viewModel::applyHistoryItem,
+                        onApplyWithSource = viewModel::applyHistoryItemWithSource,
+                        onFillQuery = { text ->
+                            viewModel.fillQueryFromHistory(text)
+                            scope.launch {
+                                if (lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0) {
+                                    lazyListState.animateScrollToItem(0)
+                                }
+                                kotlinx.coroutines.delay(40)
+                                runCatching { searchBarFocusRequester.requestFocus() }
+                                keyboardController?.show()
+                            }
+                        },
+                        onTogglePin = viewModel::togglePinHistoryItem,
                         onRemoveItem = viewModel::removeHistoryItem,
-                        onClearAll = viewModel::clearHistory
+                        onUndoDelete = viewModel::undoRemoveHistoryItem,
+                        onDismissUndo = viewModel::dismissUndoHistory,
+                        onClearAll = viewModel::clearHistory,
+                        onClearHistoryConfirmed = { keepPinned ->
+                            viewModel.clearHistory(keepPinned = keepPinned)
+                        },
+                        onToggleHistoryRecording = viewModel::toggleSearchHistoryRecording
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
 
@@ -417,8 +493,8 @@ fun SearchScreen(
                             .padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        uiState.sourceErrorCodes.values.distinct().forEach { code ->
-                            PlatformErrorCodeChip(code = code)
+                        uiState.sourceErrorCodes.forEach { (platform, code) ->
+                            PlatformErrorCodeChip(code = code, platform = platform)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -676,7 +752,19 @@ fun SearchScreen(
                 showSourceEngineFilterSheet = false
                 viewModel.setFilterSheetOpen(true)
             },
+            onOpenOrganizations = {
+                showSourceEngineFilterSheet = false
+                showOrgFilterSheet = true
+            },
             onDismiss = { showSourceEngineFilterSheet = false }
+        )
+    }
+
+    if (showOrgFilterSheet) {
+        OrgFilterSheet(
+            currentFilters = uiState.toLegacyFilters(),
+            onApplyFilters = viewModel::updateOrganizations,
+            onDismiss = { showOrgFilterSheet = false }
         )
     }
 
@@ -686,7 +774,8 @@ fun SearchScreen(
             currentFilters = SearchFilters(
                 genres = uiState.genres,
                 excludedGenres = uiState.excludedGenres,
-                tags = uiState.tags
+                tags = uiState.tags,
+                organizations = uiState.organizations
             ),
             onApplyFilters = {
                 viewModel.updateFilters(it)
@@ -747,7 +836,7 @@ fun SearchScreen(
             options = tmdbGenres,
             selectedOption = currentGenre,
             onOptionSelected = { g ->
-                val updated = SearchFilters(
+                val updated = uiState.toLegacyFilters().copy(
                     genres = if (g == null || g == "All") emptyList() else listOf(g)
                 )
                 viewModel.updateFilters(updated)

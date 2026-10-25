@@ -234,9 +234,12 @@ fun PlayerControls(
 
     // ── Hide-controls timer (Aniyomi LaunchedEffect pattern) ─────────────────
     var resetTimerTrigger by remember { mutableStateOf(0) }
+    var isScrubbing by remember { mutableStateOf(false) }
     val hideDelayMs = com.kitsugi.animelist.core.player.PlayerUiPolicy.clampOsdHideDelayMs(settings.playerTimeToDisappearMs)
-    LaunchedEffect(controlsShown, paused, resetTimerTrigger, controlsResetTrigger, hideDelayMs) {
-        if (controlsShown && !paused) {
+    LaunchedEffect(controlsShown, paused, isScrubbing, resetTimerTrigger, controlsResetTrigger, hideDelayMs) {
+        // A drag is an active user interaction: never remove the seekbar from under
+        // the pointer. Start a fresh hide interval only after scrubbing ends.
+        if (controlsShown && !paused && !isScrubbing) {
             delay(hideDelayMs)
             viewModel.hideControls()
         }
@@ -511,11 +514,20 @@ fun PlayerControls(
                         position             = previewPosition ?: (posMs / 1000f),
                         duration             = (durationMs / 1000f).coerceAtLeast(0f),
                         readAheadValue       = viewModel.readAhead.collectAsState().value,
-                        onValueChange        = { previewPosition = it },
+                        onValueChange        = {
+                            isScrubbing = true
+                            previewPosition = it
+                            viewModel.onUserInteraction()
+                            resetTimer()
+                        },
                         onValueChangeFinished = {
-                            previewPosition?.let { viewModel.seekTo((it * 1000f).toLong()) }
+                            previewPosition?.let {
+                                viewModel.seekTo((it * 1000f).toLong())
+                                viewModel.onUserInteraction()
+                            }
                             previewPosition = null
                             previewImage = null
+                            isScrubbing = false
                             resetTimer()
                         },
                         previewImage = previewImage,

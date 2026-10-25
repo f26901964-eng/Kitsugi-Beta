@@ -483,12 +483,14 @@ private fun AccountConnectionsTab(
         // Çok Yönlü Eşitleme (En az 2 hesap bağlıysa göster)
         val context = androidx.compose.ui.platform.LocalContext.current
         val isBangumiConnected = com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context)
+        val isTmdbAccountConnected = com.kitsugi.animelist.data.auth.TmdbAuthStore.isConnected(context)
         val connectedCount = (if (isAniListConnected) 1 else 0) +
                 (if (isMalConnected) 1 else 0) +
                 (if (isSimklConnected) 1 else 0) +
                 (if (isKitsuConnected) 1 else 0) +
                 (if (isShikimoriConnected) 1 else 0) +
-                (if (isBangumiConnected) 1 else 0)
+                (if (isBangumiConnected) 1 else 0) +
+                (if (isTmdbAccountConnected) 1 else 0)
 
         if (connectedCount >= 2) {
             val connectedNames = mutableListOf<String>().apply {
@@ -498,6 +500,7 @@ private fun AccountConnectionsTab(
                 if (isKitsuConnected) add("Kitsu")
                 if (isShikimoriConnected) add("Shikimori")
                 if (isBangumiConnected) add("Bangumi")
+                if (isTmdbAccountConnected) add("TMDB")
             }.joinToString(", ")
 
             KitsugiSettingsSection(title = stringResource(R.string.cok_yonlu_esitleme)) {
@@ -516,8 +519,8 @@ private fun AccountConnectionsTab(
                     KitsugiSettingsItem(
                         title = when {
                             crossSyncState.isRunning -> stringResource(R.string.esitleme_ayrintilarini_ac_x_6, connectedCount)
-                            crossSyncState.startedAt != null -> "Son Eşitleme Raporu ($connectedCount/6)"
-                            else -> "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/6)"
+                            crossSyncState.startedAt != null -> "Son Eşitleme Raporu ($connectedCount/7)"
+                            else -> "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/7)"
                         },
                         description = syncDesc,
                         icon = Icons.Rounded.Cached,

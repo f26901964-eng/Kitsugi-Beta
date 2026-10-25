@@ -144,7 +144,13 @@ class MpvPlayerEngine(
             if (released) return false
             val view = mpvView ?: return false
             return runCatching {
-                view.isVideoOutputActiveNow() && view.hasVisibleVideoSurface()
+                // A valid Surface + `vo-configured` can still describe a black screen:
+                // no decoded frame may have reached the VO yet. Require video-out
+                // dimensions as well, and re-check the currently attached Surface so
+                // PiP/fullscreen recreation cannot reuse a stale healthy state.
+                view.isVideoOutputActiveNow() &&
+                    view.hasVisibleVideoSurface() &&
+                    view.hasVideoOutputFrameNow()
             }.getOrDefault(false)
         }
     override var currentState: PlayerEngine.State = PlayerEngine.State.IDLE

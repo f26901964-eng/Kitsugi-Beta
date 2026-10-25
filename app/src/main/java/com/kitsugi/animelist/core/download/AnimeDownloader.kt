@@ -536,6 +536,27 @@ class AnimeDownloader(private val context: Context) {
         headers: Map<String, String>,
         destFile: File
     ) = withContext(Dispatchers.IO) {
+        // Cihazda acilmis paket altyazilari (orn. AniSub RAR/ZIP) file:// olarak
+        // gelebilir; agdan indirmek yerine dogrudan videonun yanina kopyalanir.
+        val localPath = when {
+            url.startsWith("file://", ignoreCase = true) -> url.substring("file://".length)
+            url.startsWith("file:/", ignoreCase = true) -> url.substring("file:".length)
+            url.startsWith("/") -> url.substringBefore('?')
+            else -> null
+        }
+        if (localPath != null) {
+            val source = File(localPath)
+            if (!source.isFile || source.length() == 0L) {
+                throw Exception("Local subtitle file not found: $url")
+            }
+            source.inputStream().use { inputStream ->
+                destFile.outputStream().use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            return@withContext
+        }
+
         val requestBuilder = Request.Builder().url(url)
         headers.forEach { (k, v) -> requestBuilder.header(k, v) }
         KitsugiHttpClient.client.newCall(requestBuilder.build()).execute().use { response ->

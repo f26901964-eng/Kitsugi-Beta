@@ -81,9 +81,67 @@ data class ExploreSourceSection(
     val platform: ExplorePlatform,
     val category: ExploreCategoryType,
     val title: String,
-    val results: List<JikanSearchResult>
+    val results: List<JikanSearchResult>,
+    val customKey: String? = null
 ) {
-    val key: String get() = "${platform.name}_${category.name}"
+    val key: String get() = customKey ?: "${platform.name}_${category.name}"
+}
+
+internal const val SIMKL_PERSONAL_CONTINUE_SERIES_TITLE = "İzlemeye Devam Et (Dizi & Anime)"
+internal const val SIMKL_PERSONAL_CONTINUE_MOVIES_TITLE = "İzlemeye Devam Et (Film)"
+internal const val SIMKL_PERSONAL_PLANNED_SERIES_TITLE = "Planladıklarım (Dizi & Anime)"
+internal const val SIMKL_PERSONAL_PLANNED_MOVIES_TITLE = "Planladıklarım (Film)"
+
+internal const val SIMKL_PERSONAL_KEY_PREFIX = "SIMKL_PERSONAL_"
+
+internal fun simklPersonalSections(p: ExplorePayload): List<ExploreSourceSection> = listOf(
+    ExploreSourceSection(
+        platform = ExplorePlatform.SIMKL,
+        category = ExploreCategoryType.AIRING_ANIME,
+        title = SIMKL_PERSONAL_CONTINUE_SERIES_TITLE,
+        results = p.simklContinueSeries.distinctBy { it.exploreIdentity() },
+        customKey = "${SIMKL_PERSONAL_KEY_PREFIX}CONTINUE_SERIES"
+    ),
+    ExploreSourceSection(
+        platform = ExplorePlatform.SIMKL,
+        category = ExploreCategoryType.MOVIE_ANIME,
+        title = SIMKL_PERSONAL_CONTINUE_MOVIES_TITLE,
+        results = p.simklContinueMovies.distinctBy { it.exploreIdentity() },
+        customKey = "${SIMKL_PERSONAL_KEY_PREFIX}CONTINUE_MOVIES"
+    ),
+    ExploreSourceSection(
+        platform = ExplorePlatform.SIMKL,
+        category = ExploreCategoryType.AIRING_ANIME,
+        title = SIMKL_PERSONAL_PLANNED_SERIES_TITLE,
+        results = p.simklPlannedSeries.distinctBy { it.exploreIdentity() },
+        customKey = "${SIMKL_PERSONAL_KEY_PREFIX}PLANNED_SERIES"
+    ),
+    ExploreSourceSection(
+        platform = ExplorePlatform.SIMKL,
+        category = ExploreCategoryType.MOVIE_ANIME,
+        title = SIMKL_PERSONAL_PLANNED_MOVIES_TITLE,
+        results = p.simklPlannedMovies.distinctBy { it.exploreIdentity() },
+        customKey = "${SIMKL_PERSONAL_KEY_PREFIX}PLANNED_MOVIES"
+    )
+).filter { it.results.isNotEmpty() }
+
+/**
+ * Tek-kaynak keşfet sayfasında alt alta çizilen rafların ve Kategoriler çubuğunun
+ * tek doğruluk kaynağı. SIMKL seçiliyken bağlı hesabın dolu kişisel rafları da aynı
+ * modele eklenir; böylece Kategoriler çubuğu ile altındaki raflar tüm kaynaklarda
+ * birebir aynı sıra, başlık ve veri listesini paylaşır.
+ */
+internal fun singleSourceExploreSections(
+    platform: ExplorePlatform,
+    p: ExplorePayload,
+    baseSections: List<ExploreSourceSection> = if (platform == ExplorePlatform.ALL) emptyList() else sourceSections(platform, p)
+): List<ExploreSourceSection> {
+    if (platform == ExplorePlatform.ALL) return emptyList()
+    return if (platform == ExplorePlatform.SIMKL) {
+        baseSections + simklPersonalSections(p)
+    } else {
+        baseSections
+    }
 }
 
 /**
@@ -235,3 +293,115 @@ fun allSourceHeroes(
     states: Map<ExplorePlatform, ExploreSourceState>,
     showAdultContent: Boolean
 ): List<JikanSearchResult> = allSourceHeroes(allSourceSections(states, showAdultContent))
+
+internal enum class ExploreCategoryGroupKind {
+    TV_MOVIES,
+    ANIME,
+    MANGA,
+    PERSONAL_LISTS
+}
+
+internal data class ExploreCategoryGroup(
+    val kind: ExploreCategoryGroupKind,
+    val sections: List<ExploreSourceSection>
+)
+
+/**
+ * Keşfet rafı ("Tümünü Gör" butonu) ve Kategoriler çubuğu çipi için tek ortak açılış sözleşmesi.
+ *
+ * Her iki giriş noktası aynı `ExploreSourceSection` nesnesini ve aynı yerelleştirilmiş başlığı
+ * kullanarak `FullScreenMediaGridPage` sayfasını açar; böylece başlık, kategori türü, platform
+ * ve başlangıç içerik listesi tüm kaynaklarda birebir aynı kalır.
+ */
+internal fun openExploreSectionSeeAll(
+    section: ExploreSourceSection,
+    resolvedTitle: String,
+    onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>) -> Unit
+) {
+    onSeeAllSection(resolvedTitle, section.category, section.results)
+}
+
+internal fun formatAllSourcesSectionSeeAllTitle(
+    platformLabel: String,
+    sectionTitle: String
+): String = "$platformLabel · $sectionTitle"
+
+internal fun openAllSourcesSectionSeeAll(
+    platformLabel: String,
+    sectionTitle: String,
+    section: ExploreSourceSection,
+    onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>, platform: ExplorePlatform) -> Unit
+) {
+    onSeeAllSection(
+        formatAllSourcesSectionSeeAllTitle(platformLabel, sectionTitle),
+        section.category,
+        section.results,
+        section.platform
+    )
+}
+
+internal fun classifyExploreSectionGroup(
+    platform: ExplorePlatform,
+    section: ExploreSourceSection
+): ExploreCategoryGroupKind {
+    if (section.customKey?.startsWith(SIMKL_PERSONAL_KEY_PREFIX) == true) {
+        return ExploreCategoryGroupKind.PERSONAL_LISTS
+    }
+    return when (platform) {
+        ExplorePlatform.TMDB,
+        ExplorePlatform.SIMKL -> when (section.category) {
+            ExploreCategoryType.TRENDING_ANIME,
+            ExploreCategoryType.NEWLY_ADDED_ANIME,
+            ExploreCategoryType.TRENDING_MANGA -> ExploreCategoryGroupKind.ANIME
+            else -> ExploreCategoryGroupKind.TV_MOVIES
+        }
+        else -> when (section.category) {
+            ExploreCategoryType.BANGUMI_TV,
+            ExploreCategoryType.BANGUMI_MOVIES,
+            ExploreCategoryType.UPCOMING_MEDIA_TMDB -> ExploreCategoryGroupKind.TV_MOVIES
+            ExploreCategoryType.TOP_MANGA,
+            ExploreCategoryType.TOP_RATED_MANGA,
+            ExploreCategoryType.PUBLISHING_MANGA,
+            ExploreCategoryType.TRENDING_MANGA,
+            ExploreCategoryType.NEWLY_ADDED_MANGA,
+            ExploreCategoryType.MANHWA_MANHUA,
+            ExploreCategoryType.NOVELS -> ExploreCategoryGroupKind.MANGA
+            else -> ExploreCategoryGroupKind.ANIME
+        }
+    }
+}
+
+/**
+ * Seçili kaynağın hemen altında gösterilen dolu rafları (`sections`) hiçbir rafı atlamadan
+ * ve hiçbir fazladan/boş kategori eklemeden mantıksal gruplara ayırır.
+ */
+internal fun buildExploreCategoryGroups(
+    platform: ExplorePlatform,
+    sections: List<ExploreSourceSection>
+): List<ExploreCategoryGroup> {
+    val populated = sections
+        .filter { it.results.isNotEmpty() }
+        .distinctBy { it.key }
+    if (populated.isEmpty()) return emptyList()
+
+    val byKind = populated.groupBy { classifyExploreSectionGroup(platform, it) }
+    val groupOrder = when (platform) {
+        ExplorePlatform.TMDB,
+        ExplorePlatform.SIMKL -> listOf(
+            ExploreCategoryGroupKind.TV_MOVIES,
+            ExploreCategoryGroupKind.ANIME,
+            ExploreCategoryGroupKind.MANGA,
+            ExploreCategoryGroupKind.PERSONAL_LISTS
+        )
+        else -> listOf(
+            ExploreCategoryGroupKind.ANIME,
+            ExploreCategoryGroupKind.MANGA,
+            ExploreCategoryGroupKind.TV_MOVIES,
+            ExploreCategoryGroupKind.PERSONAL_LISTS
+        )
+    }
+
+    return groupOrder.mapNotNull { kind ->
+        byKind[kind]?.takeIf { it.isNotEmpty() }?.let { ExploreCategoryGroup(kind, it) }
+    }
+}

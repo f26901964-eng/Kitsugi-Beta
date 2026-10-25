@@ -24,7 +24,12 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import androidx.compose.ui.res.stringResource
@@ -60,7 +65,9 @@ fun RelationsTabContent(
         is DetailTabState.Success -> {
             // +18 UYUMU (2026-10-14): ilişkili başlıklar da göster/gizle sözleşmesine uyar.
             val showAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
-            val list = if (showAdult) state.data else state.data.filter { !it.isAdult }
+            val list = remember(state.data, showAdult) {
+                if (showAdult) state.data else state.data.filter { !it.isAdult }
+            }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.inline_no_related_titles_found_736beb1),
@@ -69,12 +76,8 @@ fun RelationsTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    list.forEach { rel ->
-                        RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
-                    }
+                DetailAutoPagingColumn(items = list, spacing = 8.dp) { rel ->
+                    RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
                 }
             }
         }
@@ -106,8 +109,13 @@ fun RelationCard(
                 .clip(RoundedCornerShape(8.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
+            val relThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                url = rel.imageUrl,
+                widthDp = 50.dp,
+                heightDp = 70.dp
+            )
             KitsugiNsfwImage(
-                model = rel.imageUrl,
+                model = relThumb ?: rel.imageUrl,
                 contentDescription = displayTitle,
                 isAdult = rel.isAdult,
                 blurAdultMedia = blurAdultMedia,

@@ -38,8 +38,14 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,8 +102,13 @@ internal fun MediaAppearanceRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!appearance.imageUrl.isNullOrBlank()) {
+                val appThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = appearance.imageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = appearance.imageUrl,
+                    model = appThumb ?: appearance.imageUrl,
                     contentDescription = displayTitle,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -158,8 +169,13 @@ internal fun VoiceActorRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!actor.imageUrl.isNullOrBlank()) {
+                val actorThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = actor.imageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = actor.imageUrl,
+                    model = actorThumb ?: actor.imageUrl,
                     contentDescription = actor.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -496,7 +512,8 @@ internal fun CharacterAppearancesTabContent(
     detail: KitsugiCharacterDetail,
     titleLanguage: String,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (detail.mediaAppearances.isEmpty()) {
@@ -507,7 +524,7 @@ internal fun CharacterAppearancesTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.mediaAppearances.forEach { appearance ->
+            DetailAutoPagingColumn(items = detail.mediaAppearances, active = pagingActive) { appearance ->
                 MediaAppearanceRow(
                     appearance = appearance,
                     titleLanguage = titleLanguage,
@@ -522,7 +539,8 @@ internal fun CharacterAppearancesTabContent(
 internal fun CharacterVoiceActorsTabContent(
     detail: KitsugiCharacterDetail,
     onStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (detail.voiceActors.isEmpty()) {
@@ -533,7 +551,7 @@ internal fun CharacterVoiceActorsTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.voiceActors.forEach { actor ->
+            DetailAutoPagingColumn(items = detail.voiceActors, active = pagingActive) { actor ->
                 VoiceActorRow(
                     actor = actor,
                     onClick = { onStaffClick(actor.id, actor.source, actor.name, actor.imageUrl) }

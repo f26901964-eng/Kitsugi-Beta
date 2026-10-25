@@ -198,6 +198,63 @@ class TmdbApiClient(
         TmdbMediaDetailClient.fetchVideos(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
+    private val tmdbVideoItemsCache = com.kitsugi.animelist.core.memory.BoundedCache<String, List<MediaVideoItem>>("tmdb.videoItems", 120)
+
+    /**
+     * Ortak videolar sekmesi için TMDB videolarını (Fragman/Teaser, Açılış Jeneriği, Klip/Ekstra)
+     * çeker. [expectedTitles] verildiyse çapraz çözülen TMDB kimliğinin gerçekten aynı esere
+     * ait olduğunu doğrular; film/dizi kimlik çakışmalarında yanlış yapımın videosunu katmaz.
+     */
+    suspend fun fetchMediaVideoItems(
+        tmdbId: Int,
+        isMovie: Boolean,
+        expectedTitles: List<String> = emptyList(),
+        seasonNumber: Int? = null,
+        ignoreFeatureGate: Boolean = false
+    ): List<MediaVideoItem> = withContext(Dispatchers.IO) {
+        if (tmdbId <= 0 || apiKey.isBlank()) return@withContext emptyList()
+        if (!ignoreFeatureGate && !isTmdbFeatureEnabled { it.tmdbUseTrailers }) return@withContext emptyList()
+
+        var effectiveIsMovie = isMovie
+        if (expectedTitles.isNotEmpty()) {
+            suspend fun verifyType(movieFlag: Boolean): Boolean {
+                val typePath = if (movieFlag) "movie" else "tv"
+                val metaUrl = "https://api.themoviedb.org/3/$typePath/$tmdbId?api_key=$apiKey&language=en-US&append_to_response=alternative_titles"
+                val body = executeGet(metaUrl) ?: return false
+                val json = runCatching { org.json.JSONObject(body) }.getOrNull() ?: return false
+                val title = if (movieFlag) json.optString("title") else json.optString("name")
+                val orig = if (movieFlag) json.optString("original_title") else json.optString("original_name")
+                val alts = TmdbArtworkIdentity.extractAlternativeTitles(json)
+                return TmdbArtworkIdentity.matches(expectedTitles, title, orig, alts)
+            }
+
+            if (!verifyType(isMovie)) {
+                if (verifyType(!isMovie)) {
+                    effectiveIsMovie = !isMovie
+                } else {
+                    return@withContext emptyList()
+                }
+            }
+        }
+
+        val effSeason = if (effectiveIsMovie) null else seasonNumber
+        val cacheKey = "${if (effectiveIsMovie) "movie" else "tv"}:$tmdbId:${language.lowercase(java.util.Locale.ROOT)}:${effSeason ?: 0}"
+        tmdbVideoItemsCache[cacheKey]?.let { return@withContext it }
+
+        val items = TmdbMediaDetailClient.fetchStructuredVideos(
+            tmdbId = tmdbId,
+            isMovie = effectiveIsMovie,
+            apiKey = apiKey,
+            language = language,
+            seasonNumber = effSeason,
+            executeGet = ::executeGet
+        )
+        if (items.isNotEmpty()) {
+            tmdbVideoItemsCache[cacheKey] = items
+        }
+        items
+    }
+
     // ── Oyuncu / Ekip / İçerik ─────────────────────────────────────────────────
 
     suspend fun fetchCredits(tmdbId: Int, isMovie: Boolean): Pair<List<KitsugiCharacter>, List<KitsugiStaff>> = withContext(Dispatchers.IO) {

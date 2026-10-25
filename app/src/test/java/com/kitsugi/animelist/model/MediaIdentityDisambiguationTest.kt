@@ -138,6 +138,34 @@ class MediaIdentityDisambiguationTest {
     }
 
     @Test
+    fun shikimoriAndMalRowsMatchByTargetIdEvenWhenDisplayTitlesDiffer() {
+        val shikimori = testEntry(
+            id = 1,
+            title = "Zom 100: Zombie ni Naru made ni Shitai 100 no Koto",
+            titleEnglish = null,
+            source = "shikimori",
+            malId = 54_112,
+            year = 2023
+        )
+        val mal = testEntry(
+            id = 2,
+            title = "Zom 100: Bucket List of the Dead",
+            titleEnglish = "Zom 100: Bucket List of the Dead",
+            source = "mal",
+            malId = 54_112,
+            year = 2023
+        )
+
+        assertTrue(MediaIdentity.keys(shikimori).contains("Anime:mal:54112"))
+        assertTrue(MediaIdentity.sameMedia(shikimori, mal, allowTitle = false))
+        assertEquals(54_112, MediaIdentity.realMalId(shikimori))
+        assertEquals(
+            54_112,
+            MediaIdentity.realMalId(shikimori.copy(malId = 400_054_112))
+        )
+    }
+
+    @Test
     fun simklStableIdWindowIsRecognisedForAniListRowsOnly() {
         // AniList owns 100M..299M, but a *Simkl* row is the only one that may carry 150M..249M.
         val anilistRow = testEntry(id = 1, title = "Show", source = "anilist", malId = 100_000_870)
@@ -145,6 +173,20 @@ class MediaIdentityDisambiguationTest {
 
         val bangumiRow = testEntry(id = 2, title = "Show", source = "bangumi", malId = 500_000_870)
         assertEquals(setOf("Anime:bangumi:870"), MediaIdentity.keys(bangumiRow))
+    }
+
+    @Test
+    fun legacyTmdbIdStaysOnTmdbAxisAndNeverBecomesMal() {
+        val legacy = testEntry(
+            id = 1,
+            title = "Demon Slayer: Infinity Castle",
+            source = "tmdb",
+            type = MediaType.Movie,
+            malId = 12345
+        )
+
+        assertEquals(setOf("Movie:tmdb:12345"), MediaIdentity.keys(legacy))
+        assertEquals(null, MediaIdentity.realMalId(legacy))
     }
 
     @Test

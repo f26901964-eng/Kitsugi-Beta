@@ -29,7 +29,32 @@ object AniListSyncManager {
          * medya kimliği. Verilmezse eski zincir (yerel kimlik → MAL `idMal` → ARM) çalışır.
          * Verilse bile yazmadan önce [verifyAniListMediaIdentity] ile doğrulanır.
          */
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        /**
+         * Çapraz kimlik katmanının çözdüğü **gerçek MAL kimliği**.
+         *
+         * Kitsu / Shikimori / Bangumi kaynaklı satırlarda `MediaIdentity.realMalId(entry)` NULL
+         * döner (kaynak MAL değil), dolayısıyla kimlik zinciri `MAL idMal → ARM` adımlarını
+         * atlayıp `null` ile çıkıyordu: bu satırlar AniList'e **hiç** yazılmıyordu. Çözülmüş
+         * MAL kimliği buradan verilir; AniList yanıtındaki `idMal` alanı bunu yine de
+         * teyit etmek zorundadır.
+         */
+        knownMalId: Int? = null,
+        /**
+         * Yerel satırda DEĞİŞEN alanlar. Yeni kayıt oluşturulurken ([existingEntryId] yok)
+         * her zaman tam yazım yapılır; mevcut kayıtta yalnızca değişen alanlar gönderilir.
+         *
+         * Önemli: AniList `scoreRaw: null` (açıkça null) gönderimini **reddeder**
+         * ("The score raw must be an integer") — alan hiç gönderilmemelidir. Ayrıca
+         * gönderilmeyen her alan AniList'te olduğu gibi kalır.
+         */
+        fields: Set<SyncField> = SyncField.ALL,
+        /**
+         * Tam yazım mı? Süzme sonrası kümeden ANLAŞILAMAZ: `fieldsFor(provider)` her hedefe
+         * kendi alt kümesini verir. Bu bayrak `true` iken boş puan/not/tarih GÖNDERİLMEZ
+         * (uzaktaki değer korunur); `false` iken yalnız diff'te görünen alanlar yazılır.
+         */
+        fullWrite: Boolean = fields == SyncField.ALL
     ): Int? {
         require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) {
             context.getString(R.string.account_sync_anilist_type_unsupported)
@@ -45,17 +70,24 @@ object AniListSyncManager {
                 val mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME"
                 verifyAniListMediaIdentity(
                     token, candidate, mediaTypeGql, entry,
-                    CrossSyncIdentityGuard.aliasesOf(entry), context
+                    CrossSyncIdentityGuard.aliasesOf(entry), context,
+                    knownMalId = knownMalId
                 )
             }
-            verifiedKnownId ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            verifiedKnownId ?: resolveAniListMediaId(
+                token = token,
+                entry = entry,
+                context = context,
+                knownMalId = knownMalId
+            )
         } else {
             val verifiedMediaId = resolveAniListMediaIdForEntry(
                 token = token,
                 entryId = existingEntryId,
                 entry = entry,
                 context = context,
-                knownAniListMediaId = knownAniListMediaId
+                knownAniListMediaId = knownAniListMediaId,
+                knownMalId = knownMalId
             ) ?: error(context.getString(R.string.account_sync_anilist_entry_identity_mismatch, entry.title))
             // Existing list-entry IDs are only mutation handles. Verify the attached media before
             // updating status, progress, score, or other fields.
@@ -66,7 +98,24 @@ object AniListSyncManager {
         // (atlanacak kayıt). Mutasyonun başarısız olması aşağıda istisna ile bildirilir.
         if (existingEntryId == null && mediaId == null) return null
 
-        val scoreRaw = SyncScores.tenPoint(entry.score)?.times(10)
+        // Yeni kayıt: hedefte korunacak veri yok → tam yazım. Mevcut kayıt: yalnız değişen alanlar.
+        val writeAll = existingEntryId == null || fullWrite
+
+        /**
+         * Gönderilecek HAM puan (`scoreRaw`, 0..100) — `null` ise alan sorguya HİÇ girmez.
+         *
+         * GraphQL'de değişken hem dokümanda tanımlı hem de gönderilmiş olmalıdır; bu yüzden
+         * "puan temizleme" (0) kararı, mutasyon metni kurulmadan ÖNCE verilir. `scoreRaw: null`
+         * AniList tarafından reddedildiği için (`"The score raw must be an integer"`) hiçbir
+         * durumda `null` gönderilmez.
+         */
+        val scoreRaw: Int? = when {
+            !(writeAll || SyncField.SCORE in fields) -> null
+            entry.score != null && entry.score > 0 -> SyncScores.tenPoint(entry.score)?.times(10)
+            // Kullanıcı puanı SİLDİ (diff bunu söylüyor) → 0 gönder, hedefte temizlensin.
+            !writeAll -> 0
+            else -> null
+        }
         val scoreVariableDefinition = if (scoreRaw != null) "${'$'}scoreRaw: Int," else ""
         val scoreArgument = if (scoreRaw != null) "scoreRaw: ${'$'}scoreRaw," else ""
         val query = """
@@ -114,30 +163,52 @@ object AniListSyncManager {
         } else {
             variables.put("mediaId", mediaId)
         }
-        variables
-            .put("status", entry.status.toAniListStatus())
-            .put("progress", entry.progress)
-            .put("progressVolumes", entry.volumeProgress)
-            .put("private", entry.isPrivate)
-            .put("notes", entry.notes ?: "")
-            .put("repeat", entry.repeatCount)
-            .put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
-
-        if (scoreRaw != null) {
-            variables.put("scoreRaw", scoreRaw)
+        if (writeAll || SyncField.STATUS in fields) variables.put("status", entry.status.toAniListStatus())
+        if (writeAll || SyncField.PROGRESS in fields) variables.put("progress", entry.progress)
+        if (writeAll || SyncField.VOLUME_PROGRESS in fields) variables.put("progressVolumes", entry.volumeProgress)
+        if (writeAll || SyncField.PRIVATE in fields) variables.put("private", entry.isPrivate)
+        // Not: boş notu yalnızca kullanıcı SİLDİYSE gönder (diff); tam yazımda boş not
+        // göndermek AniList'teki notu silerdi.
+        if (writeAll && !entry.notes.isNullOrBlank()) {
+            variables.put("notes", entry.notes)
+        } else if (!writeAll && SyncField.NOTES in fields) {
+            variables.put("notes", entry.notes ?: "")
+        }
+        if (writeAll || SyncField.REWATCH_COUNT in fields) variables.put("repeat", entry.repeatCount)
+        if (writeAll || SyncField.HIDDEN_FROM_STATUS_LISTS in fields) {
+            variables.put("hiddenFromStatusLists", entry.isHiddenFromStatusLists)
         }
 
-        val startedAt = entry.startDate.toAniListFuzzyDate()
-        if (startedAt != null) {
-            variables.put("startedAt", startedAt)
+        // Değişken yalnız dokümanda tanımlıysa gönderilir (yukarıdaki `scoreRaw` kararı).
+        scoreRaw?.let { variables.put("scoreRaw", it) }
+
+        // FuzzyDate alanları: gönderilmezse AniList'teki tarih korunur. Temizlemek için
+        // {year: null, month: null, day: null} gerekir.
+        //
+        // DİKKAT (E63): "ayrıştırılamadı" ile "boşaltıldı" AYNI ŞEY DEĞİLDİR. Eski kod
+        // `toAniListFuzzyDate()` null döndüğünde (ör. yalnız yıl içeren "2016", ya da içe
+        // aktarmadan sızmış "2016-05") temizleme gönderiyordu → kullanıcı tarihe dokunmadığı
+        // hâlde AniList'teki tarih SİLİNİYORDU. Artık temizleme yalnızca alan GERÇEKTEN
+        // boşaltıldığında gönderilir; parsiyel tarih hiç gönderilmez (uzak değer korunur).
+        if (SyncField.START_DATE in fields || writeAll) {
+            val startedAt = entry.startDate.toAniListFuzzyDate()
+            when (SyncDates.action(entry.startDate, startedAt, writeAll)) {
+                SyncDates.Action.WRITE -> variables.put("startedAt", startedAt)
+                SyncDates.Action.CLEAR -> variables.put("startedAt", clearedFuzzyDate())
+                SyncDates.Action.SKIP -> Unit
+            }
+        }
+        if (SyncField.END_DATE in fields || writeAll) {
+            val completedAt = entry.endDate.toAniListFuzzyDate()
+            when (SyncDates.action(entry.endDate, completedAt, writeAll)) {
+                SyncDates.Action.WRITE -> variables.put("completedAt", completedAt)
+                SyncDates.Action.CLEAR -> variables.put("completedAt", clearedFuzzyDate())
+                SyncDates.Action.SKIP -> Unit
+            }
         }
 
-        val completedAt = entry.endDate.toAniListFuzzyDate()
-        if (completedAt != null) {
-            variables.put("completedAt", completedAt)
-        }
-
-        if (advancedScores != null) {
+        // Gelişmiş puanlar da yalnız puan değiştiğinde (ya da ilk yazımda) gönderilir.
+        if (advancedScores != null && (writeAll || SyncField.SCORE in fields)) {
             val jsonArray = org.json.JSONArray()
             advancedScores.forEach { jsonArray.put(it) }
             variables.put("advancedScores", jsonArray)
@@ -167,10 +238,11 @@ object AniListSyncManager {
         token: String,
         entry: MediaEntry,
         context: Context,
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        knownMalId: Int? = null
     ): Boolean? {
         val aniListMediaId: Int = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context, knownMalId = knownMalId)
             ?: return null
 
         val query = """
@@ -189,7 +261,8 @@ object AniListSyncManager {
                 .optJSONObject("data")
                 ?.optJSONObject("Media")
                 ?.optBoolean("isFavourite", false)
-        }.getOrNull()
+                ?: error("AniList favori doğrulaması medya döndürmedi (mediaId=$aniListMediaId)")
+        }.getOrThrow()
     }
 
     /**
@@ -202,10 +275,11 @@ object AniListSyncManager {
         token: String,
         entry: MediaEntry,
         context: Context,
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        knownMalId: Int? = null
     ): Boolean {
         val aniListMediaId: Int? = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context, knownMalId = knownMalId)
 
         if (aniListMediaId == null) return false
 
@@ -228,7 +302,7 @@ object AniListSyncManager {
         return runSyncCatching {
             postAniList(token = token, query = query, variables = variables, context = context)
             true
-        }.getOrDefault(false)
+        }.getOrThrow()
     }
 
     fun deleteAniListEntry(
@@ -309,7 +383,8 @@ object AniListSyncManager {
         entryId: Int,
         entry: MediaEntry,
         context: Context,
-        knownAniListMediaId: Int? = null
+        knownAniListMediaId: Int? = null,
+        knownMalId: Int? = null
     ): Int? = runSyncCatching {
         if (entryId <= 0) return@runSyncCatching null
         val query = """
@@ -339,42 +414,64 @@ object AniListSyncManager {
         // Liste kaydının bağlı olduğu medya, çapraz katmanın çözdüğü kimlikle de doğrulanabilir;
         // yerel zincir başlık/yıl katılıkları yüzünden aynı medyayı bulamayabiliyordu.
         val expectedMediaId = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token, entry, context)
+            ?: resolveAniListMediaId(token, entry, context, knownMalId = knownMalId)
             ?: return@runSyncCatching null
         mediaId.takeIf { it == expectedMediaId }
-    }.getOrNull()
+        // HTTP/GraphQL/ağ hatası kimlik uyuşmazlığı değildir; çağırana gerçek
+        // istisna olarak taşınır. Yalnız geçerli yanıttaki null/farklı ID null olur.
+    }.getOrThrow()
 
     fun resolveAniListMediaId(
         token: String,
         entry: MediaEntry,
-        context: Context
+        context: Context,
+        knownMalId: Int? = null
     ): Int? {
         val mediaTypeGql = when (entry.type) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "ANIME"
             MediaType.Manga -> "MANGA"
         }
-        val realMalId = MediaIdentity.realMalId(entry)
+        // Çapraz katmanın çözdüğü gerçek MAL kimliği, kaynak-özel çıkarımdan önce gelir:
+        // Kitsu/Shikimori/Bangumi satırlarında `MediaIdentity.realMalId` kaynak MAL olmadığı
+        // için null döner ve zincir burada kırılıyordu.
+        val realMalId = CrossProviderIds.realMalIdOf(knownMalId) ?: MediaIdentity.realMalId(entry)
         val nativeAniListId = MediaIdentity.aniListId(entry)
         val verifiedTitleAliases = if (nativeAniListId != null) {
             CrossSyncIdentityGuard.aliasesOf(entry)
         } else {
             if (realMalId == null) return null
-            val malVerdict = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                CrossSyncIdentityGuard.verifyMalId(
-                    malId = realMalId,
-                    mediaType = entry.type,
-                    localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
-                    localYear = entry.year
-                )
-            } as? CrossSyncIdentityGuard.Verdict.Verified ?: return null
-            malVerdict.matchedLocalTitles
+            if (CrossProviderIds.realMalIdOf(knownMalId) != null) {
+                // Kimlik çapraz katmandan geldi ve orada MAL kataloğuna karşı doğrulandı;
+                // aşağıdaki `idMal` sorgusu ve [verifyAniListMediaIdentity] yine teyit eder.
+                CrossSyncIdentityGuard.aliasesOf(entry)
+            } else {
+                val malVerdict = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                    CrossSyncIdentityGuard.verifyMalId(
+                        malId = realMalId,
+                        mediaType = entry.type,
+                        localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                        localYear = entry.year
+                    )
+                }
+                when (malVerdict) {
+                    is CrossSyncIdentityGuard.Verdict.Verified -> malVerdict.matchedLocalTitles
+                    // Çelişki yok, sadece kanıt eksik (yıl yok / katalog okunamadı): yazım
+                    // hedefin KENDİ `idMal` teyidine bırakılır. Eskiden burada `return null`
+                    // vardı ve yıl alanı boş olan her satır AniList'e hiç gitmiyordu.
+                    else -> if (CrossSyncIdentityGuard.blocksCrossWrite(malVerdict)) return null
+                    else CrossSyncIdentityGuard.aliasesOf(entry)
+                }
+            }
         }
         val rawKitsuId = MediaIdentity.kitsuId(entry)
 
         // A stored AniList media ID is source-native but still checked against type/title/year before add/favorite writes.
         if (nativeAniListId != null) {
             return nativeAniListId.takeIf {
-                verifyAniListMediaIdentity(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
+                verifyAniListMediaIdentity(
+                    token, it, mediaTypeGql, entry, verifiedTitleAliases, context,
+                    knownMalId = realMalId
+                )
             }
         }
 
@@ -389,10 +486,13 @@ object AniListSyncManager {
             val resolved = runSyncCatching {
                 val response = postAniList(token = token, query = query, variables = variables, context = context)
                 JSONObject(response).optJSONObject("data")?.optJSONObject("Media")?.optInt("id", 0)?.takeIf { it > 0 }
-            }.getOrNull()
+            }.getOrThrow()
             if (resolved != null) {
                 return resolved.takeIf {
-                    verifyAniListMediaIdentity(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
+                    verifyAniListMediaIdentity(
+                    token, it, mediaTypeGql, entry, verifiedTitleAliases, context,
+                    knownMalId = realMalId
+                )
                 }
             }
         }
@@ -413,7 +513,10 @@ object AniListSyncManager {
         } else null
         if (
             armId != null && armId > 0 &&
-            verifyAniListMediaIdentity(token, armId, mediaTypeGql, entry, verifiedTitleAliases, context)
+            verifyAniListMediaIdentity(
+                token, armId, mediaTypeGql, entry, verifiedTitleAliases, context,
+                knownMalId = realMalId
+            )
         ) {
             return armId
         }
@@ -428,7 +531,8 @@ object AniListSyncManager {
         expectedType: String,
         entry: MediaEntry,
         expectedTitles: Collection<String>,
-        context: Context
+        context: Context,
+        knownMalId: Int? = null
     ): Boolean = runSyncCatching {
         val query = """
             query (${'$'}id: Int) {
@@ -449,17 +553,25 @@ object AniListSyncManager {
         )
         val media = JSONObject(response).optJSONObject("data")?.optJSONObject("Media") ?: return@runSyncCatching false
         if (media.optInt("id", 0) != mediaId || media.optString("type") != expectedType) return@runSyncCatching false
-        val expectedMalId = MediaIdentity.realMalId(entry)
-        if (expectedMalId != null && media.optInt("idMal", 0) != expectedMalId) return@runSyncCatching false
+        val expectedMalId = CrossProviderIds.realMalIdOf(knownMalId) ?: MediaIdentity.realMalId(entry)
+        val remoteMalId = media.optInt("idMal", 0).takeIf { it in 1..99_999_999 }
+        // Çelişki varsa hiçbir gerekçe yazıma izin vermez.
+        if (expectedMalId != null && remoteMalId != expectedMalId) return@runSyncCatching false
         val expectedAniListId = MediaIdentity.aniListId(entry)
         if (expectedAniListId != null && expectedAniListId != mediaId) return@runSyncCatching false
+        // ── OTORİTER ÇAPRAZ REFERANS ────────────────────────────────────────────────
+        // AniList'in KENDİ `Media.idMal` alanı, MAL ↔ AniList eşlemesinin resmî kaynağıdır.
+        // İstenen MAL kimliği ile birebir eşleşiyorsa (ve tür doğruysa) bu, "yanlış yapıma
+        // yazma" riski TAŞIMAZ; başlık/yl ölçütlerini ayrıca aramak yalnızca yanlış
+        // negatif üretiyordu (İngilizce başlık farkı, yayın yılı farkı, yıl alanı boş…).
+        if (expectedMalId != null && remoteMalId == expectedMalId) return@runSyncCatching true
         val title = media.optJSONObject("title")
         val remoteTitles = listOf("romaji", "english", "native")
             .mapNotNull { title?.optString(it)?.takeIf(String::isNotBlank) }
         val remoteYear = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }
         CrossSyncIdentityGuard.titlesAreIdentityEquivalent(expectedTitles, remoteTitles) &&
-            CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear)
-    }.getOrDefault(false)
+            (CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear) || entry.year == null || remoteYear == null)
+    }.getOrThrow()
 
     /**
      * Resolves an AniList source row's official `idMal` only after verifying AniList's own record
@@ -856,6 +968,13 @@ object AniListSyncManager {
         variables: JSONObject,
         context: Context? = null
     ): String {
+        // Kotayı görünmez şekilde tüketen doğrudan POST: kapıdan geçir.
+        if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGateBlocking(
+                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.BACKGROUND
+            )
+        ) {
+            throw IllegalStateException("AniList kotası dolu; eşitleme sonraki tura ertelendi.")
+        }
         val payload = JSONObject()
             .put("query", query)
             .put("variables", variables)
@@ -883,8 +1002,16 @@ object AniListSyncManager {
                 com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
                     if (response.code == 429) {
                         val retrySec = response.header("Retry-After")?.toLongOrNull()?.coerceIn(1L, 120L) ?: 60L
+                        // `notifyRateLimited` geri çekilme durumunu (lastCallTime) yazar ve
+                        // `delay(waitMs)` yapar. Burada BLOKLAYAN bir bağlamdayız (postAniList
+                        // suspend değil) ve `withTimeoutOrNull` bloklayan çağrıyı KESEMEZ:
+                        // Retry-After=120 sn olduğunda tek bir istek tüm yayılımı 2 dakika
+                        // kilitliyordu. Bu yüzden bekleme 5 sn ile sınırlanır; sayaç yine de
+                        // gerçek değerle işaretlenir, sonraki istekler doğru süre bekler.
                         kotlinx.coroutines.runBlocking {
-                            PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+                            kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+                                PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+                            }
                         }
                         if (attempt >= MAX_ANILIST_ATTEMPTS) {
                             throw IllegalStateException(
@@ -896,6 +1023,10 @@ object AniListSyncManager {
                     }
                     if (!response.isSuccessful) {
                         val errorText = response.body?.string().orEmpty().take(300)
+                        if (response.code == 401) {
+                            context?.let { ExternalAuthManager.markSessionExpired(it, "anilist") }
+                            throw IllegalStateException("AniList oturumu sona erdi (HTTP 401)")
+                        }
                         com.kitsugi.animelist.data.remote.KitsugiApiBase
                             .extractAniListServiceDownMessage(errorText)
                             ?.let { downMsg ->
@@ -919,7 +1050,12 @@ object AniListSyncManager {
                         }
                     val errors = JSONObject(responseText).optJSONArray("errors")
                     if (errors != null && errors.length() > 0) {
-                        throw IllegalStateException(errors.toString())
+                        val rawErrors = errors.toString()
+                        if (rawErrors.contains("Invalid token", ignoreCase = true)) {
+                            context?.let { ExternalAuthManager.markSessionExpired(it, "anilist") }
+                            throw IllegalStateException("AniList oturumu sona erdi (HTTP 401: Invalid token)")
+                        }
+                        throw IllegalStateException(rawErrors)
                     }
 
                     return responseText
@@ -948,6 +1084,12 @@ object AniListSyncManager {
             WatchStatus.Repeating -> "REPEATING"
         }
     }
+
+    /** Tarihi temizlemek için: tüm bileşenler null (AniList "boş tarih" olarak yorumlar). */
+    private fun clearedFuzzyDate(): JSONObject = JSONObject()
+        .put("year", JSONObject.NULL)
+        .put("month", JSONObject.NULL)
+        .put("day", JSONObject.NULL)
 
     private fun String?.toAniListFuzzyDate(): JSONObject? {
         // Boş tarih = değişken hiç gönderilmez. Eskiden {0,0,0} gönderiliyordu; AniList bunu

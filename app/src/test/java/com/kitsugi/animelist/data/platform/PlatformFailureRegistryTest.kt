@@ -45,6 +45,61 @@ class PlatformFailureRegistryTest {
     }
 
     @Test
+    fun kitsuApi404IsReportedAsNotFoundNotAsHostChange() {
+        // Regresyon: ham kayıt "HTTP 404 · kitsu.app/api/edge/anime" biçiminde olduğu için
+        // host adının geçmesi "Kitsu API adresi değişti" (KIT_4001) sayılıyordu.
+        val code = PlatformFailureRegistry.reportHttp("kitsu.app", 404, "/api/edge/anime")
+        assertEquals(PlatformErrorCode.COM_1009, code)
+    }
+
+    @Test
+    fun kitsuRateLimitAndServerErrorsKeepTheirOwnCodes() {
+        assertEquals(
+            PlatformErrorCode.KIT_4002,
+            PlatformFailureRegistry.reportHttp("kitsu.app", 429, "/api/edge/anime"),
+        )
+        assertEquals(
+            PlatformErrorCode.COM_1007,
+            PlatformFailureRegistry.reportHttp("kitsu.app", 503, "/api/edge/anime"),
+        )
+    }
+
+    @Test
+    fun kitsuLegacyHostUnreachableIsStillHostChange() {
+        val code = PlatformFailureRegistry.report(
+            platformLabel = "kitsu",
+            error = java.net.UnknownHostException(
+                "Unable to resolve host \"kitsu.io\": No address associated with hostname"
+            ),
+        )
+        assertEquals(PlatformErrorCode.KIT_4001, code)
+    }
+
+    @Test
+    fun mediaCdnFailuresAreNotRecordedAsPlatformFailures() {
+        // Poster/kapak CDN'leri alan adı son ekiyle Kitsu/AniList/TMDB'ye bağlanıyordu;
+        // tek bir bozuk poster 404'ü arama ekranında "Kayıt bulunamadı (HTTP 404)"
+        // rozetine dönüşüyordu.
+        assertNull(PlatformFailureRegistry.reportHttp("media.kitsu.app", 404, "/anime/poster_images/1/original.jpg"))
+        assertNull(PlatformFailureRegistry.reportHttp("s4.anilist.co", 404, "/file/kitsu/1.jpg"))
+        assertNull(PlatformFailureRegistry.reportHttp("image.tmdb.org", 404, "/t/p/w500/poster.jpg"))
+        assertNull(PlatformFailureRegistry.reportHttp("cdn.myanimelist.net", 404, "/images/anime/1.jpg"))
+        assertNull(PlatformFailureRegistry.reportHttp("simkl.in", 404, "/posters/36/36720672_ca.jpg"))
+        assertNull(PlatformFailureRegistry.latest("kitsu"))
+        assertNull(PlatformFailureRegistry.latest("anilist"))
+        assertNull(PlatformFailureRegistry.latest("tmdb"))
+    }
+
+    @Test
+    fun apiRequestsWithoutMediaExtensionAreStillRecorded() {
+        // Uzantısız API yolu gerçek bir uç noktadır; CDN filtresi onu yutmamalı.
+        assertEquals(
+            PlatformErrorCode.COM_1009,
+            PlatformFailureRegistry.reportHttp("graphql.anilist.co", 404, "/graphql"),
+        )
+    }
+
+    @Test
     fun unknownHostIsNotRecorded() {
         assertNull(PlatformFailureRegistry.reportHttp("example.com", 500, "/x"))
         assertNull(PlatformFailureRegistry.latest("example.com"))

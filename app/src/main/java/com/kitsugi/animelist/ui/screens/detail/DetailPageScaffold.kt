@@ -210,7 +210,11 @@ fun DetailPageScaffold(
                                                     .verticalScroll(pageScrollState)
                                                     .padding(horizontal = 16.dp, vertical = 8.dp)
                                             ) {
-                                                pageContent(page)
+                                                CompositionLocalProvider(
+                                                    LocalDetailPagingActive provides (page == pagerState.settledPage)
+                                                ) {
+                                                    pageContent(page)
+                                                }
                                             }
                                         }
                                     }
@@ -312,24 +316,10 @@ fun DetailPageScaffold(
                                 // ── Sekme İçerikleri ──
                                 item(key = "content") {
                                     val pageHeights = remember { mutableStateMapOf<Int, Int>() }
-                                    val currentPage = pagerState.currentPage
-                                    val currentPageOffset = pagerState.currentPageOffsetFraction
-                                    val targetPage = when {
-                                        currentPageOffset > 0f -> currentPage + 1
-                                        currentPageOffset < 0f -> currentPage - 1
-                                        else -> currentPage
-                                    }
-                                    val currentHeightPx = pageHeights[currentPage] ?: 0
-                                    val targetHeightPx = pageHeights[targetPage] ?: currentHeightPx
-                                    val interpolatedHeightDp = remember(currentHeightPx, targetHeightPx, currentPageOffset) {
-                                        val heightPx = when {
-                                            currentHeightPx > 0 && targetHeightPx > 0 ->
-                                                currentHeightPx + (targetHeightPx - currentHeightPx) * kotlin.math.abs(currentPageOffset)
-                                            currentHeightPx > 0 -> currentHeightPx.toFloat()
-                                            else -> 0f
-                                        }
-                                        if (heightPx > 0f) with(density) { heightPx.toDp() } else null
-                                    }
+                                    // PERF: pagerState.currentPageOffsetFraction ve pageHeights okumaları
+                                    // composition yerine doğrudan Modifier.layout fazına taşındı.
+                                    // Böylece yatay sekme kaydırma (60-120fps) ve sekme boyu güncellemeleri
+                                    // sıfır recomposition ile yalnızca yerleşim fazında işlenir.
                                     val screenHeightDp = LocalConfiguration.current.screenHeightDp
 
                                     HorizontalPager(
@@ -341,15 +331,29 @@ fun DetailPageScaffold(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .layout { measurable, constraints ->
-                                                val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
+                                                val minPagerHeightPx = (screenHeightDp - 64).dp.roundToPx().coerceAtLeast(0)
                                                 val placeable = measurable.measure(
                                                     constraints.copy(
                                                         minHeight = minPagerHeightPx,
                                                         maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                                                     )
                                                 )
-                                                val height = (interpolatedHeightDp?.roundToPx()
-                                                    ?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                                                val cp = pagerState.currentPage
+                                                val offset = pagerState.currentPageOffsetFraction
+                                                val tp = when {
+                                                    offset > 0f -> cp + 1
+                                                    offset < 0f -> cp - 1
+                                                    else -> cp
+                                                }
+                                                val curH = pageHeights[cp] ?: 0
+                                                val tgtH = pageHeights[tp] ?: curH
+                                                val interpPx = when {
+                                                    curH > 0 && tgtH > 0 ->
+                                                        (curH + (tgtH - curH) * kotlin.math.abs(offset)).toInt()
+                                                    curH > 0 -> curH
+                                                    else -> 0
+                                                }
+                                                val height = (if (interpPx > 0) interpPx.coerceAtLeast(minPagerHeightPx) else placeable.height)
                                                     .coerceIn(minPagerHeightPx, 16_000_000)
                                                 layout(placeable.width, height) { placeable.placeRelative(0, 0) }
                                             }
@@ -369,7 +373,11 @@ fun DetailPageScaffold(
                                                             .recordStablePageHeight(pageHeights, page, it.size.height)
                                                     }
                                             ) {
-                                                pageContent(page)
+                                                CompositionLocalProvider(
+                                                    LocalDetailPagingActive provides (page == pagerState.settledPage)
+                                                ) {
+                                                    pageContent(page)
+                                                }
                                             }
                                         }
                                     }

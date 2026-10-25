@@ -64,6 +64,7 @@ fun SourceEngineFilterSheet(
     uiState: SearchUiState,
     viewModel: SearchViewModel,
     onOpenGenresTags: () -> Unit,
+    onOpenOrganizations: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -261,9 +262,21 @@ fun SourceEngineFilterSheet(
                 }
             }
 
+            // Ortak katalog her kaynak motorunda erişilebilir; kurum kaynak eşlemesi T55–T60'ta.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenGenresTags, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.inline_genres_tags_4731985),
+                        color = KitsugiColors.TextPrimary)
+                }
+                OutlinedButton(onClick = onOpenOrganizations, modifier = Modifier.weight(1f)) {
+                    Text("${stringResource(R.string.search_org_title)} (${uiState.organizations.size})",
+                        color = KitsugiColors.TextPrimary)
+                }
+            }
+
             // Motor Gövdesi
             when (uiState.selectedEngine) {
-                SearchSourceEngine.ANILIST -> AniListFullFiltersContent(uiState, viewModel, onOpenGenresTags)
+                SearchSourceEngine.ANILIST -> AniListFullFiltersContent(uiState, viewModel)
                 SearchSourceEngine.MAL -> MalFullFiltersContent(uiState, viewModel)
                 SearchSourceEngine.TMDB -> TmdbFullFiltersContent(uiState, viewModel)
                 SearchSourceEngine.SHIKIMORI -> ShikimoriFullFiltersContent(uiState, viewModel)
@@ -305,39 +318,10 @@ fun SourceEngineFilterSheet(
 @Composable
 private fun AniListFullFiltersContent(
     uiState: SearchUiState,
-    viewModel: SearchViewModel,
-    onOpenGenresTags: () -> Unit
+    viewModel: SearchViewModel
 ) {
     val filters = uiState.aniListSpecificFilters
     val accentColor = LocalKitsugiAccent.current
-
-    // Türler ve Etiketler Seçici
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(KitsugiColors.SurfaceElevated)
-            .clickable(onClick = onOpenGenresTags)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = stringResource(R.string.inline_genres_tags_4731985),
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = KitsugiColors.TextPrimary
-                )
-            )
-            val selectedCount = filters.genres.size + filters.tags.size + filters.excludedGenres.size
-            Text(
-                text = if (selectedCount > 0) stringResource(R.string.ui2_filter_selected_count, selectedCount) else stringResource(R.string.ui2_all_filters_selected_hint),
-                style = MaterialTheme.typography.bodySmall.copy(color = if (selectedCount > 0) accentColor else KitsugiColors.TextMuted)
-            )
-        }
-        Text(stringResource(R.string.inline_edit_51d5ec9), color = accentColor, style = MaterialTheme.typography.labelMedium)
-    }
 
     // Min Tag Rank
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

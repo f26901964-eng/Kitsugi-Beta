@@ -205,9 +205,19 @@ fun KitsugiDetailHero(
     // Çift sabit olduğu için eşleşme otomatiktir; yedek aday olarak diğer tür
     // listenin sonuna eklenir (kullanıcı elle kaydırdığında veya birincil aday
     // yüklenemediğinde kullanılır).
-    val imagePlan = remember(wideArtworkCandidates, tallArtworkCandidates, usePosterArtwork) {
-        if (usePosterArtwork) (tallArtworkCandidates + wideArtworkCandidates).distinct()
+    // PERF: Tercih edilen yönde bir vitrin görseli başarıyla yüklenip çizildikten sonra
+    // gecikmeli gelen galleryItems/artwork yanıtlarının kaydırma ortasında resmi değiştirip
+    // vitrin yüksekliğini zıplatması lockedHeroUrl ile engellenir.
+    var lockedHeroUrl by remember(artworkKey, imageUrl, usePosterArtwork) { mutableStateOf<String?>(null) }
+    val imagePlan = remember(wideArtworkCandidates, tallArtworkCandidates, usePosterArtwork, lockedHeroUrl) {
+        val rawPlan = if (usePosterArtwork) (tallArtworkCandidates + wideArtworkCandidates).distinct()
         else (wideArtworkCandidates + tallArtworkCandidates).distinct()
+        val locked = lockedHeroUrl
+        if (locked != null && locked in rawPlan) {
+            listOf(locked) + rawPlan.filterNot { it == locked }
+        } else {
+            rawPlan
+        }
     }
 
     var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
@@ -245,16 +255,14 @@ fun KitsugiDetailHero(
         // BACKDROP'ta 16:9 bant kendi sınırını getirir; yine de ekranın %62'sini aşmasın.
         val bannerCapDp = if (usePosterArtwork) screenHeightDp else screenHeightDp * 0.62f
         val bannerHeight = (maxWidth / boxAspect).coerceAtMost(bannerCapDp.dp)
+        val heroBoxWidthDp = maxWidth.value
 
-        // Başlık, meta bilgileri ve rozetler ayrı bir koyu alan ayırmak yerine
-        // görselin alt bölümüne bindirilir. Böylece hem dikey hem yatay düzende
-        // vitrinin altında 220 dp'lik boş bir blok oluşmaz.
-        BoxWithConstraints(
+        // PERF: İkinci iç içe BoxWithConstraints kaldırıldı (gereksiz SubcomposeLayout geçişi önlendi).
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(bannerHeight)
         ) {
-            val heroBoxWidthDp = maxWidth.value
             val imageAreaModifier = Modifier
                 .fillMaxWidth()
                 .height(bannerHeight)
@@ -285,9 +293,19 @@ fun KitsugiDetailHero(
                     imageAreaModifier
                 }
                 val onFailed: () -> Unit = {
+                    if (lockedHeroUrl == displayedImageUrl) lockedHeroUrl = null
                     if (imageIndex < imagePlan.lastIndex) imageIndex += 1
                 }
-                val onAspect: (Float) -> Unit = { ratio -> loadedImageAspect = ratio }
+                val onAspect: (Float) -> Unit = { ratio ->
+                    val prev = loadedImageAspect
+                    if (prev == null || kotlin.math.abs(prev - ratio) > 0.03f) {
+                        loadedImageAspect = ratio
+                    }
+                    val matchesPreference = if (usePosterArtwork) ratio < 1.15f else ratio >= 1.15f
+                    if (matchesPreference && lockedHeroUrl == null) {
+                        lockedHeroUrl = displayedImageUrl
+                    }
+                }
                 // TEK KATMAN, TAM KAPSAMA: görsel alanı hiçbir modda boşluk/bulanık
                 // dolgu bırakmaz; kutu oranı görsele uyduğu için kırpma da ≈ sıfırdır.
                 KitsugiNsfwImage(

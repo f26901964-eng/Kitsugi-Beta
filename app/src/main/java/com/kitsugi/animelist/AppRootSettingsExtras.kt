@@ -90,12 +90,15 @@ internal fun SettingsContext.buildSettingsParams() =
             onKitsuNotificationsChanged = { onKitsuNotificationsChanged(it) },
             shikimoriNotificationsEnabled = appSettings.shikimoriNotificationsEnabled,
             onShikimoriNotificationsChanged = { onShikimoriNotificationsChanged(it) },
+            tmdbNotificationsEnabled = appSettings.tmdbNotificationsEnabled,
+            onTmdbNotificationsChanged = { onTmdbNotificationsChanged(it) },
             isAniListConnected = authViewModel.isAniListConnected,
             isMalConnected = authViewModel.isMalConnected,
             isSimklConnected = authViewModel.isSimklConnected,
             isKitsuConnected = authViewModel.isKitsuConnected,
             isShikimoriConnected = authViewModel.isShikimoriConnected,
             isBangumiConnected = authViewModel.isBangumiConnected,
+            isTmdbConnected = authViewModel.isTmdbConnected,
             notificationInterval = appSettings.notificationInterval,
             onNotificationIntervalChanged = { onNotificationIntervalChanged(it) },
             splashAnimationEnabled = appSettings.splashAnimationEnabled,
@@ -142,6 +145,11 @@ internal fun SettingsContext.buildSettingsParams() =
             simklUsername = appSettings.simklUsername,
             isSimklImportRunning = authViewModel.isSimklImportRunning,
             isSimklSessionExpired = authViewModel.isSimklSessionExpired,
+            isAniListSessionExpired = authViewModel.isAniListSessionExpired,
+            isMalSessionExpired = authViewModel.isMalSessionExpired,
+            isKitsuSessionExpired = authViewModel.isKitsuSessionExpired,
+            isShikimoriSessionExpired = authViewModel.isShikimoriSessionExpired,
+            isBangumiSessionExpired = authViewModel.isBangumiSessionExpired,
             onProfileInfoSave = { name, title -> onProfileInfoSave(name, title) },
             onPickProfileImageClick = onPickProfileImageClick,
             onPickBannerImageClick = onPickBannerImageClick,
@@ -157,6 +165,13 @@ internal fun SettingsContext.buildSettingsParams() =
             onMalImportClick = { onMalImportClick() },
             onSimklAuthClick = { onSimklAuthClick() },
             onSimklImportClick = { onSimklImportClick() },
+            isTmdbConnected = authViewModel.isTmdbConnected,
+            tmdbUsername = authViewModel.tmdbUsername,
+            isTmdbImportRunning = authViewModel.isTmdbImportRunning,
+            onTmdbAuthClick = { onTmdbAuthClick() },
+            onTmdbImportClick = { authViewModel.importTmdbWatchlist(mediaEntries, mediaRepository) },
+            syncEnabledTmdb = appSettings.syncEnabledTmdb,
+            onSyncEnabledTmdbChanged = { onSyncEnabledTmdbChanged(it) },
             onDeleteAllEntries = { onDeleteAllEntries() },
             onCreateBackupText = { onCreateBackupText() },
             onImportBackupText = { onImportBackupText() },
@@ -180,7 +195,7 @@ internal fun SettingsContext.buildSettingsParams() =
             kitsuUsername = appSettings.kitsuUsername,
             isKitsuImportRunning = authViewModel.isKitsuImportRunning,
             onKitsuAuthClick = { authViewModel.disconnectExternalAccount("kitsu") },
-            onKitsuImportClick = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
+            onKitsuImportClick = { authViewModel.importKitsuList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE) },
             syncEnabledKitsu = appSettings.syncEnabledKitsu,
             onSyncEnabledKitsuChanged = { onSyncEnabledKitsuChanged(it) },
             onLoginKitsu = { username, password, onComplete ->
@@ -195,7 +210,7 @@ internal fun SettingsContext.buildSettingsParams() =
             shikimoriUsername = appSettings.shikimoriUsername,
             isShikimoriImportRunning = authViewModel.isShikimoriImportRunning,
             onShikimoriAuthClick = { authViewModel.disconnectExternalAccount("shikimori") },
-            onShikimoriImportClick = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
+            onShikimoriImportClick = { authViewModel.importShikimoriList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE) },
             syncEnabledShikimori = appSettings.syncEnabledShikimori,
             onSyncEnabledShikimoriChanged = { onSyncEnabledShikimoriChanged(it) },
             onLoginShikimori = { clientId, clientSecret, authCode, onComplete ->
@@ -211,7 +226,7 @@ internal fun SettingsContext.buildSettingsParams() =
             bangumiUsername = appSettings.bangumiUsername,
             isBangumiImportRunning = authViewModel.isBangumiImportRunning,
             onBangumiAuthClick = { authViewModel.disconnectExternalAccount("bangumi") },
-            onBangumiImportClick = { authViewModel.importBangumiList(mediaEntries, mediaRepository) },
+            onBangumiImportClick = { authViewModel.importBangumiList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE) },
             syncEnabledBangumi = appSettings.syncEnabledBangumi,
             onSyncEnabledBangumiChanged = { onSyncEnabledBangumiChanged(it) },
             onLoginBangumi = { clientId, clientSecret, authCode, onComplete ->
@@ -597,6 +612,11 @@ internal fun SettingsContext.onSimklAuthClick() {
     else authViewModel.startExternalAuth("simkl")
 }
 
+internal fun SettingsContext.onTmdbAuthClick() {
+    if (authViewModel.isTmdbConnected) authViewModel.disconnectExternalAccount("tmdb")
+    else authViewModel.startExternalAuth("tmdb")
+}
+
 internal fun SettingsContext.onAdultContentChanged(show: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setShowAdultContent(show)
@@ -705,6 +725,23 @@ internal fun SettingsContext.onShikimoriNotificationsChanged(enabled: Boolean) {
     }
 }
 
+internal fun SettingsContext.onTmdbNotificationsChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        if (enabled && !authViewModel.isTmdbConnected) {
+            appViewModel.showSnackbarMessage(
+                KitsugiStrings.get(R.string.settings_notifications_connect_account, "TMDB")
+            )
+            return@launch
+        }
+        settingsDataStore.setTmdbNotificationsEnabled(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.tmdb_bildirimleri_etkinlestirildi)
+            else KitsugiStrings.get(R.string.tmdb_bildirimleri_devre_disi_birakildi)
+        )
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
+    }
+}
+
 internal fun SettingsContext.onNotificationIntervalChanged(minutes: Int) {
     coroutineScope.launch {
         settingsDataStore.setNotificationInterval(minutes)
@@ -777,15 +814,15 @@ internal fun SettingsContext.onOpenMangaSourceHealthScreen() {
 }
 
 internal fun SettingsContext.onAniListImportClick() {
-    authViewModel.importAniListAnimeList(mediaEntries, mediaRepository)
+    authViewModel.importAniListAnimeList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
 }
 
 internal fun SettingsContext.onMalImportClick() {
-    authViewModel.importMalAnimeList(mediaEntries, mediaRepository)
+    authViewModel.importMalAnimeList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
 }
 
 internal fun SettingsContext.onSimklImportClick() {
-    authViewModel.importSimklList(mediaEntries, mediaRepository)
+    authViewModel.importSimklList(mediaEntries, mediaRepository, com.kitsugi.animelist.data.sync.ListRefreshMode.USER_FORCE)
 }
 
 internal fun SettingsContext.onThemeSelected(themeId: String) {
@@ -1206,6 +1243,17 @@ internal fun SettingsContext.onSyncEnabledBangumiChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledBangumi(enabled)
         appViewModel.showSnackbarMessage(if (enabled) KitsugiStrings.get(R.string.bangumi_esitlemesi_acildi) else KitsugiStrings.get(R.string.bangumi_esitlemesi_kapatildi))
+    }
+}
+
+internal fun SettingsContext.onSyncEnabledTmdbChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSyncEnabledTmdb(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.tmdb_esitlemesi_acildi)
+            else KitsugiStrings.get(R.string.tmdb_esitlemesi_kapatildi)
+        )
+        com.kitsugi.animelist.core.notifications.NotificationScheduler.reconcile(context)
     }
 }
 

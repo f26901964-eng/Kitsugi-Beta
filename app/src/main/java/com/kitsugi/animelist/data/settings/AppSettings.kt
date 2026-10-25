@@ -49,6 +49,7 @@ data class ProfileAndListSettings(
     val hideScores: Boolean = false,
     val showAnimeLogos: Boolean = false,
     val accountBackupEnabled: Boolean = true,
+    val accountAddonSyncEnabled: Boolean = true,
     val accountSearchSyncEnabled: Boolean = true,
     val accountNotificationSyncEnabled: Boolean = true,
     val syncEnabledAnilist: Boolean = false,
@@ -56,7 +57,8 @@ data class ProfileAndListSettings(
     val syncEnabledSimkl: Boolean = false,
     val syncEnabledKitsu: Boolean = false,
     val syncEnabledShikimori: Boolean = false,
-    val syncEnabledBangumi: Boolean = false
+    val syncEnabledBangumi: Boolean = false,
+    val syncEnabledTmdb: Boolean = false
 )
 
 data class ThemeAndAppUiSettings(
@@ -239,8 +241,10 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
-    val wikiPageTheme: String = "SITE",
+    val wikiPageTheme: String = "APP",
     val wikiTextZoom: Int = 100,
+    /** Wiki açılır sayfası son seçilen düzeni hatırlar; varsayılan MOBİL düzendir. */
+    val wikiDesktopLayout: Boolean = false,
     val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
     val autoTranslateEnabled: Boolean = false,
     val preferredTranslator: String = "DEFAULT",
@@ -252,6 +256,7 @@ data class IntegrationsAndNotificationsSettings(
     val simklNotificationsEnabled: Boolean = false,
     val kitsuNotificationsEnabled: Boolean = false,
     val shikimoriNotificationsEnabled: Boolean = false,
+    val tmdbNotificationsEnabled: Boolean = false,
     val notificationInterval: Int = 180
 )
 
@@ -389,6 +394,7 @@ data class AppSettings(
     val animeSkipClientId: String get() = gestures.animeSkipClientId
     val wikiPageTheme: String get() = integrations.wikiPageTheme
     val wikiTextZoom: Int get() = integrations.wikiTextZoom
+    val wikiDesktopLayout: Boolean get() = integrations.wikiDesktopLayout
     val wikiAdBlockDisabledHosts: Set<String> get() = integrations.wikiAdBlockDisabledHosts
     val autoTranslateEnabled: Boolean get() = integrations.autoTranslateEnabled
     val preferredTranslator: String get() = integrations.preferredTranslator
@@ -410,6 +416,7 @@ data class AppSettings(
     val lastUsedTab: String get() = themeUi.lastUsedTab
     val appLanguage: String get() = themeUi.appLanguage
     val accountBackupEnabled: Boolean get() = profile.accountBackupEnabled
+    val accountAddonSyncEnabled: Boolean get() = profile.accountAddonSyncEnabled
     val accountSearchSyncEnabled: Boolean get() = profile.accountSearchSyncEnabled
     val accountNotificationSyncEnabled: Boolean get() = profile.accountNotificationSyncEnabled
     val fixedNavBar: Boolean get() = themeUi.fixedNavBar
@@ -436,6 +443,7 @@ data class AppSettings(
     val simklNotificationsEnabled: Boolean get() = integrations.simklNotificationsEnabled
     val kitsuNotificationsEnabled: Boolean get() = integrations.kitsuNotificationsEnabled
     val shikimoriNotificationsEnabled: Boolean get() = integrations.shikimoriNotificationsEnabled
+    val tmdbNotificationsEnabled: Boolean get() = integrations.tmdbNotificationsEnabled
     val notificationInterval: Int get() = integrations.notificationInterval
     val searchHistoryEnabled: Boolean get() = themeUi.searchHistoryEnabled
     val stillWatchingEnabled: Boolean get() = playback.stillWatchingEnabled
@@ -463,6 +471,7 @@ data class AppSettings(
     val syncEnabledKitsu: Boolean get() = profile.syncEnabledKitsu
     val syncEnabledShikimori: Boolean get() = profile.syncEnabledShikimori
     val syncEnabledBangumi: Boolean get() = profile.syncEnabledBangumi
+    val syncEnabledTmdb: Boolean get() = profile.syncEnabledTmdb
     val subtitleSpeed: Float get() = mpvSubtitle.subtitleSpeed
     val videoFiltersJson: String get() = mpvSubtitle.videoFiltersJson
     val speedPresets: String get() = mpvSubtitle.speedPresets

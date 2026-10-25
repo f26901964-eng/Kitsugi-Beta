@@ -27,7 +27,12 @@ import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import androidx.compose.foundation.layout.Column
@@ -67,7 +72,9 @@ fun RecommendationsTabContent(
         is DetailTabState.Success -> {
             // +18 UYUMU (2026-10-14): benzer başlıklar da göster/gizle sözleşmesine uyar.
             val showAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
-            val list = if (showAdult) state.data else state.data.filter { !it.isAdult }
+            val list = remember(state.data, showAdult) {
+                if (showAdult) state.data else state.data.filter { !it.isAdult }
+            }
             if (list.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -82,15 +89,11 @@ fun RecommendationsTabContent(
                     )
                 }
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    list.forEach { rel ->
-                        RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
-                    }
+                DetailAutoPagingColumn(
+                    items = list,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) { rel ->
+                    RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
                 }
             }
         }
@@ -123,8 +126,13 @@ fun RecommendationCard(
                 .clip(RoundedCornerShape(10.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
+            val recThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                url = rel.imageUrl,
+                widthDp = 54.dp,
+                heightDp = 76.dp
+            )
             KitsugiNsfwImage(
-                model = rel.imageUrl,
+                model = recThumb ?: rel.imageUrl,
                 contentDescription = displayTitle,
                 isAdult = rel.isAdult,
                 blurAdultMedia = blurAdultMedia,

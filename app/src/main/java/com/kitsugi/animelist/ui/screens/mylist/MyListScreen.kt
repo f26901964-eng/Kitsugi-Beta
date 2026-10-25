@@ -67,9 +67,12 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.local.MyListIdentityCrosswalk
+import com.kitsugi.animelist.data.remote.BangumiTitleCache
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.ui.components.KitsugiApiSearchDialog
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
@@ -90,21 +93,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
-
-/**
- * "Tümü" (birleşik kütüphane) sekmesinin tek seferde, arka planda üretilen sonucu.
- * Dört alanın birlikte üretilip yayınlanması, aradaki karelerde eski liste + yeni rozet
- * gibi uyuşmayan ara görünüm oluşmasını imkânsız kılar.
- */
-internal data class CombinedMyListLibrary(
-    val items: List<MyListLibraryItem>,
-    val entries: List<MediaEntry>,
-    val sourceBadgesByEntryId: Map<Int, List<String>>
-) {
-    companion object {
-        val EMPTY = CombinedMyListLibrary(emptyList(), emptyList(), emptyMap())
-    }
-}
 
 /**
  * [IntArray] için açık Saver: IntArray, Android Bundle tarafından yerel olarak desteklenir
@@ -130,6 +118,8 @@ fun MyListScreen(
     selectedYearFilterId: String,
     selectedExtraFilterId: String,
     selectedSortId: String,
+    selectedGroupId: String = MyListGroupingIds.ADDED,
+    onGroupChange: (String) -> Unit = {},
     initialScrollIndex: Int,
     initialScrollOffset: Int,
     selectedTabIndex: Int,
@@ -151,6 +141,9 @@ fun MyListScreen(
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     isBangumiConnected: Boolean = false,
+    isTmdbConnected: Boolean = false,
+    tmdbUsername: String = "",
+    onLoginTmdb: () -> Unit = {},
     onLoginAniList: () -> Unit,
     onLoginMal: () -> Unit,
     onLoginSimkl: () -> Unit,
@@ -163,6 +156,22 @@ fun MyListScreen(
     onSyncKitsu: () -> Unit = {},
     onSyncShikimori: () -> Unit = {},
     onSyncBangumi: () -> Unit = {},
+    onSyncTmdb: () -> Unit = {},
+    onAddTmdbApiSelectionToList: ((ApiSearchSelection) -> Unit)? = null,
+    /** Bağlı tüm kaynakları SIRAYLA yeniler (tek tek ağa çıkmaz). */
+    onSyncAll: () -> Unit = {
+        var startedSync = false
+        if (isAniListConnected) { onSyncAniList(); startedSync = true }
+        if (isMalConnected) { onSyncMal(); startedSync = true }
+        if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
+        if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
+        if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
+        if (isBangumiConnected) { onSyncBangumi(); startedSync = true }
+        if (isTmdbConnected) { onSyncTmdb(); startedSync = true }
+        if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
+    },
+    /** Verilen sekme (MY_LIST_*_TAB_INDEX) için kaynak senkronu sürüyor mu? */
+    isTabSyncing: (Int) -> Boolean = { false },
     onKitsuAuthSubmit: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _ -> },
     onShikimoriAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
     onBangumiAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
@@ -243,7 +252,7 @@ fun MyListScreen(
     var activeZoomTitle by rememberSaveable { mutableStateOf("") }
     var activeZoomIsAdult by rememberSaveable { mutableStateOf(false) }
 
-    // Five provider tabs plus a combined, deduplicated library tab.
+    // Six provider tabs plus a combined, deduplicated library tab.
     val tabPagerState = rememberPagerState(
         initialPage = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1),
         pageCount = { MY_LIST_TAB_COUNT }
@@ -251,24 +260,36 @@ fun MyListScreen(
 
     // Pager page change -> notify parent
     // İLK çalıştırmada settledPage yalnızca pager'ın kurulum anındaki sayfasıdır; bu an
-    // bir "değişiklik" DEĞİLDİR. selectedTabIndex ilk karede henüz geri yüklenmemiş olabilir
-    // (açılışta loadFilters ile yarış) ve pager 0'da kurulmuş olabilir; bu ilk anı
-    // bildirirsek kurulum değeri (0 = Tümü) updateMyListTabIndex ile geri yazılarak
-    // kullanıcının son seçimi silinirdi — uygulama her açılışta "Tümü"'ye dönerdi.
-    // Yalnızca sonraki değişiklikler, yani gerçek kullanıcı kaydırmaları raporlanır.
+    // bir "değişiklik" DEĞİLDİR. Ayrıca açılır menüden uzak bir kaynağa atlanırken ara
+    // settledPage emisyonlarının seçimi geri çevirmemesi için hedef sayfa izlenir.
     var pagerInitialPageAnnounced by remember { mutableStateOf(false) }
-    LaunchedEffect(tabPagerState.settledPage) {
-        if (!pagerInitialPageAnnounced) {
-            pagerInitialPageAnnounced = true
-        } else if (tabPagerState.settledPage != selectedTabIndex) {
-            onTabIndexChange(tabPagerState.settledPage)
+    var programmaticTargetPage by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(selectedTabIndex) {
+        val target = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
+        if (tabPagerState.currentPage != target) {
+            programmaticTargetPage = target
+            try {
+                if (kotlin.math.abs(tabPagerState.currentPage - target) > 1) {
+                    tabPagerState.scrollToPage(target)
+                } else {
+                    tabPagerState.animateScrollToPage(target)
+                }
+            } finally {
+                if (programmaticTargetPage == target) {
+                    programmaticTargetPage = -1
+                }
+            }
         }
     }
 
-    // Parent tab change (chip click) -> animate pager
-    LaunchedEffect(selectedTabIndex) {
-        if (tabPagerState.currentPage != selectedTabIndex) {
-            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1))
+    LaunchedEffect(tabPagerState.settledPage) {
+        if (!pagerInitialPageAnnounced) {
+            pagerInitialPageAnnounced = true
+        } else if (programmaticTargetPage >= 0 && tabPagerState.settledPage != programmaticTargetPage) {
+            // Uzak sekmeye programatik geçiş tamamlanana dek ara sayfa bildirimlerini yok say.
+        } else if (tabPagerState.settledPage != selectedTabIndex) {
+            onTabIndexChange(tabPagerState.settledPage)
         }
     }
 
@@ -291,64 +312,51 @@ fun MyListScreen(
         mutableStateOf(false)
     }
 
-    val entriesAfterAdultFilter = remember(entries, showAdultContent) {
-        entries.filter { entry ->
-            showAdultContent || !entry.isAdult
-        }
-    }
-
-    // Birleşik kütüphane yalnızca satırın KENDİ kaynak uzayındaki kimliğiyle kurulabilir;
-    // Bangumi/Kitsu/Shikimori satırlarında MAL ekseni olmadığı için Çince/Rusça katalog
-    // başlıkları hiç eşmez ve aynı yapım "Tümü" sekmesinde ikinci bir kart olur (1502/786
-    // şişkinliğinin kök nedeni). Çapraz eşitlemenin çözüp kalıcı yazdığı kimlik köprüsü
-    // burada okunur — ağa çıkılmaz.
-    //
-    // PERF (2026-10-20): kimlik köprüsü + gruplama (groupMyListEntries: satır başına kimlik
-    // anahtarları + union-find birleştirme) + rozet/entry haritaları TEK bir arka plan
-    // hesabında üretilir. Eski sürüm bunu kompozisyon içinde senkron (ana iş parçacığında)
-    // yapıyordu: her veritabanı emisyonu (senkron yazımları, kardeş satır aynalama, +18
-    // geri yazma…) 1000+ kayıtta Listem'i yüzlerce ms kilitliyordu. Sonuç yayınlanana
-    // kadar önceki değer gösterilir (produceState davranışı), ilk hesaplamaya kadar liste
-    // boş görünür.
-    val combinedLibrary by produceState(viewModel.cachedCombinedLibrary, entriesAfterAdultFilter) {
-        val entriesForLibrary = entriesAfterAdultFilter
+    // Kimlik köprüsü + gruplama + kardeş başlık tamamlama + sekme bazlı kütüphane bölümlendirmesi
+    // TEK bir arka plan hesabında üretilir; hiçbir kaynak sekmesi başka bir kaynağın kaydını sızdırmaz.
+    val librarySnapshot by produceState(viewModel.cachedLibrarySnapshot, entries, showAdultContent) {
+        val entriesForLibrary = entries
+        val includeAdult = showAdultContent
         val appContext = context.applicationContext
-        value = withContext(Dispatchers.Default) {
-            val extras = MyListIdentityCrosswalk.build(appContext, entriesForLibrary)
-            val items = groupMyListEntries(entriesForLibrary, extras)
-            CombinedMyListLibrary(
-                items = items,
-                entries = items.map { it.entry },
-                sourceBadgesByEntryId = items.associate { it.entry.id to it.sourceIds }
-            )
-        }.also { computed ->
-            // Detay dönüşünde ilk karede eski sonuç hazır olsun diye ViewModel'de sakla.
-            viewModel.rememberCombinedLibrary(computed)
-        }
-    }
-    val allLibraryItems = combinedLibrary.items
-    val allLibraryEntries = combinedLibrary.entries
-    val allSourceBadgesByEntryId = combinedLibrary.sourceBadgesByEntryId
-
-    val selectedTabEntries = remember(
-        entriesAfterAdultFilter,
-        allLibraryEntries,
-        selectedTabIndex,
-        searchQuery
-    ) {
-        when {
-            selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
-            // Preserve the existing cross-provider search behavior everywhere except Bangumi:
-            // Bangumi must never surface an unrelated provider's row, even during search.
-            searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> entriesAfterAdultFilter
-            else -> entriesAfterAdultFilter.filter { entry ->
-                myListSourceMatchesTab(selectedTabIndex, entry.source, entry.malId)
+        suspend fun publish(extras: Map<Int, Set<String>>) {
+            val computed = withContext(Dispatchers.Default) {
+                buildMyListLibrarySnapshot(
+                    entries = entriesForLibrary,
+                    identityExtras = extras,
+                    includeAdult = includeAdult,
+                    bangumiTitleLookup = { rawId -> BangumiTitleCache.get(rawId) }
+                )
             }
+            value = computed
+            // Detay dönüşünde ilk karede eski sonuç hazır olsun diye ViewModel'de sakla.
+            viewModel.rememberLibrarySnapshot(computed)
+        }
+
+        // İlk sonucu kalıcı köprülerle hemen yayınla; ağ doğrulaması listeyi boş/bekliyor
+        // durumunda bırakmasın. İkinci tur yalnız Anime↔Movie/TvShow adaylarında çalışır.
+        val cachedExtras = MyListIdentityCrosswalk.build(appContext, entriesForLibrary)
+        publish(cachedExtras)
+        if (MyListIdentityCrosswalk.crossTypeResolutionCandidates(entriesForLibrary).isNotEmpty()) {
+            val resolvedExtras = MyListIdentityCrosswalk.build(
+                context = appContext,
+                entries = entriesForLibrary,
+                allowNetwork = true
+            )
+            if (resolvedExtras != cachedExtras) publish(resolvedExtras)
         }
     }
+    val isLibraryComputing = entries.isNotEmpty() && !librarySnapshot.isComputed
+    val allSourceBadgesByEntryId = librarySnapshot.sourceBadgesByEntryId
+    val tabCounts = remember(librarySnapshot) {
+        List(MY_LIST_TAB_COUNT) { tabIdx -> librarySnapshot.countForTab(tabIdx) }
+    }
+
+    val safeSelectedTabIndex = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
+    val selectedTabEntries = librarySnapshot.entriesForTab(safeSelectedTabIndex)
 
     val filteredEntries = remember(
         selectedTabEntries,
+        librarySnapshot.searchAliasesByEntryId,
         searchQuery,
         selectedStatusFilterId,
         selectedTypeFilterId,
@@ -365,27 +373,25 @@ fun MyListScreen(
             selectedFavoriteFilterId = selectedFavoriteFilterId,
             selectedScoreFilterId = selectedScoreFilterId,
             selectedYearFilterId = selectedYearFilterId,
-            selectedExtraFilterId = selectedExtraFilterId
+            selectedExtraFilterId = selectedExtraFilterId,
+            searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
         )
     }
 
-    val visibleEntries = remember(filteredEntries, selectedSortId) {
+    val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
         applySort(
             entries = filteredEntries,
-            sortId = selectedSortId
+            sortId = selectedSortId,
+            titleLanguage = appSettings.titleLanguage
         )
-    }
-
-    val groupedVisibleEntries = remember(visibleEntries) {
-        groupMyListEntriesByStatus(visibleEntries)
     }
 
     val listStats = remember(selectedTabEntries) {
         ListStats.from(selectedTabEntries)
     }
 
-    fun incrementEntryProgress(entry: MediaEntry) {
-        viewModel.incrementEntryProgress(entry)
+    fun openListEditor(entry: MediaEntry) {
+        editingEntry = entry
     }
 
     val configuration = LocalConfiguration.current
@@ -427,7 +433,8 @@ fun MyListScreen(
                 selectedScoreFilterId != "all" ||
                 selectedYearFilterId != "all" ||
                 selectedExtraFilterId != "all" ||
-                (selectedSortId.isNotBlank() && selectedSortId != "newest" && selectedSortId != "added")
+                selectedGroupId != MyListGroupingIds.ADDED ||
+                isExplicitMyListSort(selectedSortId)
 
         // ── Sabit üst bar (başlık + arama + filtreleme) ──
         androidx.compose.material3.Surface(
@@ -452,6 +459,7 @@ fun MyListScreen(
                 selectedYearFilterId = selectedYearFilterId,
                 selectedExtraFilterId = selectedExtraFilterId,
                 selectedSortId = selectedSortId,
+                selectedGroupId = selectedGroupId,
                 onStatusFilterChange = onStatusFilterChange,
                 onTypeFilterChange = onTypeFilterChange,
                 onFavoriteFilterChange = onFavoriteFilterChange,
@@ -459,6 +467,7 @@ fun MyListScreen(
                 onYearFilterChange = onYearFilterChange,
                 onExtraFilterChange = onExtraFilterChange,
                 onSortChange = onSortChange,
+                onGroupChange = onGroupChange,
                 activeTabScrollState = activeTabScrollState,
                 accentColor = accentColor,
                 horizontalPadding = horizontalPadding,
@@ -475,17 +484,20 @@ fun MyListScreen(
             color = KitsugiColors.background
         ) {
             MyListTabBar(
-                selectedTabIndex = selectedTabIndex,
+                selectedTabIndex = safeSelectedTabIndex,
                 onTabIndexChange = onTabIndexChange,
                 visibleEntries = visibleEntries,
-                allEntries = entriesAfterAdultFilter,
-                allLibraryEntryCount = allLibraryItems.size,
+                allEntries = librarySnapshot.combinedEntries,
+                allLibraryEntryCount = librarySnapshot.combinedItems.size,
+                tabCounts = tabCounts,
                 isAniListConnected = isAniListConnected,
                 isMalConnected = isMalConnected,
                 isSimklConnected = isSimklConnected,
                 isKitsuConnected = isKitsuConnected,
                 isShikimoriConnected = isShikimoriConnected,
                 isBangumiConnected = isBangumiConnected,
+                isTmdbConnected = isTmdbConnected,
+                tmdbUsername = tmdbUsername,
                 anilistUsername = appSettings.anilistUsername,
                 malUsername = appSettings.malUsername,
                 simklUsername = appSettings.simklUsername,
@@ -556,6 +568,7 @@ fun MyListScreen(
                     MY_LIST_ANILIST_TAB_INDEX -> isAniListConnected
                     MY_LIST_MAL_TAB_INDEX -> isMalConnected
                     MY_LIST_SIMKL_TAB_INDEX -> isSimklConnected && !isSimklSessionExpired
+                    MY_LIST_TMDB_TAB_INDEX -> isTmdbConnected
                     MY_LIST_KITSU_TAB_INDEX -> isKitsuConnected
                     MY_LIST_SHIKIMORI_TAB_INDEX -> isShikimoriConnected
                     MY_LIST_BANGUMI_TAB_INDEX -> isBangumiConnected
@@ -563,14 +576,39 @@ fun MyListScreen(
                     else -> false
                 }
                 val pageScrollState = tabScrollStates[pageTabIndex]
-                val pageEntries = remember(entriesAfterAdultFilter, allLibraryEntries, pageTabIndex) {
-                    if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) {
-                        allLibraryEntries
-                    } else {
-                        entriesAfterAdultFilter.filter { entry ->
-                            myListSourceMatchesTab(pageTabIndex, entry.source, entry.malId)
-                        }
-                    }
+                val pageEntries = librarySnapshot.entriesForTab(pageTabIndex)
+                val pageFilteredEntries = remember(
+                    pageEntries,
+                    librarySnapshot.searchAliasesByEntryId,
+                    searchQuery,
+                    selectedStatusFilterId,
+                    selectedTypeFilterId,
+                    selectedFavoriteFilterId,
+                    selectedScoreFilterId,
+                    selectedYearFilterId,
+                    selectedExtraFilterId
+                ) {
+                    filterMyListEntries(
+                        entries = pageEntries,
+                        searchQuery = searchQuery,
+                        selectedStatusFilterId = selectedStatusFilterId,
+                        selectedTypeFilterId = selectedTypeFilterId,
+                        selectedFavoriteFilterId = selectedFavoriteFilterId,
+                        selectedScoreFilterId = selectedScoreFilterId,
+                        selectedYearFilterId = selectedYearFilterId,
+                        selectedExtraFilterId = selectedExtraFilterId,
+                        searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
+                    )
+                }
+                val pageVisibleEntries = remember(pageFilteredEntries, selectedSortId, appSettings.titleLanguage) {
+                    applySort(
+                        entries = pageFilteredEntries,
+                        sortId = selectedSortId,
+                        titleLanguage = appSettings.titleLanguage
+                    )
+                }
+                val pageVisibleSections = remember(pageVisibleEntries, selectedGroupId) {
+                    groupMyListEntries(pageVisibleEntries, selectedGroupId)
                 }
 
                 // Wait until this page has actual items before restoring a deep position.
@@ -608,22 +646,33 @@ fun MyListScreen(
 
                 MyListContentPage(
                     pageTabIndex = pageTabIndex,
-                    selectedTabIndex = selectedTabIndex,
+                    selectedTabIndex = safeSelectedTabIndex,
                     isConnected = pageIsConnected,
                     isSimklSessionExpired = isSimklSessionExpired,
+                    isLibraryComputing = isLibraryComputing,
                     pageEntries = pageEntries,
                     sourceBadgesByEntryId = if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) allSourceBadgesByEntryId else emptyMap(),
-                    visibleEntries = visibleEntries,
-                    groupedVisibleEntries = groupedVisibleEntries,
+                    visibleEntries = pageVisibleEntries,
+                    visibleSections = pageVisibleSections,
+                    selectedGroupId = selectedGroupId,
                     searchQuery = searchQuery,
                     selectedStatusFilterId = selectedStatusFilterId,
+                    selectedTypeFilterId = selectedTypeFilterId,
+                    selectedFavoriteFilterId = selectedFavoriteFilterId,
+                    selectedScoreFilterId = selectedScoreFilterId,
+                    selectedYearFilterId = selectedYearFilterId,
+                    selectedExtraFilterId = selectedExtraFilterId,
+                    selectedSortId = selectedSortId,
                     selectedListLayoutId = selectedListLayoutId,
                     appSettings = appSettings,
                     pageScrollState = pageScrollState,
+                    isSyncing = isTabSyncing(pageTabIndex),
                     onLogin = {
                         when (pageTabIndex) {
                             MY_LIST_ANILIST_TAB_INDEX -> onLoginAniList()
                             MY_LIST_MAL_TAB_INDEX -> onLoginMal()
+                            // Keep the established Simkl login action. TMDB has its own
+                            // account card in Settings; it must not replace Simkl onboarding.
                             MY_LIST_SIMKL_TAB_INDEX -> onLoginSimkl()
                             MY_LIST_KITSU_TAB_INDEX -> {
                                 if (isKitsuConnected) onLoginKitsu()
@@ -637,6 +686,7 @@ fun MyListScreen(
                                 if (isBangumiConnected) onLoginBangumi()
                                 else showBangumiLoginDialog = true
                             }
+                            MY_LIST_TMDB_TAB_INDEX -> onLoginTmdb()
                         }
                     },
                     onRefresh = {
@@ -644,28 +694,26 @@ fun MyListScreen(
                             MY_LIST_ANILIST_TAB_INDEX -> onSyncAniList()
                             MY_LIST_MAL_TAB_INDEX -> onSyncMal()
                             MY_LIST_SIMKL_TAB_INDEX -> onSyncSimkl()
+                            MY_LIST_TMDB_TAB_INDEX -> onSyncTmdb()
                             MY_LIST_KITSU_TAB_INDEX -> onSyncKitsu()
                             MY_LIST_SHIKIMORI_TAB_INDEX -> onSyncShikimori()
                             MY_LIST_BANGUMI_TAB_INDEX -> onSyncBangumi()
-                            MY_LIST_ALL_TAB_INDEX -> {
-                                var startedSync = false
-                                if (isAniListConnected) { onSyncAniList(); startedSync = true }
-                                if (isMalConnected) { onSyncMal(); startedSync = true }
-                                if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
-                                if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
-                                if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
-                                if (isBangumiConnected) { onSyncBangumi(); startedSync = true }
-                                if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
-                            }
+                            // Birleşik liste: kaynaklar TEK çağrıda, sırayla ve kendi
+                            // TTL'lerine göre yenilenir (eskiden 6 içe aktarma aynı anda
+                            // başlatılıyordu → paralel ağ trafiği + ardışık tam yeniden
+                            // yazımlar → liste birkaç kez baştan çiziliyordu).
+                            MY_LIST_ALL_TAB_INDEX -> onSyncAll()
                         }
                     },
                     onEntryClick = onEntryClick,
-                    onIncrementProgress = { incrementEntryProgress(it) },
+                    onEditEntry = { openListEditor(it) },
                     onPosterLongClick = { imageUrl ->
                         activeZoomImageUrl = imageUrl
-                        val zoomEntry = visibleEntries.find { it.imageUrl == imageUrl }
+                        val zoomEntry = pageVisibleEntries.find { it.imageUrl == imageUrl }
                             ?: pageEntries.find { it.imageUrl == imageUrl }
-                        activeZoomTitle = zoomEntry?.title ?: ""
+                        activeZoomTitle = zoomEntry?.getDisplayTitle(appSettings.titleLanguage)
+                            ?: zoomEntry?.title
+                            ?: ""
                         activeZoomIsAdult = zoomEntry?.isAdult == true
                     },
                     accentColor = accentColor,
@@ -796,7 +844,9 @@ fun MyListScreen(
     if (showAddDialog) {
         // Manüel bir başlık Bangumi hesabında varmış gibi gösterilmesin; yalnızca Bangumi
         // katalog sonucuyla doğrulanmış/aktarılmış stable subject ID'leri Bangumi sekmesine girer.
-        val manualAddSource = if (selectedTabIndex == MY_LIST_BANGUMI_TAB_INDEX) {
+        val manualAddSource = if (selectedTabIndex == MY_LIST_BANGUMI_TAB_INDEX || selectedTabIndex == MY_LIST_TMDB_TAB_INDEX) {
+            // Account tabs require a verified provider id; a typed title alone must not
+            // manufacture a Bangumi/TMDB membership row. Use API search for those accounts.
             "manual"
         } else {
             defaultMyListSourceForTab(selectedTabIndex)
@@ -806,7 +856,7 @@ fun MyListScreen(
             onDismiss = {
                 showAddDialog = false
             },
-            onConfirm = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, _ ->
+            onConfirm = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, _, _, _ ->
                 val newEntry = MediaEntry(
                     id = 0,
                     title = title,
@@ -860,6 +910,16 @@ fun MyListScreen(
                     "jikan" -> "mal"
                     "anilist", "mal", "simkl" -> result.source.lowercase()
                     else -> result.source
+                }
+
+                if ((selectedTabIndex == MY_LIST_TMDB_TAB_INDEX || canonicalMediaSourceId(result.source) == "tmdb") &&
+                    onAddTmdbApiSelectionToList != null
+                ) {
+                    // Use the common add path: preserve the TMDB id, merge duplicate
+                    // identities and run guarded writes to every connected provider.
+                    onAddTmdbApiSelectionToList(selection)
+                    showApiSearchDialog = false
+                    return@KitsugiApiSearchDialog
                 }
 
                 // A provider result belongs only to that provider's list, not to a cross-provider copy.
@@ -930,6 +990,8 @@ fun MyListScreen(
     editingEntry?.let { entry ->
         KitsugiMediaEntryEditorDialog(
             initialEntry = entry,
+            source = entry.source,
+            scoreFormat = appSettings.scoreFormat,
             onDismiss = {
                 editingEntry = null
                 isAddingBangumiEntry = false
@@ -939,7 +1001,7 @@ fun MyListScreen(
                 isAddingBangumiEntry = false
                 viewModel.deleteEntryById(entry.id)
             },
-            onConfirm = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
+            onConfirm = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores, tmdbWatchlist, tmdbRating ->
                 val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
 
                 // Kullanıcı tarihleri boş bıraktıysa durum değişimine göre otomatik doldur
@@ -977,7 +1039,9 @@ fun MyListScreen(
                     repeatValue = repeatValue,
                     volumeProgress = volumeProgress,
                     isPrivate = isPrivate,
-                    isHiddenFromStatusLists = isHiddenFromStatusLists
+                    isHiddenFromStatusLists = isHiddenFromStatusLists,
+                    tmdbWatchlist = tmdbWatchlist,
+                    tmdbRating = tmdbRating
                 )
 
                 if (canonicalMediaSourceId(updatedEntry.source) == "bangumi") {

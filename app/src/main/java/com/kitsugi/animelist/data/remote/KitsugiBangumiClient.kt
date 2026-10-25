@@ -336,11 +336,8 @@ object KitsugiBangumiClient {
         }
         if (requests.isEmpty()) return map { applyLocalizedBangumiTitles(it, BangumiTitleCache.get(rawBangumiId(it))) }
 
-        // Liste modu: yalnızca kalıcı önbellek + tek AniList geçişi. Per-subject infobox
-        // çözümlemesi burada YAPILMAZ; Keşfet/Arama şeritleri aynı anda açıldığında yüzlerce
-        // Bangumi isteği üretip tüm uygulamayı dakikalarca kilitliyordu.
         val resolved = try {
-            BangumiSubjectTitleResolver.resolve(requests, listMode = true)
+            BangumiSubjectTitleResolver.resolve(requests)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Exception) {

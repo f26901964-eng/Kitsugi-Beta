@@ -26,7 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.IconButton
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,8 +102,13 @@ internal fun StaffCharacterRoleCard(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!role.characterImageUrl.isNullOrBlank()) {
+                val roleThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = role.characterImageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = role.characterImageUrl,
+                    model = roleThumb ?: role.characterImageUrl,
                     contentDescription = role.characterName,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -158,8 +169,13 @@ internal fun StaffMediaWorkRow(
                 .background(KitsugiColors.SurfaceSoft)
         ) {
             if (!work.mediaImageUrl.isNullOrBlank()) {
+                val workThumb = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
+                    url = work.mediaImageUrl,
+                    widthDp = 52.dp,
+                    heightDp = 52.dp
+                )
                 AsyncImage(
-                    model = work.mediaImageUrl,
+                    model = workThumb ?: work.mediaImageUrl,
                     contentDescription = displayTitle,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -504,7 +520,8 @@ internal fun StaffCharacterRolesTabContent(
     titleLanguage: String,
     onCharacterClick: (characterId: Int, characterSource: String, name: String?, imageUrl: String?) -> Unit,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (detail.characterRoles.isEmpty()) {
@@ -515,7 +532,7 @@ internal fun StaffCharacterRolesTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.characterRoles.forEach { role ->
+            DetailAutoPagingColumn(items = detail.characterRoles, active = pagingActive) { role ->
                 StaffCharacterRoleCard(
                     role = role,
                     titleLanguage = titleLanguage,
@@ -532,7 +549,8 @@ internal fun StaffMediaWorksTabContent(
     detail: KitsugiStaffDetail,
     titleLanguage: String,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (detail.mediaWorks.isEmpty()) {
@@ -543,7 +561,7 @@ internal fun StaffMediaWorksTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            detail.mediaWorks.forEach { work ->
+            DetailAutoPagingColumn(items = detail.mediaWorks, active = pagingActive) { work ->
                 StaffMediaWorkRow(
                     work = work,
                     titleLanguage = titleLanguage,
