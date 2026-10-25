@@ -217,3 +217,38 @@ git diff --stat HEAD
 # Faz 3.1 ile başla: altyazı addon sınıflandırması
 grep -rn "subtitleTypes" app/src/main/java/com/kitsugi/animelist/ui/ | head -40
 ```
+
+### 9.1 Durum (2026-10-25, son commit `b56db5b`)
+
+| Commit | İçerik |
+|---|---|
+| `36c1c1f` | Omurga: kimlik defteri, kalıcı altyazı belleği, `SubtitleHub`, hash önbelleği |
+| `94bb559` | Raporlar + kod yaması |
+| `f0ac667` | Denetim 1: R8 keep, indirme yolu, çift tarama guard'ı, tazelik penceresi |
+| `13cbe73` | Denetim 2: devre kesici eşiği, altyazı TTL'i, tohum satır adı, medya tipi |
+| `b56db5b` | Denetim 3: `resetCircuitBreakers()`, kök neden tablosu R12–R14 |
+
+### 9.2 Drive eşlemesi (klasör `1n8IODscB408nymMEWlRe0Uh_i3sZY6yJ`)
+
+| Dosya | Drive ID |
+|---|---|
+| `PLAN_TASK_…md` (bu dosya) | `17ZESQHAq29fs9DPn5dOp0mVHslAHf3sa` |
+| `KOK_NEDEN_RAPORU_…md` | `1VVPDYcklKEAav7L2grMh29nyEciB7tNQ` |
+| `COZUM_RAPORU_…md` | `1NGyd0tzJfEnpHTbf52XAJ7uKoL-QkV1j` |
+| Tam yama (af10c04..b56db5b) | `1pHrra-HeuOkwWQxaU_d3Tt_DNRRYuZoJ` |
+| Kaynak dosyalar klasörü | `1pf2Xnaif0LYJUe1cIbX7HHqKDXKuqJuT` |
+
+> Not: Drive'da dosya güncellemek için `update_file_content` KULLANMA (kabuk ikamesini
+> yorumlamıyor, literal `$(cat …)` yazıyor). Sil + `upload_file` ile yeniden yükle.
+
+### 9.3 Kalan işler (öncelik sırası)
+
+1. **R11** — CS altyazı eklentisi sınıflandırması: AAR'da `SubtitleAPI` **yok** (doğrulandı,
+   `classes.jar` içinde yalnız `SubtitleFile`/`SubtitleHelper` var). İki seçenek:
+   (a) eklenti tipini "altyazı" olarak işaretle ve akış listesinden çıkar (dürüst davranış),
+   (b) kendi `SubtitleProvider` köprümüzü yaz (plugin `newSubtitleFile` üretiyorsa kullan).
+2. **R8** — `parseIdPrefixes()` (ölü kod) → `ManagedAddonEntity.idPrefixes` ile sorgu kimliği seçimi.
+3. **R10** — devre kesici politikasının kalıcılığı (süreç ömrü yerine oturum + kullanıcı geri bildirimi).
+4. `WatchHistoryScreen` geçmiş girişinde yalnız `title` geçiyor → Room migration ile id taşınmalı.
+5. `./gradlew :app:testDebugUnitTest --tests '*MediaIdentityTest*'` ardından
+   `./gradlew assembleDebug` (bu ortamda Android SDK yok, **çalıştırılamadı**).
