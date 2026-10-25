@@ -1,0 +1,187 @@
+# PLAN & TASK — Ortak Kaynak/Altyazı Omurgası (Kaynak Kayırmama)
+**Oluşturma:** 2026-10-25 · **Dal:** `arena/8eba864b-kitsugi-beta`
+**Durum:** 🟡 Faz 1+2 kodlandı (derleme doğrulaması YAPILMADI — bkz. §7), Faz 3 bekliyor
+**Bu dosya kaldığın yerden devam etmek için tasarlandı.** Her fazın altında "SONRAKİ ADIM" maddesi var.
+
+> Amaç: Hangi giriş noktasından / hangi kaynaktan izlenirse izlensin **video eklentileri** ve
+> **altyazı eklentileri** aynı kimlikle, aynı havuzdan, eşit ve hızlı çalışsın. Kaynak kayırma yok.
+
+---
+
+## 1. Hızlı durum özeti
+
+| Faz | Konu | Durum |
+|---|---|---|
+| 0 | Kök neden analizi (11 madde) | ✅ `KOK_NEDEN_RAPORU_KAYNAK_ALTYAZI_ESITSIZLIGI_2026-10-25.md` |
+| 1 | Ortak kimlik (MediaIdentity + Registry) | ✅ kodlandı |
+| 2 | Ortak altyazı havuzu (SubtitleMemoryStore + SubtitleHub) | ✅ kodlandı |
+| 2b | Oynatıcı entegrasyonu (kaynak değişiminde kayıp yok) | ✅ kodlandı |
+| 2c | Akış tarafı eşitlik (doğrudan URL = tohum, erken çıkış kaldırıldı) | ✅ kodlandı |
+| 2d | Hash önbelleği | ✅ kodlandı |
+| 3 | Altyazı eklentisi sınıflandırma / idPrefixes / CS SubtitleAPI | ⏳ bekliyor |
+| 4 | Cihaz testi + sürüm notu | ⏳ bekliyor |
+
+---
+
+## 2. Faz 1 — Ortak kimlik (TAMAM)
+
+### Yeni dosyalar
+- `app/src/main/java/com/kitsugi/animelist/core/identity/MediaIdentity.kt`
+  - Tüm giriş noktaları için tek veri modeli (başlık + varyantlar + MAL/AniList/TMDB/Bangumi + IMDb/Kitsu + sezon/bölüm).
+  - `contentKey` (ID varsa ID, yoksa normalize başlık + yıl), `subtitleKey`, `subtitleKeyCandidates`.
+  - `withResolved(ResolvedIds)` → eksik ID'leri tamamlar.
+- `app/src/main/java/com/kitsugi/animelist/core/identity/MediaIdentityRegistry.kt`
+  - Çözülen kimlikleri **hem içerik anahtarı hem başlık+yıl anahtarı** ile saklar.
+  - `lookupByTitle(title, year)` → ID'siz girişlerde kimliği geri kazandırır.
+  - Kalıcılık: SharedPreferences + Gson, 400 kayıt, 30 gün TTL. **Room şeması değişmedi.**
+
+### Değiştirilen dosyalar
+- `ui/screens/stream/StreamViewModel.kt`
+  - `fetchStreams()` içinde ID çözümünden hemen sonra `MediaIdentityRegistry.remember(...)` çağrısı eklendi (satır ~545-571).
+    Böylece akış ekranının çözdüğü kimlikler oynatıcıya/altyazı katmanına **yayılır**.
+- `ui/screens/fullscreen/KitsugiPlayerViewModel.kt`
+  - `currentIdentity()`: player'daki tüm bilgilerden (title/english/romaji/native/synonyms + registry) kimlik üretir.
+  - `init {}` içinde registry + bellek başlatılır.
+
+**SONRAKİ ADIM (Faz 1):** `KitsugiStreamActivity.start(...)` çağrılarının hepsi `titleEnglish/titleRomaji/titleNative/synonyms` gönderiyor mu denetle.
+Bilinen eksikler: `ui/screens/history/WatchHistoryScreen.kt` (~L162) yalnızca `title` gönderiyor; geçmiş kaydında
+(`WatchHistoryEntry`) başlık varyantı alanı yok → geçmişe varyant eklemek için Room migration gerekir (Faz 3'te değerlendir).
+
+---
+
+## 3. Faz 2 — Ortak altyazı havuzu (TAMAM)
+
+### Yeni dosyalar
+- `core/subtitle/SubtitleMemoryStore.kt`
+  - İçerik+bölüm anahtarına göre altyazı saklar; **kaynak bağımsız**.
+  - `providerBound` altyazılar (sağlayıcı içinden çıkarılanlar) 3 gün, ağ eklentilerinden gelenler 14 gün TTL.
+  - 600 anahtar / anahtar başına 80 kayıt sınırı; en eskiler kırpılır.
+  - SharedPreferences + Gson → migration yok.
+- `core/subtitle/SubtitleHub.kt`
+  - Tek giriş noktası: `load(identity, videoUrl, headers, filename)`.
+  - Sıra: (1) bellek (anında) → (2) kimlik zenginleştirme (registry + resolver + son çare TMDB başlık araması) → (3) ağ sorguları → (4) bulunanları belleğe yaz.
+  - `buildQueries()`: IMDb → Kitsu → AniList → MAL → **tüm başlık varyantları**; en fazla 7 sorgu.
+  - `rememberProviderSubtitles()`: kaynağın gömülü altyazılarını havuza yazar.
+  - `clearMemory()`: ayarlar ekranından "altyazı belleğini temizle" için hazır.
+
+### Değiştirilen dosyalar
+- `ui/screens/fullscreen/KitsugiPlayerViewModel.kt`
+  - `subtitleHub` (lazy), `publishKnownSubtitles()`, `mergeSubtitlesIntoCurrent()`, `dedupeSubtitleInputs()`, `applyStreamSubtitles(stream)` eklendi.
+  - `fetchAutoSubtitles()` yeniden yazıldı: eski ~60 satırlık sorgu üretimi yerine `subtitleHub.load(...)`; kaynak altyazıları da listeye dahil.
+  - **4 sıfırlama noktası kaldırıldı** (`playEpisode`, `changeStreamSource`, `retryCurrentSource`, `tryNextSource`) → `applyStreamSubtitles(stream)`.
+  - `initialize()`: ilk kaynağın gömülü altyazıları havuza yazılır.
+  - "Ağdan yeni altyazı gelmedi ama elimizde var" → `SUCCESS` (eskiden `EMPTY` + `LoadFailed`).
+  - Tekilleştirme URL yerine **dil+ad** ile; yerel dosya yolu uzak URL'ye tercih edilir (çift parça önlenir).
+- `core/player/OpenSubtitlesHasher.kt`
+  - 10 dakikalık, 12 kayıtlı hash önbelleği (`clearCache()`); başarısız hash önbelleğe yazılmaz.
+
+---
+
+## 4. Faz 2c — Akış tarafında eşitlik (TAMAM)
+
+`ui/screens/stream/StreamViewModel.kt` — `fetchStreams()`:
+- Doğrudan `cs3Url` sonucu artık **tohum**: anında gösterilir, ardından **tüm eklentiler taranır**.
+- Eski `return` kaldırıldı; `directSeed` değişkeni ile sonuç korunur.
+- Stremio görev listesi kurulurken tohum satırı silinmiyor (`seededStates`).
+- CS eklenti döngüsünde tohum sonuçları o eklentinin sonuçlarına **eklenir** (URL/infoHash ile tekilleştirme).
+- Placeholder'lar tohum satırı varsa ikinci kez eklenmez (çift satır yok).
+
+**Beklenen davranış:** geçmişten, keşfetten, eklenti detayından veya detay sayfasından giriş → aynı eklenti havuzu, aynı sayıda kaynak.
+
+---
+
+## 5. Faz 3 — Sıradaki işler (ÖNCELİK SIRASI)
+
+### 3.1 Altyazı eklentisi sınıflandırması (R11) — *yüksek öncelik*
+- [ ] `Eklentiler & Kaynaklar` ekranında altyazı addon'ları **"Altyazı Eklentileri"** grubunda göster
+      (`ManagedAddonEntity.subtitleTypes != null` veya `looksLikeSubtitleAddon(...)` → altyazı).
+      Dosyalar: `ui/components/addons/*`, `ui/app/AddonViewModel.kt`, `data/repository/CloudstreamRepoRepository.kt`.
+- [ ] Altyazı addon'ları **akış listesinde sorgulanmasın** (`StreamViewModel.fetchStreams` → `buildStremioStreamTasks` filtresi).
+- [ ] Tanılama: "bu addon altyazı sağlıyor mu" bilgisini `CsTrace`e yaz.
+
+### 3.2 `.cs3` altyazı sağlayıcıları (R11) — *tasarım kararı gerekli*
+- Runtime'da `com.lagradost.cloudstream3.syncproviders.SubtitleAPI` **yok** (AAR taraması: yalnız `SyncIdName`).
+- İki seçenek:
+  - **A)** `SubtitleAPI` sınıfını uyumluluk katmanı olarak projeye ekle (yansıma/`SubtitleFile` tabanlı çağrı) → `.cs3` altyazı eklentileri çalışır.
+  - **B)** Altyazı kaynaklarını Stremio addon yoluna yönlendir ve `.cs3` altyazı eklentilerini "desteklenmiyor" olarak işaretle.
+- Karar verilmeden kod yazma. Mevcut durumda bu eklentiler **akış sağlayıcısı** gibi görünüp boş dönüyor.
+
+### 3.3 idPrefixes / tip filtresi (R8)
+- [ ] `parseIdPrefixes()` (şu an ölü kod) ile **altyazı sorgusu başına** uyum kontrolü:
+      ID `tt...` değilse `tt` prefix'li eklentiye sorma; `kitsu:`/`mal:` prefix'li eklentilere yalnız uygun ID ile git.
+- [ ] `SubtitleRepositoryImpl` dedup anahtarını `sub.id` yerine `id + url + lang` yap.
+
+### 3.4 Oturum bloğu (R10)
+- [ ] `CsPluginStatusTracker`: 3 hata bloğu **bölüm bazında** değil "kaynak başına 10 dk" olsun.
+- [ ] `fetchStreams` içinde "bu bölüm için zaten denendi" bilgisini `CsTrace` ile görünür yap.
+
+### 3.5 Performans
+- [ ] `SubtitleHub`: bellek isabeti varsa ağ sorgusunu **arka planda** yap (şu an her açılışta 7 sorgu).
+- [ ] Zaten `SubtitleFileCache` var; bellek isabetinde dosyayı önden indirip `SubtitleInput.url`'ü yerel yol yap → anında altyazı.
+- [ ] `SubtitleMemoryStore` kırpma işini IO dispatcher'da yap (şu an çağıran thread'de).
+
+### 3.6 UX
+- [ ] Oynatıcı altyazı sayfasında kaynak etiketi: "bellek" / "kaynak (gömülü)" / eklenti adı.
+- [ ] Ayarlar → "Altyazı belleğini temizle" butonu (`SubtitleHub.clearMemory()` hazır).
+- [ ] `Kaynak seç` sayfasında "X/Y eklenti sonuç buldu" sayacına **hata nedeni** rozetleri (zaten kısmen var).
+
+---
+
+## 6. Cihaz testi kontrol listesi (derleme sonrası İLK iş)
+
+1. **Eşitlik:** Frieren S01E01'i (a) AniList detayı, (b) bir CS eklentisinin kataloğu, (c) izleme geçmişi üzerinden aç.
+   → "Kaynak seç" ekranındaki **eklenti sayısı ve video sayısı aynı** olmalı (küçük oynama normal, tek kaynağa düşme HATA).
+2. **Altyazı sürekliliği:** A kaynağında altyazı listesini aç (not al) → oynatıcıda kaynak değiştir (B) → **aynı altyazılar hâlâ listede** olmalı.
+3. **Altyazı kimliği:** Katalogdan (ID'siz) aç → altyazı listesinde hem Türkçe hem İngilizce girişler görünmeli.
+4. **Torrent kaynağı:** hash hesaplanamayan kaynakta altyazı listesi boşalmamalı (bellek + başlık sorguları devreye girer).
+5. **Tekrar açılış:** Aynı bölümü kapat/aç → altyazılar **anında** gelmeli (bellek), sonra ağ sonuçları eklenmeli.
+6. **Çift parça kontrolü:** Altyazı menüsünde aynı dil+eklenti **tek satır** olmalı.
+7. **Log kontrolü:** `adb logcat -s SubtitleHub SubtitleMemory MediaIdentityRegistry KitsugiPlayerViewModel StreamViewModel`
+   - `Altyazı toplandı: bellek=…, ağ=…`
+   - `Doğrudan URL … tohum olarak alındı`
+   - `Kimlik kayıt defterinden kurtarıldı: mal=… anilist=…`
+
+---
+
+## 7. ⚠️ Doğrulama durumu (önemli)
+
+Bu çalışma **derlenmeden** teslim edildi: sandbox'ta JDK, Android SDK ve Gradle yok
+(`java: command not found`, `ANDROID_HOME` boş). Yapılanlar:
+
+- ✅ Tüm yeni dosyalar için parantez/süslü parantez dengesi kontrolü
+- ✅ Kullanılan API imzalarının kaynak koddan doğrulanması (`ResolvedIds`, `KitsugiIdResolver.resolveIds`,
+  `SubtitleRepositoryImpl.getSubtitles`, `StreamSource`, `SubtitleInput`, `JikanSearchResult.tmdbId: Int?` vb.)
+- ❌ Gerçek derleme (kotlinc/AGP) yapılmadı
+
+**Derlemede ilk bakılacak yerler:**
+1. `SubtitleHub.enrichIdentity()` — `firstNotNullOfOrNull` üzerinde `var current` yakalaması
+2. `KitsugiPlayerViewModel` — `subtitleHub` lazy alanının sınıf gövdesinde mi kaldığı (satır ~1818 civarı)
+3. `StreamViewModel` — `directSeed` destructuring (`takeIf { (name, _) -> … }`)
+4. `OpenSubtitlesHasher` — `cache[key]?.let { … return entry.result }` non-local return
+
+---
+
+## 8. Değişen dosya listesi (diff özeti)
+
+| Dosya | Tür | Not |
+|---|---|---|
+| `core/identity/MediaIdentity.kt` | YENİ | Ortak kimlik modeli |
+| `core/identity/MediaIdentityRegistry.kt` | YENİ | Paylaşılan kimlik defteri (prefs) |
+| `core/subtitle/SubtitleMemoryStore.kt` | YENİ | Kalıcı altyazı belleği (prefs) |
+| `core/subtitle/SubtitleHub.kt` | YENİ | Altyazı orkestrasyonu |
+| `core/player/OpenSubtitlesHasher.kt` | DEĞİŞTİ | Hash önbelleği |
+| `ui/screens/stream/StreamViewModel.kt` | DEĞİŞTİ | Tohum modeli + kimlik yayını |
+| `ui/screens/fullscreen/KitsugiPlayerViewModel.kt` | DEĞİŞTİ | Ortak altyazı entegrasyonu |
+
+Sürüm notu henüz yazılmadı — bir sonraki sürümde `release_notes_v2.4.341.md` benzeri dosya eklenmeli.
+
+---
+
+## 9. Sonraki oturum için başlangıç komutu
+
+```bash
+git log --oneline -5
+git diff --stat HEAD
+# Faz 3.1 ile başla: altyazı addon sınıflandırması
+grep -rn "subtitleTypes" app/src/main/java/com/kitsugi/animelist/ui/ | head -40
+```

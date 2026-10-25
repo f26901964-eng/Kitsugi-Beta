@@ -8,6 +8,9 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.core.identity.MediaIdentity
+import com.kitsugi.animelist.core.identity.MediaIdentityRegistry
+import com.kitsugi.animelist.core.subtitle.SubtitleHub
 import com.kitsugi.animelist.core.player.SubtitleInput
 import com.kitsugi.animelist.core.player.PlaybackState
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
@@ -63,6 +66,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
     private val context = application.applicationContext
     private val dataStore = SettingsDataStore(context)
+
+    init {
+        // Ortak omurga: kimlik defteri + altyazı belleği (giriş noktasından bağımsız).
+        runCatching { MediaIdentityRegistry.initialize(context) }
+        runCatching { com.kitsugi.animelist.core.subtitle.SubtitleMemoryStore.initialize(context) }
+    }
 
     private val historyRepository by lazy {
         HistoryRepository(KitsugiDatabase.getDatabase(context).historyDao())
@@ -811,6 +820,17 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentEpisode.value = episode
         if (initialIndex in streamSources.indices) {
             _currentAddonName.value = streamSources[initialIndex].addonName
+            // İlk kaynağın gömülü altyazılarını ortak belleğe yaz: başka bir kaynağa
+            // geçildiğinde de aynı altyazılar listede kalsın (kaynak kayırmama).
+            if (initialSubtitles.isNotEmpty()) {
+                runCatching {
+                    subtitleHub.rememberProviderSubtitles(
+                        currentIdentity(),
+                        streamSources[initialIndex].addonName,
+                        initialSubtitles
+                    )
+                }
+            }
         }
         // Update hasFallback: true if there are multiple sources to switch between
         orchestrator.errorRecovery.hasFallback = streamSources.size > 1
@@ -1180,7 +1200,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     _currentVideoUrl.value = resolvedUrl
                     _currentAudioUrl.value = targetStream.externalAudioUrl
                     _currentHeaders.value = targetStream.requestHeaders ?: emptyMap()
-                    _currentSubtitles.value = targetStream.subtitles ?: emptyList()
+                    // Kaynak-bağımsız altyazı: bellekteki tüm altyazılar + bu kaynağın kendi altyazıları
+                    applyStreamSubtitles(targetStream)
                     _currentTitle.value = KitsugiStrings.get(R.string.title_bolum_episode, animeTitle, targetEp)
                     _currentSourceIndex.value = streams.indexOf(targetStream)
                     _currentAddonName.value = targetStream.addonName
@@ -1254,7 +1275,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentVideoUrl.value = resolvedUrl
         _currentAudioUrl.value = stream.externalAudioUrl
         _currentHeaders.value = stream.requestHeaders ?: emptyMap()
-        _currentSubtitles.value = stream.subtitles ?: emptyList()
+        // ESKİ: _currentSubtitles.value = stream.subtitles -> diğer kaynaklarda bulunan
+        // altyazılar siliniyordu. YENİ: ortak bellek + kaynağın kendi altyazıları birleşir.
+        applyStreamSubtitles(stream)
         _currentSourceIndex.value = index
         _currentAddonName.value = stream.addonName
         _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = stream.externalAudioUrl)
@@ -1304,7 +1327,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }
                 val headers = source.requestHeaders ?: emptyMap()
                 _currentHeaders.value = headers
-                _currentSubtitles.value = source.subtitles ?: emptyList()
+                applyStreamSubtitles(source)
                 _currentAddonName.value = source.addonName
                 orchestrator.errorRecovery.hasFallback = _currentStreamSources.value.size > 1
                 orchestrator.errorRecovery.reset()
@@ -1389,7 +1412,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     _currentVideoUrl.value = resolvedUrl
                     _currentAudioUrl.value = null
                     _currentHeaders.value = target.requestHeaders ?: emptyMap()
-                    _currentSubtitles.value = target.subtitles ?: emptyList()
+                    applyStreamSubtitles(target)
                     _currentSourceIndex.value = nextIndex
                     _currentAddonName.value = target.addonName
                     _hasError.value = false
@@ -1703,88 +1726,143 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         )
     }
 
-    fun fetchAutoSubtitles() {
-        val currentMalId = malId
-        val currentAniList = aniListId
+    // ─── Ortak Altyazı Omurgası (Faz 2/3) ────────────────────────────────────
+
+    /**
+     * Oynatıcının bildiği tüm bilgilerden kaynak-bağımsız içerik kimliği üretir.
+     *
+     * ÖNEMLİ: Önceden oynatıcı yalnızca `malId` / `aniListId` alanlarına güveniyordu.
+     * Bir CloudStream eklentisinin kendi kataloğundan, arama sonucundan veya izleme
+     * geçmişinden giriş yapıldığında bu alanlar boş kalıyor, altyazı eklentilerine sadece
+     * tek bir başlık gönderiliyordu → "aynı video, farklı kaynak, altyazı yok".
+     * Artık tüm başlık varyantları (İngilizce/romaji/native/eş anlamlılar) ve varsa
+     * kayıt defterinden kurtarılan ID'ler kimliğe dahil edilir.
+     */
+    private fun currentIdentity(): MediaIdentity {
         val currentEp = _currentEpisode.value
         val currentS = seasonNum
-        val isMovieType = _isMovie.value || (currentS == 0 && currentEp <= 1)
+        val movieType = _isMovie.value || (currentS == 0 && currentEp <= 1)
+        val remembered = MediaIdentityRegistry.lookupByTitle(animeTitle, startYear)
+        return MediaIdentity(
+            title = animeTitle,
+            alternativeTitles = listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms,
+            mediaType = null,
+            isMovie = movieType,
+            startYear = startYear,
+            malId = malId,
+            aniListId = aniListId,
+            tmdbId = tmdbId,
+            season = if (currentS <= 0) 1 else currentS,
+            episode = if (currentEp <= 0) 1 else currentEp
+        ).withResolved(remembered)
+    }
+
+    private fun friendlySubtitleName(lang: String): String =
+        runCatching { com.kitsugi.animelist.core.player.PlayerSubtitleUtils.getFriendlyLanguageName(lang) }
+            .getOrDefault(lang)
+
+    /**
+     * Bellekte (ortak altyazı havuzu) bu bölüm için bilinen altyazıları anında yayınlar.
+     * Ağ beklemez; kullanıcı kaynak değiştirdiğinde altyazılar KAYBOLMAZ.
+     */
+    private fun publishKnownSubtitles(identity: MediaIdentity) {
+        val known = runCatching { subtitleHub.cachedOnly(identity) }.getOrDefault(emptyList())
+        if (known.isEmpty()) return
+        val inputs = known.map { sub ->
+            SubtitleInput(
+                url = sub.url,
+                name = "${friendlySubtitleName(sub.lang)} (${sub.addonName})",
+                lang = sub.lang,
+                isExternal = true
+            )
+        }
+        mergeSubtitlesIntoCurrent(inputs)
+        Log.d("KitsugiPlayerViewModel", "Ortak bellekten ${inputs.size} altyazı anında sunuldu")
+    }
+
+    /**
+     * Altyazı listesini tekilleştirir.
+     *
+     * Neden URL değil de (dil + ad)? Aynı altyazı iki biçimde bulunabilir:
+     *  • ortak bellekten gelen UZAK URL (henüz indirilmemiş), ve
+     *  • oynatıcının indirdiği YEREL dosya yolu.
+     * URL bazlı tekilleştirme bu ikisini ayrı parça sayıp kullanıcıya iki kez
+     * gösteriyordu. Yerel dosya her zaman uzak URL'ye tercih edilir.
+     */
+    private fun dedupeSubtitleInputs(list: List<SubtitleInput>): List<SubtitleInput> {
+        val out = LinkedHashMap<String, SubtitleInput>()
+        for (item in list) {
+            val key = item.lang.lowercase() + "|" + item.name.lowercase()
+            val existing = out[key]
+            if (existing == null) {
+                out[key] = item
+            } else {
+                val existingIsLocal = !existing.url.startsWith("http", ignoreCase = true)
+                val incomingIsLocal = !item.url.startsWith("http", ignoreCase = true)
+                if (!existingIsLocal && incomingIsLocal) out[key] = item
+            }
+        }
+        return out.values.toList()
+    }
+
+    /** Mevcut altyazı listesine yenilerini ekler (dil+ad tekilleştirme, sıra korunur). */
+    private fun mergeSubtitlesIntoCurrent(incoming: List<SubtitleInput>) {
+        if (incoming.isEmpty()) return
+        val existing = _currentSubtitles.value
+        val merged = dedupeSubtitleInputs(existing + incoming)
+        if (merged.size != existing.size || existing.isEmpty()) {
+            _currentSubtitles.value = merged
+        }
+    }
+
+    /**
+     * Kaynak değişiminde altyazı listesini KAYBETMEDEN günceller.
+     *
+     * Eski davranış: `_currentSubtitles.value = stream.subtitles` → o kaynağın kendi
+     * gömülü altyazıları dışındaki her şey siliniyordu. Bu yüzden A kaynağında görünen
+     * altyazılar B kaynağında yok oluyordu.
+     *
+     * Yeni davranış:
+     *  1. Yeni kaynağın gömülü altyazıları ortak belleğe yazılır (diğer kaynaklarda da çıkar).
+     *  2. Bu bölüm için bellekteki tüm altyazılar + kaynağın kendi altyazıları birleştirilir.
+     */
+    private fun applyStreamSubtitles(stream: StreamSource) {
+        val identity = currentIdentity()
+        val providerSubs = stream.subtitles.orEmpty()
+        if (providerSubs.isNotEmpty()) {
+            runCatching {
+                subtitleHub.rememberProviderSubtitles(identity, stream.addonName, providerSubs)
+            }.onFailure { Log.w("KitsugiPlayerViewModel", "Kaynak altyazıları belleğe yazılamadı: ${it.message}") }
+        }
+        val known = runCatching { subtitleHub.cachedOnly(identity) }.getOrDefault(emptyList())
+            .map { sub ->
+                SubtitleInput(
+                    url = sub.url,
+                    name = "${friendlySubtitleName(sub.lang)} (${sub.addonName})",
+                    lang = sub.lang,
+                    isExternal = true
+                )
+            }
+        _currentSubtitles.value = dedupeSubtitleInputs(known + providerSubs)
+        Log.d(
+            "KitsugiPlayerViewModel",
+            "Kaynak altyazıları güncellendi: kaynak=${providerSubs.size}, bellek=${known.size}, toplam=${_currentSubtitles.value.size}"
+        )
+    }
+
+    private val subtitleHub: SubtitleHub by lazy { SubtitleHub(context) }
+
+    fun fetchAutoSubtitles() {
+        val currentEp = _currentEpisode.value
+        val currentS = seasonNum
+        val identity = currentIdentity()
 
         viewModelScope.launch {
             _subtitleSearchStatus.value = SubtitleSearchStatus.LOADING
             try {
-                var resolvedIds = com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(currentMalId, currentAniList, tmdbId)
-                var imdbId = resolvedIds.imdbId
-                var kitsuId = resolvedIds.kitsuId
-
-                var resolvedMovieType = isMovieType
-                if (imdbId.isNullOrBlank() && kitsuId == null && animeTitle.isNotBlank()) {
-                    Log.d("KitsugiPlayerViewModel", "Subtitle resolution fallback: Searching TMDB for title '$animeTitle'")
-                    val tmdbSearchClient = com.kitsugi.animelist.data.remote.TmdbApiClient()
-                    val searchResults = tmdbSearchClient.search(animeTitle)
-                    val bestMatch = searchResults.firstOrNull { result ->
-                        if (isMovieType) result.type == com.kitsugi.animelist.model.MediaType.Movie
-                        else result.type == com.kitsugi.animelist.model.MediaType.TvShow
-                    } ?: searchResults.firstOrNull()
-
-                    if (bestMatch != null) {
-                        resolvedMovieType = bestMatch.type == com.kitsugi.animelist.model.MediaType.Movie
-                        Log.d("KitsugiPlayerViewModel", "Fallback found match on TMDB: id=${bestMatch.tmdbId}, type=${bestMatch.type}, title=${bestMatch.title}")
-                        val fallbackResolved = com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
-                            malId = null,
-                            aniListId = null,
-                            tmdbId = bestMatch.tmdbId,
-                            mediaType = bestMatch.type
-                        )
-                        if (!fallbackResolved.imdbId.isNullOrBlank()) {
-                            imdbId = fallbackResolved.imdbId
-                            Log.d("KitsugiPlayerViewModel", "Fallback successfully resolved IMDb ID: $imdbId")
-                        }
-                        if (fallbackResolved.kitsuId != null) {
-                            kitsuId = fallbackResolved.kitsuId
-                        }
-                    }
-                }
-
-                data class SubtitleQuery(val type: String, val id: String)
-                val queries = mutableListOf<SubtitleQuery>()
-
-                // 1. IMDB ID varsa ekle (en yaygın format, çoğu addon destekler)
-                if (!imdbId.isNullOrBlank()) {
-                    if (resolvedMovieType) {
-                        queries.add(SubtitleQuery("movie", imdbId))
-                    } else {
-                        queries.add(SubtitleQuery("series", "$imdbId:$currentS:$currentEp"))
-                        queries.add(SubtitleQuery("movie", imdbId))
-                    }
-                }
-                // 2. Kitsu ID varsa ekle (anime-specific eklentiler için)
-                if (kitsuId != null) {
-                    if (resolvedMovieType) {
-                        queries.add(SubtitleQuery("movie", "kitsu:$kitsuId"))
-                    } else {
-                        queries.add(SubtitleQuery("series", "kitsu:$kitsuId:$currentEp"))
-                        queries.add(SubtitleQuery("movie", "kitsu:$kitsuId"))
-                    }
-                }
-                // 3. Anime başlığı ile PARALEL arama — her zaman eklenir.
-                // Bazı altyazı eklentileri (türkçealtyazi.org gibi) isim aramasını da
-                // destekleyebilir. ID'ler varsa ekstra coverage sağlar, yoksa tek seçenektir.
-                // 0 maliyetle çalışır çünkü diğer sorgularla zaten paralel atılıyor.
-                val titleQuery = animeTitle.trim().takeIf { it.isNotBlank() }
-                if (titleQuery != null) {
-                    if (resolvedMovieType) {
-                        queries.add(SubtitleQuery("movie", titleQuery))
-                    } else {
-                        queries.add(SubtitleQuery("series", "$titleQuery:$currentS:$currentEp"))
-                        queries.add(SubtitleQuery("movie", titleQuery))
-                    }
-                }
-
-                if (queries.isEmpty()) {
-                    Log.w("KitsugiPlayerViewModel", "Altyazı atlandı: ID ve başlık çözümlenemedi (malId=$currentMalId, aniListId=$currentAniList).")
-                    return@launch
-                }
+                // 0) ORTAK BELLEK: daha önce (hangi kaynakta olursa olsun) bulunan altyazılar
+                //    anında sunulur. Ağ kapalı/yavaş olsa bile kullanıcı altyazısız kalmaz.
+                publishKnownSubtitles(identity)
 
                 val selectedSource = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
                 val guessedFilename = selectedSource?.title?.takeIf { it.isNotBlank() }
@@ -1800,37 +1878,35 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 val finalFilename = if (isTitleInFilename) {
                     cleanedFilename
                 } else if (mediaTitle.isNotBlank()) {
-                    val suffix = if (resolvedMovieType) "" else " - S${currentS.toString().padStart(2, '0')}E${currentEp.toString().padStart(2, '0')}"
+                    val suffix = if (identity.isMovie) "" else " - S${currentS.toString().padStart(2, '0')}E${currentEp.toString().padStart(2, '0')}"
                     "$mediaTitle$suffix.mkv"
                 } else {
                     cleanedFilename
                 }
 
-                Log.d("KitsugiPlayerViewModel", "Fetching subtitles for queries: $queries, filename=$finalFilename (original=$cleanedFilename)")
+                // ORTAK ALTYAZI MERKEZİ: tek noktadan, tüm kimlikler + tüm başlık varyantları
+                // ile sorgular. Hangi kaynaktan girildiğinin önemi yok — aynı havuz kullanılır.
+                val hubResult = subtitleHub.load(
+                    identity = identity,
+                    videoUrl = _currentVideoUrl.value,
+                    videoHeaders = _currentHeaders.value,
+                    filename = finalFilename
+                )
+                Log.d(
+                    "KitsugiPlayerViewModel",
+                    "Altyazı sorgusu: ${hubResult.queries} | bellek=${hubResult.cached.size} ağ=${hubResult.remote.size} | dosya=$finalFilename"
+                )
 
-                val subRepo = com.kitsugi.animelist.data.repository.SubtitleRepositoryImpl(context)
-                // Tüm query'ler için paralel sorgu — IMDB + kitsu + title hepsi aynı anda
-                val remoteSubs = kotlinx.coroutines.coroutineScope {
-                    queries.map { query ->
-                        async(kotlinx.coroutines.Dispatchers.IO) {
-                            try {
-                                subRepo.getSubtitles(
-                                    type = query.type,
-                                    id = query.id,
-                                    videoUrl = _currentVideoUrl.value,
-                                    videoHeaders = _currentHeaders.value,
-                                    filename = finalFilename,
-                                    aniListId = currentAniList,
-                                    animeTitle = animeTitle,
-                                    episode = currentEp
-                                )
-                            } catch (e: Exception) {
-                                Log.e("KitsugiPlayerViewModel", "Failed to fetch subtitles for queryId=${query.id} type=${query.type}", e)
-                                emptyList()
-                            }
-                        }
-                    }.awaitAll().flatten().distinctBy { it.url }
-                }.toMutableList()
+                // Kaynağın kendi (gömülü) altyazıları da listeye dahil — kaynak değişse bile kalır.
+                val providerSubs = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)?.subtitles.orEmpty()
+                val remoteSubs = (hubResult.all() + providerSubs.map { input ->
+                    com.kitsugi.animelist.core.player.model.Subtitle(
+                        id = input.url,
+                        url = input.url,
+                        lang = input.lang,
+                        addonName = input.name
+                    )
+                }).distinctBy { it.url }.toMutableList()
 
                     val settings = SettingsDataStore(context).settingsFlow.first()
                     val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
@@ -1875,13 +1951,18 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
 
                     if (processedSubs.isNotEmpty()) {
-                        val merged = (_currentSubtitles.value + processedSubs).distinctBy { it.url }
+                        val merged = dedupeSubtitleInputs(_currentSubtitles.value + processedSubs)
                         val sorted = com.kitsugi.animelist.core.player.PlayerSubtitleUtils.sortSubtitlesByPreference(
                             merged,
                             effectivePreferredLangs
                         )
                         _currentSubtitles.value = sorted
                         Log.d("KitsugiPlayerViewModel", "Altyaz\u0131lar y\u00fcklendi: toplam=${sorted.size} (${processedSubs.size} yeni)")
+                        _subtitleSearchStatus.value = SubtitleSearchStatus.SUCCESS
+                    } else if (_currentSubtitles.value.isNotEmpty()) {
+                        // Ortak bellekten veya kaynağın kendisinden gelen altyazılar var:
+                        // kullanıcıya "altyazı bulunamadı" demek yanlış olur.
+                        Log.d("KitsugiPlayerViewModel", "A\u011fdan yeni altyaz\u0131 gelmedi; mevcut ${_currentSubtitles.value.size} altyaz\u0131 korunuyor.")
                         _subtitleSearchStatus.value = SubtitleSearchStatus.SUCCESS
                     } else {
                         Log.d("KitsugiPlayerViewModel", "Altyaz\u0131 bulunamad\u0131 veya i\u015flenemedi.")

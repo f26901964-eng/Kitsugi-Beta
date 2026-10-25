@@ -6,6 +6,8 @@ import android.webkit.CookieManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.kitsugi.animelist.core.identity.MediaIdentity
+import com.kitsugi.animelist.core.identity.MediaIdentityRegistry
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
@@ -424,8 +426,23 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
     ) {
         val directUrl = cs3Url?.trim()?.takeIf { it.isNotBlank() }
         val directApiName = cs3ApiName?.trim()?.takeIf { it.isNotBlank() }
+
+        /**
+         * Doğrudan (provider URL'i ile) bulunan sonuçlar — SADECE tohum (seed).
+         *
+         * ESKİ DAVRANIŞ (KAYNAK KAYIRMA): kaynak bulunduğunda `return` ile fonksiyondan
+         * çıkılıyor, diğer eklentiler HİÇ taranmıyordu. Bu yüzden aynı bölüm:
+         *   • detay sayfasından açılınca  → 9 eklenti taranıyor, 92 video
+         *   • bir eklentinin kendi kataloğundan / aramadan / geçmişten açılınca → 1 eklenti
+         * olarak tamamen farklı sonuç veriyordu.
+         *
+         * YENİ DAVRANIŞ: doğrudan URL yalnızca hızlı erişim için tohumdur; sonuç anında
+         * gösterilir AMA tüm eklentiler yine paralel taranır ve sonuçlar birleştirilir.
+         * Böylece giriş noktası ne olursa olsun kaynak havuzu aynıdır.
+         */
+        var directSeed: Pair<String, List<StreamSource>>? = null
         if (directUrl != null && directApiName != null) {
-            _addonStates.value = listOf(AddonFetchState(directApiName, isLoading = true))
+            _addonStates.value = listOf(AddonFetchState("⚡ $directApiName", isLoading = true))
             var directFailure: String? = null
             try {
                 val db = KitsugiDatabase.getDatabase(context)
@@ -452,11 +469,19 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         mediaType = mediaType
                     )
                     if (resolved.isNotEmpty()) {
+                        // Tohum olarak sakla ve ANINDA göster; ama taramayı bitirme.
+                        directSeed = directApiName to resolved
                         _isResolvingId.value = false
-                        updateAddonStateSync(directApiName, isLoading = false, streams = resolved)
-                        return
+                        updateAddonStateSync("⚡ $directApiName", isLoading = false, streams = resolved)
+                        Log.i(
+                            TAG,
+                            "[$directApiName] Doğrudan URL ${resolved.size} kaynak verdi — tohum olarak alındı, " +
+                                "diğer eklentiler de taranacak (kaynak kayırmama)."
+                        )
+                        CsTrace.info(directApiName, "direct-url", "${resolved.size} kaynak tohum olarak alındı; tüm eklentiler taranıyor")
+                    } else {
+                        directFailure = "the selected provider URL returned no streams"
                     }
-                    directFailure = "the selected provider URL returned no streams"
                 } else {
                     directFailure = "the selected provider is not loaded"
                 }
@@ -468,9 +493,11 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             // A provider/search-result URL is an optimization, not a reason to stop the
             // shared title-first search. If that one route is stale, mismatched for this
             // episode, or temporarily unavailable, continue through every enabled plugin.
-            Log.w(TAG, "[$directApiName] Direct source fetch failed ($directFailure); falling back to all enabled providers")
-            CsTrace.warn(directApiName, "direct-url", "$directFailure; falling back to shared title/episode search")
-            _addonStates.value = emptyList()
+            if (directSeed == null) {
+                Log.w(TAG, "[$directApiName] Direct source fetch failed ($directFailure); falling back to all enabled providers")
+                CsTrace.warn(directApiName, "direct-url", "$directFailure; falling back to shared title/episode search")
+                _addonStates.value = emptyList()
+            }
         }
 
         // ── 1. Resolve IDs ────────────────────────────────────────────────────
@@ -518,6 +545,31 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         }
         _imdbId.value = resolvedImdbId
 
+        // ── Ortak kimlik defteri (kaynak kayırmama) ───────────────────────────
+        // Burada çözülen MAL/AniList/TMDB/IMDb/Kitsu kimlikleri kaydedilir. Aynı bölüm
+        // başka bir giriş noktasından (ör. bir CS eklentisinin kataloğu) ID'siz açılırsa
+        // oynatıcı/altyazı katmanı buradan ID'leri geri kazanır. Böylece altyazı ve akış
+        // eklentileri giriş noktasından bağımsız olarak AYNI kimliklerle sorgulanır.
+        runCatching {
+            MediaIdentityRegistry.initialize(context)
+            MediaIdentityRegistry.remember(
+                MediaIdentity.fromResolved(
+                    title = title,
+                    alternativeTitles = alternativeTitles,
+                    mediaType = mediaType,
+                    isMovie = isMovie,
+                    startYear = startYear,
+                    malId = realMalId ?: resolvedIds.malId,
+                    aniListId = realAniListId ?: resolvedIds.aniListId,
+                    tmdbId = tmdbId ?: resolvedIds.tmdbId,
+                    bangumiId = bangumiId,
+                    season = season,
+                    episode = episode,
+                    ids = resolvedIds
+                )
+            )
+        }.onFailure { Log.w(TAG, "Kimlik defterine yazılamadı: " + it.message) }
+
         val stremioLookup = com.kitsugi.animelist.data.remote.StremioVideoId.forContent(
             isMovie = isMovie,
             imdbId = resolvedImdbId,
@@ -542,11 +594,20 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             kitsuVideoId = kitsuVideoId
         )
 
+        // Doğrudan URL'den gelen tohum sonuçlar, tüm eklenti taraması başlarken KORUNUR.
+        val seededStates: List<AddonFetchState> = directSeed?.let { (name, streams) ->
+            listOf(AddonFetchState(addonName = "⚡ $name", isLoading = false, streams = streams))
+        } ?: emptyList()
+
         if (tasks.isNotEmpty()) {
             val uniqueAddons = tasks.map { it.addonName }.distinct()
-            _addonStates.value = uniqueAddons.map { name ->
-                AddonFetchState(addonName = name, manifestUrl = "")
-            }
+            val existing = if (seededStates.isNotEmpty()) seededStates else _addonStates.value
+            val placeholders = uniqueAddons
+                .filter { name -> existing.none { it.addonName == name } }
+                .map { name -> AddonFetchState(addonName = name, manifestUrl = "") }
+            _addonStates.value = existing + placeholders
+        } else if (seededStates.isNotEmpty()) {
+            _addonStates.value = seededStates
         }
 
         // ── 3. Run Stremio + CS plugin fetches in parallel ────────────────────
@@ -641,7 +702,10 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 }
                 stateUpdateMutex.withLock {
-                    _addonStates.value = _addonStates.value + csPlaceholders
+                    // Tohum (doğrudan URL) sonucu olan eklenti için ikinci bir satır açmayız;
+                    // aynı eklentinin placeholder'ı tohum sonuçlarını taşıyan satırdır.
+                    val fresh = csPlaceholders.filter { ph -> _addonStates.value.none { it.addonName == ph.addonName } }
+                    _addonStates.value = _addonStates.value + fresh
                 }
                 Log.d(TAG, "CS eklentileri paralel yükleniyor: ${enabledCsPlugins.map { it.name }}")
 
@@ -697,6 +761,11 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                             }
 
                             val csStreams = mutableListOf<StreamSource>()
+                            // Tohum: bu eklenti için doğrudan URL'den gelen sonuçlar korunur,
+                            // üstüne paylaşılan başlık/bölüm aramasının sonuçları eklenir.
+                            directSeed?.takeIf { (name, _) ->
+                                name.equals(plugin.name, ignoreCase = true) || name.equals(plugin.id, ignoreCase = true)
+                            }?.second?.let { seedStreams -> csStreams.addAll(seedStreams) }
                             for (api in compatibleApis) {
                                 val streams = CsStreamRunner.getStreams(
                                     api              = api,
@@ -716,6 +785,13 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     preResolvedIds   = resolvedIds
                                 )
                                 csStreams.addAll(streams)
+                            }
+                            if (csStreams.size > 1) {
+                                csStreams.distinctBy { it.url ?: it.infoHash }
+                                    .let { deduped ->
+                                        csStreams.clear()
+                                        csStreams.addAll(deduped)
+                                    }
                             }
                             Log.d(TAG, "[$csDisplayName] Toplam ${csStreams.size} stream bulundu")
                             CsTrace.info(plugin.name, "result", "Toplam ${csStreams.size} stream bulundu")
