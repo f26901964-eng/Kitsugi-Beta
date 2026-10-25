@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.ui.res.stringResource
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
@@ -621,7 +622,7 @@ private fun TvExtInstalledTab(
             }
         }
 
-        items(sources, key = { "${it.baseUrl}_${it.name}" }) { source ->
+        uniqueItems(sources, key = { "${it.baseUrl}_${it.name}" }) { source ->
             val health = onGetSourceHealth(source)
             val stats = onGetRuntimeStats(source)
             val errorCode = onGetLastErrorCode(source)

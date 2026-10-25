@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.data.platform.PlatformErrorCode
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import androidx.compose.runtime.CompositionLocalProvider
@@ -601,9 +603,11 @@ private fun StudioDetailSuccessContent(
                             )
                         }
                     } else {
-                        gridItems(
+                        // Tür olmadan film #122 ile dizi #122 (TMDB şirket/ağ sayfaları) aynı anahtarı
+                        // alıyordu; ViewModel de `mediaType to mediaId` ile tekilleştiriyor.
+                        uniqueItems(
                             displayedWorks,
-                            key = { work -> "${work.source}_${work.mediaId}_g" }
+                            key = { work -> "${work.source}_${work.mediaType}_${work.mediaId}_g" }
                         ) { work ->
                             KitsugiExploreMediaCard(
                                 result = work.toSearchResult(),
@@ -665,9 +669,9 @@ private fun StudioDetailSuccessContent(
                             )
                         }
                     } else {
-                        itemsIndexed(
+                        uniqueItemsIndexed(
                             displayedWorks,
-                            key = { _, work -> "${work.source}_${work.mediaId}_list" }
+                            key = { _, work -> "${work.source}_${work.mediaType}_${work.mediaId}_list" }
                         ) { index, work ->
                             KitsugiRankingMediaCard(
                                 result = work.toSearchResult(),

@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import androidx.compose.animation.AnimatedVisibility
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.runtime.key
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -921,7 +922,7 @@ private fun ReaderTabStrip(
                     horizontalArrangement = Arrangement.spacedBy(READER_TAB_SPACING),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(navigation.tabs, key = { it.id }) { tab ->
+                    uniqueItems(navigation.tabs, key = { it.id }) { tab ->
                         ReaderTabChip(
                             title = tab.location.title,
                             selected = tab.id == navigation.activeTabId,

@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import androidx.activity.compose.BackHandler
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -400,7 +401,7 @@ fun TvMangaDetailScreen(
                             }
                         }
                     }
-                    else -> itemsIndexed(
+                    else -> uniqueItemsIndexed(
                         items = uiState.chapters,
                         key = { _, ch -> ch.chapter.url }
                     ) { _, row ->

@@ -37,6 +37,7 @@ import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiReview
 import com.kitsugi.animelist.data.remote.SocialFeedCache
+import com.kitsugi.animelist.data.remote.stableKey
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -147,7 +148,7 @@ fun KitsugiAllReviewsBottomSheet(
                 if (newReviews.isEmpty()) {
                     hasMore = false
                 } else {
-                    reviewsList = (reviewsList + newReviews).distinctBy { it.username + "_" + it.summary }
+                    reviewsList = (reviewsList + newReviews).distinctBy { it.stableKey() }
                     page = nextPage
                 }
                 SocialFeedCache.putAllReviews(socialFeedKey, SocialFeedCache.FeedState(reviewsList, page, hasMore))
@@ -170,7 +171,7 @@ fun KitsugiAllReviewsBottomSheet(
     LaunchedEffect(selectedLanguage, reviewsList) {
         if (selectedLanguage == "turkish") {
             reviewsList.forEach { rev ->
-                val revKey = "${rev.source}_${rev.username}_${rev.dateText}"
+                val revKey = rev.stableKey()
                 if (!translatedSummaries.containsKey(revKey)) {
                     coroutineScope.launch {
                         activeTranslations++
@@ -340,7 +341,7 @@ fun KitsugiAllReviewsBottomSheet(
                 ) {
                     items(filteredReviews.size) { index ->
                         val rev = filteredReviews[index]
-                        val revKey = "${rev.source}_${rev.username}_${rev.dateText}"
+                        val revKey = rev.stableKey()
                         val displaySummary = if (selectedLanguage == "turkish") translatedSummaries[revKey] ?: rev.summary else rev.summary
                         
                         // Theme-aligned Review Card

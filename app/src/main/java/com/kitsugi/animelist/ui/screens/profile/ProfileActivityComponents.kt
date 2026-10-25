@@ -6,6 +6,7 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -405,7 +406,7 @@ fun FavoritesHorizontalSection(
             state = snapRowState,
             flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(
+            uniqueItems(
                 items = items,
                 key = { item -> item.id.ifBlank { item.title } }
             ) { item ->
@@ -531,7 +532,7 @@ fun FavoritesExpandedBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(
+                uniqueItems(
                     items = items,
                     key = { item -> item.id.ifBlank { item.title } }
                 ) { item ->

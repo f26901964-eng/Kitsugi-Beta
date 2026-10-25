@@ -109,6 +109,8 @@ jobs:
             --tests 'com.kitsugi.animelist.ui.components.HomeHeroPolicyTest' \
             --tests 'com.kitsugi.animelist.ui.components.HeroImageSelectionTest' \
             --tests 'com.kitsugi.animelist.ui.components.HomeHeroGestureModifiersTest' \
+            --tests 'com.kitsugi.animelist.ui.utils.LazyKeyDedupTest' \
+            --tests 'com.kitsugi.animelist.data.remote.KitsugiReviewStableKeyTest' \
             :app:assembleFossDebug :app:assembleFossRelease --stacktrace --console=plain 2>&1 | tee build.log
           python3 scripts/verify_apk_dex_bytecode.py \
             app/build/outputs/apk/foss/debug/*.apk \

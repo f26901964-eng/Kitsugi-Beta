@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga
 
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -283,7 +284,7 @@ fun MangaBrowseScreen(
                                 onClick   = { vm.selectSourceFilter(null) }
                             )
                         }
-                        items(states, key = { it.source.stableSourceKey() }) { st ->
+                        uniqueItems(states, key = { it.source.stableSourceKey() }) { st ->
                             MangaChip(
                                 label     = st.source.name,
                                 count     = st.mangas.size,
@@ -349,14 +350,15 @@ fun MangaBrowseScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // 1) ÖNCE başarıyla veri gelen kaynakların mangaları (en üstte).
-                            items(visibleMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
+                            // Kaynaklar sayfalar arasında aynı mangayı tekrar döndürebiliyor.
+                            uniqueItems(visibleMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
                                 MangaCard(manga, accentColor) { onMangaClick(source, manga) }
                             }
                             // 2) SONRA hâlâ yüklenen kaynakların iskelet (placeholder) kartları — EN ALTTA.
                             //    Böylece başarıyla gelen sonuçlar her zaman üstte kalır, yüklenenler onları aşağı itmez.
                             if (query.isNotBlank()) {
                                 val loadingStates = states.filter { it.isLoading && (selFilter == null || selFilter.stableSourceKey() == it.source.stableSourceKey()) }
-                                items(loadingStates, key = { "sk_${it.source.stableSourceKey()}" }) {
+                                uniqueItems(loadingStates, key = { "sk_${it.source.stableSourceKey()}" }) {
                                     SkeletonCard(it.source.name, accentColor)
                                 }
                             }

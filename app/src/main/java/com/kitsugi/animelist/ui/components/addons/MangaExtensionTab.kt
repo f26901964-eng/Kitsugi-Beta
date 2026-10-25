@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components.addons
 import androidx.compose.foundation.lazy.itemsIndexed
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -863,7 +865,8 @@ internal fun MangaExtensionsTab(
                     )
                 }
             }
-            itemsIndexed(sources, key = { _, src -> src.stableSourceKey() }) { _, source ->
+            // Aynı ad+dilde iki kaynak (farklı eklentilerden) olabilir → çökmeyen anahtar.
+            uniqueItemsIndexed(sources, key = { _, src -> src.stableSourceKey() }) { _, source ->
                 val health = onGetSourceHealthStatus(source)
                 val isBusy = onIsSourceBusy(source)
                 val domain = onGetConfiguredDomain(source)
@@ -1025,7 +1028,7 @@ internal fun MangaExtensionsTab(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.heightIn(max = 420.dp)
                         ) {
-                            items(filteredReport, key = { it.sourceKey }) { item ->
+                            uniqueItems(filteredReport, key = { it.sourceKey }) { item ->
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()

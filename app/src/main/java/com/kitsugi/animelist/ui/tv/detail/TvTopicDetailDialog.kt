@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.tv.detail
 
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Button
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -468,7 +469,7 @@ fun TvTopicDetailDialog(
                                     }
                                 }
                             }
-                            items(commentsList, key = { it.id }) { comment ->
+                            uniqueItems(commentsList, key = { it.id }) { comment ->
                                 val displayCommentText = if (selectedLanguage == "turkish") {
                                     translatedComments[comment.id] ?: comment.comment
                                 } else {

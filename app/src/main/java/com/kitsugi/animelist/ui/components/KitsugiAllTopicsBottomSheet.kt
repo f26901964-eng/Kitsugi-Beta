@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -320,7 +321,7 @@ fun KitsugiAllTopicsBottomSheet(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(filteredTopics, key = { "${it.source}_${it.id}" }) { topic ->
+                    uniqueItems(filteredTopics, key = { "${it.source}_${it.id}" }) { topic ->
                         val displayTitle = if (selectedLanguage == "turkish") translatedTitles[topic.id] ?: topic.title else topic.title
                         
                         // Theme-aligned Topic Card

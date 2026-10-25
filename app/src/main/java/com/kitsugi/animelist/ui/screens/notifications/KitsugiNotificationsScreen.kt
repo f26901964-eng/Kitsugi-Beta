@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.notifications
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.animation.AnimatedContent
@@ -833,7 +834,9 @@ private fun LazyListScope.groupedNotifItems(
         item(key = "group_${group.name}") {
             NotifDateGroupHeader(labelResId = group.labelResId, count = groupItems.size)
         }
-        items(groupItems, key = { it.id }) { notif ->
+        // Aynı bildirim farklı zaman damgasıyla iki kez gelirse iki ayrı tarih grubuna düşebilir;
+        // grup ön eki gruplar arası, uniqueItems grup içi benzersizliği garanti eder.
+        uniqueItems(groupItems, key = { "${group.name}:${it.id}" }) { notif ->
             NotifItemRow(
                 notif = notif,
                 brandColor = notifBrandColorForSource(notif.source),

@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import android.util.Log
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -424,7 +425,7 @@ fun PluginPickerScreen(
                                         }
                                     }
 
-                                    items(
+                                    uniqueItems(
                                         items = filteredApis,
                                         key = { "${java.io.File(it.sourcePlugin ?: "").nameWithoutExtension}_${it.name}" }
                                     ) { api ->

@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import android.view.KeyEvent
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -198,7 +199,7 @@ fun TvMangaSourceHealthScreen(
                 }
 
                 // Kaynak listesi — sağlık durumuna göre sıralı
-                items(
+                uniqueItems(
                     sources.sortedWith(
                         compareBy {
                             when (onGetSourceHealth(it)) {

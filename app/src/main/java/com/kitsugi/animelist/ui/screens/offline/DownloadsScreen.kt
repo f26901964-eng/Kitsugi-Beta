@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.offline
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -423,7 +424,7 @@ fun DownloadsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(downloads, key = { "${it.animeId}_${it.episode}" }) { download ->
+                    uniqueItems(downloads, key = { "${it.animeId}_${it.episode}" }) { download ->
                         DownloadItemRow(
                             download = download,
                             accentColor = accentColor,

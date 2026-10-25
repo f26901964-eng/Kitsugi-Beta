@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.settings
 
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
@@ -195,7 +196,7 @@ fun CsPluginDiagnosticScreen(
                                 fontSize = 13.sp
                             )
                         }
-                        items(results, key = { it.pluginId + it.repoSlug }) { result ->
+                        uniqueItems(results, key = { it.pluginId + it.repoSlug }) { result ->
                             ResultRow(result = result, accent = accent)
                         }
                     }

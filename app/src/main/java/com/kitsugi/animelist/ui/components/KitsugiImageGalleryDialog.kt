@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.content.res.Configuration
@@ -1160,7 +1161,7 @@ private fun GalleryLandscapeLayout(
                                     onClick = { onSourceSelected(null) }
                                 )
                             }
-                            items(sources, key = { group -> "source_${group.source.lowercase()}" }) { group ->
+                            uniqueItems(sources, key = { group -> "source_${group.source.lowercase()}" }) { group ->
                                 GallerySourceRow(
                                     label = group.source,
                                     source = group.source,

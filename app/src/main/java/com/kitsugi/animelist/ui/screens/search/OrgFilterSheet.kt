@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import androidx.compose.foundation.BorderStroke
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -141,7 +142,7 @@ fun OrgFilterSheet(
                                 color = KitsugiColors.TextSecondary,
                                 fontWeight = FontWeight.SemiBold)
                         }
-                        items(recents, key = { "recent_${it.canonicalKey}" }) { organization ->
+                        uniqueItems(recents, key = { "recent_${it.canonicalKey}" }) { organization ->
                             OrganizationRow(organization, organization.asFilter() in selected) {
                                 selected = selected.toggle(organization.asFilter())
                             }
@@ -152,7 +153,7 @@ fun OrgFilterSheet(
                             color = KitsugiColors.TextSecondary,
                             fontWeight = FontWeight.SemiBold)
                     }
-                    items(matches, key = { it.canonicalKey }) { organization ->
+                    uniqueItems(matches, key = { it.canonicalKey }) { organization ->
                         OrganizationRow(organization, organization.asFilter() in selected) {
                             selected = selected.toggle(organization.asFilter())
                         }

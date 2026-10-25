@@ -376,6 +376,33 @@ data class KitsugiReview(
     val source: String = "anilist"
 )
 
+/**
+ * İncelemenin liste/seçim kimliği (LazyRow anahtarı, açık detay sayfasının geri bulunması,
+ * çeviri önbelleği anahtarı).
+ *
+ * TMDB (metin/hex yorum kimliği), MAL/Jikan ve Bangumi incelemeleri sayısal kimlik
+ * taşımaz → [KitsugiReview.id] `null` kalır. Eskiden anahtar `"${source}_${id}"` olduğu için
+ * bu kaynaklardaki HER inceleme aynı `"tmdb_null"` / `"jikan_null"` / `"bangumi_null"`
+ * anahtarını alıyor ve ikinci kart ölçülürken uygulama çöküyordu (v2.4.369 raporu).
+ * Kimlik yoksa yazar + tarih + metin özeti parmak izi kullanılır.
+ *
+ * NOT: API aynı incelemeyi iki kez döndürebileceği için bu değer tek başına benzersizlik
+ * GARANTİSİ vermez; Lazy listelerde `uniqueItems` / `uniqueLazyKeys` ile birlikte kullanın.
+ */
+fun KitsugiReview.stableKey(): String {
+    val src = source.trim().lowercase(java.util.Locale.ROOT).ifEmpty { "unknown" }
+    id?.let { return "rev:$src:$it" }
+    val fingerprint = buildString {
+        append(username.trim().lowercase(java.util.Locale.ROOT))
+        append('\u0001').append(dateText.orEmpty().trim())
+        append('\u0001').append(summary.trim().take(REVIEW_FINGERPRINT_CHARS))
+        append('\u0001').append(fullText.trim().take(REVIEW_FINGERPRINT_CHARS))
+    }
+    return "rev:$src:h${Integer.toHexString(fingerprint.hashCode())}"
+}
+
+private const val REVIEW_FINGERPRINT_CHARS = 160
+
 data class KitsugiForumTopic(
     val id: Int,
     val title: String,

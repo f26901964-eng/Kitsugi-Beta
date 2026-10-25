@@ -631,6 +631,23 @@ object KitsugiApiBase {
         data class ServiceDown(val message: String, val httpCode: Int = 403) : AniListResult()
     }
 
+    /**
+     * Teşhis için kısa sorgu özeti: ilk kök alan + değişkenler (yalnızca kimlik/sayfa gibi
+     * değerler; belirteç içermez). Ör. `Media(...) vars={"id":122,"type":"ANIME"}`.
+     */
+    internal fun describeAniListRequest(requestBody: String): String = try {
+        val json = JSONObject(requestBody)
+        val query = json.optString("query")
+        val root = ANILIST_ROOT_FIELD.find(query)?.groupValues?.getOrNull(1)
+        val variables = json.optJSONObject("variables")?.toString()?.take(160) ?: "{}"
+        "${root ?: "?"}(...) vars=$variables"
+    } catch (_: Exception) {
+        "sorgu çözümlenemedi (${requestBody.length} karakter)"
+    }
+
+    /** `query (...) { Media(` / `{ Page(` gibi ilk kök alanı yakalar. */
+    private val ANILIST_ROOT_FIELD = Regex("""\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*[({]""")
+
     private fun performAniListRequest(requestBody: String, token: String?): AniListResult {
         val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
         val body = requestBody.toRequestBody(mediaType)
@@ -685,8 +702,18 @@ object KitsugiApiBase {
                             }
                         }
                         AniListResult.Retryable(retryAfterMs)
+                    } else if (response.code == 404) {
+                        // AniList GraphQL istenen kimliği bulamayınca HTTP 404 ("Not Found.") döner. Bu
+                        // ağ/sunucu HATASI değil, "kayıt yok" yanıtıdır: hata seviyesinde loglanıp çökme
+                        // raporlarını kirletmemeli. Hangi sorgunun hangi kimlikle 404 aldığı yazılır ki
+                        // yanlış kimlikle sorgulayan çağıran (ör. TMDB kimliğini AniList'e gönderen) bulunabilsin.
+                        android.util.Log.w("KitsugiApiBase", "AniList 404 (kayıt bulunamadı): ${describeAniListRequest(requestBody)}")
+                        AniListResult.Failure
                     } else {
-                        android.util.Log.e("KitsugiApiBase", "AniList query permanent failure with code: ${response.code} ${response.message}")
+                        android.util.Log.e(
+                            "KitsugiApiBase",
+                            "AniList query permanent failure with code: ${response.code} ${response.message} — ${describeAniListRequest(requestBody)}"
+                        )
                         AniListResult.Failure
                     }
                 }

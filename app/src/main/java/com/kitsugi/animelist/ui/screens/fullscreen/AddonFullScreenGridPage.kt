@@ -3,6 +3,8 @@
 package com.kitsugi.animelist.ui.screens.fullscreen
 
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -502,7 +504,8 @@ fun AddonFullScreenGridPage(
                 }
 
                 // ── Items — ana sayfa kutucuklarıyla birebir aynı kart ───────
-                gridItems(
+                // CS3 eklentileri aynı URL'yi bir sayfada / sayfalar arasında tekrar döndürebiliyor.
+                uniqueItems(
                     displayedResults,
                     key = { result -> "${state.apiName}_${result.cs3Url}" }
                 ) { result ->
@@ -546,7 +549,7 @@ fun AddonFullScreenGridPage(
                     }
                 }
 
-                itemsIndexed(
+                uniqueItemsIndexed(
                     displayedResults,
                     key = { _, result -> "${state.apiName}_${result.cs3Url}_list" }
                 ) { index, result ->

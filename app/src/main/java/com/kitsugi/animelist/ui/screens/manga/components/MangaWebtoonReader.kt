@@ -1,5 +1,6 @@
 ﻿package com.kitsugi.animelist.ui.screens.manga.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Box
@@ -73,7 +74,7 @@ fun MangaWebtoonReader(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        itemsIndexed(
+        uniqueItemsIndexed(
             items = pages,
             key   = { _, page -> page.index }
         ) { _, page ->

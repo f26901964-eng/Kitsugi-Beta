@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.tv.addons
 
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -212,7 +214,7 @@ fun TvAddonsScreen(
                                 )
                             }
                         } else {
-                            itemsIndexed(
+                            uniqueItemsIndexed(
                                 items = addons,
                                 key   = { _, a -> a.manifestUrl }
                             ) { _, addon ->
@@ -241,7 +243,7 @@ fun TvAddonsScreen(
                                 )
                             }
                         } else {
-                            items(
+                            uniqueItems(
                                 items = repos,
                                 key   = { it.repoUrl }
                             ) { repo ->

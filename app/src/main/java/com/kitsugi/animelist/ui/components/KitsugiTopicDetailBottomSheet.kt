@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -575,7 +576,7 @@ fun KitsugiTopicDetailBottomSheet(
                     }
                 } else {
                     // Comments list items
-                    items(commentsList, key = { it.id }) { comment ->
+                    uniqueItems(commentsList, key = { it.id }) { comment ->
                         val displayComment = if (selectedLanguage == "turkish") {
                             translatedComments[comment.id] ?: comment.comment
                         } else {

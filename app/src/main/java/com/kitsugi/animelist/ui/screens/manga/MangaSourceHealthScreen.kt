@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga
 
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.TabRow
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -534,7 +535,7 @@ private fun HealthReportTab(
         if (filtered.isEmpty()) {
             item { Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), Alignment.Center) { Text(stringResource(R.string.inline_no_report_data_is_available_e832db8), color = KitsugiColors.TextSecondary) } }
         } else {
-            items(filtered, key = { it.sourceKey }) { item ->
+            uniqueItems(filtered, key = { it.sourceKey }) { item ->
                 val source = sourceMap[item.sourceKey]
                 val isBusy = source?.let(onIsSourceBusy) == true
                 Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = KitsugiColors.SurfaceSoft), shape = RoundedCornerShape(16.dp)) {

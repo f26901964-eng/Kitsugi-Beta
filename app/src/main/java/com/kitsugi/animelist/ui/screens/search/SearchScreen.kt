@@ -3,6 +3,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -636,7 +637,7 @@ fun SearchScreen(
                     )
                 }
             } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
-                items(
+                uniqueItems(
                     items = filteredResults,
                     key = { "char_${it.source}_${it.type}_${it.malId}_${it.tmdbId ?: 0}" },
                     contentType = { _ -> "char_staff_row" }
@@ -671,7 +672,7 @@ fun SearchScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             } else {
-                items(
+                uniqueItems(
                     items = filteredResults,
                     key = { "res_${it.source}_${it.type}_${it.malId}_${it.tmdbId ?: 0}_${it.cs3Url.orEmpty().hashCode()}" },
                     contentType = { _ -> "search_row" }

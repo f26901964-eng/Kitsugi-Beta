@@ -3,6 +3,7 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -220,7 +221,7 @@ fun KitsugiRankingBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
-                    itemsIndexed(
+                    uniqueItemsIndexed(
                         items = resultsList,
                         key = { _, item -> "${item.source}_${item.type}_${item.malId}_${item.tmdbId ?: 0}" }
                     ) { index, item ->

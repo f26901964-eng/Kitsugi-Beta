@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.history
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.animation.AnimatedVisibility
@@ -120,7 +121,7 @@ fun WatchHistoryScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(history, key = { "${it.animeId}_${it.episode}_${it.watchedAtMs}" }) { entry ->
+                uniqueItems(history, key = { "${it.animeId}_${it.episode}_${it.watchedAtMs}" }) { entry ->
                     val context = LocalContext.current
                     WatchHistoryItem(
                         entry = entry,

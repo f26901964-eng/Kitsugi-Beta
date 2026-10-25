@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.settings
 
 import android.content.Context
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -265,10 +266,12 @@ private fun ErrorCatalogPage(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(listEntries, key = { it.code }) { code ->
+        // İki ayrı katalog aynı LazyColumn'da: ön ek olmadan bir liste kodu ile bir teşhis
+        // kimliği aynı metne sahipse "Key was already used" çökmesi oluşurdu.
+        uniqueItems(listEntries, key = { "list:${it.code}" }) { code ->
             ListSourceErrorBlock(code = code, modifier = Modifier.fillMaxWidth())
         }
-        items(diagEntries, key = { it.id }) { definition ->
+        uniqueItems(diagEntries, key = { "diag:${it.id}" }) { definition ->
             PlatformErrorExplanationBlock(
                 code = definition.id,
                 modifier = Modifier.fillMaxWidth(),

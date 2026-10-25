@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.profile
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -275,7 +276,7 @@ fun BangumiProfileContent(
                 )
             }
         } else {
-            items(
+            uniqueItems(
                 visibleItems,
                 key = { "${it.subjectType}-${it.subjectId}" }
             ) { collection ->
@@ -652,7 +653,7 @@ private fun BangumiFavoriteRow(
         state = snapRowState,
         flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(favorites, key = { it.id }) { favorite ->
+        uniqueItems(favorites, key = { it.id }) { favorite ->
             val displayName = BangumiNameLocalizer.entity(favorite.name).displayFor(titleLanguage)
             Column(
                 modifier = Modifier

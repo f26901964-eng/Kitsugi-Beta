@@ -397,6 +397,10 @@ dependencies {
     implementation("com.github.Blatzar:NiceHttp:0.4.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
+    // Ktor 3 (Supabase) slf4j-api getiriyor ama sağlayıcı yoktu → her açılışta
+    // "SLF4J(W): No SLF4J providers were found" uyarısı. Bilinçli NOP sağlayıcı: davranış
+    // aynı (günlükler zaten atılıyordu), uyarı kalkar. META-INF/versions/** paketlemede hariç.
+    implementation("org.slf4j:slf4j-nop:2.0.16")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
 
     // RxJava for dynamic Manga extension loading compatibility

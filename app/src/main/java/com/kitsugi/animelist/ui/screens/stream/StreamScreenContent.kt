@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.stream
 
 import android.content.SharedPreferences
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -1219,7 +1220,8 @@ private fun AddonChipsRow(
                             onFilterChange(null); showPicker = false
                         }
                     }
-                    items(visible, key = { it.addonName }) { state ->
+                    // Aynı eklenti farklı manifest ile iki kez kuruluysa adlar çakışır (ör. iki "Torrentio").
+                    uniqueItems(visible, key = { it.addonName }) { state ->
                         val status = when {
                             state.isLoading -> stringResource(R.string.stream_source_loading)
                             state.requiresVerification -> stringResource(R.string.stream_source_verify)

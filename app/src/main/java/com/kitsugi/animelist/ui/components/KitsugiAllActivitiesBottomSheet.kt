@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.content.Context
@@ -193,7 +194,7 @@ fun KitsugiAllActivitiesBottomSheet(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(activitiesList, key = { it.id }) { act ->
+                    uniqueItems(activitiesList, key = { it.id }) { act ->
                         // Resolve title according to user's titleLanguage preference
                         val localizedTitle = when (titleLanguage) {
                             "ENGLISH" -> act.mediaTitleEnglish?.takeIf { it.isNotBlank() }

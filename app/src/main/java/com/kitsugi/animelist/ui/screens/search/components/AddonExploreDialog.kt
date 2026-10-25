@@ -2,6 +2,7 @@
 package com.kitsugi.animelist.ui.screens.search.components
 
 import com.kitsugi.animelist.core.memory.BoundedCache
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -373,7 +374,7 @@ fun AddonExplorePage(
                                         )
                                     }
                                     // Sonuçlar — Ana Arama'daki SearchResultRow ile birebir aynı kart
-                                    items(
+                                    uniqueItems(
                                         items = visibleSearchResults,
                                         key = { it.url }
                                     ) { item ->
@@ -458,7 +459,7 @@ fun AddonExplorePage(
                             }
 
                             // Raflar — Keşfet'teki KitsugiHorizontalMediaSection ile birebir aynı
-                            items(homeLists, key = { "cat_${homeLists.indexOf(it)}_${it.name}" }) { homeList ->
+                            uniqueItems(homeLists, key = { "cat_${it.name}" }) { homeList ->
                                 val rowResults = remember(homeList, showAdultContent) {
                                     homeList.list.map { it.toAddonSearchResult() }
                                         .filter { showAdultContent || !it.isAdult }

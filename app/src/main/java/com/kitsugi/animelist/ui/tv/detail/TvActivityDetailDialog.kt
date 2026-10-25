@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.tv.detail
 
 import com.kitsugi.animelist.ui.theme.gradient.Button
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -415,7 +416,7 @@ fun TvActivityDetailDialog(
                                     }
                                 }
                             } else {
-                                items(act.replies, key = { reply -> reply.id }) { reply ->
+                                uniqueItems(act.replies, key = { reply -> reply.id }) { reply ->
                                     val displayReplyText = if (selectedLanguage == "turkish") {
                                         translatedReplies[reply.id] ?: reply.text
                                     } else {
