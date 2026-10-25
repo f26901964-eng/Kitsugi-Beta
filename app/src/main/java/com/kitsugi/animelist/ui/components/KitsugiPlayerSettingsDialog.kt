@@ -831,6 +831,20 @@ fun KitsugiPlayerSettingsDialog(
 
                                     KitsugiSettingsDivider()
 
+                                    val dvAutoFix = appSettings?.mpvDolbyVisionAutoFix ?: true
+                                    KitsugiSettingsSwitchItem(
+                                        title = stringResource(R.string.pd_mpv_dv_autofix),
+                                        description = stringResource(R.string.pd_mpv_dv_autofix_desc),
+                                        checked = dvAutoFix,
+                                        icon = Icons.Rounded.HdrOn,
+                                        iconColor = accentColor,
+                                        onCheckedChange = {
+                                            scope.launch { settingsDataStore.setMpvDolbyVisionAutoFix(it) }
+                                        }
+                                    )
+
+                                    KitsugiSettingsDivider()
+
                                     Box {
                                         val debandOptions = listOf("none", "cpu", "gpu")
                                         val currentDeband = appSettings?.mpvDebandMode ?: "none"

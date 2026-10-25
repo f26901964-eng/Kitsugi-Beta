@@ -162,6 +162,11 @@ data class MpvAndSubtitleSettings(
     val audioPitchCorrection: Boolean = true,
     val mpvGpuRenderer: String = "gpu",
     val mpvHwdecMode: String = "auto-safe",
+    /**
+     * Dolby Vision içerikte vo/hwdec'i otomatik düzeltir: gpu-next + (P5/bilinmeyen
+     * profilde) yazılım çözme. Kapatılırsa kullanıcının kendi MPV ayarları aynen kalır.
+     */
+    val mpvDolbyVisionAutoFix: Boolean = true,
     val mpvDebandMode: String = "none",
     val mpvForceYuv420p: Boolean = false,
     val mpvDemuxerCacheMb: Int = 64,
@@ -481,6 +486,7 @@ data class AppSettings(
     val audioPitchCorrection: Boolean get() = mpvSubtitle.audioPitchCorrection
     val mpvGpuRenderer: String get() = mpvSubtitle.mpvGpuRenderer
     val mpvHwdecMode: String get() = mpvSubtitle.mpvHwdecMode
+    val mpvDolbyVisionAutoFix: Boolean get() = mpvSubtitle.mpvDolbyVisionAutoFix
     val mpvDebandMode: String get() = mpvSubtitle.mpvDebandMode
     val mpvForceYuv420p: Boolean get() = mpvSubtitle.mpvForceYuv420p
     val mpvDemuxerCacheMb: Int get() = mpvSubtitle.mpvDemuxerCacheMb

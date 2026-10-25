@@ -271,6 +271,7 @@ class SettingsDataStore(
         // ─── MPV Gelişmiş Oynatıcı Ayarları ───────────────────────────────────────
         val MpvGpuRenderer = stringPreferencesKey("mpv_gpu_renderer")
         val MpvHwdecMode = stringPreferencesKey("mpv_hwdec_mode")
+        val MpvDolbyVisionAutoFix = booleanPreferencesKey("mpv_dolby_vision_auto_fix")
         val MpvDebandMode = stringPreferencesKey("mpv_deband_mode")
         val MpvForceYuv420p = booleanPreferencesKey("mpv_force_yuv420p")
         val MpvDemuxerCacheMb = intPreferencesKey("mpv_demuxer_cache_mb")
@@ -591,6 +592,7 @@ class SettingsDataStore(
                     audioPitchCorrection = preferences[Keys.AudioPitchCorrection] ?: true,
                     mpvGpuRenderer = preferences[Keys.MpvGpuRenderer] ?: "gpu",
                     mpvHwdecMode = preferences[Keys.MpvHwdecMode] ?: "auto-safe",
+                    mpvDolbyVisionAutoFix = preferences[Keys.MpvDolbyVisionAutoFix] ?: true,
                     mpvDebandMode = preferences[Keys.MpvDebandMode] ?: "none",
                     mpvForceYuv420p = preferences[Keys.MpvForceYuv420p] ?: false,
                     mpvDemuxerCacheMb = preferences[Keys.MpvDemuxerCacheMb] ?: 64,
@@ -1716,6 +1718,10 @@ class SettingsDataStore(
 
     suspend fun setMpvHwdecMode(mode: String) {
         context.settingsDataStore.edit { it[Keys.MpvHwdecMode] = mode }
+    }
+
+    suspend fun setMpvDolbyVisionAutoFix(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MpvDolbyVisionAutoFix] = enabled }
     }
 
     suspend fun setMpvDebandMode(mode: String) {

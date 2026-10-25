@@ -3,6 +3,8 @@ package com.kitsugi.animelist.core.player.engine
 import android.content.Context
 import android.util.Log
 import android.view.View
+import com.kitsugi.animelist.core.player.DolbyVisionHint
+import com.kitsugi.animelist.core.player.DolbyVisionStreamHints
 import com.kitsugi.animelist.core.player.SubtitleInput
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
 import com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption
@@ -52,6 +54,23 @@ class MpvPlayerEngine(
     private var lastPositionNotifyAtMs = -1L
     /** Görüntü çıkışını (vo) kuran ağır init seçenekleri yalnızca bir kez uygulanır. */
     private var initOptionsApplied = false
+
+    // ── Dolby Vision otomatik düzeltmesi ─────────────────────────────────────
+    // Varsayılan çıkış `vo=gpu` DV RPU'sunu uygulamaz; P5 içerik yeşil/mor çıkar.
+    // Akış "DV" olarak etiketliyse gpu-next + (P5/bilinmez profilde) yazılım
+    // çözme uygularız. Bkz. [MpvDolbyVisionPolicy].
+    /** Bu akışın başlık/ad/URL'den çıkarılan DV ipucu. */
+    private var dvHint: DolbyVisionHint? = null
+    /** applyInitOptions'un uygulayacağı vo (DV planı dahil). */
+    private var resolvedVoOption: String? = null
+    /** applyInitOptions'un uygulayacağı hwdec (DV planı dahil). */
+    private var resolvedHwdecOption: String? = null
+    /** En son uygulanan DV planı; gereksiz vo yeniden kurulumunu önler. */
+    private var appliedDvPlanKey: String = ""
+    /** `gpu-next` bu libmpv derlemesinde gerçekten var mı (bir kez ölçülür). */
+    private var gpuNextSupported: Boolean? = null
+    /** DV var ama gpu-next yok uyarısı bu akış için gösterildi mi? */
+    private var dvWarningShownForLoad: Boolean = false
     private var focusController: com.kitsugi.animelist.core.player.MpvAudioFocusController? = null
     private fun audioFocus(): com.kitsugi.animelist.core.player.MpvAudioFocusController =
         focusController ?: com.kitsugi.animelist.core.player.MpvAudioFocusController(
@@ -301,6 +320,12 @@ class MpvPlayerEngine(
         this.videoUrl = videoUrl
         this.currentAddonName = addonName
         this.streamTitle = streamTitle
+        // Dolby Vision ipucu (başlık / eklenti adı / dosya adı) — vo/hwdec planı için.
+        dvHint = DolbyVisionStreamHints.detect(streamTitle, addonName, videoUrl)
+        dvWarningShownForLoad = false
+        dvHint?.let {
+            Log.i(TAG, "DV_HINT: profile=${it.profile ?: "unknown"} match=\"${it.matched}\" host=${videoUrl.safeHost()}")
+        }
         // Yeni ortam için otomatik parça seçimini sıfırla
         this.preparedSubtitles = subtitles
         this.initialSelectionDone = false
@@ -315,6 +340,7 @@ class MpvPlayerEngine(
         this.pendingAudioUrl = audioUrl
         val view = mpvView
         if (view != null) {
+            syncDolbyVisionOptions(view)
             applyInitOptions(view)
             beginLoad(videoUrl, audioUrl, headers, startPositionMs)
             view.setMedia(videoUrl, headers, startPositionMs, forceReload = true)
@@ -823,11 +849,112 @@ class MpvPlayerEngine(
 
     // ──── Internal helpers ────────────────────────────────────────────────────
 
+    // ── Dolby Vision: vo / hwdec planı ────────────────────────────────────────
+
+    /** Aktif akış + ayarlar için DV planını hesaplar (gpu-next desteği bir kez ölçülür). */
+    private fun currentDvPlan(view: KitsugiMpvSurfaceView): MpvDolbyVisionOptions {
+        val hint = dvHint
+        val autoFix = settings.mpvDolbyVisionAutoFix
+        // DV değilse veya düzeltme kapalıysa pahalı `vo` yoklaması hiç yapılmaz:
+        // her açılışta video çıkışını yeniden kurmak istemiyoruz.
+        if (hint == null || !autoFix) {
+            return MpvDolbyVisionPolicy.resolve(
+                hint = hint,
+                autoFixEnabled = autoFix,
+                configuredVo = settings.mpvGpuRenderer.ifBlank { "gpu" },
+                configuredHwdec = settings.mpvHwdecMode.ifBlank { "auto-safe" },
+                gpuNextAvailable = false
+            )
+        }
+        val available = gpuNextSupported
+            ?: probeGpuNextSupport(view).also { gpuNextSupported = it }
+        return MpvDolbyVisionPolicy.resolve(
+            hint = hint,
+            autoFixEnabled = true,
+            configuredVo = settings.mpvGpuRenderer.ifBlank { "gpu" },
+            configuredHwdec = settings.mpvHwdecMode.ifBlank { "auto-safe" },
+            gpuNextAvailable = available
+        )
+    }
+
+    /**
+     * `vo=gpu-next` bu libmpv derlemesinde gerçekten kullanılabilir mi?
+     *
+     * Seçenek yazılabiliyor ve geri okunabiliyorsa var kabul ederiz; hemen
+     * ardından kullanıcının önceki seçimini geri yazarız (henüz dosya
+     * yüklenmediği için VO'nun yeniden kurulması zararsızdır).
+     */
+    private fun probeGpuNextSupport(view: KitsugiMpvSurfaceView): Boolean =
+        runCatching {
+            val previous = view.mpv.getPropertyString("vo")
+            try {
+                view.mpv.setPropertyString("vo", MpvDolbyVisionPolicy.VO_GPU_NEXT)
+                val applied = view.mpv.getPropertyString("vo")
+                previous?.takeIf { it.isNotBlank() }?.let { view.mpv.setPropertyString("vo", it) }
+                applied?.contains(MpvDolbyVisionPolicy.VO_GPU_NEXT, ignoreCase = true) == true
+            } catch (t: Throwable) {
+                runCatching {
+                    previous?.takeIf { it.isNotBlank() }?.let { view.mpv.setPropertyString("vo", it) }
+                }
+                Log.w(TAG, "gpu-next probe failed: ${t.message}")
+                false
+            }
+        }.getOrDefault(false)
+
+    /**
+     * DV planını vo/hwdec seçeneklerine uygular.
+     *
+     * İlk kurulumdan önce yalnızca çözülen değerleri hazırlar (yazmayı
+     * [applyInitOptions] yapar); sonrasında plan değiştiyse anında yazar.
+     * Böylece DV içerikten normal içeriğe geçerken kullanıcının kendi vo/hwdec
+     * seçimlerine dönülür.
+     */
+    private fun syncDolbyVisionOptions(view: KitsugiMpvSurfaceView) {
+        val plan = currentDvPlan(view)
+        resolvedVoOption = plan.vo ?: settings.mpvGpuRenderer.ifBlank { "gpu" }
+        resolvedHwdecOption = plan.hwdec ?: settings.mpvHwdecMode.ifBlank { "auto-safe" }
+
+        Log.i(
+            TAG,
+            "DV_PLAN: ${plan.reason} vo=${plan.vo ?: "keep"} hwdec=${plan.hwdec ?: "keep"} " +
+                "gpuNext=${gpuNextSupported}"
+        )
+
+        if (!initOptionsApplied) return
+        if (plan.key == appliedDvPlanKey) return
+        appliedDvPlanKey = plan.key
+
+        val vo = resolvedVoOption ?: settings.mpvGpuRenderer.ifBlank { "gpu" }
+        runCatching { view.mpv.setPropertyString("vo", vo) }
+            .onFailure { Log.w(TAG, "DV vo uygulanamadı: ${it.message}") }
+        resolvedHwdecOption?.let { hwdec ->
+            runCatching { view.mpv.setPropertyString("hwdec", hwdec) }
+                .onFailure { Log.w(TAG, "DV hwdec uygulanamadı: ${it.message}") }
+        }
+
+        // DV var ama bu derlemede gpu-next yok → kullanıcıya tek seferlik bilgi.
+        if (plan.reason == "gpu-next-unavailable" && !dvWarningShownForLoad) {
+            dvWarningShownForLoad = true
+            runCatching {
+                view.mpv.command(
+                    "show-text",
+                    "Dolby Vision: bu oynatıcı derlemesinde gpu-next yok - renkler bozuk görünebilir.",
+                    "6000"
+                )
+            }
+        }
+    }
+
+    private fun String.safeHost(): String =
+        runCatching { android.net.Uri.parse(this).host ?: "unknown" }.getOrDefault("unknown")
+
     /**
      * Aniyomi'den uyarlama: Tüm MPV başlatma seçeneklerini ayarla.
      * GPU renderer, hwdec, debanding, demuxer cache, volume-max gibi gelişmiş ayarlar.
      */
     private fun applyInitOptions(view: KitsugiMpvSurfaceView) {
+        // DV planı vo/hwdec'i belirleyebilir; tek seferlik bloktan ÖNCE hesapla.
+        syncDolbyVisionOptions(view)
         // Isolate writes: an unavailable option in a libmpv build must not prevent
         // speed, decoder, cache and volume settings from being applied.
         fun option(name: String, value: String) {
@@ -862,8 +989,9 @@ class MpvPlayerEngine(
         // donma olarak görünüyordu. Motor ömrü boyunca bir kez uygulanır.
         if (initOptionsApplied) return
         initOptionsApplied = true
-        option("vo", settings.mpvGpuRenderer.ifBlank { "gpu" })
-        option("hwdec", settings.mpvHwdecMode.ifBlank { "auto-safe" })
+        option("vo", resolvedVoOption ?: settings.mpvGpuRenderer.ifBlank { "gpu" })
+        option("hwdec", resolvedHwdecOption ?: settings.mpvHwdecMode.ifBlank { "auto-safe" })
+        appliedDvPlanKey = currentDvPlan(view).key
         if (settings.mpvDemuxerCacheMb > 0) {
             option("demuxer-max-bytes", "${settings.mpvDemuxerCacheMb}MiB")
             option("demuxer-max-back-bytes", "${(settings.mpvDemuxerCacheMb / 4).coerceAtLeast(8)}MiB")

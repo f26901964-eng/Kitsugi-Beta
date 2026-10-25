@@ -1364,6 +1364,8 @@
     <string name="pd_mpv_deband_desc">Renk geçişlerindeki çizgileri yumuşatır</string>
     <string name="pd_mpv_yuv">YUV420P Renk Düzenini Zorla</string>
     <string name="pd_mpv_yuv_desc">Eski cihazlarda yeşil ekran/çökme sorunlarını giderir</string>
+    <string name="pd_mpv_dv_autofix">Dolby Vision Otomatik Renk Düzeltmesi</string>
+    <string name="pd_mpv_dv_autofix_desc">DV içerikte gpu-next çıkışını ve (Profil 5 için) yazılım çözmeyi otomatik uygular; yeşil/mor renk bozulmasını giderir</string>
     <string name="pd_mpv_demuxer">MPV Demuxer Önbelleği: %1$d MB</string>
     <string name="pd_sub_style">Altyazı Stili</string>
     <string name="pd_sub_font_size">Yazı Boyutu</string>

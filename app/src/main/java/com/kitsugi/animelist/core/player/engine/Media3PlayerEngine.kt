@@ -668,6 +668,13 @@ class Media3PlayerEngine(
     @Volatile private var dvPolicy: DolbyVisionBaseLayerPolicy.Result? = null
     /** Effective DV7 handling mode for the current playback. Derived from settings + policy. */
     @Volatile private var effectiveDv7Mode: Dv7HandlingMode = Dv7HandlingMode.AUTO
+    /**
+     * Gizli DV çözücü keşfi yalnızca dönüştürme aktifken devreye girer.
+     * Bazı Amlogic/MTK cihazlar `video/dolby-vision` çözücüsünü yalnızca
+     * profil 7 olarak bildirir; libdovi 8.1'e çevirdiğinde standart seçici
+     * çözücüyü reddeder ve HDR10'a düşer. Bkz. [DolbyVisionCodecFallback].
+     */
+    private val dv81CodecFallbackActive = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private fun initializePlayer() {
         runOnMainThread {
@@ -703,6 +710,19 @@ class Media3PlayerEngine(
                 }
                 setExtensionRendererMode(mode)
                 setEnableDecoderFallback(true)
+                // Profil-bağımsız DV çözücü yedeği: yalnızca dönüştürme aktifken ve
+                // standart seçici `video/dolby-vision` için boş döndüğünde devreye girer.
+                setMediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                    val standard = androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
+                        .getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+                    if (standard.isNotEmpty() || !dv81CodecFallbackActive.get() ||
+                        !mimeType.equals(MimeTypes.VIDEO_DOLBY_VISION, ignoreCase = true)
+                    ) {
+                        standard
+                    } else {
+                        DolbyVisionCodecFallback.findDvDecodersIgnoringProfile()
+                    }
+                }
             }
 
             val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
@@ -888,6 +908,18 @@ class Media3PlayerEngine(
             effectiveDv7Mode = rMode
             resolvedPolicy = rPolicy
 
+            // ── DV5 sinyal düzeltmesi (NuvioTV paritesi) ─────────────────────────
+            // Cihazın DV çözücüsü P5'i DEĞİL yalnızca P8.1'i çözebiliyorsa
+            // (dvhe.st var, dvhe.stn yok), profil 5 akışının codec dizesini 8.1'e
+            // çevirmek renkleri düzeltir: çözücü akışı kabul eder ve IPTPQc2→RGB
+            // dönüşümünü donanımda kendisi yapar. RPU'ya dokunulmaz.
+            val dv5SignalOnlyFix = rPolicy?.let { p ->
+                p.displayDv && p.codecSupportsDvheSt && !p.codecSupportsDvheStn
+            } ?: false
+            if (dv5SignalOnlyFix) {
+                Log.i(TAG, "DV5_SIGNAL_FIX: device decodes P8.1 but not P5 -> signal rewrite enabled")
+            }
+
             // Inform the vendored Matroska extractor whether HDR10 base-layer mode is active.
             val isHdr10BaseLayerMode = rMode == Dv7HandlingMode.HDR10_BASE_LAYER ||
                     rMode == Dv7HandlingMode.STRIP_DV
@@ -915,6 +947,8 @@ class Media3PlayerEngine(
 
             isConvertToDv81 = fm == Dv7HandlingMode.DV81_LIBDOVI && dv81Probe?.supported == true
             stripDvRpuEnabled = fm == Dv7HandlingMode.HDR10_BASE_LAYER || fm == Dv7HandlingMode.STRIP_DV
+            // Gizli DV çözücü keşfi yalnızca gerçek dönüştürme oturumunda açılır.
+            dv81CodecFallbackActive.set(isConvertToDv81)
 
             Log.i(TAG, "DV7_FINAL: mode=$fm convert=$isConvertToDv81 stripRpu=$stripDvRpuEnabled " +
                     "stripHdr10Plus=${settings.stripHdr10PlusSei} bridgeLoaded=${DoviBridge.isLibraryLoaded}")
@@ -933,7 +967,8 @@ class Media3PlayerEngine(
                             forcedMode = -1,
                             preserveMapping = false,
                             dv5Enabled = false,
-                            manualDv81 = fm == Dv7HandlingMode.DV81_LIBDOVI
+                            manualDv81 = fm == Dv7HandlingMode.DV81_LIBDOVI,
+                            dv5ToDv81SignalOnly = dv5SignalOnlyFix
                         ),
                         stripDvRpu = stripDvRpuEnabled,
                         stripHdr10PlusSei = settings.stripHdr10PlusSei
