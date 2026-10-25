@@ -12,10 +12,10 @@
 | # | Bulgu | Önem | Durum |
 |---|-------|------|-------|
 | 1 | **FATAL** `IllegalArgumentException: Key "tmdb_null" was already used` (15:07:32, 16:20:46) | Kritik | ✅ Düzeltildi |
-| 2 | Ana iş parçacığı mpv `sub-add` ile 2,5–5 sn kilitleniyor (5 olay, 2'si HANG) | Yüksek (ANR) | ✅ Düzeltildi |
+| 2 | Ana iş parçacığı mpv `sub-add` ile 2,5–5 sn kilitleniyor (4 olay / 6 kayıt: 4 uyarı + 2 HANG) | Yüksek (ANR) | ✅ Düzeltildi |
 | 3 | Altyazı gelince oynatıcının tamamen yeniden hazırlanması (her oynatmada çift `[OYNAT] Başladı`) | Orta | ✅ Düzeltildi (mpv) |
 | 4 | Aynı riski taşıyan ~45 Lazy liste/ızgara/Pager anahtarı | Yüksek (gizli çökme) | ✅ Korumaya alındı |
-| 5 | 5 "SESSİZ ÇÖKME" kaydının 4'ü yanlış alarm (2 güncelleme + 2 yinelenen kayıt) | Orta | ✅ Düzeltildi |
+| 5 | 6 "SESSİZ ÇÖKME" kaydının 4'ü yanlış alarm (2 güncelleme + 2 yinelenen kayıt); kalan 2'si (08:40, 16:02:59) gerçek arka plan kapatması | Orta | ✅ Düzeltildi |
 | 6 | "SEBEP BULUNAMADI" — sistem kapatmalarının nedeni görünmüyor | Orta | ✅ `ApplicationExitInfo` eklendi |
 | 7 | AniList HTTP 404 "permanent failure" (ERROR) — hangi sorgu olduğu belirsiz | Düşük | ✅ WARN + sorgu/kimlik günlüğü |
 | 8 | `PlayerLoadingDiag` çift/yanlış "Buffering started" + 429 oturumunda "0 event" | Düşük | ✅ Düzeltildi |
@@ -140,7 +140,8 @@ Ktor 3 (Supabase) `slf4j-api` getiriyor, sağlayıcı yoktu. `org.slf4j:slf4j-no
 
 ## 7. Doğrulama
 - Yerel derleme ortamı yok; doğrulama **GitHub Actions `🏗️ Android Derleme Doğrulama`** ile yapılır: `:app:assembleFossDebug :app:assembleFossRelease` (R8) + DEX bayt kodu doğrulaması + seçili birim testleri.
-- Yeni testler: `LazyKeyDedupTest`, `KitsugiReviewStableKeyTest`, `PreviousExitClassifierTest`, `MpvSubtitlePrefetcherTest`, `PlayerLoadingDiagnosticsBufferingTest` (CI filtresine eklendi).
+- Yeni testler: `LazyKeyDedupTest`, `KitsugiReviewStableKeyTest`, `PreviousExitClassifierTest`, `MpvSubtitlePrefetcherTest`, `PlayerLoadingDiagnosticsBufferingTest`. İlk ikisi CI test filtresine eklendi; diğer üçü mevcut `core.diagnostics.*`, `core.player.*` ve `core.player.engine.*` kalıplarıyla zaten çalışıyor.
+- **Sonuç (`3ab2cbf1`, run `40214266114`):** `BUILD SUCCESSFUL in 26m 59s` — testler ve iki APK aynı Gradle çağrısında; seçili testlerin tamamı geçti. DEX: debug 22 dex / 413.885 metot gövdesi / `VerifyError = 0`; release (R8) 5 dex / 257.371 metot gövdesi / `VerifyError = 0`. `🎌 Bangumi MASTER` (`40214266117`) ve `🧩 Ortak Taksonomi` (`40214266105`) de başarılı. Fiziksel cihaz testi yapılmadı.
 
 ---
 
