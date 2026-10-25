@@ -1338,6 +1338,8 @@
     <string name="pd_mpv_deband_desc">Smooths out lines in color gradients</string>
     <string name="pd_mpv_yuv">Force YUV420P Color Layout</string>
     <string name="pd_mpv_yuv_desc">Fixes green screen/crash issues on old devices</string>
+    <string name="pd_mpv_dv_autofix">Dolby Vision Automatic Color Fix</string>
+    <string name="pd_mpv_dv_autofix_desc">Automatically applies the gpu-next output and (for Profile 5) software decoding on DV content, fixing green/purple color casts</string>
     <string name="pd_mpv_demuxer">MPV Demuxer Cache: %1$d MB</string>
     <string name="pd_sub_style">Subtitle Style</string>
     <string name="pd_sub_font_size">Font Size</string>

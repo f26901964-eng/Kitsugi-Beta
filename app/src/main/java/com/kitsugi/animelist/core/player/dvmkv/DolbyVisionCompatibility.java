@@ -16,6 +16,7 @@
 package com.kitsugi.animelist.core.player.dvmkv;
 
 import androidx.annotation.Nullable;
+import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.util.UnstableApi;
@@ -83,6 +84,33 @@ public final class DolbyVisionCompatibility {
     }
     int profile = parseIntOrUnset(parts[1]);
     return profile == 7;
+  }
+
+  /** Codec dizesi Dolby Vision profil 5 mi? (P5'in HDR10 taban katmanı yoktur.) */
+  public static boolean isDolbyVisionProfile5(@Nullable String codecs) {
+    @Nullable String dvCodecs = extractDolbyVisionCodec(codecs);
+    if (dvCodecs == null) {
+      return false;
+    }
+    String[] parts = dvCodecs.split("\\.");
+    if (parts.length < 2) {
+      return false;
+    }
+    return parseIntOrUnset(parts[1]) == 5;
+  }
+
+  /**
+   * Matroska dosyasındaki Dolby Vision konfigürasyonu bayat mı?
+   *
+   * <p>Bazı remux'larda (özellikle araçla yeniden paketlenmiş SDR/HDR10 dosyalarda) {@code
+   * BlockAdditionMapping} hâlâ Dolby Vision bildirir; oysa izin renk metadatası SDR'dir. Bu
+   * durumda DV'yi "gerçek" saymak videoyu {@code video/dolby-vision} yoluna sokar: cihazda DV
+   * çözücü varsa renkler bozulur, yoksa hiç oynamaz. Konteyner metadatası SDR diyorsa DV
+   * konfigürasyonunu yok sayıyoruz.
+   */
+  public static boolean isStaleContainerDolbyVisionConfig(
+      boolean hasColorInfo, @C.ColorTransfer int colorTransfer) {
+    return hasColorInfo && colorTransfer == C.COLOR_TRANSFER_SDR;
   }
 
   @Nullable
