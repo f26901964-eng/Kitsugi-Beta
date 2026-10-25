@@ -11,6 +11,7 @@ import okhttp3.Request
 import com.kitsugi.animelist.data.remote.optNullableString
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.core.network.SimklRateLimitPolicy
 
 object SimklImportManager {
 
@@ -150,10 +151,16 @@ object SimklImportManager {
                             throw com.kitsugi.animelist.data.repository.SimklAuthException("Simkl yetkilendirme hatası: 401")
                         }
                         if (response.code == 429) {
-                            val retryHeader = response.header("Retry-After")?.toLongOrNull() ?: (2L * attempt)
-                            val waitMs = maxOf(retryHeader * 1000L, 2500L * attempt)
-                            android.util.Log.w("SimklImportManager", "Simkl fetchList [$type] 429 rate limit, waiting ${waitMs}ms and retrying (deneme $attempt/4)...")
-                            return@use Pair(waitMs, emptyList<MediaEntry>())
+                            // RetryInterceptor has already honored Retry-After and retried this call.
+                            // Do not multiply a persistent 429 into four more full-library requests.
+                            throw com.kitsugi.animelist.data.repository.SimklRateLimitException(
+                                "Simkl liste okuma hız sınırı [$type]: HTTP 429"
+                            )
+                        }
+                        if (response.code == 400 && SimklRateLimitPolicy.isRateLimitedResponse(response)) {
+                            throw com.kitsugi.animelist.data.repository.SimklRateLimitException(
+                                "Simkl liste okuma hız sınırı [$type]: rate_limit"
+                            )
                         }
                         if (!response.isSuccessful) {
                             android.util.Log.e("SimklImportManager", "Simkl fetchList [$type] failed: HTTP ${response.code}")
@@ -269,6 +276,8 @@ object SimklImportManager {
                 }
                 kotlinx.coroutines.delay(retryWaitMs)
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+                throw e
+            } catch (e: com.kitsugi.animelist.data.repository.SimklRateLimitException) {
                 throw e
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e

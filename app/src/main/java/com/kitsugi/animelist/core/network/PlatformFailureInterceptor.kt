@@ -29,10 +29,21 @@ class PlatformFailureInterceptor : Interceptor {
             accept.startsWith("audio/")
         if (response.code >= 400 && !mediaRequest) {
             runCatching {
+                val simklRateLimitMarker = if (
+                    request.url.host.equals("api.simkl.com", ignoreCase = true) && response.code == 400
+                ) {
+                    runCatching {
+                        response.peekBody(SimklRateLimitPolicy.MAX_ERROR_BODY_BYTES).string()
+                    }.getOrDefault("")
+                        .takeIf { SimklRateLimitPolicy.isRateLimitMessage(it) }
+                        ?.let { "rate_limit" }
+                } else null
+
                 PlatformFailureRegistry.reportHttp(
                     host = request.url.host,
                     httpCode = response.code,
                     path = request.url.encodedPath,
+                    diagnosticHint = simklRateLimitMarker,
                 )
             }
         }

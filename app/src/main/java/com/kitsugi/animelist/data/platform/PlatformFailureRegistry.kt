@@ -88,11 +88,22 @@ object PlatformFailureRegistry {
      * bozuk tek bir poster 404'ü, kaynağın tamamı çökmüş gibi görünmesine yol açıyordu
      * (bkz. [isMediaAssetRequest]).
      */
-    fun reportHttp(host: String?, httpCode: Int, path: String?): PlatformErrorCode? {
+    fun reportHttp(
+        host: String?,
+        httpCode: Int,
+        path: String?,
+        diagnosticHint: String? = null,
+    ): PlatformErrorCode? {
         if (isMediaAssetRequest(host, path)) return null
         val platform = ListPlatform.fromHost(host)
         if (platform == ListPlatform.GENERIC) return null
-        val raw = "HTTP $httpCode · ${host.orEmpty()}${path.orEmpty()}"
+        // Keep this an allow-listed marker rather than arbitrary response text. Simkl returns
+        // HTTP 400 for its sync write-lock limit, which cannot be identified from status alone.
+        val safeHint = diagnosticHint?.takeIf { it.equals("rate_limit", ignoreCase = true) }
+        val raw = buildString {
+            append("HTTP ").append(httpCode).append(" · ").append(host.orEmpty()).append(path.orEmpty())
+            safeHint?.let { append(" · ").append(it) }
+        }
         return record(platform, error = null, httpCode = httpCode, rawMessage = raw)
     }
 

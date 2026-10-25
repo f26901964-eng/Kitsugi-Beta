@@ -115,6 +115,9 @@ object KitsugiHttpClient {
             .retryOnConnectionFailure(true)
             .followRedirects(true)
             .followSslRedirects(true)
+            // PlatformFailureInterceptor wraps retries so a transient 429 that succeeds on retry
+            // is not surfaced as a failed source in the current screen.
+            .addInterceptor(PlatformFailureInterceptor())
             .addInterceptor(RetryInterceptor(maxRetries = 2))
             .addInterceptor(
                 Interceptor { chain ->
@@ -141,8 +144,8 @@ object KitsugiHttpClient {
                     chain.proceed(reqBuilder.build())
                 }
             )
-            // En içte: her deneme (RetryInterceptor dahil) için gerçek HTTP kodunu görür.
-            .addInterceptor(PlatformFailureInterceptor())
+            // This is inside RetryInterceptor, so every actual retry is paced as well.
+            .addInterceptor(SimklRateLimitInterceptor())
             .build()
     }
 }

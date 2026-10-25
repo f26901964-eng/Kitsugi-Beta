@@ -6503,8 +6503,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="pf_err_smk_8003_why">client_id eksik veya Simkl uygulamanız için onaylı değil; yetkilendirme isteği reddedildi.</string>
     <string name="pf_err_smk_8003_fix">Simkl uygulama ayarlarınızdan client_id değerini kontrol edin.</string>
     <string name="pf_err_smk_8004_title">Simkl hız sınırı</string>
-    <string name="pf_err_smk_8004_why">Simkl saniyede 1 istek kabul ediyor; daha hızlı gönderilen istekler 429 ile döner.</string>
-    <string name="pf_err_smk_8004_fix">Bekleyin, istekler otomatik olarak 1 sn aralıkla seyreltilir.</string>
+    <string name="pf_err_smk_8004_why">Simkl isteği HTTP 429 (hız sınırı) veya senkron yazım kilidi için HTTP 400 rate_limit döndürdü. Uygulamanın tüm ekranları aynı API kotasını paylaşır.</string>
+    <string name="pf_err_smk_8004_fix">İstekler uygulama genelinde sıraya alınır, Retry-After süresi uygulanır ve yazım kilidi için bir kez yeniden denenir. Uyarı sürerse biraz bekleyin; peş peşe yenilemeyin.</string>
     <string name="pf_err_smk_8005_title">Simkl takvimi boş döndü</string>
     <string name="pf_err_smk_8005_why">data.simkl.in takvim dosyası boş yanıt verdi; yayın eşleşmesi bu nedenle hesaplanamadı.</string>
     <string name="pf_err_smk_8005_fix">Kısa süre sonra tekrar deneyin.</string>

@@ -6501,8 +6501,8 @@
     <string name="pf_err_smk_8003_why">The client_id is missing or not approved for your Simkl application, so the authorisation request was rejected.</string>
     <string name="pf_err_smk_8003_fix">Check the client_id in your Simkl application settings.</string>
     <string name="pf_err_smk_8004_title">Simkl rate limit</string>
-    <string name="pf_err_smk_8004_why">Simkl accepts one request per second; faster bursts return 429.</string>
-    <string name="pf_err_smk_8004_fix">Wait — requests are automatically paced to 1 second apart.</string>
+    <string name="pf_err_smk_8004_why">Simkl rejected a request with HTTP 429 or a sync write lock with HTTP 400 rate_limit. All app screens share the same API quota.</string>
+    <string name="pf_err_smk_8004_fix">Requests are paced app-wide, Retry-After is honored, and a write-lock response is retried once. If the warning persists, wait before retrying and avoid repeated refreshes.</string>
     <string name="pf_err_smk_8005_title">Simkl calendar returned empty</string>
     <string name="pf_err_smk_8005_why">The data.simkl.in calendar file returned an empty body, so airing matches could not be computed.</string>
     <string name="pf_err_smk_8005_fix">Retry shortly.</string>

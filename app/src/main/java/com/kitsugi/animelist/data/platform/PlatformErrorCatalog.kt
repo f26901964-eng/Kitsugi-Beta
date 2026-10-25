@@ -142,9 +142,10 @@ object PlatformErrorCatalog {
         ListPlatform.SIMKL -> when {
             t.contains("pin") && (t.contains("expired") || t.contains("doldu") || t.contains("süresi")) ->
                 PlatformErrorCode.SMK_8001
-            t.contains("polling") || http == 401 -> PlatformErrorCode.SMK_8002
+            t.contains("polling") || http == 401 || t.contains("401") -> PlatformErrorCode.SMK_8002
             t.contains("client_id") || t.contains("client id") -> PlatformErrorCode.SMK_8003
-            http == 429 -> PlatformErrorCode.SMK_8004
+            t.contains("rate_limit") || t.contains("rate limit") || t.contains("too many requests") ||
+                http == 429 || t.contains("429") -> PlatformErrorCode.SMK_8004
             t.contains("calendar") || t.contains("takvim") -> PlatformErrorCode.SMK_8005
             else -> null
         }
