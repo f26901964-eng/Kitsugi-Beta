@@ -7837,6 +7837,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="account_backup_sync_section">Yedekleme ve eşitleme</string>
     <string name="account_toggle_backup_desc">Bağlı servis token\'larını uçtan uca şifreli buluta yedekle ve yeni cihazda geri yükle.</string>
     <string name="account_toggle_backup_title">Şifreli hesap yedeği</string>
+    <string name="account_toggle_addons_title">Yüklü eklentileri eşitleme</string>
+    <string name="account_toggle_addons_desc">Stremio eklentilerini, depoları ve CloudStream/Manga kurulum listesini şifreli eşitle. Eklenti dosyaları bulutta tutulmaz; geri yükleme bu cihazda ayrıca onaylanır.</string>
     <string name="account_toggle_notif_desc">Kaynak servislerde tutulmayan bildirim arşivini hesabına yedekle.</string>
     <string name="account_toggle_notif_title">Bildirim arşivi eşitleme</string>
     <string name="account_toggle_search_desc">Arama geçmişini cihazlar arasında birleştir.</string>

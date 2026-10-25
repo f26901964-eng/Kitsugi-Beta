@@ -197,6 +197,7 @@ class SettingsDataStore(
         val LastUsedTab = stringPreferencesKey("last_used_tab")
         val AppLanguage = stringPreferencesKey("app_language")
         val AccountBackupEnabled = booleanPreferencesKey("account_backup_enabled")
+        val AccountAddonSyncEnabled = booleanPreferencesKey("account_addon_sync_enabled")
         val AccountSearchSyncEnabled = booleanPreferencesKey("account_search_sync_enabled")
         val AccountNotificationSyncEnabled = booleanPreferencesKey("account_notification_sync_enabled")
         val FixedNavBar = booleanPreferencesKey("fixed_nav_bar")
@@ -471,6 +472,7 @@ class SettingsDataStore(
                     hideScores = preferences[Keys.HideScores] ?: false,
                     showAnimeLogos = preferences[Keys.ShowAnimeLogos] ?: false,
                     accountBackupEnabled = preferences[Keys.AccountBackupEnabled] ?: true,
+                    accountAddonSyncEnabled = preferences[Keys.AccountAddonSyncEnabled] ?: true,
                     accountSearchSyncEnabled = preferences[Keys.AccountSearchSyncEnabled] ?: true,
                     accountNotificationSyncEnabled = preferences[Keys.AccountNotificationSyncEnabled] ?: true,
                     syncEnabledAnilist = preferences[Keys.SyncEnabledAnilist] ?: true,
@@ -1422,6 +1424,12 @@ class SettingsDataStore(
     suspend fun setAccountBackupEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.AccountBackupEnabled] = enabled
+        }
+    }
+
+    suspend fun setAccountAddonSyncEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AccountAddonSyncEnabled] = enabled
         }
     }
 

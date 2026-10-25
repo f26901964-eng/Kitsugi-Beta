@@ -49,6 +49,7 @@ data class ProfileAndListSettings(
     val hideScores: Boolean = false,
     val showAnimeLogos: Boolean = false,
     val accountBackupEnabled: Boolean = true,
+    val accountAddonSyncEnabled: Boolean = true,
     val accountSearchSyncEnabled: Boolean = true,
     val accountNotificationSyncEnabled: Boolean = true,
     val syncEnabledAnilist: Boolean = false,
@@ -415,6 +416,7 @@ data class AppSettings(
     val lastUsedTab: String get() = themeUi.lastUsedTab
     val appLanguage: String get() = themeUi.appLanguage
     val accountBackupEnabled: Boolean get() = profile.accountBackupEnabled
+    val accountAddonSyncEnabled: Boolean get() = profile.accountAddonSyncEnabled
     val accountSearchSyncEnabled: Boolean get() = profile.accountSearchSyncEnabled
     val accountNotificationSyncEnabled: Boolean get() = profile.accountNotificationSyncEnabled
     val fixedNavBar: Boolean get() = themeUi.fixedNavBar

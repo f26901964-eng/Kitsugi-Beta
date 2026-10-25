@@ -7832,6 +7832,8 @@
     <string name="account_backup_sync_section">Backup &amp; sync</string>
     <string name="account_toggle_backup_desc">Back up linked-service tokens to the cloud end-to-end encrypted and restore them on a new device.</string>
     <string name="account_toggle_backup_title">Encrypted account backup</string>
+    <string name="account_toggle_addons_title">Installed add-on sync</string>
+    <string name="account_toggle_addons_desc">Sync Stremio add-ons, repositories, and CloudStream/Manga install lists encrypted. Add-on files are not stored in the cloud; restoring them requires confirmation on this device.</string>
     <string name="account_toggle_notif_desc">Back up the notification archive that source services do not store.</string>
     <string name="account_toggle_notif_title">Notification archive sync</string>
     <string name="account_toggle_search_desc">Merge search history across devices.</string>
