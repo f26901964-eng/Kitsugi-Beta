@@ -7,7 +7,8 @@ import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import com.kitsugi.animelist.data.remote.stableKey
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -173,7 +174,7 @@ fun ReviewsTabContent(
     // Korunan alt detay sayfalarının nesnelerini listelerden geri bul.
     val activeReviewForDetail: KitsugiReview? = remember(activeReviewDetailKey, reviewsList) {
         if (activeReviewDetailKey.isEmpty()) null
-        else reviewsList.find { "${it.source}_${it.id ?: it.username.hashCode()}" == activeReviewDetailKey }
+        else reviewsList.find { it.stableKey() == activeReviewDetailKey }
     }
     val activeTopicForDetail: KitsugiForumTopic? = remember(activeTopicDetailKey, forumTopics) {
         if (activeTopicDetailKey.isEmpty()) null
@@ -234,7 +235,8 @@ fun ReviewsTabContent(
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(
+                    // API sayfaları çakışırsa aynı konu iki kez gelebilir → çökmeyen anahtar.
+                    uniqueItems(
                         items = forumTopics,
                         key = { topic -> "${topic.source}_${topic.id}" }
                     ) { topic ->
@@ -319,7 +321,7 @@ fun ReviewsTabContent(
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(
+                    uniqueItems(
                         items = activitiesList,
                         key = { activity -> "act_${activity.id}" }
                     ) { activity ->
@@ -432,9 +434,11 @@ fun ReviewsTabContent(
                             contentPadding = PaddingValues(horizontal = 14.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(
+                            // v2.4.369 ÇÖKMESİ: TMDB / MAL(Jikan) / Bangumi incelemelerinde id=null →
+                            // her kart "tmdb_null" anahtarını alıp LazyRow'u çökertiyordu.
+                            uniqueItems(
                                 items = reviewsList,
-                                key = { rev -> "${rev.source}_${rev.id}" }
+                                key = { rev -> rev.stableKey() }
                             ) { rev ->
                                 KitsugiReviewCard(
                                     rev = rev,
@@ -442,7 +446,7 @@ fun ReviewsTabContent(
                                     preferredTranslator = preferredTranslator,
                                     backgroundColor = KitsugiColors.SurfaceSoft,
                                     onUserProfileClick = handleUserProfileClick,
-                                    onClick = { activeReviewDetailKey = "${rev.source}_${rev.id ?: rev.username.hashCode()}" },
+                                    onClick = { activeReviewDetailKey = rev.stableKey() },
                                     onHelpfulClick = {
                                         if (rev.id == null || rev.source != "anilist") {
                                             Toast.makeText(context, KitsugiStrings.get(R.string.begeni_sadece_anilist_incelemelerinde_desteklenir), Toast.LENGTH_SHORT).show()

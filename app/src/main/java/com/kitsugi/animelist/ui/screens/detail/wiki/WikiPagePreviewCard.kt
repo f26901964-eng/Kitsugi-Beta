@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
 import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -291,9 +292,12 @@ internal fun <T> WikiPreviewStripRow(
         contentPadding = PaddingValues(0.dp),
         modifier = modifier.fillMaxWidth()
     ) {
-        items(
-            items = items,
-            key = key
-        ) { item -> itemContent(item) }
+        if (key == null) {
+            items(items = items) { item -> itemContent(item) }
+        } else {
+            // Fandom sayfaları aynı başlıklı bölüm/bağlantıyı birden çok kez içerebiliyor
+            // (ör. iki "Trivia" veya aynı karaktere iki bağlantı) → çökmeyen anahtar.
+            uniqueItems(items = items, key = key) { item -> itemContent(item) }
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.search
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.utils.uniqueItems
 
 import androidx.compose.foundation.BorderStroke
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -174,7 +175,7 @@ fun GenresTagsSheet(
                             )
                         }
                         // Lazy rows rather than one 1,400-chip FlowRow: only visible chips compose.
-                        items(filteredGenres.chunked(3), key = { "genre_${it.first().key}" }) { row ->
+                        uniqueItems(filteredGenres.chunked(3), key = { "genre_${it.first().key}" }) { row ->
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 row.forEach { genre ->
@@ -206,7 +207,7 @@ fun GenresTagsSheet(
                                 color = KitsugiColors.TextSecondary, fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold)
                         }
-                        items(filteredTags.chunked(3), key = { "tag_${it.first().key}" }) { row ->
+                        uniqueItems(filteredTags.chunked(3), key = { "tag_${it.first().key}" }) { row ->
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 row.forEach { tag ->

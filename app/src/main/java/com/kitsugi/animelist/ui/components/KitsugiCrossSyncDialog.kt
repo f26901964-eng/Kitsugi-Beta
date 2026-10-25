@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
 import android.content.ClipData
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import android.content.Intent
 import android.content.res.Configuration
 import android.widget.Toast
@@ -889,7 +890,7 @@ private fun LogList(
                     .padding(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(visibleLogs, key = { it.id }) { log ->
+                uniqueItems(visibleLogs, key = { it.id }) { log ->
                     LogItemRow(log = log)
                 }
             }

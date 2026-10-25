@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import androidx.activity.compose.BackHandler
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -266,7 +268,7 @@ fun TvMangaBrowseScreen(
                                 onClick = { vm.selectSourceFilter(null) }
                             )
                         }
-                        items(states, key = { it.source.name }) { st ->
+                        uniqueItems(states, key = { it.source.name }) { st ->
                             TvMangaSourceChip(
                                 label      = st.source.name,
                                 count      = st.mangas.size,
@@ -352,7 +354,7 @@ fun TvMangaBrowseScreen(
                             verticalArrangement   = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            itemsIndexed(visibleMangas, key = { _, m -> "${m.source}_${m.url}" }) { _, manga ->
+                            uniqueItemsIndexed(visibleMangas, key = { _, m -> "${m.source}_${m.url}" }) { _, manga ->
                                 TvMangaCard(
                                     manga = manga,
                                     onClick = {

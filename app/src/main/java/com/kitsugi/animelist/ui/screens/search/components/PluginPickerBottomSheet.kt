@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search.components
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.util.Log
@@ -392,7 +393,7 @@ fun PluginPickerBottomSheet(
                                 )
                             }
 
-                            items(filteredApis, key = { "${java.io.File(it.sourcePlugin ?: "").nameWithoutExtension}_${it.name}" }) { api ->
+                            uniqueItems(filteredApis, key = { "${java.io.File(it.sourcePlugin ?: "").nameWithoutExtension}_${it.name}" }) { api ->
                                 PluginListItem(
                                     api = api,
                                     accentColor = accentColor,

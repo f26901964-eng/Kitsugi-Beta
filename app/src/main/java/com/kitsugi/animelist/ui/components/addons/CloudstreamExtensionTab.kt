@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.components.addons
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.R
@@ -384,7 +385,7 @@ internal fun CloudstreamExtensionsTab(
                     AddonEmptyCard(text = stringResource(R.string.henuz_eklenti_deposu_eklenmemis_yukaridaki_alandan_bir_depo_adre))
                 }
             } else {
-                items(repos, key = { it.repoUrl }) { repo ->
+                uniqueItems(repos, key = { it.repoUrl }) { repo ->
                     val plugins = repoPlugins[repo.repoUrl]
                     val hasAttemptedFetch = repoPlugins.containsKey(repo.repoUrl)
                     val isLoading = repoLoadingState[repo.repoUrl] == true
@@ -556,7 +557,8 @@ internal fun CloudstreamExtensionsTab(
                         }
                     }
                 }
-                items(csPlugins, key = { it.id }) { plugin ->
+                // Aynı eklenti iki farklı depoda yayımlanıyorsa kimlik çakışabilir.
+                uniqueItems(csPlugins, key = { it.id }) { plugin ->
                     val reinstallState = reinstallStates[plugin.id] ?: PluginInstallState.IDLE
                     // Önce CANLI depo kaydı tercih edilir; yedek kaynaktan (ayna/gömülü liste)
                     // gelen kayıt ancak canlı kayıt yoksa gösterilir.

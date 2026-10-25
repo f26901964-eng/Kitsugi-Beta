@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search.components
 
 import android.util.Log
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -254,7 +255,7 @@ fun AddonSearchDialog(
                         } else {
                             if (hasSearched && visibleResults.isNotEmpty()) {
                                 // Her eklenti grubu — MultiSearchSection tarzı yatay raflar, aynı kartlar
-                                items(
+                                uniqueItems(
                                     items = groupedResults.keys.toList(),
                                     key = { "grp_${java.io.File(it.sourcePlugin ?: "").nameWithoutExtension}_${it.name}" }
                                 ) { api ->
@@ -311,7 +312,7 @@ fun AddonSearchDialog(
                                                 contentPadding = PaddingValues(horizontal = 4.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                                             ) {
-                                                items(
+                                                uniqueItems(
                                                     items = itemsForApi,
                                                     key = { (_, response) -> "${api.name}_${response.url}" }
                                                 ) { (_, response) ->
@@ -370,7 +371,7 @@ fun AddonSearchDialog(
                                     }
                                 } else {
                                     // Yüklü eklenti kartları — aynı neon glow + 16dp radius + Surface
-                                    items(
+                                    uniqueItems(
                                         items = activeApis,
                                         key = { "api_${java.io.File(it.sourcePlugin ?: "").nameWithoutExtension}_${it.name}" }
                                     ) { api ->

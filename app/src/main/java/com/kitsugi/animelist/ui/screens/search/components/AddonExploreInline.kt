@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search.components
 
 import android.util.Log
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -269,7 +270,8 @@ fun LazyListScope.addonExploreInlineSections(
     }
 
     // ── Kategori rafları — Keşfet'teki KitsugiHorizontalMediaSection ile birebir aynı
-    items(state.homeLists, key = { "inline_cat_${api.name}_${it.name}" }) { homeList ->
+    // Eklentiler aynı adlı birden çok raf döndürebiliyor (ör. iki "Filmler" rafı).
+    uniqueItems(state.homeLists, key = { "inline_cat_${api.name}_${it.name}" }) { homeList ->
         val shelfShowAdult = com.kitsugi.animelist.ui.theme.LocalShowAdultContent.current
         val visibleList = homeList.list.filter { shelfShowAdult || !isAddonAdultResponse(it) }
         if (visibleList.isNotEmpty()) {

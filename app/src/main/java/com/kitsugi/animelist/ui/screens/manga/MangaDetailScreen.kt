@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.utils.uniqueItems
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -215,7 +216,8 @@ fun MangaDetailScreen(
                     }
                 }
 
-                else -> items(
+                // Bazı kaynaklar aynı bölüm URL'sini (farklı çeviri grupları) tekrar listeler.
+                else -> uniqueItems(
                     items = uiState.chapters,
                     key = { it.chapter.url }
                 ) { row ->

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils
 import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -461,7 +462,7 @@ fun KitsugiActivityDetailBottomSheet(
                             }
                         }
                     } else {
-                        items(act.replies, key = { reply -> reply.id }) { reply ->
+                        uniqueItems(act.replies, key = { reply -> reply.id }) { reply ->
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
