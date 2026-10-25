@@ -1,13 +1,14 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
 import com.kitsugi.animelist.data.auth.BangumiApiClient
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Bangumi infobox'ından gelen **serbest metin** kurum adlarını kurumun kendi küresel adına
@@ -39,8 +40,13 @@ internal object BangumiOrgResolver {
     /** Bangumi 人物 kayıt türü: 1 = 个人 (kişi), 2 = 公司 (şirket), 3 = 组合 (grup). */
     private const val TYPE_COMPANY = 2
 
-    /** Detay sayfası bu adıma takılmasın diye toplam süre tavanı. */
-    private const val TIMEOUT_MS = 2_500L
+    /**
+     * Detay sayfası bu adıma takılmasın diye toplam süre tavanı.
+     *
+     * Yalnızca **CJK** kurum adları çözülür; zaten Latin olan adlar için istek atılmaz.
+     * Ekranı açan çağrı bu adımı beklediği için tavan 2,5 sn'den 1,2 sn'ye indirildi.
+     */
+    private const val TIMEOUT_MS = 1_200L
 
     /** Kurum başına istek tavanı (çözüm bulunamazsa tekrar denenmez). */
     private const val SEARCH_LIMIT = 5
@@ -49,7 +55,8 @@ internal object BangumiOrgResolver {
      * Normalleştirilmiş kurum adı → çözülen küresel ad.
      * Boş metin "çözülemedi" anlamındadır (negatif önbellek).
      */
-    private val cache = ConcurrentHashMap<String, String>()
+    // Includes negative lookups; cap the process-lifetime cache so browsing new titles cannot grow it forever.
+    private val cache = BoundedCache<String, String>("bangumi.orgResolver", 1_000)
 
     /**
      * Bir detayın tüm kurum adlarını çözer. Kurum listeleri eşzamanlı çözülür; toplam süre
@@ -59,7 +66,7 @@ internal object BangumiOrgResolver {
         coroutineScope {
             val targets = (detail.studios + detail.producers + detail.networks + detail.serializations)
                 .map { it.name }
-                .filter { it.isNotBlank() }
+                .filter { it.isNotBlank() && PreferenceHelpers.hasCjkCharacters(it) }
                 .distinct()
             val pending = targets.filter { cache[cacheKey(it)] == null }
             if (pending.isEmpty()) return@coroutineScope applyCache(detail)

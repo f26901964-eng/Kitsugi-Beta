@@ -1,22 +1,16 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.*
 import org.json.JSONArray
 import org.json.JSONObject
-import com.kitsugi.animelist.utils.*
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * AniList GraphQL API'sinden anime/manga detay bilgisini çeker ve parse eder.
  */
 internal object KitsugiAniListDetailClient {
 
-    /**
-     * AniList'in **taksonomi** yanıtı: etiketler + türler + stüdyolar + yayın bilgisi.
-     *
-     * Türler ve stüdyolar, diğer kaynaklardan açılan sayfalarda da birleştirilebilsin diye
-     * aynı hafif sorguda istenir (ek istek maliyeti yok).
-     */
     data class AniListTagsAndAiring(
         val aniListId: Int?,
         val malId: Int?,
@@ -26,7 +20,8 @@ internal object KitsugiAniListDetailClient {
         val studios: List<KitsugiStudio> = emptyList()
     )
 
-    private val tagsAndAiringCache = ConcurrentHashMap<String, AniListTagsAndAiring>()
+    // Long-lived detail browsing can touch thousands of media IDs; keep the alias cache bounded.
+    private val tagsAndAiringCache = BoundedCache<String, AniListTagsAndAiring>("anilist.tagsAndAiring", 1_200)
 
     private fun parseAniListTags(arr: JSONArray?): List<KitsugiTag> {
         if (arr == null || arr.length() == 0) return emptyList()
