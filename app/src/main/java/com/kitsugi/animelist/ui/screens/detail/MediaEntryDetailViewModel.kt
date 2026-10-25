@@ -39,6 +39,7 @@ import com.kitsugi.animelist.data.manga.MangaSourceRepository
 import com.kitsugi.animelist.data.remote.MdbListClient
 import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
+import com.kitsugi.animelist.data.remote.resolveMdbListMediaIds
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.remote.KitsugiMediaVideoAggregator
 import com.kitsugi.animelist.data.remote.KitsugiTheme
@@ -494,6 +495,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _logoUrl.value = null
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
+        _mdbListRatings.value = null
+        _mdbListLoading.value = false
         _galleryItems.value = emptyList()
         galleryTracker.reset()
 
@@ -592,14 +595,6 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         }
 
-        // MDBList puanları — bağımsız, gecikme kabul edilebilir
-        viewModelScope.launch {
-            try {
-                fetchMdbListRatingsForEntry(entry)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
-            }
-        }
 
         // Logo — bağımsız, en düşük öncelikli
         viewModelScope.launch {
@@ -715,6 +710,16 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             PlatformFailureRegistry.latest(entry.source)?.code ?: PlatformErrorCode.COM_1020
         } else {
             null
+        }
+
+        // MDBList, birincil detaydaki IMDb/TMDB/MAL kimlikleri hazır olduktan sonra başlar.
+        // Böylece detay çağrısıyla yarışıp kimlik yok sanılarak sessizce kapanmaz.
+        viewModelScope.launch {
+            try {
+                fetchMdbListRatingsForEntry(entry)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
+            }
         }
         val expectedFetchKey = currentFetchKey
 
@@ -1762,48 +1767,54 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         _mdbListLoading.value = true
         try {
-            val stableId = entry.malId ?: 0
-            val isAniList = entry.source.equals("anilist", ignoreCase = true)
+            val detail = _detailState.value
+            val baseIds = resolveMdbListMediaIds(
+                source = entry.source,
+                storedId = entry.malId,
+                resolvedMalId = detail?.realMalId ?: entry.malId?.takeIf { it in 1..99_999_999 },
+                resolvedTmdbId = detail?.tmdbId ?: entry.tmdbId ?: _resolvedTmdbId.value
+            )
 
-            val malId: Int? = when {
-                isAniList && stableId >= 100_000_000 -> null // no real MAL ID from stableId
-                isAniList -> stableId
-                // Bangumi stableId'si MAL ID değildir → detaydan/çapraz çözümden gelen gerçek MAL ID.
-                entry.source.equals("bangumi", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
-                else -> entry.malId
+            val ids = if (baseIds.malId == null) {
+                baseIds.copy(
+                    malId = when {
+                        entry.source.equals("bangumi", ignoreCase = true) ->
+                            KitsugiBangumiDetailClient.resolveCrossIds(entry.malId ?: 0, entry.type).malId
+                        entry.source.equals("shikimori", ignoreCase = true) ->
+                            KitsugiIdResolver.resolveMalIdFromShikimori(baseIds.shikimoriId)
+                        else -> null
+                    }
+                )
+            } else {
+                baseIds
             }
-            val aniListId: Int? = if (isAniList && stableId >= 100_000_000) stableId - 100_000_000 else null
-            val tmdbId: Int? = entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value
 
             // Try to resolve IMDb ID from detail links first
-            var imdbId: String? = _detailState.value?.externalLinks
+            var imdbId: String? = detail?.externalLinks
                 ?.firstOrNull { it.url.contains("imdb.com") }
                 ?.url?.substringAfter("/title/")?.substringBefore("/")
+            var lookupTmdbId = ids.tmdbId
 
-            if (imdbId.isNullOrBlank()) {
+            if (imdbId.isNullOrBlank() && ids.hasLookupIdentity) {
                 val resolved = withContext(Dispatchers.IO) {
                     KitsugiIdResolver.resolveIds(
-                        malId = malId,
-                        aniListId = aniListId,
-                        tmdbId = tmdbId,
-                        mediaType = entry.type
+                        malId = ids.malId,
+                        aniListId = ids.aniListId,
+                        tmdbId = ids.tmdbId,
+                        mediaType = entry.type,
+                        kitsuId = ids.kitsuId,
+                        bangumiId = ids.bangumiId
                     )
                 }
                 imdbId = resolved.imdbId
+                lookupTmdbId = lookupTmdbId ?: resolved.tmdbId
             }
 
-            if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
-                // MDBList'te anime hem film hem dizi olabilir; "any" ile iki türde de aranır.
-                val mediaType = when (entry.type) {
-                    MediaType.Movie -> "movie"
-                    else -> "any"
-                }
+            if (!imdbId.isNullOrBlank() || (lookupTmdbId != null && lookupTmdbId > 0)) {
                 val ratings = withContext(Dispatchers.IO) {
                     MdbListClient.fetchRatings(
                         imdbId = imdbId,
-                        tmdbId = tmdbId,
-                        mediaType = mediaType,
+                        tmdbId = lookupTmdbId,
                         apiKey = settings.mdbListApiKey
                     )
                 }
@@ -1813,6 +1824,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         } catch (e: Exception) {
             Log.e(TAG, "MDBList entry rating fetch failed", e)
+            _mdbListRatings.value = null
         } finally {
             _mdbListLoading.value = false
         }

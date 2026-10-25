@@ -12,6 +12,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.MdbListClient
 import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import com.kitsugi.animelist.data.remote.MdbListRatings
+import com.kitsugi.animelist.data.remote.resolveMdbListMediaIds
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
@@ -483,6 +484,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _logoUrl.value = null
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
+        _mdbListRatings.value = null
+        _mdbListLoading.value = false
         _galleryItems.value = emptyList()
         _heroArtwork.value = null
         heroArtworkKey = null
@@ -573,14 +576,6 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         }
 
-        // MDBList puanları — bağımsız, gecikme kabul edilebilir
-        viewModelScope.launch {
-            try {
-                fetchMdbListRatings(result)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
-            }
-        }
 
         // Logo — bağımsız, en düşük öncelikli
         viewModelScope.launch {
@@ -736,6 +731,16 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 ?: com.kitsugi.animelist.data.platform.PlatformErrorCode.COM_1020
         } else {
             null
+        }
+
+        // MDBList, birincil detaydaki IMDb/TMDB/MAL kimlikleri hazır olduktan sonra başlar.
+        // Böylece detay çağrısıyla yarışıp kimlik yok sanılarak sessizce kapanmaz.
+        viewModelScope.launch {
+            try {
+                fetchMdbListRatings(result)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching mdbList ratings: ${e.message}", e)
+            }
         }
         val expectedFetchKey = currentFetchKey
         val autoTranslate = settings?.autoTranslateEnabled ?: false
@@ -1422,54 +1427,50 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _mdbListLoading.value = true
 
         try {
-            val malId = result.malId
-            val aniListId = if (result.source.equals("anilist", ignoreCase = true) && malId >= 100_000_000) {
-                // Saf AniList ID (100M+ offset)
-                malId - 100_000_000
-            } else {
-                null
-            }
-            // stableId < 100M → AniList kaynaklı olsa bile MAL ID ile dönmüş
-            val realMalId = when {
-                aniListId != null -> null
-                result.source.equals("anilist", ignoreCase = true) -> null
-                // Bangumi stableId'si MAL ID değildir → çözülen çapraz kimlik kullanılır.
-                result.source.equals("bangumi", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
-                        ?: KitsugiBangumiDetailClient.resolveCrossIds(malId, result.type).malId
-                // Shikimori ID'si MAL ID değildir → gerçek MAL ID'si çözülür.
-                result.source.equals("shikimori", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it > 0 }
-                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(malId)
-                else -> malId
-            }
-
             val detail = _detailState.value
-            val tmdbId = detail?.tmdbId ?: result.tmdbId
+            val baseIds = resolveMdbListMediaIds(
+                source = result.source,
+                storedId = result.malId,
+                resolvedMalId = detail?.realMalId ?: result.realMalId,
+                resolvedTmdbId = detail?.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value
+            )
+
+            val ids = if (baseIds.malId == null) {
+                baseIds.copy(
+                    malId = when {
+                        result.source.equals("bangumi", ignoreCase = true) ->
+                            KitsugiBangumiDetailClient.resolveCrossIds(result.malId, result.type).malId
+                        result.source.equals("shikimori", ignoreCase = true) ->
+                            KitsugiIdResolver.resolveMalIdFromShikimori(baseIds.shikimoriId)
+                        else -> null
+                    }
+                )
+            } else {
+                baseIds
+            }
 
             var imdbId: String? = detail?.externalLinks?.firstOrNull { it.url.contains("imdb.com") }
                 ?.url?.substringAfter("/title/")?.substringBefore("/")
+            var lookupTmdbId = ids.tmdbId
 
-            if (imdbId.isNullOrBlank()) {
+            if (imdbId.isNullOrBlank() && ids.hasLookupIdentity) {
                 val resolved = KitsugiIdResolver.resolveIds(
-                    malId = realMalId,
-                    aniListId = aniListId,
-                    tmdbId = tmdbId,
-                    mediaType = result.type
+                    malId = ids.malId,
+                    aniListId = ids.aniListId,
+                    tmdbId = ids.tmdbId,
+                    mediaType = result.type,
+                    kitsuId = ids.kitsuId,
+                    bangumiId = ids.bangumiId
                 )
                 imdbId = resolved.imdbId
+                // ARM/TMDB can resolve a TMDB ID even when no IMDb mapping exists.
+                lookupTmdbId = lookupTmdbId ?: resolved.tmdbId
             }
 
-            if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
-                // MDBList'te anime hem film hem dizi olabilir; "any" ile iki türde de aranır.
-                val mediaType = when (result.type) {
-                    MediaType.Movie -> "movie"
-                    else -> "any"
-                }
+            if (!imdbId.isNullOrBlank() || (lookupTmdbId != null && lookupTmdbId > 0)) {
                 val ratings = MdbListClient.fetchRatings(
                     imdbId = imdbId,
-                    tmdbId = tmdbId,
-                    mediaType = mediaType,
+                    tmdbId = lookupTmdbId,
                     apiKey = settings.mdbListApiKey
                 )
                 _mdbListRatings.value = ratings
