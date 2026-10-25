@@ -65,6 +65,30 @@ hangi kaynaktan izlenirse izlensin aynı kimlik, aynı eklenti havuzu ve aynı a
 | Oynatıcı kimliğinde `mediaType = null` | Film/dizi ayrımı başlıktan tahmin ediliyordu | Film ise `MediaType.Movie` |
 | Tohum satırı adı | Geçmiş/katalog eklenti **ID'si** gönderirse satır adı eşleşmiyor, aynı eklenti iki kez listelenebiliyordu | Satır adı her zaman eklentinin görünen adı (`seedLabel`) |
 
+### 2.6 "Tek yol" garantisi — akış toplamanın birleştirilmesi
+
+Eskiden **iki ayrı** akış toplama kodu vardı ve ikisi farklı davranıyordu:
+
+| Yol | Nerede | Eksikleri |
+|---|---|---|
+| A (eski) | `StreamViewModel.fetchStreams` | referans davranış (tam) |
+| B (eski) | `KitsugiPlayerViewModel.fetchStreamsForEpisode` (sonraki bölüm / bölüm değiştirme) | tip filtresi ✗, blok kontrolü ✗, `preResolvedIds` ✗, cs3 modunda **erken çıkış** ✗, tekrar ayıklama ✗ |
+
+Artık **tek** yol var: `data/cloudstream/CsStreamFanout.kt`
+
+```
+StreamViewModel ─┐
+                 ├─→ CsStreamFanout.queryPlugin/resolveAll ─→ CsStreamRunner.getStreams
+PlayerVM (bölüm) ┘        (tip filtresi · blok · ID ön çözümü · tohum · dedupe)
+```
+
+Stremio tarafı da tek: `/subtitles` yalnızca `SubtitleRepositoryImpl` (SubtitleHub üzerinden),
+`/stream` yalnızca `buildStremioStreamTasks` + `AddonStreamClient` + `EpisodeStreamFilter`.
+
+Ek düzeltmeler:
+- Çevrimdışı oynatım (`DownloadsScreen`) artık kimlik (MAL/AniList/TMDB + sezon/bölüm) taşıyor.
+- `PlayerGeneratorViewModel` ölü kod olarak işaretlendi; ileride bağlanırsa `CsStreamFanout` kullanmalı.
+
 ---
 
 ## 3. Mimari

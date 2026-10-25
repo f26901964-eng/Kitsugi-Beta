@@ -14,6 +14,14 @@ import kotlinx.coroutines.async
  * FP-29 – PlayerGeneratorViewModel
  * Stream linklerini önbelleğe alır, sonraki bölümleri preload eder
  * ve eklenti bazlı oynatma listesini yönetir.
+ *
+ * ⚠️ DURUM (2026-10-25): Bu sınıf şu an **hiçbir ekrandan çağrılmıyor** (ölü kod).
+ * Gerçek akış toplama iki yerden yürüyor ve ikisi de ortak politikayı kullanıyor:
+ *   • `StreamViewModel` → `CsStreamFanout.queryPlugin`
+ *   • `KitsugiPlayerViewModel.fetchStreamsForEpisode` → `CsStreamFanout.resolveAll`
+ * Bu sınıf ileride bağlanacaksa kendi toplama mantığını YAZMAMALI; `CsStreamFanout`
+ * kullanmalıdır (aksi halde üçüncü bir politika kopyası doğar ve kaynak eşitsizliği
+ * geri gelir).
  */
 class PlayerGeneratorViewModel(application: Application) : AndroidViewModel(application), LinkGenerator {
     private val context = application.applicationContext

@@ -14,11 +14,13 @@ import com.kitsugi.animelist.core.subtitle.SubtitleHub
 import com.kitsugi.animelist.core.player.SubtitleInput
 import com.kitsugi.animelist.core.player.PlaybackState
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
+import com.kitsugi.animelist.data.cloudstream.CsStreamFanout
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.HistoryRepository
 import com.kitsugi.animelist.data.remote.KitsugiMediaTabsClient
 import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
+import com.kitsugi.animelist.data.remote.ResolvedIds
 import com.kitsugi.animelist.data.repository.AddonStreamRepository
 import com.kitsugi.animelist.data.repository.StreamSorter
 import com.kitsugi.animelist.data.repository.StreamSource
@@ -1066,103 +1068,128 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Bir bölümün TÜM kaynaklarını toplar — akış ekranıyla aynı politika.
+     *
+     * 2026-10-25 (ortak omurga): Bu fonksiyon eskiden kendi ayrı toplama mantığını
+     * kullanıyordu: içerik tipi filtresi yok, bloklu eklenti kontrolü yok, ID'ler
+     * önceden çözülmüyordu ve cs3 URL modunda **erken çıkış** yapıyordu (tek kaynağa
+     * kilitlenme). Sonuç: sonraki bölüme geçildiğinde kaynak/altyazı sayısı düşüyordu.
+     * Artık tek yol: [CsStreamFanout] (akış ekranıyla birebir aynı kurallar).
+     */
     suspend fun fetchStreamsForEpisode(nextEp: Int): List<StreamSource> = withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val repository = AddonStreamRepository(context)
+        val targetIdentity = identityForEpisode(nextEp)
+        // Kimlik zenginleştirme akış ekranıyla aynı merkezden: kayıt defteri + çözümleyici.
+        val enriched = runCatching { subtitleHub.enrichIdentity(targetIdentity) }
+            .getOrElse {
+                Log.w("KitsugiPlayerViewModel", "Kimlik zenginleştirme başarısız: ${it.message}")
+                targetIdentity
+            }
+        runCatching { MediaIdentityRegistry.remember(enriched) }
 
-        // ── CS3 direkt URL modu: cs3Url varsa tüm eklentileri aramak yerine
-        // doğrudan o URL üzerinden ilgili bölümü çözümle. ─────────────────────────
+        val resolvedIds = ResolvedIds(
+            imdbId = enriched.imdbId,
+            kitsuId = enriched.kitsuId,
+            tmdbId = enriched.tmdbId,
+            aniListId = enriched.aniListId,
+            malId = enriched.malId,
+        )
+
+        // ── 1) Doğrudan URL (cs3) yalnızca TOHUM: sonuç varsa gösterilir, tarama sürer.
+        val seed = mutableMapOf<String, List<StreamSource>>()
         val localCs3Url = cs3Url
         val localCs3ApiName = cs3ApiName
         if (!localCs3Url.isNullOrBlank() && !localCs3ApiName.isNullOrBlank()) {
-            val db = KitsugiDatabase.getDatabase(context)
-            val csPlugin = db.csPluginDao().getEnabledPlugins()
-                .firstOrNull { it.name.equals(localCs3ApiName, ignoreCase = true) }
-            if (csPlugin != null) {
-                CsPluginLoader.loadExtension(context, csPlugin.id)
-            }
-            val activeApi = com.lagradost.cloudstream3.APIHolder.allProviders
-                .firstOrNull { it.name.equals(localCs3ApiName, ignoreCase = true) }
-            if (activeApi != null) {
-                val resolved = CsStreamRunner.getStreamsForUrl(
-                    api = activeApi,
-                    url = localCs3Url,
-                    season = seasonNum,
-                    episode = nextEp,
-                    isMovie = _isMovie.value
-                )
-                if (resolved.isNotEmpty()) {
-                    Log.d("KitsugiPlayerViewModel", "fetchStreamsForEpisode: CS3 direkt URL modu — ${resolved.size} kaynak")
-                    return@withContext StreamSorter.sort(resolved)
+            try {
+                val db = KitsugiDatabase.getDatabase(context)
+                val csPlugin = db.csPluginDao().getEnabledPlugins().firstOrNull {
+                    it.name.equals(localCs3ApiName, ignoreCase = true) ||
+                        it.id.equals(localCs3ApiName, ignoreCase = true)
                 }
+                if (csPlugin != null) {
+                    CsPluginLoader.loadExtension(context, csPlugin.id)
+                }
+                val activeApi = com.lagradost.cloudstream3.APIHolder.allProviders.firstOrNull {
+                    it.name.equals(localCs3ApiName, ignoreCase = true)
+                }
+                if (activeApi != null) {
+                    val resolved = CsStreamRunner.getStreamsForUrl(
+                        api = activeApi,
+                        url = localCs3Url,
+                        season = enriched.effectiveSeason,
+                        episode = enriched.effectiveEpisode,
+                        isMovie = enriched.isMovie
+                    )
+                    if (resolved.isNotEmpty()) {
+                        val label = csPlugin?.name ?: localCs3ApiName
+                        seed[label] = resolved
+                        Log.d(
+                            "KitsugiPlayerViewModel",
+                            "fetchStreamsForEpisode: ${resolved.size} kaynak tohum olarak alındı ($label) — tüm eklentiler taranıyor"
+                        )
+                    }
+                }
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (e: Throwable) {
+                Log.w("KitsugiPlayerViewModel", "cs3 tohum alınamadı: ${e.message}")
             }
-            // Eklenti yüklenemedi veya 0 kaynak — devam ederek normal aramaya düş
-            Log.w("KitsugiPlayerViewModel", "fetchStreamsForEpisode: CS3 URL modu 0 kaynak döndürdü, başlık bazlı aramaya düşülüyor")
         }
 
-        // 1. Stremio stream sources
+        // ── 2) Stremio akış addon'ları
+        val repository = AddonStreamRepository(context)
         val stremioJob = async {
             try {
                 repository.getStreamsForEpisode(
-                    malId = malId,
-                    aniListId = aniListId,
-                    season = seasonNum,
-                    episode = nextEp,
-                    tmdbId = tmdbId,
-                    isMovie = _isMovie.value
+                    malId = enriched.malId,
+                    aniListId = enriched.aniListId,
+                    season = enriched.effectiveSeason,
+                    episode = enriched.effectiveEpisode,
+                    tmdbId = enriched.tmdbId,
+                    isMovie = enriched.isMovie
                 )
+            } catch (cancel: CancellationException) {
+                throw cancel
             } catch (e: Exception) {
-                Log.e("KitsugiPlayerViewModel", "Error fetching Stremio streams", e)
+                Log.e("KitsugiPlayerViewModel", "Stremio akışları alınamadı", e)
                 emptyList<StreamSource>()
             }
         }
 
-        // 2. CS3 plugin stream sources
-        val db = KitsugiDatabase.getDatabase(context)
+        // ── 3) CloudStream eklentileri — ortak fan-out (tip filtresi, blok kontrolü,
+        //        önceden çözülmüş ID'ler, tekrar ayıklama).
         val enabledCsPlugins = try {
-            db.csPluginDao().getEnabledPlugins()
-        } catch (_: Exception) {
+            KitsugiDatabase.getDatabase(context).csPluginDao().getEnabledPlugins()
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (e: Exception) {
+            Log.e("KitsugiPlayerViewModel", "CS eklenti listesi okunamadı", e)
             emptyList()
         }
 
-        val alternativeTitles = (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
-            .map { it.trim() }
-            .filter { it.isNotBlank() && it != animeTitle }
-            .distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
-        val csJobs = enabledCsPlugins.map { plugin ->
-            async {
-                val csStreams = mutableListOf<StreamSource>()
-                try {
-                    val apis = CsPluginLoader.loadExtension(context, plugin.id)
-                    for (api in apis) {
-                        val streams = CsStreamRunner.getStreams(
-                            api = api,
-                            title = animeTitle,
-                            alternativeTitles = alternativeTitles,
-                            year = startYear,
-                            season = seasonNum,
-                            episode = nextEp,
-                            malId = malId,
-                            aniListId = aniListId,
-                            tmdbId = tmdbId,
-                            isMovie = _isMovie.value
-                        )
-                        csStreams.addAll(streams)
-                    }
-                } catch (cancel: CancellationException) {
-                    throw cancel
-                } catch (e: Throwable) {
-                    Log.e("KitsugiPlayerViewModel", "Error fetching CS plugin ${plugin.name}", e)
-                }
-                csStreams
-            }
+        val csOutcomes = if (enabledCsPlugins.isEmpty()) {
+            emptyList()
+        } else {
+            CsStreamFanout.resolveAll(
+                context = context,
+                plugins = enabledCsPlugins,
+                identity = enriched,
+                resolvedIds = resolvedIds,
+                seed = seed,
+            )
+        }
+        csOutcomes.filter { it.error != null }.forEach { outcome ->
+            Log.w(
+                "KitsugiPlayerViewModel",
+                "[${outcome.displayName}] ${if (outcome.streams.isEmpty()) "0 kaynak" else "${outcome.streams.size} kaynak"} — ${outcome.error}"
+            )
         }
 
         val stremioStreams = stremioJob.await()
-        val csStreams = csJobs.map { it.await() }.flatten()
+        val csStreams = CsStreamFanout.mergeAndDedupe(csOutcomes)
 
         val combined = stremioStreams + csStreams
         StreamSorter.sort(combined)
-    }
 
     fun playEpisode(targetEp: Int, activity: android.app.Activity?, onAlternativeRequired: () -> Unit, onResolutionFailed: () -> Unit) {
         userCancelledBinge = false
@@ -1766,6 +1793,18 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             season = if (currentS <= 0) 1 else currentS,
             episode = if (currentEp <= 0) 1 else currentEp
         ).withResolved(remembered)
+    }
+
+    /**
+     * Verilen bölüm için kimlik. [currentIdentity] ile aynı alanları üretir; yalnızca
+     * sezon/bölüm hedefe göre değiştirilir. Akış toplama ve altyazı toplama aynı
+     * kimliği gördüğü için "kaynak değişti, altyazı kayboldu" durumu oluşmaz.
+     */
+    private fun identityForEpisode(episode: Int): MediaIdentity {
+        val base = currentIdentity()
+        val safeEpisode = if (episode <= 0) 1 else episode
+        return if (base.isMovie) base.copy(season = 1, episode = 1)
+        else base.copy(season = base.effectiveSeason, episode = safeEpisode)
     }
 
     private fun friendlySubtitleName(lang: String): String =

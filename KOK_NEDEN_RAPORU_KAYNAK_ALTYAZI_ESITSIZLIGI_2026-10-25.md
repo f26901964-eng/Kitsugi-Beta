@@ -192,5 +192,8 @@ Kullanıcı için sonuç: "altyazı eklentim yüklü ama çalışmıyor".
 | R12 | Altyazı devre kesici eşiği (3) çok düşük | Çok sorgulu taramada sağlıklı eklenti 5 dk bloklanıyor | ✅ Düzeltildi (eşik 8 + `resetCircuitBreakers()`) |
 | R13 | Sağlayıcı altyazı linklerinin 3 gün saklanması | İmzalı linkler ölü → "altyazı var ama açılmıyor" | ✅ Düzeltildi (24 saat) |
 | R14 | Tohum satırının eklenti ID'siyle adlandırılması | Aynı eklenti iki satır / yeniden deneme eşleşmiyor | ✅ Düzeltildi (`seedLabel`) |
+| R15 | **Oynatıcı içi bölüm geçişi ayrı toplama yolu** (`fetchStreamsForEpisode`) | Sonraki bölümde kaynak/altyazı sayısı düşüyordu: tip filtresi yok, blok kontrolü yok, `preResolvedIds` yok, cs3 modunda erken çıkış | ✅ Düzeltildi (`CsStreamFanout.resolveAll`) |
+| R16 | **Çevrimdışı oynatımda kimlik kaybı** (`DownloadsScreen` → `startWithStreamUrls`) | İndirilen bölümde altyazı "yok" görünüyordu (yalnız başlık geçiyordu) | ✅ Düzeltildi (malId/anilistId/tmdbId/sezon/bölüm aktarımı) |
+| R17 | Akış sorgusu politikasının iki kopyası (StreamViewModel + PlayerVM) | Bir düzeltme sadece bir ekranda kalıyordu | ✅ Düzeltildi (tek `CsStreamFanout`) |
 
 Devam eden plan: `PLAN_TASK_ORTAK_KAYNAK_ALTYAZI_OMURGASI_2026-10-25.md`

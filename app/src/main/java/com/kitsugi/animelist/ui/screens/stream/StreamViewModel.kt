@@ -10,6 +10,7 @@ import com.kitsugi.animelist.core.identity.MediaIdentity
 import com.kitsugi.animelist.core.identity.MediaIdentityRegistry
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
+import com.kitsugi.animelist.data.cloudstream.CsStreamFanout
 import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsPluginTypeCompatibility
 import com.kitsugi.animelist.data.cloudstream.CloudStreamErrorClassifier
@@ -735,80 +736,52 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                 return@launch
                             }
 
-                            Log.d(TAG, "[$csDisplayName] loadExtension başlatılıyor...")
+                            Log.d(TAG, "[$csDisplayName] ortak fan-out sorgusu başlıyor...")
                             CsTrace.info(plugin.name, "load", "loadExtension başlıyor")
-                            val apis = withContext(Dispatchers.IO) {
-                                CsPluginLoader.loadExtension(context, plugin.id)
-                            }
-                            if (apis.isEmpty()) {
-                                Log.e(TAG, "[$csDisplayName] 0 API döndü — DEX yüklenemedi")
-                                CsTrace.error(plugin.name, "load", "0 API döndü — DEX/manifest yüklenemedi")
-                                updateAddonState(
-                                    csDisplayName,
-                                    isLoading = false,
-                                    error = csLoadFailureMessage(plugin.id),
-                                    errorCode = PlatformErrorCode.CloudStreamPluginUnsupported.id,
-                                )
-                                return@launch
-                            }
-
-                            val compatibleApis = apis.filter { api ->
-                                CsPluginTypeCompatibility.supports(mediaType, api.supportedTypes.map { it.name })
-                            }
-                            if (compatibleApis.isEmpty()) {
-                                val message = mediaType?.let {
-                                    "Bu eklenti ${CsPluginTypeCompatibility.description(it)} içeriklerini desteklemiyor."
-                                } ?: "Bu eklenti bu içerik türünü desteklemiyor."
-                                CsTrace.info(plugin.name, "type-filter", message)
-                                updateAddonState(csDisplayName, isLoading = false, error = message)
-                                return@launch
-                            }
-
-                            val csStreams = mutableListOf<StreamSource>()
-                            // Tohum: bu eklenti için doğrudan URL'den gelen sonuçlar korunur,
-                            // üstüne paylaşılan başlık/bölüm aramasının sonuçları eklenir.
-                            directSeed?.takeIf { (name, _) ->
-                                name.equals(plugin.name, ignoreCase = true) || name.equals(plugin.id, ignoreCase = true)
-                            }?.second?.let { seedStreams -> csStreams.addAll(seedStreams) }
-                            for (api in compatibleApis) {
-                                val streams = CsStreamRunner.getStreams(
-                                    api              = api,
-                                    title            = title,
-                                    alternativeTitles = alternativeTitles,
-                                    year             = startYear,
-                                    season           = season,
-                                    episode          = episode,
-                                    malId            = realMalId ?: resolvedIds.malId,
-                                    aniListId        = realAniListId ?: resolvedIds.aniListId,
-                                    tmdbId           = tmdbId ?: resolvedIds.tmdbId,
-                                    bangumiId        = bangumiId,
-                                    isMovie          = isMovie,
-                                    mediaType        = mediaType,
-                                    // v2.4.250: yukarıda çözülen ID'leri aynen geçir —
-                                    // eklenti başına ARM/TMDB fırtınası dursun.
-                                    preResolvedIds   = resolvedIds
-                                )
-                                csStreams.addAll(streams)
-                            }
-                            if (csStreams.size > 1) {
-                                csStreams.distinctBy { it.url ?: it.infoHash }
-                                    .let { deduped ->
-                                        csStreams.clear()
-                                        csStreams.addAll(deduped)
-                                    }
-                            }
+                            // ── Ortak omurga: sorgu politikası TEK yerde ────────────────
+                            // [CsStreamFanout] tip filtresi, blok kontrolü, önceden
+                            // çözülmüş ID'ler ve tekrar ayıklamayı kapsar. Oynatıcıdaki
+                            // bölüm değiştirme yolu da aynı fonksiyonu kullanır; böylece
+                            // hangi ekrandan girilirse girilsin aynı kaynak kümesi oluşur.
+                            val queryIdentity = MediaIdentity(
+                                title = title,
+                                alternativeTitles = alternativeTitles,
+                                mediaType = mediaType,
+                                isMovie = isMovie,
+                                startYear = startYear,
+                                malId = realMalId ?: resolvedIds.malId,
+                                aniListId = realAniListId ?: resolvedIds.aniListId,
+                                tmdbId = tmdbId ?: resolvedIds.tmdbId,
+                                bangumiId = bangumiId,
+                                imdbId = resolvedIds.imdbId,
+                                kitsuId = resolvedIds.kitsuId,
+                                season = if (season <= 0) 1 else season,
+                                episode = if (episode <= 0) 1 else episode,
+                            )
+                            val seedMap: Map<String, List<StreamSource>> = directSeed?.let { (name, streams) ->
+                                mapOf(name to streams, plugin.name to streams, plugin.id to streams)
+                            } ?: emptyMap()
+                            val outcome = CsStreamFanout.queryPlugin(
+                                context = context,
+                                plugin = plugin,
+                                identity = queryIdentity,
+                                resolvedIds = resolvedIds,
+                                seed = seedMap,
+                            )
+                            val csStreams = outcome.streams
                             Log.d(TAG, "[$csDisplayName] Toplam ${csStreams.size} stream bulundu")
                             CsTrace.info(plugin.name, "result", "Toplam ${csStreams.size} stream bulundu")
-                            // Akış boşsa SESSİZ "akış bulunamadı" yerine tracker'daki GERÇEK
-                            // hatayı göster (DNS/CF/timeout/parse) — kullanıcı nedenini görsün.
-                            val apiName = apis.firstOrNull()?.name ?: plugin.name
-                            val diagMsg = if (csStreams.isEmpty()) {
-                                CsPluginStatusTracker.getErrorMessage(plugin.name)
-                                    ?: CsPluginStatusTracker.getErrorMessage(apiName)
-                            } else null
+                            // Akış boşsa SESSİZ "akış bulunamadı" yerine GERÇEK nedeni göster
+                            // (blok, tip uyumsuzluğu, yükleme hatası, DNS/CF/timeout/parse).
+                            val diagMsg = outcome.error
+                                ?: if (csStreams.isEmpty()) {
+                                    CsPluginStatusTracker.getErrorMessage(plugin.name)
+                                        ?: CsPluginStatusTracker.getErrorMessage(plugin.id)
+                                } else null
                             val diagCode = if (csStreams.isEmpty()) {
-                                CsPluginStatusTracker.getErrorCode(plugin.name)
-                                    ?: CsPluginStatusTracker.getErrorCode(apiName)
+                                outcome.errorCode
+                                    ?: CsPluginStatusTracker.getErrorCode(plugin.name)
+                                    ?: CsPluginStatusTracker.getErrorCode(plugin.id)
                                     ?: PlatformErrorCode.CloudStreamNoStreams.id
                             } else null
                             updateAddonState(

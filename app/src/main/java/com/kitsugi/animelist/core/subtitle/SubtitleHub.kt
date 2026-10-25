@@ -167,7 +167,7 @@ class SubtitleHub(private val context: Context) {
      * Giriş noktası ID taşımıyorsa başlıkla kurtarmayı dener, ardından eksik kimlikleri
      * çözümleyiciyle tamamlar. Sonuç kayıt defterine yazılır (diğer ekranlar da kullanır).
      */
-    private suspend fun enrichIdentity(identity: MediaIdentity): MediaIdentity {
+    suspend fun enrichIdentity(identity: MediaIdentity): MediaIdentity {
         var current = identity
 
         if (current.malId == null && current.aniListId == null && current.imdbId == null && current.kitsuId == null) {
