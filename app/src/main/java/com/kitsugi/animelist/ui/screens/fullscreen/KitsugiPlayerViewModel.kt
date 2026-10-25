@@ -1755,7 +1755,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         return MediaIdentity(
             title = animeTitle,
             alternativeTitles = listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms,
-            mediaType = null,
+            // Film ise tip Movie olarak verilir: ID çözümleyici ve altyazı eklentileri
+            // film/dizi ayrımını başlıktan tahmin etmek zorunda kalmaz.
+            mediaType = if (movieType) com.kitsugi.animelist.model.MediaType.Movie else null,
             isMovie = movieType,
             startYear = startYear,
             malId = malId,

@@ -442,7 +442,6 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
          */
         var directSeed: Pair<String, List<StreamSource>>? = null
         if (directUrl != null && directApiName != null) {
-            _addonStates.value = listOf(AddonFetchState("⚡ $directApiName", isLoading = true))
             var directFailure: String? = null
             try {
                 val db = KitsugiDatabase.getDatabase(context)
@@ -451,13 +450,18 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         it.id.equals(directApiName, ignoreCase = true) ||
                             it.name.equals(directApiName, ignoreCase = true)
                     }
+                // Satır adı HER ZAMAN eklentinin görünen adıyla kurulur; aksi halde
+                // geçmiş/katalog bir eklenti ID'si gönderdiğinde tohum satırı ile
+                // fan-out satırı eşleşmez ve aynı eklenti iki kez listelenir.
+                val seedLabel = csPlugin?.name ?: directApiName
+                _addonStates.value = listOf(AddonFetchState("⚡ $seedLabel", isLoading = true))
                 if (csPlugin != null) {
                     withContext(Dispatchers.IO) {
                         CsPluginLoader.loadExtension(context, csPlugin.id)
                     }
                 }
                 val activeApi = com.lagradost.cloudstream3.APIHolder.allProviders.firstOrNull {
-                    it.name.equals(directApiName, ignoreCase = true)
+                    it.name.equals(seedLabel, ignoreCase = true) || it.name.equals(directApiName, ignoreCase = true)
                 }
                 if (activeApi != null) {
                     val resolved = CsStreamRunner.getStreamsForUrl(
@@ -470,9 +474,9 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     if (resolved.isNotEmpty()) {
                         // Tohum olarak sakla ve ANINDA göster; ama taramayı bitirme.
-                        directSeed = directApiName to resolved
+                        directSeed = seedLabel to resolved
                         _isResolvingId.value = false
-                        updateAddonStateSync("⚡ $directApiName", isLoading = false, streams = resolved)
+                        updateAddonStateSync("⚡ $seedLabel", isLoading = false, streams = resolved)
                         Log.i(
                             TAG,
                             "[$directApiName] Doğrudan URL ${resolved.size} kaynak verdi — tohum olarak alındı, " +

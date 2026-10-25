@@ -23,6 +23,7 @@
 | 2e | R8/Proguard: kalıcı JSON sınıfları | ✅ kodlandı |
 | 2f | İndirme (AnimeDownloader) ortak merkeze bağlandı | ✅ kodlandı |
 | 2g | Aynı anda çift altyazı taraması engellendi + bellek tazelik penceresi | ✅ kodlandı |
+| 2h | Devre kesici eşiği, sağlayıcı altyazı TTL'i, tohum satır adı, medya tipi | ✅ kodlandı |
 | 3 | Altyazı eklentisi sınıflandırma / idPrefixes / CS SubtitleAPI | ⏳ bekliyor |
 | 4 | Cihaz testi + sürüm notu | ⏳ bekliyor |
 

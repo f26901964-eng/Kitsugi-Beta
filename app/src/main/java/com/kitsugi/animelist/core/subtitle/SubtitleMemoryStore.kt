@@ -38,8 +38,14 @@ object SubtitleMemoryStore {
     private const val MAX_KEYS = 600
     private const val MAX_PER_KEY = 80
 
-    /** Sağlayıcı içinden çıkarılan altyazılar daha uzun süre geçerli (link imzalı olabilir). */
-    private const val PROVIDER_TTL_MS = 3L * 24 * 60 * 60 * 1000
+    /**
+     * Sağlayıcı içinden çıkarılan altyazıların ömrü.
+     *
+     * Bu linkler çoğu zaman imzalı/süreli oluyor; 3 gün sonra ölü linkleri menüde
+     * göstermek kullanıcıya "altyazı var ama açılmıyor" olarak yansıyordu. 24 saat,
+     * aynı gün içindeki kaynak değişimlerini kapsar ve ölü link birikmesini önler.
+     */
+    private const val PROVIDER_TTL_MS = 24L * 60 * 60 * 1000
     /** Ağ eklentilerinden gelen altyazılar: 14 gün. */
     private const val REMOTE_TTL_MS = 14L * 24 * 60 * 60 * 1000
 

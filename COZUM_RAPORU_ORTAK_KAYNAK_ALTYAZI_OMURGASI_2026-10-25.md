@@ -56,6 +56,15 @@ hangi kaynaktan izlenirse izlensin aynı kimlik, aynı eklenti havuzu ve aynı a
 | Altyazı sorgu sayısı | 4-6 (yalnız IMDb/Kitsu/ana başlık) | 7 (IMDb/Kitsu/AniList/MAL + başlık varyantları), sınırlı |
 | Tekrar açılış | Tam ağ turu | Bellek anında, ağ arka planda |
 
+### 2.5 İkinci denetim turunda bulunan ince riskler
+
+| Risk | Neden tehlikeli | Düzeltme |
+|---|---|---|
+| Devre kesici eşiği (3) | Merkez artık 7 sorgu atıyor; bilmediği ID biçimine 404 dönen eklenti, geçerli sorgusuna sıra gelmeden 5 dk bloklanıyordu | Eşik 8'e çıkarıldı (`CIRCUIT_BREAKER_THRESHOLD`) |
+| Sağlayıcı altyazı TTL'i 3 gün | İmzalı linkler saatler içinde ölüyor → menüde "açılmayan altyazı" | 24 saate indirildi |
+| Oynatıcı kimliğinde `mediaType = null` | Film/dizi ayrımı başlıktan tahmin ediliyordu | Film ise `MediaType.Movie` |
+| Tohum satırı adı | Geçmiş/katalog eklenti **ID'si** gönderirse satır adı eşleşmiyor, aynı eklenti iki kez listelenebiliyordu | Satır adı her zaman eklentinin görünen adı (`seedLabel`) |
+
 ---
 
 ## 3. Mimari

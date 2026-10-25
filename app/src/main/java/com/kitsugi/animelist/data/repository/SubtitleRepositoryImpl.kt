@@ -32,6 +32,17 @@ class SubtitleRepositoryImpl(private val context: Context) {
         private const val TAG = "SubtitleRepository"
         private const val PER_ADDON_TIMEOUT_MS = 20_000L
 
+        /**
+         * Devre kesici eşiği.
+         *
+         * 2026-10-25: Ortak Altyazı Merkezi aynı bölüm için birden fazla sorgu atıyor
+         * (IMDb, Kitsu, AniList, MAL, başlık varyantları). Eklentiler bilmedikleri ID
+         * biçimine 404 döndürdüğü için eski eşik (3) yalnızca o ID'leri destekleyen bir
+         * eklentiyi, geçerli sorgusuna sıra gelmeden bloklayabiliyordu. Eşik, tek bir
+         * toplu taramayı tolere edecek şekilde yükseltildi.
+         */
+        private const val CIRCUIT_BREAKER_THRESHOLD = 8
+
         data class CircuitBreakerState(
             var failureCount: Int = 0,
             var lastFailureTimeMs: Long = 0L
@@ -128,7 +139,7 @@ class SubtitleRepositoryImpl(private val context: Context) {
                 val manifestUrl = addon.manifestUrl
                 val cbState = circuitBreakers.getOrPut(manifestUrl) { CircuitBreakerState() }
                 val now = System.currentTimeMillis()
-                if (cbState.failureCount >= 3 && now - cbState.lastFailureTimeMs < 5 * 60 * 1000) {
+                if (cbState.failureCount >= CIRCUIT_BREAKER_THRESHOLD && now - cbState.lastFailureTimeMs < 5 * 60 * 1000) {
                     Log.w(TAG, "Circuit breaker tripped for addon '${addon.name}' (${manifestUrl}). Skipping query.")
                     return@async emptyList()
                 }
@@ -189,7 +200,7 @@ class SubtitleRepositoryImpl(private val context: Context) {
                 } else {
                     targetCbState.failureCount += 1
                     targetCbState.lastFailureTimeMs = System.currentTimeMillis()
-                    Log.w(TAG, "Addon '${addon.name}' failure registered ($errorType). Failure count: ${targetCbState.failureCount}/3")
+                    Log.w(TAG, "Addon '${addon.name}' failure registered ($errorType). Failure count: ${targetCbState.failureCount}/$CIRCUIT_BREAKER_THRESHOLD")
                 }
 
                 subtitles
