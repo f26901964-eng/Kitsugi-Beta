@@ -11,6 +11,7 @@ import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.MdbListClient
 import com.kitsugi.animelist.data.remote.MdbListRatings
+import com.kitsugi.animelist.data.remote.resolveMdbListAniListIds
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
@@ -1393,29 +1394,35 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         try {
             val malId = result.malId
-            val aniListId = if (result.source.equals("anilist", ignoreCase = true) && malId >= 100_000_000) {
-                // Saf AniList ID (100M+ offset)
-                malId - 100_000_000
+            val detail = _detailState.value
+            val isAniList = result.source.equals("anilist", ignoreCase = true)
+            val aniListIds = if (isAniList) {
+                resolveMdbListAniListIds(
+                    stableId = malId,
+                    realMalId = result.realMalId?.takeIf { it in 1 until 100_000_000 }
+                        ?: detail?.realMalId
+                )
             } else {
                 null
             }
-            // stableId < 100M → AniList kaynaklı olsa bile MAL ID ile dönmüş
+            val aniListId = aniListIds?.aniListId
+
             val realMalId = when {
-                aniListId != null -> null
-                result.source.equals("anilist", ignoreCase = true) -> null
+                // AniList sonucu idMal bilindiğinde gerçek MAL ID'yi doğrudan taşır.
+                // Bu kimliği kaynağa bakarak sıfırlamak MDBList isteğini tamamen atlatıyordu.
+                isAniList -> aniListIds?.malId
                 // Bangumi stableId'si MAL ID değildir → çözülen çapraz kimlik kullanılır.
                 result.source.equals("bangumi", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
+                    detail?.realMalId?.takeIf { it in 1..99_999_999 }
                         ?: KitsugiBangumiDetailClient.resolveCrossIds(malId, result.type).malId
                 // Shikimori ID'si MAL ID değildir → gerçek MAL ID'si çözülür.
                 result.source.equals("shikimori", ignoreCase = true) ->
-                    _detailState.value?.realMalId?.takeIf { it > 0 }
+                    detail?.realMalId?.takeIf { it > 0 }
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(malId)
                 else -> malId
             }
 
-            val detail = _detailState.value
-            val tmdbId = detail?.tmdbId ?: result.tmdbId
+            var tmdbId = detail?.tmdbId ?: result.tmdbId
 
             var imdbId: String? = detail?.externalLinks?.firstOrNull { it.url.contains("imdb.com") }
                 ?.url?.substringAfter("/title/")?.substringBefore("/")
@@ -1428,6 +1435,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     mediaType = result.type
                 )
                 imdbId = resolved.imdbId
+                // ARM/TMDB çözümünden gelen kimliği de kullan; yalnızca ekranın ilk
+                // snapshot'ına bakmak ikinci bir "kimlik yok" erken çıkışına yol açıyordu.
+                if (tmdbId == null || tmdbId <= 0) tmdbId = resolved.tmdbId
             }
 
             if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {

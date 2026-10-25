@@ -1745,7 +1745,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 else -> entry.malId
             }
             val aniListId: Int? = if (isAniList && stableId >= 100_000_000) stableId - 100_000_000 else null
-            val tmdbId: Int? = entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value
+            var tmdbId: Int? = entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value
 
             // Try to resolve IMDb ID from detail links first
             var imdbId: String? = _detailState.value?.externalLinks
@@ -1762,6 +1762,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     )
                 }
                 imdbId = resolved.imdbId
+                if (tmdbId == null || tmdbId <= 0) tmdbId = resolved.tmdbId
             }
 
             if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
