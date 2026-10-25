@@ -39,7 +39,7 @@ internal fun LazyListScope.MyListSectionedContent(
     gridColumns: Int = 2,
     sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit
 ) {
     sections.forEach { section ->
@@ -59,7 +59,7 @@ internal fun LazyListScope.MyListSectionedContent(
             gridColumns = gridColumns,
             sourceBadgesByEntryId = sourceBadgesByEntryId,
             onEntryClick = onEntryClick,
-            onIncrementProgress = onIncrementProgress,
+            onEditEntry = onEditEntry,
             onPosterLongClick = onPosterLongClick
         )
     }
@@ -79,7 +79,7 @@ internal fun LazyListScope.MyListGroupedContent(
     gridColumns: Int = 3,
     sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit
 ) {
     MyListSectionedContent(
@@ -94,7 +94,7 @@ internal fun LazyListScope.MyListGroupedContent(
         gridColumns = gridColumns,
         sourceBadgesByEntryId = sourceBadgesByEntryId,
         onEntryClick = onEntryClick,
-        onIncrementProgress = onIncrementProgress,
+        onEditEntry = onEditEntry,
         onPosterLongClick = onPosterLongClick
     )
 }
@@ -113,7 +113,7 @@ internal fun LazyListScope.MyListFlatContent(
     gridColumns: Int = 3,
     sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit
 ) {
     MyListSectionEntries(
@@ -127,7 +127,7 @@ internal fun LazyListScope.MyListFlatContent(
         gridColumns = gridColumns,
         sourceBadgesByEntryId = sourceBadgesByEntryId,
         onEntryClick = onEntryClick,
-        onIncrementProgress = onIncrementProgress,
+        onEditEntry = onEditEntry,
         onPosterLongClick = onPosterLongClick
     )
 }
@@ -179,7 +179,7 @@ private fun LazyListScope.MyListSectionEntries(
     gridColumns: Int,
     sourceBadgesByEntryId: Map<Int, List<String>>,
     onEntryClick: (MediaEntry) -> Unit,
-    onIncrementProgress: (MediaEntry) -> Unit,
+    onEditEntry: ((MediaEntry) -> Unit)? = null,
     onPosterLongClick: (String) -> Unit
 ) {
     if (items.isEmpty()) return
@@ -226,7 +226,7 @@ private fun LazyListScope.MyListSectionEntries(
                 entry = entry,
                 layoutId = selectedListLayoutId,
                 onClick = { onEntryClick(entry) },
-                onIncrementClick = { onIncrementProgress(entry) },
+                onEditClick = onEditEntry?.let { edit -> { edit(entry) } },
                 titleLanguage = titleLanguage,
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
