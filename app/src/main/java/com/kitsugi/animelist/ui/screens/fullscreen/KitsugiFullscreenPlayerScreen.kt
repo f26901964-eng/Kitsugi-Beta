@@ -978,6 +978,11 @@ fun KitsugiFullscreenPlayerScreen(
                 // even when the URL hasn't changed. Using the object reference as key caused
                 // unnecessary player restarts every ~10s, resetting position to 0 each time.
                 var lastPreparedUrl by remember { mutableStateOf<String?>(null) }
+                // Son hazırlanan akışın kimliği (URL + başlıklar + ayrı ses + motor). Yalnızca
+                // altyazı listesi değiştiyse akış yeniden hazırlanmaz (bkz. addExternalSubtitles).
+                val lastPreparedStream = remember {
+                    java.util.concurrent.atomic.AtomicReference<PreparedStreamIdentity?>(null)
+                }
                 val prepareKey = remember(source?.videoUrl, currentHeaders, currentSubtitles) {
                     Triple(source?.videoUrl, currentHeaders.hashCode(), currentSubtitles.map { it.url }.hashCode())
                 }
@@ -986,6 +991,22 @@ fun KitsugiFullscreenPlayerScreen(
                     // çalışmak kısa süreliğine ikinci bir oynatma başlatabiliyordu.
                     if (activeEngineType == PlayerEngineType.EXTERNAL) return@LaunchedEffect
                     val safeVideoUrl = source?.videoUrl ?: return@LaunchedEffect
+                    val streamIdentity = PreparedStreamIdentity(
+                        videoUrl = safeVideoUrl,
+                        headersHash = currentHeaders.hashCode(),
+                        audioUrl = source?.audioUrl,
+                        engine = playerEngine
+                    )
+                    // Eklenti altyazıları video başladıktan 1–9 sn sonra gelince eskiden TÜM oynatıcı
+                    // yeniden hazırlanıyordu (v2.4.369 günlüğündeki çift "[OYNAT] Başladı", aynı CDN
+                    // adresine ikinci istek → HTTP 429 riski, yeniden tamponlama). Destekleyen motor
+                    // (mpv) yeni altyazıları akışı kesmeden ekler; desteklemeyen motor tam hazırlığa düşer.
+                    if (streamIdentity == lastPreparedStream.get() &&
+                        playerEngine.addExternalSubtitles(currentSubtitles)
+                    ) {
+                        Log.d("KitsugiPlayer", "Yalnızca altyazı listesi değişti (${currentSubtitles.size}) → akış yeniden hazırlanmadı")
+                        return@LaunchedEffect
+                    }
                     isPlaybackEnded = false
                     isEngineReady = false
                     resumeReadyIdentity = null
@@ -1015,6 +1036,7 @@ fun KitsugiFullscreenPlayerScreen(
                     }
                     lastPreparedUrl = safeVideoUrl
                     lastPreparedResumeIdentity = resumeIdentity
+                    lastPreparedStream.set(streamIdentity)
 
                     playerEngine.prepare(
                         videoUrl = safeVideoUrl,
@@ -2107,3 +2129,15 @@ private fun P2pTorrentStatsOverlayHost(
         modifier = modifier
     )
 }
+
+/**
+ * Oynatıcıya en son verilen akışın kimliği. Aynı kimlikle yalnızca altyazı listesi değiştiğinde
+ * akış yeniden hazırlanmaz. [engine] referans eşitliğiyle karşılaştırılır (motor değişince —
+ * ör. yedek motora geçiş — tam hazırlık yapılır).
+ */
+private data class PreparedStreamIdentity(
+    val videoUrl: String,
+    val headersHash: Int,
+    val audioUrl: String?,
+    val engine: com.kitsugi.animelist.core.player.engine.PlayerEngine
+)

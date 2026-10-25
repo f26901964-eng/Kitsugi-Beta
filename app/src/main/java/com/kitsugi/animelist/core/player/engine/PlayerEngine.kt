@@ -113,6 +113,15 @@ interface PlayerEngine {
         qualityValue: Int? = null
     )
 
+    /**
+     * Aynı medya oynarken sonradan gelen harici altyazıları akışı yeniden hazırlamadan ekler.
+     *
+     * @return true → motor altyazıları ekledi; çağıran [prepare] ÇAĞIRMAMALI.
+     *         false → motor bunu desteklemiyor (ör. Media3 yan yüklü altyazı için kaynağı
+     *         yeniden kurmalı) ya da liste daraldı; çağıran tam [prepare] yapmalı.
+     */
+    fun addExternalSubtitles(subtitles: List<SubtitleInput>): Boolean = false
+
     fun play()
     fun pause()
     fun seekTo(positionMs: Long)

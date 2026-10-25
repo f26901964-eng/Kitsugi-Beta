@@ -596,26 +596,37 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Harici altyazı ekler. ÖNEMLİ: [url] uzak bir adres ise mpv dosyayı bu çağrının içinde
+     * senkron indirir — ana iş parçacığından yalnızca YEREL yol verin
+     * (bkz. [MpvSubtitlePrefetcher]; uzak altyazı ana iş parçacığını saniyelerce kilitliyordu).
+     *
+     * @param select true → `cached` (altyazıyı seç, aynı dosya zaten ekliyse onu seç);
+     *               false → `auto` (mevcut seçimi ve görünürlüğü değiştirmeden ekle; oynatma
+     *               sırasında sonradan gelen altyazılar için).
+     */
     fun addAndSelectExternalSubtitle(
         url: String,
         title: String? = null,
-        language: String? = null
+        language: String? = null,
+        select: Boolean = true
     ): Boolean {
         if (!initialized) return false
         if (url.isBlank()) return false
         return runCatching {
             // "cached" avoids duplicate re-loads for the same external subtitle.
+            val flag = if (select) "cached" else "auto"
             val safeTitle = title?.takeIf { it.isNotBlank() }
             val safeLanguage = language?.takeIf { it.isNotBlank() }
             when {
                 safeTitle != null && safeLanguage != null ->
-                    mpv.command("sub-add", url, "cached", safeTitle, safeLanguage)
+                    mpv.command("sub-add", url, flag, safeTitle, safeLanguage)
                 safeTitle != null ->
-                    mpv.command("sub-add", url, "cached", safeTitle)
+                    mpv.command("sub-add", url, flag, safeTitle)
                 else ->
-                    mpv.command("sub-add", url, "cached")
+                    mpv.command("sub-add", url, flag)
             }
-            mpv.setPropertyBoolean("sub-visibility", true)
+            if (select) mpv.setPropertyBoolean("sub-visibility", true)
             true
         }.getOrElse {
             Log.w(TAG, "Failed to add external subtitle: ${it.message}")

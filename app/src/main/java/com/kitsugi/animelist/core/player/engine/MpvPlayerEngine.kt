@@ -234,6 +234,12 @@ class MpvPlayerEngine(
     private var hasExternalAudio: Boolean = false
     /** Harici altyazılar beklenmeden de ilk seçim yapılsın diye zorlanmış değerlendirme. */
     private var selectionForced: Boolean = false
+    /**
+     * Kullanıcı bu medya için ses/altyazı parçasını ELLE değiştirdi mi? Oynatma sırasında
+     * sonradan gelen altyazılar eklendiğinde tercih politikası yalnızca kullanıcı seçim
+     * yapmadıysa yeniden uygulanır (kullanıcının seçimi asla ezilmez).
+     */
+    private var userChangedTracks: Boolean = false
 
     // ──── Observed properties (Aniyomi modeli) ───────────────────────────────
     // Bu liste, MPV başlatılırken tek seferlik kayıt yapılır.
@@ -408,6 +414,7 @@ class MpvPlayerEngine(
         if (trackId >= 0 && mpvView?.mpv?.getPropertyString("sid")?.toIntOrNull() == trackId) return
         initialSelectionDone = true
         selectionForced = true
+        userChangedTracks = true
         secondarySubtitleTrackId = trackId
         if (trackId >= 0) {
             mpvView?.mpv?.setPropertyBoolean("sub-visibility", true)
@@ -577,6 +584,7 @@ class MpvPlayerEngine(
         // "3 ses seçeneği hiçbir şey değiştirmiyor" gözleminin olası nedenlerinden biri.
         initialSelectionDone = true
         selectionForced = true
+        userChangedTracks = true
         if (trackOption.groupIndex == 0) {
             applied = mpvView?.selectAudioTrackById(trackOption.trackIndex) ?: false
         } else if (trackOption.groupIndex == 1) {
@@ -604,6 +612,7 @@ class MpvPlayerEngine(
     override fun disableSubtitles() {
         initialSelectionDone = true
         selectionForced = true
+        userChangedTracks = true
         selectSecondarySubtitleTrack(-1)
         mpvView?.disableSubtitles()
         _isSubtitleDisabled = true
@@ -795,24 +804,17 @@ class MpvPlayerEngine(
                     }
                     applyExternalAudio(view, pendingAudioUrl)
                     view.applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
-                    pendingSubtitles.forEach { sub ->
-                        view.addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
-                    }
                     applySecondarySubtitle(view)
                 }
                 setSubtitleStyle(activeSubtitleStyle)
                 setStatisticsPage(settings.playerStatisticsPage)
                 checkBufferingState()
                 scheduleUpdateTracks()
-                // Harici altyazılar bazen geç eklenir; kısa bir gecikmeden sonra seçimi zorla.
-                val generation = loadGeneration
-                engineScope.launch {
-                    kotlinx.coroutines.delay(1500L)
-                    if (!released && generation == loadGeneration && !initialSelectionDone) {
-                        selectionForced = true
-                        scheduleUpdateTracks()
-                    }
-                }
+                // v2.4.369 HANG düzeltmesi: harici altyazılar eskiden burada, ANA iş parçacığında
+                // uzak URL ile `sub-add` yapılarak (her biri ağdan senkron indirilerek) ekleniyordu
+                // → 2,5–5 sn donma. Artık önce IO'da önbelleğe indirilip yerel dosya olarak eklenir;
+                // zorunlu seçim zamanlayıcısı yükleme bittikten sonra başlar.
+                loadExternalSubtitlesAsync(pendingSubtitles, loadGeneration, select = true)
             }
             MPV.mpvEvent.MPV_EVENT_END_FILE -> {
                 Log.d(TAG, "MPV_EVENT_END_FILE")
@@ -967,6 +969,7 @@ class MpvPlayerEngine(
         errorReportedForLoad = false
         selectionForced = false
         initialSelectionDone = false
+        userChangedTracks = false
         currentPosition = startPositionMs.coerceAtLeast(0L)
         duration = 0L
         bufferedPosition = 0L
@@ -1241,6 +1244,83 @@ class MpvPlayerEngine(
                 Log.w(TAG, "setupCustomButtons error: ${it.message}")
             }
         }
+    }
+
+    /**
+     * Harici altyazıları ana iş parçacığını kilitlemeden yükler: uzak dosyalar
+     * [MpvSubtitlePrefetcher] ile IO'da önbelleğe indirilir, mpv'ye yerel yol verilir.
+     *
+     * @param select true → ilk yükleme (`cached`: seç); false → oynatma sırasında sonradan
+     *               gelen altyazılar (`auto`: mevcut seçimi değiştirmeden ekle).
+     */
+    private fun loadExternalSubtitlesAsync(subtitles: List<SubtitleInput>, generation: Long, select: Boolean) {
+        if (subtitles.isEmpty()) {
+            scheduleForcedTrackSelection(generation)
+            return
+        }
+        val headers = pendingHeaders
+        engineScope.launch {
+            val resolved = try {
+                MpvSubtitlePrefetcher.materialize(context, subtitles, headers)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "Harici altyazılar hazırlanamadı: ${error.javaClass.simpleName}: ${error.message}")
+                emptyList()
+            }
+            if (released || generation != loadGeneration) return@launch
+            val view = mpvView ?: return@launch
+            resolved.forEach { (sub, localPath) ->
+                view.addAndSelectExternalSubtitle(localPath, sub.name, sub.lang, select)
+            }
+            if (resolved.size < subtitles.size) {
+                Log.w(TAG, "Harici altyazı: ${subtitles.size - resolved.size}/${subtitles.size} dosya indirilemedi, atlandı")
+            }
+            scheduleUpdateTracks()
+            scheduleForcedTrackSelection(generation)
+        }
+    }
+
+    /** Harici altyazılar beklenenden az yüklendiyse kısa bir gecikmeden sonra ilk seçimi zorlar. */
+    private fun scheduleForcedTrackSelection(generation: Long) {
+        engineScope.launch {
+            kotlinx.coroutines.delay(1500L)
+            if (!released && generation == loadGeneration && !initialSelectionDone) {
+                selectionForced = true
+                scheduleUpdateTracks()
+            }
+        }
+    }
+
+    /**
+     * Aynı medya oynarken sonradan gelen (eklenti) altyazıları akışı YENİDEN HAZIRLAMADAN ekler.
+     *
+     * Eskiden altyazı listesi her değiştiğinde oynatıcı tamamen yeniden hazırlanıyordu: aynı
+     * CDN adresine ikinci istek (HTTP 429 riski), yeniden tamponlama, günlükte çift
+     * "[OYNAT] Başladı" ve ikinci bir `sub-add` fırtınası. Liste daraldıysa / değiştiyse
+     * (kaynak değişimi) false döner ve çağıran güvenli yola, tam hazırlığa düşer.
+     */
+    override fun addExternalSubtitles(subtitles: List<SubtitleInput>): Boolean {
+        if (released || mpvView == null) return false
+        val previous = preparedSubtitles
+        val incomingUrls = subtitles.mapTo(HashSet()) { it.url }
+        if (!previous.all { it.url in incomingUrls }) return false
+        val known = previous.mapTo(HashSet()) { it.url }
+        val fresh = subtitles.filter { it.url.isNotBlank() && known.add(it.url) }
+        if (fresh.isEmpty()) return true
+        preparedSubtitles = previous + fresh
+        pendingSubtitles = pendingSubtitles + fresh
+        if (fileLoaded) {
+            if (!userChangedTracks) {
+                // Kullanıcı elle seçim yapmadıysa tercih politikası (Türkçe öncelikli) yeni
+                // altyazılarla yeniden uygulanır — eski tam yeniden hazırlamayla aynı sonuç.
+                initialSelectionDone = false
+                selectionForced = false
+            }
+            loadExternalSubtitlesAsync(fresh, loadGeneration, select = false)
+        }
+        // fileLoaded=false ise yeni altyazılar pendingSubtitles içinde; FILE_LOADED'da eklenir.
+        return true
     }
 
     override fun executeCommand(command: Array<String>) {
