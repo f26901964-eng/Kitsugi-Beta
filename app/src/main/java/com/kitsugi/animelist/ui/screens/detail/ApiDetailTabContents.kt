@@ -40,7 +40,6 @@ internal fun ApiDetailOverviewTab(
     detail: KitsugiMediaDetail?,
     displaySynopsis: String?,
     isDetailLoading: Boolean,
-    isTranslating: Boolean,
     onSearchQuery: (String) -> Unit,
     onStudioClick: (id: Int, source: String, name: String?, url: String?) -> Unit,
     /** Manga yazarı çipi → kişi (Staff) detay sayfası. */
@@ -76,7 +75,8 @@ internal fun ApiDetailOverviewTab(
     ) {
         ApiSynopsisCard(
             synopsis = displaySynopsis,
-            isLoading = isDetailLoading || (!isDetailLoading && detail?.synopsis != null && isTranslating),
+            // Çeviri ayrı bir arka plan işidir; mevcut ham/çevrilmiş metni asla iskeletle kapatmaz.
+            isLoading = isDetailLoading,
             onTranslateClick = onTranslateClick,
             onCopyClick = onCopyClick,
             onImageGalleryRequest = onImageGalleryRequest,

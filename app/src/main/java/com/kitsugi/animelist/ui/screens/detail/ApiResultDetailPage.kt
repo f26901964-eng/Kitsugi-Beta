@@ -1058,7 +1058,6 @@ private fun ApiOverviewTabSlot(
         detail = detail,
         displaySynopsis = displaySynopsis,
         isDetailLoading = isDetailLoading,
-        isTranslating = (translatedSynopsis == null && detail?.synopsis != null),
         onSearchQuery = onSearchQuery,
         onStudioClick = onStudioClick,
         onStaffClick = onStaffClick,

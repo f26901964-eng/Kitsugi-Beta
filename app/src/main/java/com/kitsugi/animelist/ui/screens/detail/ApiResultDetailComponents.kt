@@ -356,6 +356,13 @@ private fun ApiMiniStatCard(
     }
 }
 
+/**
+ * Açıklama iskeleti yalnızca gösterilecek metin henüz yokken kullanılır.
+ * Otomatik çeviri yavaşlasa bile kaynaktan gelen ham metin ekranda kalır.
+ */
+internal fun shouldShowApiSynopsisSkeleton(synopsis: String?, isDetailLoading: Boolean): Boolean =
+    synopsis.isNullOrBlank() && isDetailLoading
+
 @Composable
 internal fun ApiSynopsisCard(
     synopsis: String?,
@@ -419,7 +426,7 @@ internal fun ApiSynopsisCard(
             }
         }
 
-        if (isLoading) {
+        if (shouldShowApiSynopsisSkeleton(synopsis, isLoading)) {
             DetailSynopsisLoadingSkeleton()
         } else if (synopsis.isNullOrBlank()) {
             Text(
