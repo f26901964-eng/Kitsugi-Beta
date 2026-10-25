@@ -17877,6 +17877,9 @@
     <string name="wiki_tools_info">About page tools</string>
     <string name="wiki_page_tools">Page tools</string>
     <string name="wiki_tools_translate_title">Translation</string>
+    <string name="wiki_translate_source_language">Translate from</string>
+    <string name="wiki_translate_target_language">Translate to</string>
+    <string name="wiki_translate_language_search">Search languages</string>
     <string name="wiki_tools_ad_block_title">Ad blocking</string>
     <string name="wiki_tools_ad_block_blocked">%1$d requests blocked</string>
     <string name="wiki_tools_status_title">Page status</string>
@@ -17887,7 +17890,7 @@
     <string name="wiki_dom_no_article">No supported article area found yet; the original content is preserved.</string>
     <string name="wiki_tools_assets_failed">Page tools could not load. Retry or use the simple reader.</string>
     <string name="wiki_tools_save_failed">The page preference could not be saved. Please try again.</string>
-    <string name="wiki_tools_explanation">Page translation follows the automatic translation and source/target language settings. Article text is sent to the existing in-app Google translation service; forms and editable fields are excluded. Your external translator-app preference is unchanged.\n\nLinks, images and HTML elements stay in place; longer text can change line heights. Hidden content, decorative single-letter headings and embedded frames are not translated. Returning to original text in the same document needs no network.\n\nAd blocking is remembered for this wiki host. Changing it reloads the page. Domain filtering and ad-container hiding work together; blocking every ad is not guaranteed. Turn it off for this wiki if needed.</string>
+    <string name="wiki_tools_explanation">Page translation follows the automatic translation and source/target language settings; you can also change the from/to languages right in page tools (the choice is shared with app settings, and picking a language turns translation on for this page). Article text is sent to the existing in-app Google translation service; forms and editable fields are excluded. Your external translator-app preference is unchanged.\n\nLinks, images and HTML elements stay in place; longer text can change line heights. Hidden content, decorative single-letter headings and embedded frames are not translated. Returning to original text in the same document needs no network.\n\nAd blocking is remembered for this wiki host. Changing it reloads the page. Domain filtering and ad-container hiding work together; blocking every ad is not guaranteed. Turn it off for this wiki if needed.</string>
     <string name="wiki_filter_attribution">%1$d domain rules · StevenBlack contributed list (MIT) + Kitsugi ad-network rules. Pinned list revision: %2$s. Source: github.com/StevenBlack/hosts. Not a full browser extension or EasyList engine.</string>
     <string name="wiki_tools_preferences_failed">Preferences could not be read. Automatic translation is off; ad blocking defaults to on. Reload preferences.</string>
     <string name="wiki_tools_script_failed">Page tools could not run in this document. The original content is preserved; you can retry.</string>

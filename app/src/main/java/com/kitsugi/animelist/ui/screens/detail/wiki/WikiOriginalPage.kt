@@ -72,6 +72,12 @@ internal class WikiOriginalSession(
     var documentTextRevision by mutableStateOf(0)
     var generation by mutableStateOf(0)
     var translationOverride by mutableStateOf<Boolean?>(null)
+    /**
+     * Sayfa araçlarından dil seçildiğinde işaretlenir. Dil değişimi ayar akışıyla
+     * gelince manuel çeviri seçimi normalde sıfırlanır; bu bayrak, kullanıcının
+     * "bu dile çevir" niyetinin sıfırlanmayıp çeviriyi açmasını sağlar (tek kullanımlık).
+     */
+    var pendingTranslationEnable = false
     var translating by mutableStateOf(false)
     var translatedNodes by mutableStateOf(0)
     var translationFailures by mutableStateOf(0)
@@ -180,7 +186,11 @@ internal fun WikiOriginalPage(
     LaunchedEffect(preferences?.translationKey) {
         preferences?.translationKey?.let { key ->
             if (session.lastTranslationPreferenceKey != null && session.lastTranslationPreferenceKey != key) {
-                session.translationOverride = null
+                // Dil, sayfa araçlarından seçildiyse niyet "bu dile çevir"dir:
+                // sıfırlamak yerine çeviriyi aç. Ayarlar sayfasından gelen
+                // değişikliklerde eski davranış (otomatiği izle) korunur.
+                session.translationOverride = if (session.pendingTranslationEnable) true else null
+                session.pendingTranslationEnable = false
             }
             session.lastTranslationPreferenceKey = key
         }
@@ -204,38 +214,42 @@ internal fun WikiOriginalPage(
         }
     }
 
+    // Sayfa tercihi yazımlarının ortak iskeleti (kaydetme durumu + hata bayrağı).
+    val savePreference: (suspend () -> Unit) -> Unit = { block ->
+        scope.launch {
+            savingPreference = true
+            try {
+                block()
+                preferenceFailed = false
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                preferenceFailed = true
+                // Yazılamayan dil seçimi, sonraki alakasız ayar değişiminde
+                // çeviriyi kendiliğinden açmasın.
+                session.pendingTranslationEnable = false
+            } finally {
+                savingPreference = false
+            }
+        }
+    }
+
     Column(modifier) {
         WikiPageTools(session, preferences, assets, config, savingPreference || preferenceReadFailed, preferenceFailed,
             controller = toolsController,
             onSaveAppearance = { mode, zoom ->
-                scope.launch {
-                    savingPreference = true
-                    try {
-                        store.setWikiReadingAppearance(mode, zoom)
-                        preferenceFailed = false
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        preferenceFailed = true
-                    } finally {
-                        savingPreference = false
-                    }
-                }
+                savePreference { store.setWikiReadingAppearance(mode, zoom) }
             },
             onToggleAds = {
-                scope.launch {
-                    savingPreference = true
-                    try {
-                        store.setWikiAdBlockEnabled(host, !config.blockAds)
-                        preferenceFailed = false
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        preferenceFailed = true
-                    } finally {
-                        savingPreference = false
-                    }
-                }
+                savePreference { store.setWikiAdBlockEnabled(host, !config.blockAds) }
+            },
+            // Dil seçimi sayfa araçlarından aynı küresel ayarlara yazılır:
+            // Ayarlar'a gitmeye gerek kalmaz, iki yer de her zaman senkron kalır.
+            onSelectSourceLanguage = { code ->
+                savePreference { store.setTranslateSourceLanguage(code) }
+            },
+            onSelectTargetLanguage = { code ->
+                savePreference { store.setTranslateTargetLanguage(code) }
             }
         )
         WikiFindBar(session)

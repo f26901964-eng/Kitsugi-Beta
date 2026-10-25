@@ -1,24 +1,36 @@
 package com.kitsugi.animelist.ui.screens.detail.wiki
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+
 internal data class WikiDomText(val id: Int, val revision: Int, val text: String)
 internal data class WikiDomResult(val item: WikiDomText, val translated: String?)
 
 /** Batches nearby text slots for context; validates every delimiter before assigning a
  * result. A damaged/reordered delimiter can never put text into a different link/node.
  *
- * Aynı metin bir sayfada birden çok kez geçebilir (gezinme etiketleri, tekrarlanan
- * tablo satırları, "devamını oku" gibi kalıplar). Bu durumda ağ isteği metin başına
- * BİR kez yapılır ve sonuç tüm eşleşen düğümlere dağıtılır; çeviri belirgin biçimde
- * hızlanır, Google'a giden gereksiz istek sayısı düşer.
+ * Hız katmanı (sözleşme değişmeden):
+ *  - Metinler önce **tek tek** önbelleğe sorulur; yalnızca eksikler paketlenip ağa gider.
+ *    Sayfaya dönüşte veya paket dizilişi değiştiğinde çevrilmiş paragraflar yeniden
+ *    çevrilmez.
+ *  - Paketteki aynı metinler tekilleştirilir (tekrarlayan etiketler tek çeviri paylaşır).
+ *  - Başarılı çeviriler tek tek önbelleğe yazılır; böylece önbellek paket dizilişinden
+ *    bağımsız çalışır.
+ *  - Ayraç bozulursa yapılan tekil yedek çeviriler paralel koşar (ağ kapısı çevirmen
+ *    katmanında zaten sınırlıdır), sıra korunur.
  */
 internal object WikiDomTranslationBatch {
-    /** dom-translator.js `take()` ile aynı üst sınır. */
-    const val MAX_ROWS = 12
+    /** JS tarafındaki `take()` paket sınırıyla aynı tutulmalı (dom-translator.js). */
+    const val MAX_ROWS = 16
 
     private val marker = Regex("⟪(/?)K([0-9]+)⟫")
 
-    fun pack(rows: List<WikiDomText>): String = rows.mapIndexed { index, row ->
-        "⟪K$index⟫${row.text}⟪/K$index⟫"
+    fun pack(rows: List<WikiDomText>): String = packTexts(rows.map { it.text })
+
+    private fun packTexts(texts: List<String>): String = texts.mapIndexed { index, text ->
+        "⟪K$index⟫$text⟪/K$index⟫"
     }.joinToString("\n")
 
     fun unpack(text: String, count: Int): List<String>? {
@@ -39,28 +51,81 @@ internal object WikiDomTranslationBatch {
         return values.takeIf { text.substring(previousEnd).isBlank() }
     }
 
-    suspend fun translate(rows: List<WikiDomText>, translate: suspend (String) -> String?): List<WikiDomResult> {
+    suspend fun translate(
+        rows: List<WikiDomText>,
+        cached: suspend (String) -> String? = { null },
+        store: suspend (List<Pair<String, String>>) -> Unit = {},
+        translate: suspend (String) -> String?
+    ): List<WikiDomResult> {
         require(rows.size in 1..MAX_ROWS)
         require(rows.all { it.text.length in 1..8000 })
-        // Aynı kaynak metin → aynı çeviri. Tekrarları istekten önce ele.
-        val unique = LinkedHashMap<String, WikiDomText>()
-        rows.forEach { unique.putIfAbsent(it.text, it) }
-        val uniqueRows = unique.values.toList()
-        val translations = when {
-            uniqueRows.size == 1 -> mapOf(uniqueRows[0].text to translate(uniqueRows[0].text))
-            // Literal marker text must not be confused with our transport markers.
-            uniqueRows.none { marker.containsMatchIn(it.text) } -> {
-                val response = translate(pack(uniqueRows))
-                val values = response?.let { unpack(it, uniqueRows.size) }
-                if (values != null) {
-                    uniqueRows.mapIndexed { index, row -> row.text to values[index] }.toMap()
-                } else {
-                    // Provider changed delimiters: bounded, individual fallback, never positional guessing.
-                    uniqueRows.associate { it.text to translate(it.text) }
+
+        val distinctTexts = rows.map { it.text }.distinct()
+        val translatedByText = HashMap<String, String?>()
+
+        // 1) Ağsız önbellek: bulunan metinler pakete hiç girmez.
+        val cacheHits = coroutineScope {
+            distinctTexts.map { text ->
+                async {
+                    val hit = try {
+                        cached(text)?.takeIf { it.isNotBlank() }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        null
+                    }
+                    text to hit
+                }
+            }.awaitAll()
+        }
+        val misses = ArrayList<String>()
+        for ((text, hit) in cacheHits) {
+            if (hit != null) translatedByText[text] = hit else misses.add(text)
+        }
+
+        // 2) Eksikler: tek metin doğrudan, çok metin işaretli paketle (tek istek).
+        if (misses.isNotEmpty()) {
+            val fresh: Map<String, String?> = when {
+                misses.size == 1 -> mapOf(misses[0] to translate(misses[0]))
+                // Literal marker text must not be confused with our transport markers.
+                misses.none { marker.containsMatchIn(it) } -> {
+                    val response = translate(packTexts(misses))
+                    val values = response?.let { unpack(it, misses.size) }
+                    when {
+                        // Outage: do not fan out sixteen more requests.
+                        response == null -> misses.associateWith { null }
+                        values != null -> misses.mapIndexed { i, text -> text to values[i] }.toMap()
+                        // Provider changed delimiters: bounded, individual fallback,
+                        // never positional guessing.
+                        else -> translateIndividually(misses, translate)
+                    }
+                }
+                else -> translateIndividually(misses, translate)
+            }
+            translatedByText.putAll(fresh)
+
+            // 3) Yeni çevirileri tek tek sakla; yazım hatası çeviriyi düşürmez.
+            val toStore = misses.mapNotNull { text ->
+                fresh[text]?.takeIf { it.isNotBlank() }?.let { text to it }
+            }
+            if (toStore.isNotEmpty()) {
+                try {
+                    store(toStore)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Cache failure must not discard valid translations.
                 }
             }
-            else -> uniqueRows.associate { it.text to translate(it.text) }
         }
-        return rows.map { row -> WikiDomResult(row, translations[row.text]) }
+
+        return rows.map { WikiDomResult(it, translatedByText[it.text]) }
+    }
+
+    private suspend fun translateIndividually(
+        texts: List<String>,
+        translate: suspend (String) -> String?
+    ): Map<String, String?> = coroutineScope {
+        texts.map { text -> async { text to translate(text) } }.awaitAll().toMap()
     }
 }

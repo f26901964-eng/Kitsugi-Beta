@@ -60,10 +60,10 @@ internal class WikiPageEnhancements(
     initialConfig: WikiPageToolConfig
 ) {
     private companion object {
-        /** Uçuştaki çeviri partisi sayısı: global 4 izinli çeviri kapısının 3'ünü kullanır. */
-        const val IN_FLIGHT_BATCHES = 3
+        /** Uçuştaki çeviri partisi sayısı: global 4 izinli çeviri kapısıyla aynı. */
+        const val IN_FLIGHT_BATCHES = 4
         /** DOM köprüsünün tek turda verebileceği en fazla düğüm (dom-translator.js ile aynı). */
-        const val MAX_BATCH_ITEMS = 12
+        const val MAX_BATCH_ITEMS = 16
         /** Çevrilecek metin kalmadığında yoklama aralığı. */
         const val IDLE_POLL_MS = 450L
         /** Belge hâlâ taranıyorsa daha sık yokla. */
@@ -310,7 +310,15 @@ internal class WikiPageEnhancements(
                 session.translating = true
                 launch {
                     val rows = try {
-                        WikiDomTranslationBatch.translate(items) { text ->
+                        WikiDomTranslationBatch.translate(
+                            items,
+                            cached = { text ->
+                                translator.cachedWebPageText(text, settings.source, settings.target)
+                            },
+                            store = { pairs ->
+                                translator.storeWebPageTexts(pairs, settings.source, settings.target)
+                            }
+                        ) { text ->
                             translator.translateWebPageText(text, settings.source, settings.target)
                         }
                     } catch (error: CancellationException) {
