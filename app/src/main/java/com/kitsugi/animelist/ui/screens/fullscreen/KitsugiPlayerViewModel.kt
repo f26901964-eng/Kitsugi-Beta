@@ -2006,7 +2006,11 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /** Kullanıcı "altyazıları yenile" dediğinde: bellek taze olsa bile ağa çık. */
-    fun refreshSubtitles() = fetchAutoSubtitles(forceNetwork = true)
+    fun refreshSubtitles() {
+        // Kullanıcı açıkça yenile dediğinde bloklanmış addon'lar da yeniden denenir.
+        com.kitsugi.animelist.data.repository.SubtitleRepositoryImpl.resetCircuitBreakers()
+        fetchAutoSubtitles(forceNetwork = true)
+    }
 
     // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────────
 

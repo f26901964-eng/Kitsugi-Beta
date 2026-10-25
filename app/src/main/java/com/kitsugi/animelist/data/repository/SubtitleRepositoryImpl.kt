@@ -49,6 +49,17 @@ class SubtitleRepositoryImpl(private val context: Context) {
         )
 
         private val circuitBreakers = java.util.concurrent.ConcurrentHashMap<String, CircuitBreakerState>()
+
+        /**
+         * Kullanıcı "altyazıları yenile" dediğinde devre kesicileri sıfırlar.
+         *
+         * Devre kesici durumu süreç ömrü boyunca yaşıyordu; bir kez bloklanan addon
+         * uygulama yeniden başlatılana kadar sessizce atlanıyor ve kaynaklar arasında
+         * eşitsizlik yaratıyordu (eklenti "yüklü ama sonuç vermiyor").
+         */
+        fun resetCircuitBreakers() {
+            circuitBreakers.clear()
+        }
     }
 
     private val database = KitsugiDatabase.getDatabase(context.applicationContext)
