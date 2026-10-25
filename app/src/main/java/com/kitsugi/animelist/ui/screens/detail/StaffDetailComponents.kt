@@ -520,19 +520,11 @@ internal fun StaffCharacterRolesTabContent(
     titleLanguage: String,
     onCharacterClick: (characterId: Int, characterSource: String, name: String?, imageUrl: String?) -> Unit,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
-    val allRoles = detail.characterRoles
-    var selectedChunk by remember(allRoles.size) { mutableIntStateOf(0) }
-    val chunkCount = (allRoles.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-    val visibleRoles = remember(allRoles, safeChunk) {
-        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allRoles.size)
-        if (start < allRoles.size) allRoles.subList(start, end) else emptyList()
-    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (allRoles.isEmpty()) {
+        if (detail.characterRoles.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_character_roles),
                 color = KitsugiColors.TextSecondary,
@@ -540,26 +532,14 @@ internal fun StaffCharacterRolesTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            DetailChunkSelectorRow(
-                totalCount = allRoles.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
-            visibleRoles.forEachIndexed { idx, role ->
-                key("${role.characterSource}_${role.characterId}_${role.mediaId}_${safeChunk}_$idx") {
-                    StaffCharacterRoleCard(
-                        role = role,
-                        titleLanguage = titleLanguage,
-                        onCharacterClick = onCharacterClick,
-                        onMediaClick = onMediaClick
-                    )
-                }
+            DetailAutoPagingColumn(items = detail.characterRoles, active = pagingActive) { role ->
+                StaffCharacterRoleCard(
+                    role = role,
+                    titleLanguage = titleLanguage,
+                    onCharacterClick = onCharacterClick,
+                    onMediaClick = onMediaClick
+                )
             }
-            DetailChunkSelectorRow(
-                totalCount = allRoles.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
         }
     }
 }
@@ -569,19 +549,11 @@ internal fun StaffMediaWorksTabContent(
     detail: KitsugiStaffDetail,
     titleLanguage: String,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
-    val allWorks = detail.mediaWorks
-    var selectedChunk by remember(allWorks.size) { mutableIntStateOf(0) }
-    val chunkCount = (allWorks.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-    val visibleWorks = remember(allWorks, safeChunk) {
-        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allWorks.size)
-        if (start < allWorks.size) allWorks.subList(start, end) else emptyList()
-    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (allWorks.isEmpty()) {
+        if (detail.mediaWorks.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_media_works),
                 color = KitsugiColors.TextSecondary,
@@ -589,25 +561,13 @@ internal fun StaffMediaWorksTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            DetailChunkSelectorRow(
-                totalCount = allWorks.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
-            visibleWorks.forEachIndexed { idx, work ->
-                key("${work.source}_${work.mediaId}_${work.staffRole}_${safeChunk}_$idx") {
-                    StaffMediaWorkRow(
-                        work = work,
-                        titleLanguage = titleLanguage,
-                        onMediaClick = onMediaClick
-                    )
-                }
+            DetailAutoPagingColumn(items = detail.mediaWorks, active = pagingActive) { work ->
+                StaffMediaWorkRow(
+                    work = work,
+                    titleLanguage = titleLanguage,
+                    onMediaClick = onMediaClick
+                )
             }
-            DetailChunkSelectorRow(
-                totalCount = allWorks.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
         }
     }
 }

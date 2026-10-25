@@ -512,19 +512,11 @@ internal fun CharacterAppearancesTabContent(
     detail: KitsugiCharacterDetail,
     titleLanguage: String,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
-    val allAppearances = detail.mediaAppearances
-    var selectedChunk by remember(allAppearances.size) { mutableIntStateOf(0) }
-    val chunkCount = (allAppearances.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-    val visibleAppearances = remember(allAppearances, safeChunk) {
-        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allAppearances.size)
-        if (start < allAppearances.size) allAppearances.subList(start, end) else emptyList()
-    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (allAppearances.isEmpty()) {
+        if (detail.mediaAppearances.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_appearances),
                 color = KitsugiColors.TextSecondary,
@@ -532,25 +524,13 @@ internal fun CharacterAppearancesTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            DetailChunkSelectorRow(
-                totalCount = allAppearances.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
-            visibleAppearances.forEachIndexed { idx, appearance ->
-                key("${appearance.source}_${appearance.mediaId}_${appearance.mediaType}_${safeChunk}_$idx") {
-                    MediaAppearanceRow(
-                        appearance = appearance,
-                        titleLanguage = titleLanguage,
-                        onMediaClick = onMediaClick
-                    )
-                }
+            DetailAutoPagingColumn(items = detail.mediaAppearances, active = pagingActive) { appearance ->
+                MediaAppearanceRow(
+                    appearance = appearance,
+                    titleLanguage = titleLanguage,
+                    onMediaClick = onMediaClick
+                )
             }
-            DetailChunkSelectorRow(
-                totalCount = allAppearances.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
         }
     }
 }
@@ -559,19 +539,11 @@ internal fun CharacterAppearancesTabContent(
 internal fun CharacterVoiceActorsTabContent(
     detail: KitsugiCharacterDetail,
     onStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pagingActive: Boolean = true
 ) {
-    val allVoiceActors = detail.voiceActors
-    var selectedChunk by remember(allVoiceActors.size) { mutableIntStateOf(0) }
-    val chunkCount = (allVoiceActors.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-    val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-    val visibleVoiceActors = remember(allVoiceActors, safeChunk) {
-        val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-        val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, allVoiceActors.size)
-        if (start < allVoiceActors.size) allVoiceActors.subList(start, end) else emptyList()
-    }
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (allVoiceActors.isEmpty()) {
+        if (detail.voiceActors.isEmpty()) {
             Text(
                 text = stringResource(R.string.empty_voice_actors),
                 color = KitsugiColors.TextSecondary,
@@ -579,24 +551,12 @@ internal fun CharacterVoiceActorsTabContent(
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {
-            DetailChunkSelectorRow(
-                totalCount = allVoiceActors.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
-            visibleVoiceActors.forEachIndexed { idx, actor ->
-                key("${actor.source}_${actor.id}_${actor.language}_${safeChunk}_$idx") {
-                    VoiceActorRow(
-                        actor = actor,
-                        onClick = { onStaffClick(actor.id, actor.source, actor.name, actor.imageUrl) }
-                    )
-                }
+            DetailAutoPagingColumn(items = detail.voiceActors, active = pagingActive) { actor ->
+                VoiceActorRow(
+                    actor = actor,
+                    onClick = { onStaffClick(actor.id, actor.source, actor.name, actor.imageUrl) }
+                )
             }
-            DetailChunkSelectorRow(
-                totalCount = allVoiceActors.size,
-                selectedChunk = safeChunk,
-                onSelectChunk = { selectedChunk = it }
-            )
         }
     }
 }

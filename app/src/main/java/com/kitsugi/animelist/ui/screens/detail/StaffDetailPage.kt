@@ -430,6 +430,7 @@ fun StaffDetailPage(
                                             }
                                             1 -> {
                                                 StaffCharacterRolesTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onCharacterClick = onCharacterClick,
@@ -438,6 +439,7 @@ fun StaffDetailPage(
                                             }
                                             2 -> {
                                                 StaffMediaWorksTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onMediaClick = onMediaClick
@@ -591,6 +593,7 @@ fun StaffDetailPage(
                                                 }
                                                 1 -> {
                                                     StaffCharacterRolesTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onCharacterClick = onCharacterClick,
@@ -599,6 +602,7 @@ fun StaffDetailPage(
                                                 }
                                                 2 -> {
                                                     StaffMediaWorksTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onMediaClick = onMediaClick

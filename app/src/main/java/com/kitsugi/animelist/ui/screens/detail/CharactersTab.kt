@@ -168,75 +168,19 @@ fun CharactersTabContent(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
                     )
                 }
-                // PERF: 100-500+ karakterli yapımlarda Constraints.Infinity altında tüm kartları
-                // aynı karede compose edip yüzlerce AsyncImage başlatmayı önlemek için 40'lık sayfalar.
-                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
-                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-                val visibleList = remember(list, safeChunk) {
-                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
-                    if (start < list.size) list.subList(start, end) else emptyList()
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    DetailChunkSelectorRow(
-                        totalCount = list.size,
-                        selectedChunk = safeChunk,
-                        onSelectChunk = { selectedChunk = it }
-                    )
-                    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                    if (isLandscape) {
-                        val chunks = remember(visibleList) { visibleList.chunked(2) }
-                        chunks.forEachIndexed { rowIdx, rowItems ->
-                            key("char_row_${safeChunk}_$rowIdx") {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    rowItems.forEachIndexed { colIdx, char ->
-                                        key("${char.source}_${char.id}_${colIdx}") {
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                CharacterVoiceActorCard(
-                                                    char = char,
-                                                    onCharacterClick = onCharacterClick,
-                                                    onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                                    onShowVoiceActors = { c ->
-                                                        sheetVoiceActors = c.voiceActors
-                                                        selectedCharacterForVoiceActors = c
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                    if (rowItems.size == 1) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                            }
+                val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                DetailAutoPagingColumn(
+                    items = list,
+                    columns = if (isLandscape) 2 else 1
+                ) { char ->
+                    CharacterVoiceActorCard(
+                        char = char,
+                        onCharacterClick = onCharacterClick,
+                        onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
+                        onShowVoiceActors = { selected ->
+                            sheetVoiceActors = selected.voiceActors
+                            selectedCharacterForVoiceActors = selected
                         }
-                    } else {
-                        visibleList.forEachIndexed { idx, char ->
-                            key("${char.source}_${char.id}_${safeChunk}_$idx") {
-                                CharacterVoiceActorCard(
-                                    char = char,
-                                    onCharacterClick = onCharacterClick,
-                                    onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                    onShowVoiceActors = { c ->
-                                        sheetVoiceActors = c.voiceActors
-                                        selectedCharacterForVoiceActors = c
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    DetailChunkSelectorRow(
-                        totalCount = list.size,
-                        selectedChunk = safeChunk,
-                        onSelectChunk = { selectedChunk = it }
                     )
                 }
             }
@@ -546,57 +490,12 @@ fun StaffTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
-                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-                val visibleList = remember(list, safeChunk) {
-                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
-                    if (start < list.size) list.subList(start, end) else emptyList()
-                }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    DetailChunkSelectorRow(
-                        totalCount = list.size,
-                        selectedChunk = safeChunk,
-                        onSelectChunk = { selectedChunk = it }
-                    )
-                    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                    if (isLandscape) {
-                        val chunks = remember(visibleList) { visibleList.chunked(2) }
-                        chunks.forEachIndexed { rowIdx, rowItems ->
-                            key("staff_row_${safeChunk}_$rowIdx") {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    rowItems.forEachIndexed { colIdx, staff ->
-                                        key("${staff.source}_${staff.id}_${staff.role}_$colIdx") {
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                StaffRow(staff = staff, onStaffClick = onStaffClick)
-                                            }
-                                        }
-                                    }
-                                    if (rowItems.size == 1) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        visibleList.forEachIndexed { idx, staff ->
-                            key("${staff.source}_${staff.id}_${staff.role}_${safeChunk}_$idx") {
-                                StaffRow(staff = staff, onStaffClick = onStaffClick)
-                            }
-                        }
-                    }
-                    DetailChunkSelectorRow(
-                        totalCount = list.size,
-                        selectedChunk = safeChunk,
-                        onSelectChunk = { selectedChunk = it }
-                    )
+                val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                DetailAutoPagingColumn(
+                    items = list,
+                    columns = if (isLandscape) 2 else 1
+                ) { staff ->
+                    StaffRow(staff = staff, onStaffClick = onStaffClick)
                 }
             }
         }

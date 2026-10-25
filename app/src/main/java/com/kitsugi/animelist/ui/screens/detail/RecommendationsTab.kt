@@ -89,35 +89,11 @@ fun RecommendationsTabContent(
                     )
                 }
             } else {
-                var selectedChunk by remember(list.size) { mutableIntStateOf(0) }
-                val chunkCount = (list.size + DETAIL_TAB_PAGE_CHUNK_SIZE - 1) / DETAIL_TAB_PAGE_CHUNK_SIZE
-                val safeChunk = selectedChunk.coerceIn(0, (chunkCount - 1).coerceAtLeast(0))
-                val visibleList = remember(list, safeChunk) {
-                    val start = safeChunk * DETAIL_TAB_PAGE_CHUNK_SIZE
-                    val end = minOf(start + DETAIL_TAB_PAGE_CHUNK_SIZE, list.size)
-                    if (start < list.size) list.subList(start, end) else emptyList()
-                }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    DetailChunkSelectorRow(
-                        totalCount = list.size,
-                        selectedChunk = safeChunk,
-                        onSelectChunk = { selectedChunk = it }
-                    )
-                    visibleList.forEachIndexed { idx, rel ->
-                        key("${rel.source}_${rel.malId}_${rel.mediaType}_${safeChunk}_$idx") {
-                            RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
-                        }
-                    }
-                    DetailChunkSelectorRow(
-                        totalCount = list.size,
-                        selectedChunk = safeChunk,
-                        onSelectChunk = { selectedChunk = it }
-                    )
+                DetailAutoPagingColumn(
+                    items = list,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) { rel ->
+                    RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
                 }
             }
         }

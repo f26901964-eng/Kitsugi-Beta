@@ -468,6 +468,7 @@ fun CharacterDetailPage(
                                             }
                                             CharacterTabKey.APPEARANCES -> {
                                                 CharacterAppearancesTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onMediaClick = onMediaClick
@@ -475,6 +476,7 @@ fun CharacterDetailPage(
                                             }
                                             CharacterTabKey.VOICE_ACTORS -> {
                                                 CharacterVoiceActorsTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     onStaffClick = onStaffClick
                                                 )
@@ -634,6 +636,7 @@ fun CharacterDetailPage(
                                                 }
                                                 CharacterTabKey.APPEARANCES -> {
                                                     CharacterAppearancesTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onMediaClick = onMediaClick
@@ -641,6 +644,7 @@ fun CharacterDetailPage(
                                                 }
                                                 CharacterTabKey.VOICE_ACTORS -> {
                                                     CharacterVoiceActorsTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         onStaffClick = onStaffClick
                                                     )

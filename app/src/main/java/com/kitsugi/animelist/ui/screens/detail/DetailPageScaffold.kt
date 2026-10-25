@@ -210,7 +210,11 @@ fun DetailPageScaffold(
                                                     .verticalScroll(pageScrollState)
                                                     .padding(horizontal = 16.dp, vertical = 8.dp)
                                             ) {
-                                                pageContent(page)
+                                                CompositionLocalProvider(
+                                                    LocalDetailPagingActive provides (page == pagerState.settledPage)
+                                                ) {
+                                                    pageContent(page)
+                                                }
                                             }
                                         }
                                     }
@@ -369,7 +373,11 @@ fun DetailPageScaffold(
                                                             .recordStablePageHeight(pageHeights, page, it.size.height)
                                                     }
                                             ) {
-                                                pageContent(page)
+                                                CompositionLocalProvider(
+                                                    LocalDetailPagingActive provides (page == pagerState.settledPage)
+                                                ) {
+                                                    pageContent(page)
+                                                }
                                             }
                                         }
                                     }
