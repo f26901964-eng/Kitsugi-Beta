@@ -163,6 +163,16 @@
 # RxJava (manga extension compat)
 -keep class io.reactivex.** { *; }
 -keepclassmembers class io.reactivex.** { *; }
+-keep class rx.** { *; }
+-keepclassmembers class rx.** { *; }
+# Mihon / Tachiyomi / Keiyoushi extension host ABI & WebView boundary bridges
+-keep class eu.kanade.tachiyomi.** { *; }
+-keepclassmembers class eu.kanade.tachiyomi.** { *; }
+-keep class uy.kohesive.injekt.** { *; }
+-keepclassmembers class uy.kohesive.injekt.** { *; }
+-keep class androidx.webkit.** { *; }
+-keep interface org.chromium.support_lib_boundary.** { *; }
+-keep class org.chromium.support_lib_boundary.** { *; }
 # Kotlin reflect (extension loading)
 -keep class kotlin.reflect.** { *; }
 -keepclassmembers class kotlin.reflect.** { *; }

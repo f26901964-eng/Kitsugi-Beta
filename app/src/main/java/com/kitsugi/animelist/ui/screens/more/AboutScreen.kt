@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.more
+package com.kitsugi.animelist.ui.screens.more
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.NewReleases
@@ -76,6 +77,7 @@ fun AboutScreen(
     val developer = "Kitsugi Team"
     val projectRepo = "https://github.com/f26901964-eng/Kitsugi-Beta"
     val pluginsRepo = "https://github.com/f26901964-eng/Kitsugi-Plugins"
+    val mangaPluginsRepo = "https://github.com/f26901964-eng/Kitsugi-Manga-Plugins"
 
     var showDeveloperLogs by remember { mutableStateOf(false) }
 
@@ -302,6 +304,38 @@ fun AboutScreen(
                                 )
                                 Text(
                                     text = "github.com/f26901964-eng/Kitsugi-Plugins",
+                                    color = KitsugiColors.textMuted,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .tvClickable { openUrl(mangaPluginsRepo) }
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.MenuBook,
+                                contentDescription = null,
+                                tint = KitsugiColors.textPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Kitsugi Manga Plugins (Manga Havuzu)",
+                                    color = KitsugiColors.textPrimary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "github.com/f26901964-eng/Kitsugi-Manga-Plugins",
                                     color = KitsugiColors.textMuted,
                                     style = MaterialTheme.typography.labelSmall
                                 )

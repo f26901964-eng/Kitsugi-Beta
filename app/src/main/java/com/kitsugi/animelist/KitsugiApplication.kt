@@ -61,13 +61,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // çökmeler daha önce hiçbir rapora girmiyordu.
         // Açılış aşaması izi ilk satırda yazılır: süreç buradan sonra ölürse rapor
         // "attachBaseContext" aşamasında olduğunu söyler.
-        //
-        // NOT: :crash süreci bu dosyayı kendi attachBaseContext'i ile EZİYORDU; çökme
-        // ekranı raporu okurken ("Son aşama" bloğu okuma anında eklenir) her zaman
-        // "attachBaseContext" görünüyordu — yanlış kanıt. Artık :crash süreci yazmıyor.
-        if (!detectCrashProcess()) {
-            try { com.kitsugi.animelist.core.diagnostics.StartupStage.mark(base, "attachBaseContext") } catch (_: Throwable) {}
-        }
+        try { com.kitsugi.animelist.core.diagnostics.StartupStage.mark(base, "attachBaseContext") } catch (_: Throwable) {}
         try { com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(base) } catch (_: Throwable) {}
         try { com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor.install(base) } catch (_: Throwable) {}
         // Dil dosyası metinlerinin Composable olmayan bağlamlardan (ViewModel,
@@ -75,22 +69,19 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         try { com.kitsugi.animelist.utils.KitsugiStrings.install(base) } catch (_: Throwable) {}
     }
 
-    /** Bu süreç çökme ekranı (:crash) için mi başlatıldı? */
-    private fun detectCrashProcess(): Boolean = runCatching {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            android.app.Application.getProcessName().endsWith(":crash")
-        } else {
-            val pid = android.os.Process.myPid()
-            val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-            am?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName?.endsWith(":crash") == true
-        }
-    }.getOrDefault(false)
-
     override fun onCreate() {
         // ── 0. :crash Süreci Koruması ────────────────────────────────────────────────
         // Eğer bu süreç çökme ekranı (:crash) için başlatılmışsa, arka plan işçilerini,
         // WorkManager'ı ve Room veritabanı senkronizasyonunu çalıştırma!
-        val isCrashProcess = detectCrashProcess()
+        val isCrashProcess = runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                Application.getProcessName().endsWith(":crash")
+            } else {
+                val pid = android.os.Process.myPid()
+                val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                am?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName?.endsWith(":crash") == true
+            }
+        }.getOrDefault(false)
 
         if (isCrashProcess) {
             instance = this
@@ -190,11 +181,6 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "KitsugiEpisodeRatingsRepository.init")
         runCatching { KitsugiEpisodeRatingsRepository.init(this) }
             .onFailure { android.util.Log.e("KitsugiApplication", "RatingsRepository.init hatası: ${it.message}", it) }
-
-        // MDBList API kotası deposu: son okunan X-RateLimit-* değerleri süreçler arasında korunur.
-        com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "MdbListClient.initialize")
-        runCatching { com.kitsugi.animelist.data.remote.MdbListClient.initialize(this) }
-            .onFailure { android.util.Log.e("KitsugiApplication", "MdbListClient.init hatası: ${it.message}", it) }
 
         // Bangumi Latin başlık önbelleğini arka planda belleğe al (disk okuması IO kapsamında).
         // "Listem", Bangumi profili ve listeler ilk çizimde kullanıcının seçtiği başlık diline
@@ -311,134 +297,76 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
             .onFailure { android.util.Log.w("KitsugiStorage", "Bakım işi planlanamadı: ${it.message}") }
 
         // ── Otomatik Arka Plan Liste Yenileme ──────────────────────────────────────
-        // Eski davranış: TEK bir 24 saatlik global zaman damgası + üç kaynak
-        // (AniList/MAL/Simkl) için sil-yeniden-yaz. Sorunları:
-        //  - bir kaynağı elle yenilemek diğerlerini de "taze" gösteriyordu,
-        //  - Simkl/Kitsu/Shikimori/Bangumi hiç otomatik yenilenmiyordu,
-        //  - yenileme her seferinde listenin TAMAMINI çekip tabloyu baştan yazıyordu.
-        // Yeni akış kaynak başına ilerler: ListSyncStateStore'daki tazelik defterine
-        // göre atlanır, destekleyen kaynakta fark (delta) çekilir, değişmeyen satırlar
-        // veritabanına yazılmaz. Kaynaklar arasında kısa bekleme vardır (staggering).
+        // AniHyou / MoeList gibi: uygulama açıldığında bağlı platformların listelerini
+        // sessizce arka planda yeniler. Son yenilemeden 24 saat geçmemişse atlar.
         applicationScope.launch {
             try {
-                val app = this@KitsugiApplication
-                val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(app)
-                val repo = com.kitsugi.animelist.data.local.MediaEntryRepository(
-                    dao = db.mediaEntryDao(),
-                    pendingSyncDao = db.pendingSyncDao(),
-                    context = app
-                )
-                val mode = com.kitsugi.animelist.data.sync.ListRefreshMode.BACKGROUND
+                val prefs = getSharedPreferences("kitsugi_auto_sync", Context.MODE_PRIVATE)
+                val lastSync = prefs.getLong("last_list_sync_ms", 0L)
+                val now = System.currentTimeMillis()
+                val twentyFourHours = 24 * 60 * 60 * 1000L
 
-                suspend fun runSource(
-                    source: String,
-                    supportsDelta: Boolean,
-                    fetchFull: suspend () -> List<com.kitsugi.animelist.model.MediaEntry>,
-                    fetchDelta: (suspend (Long) -> List<com.kitsugi.animelist.model.MediaEntry>)? = null,
-                    revisionProbe: (suspend () -> String?)? = null,
-                    keepAdultRows: Boolean = false
-                ) {
-                    val outcome = com.kitsugi.animelist.data.sync.SourceListSynchronizer.refresh(
-                        context = app,
-                        repository = repo,
-                        source = source,
-                        mode = mode,
-                        supportsDelta = supportsDelta,
-                        fetchFull = fetchFull,
-                        fetchDelta = fetchDelta,
-                        revisionProbe = revisionProbe,
-                        // Arka planda TAM turda, uzakta artık olmayan satırlar silinir
-                        // (kullanıcı listeden çıkardı → yerelde de kalmasın). Yarım yanıt
-                        // koruması SourceListSynchronizer içinde uygulanır.
-                        allowDelete = true,
-                        keepAdultRows = keepAdultRows
-                    )
-                    when (outcome) {
-                        is com.kitsugi.animelist.data.sync.ListRefreshOutcome.Completed ->
-                            android.util.Log.i(
-                                "KitsugiAutoSync",
-                                "$source: +${outcome.stats.added} yeni, ~${outcome.stats.updated} güncellendi, " +
-                                    "${outcome.stats.unchanged} aynı (delta=${outcome.usedDelta}, ${outcome.durationMs} ms)"
-                            )
-                        is com.kitsugi.animelist.data.sync.ListRefreshOutcome.Skipped ->
-                            android.util.Log.d("KitsugiAutoSync", "$source atlandı: ${outcome.reason}")
-                        is com.kitsugi.animelist.data.sync.ListRefreshOutcome.Failed ->
-                            android.util.Log.w("KitsugiAutoSync", "$source yenileme hatası: ${outcome.message}")
-                        is com.kitsugi.animelist.data.sync.ListRefreshOutcome.AlreadyRunning ->
-                            android.util.Log.d("KitsugiAutoSync", "$source zaten yenileniyor")
-                    }
-                    kotlinx.coroutines.delay(AUTO_SYNC_STAGGER_MS)
-                }
+                if (now - lastSync < twentyFourHours) {
+                    android.util.Log.d("KitsugiAutoSync", "Son yenilemeden 24 saat geçmedi, atlanıyor.")
+                } else {
+                    val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(this@KitsugiApplication)
+                    val dao = db.mediaEntryDao()
+                    val repo = com.kitsugi.animelist.data.local.MediaEntryRepository(dao = dao, context = this@KitsugiApplication)
 
-                val aniListToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(app)
-                if (!aniListToken.isNullOrBlank()) {
-                    runSource(
-                        source = "anilist",
-                        supportsDelta = true,
-                        fetchFull = { com.kitsugi.animelist.data.auth.AniListImportManager.fetchAllLists(aniListToken) },
-                        fetchDelta = { since -> com.kitsugi.animelist.data.auth.AniListImportManager.fetchListsSince(aniListToken, since) }
-                    )
-                }
+                    var syncCount = 0
 
-                val malToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getOrRefreshMalToken(app)
-                if (!malToken.isNullOrBlank()) {
-                    val showAdult = runCatching {
-                        com.kitsugi.animelist.data.settings.SettingsDataStore(app).settingsFlow.first().showAdultContent
-                    }.getOrDefault(false)
-                    runSource(
-                        source = "mal",
-                        supportsDelta = false,
-                        // `nsfw=false` iken MAL +18 kayıtları yanıta hiç koymaz → bunlar
-                        // silme adayı olmamalı, yoksa +18 listesi her yenilemede silinirdi.
-                        keepAdultRows = !showAdult,
-                        fetchFull = { com.kitsugi.animelist.data.auth.MalImportManager.fetchAllLists(malToken, showAdult) }
-                    )
-                }
-
-                val simklToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getSimklToken(app)
-                if (!simklToken.isNullOrBlank()) {
-                    runSource(
-                        source = "simkl",
-                        supportsDelta = true,
-                        fetchFull = { com.kitsugi.animelist.data.auth.SimklImportManager.fetchAllLists(simklToken) },
-                        revisionProbe = { com.kitsugi.animelist.data.auth.SimklImportManager.fetchActivitiesRevision(simklToken) }
-                    )
-                }
-
-                val kitsuToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getKitsuToken(app)
-                val kitsuUserId = com.kitsugi.animelist.data.auth.ExternalAuthManager.getKitsuUserId(app)
-                if (!kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()) {
-                    runSource(
-                        source = "kitsu",
-                        supportsDelta = true,
-                        fetchFull = { com.kitsugi.animelist.data.auth.KitsuImportManager.fetchAllLists(app, kitsuToken, kitsuUserId) },
-                        fetchDelta = { since ->
-                            com.kitsugi.animelist.data.auth.KitsuImportManager
-                                .fetchAllListsSince(app, kitsuToken, kitsuUserId, since)
+                    // AniList
+                    val aniListToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(this@KitsugiApplication)
+                    if (!aniListToken.isNullOrBlank()) {
+                        try {
+                            android.util.Log.d("KitsugiAutoSync", "AniList listesi yenileniyor...")
+                            val entries = com.kitsugi.animelist.data.auth.AniListImportManager.fetchAllLists(aniListToken)
+                            // +18 işaretleri sil-yaz döngüsünde kaybolmasın
+                            repo.replaceSourcePreservingAdultFlags("anilist", entries)
+                            syncCount += entries.size
+                            android.util.Log.d("KitsugiAutoSync", "AniList: ${entries.size} kayıt yenilendi.")
+                        } catch (e: Exception) {
+                            android.util.Log.w("KitsugiAutoSync", "AniList yenileme hatası: ${e.message}")
                         }
-                    )
-                }
+                    }
 
-                val shikimoriToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getOrRefreshShikimoriToken(app)
-                val shikimoriUserId = com.kitsugi.animelist.data.auth.ExternalAuthManager.getShikimoriUserId(app)
-                if (!shikimoriToken.isNullOrBlank() && shikimoriUserId != null) {
-                    runSource(
-                        source = "shikimori",
-                        supportsDelta = false,
-                        fetchFull = { com.kitsugi.animelist.data.auth.ShikimoriImportManager.fetchAllLists(app, shikimoriToken, shikimoriUserId) }
-                    )
-                }
+                    // MyAnimeList
+                    val malToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getOrRefreshMalToken(this@KitsugiApplication)
+                    if (!malToken.isNullOrBlank()) {
+                        try {
+                            android.util.Log.d("KitsugiAutoSync", "MAL listesi yenileniyor...")
+                            val dataStore = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication)
+                            val showAdult = dataStore.settingsFlow.first().showAdultContent
+                            val entries = com.kitsugi.animelist.data.auth.MalImportManager.fetchAllLists(malToken, showAdult)
+                            repo.replaceSourcePreservingAdultFlags("mal", entries)
+                            syncCount += entries.size
+                            android.util.Log.d("KitsugiAutoSync", "MAL: ${entries.size} kayıt yenilendi.")
+                        } catch (e: Exception) {
+                            android.util.Log.w("KitsugiAutoSync", "MAL yenileme hatası: ${e.message}")
+                        }
+                    }
 
-                val bangumiToken = com.kitsugi.animelist.data.auth.BangumiAuthStore.getValidToken(app)
-                if (!bangumiToken.isNullOrBlank()) {
-                    runSource(
-                        source = "bangumi",
-                        supportsDelta = false,
-                        fetchFull = { com.kitsugi.animelist.data.auth.BangumiImportManager.fetchAllLists(app, bangumiToken) }
-                    )
+                    // Simkl
+                    val simklToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getSimklToken(this@KitsugiApplication)
+                    if (!simklToken.isNullOrBlank()) {
+                        try {
+                            android.util.Log.d("KitsugiAutoSync", "Simkl listesi yenileniyor...")
+                            val entries = com.kitsugi.animelist.data.auth.SimklImportManager.fetchAllLists(simklToken)
+                            // Simkl liste API'si `adult` taşımaz → eski +18 işaretleri
+                            // korunmalı ve hemen ardından kimlik üzerinden tamamlanmalı.
+                            repo.replaceSourcePreservingAdultFlags("simkl", entries)
+                            syncCount += entries.size
+                            android.util.Log.d("KitsugiAutoSync", "Simkl: ${entries.size} kayıt yenilendi.")
+                        } catch (e: Exception) {
+                            android.util.Log.w("KitsugiAutoSync", "Simkl yenileme hatası: ${e.message}")
+                        }
+                    }
+
+                    if (syncCount > 0) {
+                        prefs.edit().putLong("last_list_sync_ms", now).apply()
+                        android.util.Log.i("KitsugiAutoSync", "Otomatik liste yenileme tamamlandı: toplam $syncCount kayıt.")
+                    }
                 }
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiAutoSync", "Otomatik sync hatası: ${e.message}")
             }
@@ -553,15 +481,19 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         applicationScope.launch(Dispatchers.IO) {
             try {
                 com.kitsugi.animelist.data.manga.MangaExtensionLoader.loadAllExtensions(this@KitsugiApplication)
-                android.util.Log.d("KitsugiApplication", "Manga eklentileri tarama tamamlandı.")
+                com.kitsugi.animelist.data.manga.KitsugiMangaDefaultProfile.ensureApplied(this@KitsugiApplication)
+                android.util.Log.d("KitsugiApplication", "Manga eklentileri tarama tamamlandı (varsayılan: Gölge Bahçesi).")
 
-                // Kotatsu-Redo: tüm 1300+ built-in kaynağı yükle (dil filtresi: TR varsayılan)
-                try {
-                    com.kitsugi.animelist.data.manga.KotatsuExtensionAdapter.initialize(this@KitsugiApplication)
-                    android.util.Log.i("KitsugiApplication",
-                        "Kotatsu init: ${com.kitsugi.animelist.data.manga.KotatsuExtensionAdapter.getSourceCount()} kaynak yüklendi.")
-                } catch (e: Exception) {
-                    android.util.Log.e("KitsugiApplication", "Kotatsu init hatası: ${e.message}", e)
+                // Kotatsu-Redo: yalnızca kullanıcı açıkça dil etkinleştirdiyse yükle
+                // (varsayılan profilde kapalıdır; diğer kaynakların otomatik yüklenmesi engellenir)
+                if (com.kitsugi.animelist.data.manga.KotatsuExtensionAdapter.getActiveLangs().isNotEmpty()) {
+                    try {
+                        com.kitsugi.animelist.data.manga.KotatsuExtensionAdapter.initialize(this@KitsugiApplication)
+                        android.util.Log.i("KitsugiApplication",
+                            "Kotatsu init: ${com.kitsugi.animelist.data.manga.KotatsuExtensionAdapter.getSourceCount()} kaynak yüklendi.")
+                    } catch (e: Exception) {
+                        android.util.Log.e("KitsugiApplication", "Kotatsu init hatası: ${e.message}", e)
+                    }
                 }
 
                 // Dinamik manga domain kataloğunu internetten çek ve yerel ayarları güncelle
@@ -595,16 +527,18 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                 android.util.Log.e("KitsugiApplication", "Manga oto-güncelleme hatası: ${e.message}", e)
             }
 
-            // Kotatsu-Redo kaynaklarını arka planda sessizce güncelle (12 saatte bir)
-            kotlinx.coroutines.delay(4_000L)
-            try {
-                val kotatsuCount = com.kitsugi.animelist.data.manga.MangaCatalogManager.syncKotatsuSources(
-                    context = this@KitsugiApplication,
-                    forceCheck = false
-                )
-                android.util.Log.i("KitsugiApplication", "Kotatsu-Redo kaynakları güncellendi: $kotatsuCount kaynak yüklendi.")
-            } catch (e: Exception) {
-                android.util.Log.e("KitsugiApplication", "Kotatsu sync hatası: ${e.message}", e)
+            // Kotatsu-Redo kaynaklarını arka planda sessizce güncelle (yalnızca aktif dil varsa)
+            if (com.kitsugi.animelist.data.manga.KotatsuExtensionAdapter.getActiveLangs().isNotEmpty()) {
+                kotlinx.coroutines.delay(4_000L)
+                try {
+                    val kotatsuCount = com.kitsugi.animelist.data.manga.MangaCatalogManager.syncKotatsuSources(
+                        context = this@KitsugiApplication,
+                        forceCheck = false
+                    )
+                    android.util.Log.i("KitsugiApplication", "Kotatsu-Redo kaynakları güncellendi: $kotatsuCount kaynak yüklendi.")
+                } catch (e: Exception) {
+                    android.util.Log.e("KitsugiApplication", "Kotatsu sync hatası: ${e.message}", e)
+                }
             }
         }
 
@@ -925,5 +859,3 @@ private fun safeFreeHardwareRenderer(activity: android.app.Activity) {
     }
 }
 
-/** [KitsugiApplication] arka plan liste yenilemesinde kaynaklar arası bekleme. */
-private const val AUTO_SYNC_STAGGER_MS = 500L

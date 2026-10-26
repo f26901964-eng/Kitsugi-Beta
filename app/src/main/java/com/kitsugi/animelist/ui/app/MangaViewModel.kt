@@ -38,7 +38,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     private val mangaRepoClient = MangaRepoClient(context)
     private val mangaRepoPrefs = context.getSharedPreferences("manga_repos", android.content.Context.MODE_PRIVATE)
 
-    var mangaSources by mutableStateOf(mangaRepository.getAvailableSources())
+    var mangaSources by mutableStateOf(mangaRepository.getInstalledSources())
         private set
 
     var mangaReposState by mutableStateOf<List<String>>(emptyList())
@@ -100,14 +100,11 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     init {
-        // Load saved repo URLs
-        val saved = mangaRepoPrefs.getString("repo_urls", null)
-        val urls: List<String> = if (!saved.isNullOrBlank()) {
-            try {
-                val arr = org.json.JSONArray(saved)
-                (0 until arr.length()).map { arr.getString(it) }
-            } catch (_: Exception) { emptyList() }
-        } else emptyList()
+        com.kitsugi.animelist.data.manga.KitsugiMangaDefaultProfile.ensureApplied(context)
+        mangaSources = mangaRepository.getInstalledSources()
+
+        // Varsayılan resmi Kitsugi-Manga-Plugins deposunu yükle / tohumla
+        val urls: List<String> = com.kitsugi.animelist.data.manga.KitsugiMangaDefaultProfile.loadOrSeedMangaRepos(context)
         mangaReposState = urls
 
         // Repo verilerini otomatik çek ve ardından güncelleme kontrolü yap
@@ -157,6 +154,12 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
      * Mihon'daki hasUpdatedVer / hasUpdatedLib mantığına karşılık gelir.
      */
     fun hasUpdateAvailable(pkg: String, remoteVersionCode: Int): Boolean {
+        // Gölge Bahçesi'nin çalışan Kitsugi adaptörü APK/Keiyoushi kodundan bağımsız,
+        // uygulamanın içine gömülüdür. Harici Extension APK güncellemeleri bu native kaynağı
+        // güncellemez; yalnızca uygulama sürümü değiştirebilir.
+        if (pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)) {
+            return false
+        }
         val local = getInstalledVersionCode(pkg)
         return local >= 0L && remoteVersionCode.toLong() > local
     }
@@ -191,7 +194,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     fun addMangaRepo(urlsInput: String, force: Boolean = false) {
         viewModelScope.launch {
             val newUrls = urlsInput.split(Regex("[,\\n\\r\\s]+"))
-                .map { it.trim() }
+                .map { MangaRepoClient.normalizeMangaRepoUrl(it.trim()) }
                 .filter { it.isNotBlank() && !mangaReposState.contains(it) }
             if (newUrls.isEmpty()) return@launch
 
@@ -225,7 +228,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val result = mangaRepository.installExtensionFromUri(uri)
             withContext(Dispatchers.Main) {
-                mangaSources = mangaRepository.getAvailableSources()
+                mangaSources = mangaRepository.getInstalledSources()
                 if (result.isSuccess) {
                     onShowMessage?.invoke(KitsugiStrings.get(R.string.manga_eklentisi_yuklendi_x, result.getOrNull()?.name))
                 } else {
@@ -251,17 +254,22 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
-            mangaSources = withContext(Dispatchers.IO) { mangaRepository.getAvailableSources() }
+            mangaSources = withContext(Dispatchers.IO) { mangaRepository.getInstalledSources() }
             onComplete(failures)
         }
     }
 
     fun deleteMangaExtension(source: MangaSource) {
         viewModelScope.launch(Dispatchers.IO) {
+            val wasBuiltIn = source.isBuiltIn
             mangaRepository.deleteExtension(source)
             withContext(Dispatchers.Main) {
-                mangaSources = mangaRepository.getAvailableSources()
-                onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_kaldirildi_x_5014f43, source.name))
+                mangaSources = mangaRepository.getInstalledSources()
+                if (wasBuiltIn) {
+                    onShowMessage?.invoke("⏸️ Varsayılan dahili kaynak devre dışı bırakıldı: ${source.name}")
+                } else {
+                    onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_kaldirildi_x_5014f43, source.name))
+                }
             }
         }
     }
@@ -275,7 +283,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             }
             mangaRepository.setSourceHealthStatus(source, status)
             withContext(Dispatchers.Main) {
-                mangaSources = mangaRepository.getAvailableSources()
+                mangaSources = mangaRepository.getInstalledSources()
                 onShowMessage?.invoke(
                     if (enabled) KitsugiStrings.get(R.string.eklenti_etkinlestirildi_x, source.name)
                     else "⏸️ Eklenti devre dışı bırakıldı: ${source.name}"
@@ -290,6 +298,24 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun installMangaApk(ext: MangaExtensionInfo, force: Boolean, onResult: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
+            if (ext.pkg.equals(
+                    com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
+                    ignoreCase = true
+                )
+            ) {
+                withContext(Dispatchers.IO) {
+                    val builtIn = MangaExtensionLoader.registerBuiltInSources(context)
+                    mangaRepository.setSourceHealthStatus(
+                        builtIn,
+                        com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Healthy,
+                    )
+                }
+                mangaSources = mangaRepository.getInstalledSources()
+                onResult?.invoke(true)
+                onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_etkinlestirildi_x, ext.name))
+                return@launch
+            }
+
             val extensionId = ext.pkg.replace(".", "_")
             var signatureHashToPrompt: String? = null
             
@@ -321,7 +347,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                 onResult?.invoke(false)
             } else {
                 untrustedSignatureToConfirm = null
-                mangaSources = mangaRepository.getAvailableSources()
+                mangaSources = mangaRepository.getInstalledSources()
                 onResult?.invoke(success)
                 onShowMessage?.invoke(
                     if (success) KitsugiStrings.get(R.string.yuklendi_x, ext.name) else KitsugiStrings.get(R.string.indirilemedi_x, ext.name)
@@ -369,7 +395,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                         mangaBulkInstallCurrentName = ext.name
                         mangaBulkInstallDone = completedCount
                         notifyMangaBulkProgress()
-                        mangaSources = mangaRepository.getAvailableSources()
+                        mangaSources = mangaRepository.getInstalledSources()
                     } finally {
                         semaphore.release()
                     }
@@ -392,7 +418,9 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     fun updateAllMangaExtensions(repoUrl: String, extensions: List<MangaExtensionInfo>) {
         viewModelScope.launch {
             val toUpdate = extensions.filter { ext ->
-                mangaSources.any { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name }
+                !ext.pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true) &&
+                    mangaSources.any { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name } &&
+                    hasUpdateAvailable(ext.pkg, ext.versionCode)
             }
             if (toUpdate.isEmpty()) {
                 onShowMessage?.invoke(KitsugiStrings.get(R.string.guncellenecek_eklenti_bulunamadi))
@@ -427,7 +455,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                         mangaBulkInstallCurrentName = ext.name
                         mangaBulkInstallDone = completedCount
                         notifyMangaBulkProgress()
-                        mangaSources = mangaRepository.getAvailableSources()
+                        mangaSources = mangaRepository.getInstalledSources()
                     } finally {
                         semaphore.release()
                     }
@@ -498,7 +526,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSourceDomainOverride(source: MangaSource, value: String?) {
         val ok = mangaRepository.setConfiguredDomain(source, value)
-        mangaSources = mangaRepository.getAvailableSources()
+        mangaSources = mangaRepository.getInstalledSources()
         onShowMessage?.invoke(
             when {
                 value.isNullOrBlank() -> "🧹 Domain temizlendi: ${source.name}"
@@ -510,7 +538,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSourceUserAgentOverride(source: MangaSource, value: String?) {
         val ok = mangaRepository.setSourceUserAgentOverride(source, value)
-        mangaSources = mangaRepository.getAvailableSources()
+        mangaSources = mangaRepository.getInstalledSources()
         onShowMessage?.invoke(
             when {
                 value.isNullOrBlank() -> "🧹 User-Agent temizlendi: ${source.name}"
@@ -522,7 +550,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSourceSlowdownEnabled(source: MangaSource, enabled: Boolean) {
         mangaRepository.setSourceSlowdownEnabled(source, enabled)
-        mangaSources = mangaRepository.getAvailableSources()
+        mangaSources = mangaRepository.getInstalledSources()
         onShowMessage?.invoke(
             if (enabled) KitsugiStrings.get(R.string.slowdown_acildi_x, source.name) else KitsugiStrings.get(R.string.slowdown_kapatildi_x, source.name)
         )
@@ -530,7 +558,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetSourceDiagnostics(source: MangaSource) {
         mangaRepository.resetSourceDiagnostics(source)
-        mangaSources = mangaRepository.getAvailableSources()
+        mangaSources = mangaRepository.getInstalledSources()
         onShowMessage?.invoke(KitsugiStrings.get(R.string.source_istatistikleri_sifirlandi_x, source.name))
     }
 
@@ -541,7 +569,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearAllSourceConfigs() {
         mangaRepository.clearAllSourceConfigs()
-        mangaSources = mangaRepository.getAvailableSources()
+        mangaSources = mangaRepository.getInstalledSources()
         onShowMessage?.invoke(KitsugiStrings.get(R.string.tum_source_config_ayarlari_temizlendi))
     }
 
@@ -558,7 +586,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     mangaRepository.quickCheckSourceHealth(source)
                 }
             }
-            mangaSources = mangaRepository.getAvailableSources()
+            mangaSources = mangaRepository.getInstalledSources()
             mangaSourceBusyKeys = mangaSourceBusyKeys - key
             result.onSuccess { status ->
                 onShowMessage?.invoke("🔎 ${source.name}: ${status.name}")
@@ -578,7 +606,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     mangaRepository.tryRefreshSourceMirror(source)
                 }
             }
-            mangaSources = mangaRepository.getAvailableSources()
+            mangaSources = mangaRepository.getInstalledSources()
             mangaSourceBusyKeys = mangaSourceBusyKeys - key
             result.onSuccess { success ->
                 onShowMessage?.invoke(
@@ -593,7 +621,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSourceMirror(source: MangaSource) {
         mangaRepository.clearConfiguredDomain(source)
-        mangaSources = mangaRepository.getAvailableSources()
+        mangaSources = mangaRepository.getInstalledSources()
         onShowMessage?.invoke(KitsugiStrings.get(R.string.domain_temizlendi_x, source.name))
     }
 
@@ -602,7 +630,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             val result = MangaExtensionAutoUpdater.runIfNeeded(context, forceCheck = true)
             val msg = when (result) {
                 is MangaExtensionAutoUpdater.UpdateResult.Success -> {
-                    mangaSources = mangaRepository.getAvailableSources()
+                    mangaSources = mangaRepository.getInstalledSources()
                     checkAllUpdates()
                     if (result.updated > 0) {
                         KitsugiStrings.get(

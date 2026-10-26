@@ -44,8 +44,11 @@ class MangaSourceRepository(private val context: Context) {
     private val searchCoordinator = MangaSearchCoordinator(sourceStateStore)
 
     init {
+        MangaExtensionLoader.registerBuiltInSources(context)
+        KotatsuExtensionAdapter.loadSavedPrefs(context)
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             MangaExtensionLoader.loadAllExtensions(context)
+            KitsugiMangaDefaultProfile.ensureApplied(context)
         }
     }
 
@@ -60,6 +63,10 @@ class MangaSourceRepository(private val context: Context) {
      */
     fun getAvailableSources(): List<MangaSource> =
         searchCoordinator.getAvailableSources(MangaExtensionLoader.getLoadedSources())
+
+    /** All loaded sources including user-disabled extensions for the installed-sources UI. */
+    fun getInstalledSources(): List<MangaSource> =
+        MangaExtensionLoader.getLoadedSources().distinctBy { it.stableSourceKey() }
 
     fun getSourceByName(name: String): MangaSource? =
         MangaExtensionLoader.getLoadedSources().firstOrNull { it.name == name }
@@ -218,8 +225,13 @@ class MangaSourceRepository(private val context: Context) {
 
     /**
      * Manga kaynağını kaldırır (diskten siler ve bellekten siler).
+     * Dahili kaynaklar (`isBuiltIn == true`) diskten silinemez; yalnızca devre dışı bırakılır.
      */
     fun deleteExtension(source: MangaSource): Boolean {
+        if (source.isBuiltIn) {
+            sourceStateStore.setHealthStatus(source, SourceHealthStatus.Disabled, reason = "user_disabled")
+            return false
+        }
         resetSourceDiagnostics(source)
         val extId = MangaExtensionLoader.getExtensionIdForSource(source) ?: return false
         return MangaExtensionLoader.deleteExtension(context, extId)

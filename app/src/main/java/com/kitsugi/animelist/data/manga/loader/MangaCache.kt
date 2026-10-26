@@ -34,6 +34,16 @@ class MangaCache(private val context: Context) {
         private const val MAX_SIZE_MB  = 150L               // Maksimum 150 MB önbellek
         private const val MAX_BYTES    = MAX_SIZE_MB * 1024 * 1024
 
+        @Volatile
+        private var singleton: MangaCache? = null
+
+        /** Process-wide cache object for source-owned streaming readers. */
+        fun getInstance(context: Context): MangaCache {
+            return singleton ?: synchronized(this) {
+                singleton ?: MangaCache(context.applicationContext).also { singleton = it }
+            }
+        }
+
         /**
          * Artımlı toplam boyut — **süreç genelinde paylaşılır**.
          *

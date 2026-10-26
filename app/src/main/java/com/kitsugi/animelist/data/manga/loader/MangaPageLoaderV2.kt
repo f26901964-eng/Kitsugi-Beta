@@ -179,8 +179,9 @@ class MangaPageLoaderV2(
 
         semaphore.withPermit {
             val t0 = System.currentTimeMillis()
+            val timeoutMs = source.imageFetchTimeoutMs.coerceAtLeast(IMAGE_TIMEOUT_MS)
             try {
-                kotlinx.coroutines.withTimeout(IMAGE_TIMEOUT_MS) {
+                kotlinx.coroutines.withTimeout(timeoutMs) {
                     // 1. Sayfa URL'ini çöz (gerekiyorsa)
                     if (page.imageUrl.isNullOrEmpty()) {
                         page.status = MangaPageStatus.LoadPage
@@ -223,8 +224,8 @@ class MangaPageLoaderV2(
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 page.status = MangaPageStatus.Error
                 MangaLogger.logImageFetch(context, source.name, page.index,
-                    page.imageUrl, success = false, elapsedMs = IMAGE_TIMEOUT_MS, isTimeout = true)
-                Log.e(TAG, "Timeout [${page.index}] — ${IMAGE_TIMEOUT_MS}ms aşıldı")
+                    page.imageUrl, success = false, elapsedMs = timeoutMs, isTimeout = true)
+                Log.e(TAG, "Timeout [${page.index}] — ${timeoutMs}ms aşıldı")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 if (prefetchJobs[page.index] === kotlinx.coroutines.currentCoroutineContext()[Job]) {
                     page.status = MangaPageStatus.Queue

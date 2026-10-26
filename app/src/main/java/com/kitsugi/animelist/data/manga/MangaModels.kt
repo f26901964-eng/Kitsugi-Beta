@@ -17,7 +17,8 @@ data class MangaDetails(
     val genre: List<String> = emptyList(),
     val thumbnailUrl: String? = null,
     val status: MangaStatus = MangaStatus.Unknown,
-    val source: String = ""
+    val source: String = "",
+    val alternativeTitles: List<String> = emptyList()
 ) {
     /**
      * +18 içerik mi? Manga kaynaklarında net bir API bayrağı olmadığı için

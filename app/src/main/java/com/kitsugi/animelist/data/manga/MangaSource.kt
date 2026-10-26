@@ -57,6 +57,12 @@ interface MangaSource {
      */
     val isArchive: Boolean get() = false
 
+    /** Uygulama içine gömülü (APK silinemeyen) dahili kaynak mı? */
+    val isBuiltIn: Boolean get() = false
+
+    /** Tekil sayfa indirme zaman aşımı (ms). WebView/Turnstile kullanan kaynaklar artırabilir. */
+    val imageFetchTimeoutMs: Long get() = 30_000L
+
     /**
      * Sitedeki en güncel / popüler mangaların listesini döndürür.
      * Sayfalama için [page] parametresi kullanılır (1'den başlar).

@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.data.remote
+package com.kitsugi.animelist.data.remote
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 /**
  * Bir Manga Eklenti Reposundan cekilen eklentiyi temsil eder.
@@ -51,6 +52,17 @@ class MangaRepoClient(context: android.content.Context) {
         const val KEIYOUSHI_REPO_JSON_URL =
             "https://raw.githubusercontent.com/keiyoushi/extensions/repo/repo.json"
 
+        /** Kitsugi resmi Manga eklenti havuzu (varsayılan manga deposu). */
+        const val KITSUGI_MANGA_PLUGINS_SLUG = "f26901964-eng/Kitsugi-Manga-Plugins"
+        const val KITSUGI_MANGA_GITHUB_URL = "https://github.com/f26901964-eng/Kitsugi-Manga-Plugins"
+        const val KITSUGI_MANGA_REPO_URL =
+            "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/main/index.json"
+
+        private val KITSUGI_MANGA_CANDIDATE_URLS = listOf(
+            "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/main/index.json",
+            "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/main/plugins.json",
+        )
+
         /** Keiyoushi V2 ana index (JSON, 1396 eklenti, 1.45 MB). index.min.json DECOY'dur -- bunu kullanin. */
         const val KEIYOUSHI_INDEX_URL =
             "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.json"
@@ -93,9 +105,57 @@ class MangaRepoClient(context: android.content.Context) {
             }
             return url
         }
+
+        fun isKitsugiMangaRepoUrl(url: String?): Boolean {
+            val clean = url?.trim().orEmpty()
+            if (clean.isEmpty()) return false
+            return clean.contains("Kitsugi-Manga-Plugins", ignoreCase = true) ||
+                clean.contains("KitsugiMangaPlugins", ignoreCase = true)
+        }
+
+        fun normalizeMangaRepoUrl(url: String): String {
+            val trimmed = url.trim()
+            if (trimmed.isEmpty()) return trimmed
+            if (trimmed.equals(KITSUGI_MANGA_PLUGINS_SLUG, ignoreCase = true) ||
+                trimmed.equals(KITSUGI_MANGA_GITHUB_URL, ignoreCase = true) ||
+                trimmed.equals("$KITSUGI_MANGA_GITHUB_URL/", ignoreCase = true) ||
+                trimmed.equals("$KITSUGI_MANGA_GITHUB_URL.git", ignoreCase = true)
+            ) {
+                return KITSUGI_MANGA_REPO_URL
+            }
+            return trimmed
+        }
+
+        fun displayNameForRepo(repoUrl: String): String {
+            return when {
+                isKitsugiMangaRepoUrl(repoUrl) -> "Kitsugi Manga Plugins"
+                repoUrl.contains("keiyoushi", ignoreCase = true) -> "Keiyoushi"
+                else -> repoUrl.substringAfterLast("/").substringBefore(".").ifBlank { "Manga Repo" }
+            }
+        }
+
+        /**
+         * `Kitsugi-Manga-Plugins` deposunda derlenmiş `index.json` henüz yayınlanmadığında veya
+         * çevrimdışı durumda döndürülen varsayılan tek-kaynak (Gölge Bahçesi) profil kataloğu.
+         */
+        fun defaultKitsugiMangaCatalog(): List<MangaExtensionInfo> = listOf(
+            MangaExtensionInfo(
+                name = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.SOURCE_NAME,
+                pkg = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
+                apkUrl = "https://github.com/keiyoushi/extensions/releases/download/7363e42/tachiyomi-tr.golgebahcesi-v1.6.1.apk",
+                lang = "tr",
+                version = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.VERSION_NAME,
+                versionCode = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.VERSION_CODE.toInt(),
+                description = "Gölge Bahçesi (Varsayılan Aktif Dahili Kaynak)",
+                isNsfw = false,
+            )
+        )
     }
 
     private val client = uy.kohesive.injekt.Injekt.get(eu.kanade.tachiyomi.network.NetworkHelper::class.java).client
+    private val repoCatalogClient = client.newBuilder()
+        .callTimeout(7, TimeUnit.SECONDS)
+        .build()
 
     /**
      * Keiyoushi V2 index.json formatini ayristirir.
@@ -269,19 +329,85 @@ class MangaRepoClient(context: android.content.Context) {
      *   3) Keiyoushi V1 (eski array format)
      *   4) Kitsugi native (plugins.json)
      */
+    private fun fetchBodyFromUrlOrMirror(rawUrl: String): String? {
+        val candidates = LinkedHashSet<String>().apply {
+            add(rawUrl)
+            if (rawUrl.startsWith("https://raw.githubusercontent.com/")) {
+                val rest = rawUrl.removePrefix("https://raw.githubusercontent.com/")
+                val parts = rest.split('/')
+                if (parts.size >= 4) {
+                    val user = parts[0]
+                    val repo = parts[1]
+                    val branch = parts[2]
+                    val path = parts.drop(3).joinToString("/")
+                    add("https://cdn.jsdelivr.net/gh/$user/$repo@$branch/$path")
+                }
+            }
+        }
+
+        for (candidate in candidates) {
+            try {
+                val request = Request.Builder().url(candidate).build()
+                val body = repoCatalogClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) response.body?.string() else null
+                }
+                if (!body.isNullOrBlank()) return body
+            } catch (e: Exception) {
+                Log.d(TAG, "Aday URL indirilemedi ($candidate): ${e.message}")
+            }
+        }
+        return null
+    }
+
+    private fun parseDetectedIndexBody(trimmed: String, sourceUrl: String): List<MangaExtensionInfo>? {
+        if (trimmed.startsWith("{")) {
+            return parseKeiyoushiV2Index(trimmed)
+        }
+        if (!trimmed.startsWith("[")) {
+            return null
+        }
+        val arr = JSONArray(trimmed)
+        if (arr.length() == 0) return emptyList()
+        val firstObj = arr.optJSONObject(0)
+        val isKeiyoushiV1 = firstObj?.has("pkg") == true && !firstObj.has("url")
+        return if (isKeiyoushiV1) {
+            parseKeiyoushiV1Index(trimmed, deriveApkBaseUrl(sourceUrl))
+        } else {
+            parseNativePluginList(trimmed)
+        }
+    }
+
     suspend fun fetchExtensionsAutoDetect(repoUrl: String): List<MangaExtensionInfo>? =
         withContext(Dispatchers.IO) {
             try {
-                val mirroredUrl = applyMirror(repoUrl)
-                Log.d(TAG, "fetchExtensionsAutoDetect cekiliyor: $mirroredUrl (original: $repoUrl)")
-                val request = Request.Builder().url(mirroredUrl).build()
-                val responseBody = client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        Log.e(TAG, "fetchExtensionsAutoDetect basarisiz (${response.code}): $mirroredUrl")
-                        return@withContext null
+                val normalizedRepoUrl = normalizeMangaRepoUrl(repoUrl)
+
+                // Kitsugi resmi manga deposu: canlı dal adaylarını dene, henüz yayınlanmadıysa
+                // veya çevrimdışıysa yerleşik Gölge Bahçesi varsayılan profil kataloğuna düş.
+                if (isKitsugiMangaRepoUrl(normalizedRepoUrl)) {
+                    val candidates = LinkedHashSet<String>().apply {
+                        add(normalizedRepoUrl)
+                        addAll(KITSUGI_MANGA_CANDIDATE_URLS)
                     }
-                    response.body?.string()
-                } ?: return@withContext null
+                    for (candidate in candidates) {
+                        val body = fetchBodyFromUrlOrMirror(candidate)?.trim() ?: continue
+                        if (isDecoyResponse(body) && body.contains("Outdated App", ignoreCase = true)) continue
+                        val parsed = parseDetectedIndexBody(body, candidate)
+                        if (!parsed.isNullOrEmpty()) {
+                            Log.i(TAG, "Kitsugi-Manga-Plugins canlı indeks yüklendi: ${parsed.size} eklenti ($candidate)")
+                            return@withContext parsed
+                        }
+                    }
+                    Log.i(TAG, "Kitsugi-Manga-Plugins varsayılan yerleşik Gölge Bahçesi profili kullanılıyor")
+                    return@withContext defaultKitsugiMangaCatalog()
+                }
+
+                val mirroredUrl = applyMirror(normalizedRepoUrl)
+                Log.d(TAG, "fetchExtensionsAutoDetect cekiliyor: $mirroredUrl (original: $normalizedRepoUrl)")
+                val responseBody = fetchBodyFromUrlOrMirror(normalizedRepoUrl) ?: run {
+                    Log.e(TAG, "fetchExtensionsAutoDetect basarisiz: $mirroredUrl")
+                    return@withContext null
+                }
 
                 val trimmed = responseBody.trim()
 
@@ -299,40 +425,22 @@ class MangaRepoClient(context: android.content.Context) {
                 // Decoy tespiti: kucuk/sahte yanit varsa V2 index.json'u cek
                 if (isDecoyResponse(trimmed)) {
                     Log.w(TAG, "DECOY TESPIT EDILDI: $mirroredUrl -- Keiyoushi V2 index.json'a geciliyor")
-                    val v2Url = applyMirror(KEIYOUSHI_INDEX_URL)
-                    val v2Request = Request.Builder().url(v2Url).build()
-                    val v2Body = client.newCall(v2Request).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            Log.e(TAG, "V2 index.json cekilemedi (${response.code}): $v2Url")
-                            return@withContext null
-                        }
-                        response.body?.string()
-                    } ?: return@withContext null
-
-                    val v2Trimmed = v2Body.trim()
-                    return@withContext if (v2Trimmed.startsWith("{")) {
-                        parseKeiyoushiV2Index(v2Trimmed)
+                    val v2Body = fetchBodyFromUrlOrMirror(KEIYOUSHI_INDEX_URL)?.trim()
+                        ?: return@withContext null
+                    return@withContext if (v2Body.startsWith("{")) {
+                        parseKeiyoushiV2Index(v2Body)
                     } else {
                         Log.e(TAG, "V2 fallback yaniti da beklenmeyen formatta")
                         null
                     }
                 }
 
-                // V1 array -- ilk elemana bakarak format belirle
-                val arr = JSONArray(trimmed)
-                if (arr.length() == 0) return@withContext emptyList()
-
-                val firstObj = arr.optJSONObject(0)
-                val isKeiyoushiV1 = firstObj?.has("pkg") == true
-
-                if (isKeiyoushiV1) {
-                    val baseUrl = deriveApkBaseUrl(mirroredUrl)
-                    parseKeiyoushiV1Index(trimmed, baseUrl)
-                } else {
-                    parseNativePluginList(trimmed)
-                }
+                parseDetectedIndexBody(trimmed, mirroredUrl)
             } catch (e: Exception) {
                 Log.e(TAG, "fetchExtensionsAutoDetect hata: ${e.message}", e)
+                if (isKitsugiMangaRepoUrl(repoUrl)) {
+                    return@withContext defaultKitsugiMangaCatalog()
+                }
                 null
             }
         }

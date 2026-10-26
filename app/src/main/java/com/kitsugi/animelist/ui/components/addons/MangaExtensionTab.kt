@@ -1,7 +1,5 @@
 package com.kitsugi.animelist.ui.components.addons
 import androidx.compose.foundation.lazy.itemsIndexed
-import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
-import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -61,7 +59,8 @@ internal fun MangaExtensionsTab(
     accentColor: Color,
     onInstallExtension: (Uri) -> Unit,
     onDeleteExtension: (MangaSource) -> Unit,
-    onDeleteExtensions: (List<MangaSource>, (Int) -> Unit) -> Unit,
+    onDeleteExtensions: ((List<MangaSource>, (Int) -> Unit) -> Unit)? = null,
+    onToggleSource: (MangaSource, Boolean) -> Unit = { _, _ -> },
     repos: List<String>,
     repoExtensions: Map<String, List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>?>,
     repoLoadingState: Map<String, Boolean>,
@@ -105,15 +104,6 @@ internal fun MangaExtensionsTab(
     ) { uri: Uri? -> uri?.let { onInstallExtension(it) } }
 
     var activeSection by rememberSaveable { mutableStateOf(MangaTabSection.REPOS) }
-    var selecting by remember { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf(setOf<String>()) }
-    var bulkConfirm by remember { mutableStateOf(false) }
-    var bulkDeleting by remember { mutableStateOf(false) }
-    var bulkResult by remember { mutableStateOf<Int?>(null) }
-    val extensionGroups = sources.mapNotNull { source ->
-        com.kitsugi.animelist.data.manga.MangaExtensionLoader.getExtensionIdForSource(source)?.let { it to source }
-    }.groupBy({ it.first }, { it.second })
-    val selectedExtensions = extensionGroups.filterKeys { it in selectedIds }.values.map { it.first() }
     var deleteTarget by remember { mutableStateOf<MangaSource?>(null) }
     var manageTarget by remember { mutableStateOf<MangaSource?>(null) }
     var reportOpen by remember { mutableStateOf(false) }
@@ -195,6 +185,41 @@ internal fun MangaExtensionsTab(
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
+                    // Kitsugi Manga Plugins (Resmi Varsayılan Depo) hızlı ekle
+                    val kitsugiMangaUrl = com.kitsugi.animelist.data.remote.MangaRepoClient.KITSUGI_MANGA_REPO_URL
+                    val hasKitsugiMangaRepo = repos.any {
+                        com.kitsugi.animelist.data.remote.MangaRepoClient.isKitsugiMangaRepoUrl(it)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(accentColor.copy(alpha = 0.12f))
+                            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                                if (!hasKitsugiMangaRepo) onAddRepo(kitsugiMangaUrl)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Rounded.Verified,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Kitsugi Manga Plugins (Önerilen)", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Resmi Kitsugi manga deposu · Gölge Bahçesi (Varsayılan Aktif)", color = KitsugiColors.TextMuted, fontSize = 10.sp)
+                        }
+                        Text(
+                            if (hasKitsugiMangaRepo) stringResource(R.string.addon_status_added) else KitsugiStrings.get(R.string.ekle_64b2d35),
+                            color = if (hasKitsugiMangaRepo) KitsugiColors.TextMuted else accentColor,
+                            fontSize = 11.sp, fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     // Keiyoushi hızlı ekle
                     Row(
                         modifier = Modifier
@@ -446,7 +471,7 @@ internal fun MangaExtensionsTab(
                 val repoPlugins = repoExtensions[repoUrl]
                 val isLoading = repoLoadingState[repoUrl] == true
                 val isExpanded = expandedRepo == repoUrl
-                val repoName = if (repoUrl.contains("keiyoushi")) "Keiyoushi" else repoUrl.substringAfterLast("/").substringBefore(".")
+                val repoName = com.kitsugi.animelist.data.remote.MangaRepoClient.displayNameForRepo(repoUrl)
 
                 val totalCount = repoPlugins?.size ?: 0
                 val installedCount = repoPlugins?.count { ext ->
@@ -679,7 +704,11 @@ internal fun MangaExtensionsTab(
                                             if (isInstalled) {
                                                 // versionCode karşılaştırması (Mihon'daki hasUpdatedVer)
                                                 val localCode = onGetInstalledVersionCode(ext.pkg)
-                                                val hasUpdate = localCode >= 0L && ext.versionCode.toLong() > localCode
+                                                val isBuiltInSource = ext.pkg.equals(
+                                                    com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
+                                                    ignoreCase = true
+                                                ) || sources.any { it.isBuiltIn && it.pkgName.equals(ext.pkg, ignoreCase = true) }
+                                                val hasUpdate = !isBuiltInSource && localCode >= 0L && ext.versionCode.toLong() > localCode
                                                 if (hasUpdate) {
                                                     Box(
                                                         modifier = Modifier
@@ -803,7 +832,7 @@ internal fun MangaExtensionsTab(
                                     }
                                 }
                             },
-                            enabled = !autoUpdateRunning && !bulkDeleting
+                            enabled = !autoUpdateRunning
                         ) {
                             Text(
                                 if (autoUpdateRunning) stringResource(R.string.manga_auto_update_check_button) else KitsugiStrings.get(R.string.inline_update_now_f5b0013),
@@ -812,25 +841,6 @@ internal fun MangaExtensionsTab(
                             )
                         }
                     }
-                }
-            }
-            item {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(enabled = !bulkDeleting && !autoUpdateRunning && extensionGroups.isNotEmpty(), onClick = {
-                        selecting = !selecting
-                        selectedIds = emptySet()
-                        bulkResult = null
-                    }) { Text(stringResource(if (selecting) R.string.iptal else R.string.manga_bulk_select)) }
-                    if (selecting) {
-                        TextButton(enabled = !bulkDeleting, onClick = {
-                            selectedIds = if (selectedIds.containsAll(extensionGroups.keys)) emptySet() else extensionGroups.keys.toSet()
-                        }) { Text(stringResource(R.string.manga_bulk_select_all)) }
-                        TextButton(enabled = !bulkDeleting && selectedExtensions.isNotEmpty(), onClick = { bulkConfirm = true }) {
-                            Text(stringResource(R.string.manga_bulk_delete_count, selectedExtensions.size), color = KitsugiColors.AccentRed)
-                        }
-                    }
-                    if (bulkDeleting) KitsugiPlasmaLoader(size = 18.dp)
-                    bulkResult?.let { Text(stringResource(R.string.manga_bulk_result, it)) }
                 }
             }
             // ── Sağlık Raporu Başlığı ─────────────────────────────────────────────
@@ -865,8 +875,7 @@ internal fun MangaExtensionsTab(
                     )
                 }
             }
-            // Aynı ad+dilde iki kaynak (farklı eklentilerden) olabilir → çökmeyen anahtar.
-            uniqueItemsIndexed(sources, key = { _, src -> src.stableSourceKey() }) { _, source ->
+            itemsIndexed(sources, key = { _, src -> "${src.name}_${src.lang}" }) { _, source ->
                 val health = onGetSourceHealthStatus(source)
                 val isBusy = onIsSourceBusy(source)
                 val domain = onGetConfiguredDomain(source)
@@ -881,16 +890,6 @@ internal fun MangaExtensionsTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (selecting) {
-                        val extensionId = com.kitsugi.animelist.data.manga.MangaExtensionLoader.getExtensionIdForSource(source)
-                        Checkbox(
-                            checked = extensionId != null && extensionId in selectedIds,
-                            enabled = extensionId != null && !bulkDeleting,
-                            onCheckedChange = { checked ->
-                                if (extensionId != null) selectedIds = if (checked) selectedIds + extensionId else selectedIds - extensionId
-                            }
-                        )
-                    }
                     Box(
                         modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(accentColor.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
@@ -902,6 +901,9 @@ internal fun MangaExtensionsTab(
                         Text(onGetConfiguredBaseUrl(source).ifBlank { "Mihon APK" }, color = KitsugiColors.TextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             HealthBadge(health = health, accentColor = accentColor)
+                            if (source.isBuiltIn) {
+                                TinyInfoChip(text = "Varsayılan", tint = accentColor)
+                            }
                             if (!domain.isNullOrBlank()) {
                                 TinyInfoChip(text = domain, tint = accentColor)
                             }
@@ -913,6 +915,11 @@ internal fun MangaExtensionsTab(
                     if (isBusy) {
                         KitsugiPlasmaLoader(size = 18.dp)
                     }
+                    Switch(
+                        checked = health != com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Disabled,
+                        enabled = !isBusy,
+                        onCheckedChange = { onToggleSource(source, it) },
+                    )
                     Box(
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 6.dp, vertical = 3.dp)
                     ) { Text(source.lang, color = KitsugiColors.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
@@ -928,34 +935,14 @@ internal fun MangaExtensionsTab(
                     IconButton(onClick = { manageTarget = source }, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Rounded.Tune, stringResource(R.string.manga_source_manage), tint = accentColor, modifier = Modifier.size(18.dp))
                     }
-                    IconButton(enabled = !bulkDeleting, onClick = { deleteTarget = source }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Rounded.DeleteForever, "Sil", tint = KitsugiColors.AccentRed.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+                    if (!source.isBuiltIn) {
+                        IconButton(onClick = { deleteTarget = source }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Rounded.DeleteForever, "Sil", tint = KitsugiColors.AccentRed.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
         }
-    }
-
-    if (bulkConfirm) {
-        AlertDialog(
-            onDismissRequest = { bulkConfirm = false },
-            title = { Text(stringResource(R.string.manga_bulk_delete_count, selectedExtensions.size)) },
-            text = { Text(stringResource(R.string.manga_bulk_warning)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    val targets = selectedExtensions.toList()
-                    bulkConfirm = false
-                    bulkDeleting = true
-                    onDeleteExtensions(targets) { failures ->
-                        bulkDeleting = false
-                        bulkResult = failures
-                        selectedIds = emptySet()
-                        selecting = false
-                    }
-                }) { Text(stringResource(R.string.action_delete), color = KitsugiColors.AccentRed) }
-            },
-            dismissButton = { TextButton(onClick = { bulkConfirm = false }) { Text(stringResource(R.string.iptal)) } }
-        )
     }
 
     if (reportOpen) {
@@ -1028,7 +1015,7 @@ internal fun MangaExtensionsTab(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.heightIn(max = 420.dp)
                         ) {
-                            uniqueItems(filteredReport, key = { it.sourceKey }) { item ->
+                            items(filteredReport, key = { it.sourceKey }) { item ->
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()

@@ -140,6 +140,15 @@ object KitsugiHttpClient {
                         if (original.header("Accept") == null) {
                             reqBuilder.header("Accept", FandomImageHeaders.ACCEPT)
                         }
+                    } else if (GolgeBahcesiImageHeaders.appliesReferer(original.url.host)) {
+                        if (original.header("Referer") == null) {
+                            reqBuilder.header("Referer", GolgeBahcesiImageHeaders.REFERER)
+                        }
+                        if (GolgeBahcesiImageHeaders.appliesImageAccept(original.url.host, original.url.encodedPath) &&
+                            original.header("Accept") == null
+                        ) {
+                            reqBuilder.header("Accept", GolgeBahcesiImageHeaders.ACCEPT)
+                        }
                     }
                     chain.proceed(reqBuilder.build())
                 }

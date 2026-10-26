@@ -46,21 +46,39 @@ object MangaExtensionLoader {
     /** Yüklü kaynak örneklerini tutar: filePath -> List<MangaSource> (birden fazla source içerebilir) */
     private val loadedSources = ConcurrentHashMap<String, List<MangaSource>>()
 
+    /** Uygulama içine gömülü birinci sınıf dahili kaynak (Gölge Bahçesi). */
+    @Volatile
+    private var builtInGolgeBahcesi: com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource? = null
+
+    fun registerBuiltInSources(context: Context): com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource {
+        val existing = builtInGolgeBahcesi
+        if (existing != null) return existing
+        val created = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.getInstance(context)
+        builtInGolgeBahcesi = created
+        return created
+    }
+
+    fun getExternalSourcesSnapshot(): List<MangaSource> = loadedSources.values.flatten()
+
     // ─── Yüklü Kaynakları Sorgulama ─────────────────────────────────────────
 
     /**
      * Tüm yüklü kaynakları döner:
-     * 1) APK/MEX formatında yüklenmiş Keiyoushi/Mihon kaynakları
-     * 2) KotatsuExtensionAdapter üzerinden yüklü Kotatsu built-in kaynakları
-     *
-     * Kaynak listesi, tüm sisteme tek noktadan erişim sağlar.
+     * 1) Dahili birinci sınıf kaynak (**Gölge Bahçesi**) — her zaman başta ve tekilleştirilmiş
+     * 2) APK/MEX formatında yüklenmiş diğer Keiyoushi/Mihon kaynakları
+     * 3) Kullanıcı açıkça dil etkinleştirdiyse Kotatsu kaynakları (GOLGEBAHCESI hariç)
      */
     fun getLoadedSources(): List<MangaSource> {
-        val apkMexSources = loadedSources.values.flatten()
-        // Sadece aktif dillerdeki Kotatsu kaynakları — Futon mantığıyla aynı
+        val builtIn = builtInGolgeBahcesi
+        val apkMexSources = loadedSources.values.flatten().filterNot { src ->
+            builtIn != null && src.pkgName.equals(builtIn.pkgName, ignoreCase = true)
+        }
         val kotatsuSources = KotatsuExtensionAdapter.getActiveSources()
-        return if (kotatsuSources.isEmpty()) apkMexSources
-        else apkMexSources + kotatsuSources
+        return buildList {
+            if (builtIn != null) add(builtIn)
+            addAll(apkMexSources)
+            addAll(kotatsuSources)
+        }
     }
 
     fun getSource(extensionId: String, context: Context): MangaSource? {
@@ -214,6 +232,17 @@ object MangaExtensionLoader {
             val (packageName, className) = readMihonClassNameFromManifest(context, file, extensionId)
                 ?: return null
 
+            // Gölge Bahçesi birinci sınıf dahili kaynak olarak zaten mevcuttur;
+            // harici APK DEX yüklenerek çakışma veya bloklayıcı WebView çağrısı oluşması önlenir.
+            if (packageName.equals(
+                    com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
+                    ignoreCase = true
+                )
+            ) {
+                Log.i(TAG, "$extensionId [APK]: Gölge Bahçesi dahili yerel kaynak kullanılıyor")
+                return registerBuiltInSources(context)
+            }
+
             // ─── T1.01 – Signature Check ──────────────────────────────────────────
             val signatureHash = TrustManager.getApkSignatureHash(context, file)
             if (signatureHash != null) {
@@ -285,6 +314,7 @@ object MangaExtensionLoader {
 
             loadedSources[file.absolutePath] = wrappers
             Log.i(TAG, "$extensionId [APK] yüklendi: ${wrappers.size} kaynak (pkg=$packageName): ${wrappers.joinToString { "${it.name}[${it.lang}]" }}")
+            KitsugiMangaDefaultProfile.onExternalSourcesLoaded(context, wrappers)
 
             // YENİ YÜKLENEN KAYNAKLARIN ESKİ COOLDOWN/BROKEN STATE'İNİ TEMİZLE
             // Önceki broken build'den kalan "Broken" durumu yeni kaynakları arama dışı bırakır.
@@ -336,6 +366,7 @@ object MangaExtensionLoader {
 
             loadedSources[file.absolutePath] = listOf(instance)
             Log.i(TAG, "$extensionId [MEX] yüklendi: ${instance.name} [${instance.lang}]")
+            KitsugiMangaDefaultProfile.onExternalSourcesLoaded(context, listOf(instance))
             instance
         } catch (e: Exception) {
             Log.e(TAG, "$extensionId [MEX] yükleme hatası: ${e.message}", e)
@@ -372,6 +403,7 @@ object MangaExtensionLoader {
      */
     @Synchronized
     fun loadAllExtensions(context: Context) {
+        registerBuiltInSources(context)
         val dir = extensionDir(context)
         if (!dir.exists()) { dir.mkdirs(); return }
 
@@ -540,6 +572,9 @@ object MangaExtensionLoader {
      * @return Kurulu versionCode, dosya yoksa veya okunamazsa -1L
      */
     fun getInstalledVersionCode(context: Context, pkg: String): Long {
+        if (pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)) {
+            return com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.VERSION_CODE
+        }
         val extensionId = pkg.replace(".", "_")
         val file = apkFile(context, extensionId)
         if (!file.exists()) return -1L

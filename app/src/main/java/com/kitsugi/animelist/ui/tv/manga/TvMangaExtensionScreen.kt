@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import com.kitsugi.animelist.R
-import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.ui.res.stringResource
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
@@ -29,6 +28,7 @@ import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -103,6 +103,7 @@ fun TvMangaExtensionScreen(
     onFetchRepo: (String) -> Unit = {},
     onInstallApk: (MangaExtensionInfo, ((Boolean) -> Unit)?) -> Unit = { _, _ -> },
     onDeleteExtension: (MangaSource) -> Unit = {},
+    onToggleSource: (MangaSource, Boolean) -> Unit = { _, _ -> },
     onGetSourceHealth: (MangaSource) -> SourceHealthStatus = { SourceHealthStatus.Unknown },
     onGetRuntimeStats: (MangaSource) -> SourceRuntimeStats = { SourceRuntimeStats() },
     onGetLastErrorCode: (MangaSource) -> String? = { null },
@@ -276,6 +277,7 @@ fun TvMangaExtensionScreen(
                         onGetCooldownUntil = onGetCooldownUntil,
                         onQuickCheckSource = onQuickCheckSource,
                         onDeleteExtension = onDeleteExtension,
+                        onToggleSource = onToggleSource,
                         listState = installedListState,
                         contentFocusRequester = contentFocusRequester,
                         onDpadLeft = {
@@ -505,8 +507,9 @@ private fun TvExtRepoTab(
             val isExpanded = expandedRepo == repoUrl
             val isBulkInstalling = bulkInstallRepoUrl == repoUrl
             val repoName = when {
-                repoUrl.contains("keiyoushi") -> "⚡ Keiyoushi"
-                else -> repoUrl.substringAfterLast("/").substringBefore(".")
+                MangaRepoClient.isKitsugiMangaRepoUrl(repoUrl) -> "🌸 Kitsugi Manga Plugins"
+                repoUrl.contains("keiyoushi", ignoreCase = true) -> "⚡ Keiyoushi"
+                else -> MangaRepoClient.displayNameForRepo(repoUrl)
             }
             val totalCount = repoPlugins?.size ?: 0
             val installedCount = repoPlugins?.count { ext ->
@@ -558,6 +561,7 @@ private fun TvExtInstalledTab(
     onGetCooldownUntil: (MangaSource) -> Long,
     onQuickCheckSource: (MangaSource) -> Unit,
     onDeleteExtension: (MangaSource) -> Unit,
+    onToggleSource: (MangaSource, Boolean) -> Unit,
     listState: LazyListState,
     contentFocusRequester: FocusRequester,
     onDpadLeft: () -> Unit
@@ -622,7 +626,7 @@ private fun TvExtInstalledTab(
             }
         }
 
-        uniqueItems(sources, key = { "${it.baseUrl}_${it.name}" }) { source ->
+        items(sources, key = { "${it.baseUrl}_${it.name}" }) { source ->
             val health = onGetSourceHealth(source)
             val stats = onGetRuntimeStats(source)
             val errorCode = onGetLastErrorCode(source)
@@ -637,6 +641,7 @@ private fun TvExtInstalledTab(
                 rawReason = rawReason,
                 cooldownUntil = cooldownUntil,
                 onQuickCheck = { onQuickCheckSource(source) },
+                onToggle = { onToggleSource(source, it) },
                 onDelete = { deleteTarget = source }
             )
         }
@@ -662,6 +667,8 @@ private fun TvExtQuickAddCard(
     repos: List<String>,
     onAddRepo: (String) -> Unit
 ) {
+    val kitsugiMangaUrl = MangaRepoClient.KITSUGI_MANGA_REPO_URL
+    val kitsugiAlreadyAdded = repos.any { MangaRepoClient.isKitsugiMangaRepoUrl(it) }
     val keiyoushiUrl = MangaRepoClient.KEIYOUSHI_INDEX_URL
     val alreadyAdded = repos.contains(keiyoushiUrl)
 
@@ -679,6 +686,71 @@ private fun TvExtQuickAddCard(
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
         )
+
+        // Kitsugi Manga Plugins kartı (resmi varsayılan depo)
+        var kitsugiFocus by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(
+                    if (kitsugiFocus) KitsugiColors.AccentBlue.copy(alpha = 0.2f)
+                    else KitsugiColors.AccentBlue.copy(alpha = 0.1f)
+                )
+                .border(
+                    1.dp,
+                    if (kitsugiFocus) KitsugiColors.AccentBlue.copy(alpha = 0.75f) else KitsugiColors.AccentBlue.copy(alpha = 0.3f),
+                    RoundedCornerShape(10.dp)
+                )
+                .onFocusChanged { kitsugiFocus = it.hasFocus }
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                        event.nativeKeyEvent.keyCode in listOf(
+                            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
+                        ) && !kitsugiAlreadyAdded
+                    ) { onAddRepo(kitsugiMangaUrl); true } else false
+                }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Rounded.Verified,
+                null,
+                tint = KitsugiColors.AccentBlue,
+                modifier = Modifier.size(22.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "🌸 Kitsugi Manga Plugins (Önerilen)",
+                    color = KitsugiColors.AccentBlue,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
+                Text(
+                    "Resmi Kitsugi manga deposu · Gölge Bahçesi (Varsayılan Aktif)",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 11.sp
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (kitsugiAlreadyAdded) KitsugiColors.AccentGreen.copy(alpha = 0.15f)
+                        else KitsugiColors.AccentBlue.copy(alpha = 0.2f)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    if (kitsugiAlreadyAdded) "✓ Eklendi" else stringResource(R.string.ekle),
+                    color = if (kitsugiAlreadyAdded) KitsugiColors.AccentGreen else KitsugiColors.AccentBlue,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
 
         // Keiyoushi kartı (focuslanabilir)
         var keiyoushiFocus by remember { mutableStateOf(false) }
@@ -1031,6 +1103,7 @@ private fun TvExtSourceRow(
     rawReason: String?,
     cooldownUntil: Long,
     onQuickCheck: () -> Unit,
+    onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
     var hasFocus by remember { mutableStateOf(false) }
@@ -1103,31 +1176,47 @@ private fun TvExtSourceRow(
                     }
                 }
             }
-            // Sağlık badge'i
+            // Sağlık badge'i ve etkin/devre dışı seçimi
             TvExtHealthBadge(health = health)
+            Switch(
+                checked = health != SourceHealthStatus.Disabled,
+                onCheckedChange = { onToggle(it) },
+            )
+            if (source.isBuiltIn) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(KitsugiColors.AccentBlue.copy(alpha = 0.15f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("Varsayılan", color = KitsugiColors.AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
             if (errorCode != null) PlatformErrorCodeHint(code = errorCode)
-            // Sil butonu
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(KitsugiColors.AccentRed.copy(alpha = 0.1f))
-                    .focusable()
-                    .onKeyEvent { event ->
-                        if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
-                            event.nativeKeyEvent.keyCode in listOf(
-                                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
-                            )
-                        ) { onDelete(); true } else false
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Rounded.Delete,
-                    null,
-                    tint = KitsugiColors.AccentRed.copy(alpha = 0.7f),
-                    modifier = Modifier.size(16.dp)
-                )
+            // Sil butonu (yalnızca harici kurulan eklentilerde)
+            if (!source.isBuiltIn) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(KitsugiColors.AccentRed.copy(alpha = 0.1f))
+                        .focusable()
+                        .onKeyEvent { event ->
+                            if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                event.nativeKeyEvent.keyCode in listOf(
+                                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
+                                )
+                            ) { onDelete(); true } else false
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.Delete,
+                        null,
+                        tint = KitsugiColors.AccentRed.copy(alpha = 0.7f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
         if (errorCode != null) {

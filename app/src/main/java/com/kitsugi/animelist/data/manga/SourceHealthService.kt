@@ -24,7 +24,7 @@ class SourceHealthService(
      */
     private fun probeQueriesFor(source: MangaSource): List<String> =
         if (source.lang.equals("tr", ignoreCase = true)) {
-            listOf("solo leveling", "one piece", "naruto")
+            listOf("oyuncu", "shadow slave", "solo leveling", "one piece", "naruto")
         } else {
             listOf("one piece", "naruto", "solo leveling")
         }
@@ -66,6 +66,12 @@ class SourceHealthService(
                     Log.d(tag, "${source.name}: '$query' -> ${found.size} sonuc")
                     break
                 }
+            }
+
+            if (search.isEmpty()) {
+                search = withTimeoutOrNull(12_000L) {
+                    source.fetchPopularManga(page = 1).mangas
+                }.orEmpty()
             }
 
             if (search.isEmpty()) {

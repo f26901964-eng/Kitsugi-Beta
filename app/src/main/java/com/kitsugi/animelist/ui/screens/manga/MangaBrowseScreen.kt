@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
-import com.kitsugi.animelist.ui.utils.uniqueItems
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -128,7 +127,7 @@ fun MangaBrowseScreen(
                 .flatMap { state -> state.mangas.map { state.source to it } }
                 .sortedWith(
                     compareByDescending<Pair<MangaSource, MangaDetails>> {
-                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, it.second.title)
+                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getBestSimilarityScore(query, it.second)
                     }.thenByDescending { repository.getSourcePriority(it.first) }
                 )
         } else {
@@ -284,7 +283,7 @@ fun MangaBrowseScreen(
                                 onClick   = { vm.selectSourceFilter(null) }
                             )
                         }
-                        uniqueItems(states, key = { it.source.stableSourceKey() }) { st ->
+                        items(states, key = { it.source.stableSourceKey() }) { st ->
                             MangaChip(
                                 label     = st.source.name,
                                 count     = st.mangas.size,
@@ -350,15 +349,14 @@ fun MangaBrowseScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // 1) ÖNCE başarıyla veri gelen kaynakların mangaları (en üstte).
-                            // Kaynaklar sayfalar arasında aynı mangayı tekrar döndürebiliyor.
-                            uniqueItems(visibleMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
+                            items(visibleMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
                                 MangaCard(manga, accentColor) { onMangaClick(source, manga) }
                             }
                             // 2) SONRA hâlâ yüklenen kaynakların iskelet (placeholder) kartları — EN ALTTA.
                             //    Böylece başarıyla gelen sonuçlar her zaman üstte kalır, yüklenenler onları aşağı itmez.
                             if (query.isNotBlank()) {
                                 val loadingStates = states.filter { it.isLoading && (selFilter == null || selFilter.stableSourceKey() == it.source.stableSourceKey()) }
-                                uniqueItems(loadingStates, key = { "sk_${it.source.stableSourceKey()}" }) {
+                                items(loadingStates, key = { "sk_${it.source.stableSourceKey()}" }) {
                                     SkeletonCard(it.source.name, accentColor)
                                 }
                             }
@@ -423,7 +421,6 @@ fun MangaBrowseScreen(
             mangaSources = mangaViewModel.mangaSources,
             onInstallMangaExtension = { mangaViewModel.installMangaExtension(it) },
             onDeleteMangaExtension = { mangaViewModel.deleteMangaExtension(it) },
-            onDeleteMangaExtensions = { sources, done -> mangaViewModel.deleteMangaExtensions(sources, done) },
             mangaRepos = mangaViewModel.mangaReposState,
             mangaRepoExtensions = mangaViewModel.mangaRepoExtensionsState,
             mangaRepoLoadingState = mangaViewModel.mangaRepoLoadingState,

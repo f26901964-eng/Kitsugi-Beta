@@ -71,9 +71,17 @@ object MangaExtensionAutoUpdater {
 
         Log.i(TAG, "${installedPackages.size} yüklü APK paketi bulundu.")
 
-        // Keiyoushi V2 index.json'u cek (index.min.json artik decoy -- MangaRepoClient bunu otomatik atlayarak V2'ye gecer)
+        // Önce resmi Kitsugi-Manga-Plugins deposunu, ardından Keiyoushi V2 indeksini kontrol et
         val client = MangaRepoClient(context)
-        val repoExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KEIYOUSHI_INDEX_URL)
+        val kitsugiExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KITSUGI_MANGA_REPO_URL).orEmpty()
+        val keiyoushiExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KEIYOUSHI_INDEX_URL)
+        val repoExtensions = if (keiyoushiExtensions != null) {
+            (kitsugiExtensions + keiyoushiExtensions).distinctBy { it.pkg }
+        } else if (kitsugiExtensions.isNotEmpty()) {
+            kitsugiExtensions
+        } else {
+            null
+        }
 
         if (repoExtensions == null) {
             Log.e(TAG, "Keiyoushi repo çekilemedi.")
@@ -157,10 +165,13 @@ object MangaExtensionAutoUpdater {
     ): Map<String, Long> {
         val result = mutableMapOf<String, Long>()
         
-        // 1) loadedSources içindeki eklentileri al
+        // 1) loadedSources içindeki harici eklentileri al (dahili kaynaklar hariç)
         for (source in sources) {
+            if (source.isBuiltIn) continue
             val pkg = source.pkgName.trim()
-            if (pkg.isNotBlank()) {
+            if (pkg.isNotBlank() &&
+                !pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)
+            ) {
                 val vc = MangaExtensionLoader.getInstalledVersionCode(context, pkg)
                 if (vc >= 0) {
                     result[pkg] = vc
@@ -176,6 +187,9 @@ object MangaExtensionAutoUpdater {
                 apkFiles?.forEach { file ->
                     val filename = file.nameWithoutExtension
                     val pkg = filename.replace("_", ".")
+                    if (pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)) {
+                        return@forEach
+                    }
                     val vc = MangaExtensionLoader.getInstalledVersionCode(context, pkg)
                     if (vc >= 0) {
                         result[pkg] = vc

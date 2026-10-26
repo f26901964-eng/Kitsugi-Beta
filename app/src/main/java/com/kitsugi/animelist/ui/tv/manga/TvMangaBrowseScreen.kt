@@ -1,8 +1,6 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import androidx.activity.compose.BackHandler
-import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
-import com.kitsugi.animelist.ui.utils.uniqueItems
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -119,13 +117,13 @@ fun TvMangaBrowseScreen(
             if (src != null) {
                 (states.firstOrNull { it.source.name == src.name }?.mangas ?: emptyList())
                     .sortedByDescending {
-                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, it.title)
+                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getBestSimilarityScore(query, it)
                     }
             } else {
                 val minScore = if (query.trim().length <= 3) 0.15 else 0.30
                 states.flatMap { st ->
                     st.mangas.map { manga ->
-                        val score = com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, manga.title)
+                        val score = com.kitsugi.animelist.data.manga.MangaTitleMatcher.getBestSimilarityScore(query, manga)
                         Triple(manga, score, st.source)
                     }
                 }
@@ -268,7 +266,7 @@ fun TvMangaBrowseScreen(
                                 onClick = { vm.selectSourceFilter(null) }
                             )
                         }
-                        uniqueItems(states, key = { it.source.name }) { st ->
+                        items(states, key = { it.source.name }) { st ->
                             TvMangaSourceChip(
                                 label      = st.source.name,
                                 count      = st.mangas.size,
@@ -354,7 +352,7 @@ fun TvMangaBrowseScreen(
                             verticalArrangement   = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            uniqueItemsIndexed(visibleMangas, key = { _, m -> "${m.source}_${m.url}" }) { _, manga ->
+                            itemsIndexed(visibleMangas, key = { _, m -> "${m.source}_${m.url}" }) { _, manga ->
                                 TvMangaCard(
                                     manga = manga,
                                     onClick = {
