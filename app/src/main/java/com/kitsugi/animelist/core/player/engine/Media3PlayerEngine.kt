@@ -1307,19 +1307,16 @@ class Media3PlayerEngine(
     }
 
     /**
-     * Media3 için ekran görüntüsü desteği.
-     *
-     * `trailer_player_view.xml` `surface_type=texture_view` kullandığı için kare,
-     * [android.view.TextureView.getBitmap] ile doğrudan alınabilir (SurfaceView'de bu mümkün
-     * değildir ve PixelCopy ana thread'de senkron çalışmaz). İsteğe bağlı olarak altyazı
-     * katmanları da aynı bitmap'e çizilir.
+     * Capture a frame from either supported Media3 surface. The fullscreen player uses a
+     * SurfaceView so Android can preserve HDR/Dolby Vision output; PixelCopy is asynchronous
+     * and avoids blocking the UI thread. TextureView remains supported for embedded players.
      */
     override suspend fun takeScreenshot(cachePath: String, showSubtitles: Boolean): java.io.InputStream? {
         var output: android.graphics.Bitmap? = null
         try {
-            // Only TextureView and subtitle drawing require the UI thread. Encoding does not.
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                output = captureScreenshotFrame(showSubtitles)
+            // Surface access / subtitle drawing happen on the UI thread; PixelCopy itself is asynchronous.
+            output = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                captureScreenshotFrame(showSubtitles)
             }
             val frame = output ?: return null
             return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -1335,30 +1332,69 @@ class Media3PlayerEngine(
         }
     }
 
-    private fun captureScreenshotFrame(showSubtitles: Boolean): android.graphics.Bitmap? {
+    private suspend fun captureScreenshotFrame(showSubtitles: Boolean): android.graphics.Bitmap? {
         val pv = playerView ?: return null
-        val texture = pv.videoSurfaceView as? android.view.TextureView ?: return null
-        val frame = runCatching { texture.bitmap }.getOrNull() ?: return null
+        val surface = pv.videoSurfaceView ?: return null
+        val frame = when (surface) {
+            is android.view.TextureView -> runCatching { surface.bitmap }.getOrNull()
+            is android.view.SurfaceView -> captureSurfaceViewFrame(surface)
+            else -> null
+        } ?: return null
         val output = frame.copy(android.graphics.Bitmap.Config.ARGB_8888, true) ?: frame
         if (output !== frame) frame.recycle()
         if (showSubtitles) {
-            runCatching { drawSubtitleOverlays(pv, texture, output) }
+            runCatching { drawSubtitleOverlays(pv, surface, output) }
                 .onFailure { Log.w(TAG, "Subtitle overlay could not be drawn: ${it.message}") }
         }
         return output
     }
 
+    private suspend fun captureSurfaceViewFrame(
+        surfaceView: android.view.SurfaceView
+    ): android.graphics.Bitmap? = kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+        val width = surfaceView.width
+        val height = surfaceView.height
+        if (width <= 0 || height <= 0 || !surfaceView.holder.surface.isValid) {
+            continuation.resumeWith(Result.success(null))
+            return@suspendCancellableCoroutine
+        }
+        val bitmap = runCatching {
+            android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+        }.getOrNull()
+        if (bitmap == null) {
+            continuation.resumeWith(Result.success(null))
+            return@suspendCancellableCoroutine
+        }
+        continuation.invokeOnCancellation { bitmap.recycle() }
+        runCatching {
+            android.view.PixelCopy.request(surfaceView, bitmap, { result ->
+                if (!continuation.isActive) {
+                    if (!bitmap.isRecycled) bitmap.recycle()
+                } else if (result == android.view.PixelCopy.SUCCESS) {
+                    continuation.resumeWith(Result.success(bitmap))
+                } else {
+                    bitmap.recycle()
+                    continuation.resumeWith(Result.success(null))
+                }
+            }, mainHandler)
+        }.onFailure {
+            bitmap.recycle()
+            if (continuation.isActive) continuation.resumeWith(Result.success(null))
+            Log.w(TAG, "PixelCopy failed to start: ${it.message}")
+        }
+    }
+
     private fun drawSubtitleOverlays(
         pv: PlayerView,
-        texture: android.view.TextureView,
+        videoSurface: View,
         target: android.graphics.Bitmap
     ) {
-        if (texture.width <= 0 || texture.height <= 0) return
+        if (videoSurface.width <= 0 || videoSurface.height <= 0) return
         val canvas = android.graphics.Canvas(target)
-        val textureLocation = IntArray(2)
-        texture.getLocationInWindow(textureLocation)
-        val scaleX = target.width.toFloat() / texture.width.toFloat()
-        val scaleY = target.height.toFloat() / texture.height.toFloat()
+        val surfaceLocation = IntArray(2)
+        videoSurface.getLocationInWindow(surfaceLocation)
+        val scaleX = target.width.toFloat() / videoSurface.width.toFloat()
+        val scaleY = target.height.toFloat() / videoSurface.height.toFloat()
 
         listOfNotNull(pv.subtitleView, assSubtitleView).forEach { overlay ->
             if (overlay.visibility != View.VISIBLE || overlay.width <= 0 || overlay.height <= 0) {
@@ -1369,8 +1405,8 @@ class Media3PlayerEngine(
             canvas.save()
             canvas.scale(scaleX, scaleY)
             canvas.translate(
-                (location[0] - textureLocation[0]).toFloat(),
-                (location[1] - textureLocation[1]).toFloat()
+                (location[0] - surfaceLocation[0]).toFloat(),
+                (location[1] - surfaceLocation[1]).toFloat()
             )
             overlay.draw(canvas)
             canvas.restore()
@@ -1379,7 +1415,7 @@ class Media3PlayerEngine(
 
     override fun createVideoView(context: Context): View {
         if (playerView == null) {
-            val root = LayoutInflater.from(context).inflate(R.layout.trailer_player_view, null)
+            val root = LayoutInflater.from(context).inflate(R.layout.fullscreen_player_view, null)
             val pv = root.findViewById<PlayerView>(R.id.trailer_player_view)
             pv.player = exoPlayer
             playerView = pv
@@ -1479,8 +1515,8 @@ class Media3PlayerEngine(
                     typeface
                 )
                 subtitleView.setStyle(captionStyle)
-                // fontSize (1..200, default 55) + fontScale (0.2..5) + size fallback
-                val baseFontSize = currentSubtitleStyle.fontSize.takeIf { it in 1..200 } ?: 55
+                // fontSize (1..100, default 45) + fontScale (0.2..5) + size fallback
+                val baseFontSize = currentSubtitleStyle.fontSize.takeIf { it in 1..200 } ?: 45
                 val effectiveScale = currentSubtitleStyle.fontScale.takeIf { it in 0.1f..5f } ?: 1f
                 // fontSize 55 ~ 16sp esdeger; 55 = 16sp taban alinir
                 val baseSp = (baseFontSize / 55f * 16f).coerceIn(6f, 48f)

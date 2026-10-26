@@ -1940,6 +1940,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 dataStore.setSubtitleBold(style.bold)
                                 dataStore.setSubtitleOutlineEnabled(style.outlineEnabled)
                                 dataStore.setSubtitleItalic(style.italic)
+                                dataStore.setSubtitleFontSize(style.fontSize)
                                 dataStore.setSubtitleFont(style.font)
                                 dataStore.setSubtitleBorderStyle(style.borderStyle)
                                 dataStore.setSubtitleBorderSize(style.borderSize.toFloat())
@@ -2137,7 +2138,7 @@ private fun P2pTorrentStatsOverlayHost(
         uploadSpeedBytes = p2pStreamingState.uploadSpeed,
         seeders = p2pStreamingState.seeds,
         peers = p2pStreamingState.peers,
-        bufferPercent = (p2pStreamingState.bufferProgress * 100).toInt().coerceIn(0, 100),
+        bufferPercent = com.kitsugi.animelist.core.p2p.bufferPercent(p2pStreamingState.bufferProgress),
         onDismiss = {
             isSessionDismissed = true
         },

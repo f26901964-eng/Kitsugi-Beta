@@ -273,7 +273,7 @@ private fun SubtitleTypographyCard(
                         italic = false,
                         justification = "center",
                         font = "Sans Serif",
-                        fontSize = 55,
+                        fontSize = 45,
                         borderStyle = "outline-and-shadow",
                         borderSize = 3,
                         shadowOffset = 0,

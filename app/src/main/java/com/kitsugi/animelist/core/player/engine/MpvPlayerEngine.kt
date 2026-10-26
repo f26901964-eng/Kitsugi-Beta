@@ -485,7 +485,7 @@ class MpvPlayerEngine(
         val view = mpvView ?: return
         // Aniyomi paritesi: tüm tipografi/renk/diğer ayarlar doğrudan SubtitleStyleSettings'ten gelir.
         val effectiveFont = style.font.takeIf { it.isNotBlank() } ?: settings.subtitleFont.ifBlank { "Sans Serif" }
-        val effectiveFontSize = style.fontSize.takeIf { it in 1..200 } ?: 55
+        val effectiveFontSize = style.fontSize.takeIf { it in 1..200 } ?: 45
         val effectiveScale = style.fontScale.takeIf { it in 0.1f..10f } ?: ((style.size / 20.0f) * settings.subtitleFontScale).coerceIn(0.1f, 10f)
         val effectiveBorderSize = style.borderSize.takeIf { it in 0..100 } ?: settings.subtitleBorderSize.toInt()
         val effectiveBorderStyle = style.borderStyle.takeIf { it.isNotBlank() } ?: settings.subtitleBorderStyle

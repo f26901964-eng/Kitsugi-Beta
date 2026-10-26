@@ -285,6 +285,7 @@ class SettingsDataStore(
         val SubtitleShadowOffset = floatPreferencesKey("subtitle_shadow_offset")
         val SubtitleBorderColor = intPreferencesKey("subtitle_border_color")
         val SubtitleBorderSize = floatPreferencesKey("subtitle_border_size")
+        val SubtitleFontSize = intPreferencesKey("subtitle_font_size")
         val SubtitleFont = stringPreferencesKey("subtitle_font")
         val SubtitleBorderStyle = stringPreferencesKey("subtitle_border_style")
         val SubtitleFontScale = floatPreferencesKey("subtitle_font_scale")
@@ -577,6 +578,7 @@ class SettingsDataStore(
                 ),
                 mpvSubtitle = MpvAndSubtitleSettings(
                     defaultSubtitleSize = preferences[Keys.DefaultSubtitleSize] ?: 16,
+                    subtitleFontSize = (preferences[Keys.SubtitleFontSize] ?: 45).coerceIn(1, 100),
                     defaultSubtitleColor = preferences[Keys.DefaultSubtitleColor] ?: 0xFFFFFFFF.toInt(),
                     subtitleBold = preferences[Keys.SubtitleBold] ?: false,
                     subtitleOutlineEnabled = preferences[Keys.SubtitleOutlineEnabled] ?: true,
@@ -1770,6 +1772,10 @@ class SettingsDataStore(
 
     suspend fun setSubtitleBorderSize(size: Float) {
         context.settingsDataStore.edit { it[Keys.SubtitleBorderSize] = size.coerceIn(0f, 6f) }
+    }
+
+    suspend fun setSubtitleFontSize(size: Int) {
+        context.settingsDataStore.edit { it[Keys.SubtitleFontSize] = size.coerceIn(1, 100) }
     }
 
     suspend fun setSubtitleFont(font: String) {

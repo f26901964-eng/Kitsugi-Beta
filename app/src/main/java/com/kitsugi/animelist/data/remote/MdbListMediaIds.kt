@@ -38,15 +38,17 @@ internal fun resolveMdbListMediaIds(
     val tmdb = resolvedTmdbId.positiveOrNull()
 
     return when (normalizedSource) {
-        "anilist", "al" -> MdbListMediaIds(
-            // Popular AniList results use their real MAL ID as stableId. Older code
-            // discarded it, so IMDb resolution started with no identity at all.
-            malId = realMal ?: stored.realMalOrNull(),
-            aniListId = stored
-                ?.takeIf { it in 100_000_001..199_999_999 }
-                ?.minus(100_000_000),
-            tmdbId = tmdb
-        )
+        "anilist", "al" -> {
+            val aniListIds = resolveMdbListAniListIds(
+                stableId = stored ?: 0,
+                realMalId = realMal
+            )
+            MdbListMediaIds(
+                malId = aniListIds.malId,
+                aniListId = aniListIds.aniListId,
+                tmdbId = tmdb
+            )
+        }
 
         "kitsu" -> MdbListMediaIds(
             // Legacy library rows may store a real MAL ID; canonical rows use 300M+Kitsu ID.

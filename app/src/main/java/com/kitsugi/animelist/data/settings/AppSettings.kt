@@ -147,6 +147,7 @@ data class PlayerOverlaySettings(
 
 data class MpvAndSubtitleSettings(
     val defaultSubtitleSize: Int = 16,
+    val subtitleFontSize: Int = 45,
     val defaultSubtitleColor: Int = 0xFFFFFFFF.toInt(),
     val subtitleBold: Boolean = false,
     val subtitleOutlineEnabled: Boolean = true,
@@ -350,6 +351,7 @@ data class AppSettings(
     val isAutoplayEnabled: Boolean get() = playback.isAutoplayEnabled
     val skipIntroDurationSec: Int get() = playback.skipIntroDurationSec
     val defaultSubtitleSize: Int get() = mpvSubtitle.defaultSubtitleSize
+    val subtitleFontSize: Int get() = mpvSubtitle.subtitleFontSize
     val defaultSubtitleColor: Int get() = mpvSubtitle.defaultSubtitleColor
     val subtitleBold: Boolean get() = mpvSubtitle.subtitleBold
     val subtitleOutlineEnabled: Boolean get() = mpvSubtitle.subtitleOutlineEnabled
