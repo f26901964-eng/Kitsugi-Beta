@@ -232,7 +232,7 @@ class MpvPlayerEngine(
     private var pendingHeaders: Map<String, String> = emptyMap()
     private var pendingSubtitles: List<SubtitleInput> = emptyList()
     private var pendingStartPositionMs: Long = 0L
-    private var pendingAudioUrl: String? = null
+    private var pendingAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> = emptyList()
 
     /** Hazırlık sırasında motorun aldığı SubtitleInput listesi (dahili/harici bayrağını taşır). */
     private var preparedSubtitles: List<SubtitleInput> = emptyList()
@@ -315,6 +315,8 @@ class MpvPlayerEngine(
     override suspend fun prepare(
         videoUrl: String,
         audioUrl: String?,
+        externalAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>,
+        streamTypeHint: String?,
         headers: Map<String, String>,
         subtitles: List<SubtitleInput>,
         startPositionMs: Long,
@@ -343,12 +345,12 @@ class MpvPlayerEngine(
         this.pendingSubtitles = subtitles
         this.pendingStartPositionMs = startPositionMs
 
-        this.pendingAudioUrl = audioUrl
+        this.pendingAudioTracks = mergeAudioTracks(audioUrl, externalAudioTracks)
         val view = mpvView
         if (view != null) {
             syncDolbyVisionOptions(view)
             applyInitOptions(view)
-            beginLoad(videoUrl, audioUrl, headers, startPositionMs)
+            beginLoad(videoUrl, pendingAudioTracks, headers, startPositionMs)
             view.setMedia(videoUrl, headers, startPositionMs, forceReload = true)
             setupCustomButtons()
         }
@@ -662,7 +664,7 @@ class MpvPlayerEngine(
 
                 val pendingUrl = videoUrl
                 if (!pendingUrl.isNullOrBlank()) {
-                    beginLoad(pendingUrl, pendingAudioUrl, pendingHeaders, pendingStartPositionMs)
+                    beginLoad(pendingUrl, pendingAudioTracks, pendingHeaders, pendingStartPositionMs)
                     setMedia(pendingUrl, pendingHeaders, pendingStartPositionMs)
                     engineScope.launch {
                         setupCustomButtons()
@@ -828,7 +830,7 @@ class MpvPlayerEngine(
                         view.mpv.setPropertyString("force-media-title", it)
                         view.mpv.setPropertyString("user-data/current-anime/episode-title", it)
                     }
-                    applyExternalAudio(view, pendingAudioUrl)
+                    applyExternalAudio(view, pendingAudioTracks)
                     view.applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
                     applySecondarySubtitle(view)
                 }
@@ -1089,7 +1091,12 @@ class MpvPlayerEngine(
     }
 
     /** Yeni bir medya yüklenmeden önce yükleme durumunu hazırlar. */
-    private fun beginLoad(url: String, audioUrl: String?, headers: Map<String, String>, startPositionMs: Long) {
+    private fun beginLoad(
+        url: String,
+        audioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>,
+        headers: Map<String, String>,
+        startPositionMs: Long
+    ) {
         // Every explicit prepare is a real load, including retry of the exact same URL.
         loadGeneration++
         awaitingStartFile = true
@@ -1110,18 +1117,44 @@ class MpvPlayerEngine(
             it.onBufferedPositionChanged(0)
             it.onSecondarySubtitleChanged(-1)
         }
-        hasExternalAudio = !audioUrl.isNullOrBlank()
+        hasExternalAudio = audioTracks.isNotEmpty()
         lastPositionNotifyAtMs = -1L
         notifyPositionChanged(force = true)
     }
 
-    /** Ayrı ses akışını (audioUrl) MPV'ye ses parçası olarak ekler ve seçer. */
-    private fun applyExternalAudio(view: KitsugiMpvSurfaceView, audioUrl: String?) {
-        if (audioUrl.isNullOrBlank()) return
-        runCatching {
-            view.mpv.command("audio-add", audioUrl, "select")
-        }.onFailure {
-            Log.w(TAG, "audio-add başarısız: ${it.message}")
+    /** Preserve the legacy URL and every CloudStream rendition as selectable MPV tracks. */
+    private fun mergeAudioTracks(
+        audioUrl: String?,
+        tracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>
+    ): List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> {
+        val cleanTracks = tracks.filter { it.url.isNotBlank() }.distinctBy { it.url }
+        val legacy = audioUrl?.takeIf { it.isNotBlank() && cleanTracks.none { track -> track.url == it } }
+            ?.let { com.kitsugi.animelist.core.player.ExternalAudioTrackInput(url = it, name = "Harici ses") }
+        return listOfNotNull(legacy) + cleanTracks
+    }
+
+    /** Add all renditions; select the provider's first track and keep the rest user-selectable. */
+    private fun applyExternalAudio(
+        view: KitsugiMpvSurfaceView,
+        tracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>
+    ) {
+        if (tracks.isEmpty()) return
+        tracks.forEachIndexed { index, track ->
+            val flags = if (index == 0) "select" else "no"
+            val label = track.name?.takeIf { it.isNotBlank() } ?: "Harici ses ${index + 1}"
+            if (track.headers.any { (key, value) ->
+                    pendingHeaders.entries.none { (videoKey, videoValue) ->
+                        videoKey.equals(key, ignoreCase = true) && videoValue == value
+                    }
+                }
+            ) {
+                Log.w(TAG, "MPV audio-add cannot apply headers unique to external audio track '${label}'; Media3 supports per-track headers")
+            }
+            runCatching {
+                view.mpv.command("audio-add", track.url, flags, label, track.lang.orEmpty())
+            }.onFailure {
+                Log.w(TAG, "audio-add başarısız ($label): ${it.message}")
+            }
         }
     }
 

@@ -31,6 +31,13 @@ internal object CsPluginTypeCompatibility {
         }
     }
 
+    /**
+     * Preserve the caller's explicit movie bit even when the catalog category is Anime. Anime
+     * movies commonly share `MediaType.Anime` but still need the movie search/load pipeline.
+     */
+    fun resolveIsMovie(mediaType: MediaType?, isMovie: Boolean?): Boolean =
+        isMovie == true || mediaType == MediaType.Movie
+
     fun supports(mediaType: MediaType?, supportedTypes: Iterable<String>): Boolean {
         if (mediaType == null) return true
 

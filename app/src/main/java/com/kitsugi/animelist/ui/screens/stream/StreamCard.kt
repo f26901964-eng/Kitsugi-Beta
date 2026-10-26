@@ -98,9 +98,8 @@ fun StreamCard(
     // ölçüyoruz (HLS master playlist → gerçek çözünürlükler ve ses/altyazı dilleri).
     // Ölçüm yalnızca (1) kart görünürken ve (2) kaynak meta verisi eksikken yapılır.
     val measured by produceState<MeasuredStreamInfo?>(
-        initialValue = StreamProbe.cached(source.url),
-        key1 = source.url,
-        key2 = probeEnabled
+        initialValue = StreamProbe.cached(source),
+        key1 = listOf(source.url, source.streamTypeHint, source.requestHeaders, probeEnabled)
     ) {
         if (value == null && probeEnabled && StreamProbe.isProbeNeeded(source)) {
             // Yerleşme gecikmesi: hızlı kaydırmada kart görüş alanından çıkar ve coroutine

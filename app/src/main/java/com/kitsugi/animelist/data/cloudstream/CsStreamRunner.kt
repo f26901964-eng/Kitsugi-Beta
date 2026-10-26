@@ -24,6 +24,7 @@ import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.remote.ResolvedIds
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.core.player.SubtitleInput
+import com.kitsugi.animelist.core.player.ExternalAudioTrackInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -1032,6 +1033,9 @@ object CsStreamRunner {
         }
     }
 
+    /** An empty result is not proof that other overridden search methods are useless. */
+    internal fun shouldTryNextSearchMethod(results: List<*>?): Boolean = results.isNullOrEmpty()
+
     private fun hostOf(api: MainAPI): String? =
         runCatching { java.net.URI(getFixedUrl(api.mainUrl)).host }.getOrNull()
 
@@ -1242,9 +1246,11 @@ object CsStreamRunner {
         malId: Int? = null,
         aniListId: Int? = null,
         tmdbId: Int? = null,
+        kitsuId: Int? = null,
         isMovie: Boolean? = null,
         mediaType: MediaType? = null,
         bangumiId: Int? = null,
+        simklId: Int? = null,
         // v2.4.250: cagiran ID'leri zaten cozduyse (StreamViewModel) eklenti basina
         // ARM/TMDB agini atla — aksi halde runGetStreams kendi cozer (onbellekli).
         preResolvedIds: ResolvedIds? = null
@@ -1253,14 +1259,22 @@ object CsStreamRunner {
         Log.d(TAG, "  title='$title' season=$season ep=$episode year=$year")
         Log.d(TAG, "  alternativeTitles=${alternativeTitles.take(3)} mal=$malId aniList=$aniListId")
         val declaredTypes = api.supportedTypes.map { it.name }
+        val pluginVersion = CsPluginLoader.manifestVersionForSource(api.sourcePlugin)
         val effectiveMediaType = CsPluginTypeCompatibility.infer(mediaType, isMovie == true, declaredTypes)
-        if (!CsPluginTypeCompatibility.supports(effectiveMediaType, declaredTypes)) {
-            val reason = "Bu eklenti ${declaredTypes.joinToString()} türlerini destekliyor; ${effectiveMediaType?.let(CsPluginTypeCompatibility::description)} araması atlandı."
+        val ownedBuildReason = CsOwnedPluginProfiles.episodeUnsupportedReason(
+            providerName = api.name,
+            pluginVersion = pluginVersion,
+            mediaType = mediaType,
+            isMovie = isMovie
+        )
+        if (ownedBuildReason != null || !CsPluginTypeCompatibility.supports(effectiveMediaType, declaredTypes)) {
+            val reason = ownedBuildReason
+                ?: "Bu eklenti ${declaredTypes.joinToString()} türlerini destekliyor; ${effectiveMediaType?.let(CsPluginTypeCompatibility::description)} araması atlandı."
             Log.i(TAG, "[${api.name}] $reason")
             CsTrace.info(api.name, "type-filter", reason)
             return@withContext emptyList()
         }
-        val effectiveIsMovie = effectiveMediaType?.let { it == MediaType.Movie } ?: (isMovie == true)
+        val effectiveIsMovie = CsPluginTypeCompatibility.resolveIsMovie(effectiveMediaType, isMovie)
 
         // Fetch remote domains dynamically in background if not fetched yet
         if (!isDomainListFetched.get()) {
@@ -1346,9 +1360,11 @@ object CsStreamRunner {
                 malId = malId,
                 aniListId = aniListId,
                 tmdbId = tmdbId,
+                kitsuId = kitsuId,
                 isMovie = effectiveIsMovie,
                 mediaType = effectiveMediaType,
                 bangumiId = bangumiId,
+                simklId = simklId,
                 partialSink = partialSink,
                 preResolvedIds = preResolvedIds
             )
@@ -1378,22 +1394,25 @@ object CsStreamRunner {
         malId: Int? = null,
         aniListId: Int? = null,
         tmdbId: Int? = null,
+        kitsuId: Int? = null,
         isMovie: Boolean? = null,
         mediaType: MediaType? = null,
         bangumiId: Int? = null,
+        simklId: Int? = null,
         partialSink: MutableList<StreamSource>? = null,
         preResolvedIds: ResolvedIds? = null
     ): List<StreamSource> {
         // Resolve external IDs for validation. v2.4.250: cagiran cozulmus ID'leri
         // verdiyse aga CIKMA (164 eklenti x 8 istek firtinasi provider butcesini
         // eritiyordu); yoksa onbellekli cozumleyiciye dus.
-        val resolvedIds = preResolvedIds ?: if (malId != null || aniListId != null || tmdbId != null || bangumiId != null) {
+        val resolvedIds = preResolvedIds ?: if (malId != null || aniListId != null || tmdbId != null || bangumiId != null || kitsuId != null) {
             try {
                 KitsugiIdResolver.resolveIds(
                     malId = malId,
                     aniListId = aniListId,
                     tmdbId = tmdbId,
                     mediaType = mediaType,
+                    kitsuId = kitsuId,
                     bangumiId = bangumiId
                 )
             } catch (cancel: kotlinx.coroutines.CancellationException) {
@@ -1405,7 +1424,7 @@ object CsStreamRunner {
         
         val targetImdb = resolvedIds?.imdbId
         val targetTmdb = resolvedIds?.tmdbId ?: tmdbId
-        val targetKitsu = resolvedIds?.kitsuId
+        val targetKitsu = resolvedIds?.kitsuId ?: kitsuId
         val targetMal = resolvedIds?.malId ?: malId
         val targetAniList = resolvedIds?.aniListId ?: aniListId
         // v2.4.251: TMDB tr-TR basligi varyantlara ekle — site SADECE Turkce baslik
@@ -1430,6 +1449,7 @@ object CsStreamRunner {
             tmdbId    = resolvedIds?.tmdbId    ?: tmdbId,
             imdbId    = targetImdb,
             kitsuId   = targetKitsu,
+            simklId   = simklId,
             season    = season,
             episode   = episode,
             isMovie   = isMovie == true,
@@ -1889,14 +1909,13 @@ object CsStreamRunner {
         // ("X 2. Sezon"); eski kod bu sayfadan sezon-bağımsız eşleşmeyle bir bölüm seçip
         // yanlış içeriği oynatıyordu. Artık önce doğru sezon sayfasına inilir.
         val pageSeason = CsEpisodeMatcher.pageSeasonOf(loadResponse)
-        // Yanlış pozitif koruması: sayfanın bölüm listesi istenen sezonu ZATEN içeriyorsa
-        // (çok sezonlu tek sayfa) başlıktan okunan sezon çelişki sayılmaz.
-        val pageCoversRequestedSeason = CsEpisodeMatcher.episodeSeasonsOf(loadResponse).contains(season)
-        val seasonConflict = pageSeason != null && pageSeason != season && !pageCoversRequestedSeason
-        if (pageSeason != null && pageSeason != season && pageCoversRequestedSeason) {
+        // EpisodeMatcher applies the same evidence rules as its direct S/E matching, including
+        // explicit episode labels and ambiguous default season=1 metadata.
+        val seasonConflict = CsEpisodeMatcher.hasSeasonConflict(loadResponse, season)
+        if (pageSeason != null && pageSeason != season && !seasonConflict) {
             Log.d(
                 TAG,
-                "[${api.name}] 📺 Sayfa başlığı S$pageSeason diyor ama bölüm listesi S$season içeriyor — çelişki yok sayıldı."
+                "[${api.name}] 📺 Sayfa başlığı S$pageSeason diyor ama bölüm verisi S$season içeriyor — çelişki yok sayıldı."
             )
         }
         if (seasonConflict) {
@@ -1906,15 +1925,18 @@ object CsStreamRunner {
             )
             CsTrace.warn(api.name, "episode", "Sayfa S$pageSeason, istenen S$season — sezon gezinmesi öncelikli")
         } else {
-            val episodeData = findEpisodeData(loadResponse, season, episode)
-            if (episodeData != null) {
-                Log.d(TAG, "[${api.name}] 📺 Dizi mekaniği: S${season}E${episode} bölüm verisi yüklenen sayfada bulundu")
-                return extractStreamsFromEpisode(api, loadResponse, episodeData, partialSink)
-            }
+            val matchedStreams = extractStreamsForEpisodeDataCandidates(
+                api = api,
+                loadResponse = loadResponse,
+                season = season,
+                episode = episode,
+                partialSink = partialSink
+            )
+            if (matchedStreams != null) return matchedStreams
         }
 
         val epCount = episodeCountOf(loadResponse)
-        if (epCount == 0 && !seasonConflict) {
+        if (epCount == 0 && CsEpisodeMatcher.canUsePageUrlFallback(loadResponse, season)) {
             val pageUrl = loadResponse.url.takeIf { !it.isNullOrBlank() }
             if (pageUrl == null) {
                 Log.w(TAG, "[${api.name}] 📺 Bölüm listesi boş ve sayfa URL'si de boş (${loadResponse.javaClass.simpleName})")
@@ -1937,17 +1959,15 @@ object CsStreamRunner {
             navigateToSeasonPage(api, loadResponse, season, episode, navTitle, alternativeTitles, year)
         }
         if (navigated != null) {
+            val navigatedStreams = extractStreamsForEpisodeDataCandidates(
+                api = api,
+                loadResponse = navigated.second,
+                season = season,
+                episode = episode,
+                partialSink = partialSink
+            )
+            if (navigatedStreams != null) return navigatedStreams
             return extractStreamsFromEpisode(api, navigated.second, navigated.first, partialSink)
-        }
-
-        // Sayfa-tipli plugin'lerde (bölüm listesi doldurulmaz) gezinme başarısızsa sayfa
-        // URL'si son çare olarak kullanılır — aksi hâlde kaynak tamamen kaybolurdu.
-        if (epCount == 0) {
-            loadResponse.url?.takeIf { it.isNotBlank() }?.let { pageUrl ->
-                Log.w(TAG, "[${api.name}] 📺 Sezon gezinmesi sonuçsuz; sayfa-tipli plugin URL fallback $pageUrl")
-                CsTrace.info(api.name, "episode", "Sezon gezinmesi sonuçsuz; sayfa URL'si kullanılıyor")
-                return extractStreamsFromEpisode(api, loadResponse, pageUrl, partialSink)
-            }
         }
 
         CsPluginStatusTracker.recordSkip(
@@ -1959,6 +1979,43 @@ object CsStreamRunner {
             }
         )
         return emptyList()
+    }
+
+    /** Loads every distinct DubStatus-specific episode payload for the selected S/E. */
+    private suspend fun extractStreamsForEpisodeDataCandidates(
+        api: MainAPI,
+        loadResponse: LoadResponse,
+        season: Int,
+        episode: Int,
+        partialSink: MutableList<StreamSource>?
+    ): List<StreamSource>? {
+        val episodeDataCandidates = CsEpisodeMatcher.findEpisodeDataCandidates(
+            response = loadResponse,
+            season = season,
+            episode = episode
+        )
+        if (episodeDataCandidates.isEmpty()) return null
+
+        Log.d(
+            TAG,
+            "[${api.name}] 📺 S${season}E${episode} için ${episodeDataCandidates.size} episode-data/audio seçeneği bulundu"
+        )
+        val candidateStreams = mutableListOf<StreamSource>()
+        episodeDataCandidates.forEachIndexed { index, episodeData ->
+            val audioKind = CsEpisodeMatcher.findDubStatusForEpisodeData(loadResponse, episodeData)
+            Log.d(
+                TAG,
+                "[${api.name}] episode-data ${index + 1}/${episodeDataCandidates.size} " +
+                    "(ses=${audioKind ?: "bilinmiyor"}) yükleniyor"
+            )
+            candidateStreams += extractStreamsFromEpisode(
+                api = api,
+                loadResponse = loadResponse,
+                episodeData = episodeData,
+                partialSink = partialSink
+            )
+        }
+        return candidateStreams
     }
 
     /**
@@ -2018,6 +2075,7 @@ object CsStreamRunner {
         tmdbId: Int?,
         imdbId: String?,
         kitsuId: Int?,
+        simklId: Int?,
         season: Int,
         episode: Int,
         isMovie: Boolean = false,
@@ -2040,7 +2098,11 @@ object CsStreamRunner {
             if (com.lagradost.cloudstream3.syncproviders.SyncIdName.Kitsu in api.supportedSyncNames && kitsuId != null && kitsuId > 0) {
                 add(com.lagradost.cloudstream3.syncproviders.SyncIdName.Kitsu to kitsuId.toString())
             }
-            // TMDB is not in SyncIdName enum but some providers may map it via custom keys
+            if (com.lagradost.cloudstream3.syncproviders.SyncIdName.Simkl in api.supportedSyncNames && simklId != null && simklId > 0) {
+                add(com.lagradost.cloudstream3.syncproviders.SyncIdName.Simkl to simklId.toString())
+            }
+            // TMDB and Bangumi are not in SyncIdName enum; only plugins that advertise them
+            // through their own namespace can use those IDs via the manifest-backed Stremio path.
         }
 
         if (syncCandidates.isEmpty()) return null
@@ -2353,6 +2415,88 @@ object CsStreamRunner {
     }
 
     /**
+     * Combines inherited provider headers with extractor-specific headers. Header names are
+     * case-insensitive; extractor values replace inherited values without creating duplicate
+     * `Referer`, `Origin`, `Cookie`, or user-agent fields.
+     */
+    internal fun mergeHeadersCaseInsensitive(
+        inherited: Map<String, String>,
+        extractor: Map<String, String>
+    ): MutableMap<String, String> {
+        val merged = linkedMapOf<String, String>()
+        fun putHeader(name: String, value: String) {
+            merged.keys.filter { it.equals(name, ignoreCase = true) }.forEach { key -> merged.remove(key) }
+            merged[name] = value
+        }
+        inherited.forEach { (name, value) -> putHeader(name, value) }
+        extractor.forEach { (name, value) -> putHeader(name, value) }
+        return merged
+    }
+
+    /**
+     * Completes request metadata without replacing any explicit plugin/extractor header.
+     *
+     * The embed or episode page is a better fallback than the final CDN host: FilmMakinesi /
+     * HDFilmCehennemi-style players can validate both Referer and Origin against that page.
+     * Only when no page context exists do we fall back to the media URL's origin.
+     */
+    internal fun buildCloudStreamRequestHeaders(
+        existingHeaders: Map<String, String>,
+        linkReferer: String?,
+        parentPageUrl: String?,
+        sourcePageUrl: String?,
+        mediaUrl: String?,
+        userAgent: String
+    ): MutableMap<String, String> {
+        val headers = mergeHeadersCaseInsensitive(emptyMap(), existingHeaders)
+        fun hasHeader(name: String) = headers.keys.any { it.equals(name, ignoreCase = true) }
+        fun headerValue(name: String) = headers.entries
+            .firstOrNull { it.key.equals(name, ignoreCase = true) }
+            ?.value
+
+        val pageReferer = listOf(linkReferer, parentPageUrl, sourcePageUrl)
+            .firstOrNull { !originOfUrl(it).isNullOrBlank() }
+        val mediaOrigin = originOfUrl(mediaUrl)
+        if (!hasHeader("Referer")) {
+            val referer = pageReferer ?: mediaOrigin?.let { "$it/" }
+            if (!referer.isNullOrBlank()) headers["Referer"] = referer
+        }
+        if (!hasHeader("Origin")) {
+            val origin = originOfUrl(headerValue("Referer"))
+                ?: originOfUrl(pageReferer)
+                ?: mediaOrigin
+            if (!origin.isNullOrBlank()) headers["Origin"] = origin
+        }
+        if (!hasHeader("User-Agent")) headers["User-Agent"] = userAgent
+        return headers
+    }
+
+    /** Builds a probe request carrying the same auth/origin headers the player will use. */
+    internal fun buildStreamValidationRequest(
+        url: String,
+        method: String,
+        headers: Map<String, String>,
+        userAgent: String
+    ): okhttp3.Request {
+        require(method.equals("HEAD", ignoreCase = true) || method.equals("GET", ignoreCase = true)) {
+            "Only HEAD and GET validation requests are supported"
+        }
+        val builder = okhttp3.Request.Builder().url(url).method(method.uppercase(Locale.ROOT), null)
+        headers.forEach { (name, value) ->
+            if (value.isNotBlank() && !name.equals("Range", ignoreCase = true)) {
+                builder.header(name, value)
+            }
+        }
+        if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
+            builder.header("User-Agent", userAgent)
+        }
+        if (method.equals("GET", ignoreCase = true)) {
+            builder.header("Range", "bytes=0-0")
+        }
+        return builder.build()
+    }
+
+    /**
      * Derin taramada bulunan medya adayını hafif bir HTTP isteğiyle doğrular.
      *
      * Oynatıcıya HTML sayfası göndermek "oynatıcı hata veriyor" şikâyetinin en büyük
@@ -2540,29 +2684,26 @@ object CsStreamRunner {
                                 SubtitleInput(
                                     url  = normalizeCsSubtitleUrl(sub.url),
                                     name = sub.lang,
-                                    lang = sub.langTag ?: detectLanguageCode(sub.lang)
+                                    lang = sub.langTag ?: detectLanguageCode(sub.lang),
+                                    isExternal = true,
+                                    headers = sub.headers?.toMap().orEmpty()
                                 )
                             )
                         },
                         callback = { link ->
                             Log.d(TAG, "[$providerName] Extractor çözümlendi → ${link.name}: ${link.url}")
-                            val headers = mutableMapOf<String, String>()
-                            if (link.headers.isNotEmpty()) {
-                                headers.putAll(link.headers)
-                            } else if (rawHeaders.isNotEmpty()) {
-                                headers.putAll(rawHeaders)
-                            }
-                            if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
-                                if (link.referer.isNotBlank()) {
-                                    headers["Referer"] = link.referer
-                                } else {
-                                    val linkHost = runCatching { java.net.URI(link.url).host }.getOrNull()
-                                    headers["Referer"] = if (!linkHost.isNullOrBlank()) "https://$linkHost/" else referer
-                                }
-                            }
-                            if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
-                                headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
-                            }
+                            // Extractor headers supplement (and may override) the provider's
+                            // original headers. Do not drop provider cookies/tokens merely because
+                            // an extractor supplied one unrelated header such as User-Agent.
+                            val inheritedHeaders = mergeHeadersCaseInsensitive(rawHeaders, link.headers)
+                            val headers = buildCloudStreamRequestHeaders(
+                                existingHeaders = inheritedHeaders,
+                                linkReferer = link.referer,
+                                parentPageUrl = resolvedUrl,
+                                sourcePageUrl = referer,
+                                mediaUrl = link.url,
+                                userAgent = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                            )
                             resolvedStreams.add(
                                 StreamSource(
                                     addonName      = providerName,
@@ -2573,12 +2714,15 @@ object CsStreamRunner {
                                     fileIndex      = null,
                                     requestHeaders = headers,
                                     isCS           = true,
+                                    streamTypeHint = link.type.name,
                                     quality        = getQualityString(link.quality),
                                     qualityValue   = getQualityValue(link.quality),
                                     subtitles      = emptyList(),
                                     thumbnailUrl   = thumbnailUrl,
                                     isAdultContent = ADULT_PLUGINS.contains(providerName),
-                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
+                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() },
+                                    externalAudioTracks = externalAudioTrackInputs(link),
+                                    videoSizeBytes = extractVideoSize(link)
                                 )
                             )
                         }
@@ -2950,14 +3094,14 @@ object CsStreamRunner {
             }
 
             Log.w(TAG, "[$providerName] Extractor çözemedi ama URL medya gibi görünüyor — ekleniyor: $rawUrl")
-            val headers = rawHeaders.toMutableMap()
-            if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
-                val rawHost = runCatching { java.net.URI(rawUrl).host }.getOrNull()
-                headers["Referer"] = if (!rawHost.isNullOrBlank()) "https://$rawHost/" else referer
-            }
-            if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
-                headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
-            }
+            val headers = buildCloudStreamRequestHeaders(
+                existingHeaders = rawHeaders,
+                linkReferer = null,
+                parentPageUrl = resolvedUrl,
+                sourcePageUrl = referer,
+                mediaUrl = rawUrl,
+                userAgent = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+            )
             resolvedStreams.add(
                 StreamSource(
                     addonName    = providerName,
@@ -2987,24 +3131,28 @@ object CsStreamRunner {
      *
      * Sadece ilk 1 byte istenir — tam dosya indirilmez (veri tasarrufu).
      */
-    private suspend fun tryGetRangeValidation(url: String, referer: String?): Boolean {
+    private suspend fun tryGetRangeValidation(url: String, headers: Map<String, String>): Boolean {
         return try {
-            val requestBuilder = okhttp3.Request.Builder()
-                .url(url)
-                .get()
-                .addHeader("Range", "bytes=0-0")  // Sadece ilk byte
-                .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
-            if (!referer.isNullOrBlank()) {
-                requestBuilder.addHeader("Referer", referer)
-            }
+            // HLS/CDN kaynaklarında Origin, Cookie veya plugin token'ı HEAD'den sonraki
+            // Range GET'e de taşınmalı; yalnız Referer kullanılması 403/404 false-negative
+            // üreterek FilmMakinesi/HDFilmCehennemi kaynaklarını listeden düşürüyordu.
+            val request = buildStreamValidationRequest(
+                url = url,
+                method = "GET",
+                headers = headers,
+                userAgent = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+            )
             val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
-                .newCall(requestBuilder.build()).execute()
+                .newCall(request).execute()
             val code = response.code
-            // Body'yi kapat (sadece header kontrolü yeterli)
             response.close()
-            // 200 (tam dosya) veya 206 (partial content) → URL çalışıyor
-            val alive = code == 200 || code == 206
-            Log.d(TAG, "GET Range doğrulama: HTTP $code → ${if (alive) "✅ canlı" else "❌ ölü"}: ${url.take(60)}")
+            val alive = when (code) {
+                200, 206, 401, 403, 405, 429 -> true
+                in 500..599 -> true
+                404, 410 -> false
+                else -> true // Belirsiz cevap oynatılabilir kaynağı tek başına elememeli.
+            }
+            Log.d(TAG, "GET Range doğrulama: HTTP $code → ${if (alive) "✅ canlı/belirsiz" else "❌ ölü"}: ${url.take(60)}")
             alive
         } catch (e: Exception) {
             Log.w(TAG, "GET Range doğrulama hatası: ${e.javaClass.simpleName}: ${url.take(60)}")
@@ -3057,7 +3205,9 @@ object CsStreamRunner {
                                 SubtitleInput(
                                     url = normalizeCsSubtitleUrl(subtitleFile.url),
                                     name = subtitleFile.lang,
-                                    lang = subtitleFile.langTag ?: detectLanguageCode(subtitleFile.lang)
+                                    lang = subtitleFile.langTag ?: detectLanguageCode(subtitleFile.lang),
+                                    isExternal = true,
+                                    headers = subtitleFile.headers?.toMap().orEmpty()
                                 )
                             )
                         },
@@ -3101,30 +3251,15 @@ object CsStreamRunner {
                                 CsTrace.info(api.name, "embed", "Embed kuyruğa alındı: $cleanUrl")
                                 pendingEmbedUrls.add(Triple(link.url, link.name, link.headers))
                             } else {
-                                val headers = link.headers.toMutableMap()
-                                val providerReferer = try { api.mainUrl } catch (_: Exception) { "https://google.com" }
-                                if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
-                                    if (link.referer.isNotBlank()) {
-                                        headers["Referer"] = link.referer
-                                    } else {
-                                        val urlHost = runCatching { java.net.URI(cleanUrl).host }.getOrNull()
-                                        headers["Referer"] = if (!urlHost.isNullOrBlank()) "https://$urlHost/" else providerReferer
-                                    }
-                                }
-                                // Origin, Referer'dan türetilir — CDN'ler (closeload/rapidrame/playmix.uno)
-                                // embed origin'i doğrular; eksik kalınca 5004 ile düşürüyor.
-                                if (!headers.keys.any { it.equals("origin", ignoreCase = true) }) {
-                                    val refVal = headers.entries.firstOrNull { it.key.equals("referer", ignoreCase = true) }?.value
-                                    val originFromRef = refVal?.let { originOfUrl(it) }
-                                    val originFromUrl = originOfUrl(cleanUrl)
-                                    val origin = originFromRef ?: originFromUrl
-                                    if (!origin.isNullOrBlank()) {
-                                        headers["Origin"] = origin
-                                    }
-                                }
-                                if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
-                                    headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
-                                }
+                                val providerReferer = try { api.mainUrl } catch (_: Exception) { null }
+                                val headers = buildCloudStreamRequestHeaders(
+                                    existingHeaders = link.headers,
+                                    linkReferer = link.referer,
+                                    parentPageUrl = loadResponse.url,
+                                    sourcePageUrl = providerReferer,
+                                    mediaUrl = cleanUrl,
+                                    userAgent = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                                )
                                 val newStream = StreamSource(
                                         addonName    = api.name,
                                         name         = "${api.name} • ${link.name}",
@@ -3134,12 +3269,15 @@ object CsStreamRunner {
                                         fileIndex    = null,
                                         requestHeaders = headers,
                                         isCS         = true,
+                                        streamTypeHint = link.type.name,
                                         quality      = getQualityString(link.quality),
                                         qualityValue = getQualityValue(link.quality),
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
                                         isAdultContent = ADULT_PLUGINS.contains(api.name),
-                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
+                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() },
+                                        externalAudioTracks = externalAudioTrackInputs(link),
+                                        videoSizeBytes = extractVideoSize(link)
                                 )
                                 streams.add(newStream)
                                 partialSink?.add(newStream)
@@ -3303,27 +3441,18 @@ object CsStreamRunner {
                             // GET with Range header ile doğrulama yap (daha güvenilir).
                             val isAlive = withTimeoutOrNull(5_000L) {
                                 try {
-                                    val referer = stream.requestHeaders?.get("Referer")
-                                    val requestBuilder = okhttp3.Request.Builder()
-                                        .url(url)
-                                        .method("HEAD", null)
-                                        .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
-                                    // v2.4.304: doğrulamaya kaynağın TÜM başlıkları verilir
-                                    // (Origin dahil). closeload/rapidrame CDN'leri Origin'i
-                                    // kontrol eder; yalnız Referer ile atılan HEAD yanlış
-                                    // kodla dönüp çalışan kaynağı "ölü" gösterebiliyordu.
-                                    stream.requestHeaders?.forEach { (key, value) ->
-                                        if (!key.equals("User-Agent", ignoreCase = true) &&
-                                            !key.equals("Referer", ignoreCase = true) &&
-                                            value.isNotBlank()
-                                        ) {
-                                            requestBuilder.addHeader(key, value)
-                                        }
-                                    }
-                                    if (!referer.isNullOrBlank()) {
-                                        requestBuilder.addHeader("Referer", referer)
-                                    }
-                                    val headRequest = requestBuilder.build()
+                                    val requestHeaders = stream.requestHeaders.orEmpty()
+                                    val referer = requestHeaders.entries
+                                        .firstOrNull { it.key.equals("Referer", ignoreCase = true) }
+                                        ?.value
+                                    // HEAD doğrulamasında provider'ın tüm metadata'sı (Origin,
+                                    // Cookie, token ve özel User-Agent dahil) korunur.
+                                    val headRequest = buildStreamValidationRequest(
+                                        url = url,
+                                        method = "HEAD",
+                                        headers = requestHeaders,
+                                        userAgent = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                                    )
                                     val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
                                         .newCall(headRequest).execute()
                                     val code = response.code
@@ -3351,12 +3480,12 @@ object CsStreamRunner {
                                             // HEAD'de 404 doner ama GET calisir (closeload/rapidrame
                                             // ailesinde gozlendi). Kaynagi dusurmeden once GET dene.
                                             Log.d(TAG, "[${api.name}] HEAD 404 dondu, GET ile deneniyor: ${url.take(60)}")
-                                            tryGetRangeValidation(url, referer)
+                                            tryGetRangeValidation(url, requestHeaders)
                                         }
                                         400 -> {
                                             // 400 Bad Request — bazı CDN'ler HEAD'e 400 döner ama GET çalışır.
                                             Log.d(TAG, "[${api.name}] HEAD 400 döndü, GET ile deneniyor: ${url.take(60)}")
-                                            tryGetRangeValidation(url, referer)
+                                            tryGetRangeValidation(url, requestHeaders)
                                         }
                                         else -> true  // Bilinmeyen kod — iyimser ol, player denesin
                                     }
@@ -3810,7 +3939,7 @@ object CsStreamRunner {
 
                     // 2. Try standard search if overridden and not marked unsupported
                     val supportsStandard = isMethodOverridden(api, "search", String::class.java, kotlin.coroutines.Continuation::class.java)
-                    if (results == null && supportsStandard && !unsupportedMethods.contains("$providerName:search")) {
+                    if (shouldTryNextSearchMethod(results) && supportsStandard && !unsupportedMethods.contains("$providerName:search")) {
                         try {
                             Log.d(TAG, "[$providerName] api.search('$searchQuery') çağrılıyor...")
                             results = api.search(searchQuery)
@@ -3832,7 +3961,7 @@ object CsStreamRunner {
 
                     // 3. Try quickSearch if overridden and not marked unsupported
                     val supportsQuick = isMethodOverridden(api, "quickSearch", String::class.java, kotlin.coroutines.Continuation::class.java)
-                    if (results == null && supportsQuick && !unsupportedMethods.contains("$providerName:quickSearch")) {
+                    if (shouldTryNextSearchMethod(results) && supportsQuick && !unsupportedMethods.contains("$providerName:quickSearch")) {
                         try {
                             Log.d(TAG, "[$providerName] api.quickSearch('$searchQuery') çağrılıyor...")
                             results = api.quickSearch(searchQuery)
@@ -4141,6 +4270,33 @@ object CsStreamRunner {
     private fun findEpisodeData(response: LoadResponse, season: Int, episode: Int): String? =
         CsEpisodeMatcher.findEpisodeData(response, season, episode)
 
+    /** Preserve every audio rendition exposed by CloudStream; the legacy single URL is only a fallback. */
+    private fun externalAudioTrackInputs(link: ExtractorLink): List<ExternalAudioTrackInput> =
+        link.audioTracks.mapIndexedNotNull { index, audio ->
+            val url = audio.url.trim().takeIf { it.isNotBlank() } ?: return@mapIndexedNotNull null
+            ExternalAudioTrackInput(
+                url = url,
+                headers = audio.headers?.toMap().orEmpty(),
+                // CloudStream AudioFile currently exposes URL + headers, not track title/language.
+                name = "Harici ses ${index + 1}"
+            )
+        }
+
+    /** Safely extract videoSize (bytes) from ExtractorLink without compile-time visibility issues. */
+    private fun extractVideoSize(link: ExtractorLink): Long? = runCatching {
+        val getter = link.javaClass.methods.firstOrNull { it.name == "getVideoSize" }
+        if (getter != null) {
+            getter.isAccessible = true
+            getter.invoke(link) as? Long
+        } else {
+            val field = generateSequence(link.javaClass as Class<*>) { it.superclass }
+                .flatMap { it.declaredFields.asSequence() }
+                .firstOrNull { it.name == "videoSize" }
+            field?.isAccessible = true
+            field?.get(link) as? Long
+        }
+    }.getOrNull()
+
     /**
      * CloudStream `ExtractorLink.quality` değerini gerçek bir kalite etiketine çevirir.
      *
@@ -4225,6 +4381,18 @@ object CsStreamRunner {
         isMovie: Boolean = false,
         mediaType: MediaType? = null
     ): List<StreamSource> = withContext(Dispatchers.IO) {
+        val ownedBuildReason = CsOwnedPluginProfiles.episodeUnsupportedReason(
+            providerName = api.name,
+            pluginVersion = CsPluginLoader.manifestVersionForSource(api.sourcePlugin),
+            mediaType = mediaType,
+            isMovie = isMovie
+        )
+        if (ownedBuildReason != null) {
+            Log.i(TAG, "[${api.name}] $ownedBuildReason")
+            CsTrace.info(api.name, "type-filter", ownedBuildReason)
+            CsPluginStatusTracker.recordSkip(api.name, ownedBuildReason)
+            return@withContext emptyList()
+        }
         ensurePluginReady(api)
         if (api.name in KNOWN_BROKEN_PLUGINS) return@withContext emptyList()
         val resolvedMediaType = CsPluginTypeCompatibility.infer(
@@ -4238,7 +4406,7 @@ object CsStreamRunner {
             MediaType.Anime -> com.lagradost.cloudstream3.TvType.Anime
             MediaType.Manga, null -> com.lagradost.cloudstream3.TvType.Anime
         }
-        val isResolvedMovie = resolvedMediaType?.let { it == MediaType.Movie } ?: isMovie
+        val isResolvedMovie = CsPluginTypeCompatibility.resolveIsMovie(resolvedMediaType, isMovie)
         val searchResponse = api.newAnimeSearchResponse(
             name = api.name,
             url = url,

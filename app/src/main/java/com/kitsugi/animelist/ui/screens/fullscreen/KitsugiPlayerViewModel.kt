@@ -894,7 +894,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                                 resolutionMatchingEnabled = settings.resolutionMatchingEnabled
                             )
                         }
-                        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedVideoUrl, audioUrl = _currentAudioUrl.value)
+                        val selectedStream = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
+                        _playbackSource.value = TrailerPlaybackSource(
+                            videoUrl = resolvedVideoUrl,
+                            audioUrl = _currentAudioUrl.value,
+                            externalAudioTracks = selectedStream?.externalAudioTracks.orEmpty(),
+                            streamTypeHint = selectedStream?.streamTypeHint
+                        )
                     }
                     _isLoading.value = false
                 }
@@ -1334,7 +1340,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
 
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = targetStream.externalAudioUrl)
+                    _playbackSource.value = TrailerPlaybackSource(
+                        videoUrl = resolvedUrl,
+                        audioUrl = targetStream.externalAudioUrl,
+                        externalAudioTracks = targetStream.externalAudioTracks,
+                        streamTypeHint = targetStream.streamTypeHint
+                    )
                     // Start warming the following episode from this newly selected provider.
                     prefetchNextEpisode()
 
@@ -1385,7 +1396,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentSubtitles.value = stream.subtitles ?: emptyList()
         _currentSourceIndex.value = index
         _currentAddonName.value = stream.addonName
-        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = stream.externalAudioUrl)
+        _playbackSource.value = TrailerPlaybackSource(
+            videoUrl = resolvedUrl,
+            audioUrl = stream.externalAudioUrl,
+            externalAudioTracks = stream.externalAudioTracks,
+            streamTypeHint = stream.streamTypeHint
+        )
         // Kaynak değişti: motor fallback zinciri ve retry sayacı yeni kaynak için sıfırlanır.
         // (Eskiden bu sıfırlama yapılmıyor, ilk kaynakta tükenen zincir yüzünden yeni kaynakta
         // MPV'ye geçiş hiç denenmiyordu.)
@@ -1437,13 +1453,20 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 orchestrator.errorRecovery.hasFallback = _currentStreamSources.value.size > 1
                 orchestrator.errorRecovery.reset()
                 if (resolved != _currentVideoUrl.value) {
-                    _currentAudioUrl.value = null
+                    _currentAudioUrl.value = source.externalAudioUrl
                     _currentVideoUrl.value = resolved
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolved, audioUrl = null)
+                    _playbackSource.value = TrailerPlaybackSource(
+                        videoUrl = resolved,
+                        audioUrl = source.externalAudioUrl,
+                        externalAudioTracks = source.externalAudioTracks,
+                        streamTypeHint = source.streamTypeHint
+                    )
                 } else {
                     activeEngine?.prepare(
                         videoUrl = resolved,
-                        audioUrl = _currentAudioUrl.value,
+                        audioUrl = source.externalAudioUrl,
+                        externalAudioTracks = source.externalAudioTracks,
+                        streamTypeHint = source.streamTypeHint,
                         headers = headers,
                         subtitles = _currentSubtitles.value,
                         startPositionMs = activeEngine?.currentPosition ?: 0L,
@@ -1537,7 +1560,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
 
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = null)
+                    _playbackSource.value = TrailerPlaybackSource(
+                        videoUrl = resolvedUrl,
+                        audioUrl = target.externalAudioUrl,
+                        externalAudioTracks = target.externalAudioTracks,
+                        streamTypeHint = target.streamTypeHint
+                    )
                     // Yeni kaynak = yeni fallback oturumu.
                     orchestrator.errorRecovery.reset()
                     onSwitched(resolvedUrl, target)
@@ -1630,9 +1658,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 activeEngine?.let { engine ->
                     _currentVideoUrl.value?.let { url ->
                         runCatching {
+                            val currentSource = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
                             engine.prepare(
                                 videoUrl = url,
                                 audioUrl = _currentAudioUrl.value,
+                                externalAudioTracks = currentSource?.externalAudioTracks.orEmpty(),
+                                streamTypeHint = currentSource?.streamTypeHint,
                                 headers = _currentHeaders.value,
                                 subtitles = _currentSubtitles.value,
                                 startPositionMs = engine.currentPosition,

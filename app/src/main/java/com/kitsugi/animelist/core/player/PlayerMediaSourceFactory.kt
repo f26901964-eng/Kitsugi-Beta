@@ -23,6 +23,9 @@ import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.Dv7HandlingMode
 import com.kitsugi.animelist.data.trailer.YouTubeRequestPolicy
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.ResolvingDataSource
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.Locale
 
 /**
@@ -84,19 +87,23 @@ class PlayerMediaSourceFactory(
 
     // ── MediaItem ─────────────────────────────────────────────────────────────
 
-    fun isHls(videoUrl: String): Boolean = isHlsUrl(videoUrl)
+    fun isHls(videoUrl: String, streamTypeHint: String? = null): Boolean =
+        isHlsUrl(videoUrl, streamTypeHint)
 
+    fun isDash(videoUrl: String, streamTypeHint: String? = null): Boolean =
+        isDashUrl(videoUrl, streamTypeHint)
 
     /**
      * Constructs a [MediaItem] for [videoUrl] with optional subtitle configurations.
      */
     fun buildMediaItem(
         videoUrl: String,
-        subtitles: List<SubtitleInput> = emptyList()
+        subtitles: List<SubtitleInput> = emptyList(),
+        streamTypeHint: String? = null
     ): MediaItem {
         val videoUri = Uri.parse(videoUrl)
-        val isM3u8  = isHlsUrl(videoUrl)
-        val isDash  = videoUrl.contains(".mpd",  ignoreCase = true)
+        val isM3u8  = isHlsUrl(videoUrl, streamTypeHint)
+        val isDash  = isDashUrl(videoUrl, streamTypeHint)
         val isSs    = videoUrl.contains(".ism",   ignoreCase = true)
 
         val builder = MediaItem.Builder().setUri(videoUri)
@@ -244,8 +251,10 @@ class PlayerMediaSourceFactory(
         extractorsFactory: ExtractorsFactory,
         /** Engine tarafında (altyazı kimlikleri / yerel MIME tespiti ile) hazırlanmış MediaItem. */
         mediaItemOverride: MediaItem? = null,
+        externalAudioTracks: List<ExternalAudioTrackInput> = emptyList(),
+        streamTypeHint: String? = null
     ): MediaSource {
-        val mediaItem = mediaItemOverride ?: buildMediaItem(videoUrl, subtitles)
+        val mediaItem = mediaItemOverride ?: buildMediaItem(videoUrl, subtitles, streamTypeHint)
 
         val activeExtractorsFactory = customExtractorsFactory ?: extractorsFactory
         val isYouTubeSource = YouTubeRequestPolicy.shouldUseYouTubeDataSource(
@@ -253,8 +262,9 @@ class PlayerMediaSourceFactory(
             audioUrl = audioUrl,
             isCloudstream = isCS
         )
-        val dsFactory = if (isYouTubeSource) {
-            val isHls = isHlsUrl(videoUrl)
+        val perUrlHeaders = collectPerUrlHeaders(subtitles, externalAudioTracks)
+        val rawDataSourceFactory = if (isYouTubeSource) {
+            val isHls = isHlsUrl(videoUrl, streamTypeHint)
             val chunkRanges = YouTubeRequestPolicy.shouldUseChunkedGoogleVideoRanges(
                 videoUrl = videoUrl,
                 audioUrl = audioUrl,
@@ -276,20 +286,30 @@ class PlayerMediaSourceFactory(
                 qualityValue = qualityValue
             )
         }
+        val dsFactory = withPerUrlHeaders(rawDataSourceFactory, perUrlHeaders)
 
         // For HLS, the YouTube DataSource deliberately sends signed playlists/segments
         // unchanged with the required YouTube headers; query-range chunking is reserved for
         // progressive googlevideo video/audio streams.
-        if (!audioUrl.isNullOrBlank()) {
-            Log.d(TAG, "Building MergingMediaSource (YouTube/dual-stream)")
+        val audioUrls = buildList {
+            audioUrl?.takeIf { it.isNotBlank() }?.let { add(it) }
+            externalAudioTracks.asSequence()
+                .map { it.url.trim() }
+                .filter { it.isNotBlank() }
+                .forEach { add(it) }
+        }.distinct()
+        if (audioUrls.isNotEmpty()) {
+            Log.d(TAG, "Building MergingMediaSource with ${audioUrls.size} external audio rendition(s)")
             val factory = DefaultMediaSourceFactory(dsFactory, activeExtractorsFactory)
             customSubtitleParserFactory?.let {
                 factory.setSubtitleParserFactory(it)
             }
-            return MergingMediaSource(
-                factory.createMediaSource(mediaItem),
-                factory.createMediaSource(MediaItem.fromUri(Uri.parse(audioUrl)))
-            )
+            val mediaSources = ArrayList<MediaSource>(audioUrls.size + 1)
+            mediaSources += factory.createMediaSource(mediaItem)
+            audioUrls.forEach { url ->
+                mediaSources += factory.createMediaSource(MediaItem.fromUri(Uri.parse(url)))
+            }
+            return MergingMediaSource(*mediaSources.toTypedArray())
         }
 
         // Standard progressive / adaptive
@@ -299,6 +319,48 @@ class PlayerMediaSourceFactory(
             factory.setSubtitleParserFactory(it)
         }
         return factory.createMediaSource(mediaItem)
+    }
+
+    private fun collectPerUrlHeaders(
+        subtitles: List<SubtitleInput>,
+        audioTracks: List<ExternalAudioTrackInput>
+    ): Map<String, Map<String, String>> {
+        val result = linkedMapOf<String, MutableMap<String, String>>()
+        fun add(url: String, headers: Map<String, String>) {
+            if (headers.isEmpty()) return
+            val key = url.trim().toHttpUrlOrNull()?.toString() ?: return
+            val merged = result.getOrPut(key) { linkedMapOf() }
+            headers.forEach { (name, value) ->
+                if (name.isBlank() || value.isBlank()) return@forEach
+                merged.keys.firstOrNull { it.equals(name, ignoreCase = true) }?.let(merged::remove)
+                merged[name] = value
+            }
+        }
+        subtitles.forEach { add(it.url, it.headers) }
+        audioTracks.forEach { add(it.url, it.headers) }
+        return result
+    }
+
+    /** Add per-file headers without changing the main video request headers. */
+    private fun withPerUrlHeaders(
+        upstream: androidx.media3.datasource.DataSource.Factory,
+        headersByUrl: Map<String, Map<String, String>>
+    ): androidx.media3.datasource.DataSource.Factory {
+        if (headersByUrl.isEmpty()) return upstream
+        return ResolvingDataSource.Factory(upstream, object : ResolvingDataSource.Resolver {
+            override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
+                val key = dataSpec.uri.toString().toHttpUrlOrNull()?.toString() ?: return dataSpec
+                val specific = headersByUrl[key] ?: return dataSpec
+                val merged = dataSpec.httpRequestHeaders.toMutableMap()
+                specific.forEach { (name, value) ->
+                    merged.keys.firstOrNull { it.equals(name, ignoreCase = true) }?.let(merged::remove)
+                    merged[name] = value
+                }
+                return dataSpec.buildUpon().setHttpRequestHeaders(merged).build()
+            }
+
+            override fun resolveReportedUri(uri: Uri): Uri = uri
+        })
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -343,7 +405,11 @@ class PlayerMediaSourceFactory(
          * varsa true döner. Bu sayede ExoPlayer akışı progressive MP4 olarak indirip Range parçalaması yapmaz,
          * HlsMediaSource ile video + ses parçalarını kusursuz oynatır.
          */
-        fun isHlsUrl(videoUrl: String): Boolean {
+        fun isHlsUrl(videoUrl: String, streamTypeHint: String? = null): Boolean {
+            when (streamTypeHint?.uppercase(Locale.ROOT)) {
+                "M3U8", "HLS" -> return true
+                "DASH" -> return false
+            }
             if (videoUrl.isBlank()) return false
             val clean = videoUrl.lowercase(Locale.ROOT)
             val path = try {
@@ -351,6 +417,11 @@ class PlayerMediaSourceFactory(
             } catch (_: Exception) {
                 clean.substringBefore('?')
             }
+
+            // Some provider binaries (notably Anizm v2 and TrAnimeIzle v27) recognize `.mpd`
+            // but emit the generic VIDEO hint rather than DASH. A weak `/player/` marker below
+            // must not make that manifest take the HLS path.
+            if (path.contains(".mpd")) return false
 
             // 1) KESİN HLS belirteçleri (manifest adı / m3u8 yolu). Bunlar her şeyden
             //    öncedir: FilmMakinesi / CloseLoad 'hls/...mp4/master.txt' yapısı.
@@ -401,6 +472,14 @@ class PlayerMediaSourceFactory(
             return clean.contains("/stream/") ||
                    clean.contains("/player/") ||
                    clean.contains("/embed/")
+        }
+
+        fun isDashUrl(videoUrl: String, streamTypeHint: String? = null): Boolean {
+            when (streamTypeHint?.uppercase(Locale.ROOT)) {
+                "DASH" -> return true
+                "M3U8", "HLS" -> return false
+            }
+            return videoUrl.contains(".mpd", ignoreCase = true)
         }
 
         /** Yolun sonu doğrudan bir progressive video dosyası uzantısıysa eşleşir. */

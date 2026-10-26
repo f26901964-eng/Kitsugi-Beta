@@ -129,6 +129,9 @@ object CsRuntimeInit {
                 .addInterceptor { chain ->
                     val original = chain.request()
                     val urlStr = original.url.toString()
+                    val allowAniziumV25Shim = CsOwnedPluginProfiles.shouldApplyAniziumV25AuthShim(
+                        CsPluginLoader.manifestVersionForPluginId("Anizium")
+                    )
                     var newUrl = urlStr
                     var hostHeader: String? = null
 
@@ -184,8 +187,11 @@ object CsRuntimeInit {
                             .build()
                     }
 
-                    // Anizium API endpoint rerouting
-                    if (urlStr.contains("anizium.co") || urlStr.contains("anizium.de")) {
+                    // The route was decoded from Anizium v25. Do not apply it to a newer/unknown
+                    // plugin build until its host contract has been re-audited.
+                    if (allowAniziumV25Shim &&
+                        (urlStr.contains("anizium.co") || urlStr.contains("anizium.de"))
+                    ) {
                         if (urlStr.contains("x.anizium.co/page") || urlStr.contains("x.anizium.co/anime")) {
                             newUrl = urlStr.replace("x.anizium.co", "api.anizium.co")
                         } else if (urlStr.contains("x.anizium.de/page") || urlStr.contains("x.anizium.de/anime")) {
@@ -217,9 +223,13 @@ object CsRuntimeInit {
                         requestBuilder.header("Host", hostHeader)
                     }
 
-                    // Anizium Cf-Control auth header injection
-                    if (urlStr.contains("anizium.co") || urlStr.contains("anizium.de") ||
-                        newUrl.contains("anizium.co") || newUrl.contains("anizium.de")) {
+                    // v25's Cf-Control and companion headers are binary-derived. Scope the
+                    // compatibility shim to the actual loaded v25 manifest; an unknown build
+                    // may have changed its authentication contract.
+                    if (allowAniziumV25Shim &&
+                        (urlStr.contains("anizium.co") || urlStr.contains("anizium.de") ||
+                            newUrl.contains("anizium.co") || newUrl.contains("anizium.de"))
+                    ) {
                         val cf = AniziumAuthHelper.generateCfControl()
                         if (cf.isNotBlank()) {
                             requestBuilder.header("Cf-Control", cf)
@@ -286,22 +296,25 @@ object AniziumAuthHelper {
                 timeZone = tz
             }
             val weekday = sdf.format(java.util.Date()).lowercase()
-            val key = "${TOKEN_KEY}_$weekday".toByteArray(Charsets.UTF_8)
-
             val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
             val r6 = (1..6).map { chars.random() }.joinToString("")
             val timestamp = System.currentTimeMillis()
-            val payload = "{\"$r6\":$timestamp}".toByteArray(Charsets.UTF_8)
-
-            val hex = StringBuilder(payload.size * 2)
-            for (i in payload.indices) {
-                val b = (payload[i].toInt() xor key[i % key.size].toInt()) and 0xFF
-                hex.append(String.format("%02x", b))
-            }
-            hex.toString()
+            encodeCfControlPayload("{\"$r6\":$timestamp}", weekday)
         } catch (e: Exception) {
             ""
         }
+    }
+
+    /** Deterministic encoder used to verify the app algorithm against the audited v25 DEX token. */
+    internal fun encodeCfControlPayload(payload: String, weekday: String): String {
+        val key = "${TOKEN_KEY}_$weekday".toByteArray(Charsets.UTF_8)
+        val payloadBytes = payload.toByteArray(Charsets.UTF_8)
+        val hex = StringBuilder(payloadBytes.size * 2)
+        for (i in payloadBytes.indices) {
+            val byte = (payloadBytes[i].toInt() xor key[i % key.size].toInt()) and 0xFF
+            hex.append(String.format("%02x", byte))
+        }
+        return hex.toString()
     }
 }
 

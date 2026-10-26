@@ -50,9 +50,30 @@ object CsPluginLoader {
     val loadedPluginIds = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
     private val loadMutex = Mutex()
     private val loadErrors = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val loadedManifestVersions = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /** Consume the most recent loader failure so the in-app diagnostic report can classify it. */
     fun takeLastLoadError(scraperId: String): String? = loadErrors.remove(scraperId)
+
+    /**
+     * Returns the manifest version read from the actual loaded `.cs3` archive for an API's source.
+     * `null` means the API did not come through this loader or its manifest omitted `version`.
+     */
+    fun manifestVersionForSource(sourcePlugin: String?): Int? {
+        if (sourcePlugin.isNullOrBlank()) return null
+        val pluginId = runCatching { File(sourcePlugin).nameWithoutExtension }.getOrNull()
+            ?.takeIf { it.isNotBlank() } ?: return null
+        return manifestVersionForPluginId(pluginId)
+    }
+
+    /** Returns the actual loaded manifest version for a known extension id, if available. */
+    fun manifestVersionForPluginId(pluginId: String?): Int? {
+        if (pluginId.isNullOrBlank()) return null
+        val normalizedId = runCatching { File(pluginId).nameWithoutExtension }.getOrNull()
+            ?.takeIf { it.isNotBlank() } ?: return null
+        return loadedManifestVersions[normalizedId]
+            ?: loadedManifestVersions.entries.firstOrNull { it.key.equals(normalizedId, ignoreCase = true) }?.value
+    }
 
     private fun recordLoadError(scraperId: String, message: String) {
         loadErrors[scraperId] = message.take(500)
@@ -115,6 +136,7 @@ object CsPluginLoader {
     private fun unloadExtensionInternal(context: Context, scraperId: String) {
         val cs3File = File(context.filesDir, "cs_extensions/$scraperId.cs3")
         val absolutePath = cs3File.absolutePath
+        loadedManifestVersions.remove(scraperId)
         Log.i(TAG, "Unloading extension: $scraperId ($absolutePath)")
 
         // 1. Call beforeUnload() on the plugin instance
@@ -415,6 +437,11 @@ object CsPluginLoader {
             if (manifest == null) {
                 recordLoadError(scraperId, "IllegalStateException: manifest.json is missing or invalid")
                 return@withLock emptyList()
+            }
+            if (manifest.version != null) {
+                loadedManifestVersions[scraperId] = manifest.version
+            } else {
+                loadedManifestVersions.remove(scraperId)
             }
 
             val pluginClassName = manifest.pluginClassName ?: manifest.pluginClass

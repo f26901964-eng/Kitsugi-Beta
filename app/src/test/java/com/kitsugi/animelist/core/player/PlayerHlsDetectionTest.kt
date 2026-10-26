@@ -67,6 +67,23 @@ class PlayerHlsDetectionTest {
     }
 
     @Test
+    fun explicitCloudStreamTypeHintClassifiesExtensionlessAdaptiveUrls() {
+        val url = "https://cdn.example.com/manifest?id=1"
+        assertTrue(PlayerMediaSourceFactory.isHlsUrl(url, "M3U8"))
+        assertFalse(PlayerMediaSourceFactory.isDashUrl(url, "M3U8"))
+        assertFalse(PlayerMediaSourceFactory.isHlsUrl(url, "DASH"))
+        assertTrue(PlayerMediaSourceFactory.isDashUrl(url, "DASH"))
+    }
+
+    @Test
+    fun mpdPathOutranksWeakPlayerPathWhenPluginEmitsGenericVideoHint() {
+        // Anizm v2 / TrAnimeIzle v27 can identify an MPD URL but emit VIDEO, not DASH.
+        val url = "https://cdn.example.com/player/manifest.mpd?token=abc"
+        assertFalse(PlayerMediaSourceFactory.isHlsUrl(url, "VIDEO"))
+        assertTrue(PlayerMediaSourceFactory.isDashUrl(url, "VIDEO"))
+    }
+
+    @Test
     fun blankUrl_isNotHls() {
         assertFalse(PlayerMediaSourceFactory.isHlsUrl(""))
     }

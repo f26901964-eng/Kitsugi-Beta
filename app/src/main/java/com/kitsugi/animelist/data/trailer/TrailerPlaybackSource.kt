@@ -12,7 +12,9 @@ data class TrailerPlaybackSource(
     val videoUrl: String,
     val audioUrl: String? = null,
     val requestHeaders: Map<String, String> = emptyMap(),
-    val alternatives: List<TrailerPlaybackSource> = emptyList()
+    val alternatives: List<TrailerPlaybackSource> = emptyList(),
+    val externalAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> = emptyList(),
+    val streamTypeHint: String? = null
 )
 
 /**

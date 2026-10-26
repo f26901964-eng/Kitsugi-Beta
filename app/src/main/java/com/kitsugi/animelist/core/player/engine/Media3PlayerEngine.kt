@@ -805,6 +805,8 @@ class Media3PlayerEngine(
     override suspend fun prepare(
         videoUrl: String,
         audioUrl: String?,
+        externalAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>,
+        streamTypeHint: String?,
         headers: Map<String, String>,
         subtitles: List<SubtitleInput>,
         startPositionMs: Long,
@@ -979,8 +981,8 @@ class Media3PlayerEngine(
 
             // ── MediaItem ────────────────────────────────────────────────────────
             val videoUri = Uri.parse(videoUrl)
-            val isM3u8 = PlayerMediaSourceFactory.isHlsUrl(videoUrl)
-            val isDash = videoUrl.contains(".mpd", ignoreCase = true) || videoUrl.contains("mpd", ignoreCase = true)
+            val isM3u8 = PlayerMediaSourceFactory.isHlsUrl(videoUrl, streamTypeHint)
+            val isDash = PlayerMediaSourceFactory.isDashUrl(videoUrl, streamTypeHint)
             val isSs = videoUrl.contains(".ism", ignoreCase = true)
 
             val mediaItemBuilder = MediaItem.Builder().setUri(videoUri)
@@ -1025,6 +1027,8 @@ class Media3PlayerEngine(
             mediaSourceForMainThread = mediaSourceFactory.create(
                 videoUrl          = videoUrl,
                 audioUrl          = audioUrl,
+                externalAudioTracks = externalAudioTracks,
+                streamTypeHint    = streamTypeHint,
                 headers           = headers,
                 subtitles         = subtitles,
                 isCS              = isCS,
@@ -1047,6 +1051,8 @@ class Media3PlayerEngine(
                 ?: mediaSourceFactory.create(
                     videoUrl          = videoUrl,
                     audioUrl          = audioUrl,
+                    externalAudioTracks = externalAudioTracks,
+                    streamTypeHint    = streamTypeHint,
                     headers           = headers,
                     subtitles         = subtitles,
                     isCS              = isCS,

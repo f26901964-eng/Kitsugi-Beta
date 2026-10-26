@@ -97,6 +97,7 @@ object StreamSorter {
     private val sizeRegex = Regex("""(\d+(?:\.\d+)?)\s*(gb|mb|gib|mib)""", RegexOption.IGNORE_CASE)
 
     private fun sizeBytes(stream: StreamSource): Long {
+        stream.videoSizeBytes?.takeIf { it > 0L }?.let { return it }
         val text = "${stream.title} ${stream.name}"
         val match = sizeRegex.find(text) ?: return 0L
         val value = match.groupValues[1].toDoubleOrNull() ?: return 0L

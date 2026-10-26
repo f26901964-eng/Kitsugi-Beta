@@ -179,7 +179,7 @@ object StreamInfoResolver {
                 label = heightToLabel(providerHeight),
                 height = providerHeight,
                 origin = StreamInfoOrigin.PROVIDER,
-                isAdaptive = false
+                isAdaptive = isAdaptiveStream(stream)
             )
         }
 
@@ -193,7 +193,7 @@ object StreamInfoResolver {
                 label = heightToLabel(fromText),
                 height = fromText,
                 origin = StreamInfoOrigin.FILENAME,
-                isAdaptive = false
+                isAdaptive = isAdaptiveStream(stream)
             )
         }
 
@@ -202,9 +202,15 @@ object StreamInfoResolver {
             label = null,
             height = null,
             origin = StreamInfoOrigin.NONE,
-            isAdaptive = measured?.isAdaptive == true || isAdaptiveUrl(stream.url)
+            isAdaptive = measured?.isAdaptive == true || isAdaptiveStream(stream)
         )
     }
+
+    fun isAdaptiveStream(stream: StreamSource): Boolean =
+        isAdaptiveUrl(stream.url) ||
+            stream.streamTypeHint.equals("M3U8", ignoreCase = true) ||
+            stream.streamTypeHint.equals("HLS", ignoreCase = true) ||
+            stream.streamTypeHint.equals("DASH", ignoreCase = true)
 
     fun isAdaptiveUrl(url: String?): Boolean {
         val lower = url?.lowercase(Locale.ROOT) ?: return false
@@ -347,8 +353,10 @@ object StreamInfoResolver {
 
     /** Ölçülen veya kaynağın bildirdiği boyut etiketi; bilinmiyorsa null. */
     fun resolveSizeLabel(stream: StreamSource, measured: MeasuredStreamInfo? = null): String? {
-        val bytes = measured?.sizeBytes
-        if (bytes != null && bytes > 0) return formatBytes(bytes)
+        val measuredBytes = measured?.sizeBytes
+        if (measuredBytes != null && measuredBytes > 0) return formatBytes(measuredBytes)
+        val providerBytes = stream.videoSizeBytes
+        if (providerBytes != null && providerBytes > 0) return formatBytes(providerBytes)
         val match = SIZE_REGEX.find("${stream.title} ${stream.name}") ?: return null
         return match.value.trim().uppercase(Locale.ROOT)
     }

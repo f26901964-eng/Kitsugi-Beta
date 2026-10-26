@@ -5,8 +5,9 @@ import kotlinx.serialization.Serializable
 /**
  * T2.4 — Kalite Profili Modeli.
  *
- * Kullanıcının tercih ettiği video kalitesini ve maksimum bant genişliğini
- * saklar. CsStreamRunner, kaynak seçimi sırasında bu profile göre sıralar.
+ * Kullanıcının tercih ettiği video çözünürlüğünü ve maksimum bant genişliğini
+ * saklar. Stream ekranı kaynakları bu profile göre sıralar; oynatıcıdaki adaptif
+ * varyantların seçimi ayrıca player track-selection politikasına bağlıdır.
  *
  * ### Kalite Öncelik Mantığı
  * - `AUTO`   → Ağ hızına göre ExoPlayer/MPV otomatik seçer (varsayılan)
@@ -102,8 +103,11 @@ object QualityDataHelper {
     ): List<com.kitsugi.animelist.data.repository.StreamSource> {
         if (maxBitrateKbps <= 0) return sources
         return sources.filter { source ->
-            val sourceBitrate = source.qualityValue?.let { q -> q * 8 } ?: 0
-            sourceBitrate <= maxBitrateKbps || sourceBitrate == 0
+            // qualityValue is a vertical pixel count (e.g. 720), NOT a bitrate.
+            // Unknown bitrate must remain eligible; filtering it using height * 8
+            // silently removed valid 720p/1080p sources at common limits.
+            val sourceBitrate = source.bitrateKbps
+            sourceBitrate == null || sourceBitrate <= maxBitrateKbps
         }
     }
 }

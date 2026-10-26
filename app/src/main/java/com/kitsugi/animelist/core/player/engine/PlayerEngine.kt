@@ -104,6 +104,8 @@ interface PlayerEngine {
     suspend fun prepare(
         videoUrl: String,
         audioUrl: String? = null,
+        externalAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> = emptyList(),
+        streamTypeHint: String? = null,
         headers: Map<String, String> = emptyMap(),
         subtitles: List<SubtitleInput> = emptyList(),
         startPositionMs: Long = 0L,

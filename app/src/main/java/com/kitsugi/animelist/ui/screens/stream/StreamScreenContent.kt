@@ -1,7 +1,6 @@
 package com.kitsugi.animelist.ui.screens.stream
 
 import android.content.SharedPreferences
-import com.kitsugi.animelist.ui.utils.uniqueItems
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -191,9 +190,9 @@ fun StreamScreenContent(
 
             val matchingStreams = addonState.streams.filter { stream ->
                 // Filtreleme de rozetlerle aynı kanıta dayalı bilgiyi kullanır.
-                val qualityInfo = resolveStreamQuality(stream, StreamProbe.cached(stream.url))
+                val qualityInfo = resolveStreamQuality(stream, StreamProbe.cached(stream))
                 val qual = qualityInfo.label.orEmpty()
-                val langInfo = resolveStreamLangInfo(stream, StreamProbe.cached(stream.url))
+                val langInfo = resolveStreamLangInfo(stream, StreamProbe.cached(stream))
                 val langType = langInfo.kind.toLangType()
 
                 val matchesQuery = query.isEmpty() ||
@@ -231,7 +230,7 @@ fun StreamScreenContent(
     val filteredAddonStates = remember(matchingAddonStates, qualitySort) {
         if (!qualitySort) matchingAddonStates else matchingAddonStates.map { state ->
             state.copy(streams = state.streams.sortedByDescending {
-                resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1
+                resolveStreamQuality(it, StreamProbe.cached(it)).height ?: -1
             })
         }
     }
@@ -1220,8 +1219,7 @@ private fun AddonChipsRow(
                             onFilterChange(null); showPicker = false
                         }
                     }
-                    // Aynı eklenti farklı manifest ile iki kez kuruluysa adlar çakışır (ör. iki "Torrentio").
-                    uniqueItems(visible, key = { it.addonName }) { state ->
+                    items(visible, key = { it.addonName }) { state ->
                         val status = when {
                             state.isLoading -> stringResource(R.string.stream_source_loading)
                             state.requiresVerification -> stringResource(R.string.stream_source_verify)

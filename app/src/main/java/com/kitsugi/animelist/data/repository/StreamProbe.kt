@@ -15,6 +15,7 @@ import okhttp3.Callback
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.Locale
 import kotlin.coroutines.resume
 
@@ -46,17 +47,31 @@ object StreamProbe {
 
     private val cache = BoundedCache<String, MeasuredStreamInfo>("streamProbe", 200)
 
-    /** Daha önce ölçülmüş sonuç (anında arayüze verilebilir). */
-    fun cached(url: String?): MeasuredStreamInfo? = url?.let { cache[it] }
+    /** Daha önce aynı URL, transport ipucu ve request header'larıyla ölçülmüş sonuç. */
+    fun cached(stream: StreamSource): MeasuredStreamInfo? = cache[cacheKeyFor(stream)]
 
     fun clearCache() = cache.clear()
+
+    internal fun cacheKeyFor(stream: StreamSource): String {
+        val material = buildString {
+            append(stream.url?.trim().orEmpty())
+            append('\n').append(stream.streamTypeHint?.uppercase(Locale.ROOT).orEmpty())
+            stream.requestHeaders.orEmpty().entries
+                .sortedBy { it.key.lowercase(Locale.ROOT) }
+                .forEach { (name, value) ->
+                    append('\n').append(name.lowercase(Locale.ROOT)).append(':').append(value)
+                }
+        }
+        val digest = MessageDigest.getInstance("SHA-256").digest(material.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { byte -> (byte.toInt() and 0xff).toString(16).padStart(2, '0') }
+    }
 
     /** Bu akış için ölçüm yapmak anlamlı mı? (torrent / embed sayfaları ölçülmez) */
     fun isProbeable(stream: StreamSource): Boolean {
         if (stream.isTorrent) return false
         val url = stream.url?.trim().orEmpty()
         if (!url.startsWith("http", ignoreCase = true)) return false
-        return mediaKind(url) != MediaKind.UNSUPPORTED
+        return mediaKind(stream) != MediaKind.UNSUPPORTED
     }
 
     /**
@@ -78,8 +93,12 @@ object StreamProbe {
 
     private enum class MediaKind { HLS, PROGRESSIVE, UNSUPPORTED }
 
-    private fun mediaKind(url: String): MediaKind {
-        val lower = url.lowercase(Locale.ROOT).substringBefore('#')
+    private fun mediaKind(stream: StreamSource): MediaKind {
+        when (stream.streamTypeHint?.uppercase(Locale.ROOT)) {
+            "M3U8", "HLS" -> return MediaKind.HLS
+            "DASH", "TORRENT", "MAGNET" -> return MediaKind.UNSUPPORTED
+        }
+        val lower = stream.url.orEmpty().lowercase(Locale.ROOT).substringBefore('#')
         return when {
             lower.contains(".m3u8") -> MediaKind.HLS
             lower.contains(".mp4") || lower.contains(".mkv") ||
@@ -94,14 +113,15 @@ object StreamProbe {
      */
     suspend fun probe(stream: StreamSource): MeasuredStreamInfo? {
         val url = stream.url?.trim().orEmpty()
-        cache[url]?.let { return it }
         if (!isProbeable(stream)) return null
+        val key = cacheKeyFor(stream)
+        cache[key]?.let { return it }
 
         val result = gate.withPermit {
-            cache[url] ?: withContext(Dispatchers.IO) {
+            cache[key] ?: withContext(Dispatchers.IO) {
                 withTimeoutOrNull(PROBE_TIMEOUT_MS) {
                     runCatching {
-                        when (mediaKind(url)) {
+                        when (mediaKind(stream)) {
                             MediaKind.HLS -> probeHls(url, stream.requestHeaders)
                             MediaKind.PROGRESSIVE -> probeProgressive(url, stream.requestHeaders)
                             MediaKind.UNSUPPORTED -> null
@@ -115,7 +135,7 @@ object StreamProbe {
             }
         }
 
-        cache[url] = result
+        cache[key] = result
         return result
     }
 

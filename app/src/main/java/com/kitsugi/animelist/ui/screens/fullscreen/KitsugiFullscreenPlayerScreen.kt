@@ -1052,6 +1052,8 @@ fun KitsugiFullscreenPlayerScreen(
                     playerEngine.prepare(
                         videoUrl = safeVideoUrl,
                         audioUrl = source?.audioUrl,
+                        externalAudioTracks = source?.externalAudioTracks.orEmpty(),
+                        streamTypeHint = source?.streamTypeHint,
                         headers = currentHeaders,
                         subtitles = currentSubtitles,
                         startPositionMs = startPos,

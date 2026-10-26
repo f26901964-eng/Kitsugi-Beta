@@ -19,6 +19,13 @@ import org.junit.Test
  */
 class CsStreamRunnerLogicTest {
 
+    @Test
+    fun testEmptySearchMethodResultAllowsNextOverriddenMethod() {
+        assertTrue(CsStreamRunner.shouldTryNextSearchMethod(null))
+        assertTrue(CsStreamRunner.shouldTryNextSearchMethod(emptyList<Any>()))
+        assertFalse(CsStreamRunner.shouldTryNextSearchMethod(listOf("result")))
+    }
+
     // ─── resolveHrefLi Tests ──────────────────────────────────────────────────
 
     @Test
@@ -565,5 +572,103 @@ class CsStreamRunnerLogicTest {
         assertFalse(CsStreamRunner.matchesEnabledPlugin("", "", listOf("  ")))
         // null dosya anahtarı + boş ad → eşleşme yok (yanlış pozitif engellenir)
         assertFalse(CsStreamRunner.matchesEnabledPlugin(null, "", listOf("DiziPal")))
+    }
+
+    @Test
+    fun extractorHeadersSupplementRatherThanDiscardProviderCredentials() {
+        val merged = CsStreamRunner.mergeHeadersCaseInsensitive(
+            inherited = mapOf(
+                "x-provider-token" to "animecix-session",
+                "Cookie" to "session=provider",
+                "Referer" to "https://provider.example/watch"
+            ),
+            extractor = mapOf(
+                "user-agent" to "extractor-agent",
+                "X-PROVIDER-TOKEN" to "extractor-session"
+            )
+        )
+
+        assertEquals("extractor-session", merged["X-PROVIDER-TOKEN"])
+        assertEquals("session=provider", merged["Cookie"])
+        assertEquals("https://provider.example/watch", merged["Referer"])
+        assertEquals("extractor-agent", merged["user-agent"])
+        assertEquals(1, merged.keys.count { it.equals("x-provider-token", ignoreCase = true) })
+    }
+
+    @Test
+    fun hdfilmCehennemiAndFilmMakinesiUseEmbedPageBeforeFinalCdnHost() {
+        val headers = CsStreamRunner.buildCloudStreamRequestHeaders(
+            existingHeaders = mapOf("x-player-token" to "kept"),
+            linkReferer = null,
+            parentPageUrl = "https://player.filmmakinesi.example/embed/42",
+            sourcePageUrl = "https://www.hdfilmcehennemi.example/film/42",
+            mediaUrl = "https://cdn.rapidrame.example/master.m3u8",
+            userAgent = "fallback-agent"
+        )
+
+        assertEquals("https://player.filmmakinesi.example/embed/42", headers["Referer"])
+        assertEquals("https://player.filmmakinesi.example", headers["Origin"])
+        assertEquals("kept", headers["x-player-token"])
+        assertEquals("fallback-agent", headers["User-Agent"])
+    }
+
+    @Test
+    fun extractorRefererWinsOverEmbedAndFinalCdnFallbacks() {
+        val headers = CsStreamRunner.buildCloudStreamRequestHeaders(
+            existingHeaders = emptyMap(),
+            linkReferer = "https://extractor.example/watch/42",
+            parentPageUrl = "https://embed.example/player/42",
+            sourcePageUrl = "https://provider.example/episode/42",
+            mediaUrl = "https://cdn.example/video.mp4",
+            userAgent = "fallback-agent"
+        )
+
+        assertEquals("https://extractor.example/watch/42", headers["Referer"])
+        assertEquals("https://extractor.example", headers["Origin"])
+    }
+
+    @Test
+    fun explicitExtractorRefererAndOriginAreNeverOverwritten() {
+        val headers = CsStreamRunner.buildCloudStreamRequestHeaders(
+            existingHeaders = mapOf(
+                "referer" to "https://plugin.example/signed-page",
+                "ORIGIN" to "https://plugin.example"
+            ),
+            linkReferer = "https://extractor.example/player",
+            parentPageUrl = "https://embed.example/",
+            sourcePageUrl = "https://provider.example/",
+            mediaUrl = "https://cdn.example/video.mp4",
+            userAgent = "fallback-agent"
+        )
+
+        assertEquals("https://plugin.example/signed-page", headers["referer"])
+        assertEquals("https://plugin.example", headers["ORIGIN"])
+        assertEquals(1, headers.keys.count { it.equals("referer", ignoreCase = true) })
+        assertEquals(1, headers.keys.count { it.equals("origin", ignoreCase = true) })
+    }
+
+    @Test
+    fun rangeValidationKeepsOriginCookiesAndPluginTokens() {
+        val request = CsStreamRunner.buildStreamValidationRequest(
+            url = "https://cdn.example/master.m3u8",
+            method = "GET",
+            headers = mapOf(
+                "Referer" to "https://embed.example/watch",
+                "Origin" to "https://embed.example",
+                "Cookie" to "session=abc",
+                "x-e-h" to "animecix-token",
+                "User-Agent" to "plugin-agent",
+                "Range" to "bytes=100-200"
+            ),
+            userAgent = "default-agent"
+        )
+
+        assertEquals("GET", request.method)
+        assertEquals("bytes=0-0", request.header("Range"))
+        assertEquals("https://embed.example/watch", request.header("Referer"))
+        assertEquals("https://embed.example", request.header("Origin"))
+        assertEquals("session=abc", request.header("Cookie"))
+        assertEquals("animecix-token", request.header("x-e-h"))
+        assertEquals("plugin-agent", request.header("User-Agent"))
     }
 }
