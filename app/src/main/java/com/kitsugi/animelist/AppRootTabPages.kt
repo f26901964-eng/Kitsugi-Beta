@@ -328,6 +328,12 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         hideScores = ctx.appSettings.hideScores,
         bottomBarScrollState = ctx.bottomBarScrollState,
         onScrollReset = ctx.onScrollReset,
+        // Arama sayfasının sağ üst aksiyon kümesi — Keşfet/Listem/Profil ile aynı düzen
+        isNotificationsVisible = ctx.authViewModel.isAniListConnected ||
+            ctx.authViewModel.isMalConnected ||
+            ctx.authViewModel.isSimklConnected,
+        onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
+        onOpenWatchHistory = { ctx.navState.navigateToDetail(DetailScreen.WatchHistory) },
         onOpenSourceSearch = { engine, scope, shelfResults ->
             // "Tümünü Gör": kaynağın filtreleri + sonuçları ayrı sayfada açılır
             ctx.navState.navigateToDetail(

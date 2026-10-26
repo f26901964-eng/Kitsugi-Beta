@@ -31,8 +31,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.*
@@ -62,7 +60,6 @@ import com.kitsugi.animelist.ui.components.KitsugiShimmerResponsiveMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.KitsugiCosmicSearchBar
-import com.kitsugi.animelist.ui.components.CosmicCompanionButton
 import com.kitsugi.animelist.ui.screens.search.components.AddonExploreDialog
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchCountryChip
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchDateChip
@@ -126,6 +123,11 @@ fun SearchScreen(
     onScrollReset: (() -> Unit)? = null,
     // "Tümünü Gör" → kaynağa özel tam arama sayfasını ayrı ekranda açar
     onOpenSourceSearch: (SearchSourceEngine, SearchScope, List<JikanSearchResult>) -> Unit = { _, _, _ -> },
+    // Sağ üst aksiyon kümesi (Keşfet/Listem/Profil ile aynı düzen):
+    // bildirimler yalnızca bağlı bir hesap varken gösterilir.
+    isNotificationsVisible: Boolean = false,
+    onOpenNotifications: () -> Unit = {},
+    onOpenWatchHistory: (() -> Unit)? = null,
     // Alt sayfa olarak kullanıldığında büyük başlığı gizlemek için null verilebilir
     pageTitle: String? = "Arama"
 ) {
@@ -283,18 +285,40 @@ fun SearchScreen(
         ) {
             // Title & Search Input Section
             item {
-                if (pageTitle != null) {
-                    Spacer(modifier = Modifier.height(28.dp))
-                    Text(
-                        text = pageTitle,
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold
+                // ── Başlık + sağ üst aksiyonlar (tek satır) ──────────────────
+                // Filtre, bildirim, izleme geçmişi ve eklenti portalı butonları
+                // artık arama çubuğunun içinde değil; başlıkla aynı hizada,
+                // sağ üstte toplanmış tek bir küme olarak durur.
+                Spacer(modifier = Modifier.height(if (pageTitle != null) 24.dp else 10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (pageTitle != null) {
+                        Text(
+                            text = pageTitle,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    SearchTopActionBar(
+                        isFilterActive = uiState.hasFiltersApplied,
+                        onFilterClick = { showSourceEngineFilterSheet = true },
+                        showNotifications = isNotificationsVisible,
+                        onOpenNotifications = onOpenNotifications,
+                        onOpenWatchHistory = onOpenWatchHistory,
+                        onOpenPluginPicker = { onOpenPluginPicker() }
                     )
-                    Spacer(modifier = Modifier.height(18.dp))
-                } else {
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
+                Spacer(modifier = Modifier.height(14.dp))
 
                 val placeholder = if (uiState.selectedEngine == SearchSourceEngine.ALL) {
                     stringResource(R.string.search_placeholder_all_sources)
@@ -306,54 +330,32 @@ fun SearchScreen(
                     )
                 }
 
-                // Uiverse Lakshay-art Cosmic Search Bar & Companion Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    KitsugiCosmicSearchBar(
-                        query = uiState.query,
-                        onQueryChange = viewModel::setQuery,
-                        onSearch = {
-                            // Arama yalnızca burada tetiklenir (buton veya klavyedeki
-                            // "Ara" onay tuşu) — yazarken kendiliğinden arama yok.
-                            viewModel.onSearchAction()
-                            keyboardController?.hide()
-                        },
-                        onClearQuery = {
-                            viewModel.clearQuery()
-                            keyboardController?.hide()
-                        },
-                        placeholder = placeholder,
-                        leadingContent = {
-                            SourceEngineSelectorPill(
-                                selectedEngine = uiState.selectedEngine,
-                                onClick = { showEnginePickerSheet = true },
-                                // Yazarken motor adı gizlenir → arama butonuna yer açılır.
-                                compact = uiState.query.isNotBlank()
-                            )
-                        },
-                        onFilterClick = {
-                            showSourceEngineFilterSheet = true
-                        },
-                        isFilterActive = uiState.hasFiltersApplied,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // Eklenti Portalı butonu (Uiverse cosmic companion button)
-                    CosmicCompanionButton(
-                        onClick = { onOpenPluginPicker() },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Extension,
-                                contentDescription = stringResource(R.string.eklenti_portali),
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    )
-                }
+                // Arama çubuğu artık tam genişlikte: yanındaki butonlar üst
+                // satıra taşındığı için çubuğa daha fazla yazma alanı kalır.
+                KitsugiCosmicSearchBar(
+                    query = uiState.query,
+                    onQueryChange = viewModel::setQuery,
+                    onSearch = {
+                        // Arama yalnızca burada tetiklenir (buton veya klavyedeki
+                        // "Ara" onay tuşu) — yazarken kendiliğinden arama yok.
+                        viewModel.onSearchAction()
+                        keyboardController?.hide()
+                    },
+                    onClearQuery = {
+                        viewModel.clearQuery()
+                        keyboardController?.hide()
+                    },
+                    placeholder = placeholder,
+                    leadingContent = {
+                        SourceEngineSelectorPill(
+                            selectedEngine = uiState.selectedEngine,
+                            onClick = { showEnginePickerSheet = true },
+                            // Yazarken motor adı gizlenir → arama butonuna yer açılır.
+                            compact = uiState.query.isNotBlank()
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
