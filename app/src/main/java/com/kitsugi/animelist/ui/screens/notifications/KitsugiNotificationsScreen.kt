@@ -490,7 +490,6 @@ fun KitsugiNotificationsScreen(
                                         aniListPagerState.animateScrollToPage(filter.ordinal)
                                     }
                                 },
-                                isWideScreen = isWideScreen,
                                 accentColor = NotifPlatform.ANILIST.brandColor
                             )
 
@@ -1394,66 +1393,21 @@ private fun KitsugiTonalButtonCompat(
 private fun AniListFilterHeader(
     activeFilter: AniListFilter,
     onFilterSelected: (AniListFilter) -> Unit,
-    isWideScreen: Boolean,
     accentColor: Color
 ) {
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(KitsugiColors.Background)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val rowMod = if (isWideScreen) {
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(KitsugiColors.Surface)
-                    .padding(4.dp)
-            } else {
-                Modifier
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(KitsugiColors.Surface)
-                    .horizontalScroll(scrollState)
-                    .padding(4.dp)
-            }
-            Row(
-                modifier = rowMod,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (isWideScreen) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(4.dp)
-            ) {
-                AniListFilter.entries.forEach { filter ->
-                    val active    = activeFilter == filter
-                    val itemMod   = if (isWideScreen) Modifier.weight(1f) else Modifier
-                    Box(
-                        modifier = itemMod
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(if (active) accentColor else Color.Transparent)
-                            .tvClickable(shape = RoundedCornerShape(22.dp)) { onFilterSelected(filter) }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(filter.labelResId),
-                            color = if (active) Color.White else KitsugiColors.TextSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-        HorizontalDivider(
-            color = KitsugiColors.SurfaceStrong.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
+    // AniList ve MAL sekmeleri AYNI bileşenden çizilir: ikisi de soldan
+    // başlar, taşarsa yatay kayar; AniList filtresi geniş ekranda tüm
+    // ekrana yayılıp sekmeleri sağa-sola fırlatmaz.
+    NotificationFilterTabs(
+        tabs = AniListFilter.entries.map { filter ->
+            NotificationFilterTab(
+                label = stringResource(filter.labelResId),
+                isActive = activeFilter == filter,
+                onClick = { onFilterSelected(filter) }
+            )
+        },
+        accentColor = accentColor
+    )
 }
 
 // ─── MAL Alt Filtre Header (myanimelist.net/notification sol menüsü) ─────────
@@ -1464,6 +1418,39 @@ private fun MalFilterHeader(
     counts: Map<MalNotificationCategory, Int>,
     accentColor: Color,
     onCategorySelected: (MalNotificationCategory) -> Unit
+) {
+    NotificationFilterTabs(
+        tabs = MalNotificationCategory.entries.map { cat ->
+            NotificationFilterTab(
+                label = stringResource(cat.labelResId),
+                // Web'de 0 olan kategoriler de gösterilir — kullanıcı tüm
+                // filtrelerin varlığını görür.
+                count = counts[cat] ?: 0,
+                isActive = selectedCategory == cat,
+                onClick = { onCategorySelected(cat) }
+            )
+        },
+        accentColor = accentColor
+    )
+}
+
+// ─── Ortak Filtre Sekmeleri ───────────────────────────────────────────────────
+//
+// Tüm bildirim kaynakları (AniList, MAL) aynı görünümü kullanır:
+// tek satır, soldan başlayan, taştığında yatay kaydırılan hap sekmeler.
+// Ölçüler tek yerde tanımlıdır ki bir kaynakta sağa kaçan öğe kalmasın.
+
+private data class NotificationFilterTab(
+    val label: String,
+    val count: Int = 0,
+    val isActive: Boolean,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun NotificationFilterTabs(
+    tabs: List<NotificationFilterTab>,
+    accentColor: Color
 ) {
     val scrollState = rememberScrollState()
     Column(
@@ -1479,6 +1466,7 @@ private fun MalFilterHeader(
         ) {
             Row(
                 modifier = Modifier
+                    .weight(1f, fill = false)
                     .clip(RoundedCornerShape(22.dp))
                     .background(KitsugiColors.Surface)
                     .horizontalScroll(scrollState)
@@ -1486,16 +1474,13 @@ private fun MalFilterHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                MalNotificationCategory.entries.forEach { cat ->
-                    val active = selectedCategory == cat
-                    val count = counts[cat] ?: 0
-                    // Web'de 0 olan kategoriler de gösterilir — kullanıcı tüm filtrelerin varlığını görür
+                tabs.forEach { tab ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(22.dp))
-                            .background(if (active) accentColor else Color.Transparent)
-                            .tvClickable(shape = RoundedCornerShape(22.dp)) { onCategorySelected(cat) }
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                            .background(if (tab.isActive) accentColor else Color.Transparent)
+                            .tvClickable(shape = RoundedCornerShape(22.dp), onClick = tab.onClick)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
@@ -1503,26 +1488,26 @@ private fun MalFilterHeader(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = stringResource(cat.labelResId),
-                                color = if (active) Color.White else KitsugiColors.TextSecondary,
+                                text = tab.label,
+                                color = if (tab.isActive) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 fontSize = 12.sp,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                fontWeight = if (tab.isActive) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1
                             )
-                            if (count > 0) {
+                            if (tab.count > 0) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(
-                                            if (active) Color.White.copy(alpha = 0.25f)
+                                            if (tab.isActive) KitsugiColors.Background.copy(alpha = 0.22f)
                                             else accentColor.copy(alpha = 0.15f)
                                         )
                                         .padding(horizontal = 6.dp, vertical = 1.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = count.toString(),
-                                        color = if (active) Color.White else accentColor,
+                                        text = tab.count.toString(),
+                                        color = if (tab.isActive) KitsugiColors.Background else accentColor,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1542,7 +1527,6 @@ private fun MalFilterHeader(
 
 // ─── Bildirim Satır Kartı ─────────────────────────────────────────────────────
 
-
 @Composable
 private fun NotifItemRow(
     notif: NotifItem,
@@ -1557,6 +1541,10 @@ private fun NotifItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // Her bildirim satırı aynı taban yüksekliğe sahip: tek satır
+            // gövdesi olan bildirimlerle iki satırlık olanlar arasında
+            // düzensiz sıçramalar oluşmaz.
+            .heightIn(min = 72.dp)
             .background(if (notif.isUnread) brandColor.copy(alpha = 0.06f) else Color.Transparent)
             .tvClickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -1604,9 +1592,15 @@ private fun NotifItemRow(
             }
         }
         Column(modifier = Modifier.weight(1f)) {
+            // ── Sabit sıra: başlık SOLDAN, kaynak rozeti HER ZAMAN SAĞDA ──
+            // Önceden başlık kısa olduğunda rozet başlığın hemen yanına
+            // düşüyor (solda), başlık uzun olduğunda en sağa kayıyordu.
+            // Artık başlık kalan alanı doldurur; rozet tüm satırlarda aynı
+            // hizada, satırın sağ ucunda durur.
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = notif.title,
@@ -1615,14 +1609,14 @@ private fun NotifItemRow(
                     fontWeight = if (notif.isUnread) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(3.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(brandColor.copy(alpha = 0.14f))
+                        .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.6f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     KitsugiPlatformLogo(platformId = notif.source, size = 12.dp)
@@ -1643,10 +1637,18 @@ private fun NotifItemRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            if (!notif.dateText.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(text = notif.dateText, color = KitsugiColors.TextMuted, fontSize = 11.sp)
-            }
+            // Tarih her satırda aynı yerde: gövdenin altında, solda.
+            // Tarihi olmayan satırlarda da aynı yükseklik korunur ki liste
+            // satırları arasında düzensiz boşluklar oluşmasın.
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = notif.dateText.orEmpty(),
+                color = KitsugiColors.TextMuted,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
     HorizontalDivider(
