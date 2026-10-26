@@ -54,7 +54,7 @@ object MyListIdentityCrosswalk {
 
     /**
      * `MediaEntry.id` → o satır için bilinen ek kanonik kimlik anahtarları.
-     * Yalnızca kendi uzayında eşleştirilebilir kimliği olmayan satırlar döner; boş harita
+     * Kendi MAL kimliği bulunan satırlar da diğer kaynaklara köprü taşıyabilir; boş harita
      * "köprü gerekmiyor/yok" demektir ve çağıran taraf davranışı değiştirmez.
      */
     suspend fun build(
@@ -65,7 +65,9 @@ object MyListIdentityCrosswalk {
         if (entries.isEmpty()) return emptyMap()
         return withContext(Dispatchers.IO) {
             val crossTypeCandidates = if (allowNetwork) crossTypeResolutionCandidates(entries) else emptySet()
-            val pending = entries.filter { needsCrosswalk(it) || it.id in crossTypeCandidates }
+            // A MAL ID is not a complete crosswalk. Its cached native IDs may be the
+            // only bridge to a differently titled AniList/Simkl/Bangumi row.
+            val pending = entries
             if (pending.isEmpty()) return@withContext emptyMap()
 
             val bangumiSubjectToMal = buildMap {

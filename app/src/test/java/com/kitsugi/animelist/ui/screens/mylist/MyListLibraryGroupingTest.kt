@@ -32,6 +32,47 @@ class MyListLibraryGroupingTest {
     )
 
     @Test
+    fun everyProviderTabDeduplicatesBeforeFiltersAndCounts() {
+        val sources = listOf("anilist", "mal", "simkl", "kitsu", "shikimori", "bangumi")
+        val rows = sources.flatMapIndexed { index, source ->
+            val nativeId = when (source) {
+                "anilist" -> 100_000_123
+                "kitsu" -> 300_000_123
+                "shikimori" -> 400_000_123
+                "bangumi" -> 500_000_123
+                else -> 123
+            }
+            val old = entry(index * 2 + 1, "Same production", source, nativeId)
+                .copy(updatedAt = 10, progress = 1)
+            // Updated time, not insertion ID, decides which duplicate supplies status.
+            listOf(old, old.copy(id = index * 2, updatedAt = 20,
+                progress = 12, status = WatchStatus.Completed))
+        }
+        val tabs = groupMyListProviderTabs(rows)
+        val populatedTabs = tabs.filterValues { it.isNotEmpty() }
+        assertEquals(6, populatedTabs.size)
+        populatedTabs.forEach { (tab, entries) ->
+            assertEquals(1, entries.size)
+            assertTrue(myListSourceMatchesTab(tab, entries.single().source, entries.single().malId))
+            assertEquals(12, entries.single().progress)
+            assertEquals(WatchStatus.Completed, entries.single().status)
+        }
+        assertEquals(1, groupMyListEntries(rows).size)
+    }
+
+    @Test
+    fun providerTabsKeepConflictingSeasonsAndDoNotBorrowOtherProvidersProgress() {
+        val simkl = entry(1, "Kaiju No. 8 Season 2", "simkl", 123).copy(progress = 6)
+        val duplicate = simkl.copy(id = 2, title = "Alternate title")
+        val differentSeason = simkl.copy(id = 3, malId = 456)
+        val anilist = entry(4, simkl.title, "anilist", 123).copy(progress = 11)
+        val tabs = groupMyListProviderTabs(listOf(simkl, duplicate, differentSeason, anilist))
+        assertEquals(2, tabs.getValue(MY_LIST_SIMKL_TAB_INDEX).size)
+        assertTrue(tabs.getValue(MY_LIST_SIMKL_TAB_INDEX).all { it.progress == 6 })
+        assertEquals(11, tabs.getValue(MY_LIST_ANILIST_TAB_INDEX).single().progress)
+    }
+
+    @Test
     fun groupsSameTitleAcrossProvidersAndCollectsTheirBadges() {
         val mal = entry(id = 12, title = "Frieren: Beyond Journey's End", source = "mal", malId = 52991)
         val anilist = entry(id = 10, title = "Sousou no Frieren", source = "anilist", malId = 100_000_870)

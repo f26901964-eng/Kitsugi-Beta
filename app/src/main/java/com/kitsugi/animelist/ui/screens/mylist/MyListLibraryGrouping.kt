@@ -107,11 +107,15 @@ internal fun myListRepresentativeRank(entry: MediaEntry): Int = when (sourceBadg
     else -> 7
 }
 
-/** Daha düşük öncelik numarası kazanır; eşitlikte en yeni kayıt temsilci olur. */
+/** Daha düşük öncelik numarası kazanır; eşitlikte en son güncellenen kayıt temsilci olur. */
 private fun isBetterRepresentative(candidate: MediaEntry, current: MediaEntry): Boolean {
     val candidateRank = myListRepresentativeRank(candidate)
     val currentRank = myListRepresentativeRank(current)
-    return if (candidateRank != currentRank) candidateRank < currentRank else candidate.id > current.id
+    return when {
+        candidateRank != currentRank -> candidateRank < currentRank
+        candidate.updatedAt != current.updatedAt -> candidate.updatedAt > current.updatedAt
+        else -> candidate.id > current.id
+    }
 }
 
 /** One visible item in the combined library, with the provider logos that contain it. */
@@ -179,35 +183,24 @@ private data class MutableMyListLibraryGroup(
     val sourceIds: LinkedHashSet<String> = linkedSetOf()
 )
 
-/**
- * Collapses copies of the same title across the connected list providers without modifying
- * the underlying records. The representative is the highest-priority provider record; progress and
- * status changes remain scoped to that provider, while [sourceIds] exposes every provider
- * that has a matching record.
- *
- * [identityExtras] maps a row's `MediaEntry.id` to cross-provider identity keys learned
- * elsewhere (`MyListIdentityCrosswalk`: the cross-provider ID cache and the MAL ↔ Bangumi / Kitsu
- * mappings).
- */
-internal fun groupMyListEntries(
+private class ClusteredGroupsResult(
+    val groups: List<MutableMyListLibraryGroup>,
+    val parent: MutableList<Int>
+) {
+    fun root(index: Int): Int {
+        var current = index
+        while (parent[current] != current) {
+            parent[current] = parent[parent[current]] // path halving
+            current = parent[current]
+        }
+        return current
+    }
+}
+
+private fun clusterMyListGroups(
     entries: List<MediaEntry>,
     identityExtras: Map<Int, Set<String>> = emptyMap()
-): List<MyListLibraryItem> =
-    buildMyListLibrarySnapshot(entries = entries, identityExtras = identityExtras).combinedItems
-
-internal fun buildMyListLibrarySnapshot(
-    entries: List<MediaEntry>,
-    identityExtras: Map<Int, Set<String>> = emptyMap(),
-    includeAdult: Boolean = true,
-    bangumiTitleLookup: (Int) -> BangumiTitleCache.LatinTitles? = { null }
-): MyListLibrarySnapshot {
-    if (entries.isEmpty()) {
-        return MyListLibrarySnapshot.EMPTY.copy(isComputed = true)
-    }
-
-    // Identity keys are resolved once per row: the matcher below compares every entry against
-    // the groups it has already opened, so recomputing `MediaIdentity.keys` in that loop was
-    // the dominant cost of building a multi-thousand row combined library.
+): ClusteredGroupsResult {
     val groupIndexesByIdentity = mutableMapOf<String, MutableList<Int>>()
     val groups = mutableListOf<MutableMyListLibraryGroup>()
 
@@ -329,12 +322,66 @@ internal fun buildMyListLibrarySnapshot(
         }
     }
 
+    return ClusteredGroupsResult(groups, parent)
+}
+
+/** Deduplicate inside each provider, never borrow another provider's status or progress. */
+internal fun groupMyListProviderTabs(
+    entries: List<MediaEntry>,
+    identityExtras: Map<Int, Set<String>> = emptyMap()
+): Map<Int, List<MediaEntry>> = (1 until MY_LIST_TAB_COUNT).associateWith { tab ->
+    groupMyListEntries(
+        entries.filter { myListSourceMatchesTab(tab, it.source, it.malId) },
+        identityExtras
+    ).map { it.entry }
+}
+
+/**
+ * Collapses copies of the same title across the connected list providers without modifying
+ * the underlying records. The representative is the highest-priority provider record; progress and
+ * status changes remain scoped to that provider, while [sourceIds] exposes every provider
+ * that has a matching record.
+ *
+ * [identityExtras] maps a row's `MediaEntry.id` to cross-provider identity keys learned
+ * elsewhere (`MyListIdentityCrosswalk`: the cross-provider ID cache and the MAL ↔ Bangumi / Kitsu
+ * mappings).
+ */
+internal fun groupMyListEntries(
+    entries: List<MediaEntry>,
+    identityExtras: Map<Int, Set<String>> = emptyMap()
+): List<MyListLibraryItem> {
+    if (entries.isEmpty()) return emptyList()
+    val clustered = clusterMyListGroups(entries, identityExtras)
+    return clustered.groups.mapIndexedNotNull { groupIndex, group ->
+        if (clustered.root(groupIndex) != groupIndex) return@mapIndexedNotNull null
+        MyListLibraryItem(
+            entry = group.representative.copy(
+                isAdult = group.members.any { it.entry.isAdult }
+            ),
+            sourceIds = group.sourceIds.toList()
+        )
+    }
+}
+
+internal fun buildMyListLibrarySnapshot(
+    entries: List<MediaEntry>,
+    identityExtras: Map<Int, Set<String>> = emptyMap(),
+    includeAdult: Boolean = true,
+    bangumiTitleLookup: (Int) -> BangumiTitleCache.LatinTitles? = { null }
+): MyListLibrarySnapshot {
+    if (entries.isEmpty()) {
+        return MyListLibrarySnapshot.EMPTY.copy(isComputed = true)
+    }
+
+    val clustered = clusterMyListGroups(entries, identityExtras)
+    val groups = clustered.groups
+
     val combinedItems = ArrayList<MyListLibraryItem>(groups.size)
     val enrichedByOriginalIndex = arrayOfNulls<MediaEntry>(entries.size)
     val searchAliasesByEntryId = LinkedHashMap<Int, Set<String>>(entries.size)
 
     groups.forEachIndexed { groupIndex, group ->
-        if (root(groupIndex) != groupIndex) return@forEachIndexed
+        if (clustered.root(groupIndex) != groupIndex) return@forEachIndexed
 
         val groupIsAdult = group.members.any { it.entry.isAdult }
         if (!includeAdult && groupIsAdult) {
@@ -444,13 +491,12 @@ internal fun buildMyListLibrarySnapshot(
 
     val tabBuckets = Array(MY_LIST_TAB_COUNT) { ArrayList<MediaEntry>() }
     tabBuckets[MY_LIST_ALL_TAB_INDEX].addAll(combinedEntries)
-    for (i in entries.indices) {
-        val entry = enrichedByOriginalIndex[i] ?: entries[i]
-        if (!includeAdult && entry.isAdult) continue
-        val tabIndex = myListTabIndexForSource(entry.source) ?: continue
-        if (myListSourceMatchesTab(tabIndex, entry.source, entry.malId)) {
-            tabBuckets[tabIndex].add(entry)
-        }
+
+    val enrichedEntries = entries.mapIndexed { index, entry -> enrichedByOriginalIndex[index] ?: entry }
+    val candidateEntries = if (includeAdult) enrichedEntries else enrichedEntries.filterNot { it.isAdult }
+    val providerTabs = groupMyListProviderTabs(candidateEntries, identityExtras)
+    for (tab in 1 until MY_LIST_TAB_COUNT) {
+        tabBuckets[tab].addAll(providerTabs[tab].orEmpty())
     }
 
     return MyListLibrarySnapshot(
