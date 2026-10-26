@@ -154,12 +154,6 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
      * Mihon'daki hasUpdatedVer / hasUpdatedLib mantığına karşılık gelir.
      */
     fun hasUpdateAvailable(pkg: String, remoteVersionCode: Int): Boolean {
-        // Gölge Bahçesi'nin çalışan Kitsugi adaptörü APK/Keiyoushi kodundan bağımsız,
-        // uygulamanın içine gömülüdür. Harici Extension APK güncellemeleri bu native kaynağı
-        // güncellemez; yalnızca uygulama sürümü değiştirebilir.
-        if (pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)) {
-            return false
-        }
         val local = getInstalledVersionCode(pkg)
         return local >= 0L && remoteVersionCode.toLong() > local
     }
@@ -298,24 +292,6 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun installMangaApk(ext: MangaExtensionInfo, force: Boolean, onResult: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
-            if (ext.pkg.equals(
-                    com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
-                    ignoreCase = true
-                )
-            ) {
-                withContext(Dispatchers.IO) {
-                    val builtIn = MangaExtensionLoader.registerBuiltInSources(context)
-                    mangaRepository.setSourceHealthStatus(
-                        builtIn,
-                        com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Healthy,
-                    )
-                }
-                mangaSources = mangaRepository.getInstalledSources()
-                onResult?.invoke(true)
-                onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_etkinlestirildi_x, ext.name))
-                return@launch
-            }
-
             val extensionId = ext.pkg.replace(".", "_")
             var signatureHashToPrompt: String? = null
             
@@ -376,21 +352,22 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             val semaphore = kotlinx.coroutines.sync.Semaphore(2) // Max 2 parallel downloads
             val doneCounter = java.util.concurrent.atomic.AtomicInteger(0)
             val successCounter = java.util.concurrent.atomic.AtomicInteger(0)
+            val failedCounter = java.util.concurrent.atomic.AtomicInteger(0)
 
             val jobs = toInstall.map { ext ->
                 launch {
                     semaphore.acquire()
                     try {
                         val extensionId = ext.pkg.replace(".", "_")
-                        val success = withContext(Dispatchers.IO) {
-                            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl)
-                            if (downloaded) {
-                                MangaExtensionLoader.loadExtension(context, extensionId) != null
-                            } else false
-                        }
-                        if (success) {
-                            successCounter.incrementAndGet()
-                        }
+                        val success = runCatching {
+                            withContext(Dispatchers.IO) {
+                                val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl)
+                                downloaded && MangaExtensionLoader.loadExtension(context, extensionId) != null
+                            }
+                        }.onFailure { error ->
+                            Log.e("MangaViewModel", "Bulk install failed for ${ext.name}: ${error.message}", error)
+                        }.getOrDefault(false)
+                        if (success) successCounter.incrementAndGet() else failedCounter.incrementAndGet()
                         val completedCount = doneCounter.incrementAndGet()
                         mangaBulkInstallCurrentName = ext.name
                         mangaBulkInstallDone = completedCount
@@ -404,7 +381,11 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
             jobs.forEach { it.join() }
 
-            val installedMsg = "✅ ${successCounter.get()} eklenti başarıyla kuruldu!"
+            val installedMsg = if (failedCounter.get() == 0) {
+                "✅ ${successCounter.get()} eklenti başarıyla kuruldu!"
+            } else {
+                "✅ ${successCounter.get()} kuruldu, ⚠️ ${failedCounter.get()} kurulamadı. İmza onayı gereken eklentileri tek tek kurun."
+            }
             onShowMessage?.invoke(installedMsg)
             finishMangaBulkNotification(installedMsg, success = successCounter.get() > 0)
             mangaBulkInstallRepoUrl = null
@@ -418,8 +399,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     fun updateAllMangaExtensions(repoUrl: String, extensions: List<MangaExtensionInfo>) {
         viewModelScope.launch {
             val toUpdate = extensions.filter { ext ->
-                !ext.pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true) &&
-                    mangaSources.any { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name } &&
+                mangaSources.any { (it.pkgName.isNotEmpty() && it.pkgName == ext.pkg) || it.name == ext.name } &&
                     hasUpdateAvailable(ext.pkg, ext.versionCode)
             }
             if (toUpdate.isEmpty()) {

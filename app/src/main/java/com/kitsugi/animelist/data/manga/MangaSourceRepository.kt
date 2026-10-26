@@ -44,7 +44,6 @@ class MangaSourceRepository(private val context: Context) {
     private val searchCoordinator = MangaSearchCoordinator(sourceStateStore)
 
     init {
-        MangaExtensionLoader.registerBuiltInSources(context)
         KotatsuExtensionAdapter.loadSavedPrefs(context)
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             MangaExtensionLoader.loadAllExtensions(context)

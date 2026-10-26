@@ -29,6 +29,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -102,6 +103,7 @@ fun TvMangaExtensionScreen(
     onDeleteRepo: (String) -> Unit = {},
     onFetchRepo: (String) -> Unit = {},
     onInstallApk: (MangaExtensionInfo, ((Boolean) -> Unit)?) -> Unit = { _, _ -> },
+    onInstallAllMangaExtensions: (String, List<MangaExtensionInfo>) -> Unit = { _, _ -> },
     onDeleteExtension: (MangaSource) -> Unit = {},
     onToggleSource: (MangaSource, Boolean) -> Unit = { _, _ -> },
     onGetSourceHealth: (MangaSource) -> SourceHealthStatus = { SourceHealthStatus.Unknown },
@@ -261,6 +263,7 @@ fun TvMangaExtensionScreen(
                         onDeleteRepo = onDeleteRepo,
                         onFetchRepo = onFetchRepo,
                         onInstallApk = onInstallApk,
+                        onInstallAllMangaExtensions = onInstallAllMangaExtensions,
                         listState = repoListState,
                         contentFocusRequester = contentFocusRequester,
                         onDpadLeft = {
@@ -427,6 +430,7 @@ private fun TvExtRepoTab(
     onDeleteRepo: (String) -> Unit,
     onFetchRepo: (String) -> Unit,
     onInstallApk: (MangaExtensionInfo, ((Boolean) -> Unit)?) -> Unit,
+    onInstallAllMangaExtensions: (String, List<MangaExtensionInfo>) -> Unit = { _, _ -> },
     listState: LazyListState,
     contentFocusRequester: FocusRequester,
     onDpadLeft: () -> Unit
@@ -539,11 +543,7 @@ private fun TvExtRepoTab(
                 onFetchRepo = { onFetchRepo(repoUrl) },
                 onDeleteRepo = { onDeleteRepo(repoUrl) },
                 onInstallApk = onInstallApk,
-                onInstallAll = { list ->
-                    // Toplu kurulum: AddonViewModel callback'i buradan tetiklenemiyor;
-                    // basitçe tek tek kur mantığı uygula
-                    list.take(50).forEach { ext -> onInstallApk(ext, null) }
-                }
+                onInstallAll = { list -> onInstallAllMangaExtensions(repoUrl, list) }
             )
         }
     }
@@ -641,7 +641,7 @@ private fun TvExtInstalledTab(
                 rawReason = rawReason,
                 cooldownUntil = cooldownUntil,
                 onQuickCheck = { onQuickCheckSource(source) },
-                onToggle = { onToggleSource(source, it) },
+                onToggle = { enabled -> onToggleSource(source, enabled) },
                 onDelete = { deleteTarget = source }
             )
         }
@@ -729,7 +729,7 @@ private fun TvExtQuickAddCard(
                     fontSize = 13.sp
                 )
                 Text(
-                    "Resmi Kitsugi manga deposu · Gölge Bahçesi (Varsayılan Aktif)",
+                    "Varsayılan depo: Kitsugi Manga Plugins · eklentileri buradan kur",
                     color = KitsugiColors.TextMuted,
                     fontSize = 11.sp
                 )
@@ -903,12 +903,24 @@ private fun TvExtRepoCard(
                     tint = KitsugiColors.AccentBlue,
                     modifier = Modifier.size(20.dp)
                 )
-                !isBulkInstalling && installedCount < totalCount -> Icon(
-                    Icons.Rounded.DownloadForOffline,
-                    null,
-                    tint = KitsugiColors.AccentBlue,
-                    modifier = Modifier.size(20.dp)
-                )
+                !isBulkInstalling && repoPlugins != null && installedCount < totalCount -> Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(KitsugiColors.AccentBlue.copy(alpha = 0.14f))
+                        .focusable()
+                        .onKeyEvent { event ->
+                            if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                event.nativeKeyEvent.keyCode in listOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER)
+                            ) {
+                                onInstallAll(repoPlugins)
+                                true
+                            } else false
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.DownloadForOffline, "Toplu kur", tint = KitsugiColors.AccentBlue, modifier = Modifier.size(20.dp))
+                }
             }
             Icon(
                 if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
@@ -971,6 +983,17 @@ private fun TvExtRepoCard(
                     trackColor = KitsugiColors.AccentBlue.copy(alpha = 0.15f)
                 )
             }
+        }
+
+        if (isExpanded && repoPlugins == null && !isLoading) {
+            Text(
+                text = if (MangaRepoClient.isKitsugiMangaRepoUrl(repoUrl))
+                    "Kitsugi Manga Plugins deposunda builds/index.json bulunamadı. Repo'da yayınlanmış katalog ve APK çıktıları gerekli."
+                else "Repo kataloğu alınamadı. URL'yi ve bağlantıyı kontrol edip yenileyin.",
+                color = KitsugiColors.TextMuted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            )
         }
 
         // Genişletilmiş eklenti listesi
@@ -1103,7 +1126,7 @@ private fun TvExtSourceRow(
     rawReason: String?,
     cooldownUntil: Long,
     onQuickCheck: () -> Unit,
-    onToggle: (Boolean) -> Unit,
+    onToggle: ((Boolean) -> Unit)? = null,
     onDelete: () -> Unit
 ) {
     var hasFocus by remember { mutableStateOf(false) }
@@ -1180,7 +1203,7 @@ private fun TvExtSourceRow(
             TvExtHealthBadge(health = health)
             Switch(
                 checked = health != SourceHealthStatus.Disabled,
-                onCheckedChange = { onToggle(it) },
+                onCheckedChange = { onToggle?.invoke(it) },
             )
             if (source.isBuiltIn) {
                 Box(

@@ -211,7 +211,7 @@ internal fun MangaExtensionsTab(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Kitsugi Manga Plugins (Önerilen)", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Text("Resmi Kitsugi manga deposu · Gölge Bahçesi (Varsayılan Aktif)", color = KitsugiColors.TextMuted, fontSize = 10.sp)
+                            Text("Varsayılan depo: Kitsugi Manga Plugins · eklentileri buradan kur", color = KitsugiColors.TextMuted, fontSize = 10.sp)
                         }
                         Text(
                             if (hasKitsugiMangaRepo) stringResource(R.string.addon_status_added) else KitsugiStrings.get(R.string.ekle_64b2d35),
@@ -615,6 +615,18 @@ internal fun MangaExtensionsTab(
                             }
                         }
 
+                        if (isExpanded && repoPlugins == null && !isLoading) {
+                            HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.3f))
+                            Text(
+                                text = if (com.kitsugi.animelist.data.remote.MangaRepoClient.isKitsugiMangaRepoUrl(repoUrl))
+                                    "Kitsugi Manga Plugins deposunda yayınlanmış index.json bulunamadı. Eklentilerin listelenmesi/kurulması için repo builds dalında index.json ve APK çıktıları yayınlanmalı."
+                                else "Repo kataloğu alınamadı. Adresi ve ağ bağlantısını kontrol edip yeniden deneyin.",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            )
+                        }
+
                         if (isExpanded && repoPlugins != null) {
                             HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.3f))
 
@@ -704,10 +716,7 @@ internal fun MangaExtensionsTab(
                                             if (isInstalled) {
                                                 // versionCode karşılaştırması (Mihon'daki hasUpdatedVer)
                                                 val localCode = onGetInstalledVersionCode(ext.pkg)
-                                                val isBuiltInSource = ext.pkg.equals(
-                                                    com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
-                                                    ignoreCase = true
-                                                ) || sources.any { it.isBuiltIn && it.pkgName.equals(ext.pkg, ignoreCase = true) }
+                                                val isBuiltInSource = sources.any { it.isBuiltIn && it.pkgName.equals(ext.pkg, ignoreCase = true) }
                                                 val hasUpdate = !isBuiltInSource && localCode >= 0L && ext.versionCode.toLong() > localCode
                                                 if (hasUpdate) {
                                                     Box(

@@ -797,7 +797,11 @@ fun TvRootScreen(
                 onDeleteRepo = { mangaViewModel.deleteMangaRepo(it) },
                 onFetchRepo = { mangaViewModel.fetchMangaRepo(it) },
                 onInstallApk = { ext, cb -> mangaViewModel.installMangaApk(ext, cb) },
+                onInstallAllMangaExtensions = { repoUrl, extensions ->
+                    mangaViewModel.installAllMangaExtensions(repoUrl, extensions)
+                },
                 onDeleteExtension = { mangaViewModel.deleteMangaExtension(it) },
+                onToggleSource = { source, enabled -> mangaViewModel.toggleMangaSource(source, enabled) },
                 onGetSourceHealth = { mangaViewModel.getSourceHealthStatus(it) },
                 onGetRuntimeStats = { mangaViewModel.getSourceRuntimeStats(it) },
                 onGetLastErrorCode = { mangaViewModel.getSourceLastErrorCode(it) },

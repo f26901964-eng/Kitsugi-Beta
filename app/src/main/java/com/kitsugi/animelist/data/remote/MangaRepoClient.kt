@@ -40,7 +40,7 @@ data class MangaExtensionInfo(
  * 2) Keiyoushi V1 formati (eski, artik decoy/sahte -- sadece fallback):
  *    [ { "name": "...", "pkg": "...", "apk": "...", "lang": "tr", "code": 14, ... } ]
  *
- * 3) Basit duz APK liste formati (plugins.json - Kitsugi native):
+ * 3) Basit duz APK liste formati (plugins.json - repo catalog):
  *    [{ "name": "...", "lang": "tr", "url": "https://.../plugin.apk", "version": "1.0" }]
  */
 class MangaRepoClient(context: android.content.Context) {
@@ -55,10 +55,14 @@ class MangaRepoClient(context: android.content.Context) {
         /** Kitsugi resmi Manga eklenti havuzu (varsayılan manga deposu). */
         const val KITSUGI_MANGA_PLUGINS_SLUG = "f26901964-eng/Kitsugi-Manga-Plugins"
         const val KITSUGI_MANGA_GITHUB_URL = "https://github.com/f26901964-eng/Kitsugi-Manga-Plugins"
+        // Follow the video-plugin repo convention: the source repo publishes its install
+        // catalog and APKs from the generated `builds` branch.
         const val KITSUGI_MANGA_REPO_URL =
-            "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/main/index.json"
+            "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/builds/index.json"
 
         private val KITSUGI_MANGA_CANDIDATE_URLS = listOf(
+            KITSUGI_MANGA_REPO_URL,
+            "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/builds/plugins.json",
             "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/main/index.json",
             "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/main/plugins.json",
         )
@@ -114,16 +118,12 @@ class MangaRepoClient(context: android.content.Context) {
         }
 
         fun normalizeMangaRepoUrl(url: String): String {
-            val trimmed = url.trim()
+            val trimmed = url.trim().trimEnd('/')
             if (trimmed.isEmpty()) return trimmed
-            if (trimmed.equals(KITSUGI_MANGA_PLUGINS_SLUG, ignoreCase = true) ||
-                trimmed.equals(KITSUGI_MANGA_GITHUB_URL, ignoreCase = true) ||
-                trimmed.equals("$KITSUGI_MANGA_GITHUB_URL/", ignoreCase = true) ||
-                trimmed.equals("$KITSUGI_MANGA_GITHUB_URL.git", ignoreCase = true)
-            ) {
-                return KITSUGI_MANGA_REPO_URL
-            }
-            return trimmed
+            val githubRepoUrl = trimmed.removeSuffix(".git")
+            val isRepoRoot = githubRepoUrl.equals(KITSUGI_MANGA_PLUGINS_SLUG, ignoreCase = true) ||
+                githubRepoUrl.equals(KITSUGI_MANGA_GITHUB_URL, ignoreCase = true)
+            return if (isRepoRoot) KITSUGI_MANGA_REPO_URL else trimmed
         }
 
         fun displayNameForRepo(repoUrl: String): String {
@@ -134,22 +134,7 @@ class MangaRepoClient(context: android.content.Context) {
             }
         }
 
-        /**
-         * `Kitsugi-Manga-Plugins` deposunda derlenmiş `index.json` henüz yayınlanmadığında veya
-         * çevrimdışı durumda döndürülen varsayılan tek-kaynak (Gölge Bahçesi) profil kataloğu.
-         */
-        fun defaultKitsugiMangaCatalog(): List<MangaExtensionInfo> = listOf(
-            MangaExtensionInfo(
-                name = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.SOURCE_NAME,
-                pkg = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME,
-                apkUrl = "https://github.com/keiyoushi/extensions/releases/download/7363e42/tachiyomi-tr.golgebahcesi-v1.6.1.apk",
-                lang = "tr",
-                version = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.VERSION_NAME,
-                versionCode = com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.VERSION_CODE.toInt(),
-                description = "Gölge Bahçesi (Varsayılan Aktif Dahili Kaynak)",
-                isNsfw = false,
-            )
-        )
+
     }
 
     private val client = uy.kohesive.injekt.Injekt.get(eu.kanade.tachiyomi.network.NetworkHelper::class.java).client
@@ -382,8 +367,9 @@ class MangaRepoClient(context: android.content.Context) {
             try {
                 val normalizedRepoUrl = normalizeMangaRepoUrl(repoUrl)
 
-                // Kitsugi resmi manga deposu: canlı dal adaylarını dene, henüz yayınlanmadıysa
-                // veya çevrimdışıysa yerleşik Gölge Bahçesi varsayılan profil kataloğuna düş.
+                // The Kitsugi repo is a real extension repository, not a hard-coded source.
+                // Try the standard builds index first, then compatible index paths from this
+                // repo only. Never invent entries or silently substitute another publisher.
                 if (isKitsugiMangaRepoUrl(normalizedRepoUrl)) {
                     val candidates = LinkedHashSet<String>().apply {
                         add(normalizedRepoUrl)
@@ -393,13 +379,13 @@ class MangaRepoClient(context: android.content.Context) {
                         val body = fetchBodyFromUrlOrMirror(candidate)?.trim() ?: continue
                         if (isDecoyResponse(body) && body.contains("Outdated App", ignoreCase = true)) continue
                         val parsed = parseDetectedIndexBody(body, candidate)
-                        if (!parsed.isNullOrEmpty()) {
-                            Log.i(TAG, "Kitsugi-Manga-Plugins canlı indeks yüklendi: ${parsed.size} eklenti ($candidate)")
+                        if (parsed != null) {
+                            Log.i(TAG, "Kitsugi-Manga-Plugins index yüklendi: ${parsed.size} eklenti ($candidate)")
                             return@withContext parsed
                         }
                     }
-                    Log.i(TAG, "Kitsugi-Manga-Plugins varsayılan yerleşik Gölge Bahçesi profili kullanılıyor")
-                    return@withContext defaultKitsugiMangaCatalog()
+                    Log.w(TAG, "Kitsugi-Manga-Plugins index bulunamadı; bu depoda henüz yayınlanmış katalog yok")
+                    return@withContext null
                 }
 
                 val mirroredUrl = applyMirror(normalizedRepoUrl)
@@ -438,9 +424,6 @@ class MangaRepoClient(context: android.content.Context) {
                 parseDetectedIndexBody(trimmed, mirroredUrl)
             } catch (e: Exception) {
                 Log.e(TAG, "fetchExtensionsAutoDetect hata: ${e.message}", e)
-                if (isKitsugiMangaRepoUrl(repoUrl)) {
-                    return@withContext defaultKitsugiMangaCatalog()
-                }
                 null
             }
         }

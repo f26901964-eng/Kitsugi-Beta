@@ -4,104 +4,73 @@ import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.core.security.RepoVerifier
 import com.kitsugi.animelist.data.manga.model.SourceHealthStatus
-import com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource
 import com.kitsugi.animelist.data.remote.MangaRepoClient
 import org.json.JSONArray
 
-/**
- * Kitsugi Manga varsayılan kaynak ve depo profili yöneticisi.
- *
- * Politika:
- * - Varsayılan olarak yalnızca tek manga kaynağı (**Gölge Bahçesi**) aktiftir.
- * - Kotatsu derleme zamanı kaynaklarının tamamı varsayılan profilde kapalıdır
- *   (`activeLangs = emptySet()`) ve eski Kotatsu `GOLGEBAHCESI` ayrıştırıcısı kalıcı olarak devre dışıdır.
- * - Önceden kurulmuş diğer üçüncü parti eklenti dosyaları silinmez; ilk profil geçişinde
- *   yalnızca devre dışı (`Disabled`) duruma alınır.
- * - Kullanıcının resmi manga deposu (`f26901964-eng/Kitsugi-Manga-Plugins`) varsayılan
- *   manga deposu olarak eklenir ve güvenilir işaretlenir.
- */
+/** Seeds the user's Kitsugi Manga Plugins repository and applies first-run source defaults. */
 object KitsugiMangaDefaultProfile {
 
     private const val TAG = "KitsugiMangaProfile"
     private const val PROFILE_PREFS = "kitsugi_manga_default_profile"
-    private const val KEY_SINGLE_GOLGE_APPLIED_V1 = "single_golgebahcesi_profile_v1"
-    private const val KEY_DEFAULT_REPO_SEEDED_V1 = "default_kitsugi_manga_repo_seeded_v1"
+    private const val KEY_REPO_PROFILE_APPLIED_V2 = "repo_first_manga_profile_v2"
+    private const val KEY_DEFAULT_REPO_SEEDED_V2 = "default_kitsugi_manga_repo_seeded_v2"
 
     private const val MANGA_REPOS_PREFS = "manga_repos"
     private const val KEY_REPO_URLS = "repo_urls"
 
-    const val DEFAULT_ACTIVE_SOURCE_PKG = GolgeBahcesiSource.PKG_NAME
+    /** The repo's Gölge Bahçesi extension is preferred when the user installs it from the repo. */
+    const val DEFAULT_ACTIVE_SOURCE_PKG = "eu.kanade.tachiyomi.extension.tr.golgebahcesi"
 
-    fun isDefaultActiveSource(source: MangaSource): Boolean {
-        return source.pkgName.equals(DEFAULT_ACTIVE_SOURCE_PKG, ignoreCase = true) ||
-            (source.isBuiltIn && source.name.equals(GolgeBahcesiSource.SOURCE_NAME, ignoreCase = true))
-    }
+    fun isDefaultActiveSource(source: MangaSource): Boolean =
+        source.pkgName.equals(DEFAULT_ACTIVE_SOURCE_PKG, ignoreCase = true)
 
     /**
-     * Uygulama başlangıcında ve [MangaSourceRepository] kurulumunda idempotent olarak çalışır:
-     * 1) Dahili [GolgeBahcesiSource] kaynağını kaydeder,
-     * 2) Kotatsu dil tercihlerini yükler (ilk geçişte boş kümeye sıfırlar),
-     * 3) İlk geçişte diğer kaynakları silmeden devre dışı bırakıp yalnızca Gölge Bahçesi'ni aktif tutar,
-     * 4) Resmi `Kitsugi-Manga-Plugins` deposunu varsayılan depo listesine ekler.
+     * Seed the official plugin repository, keep Kotatsu's legacy parser sources disabled by
+     * default, and disable previously installed third-party extensions without deleting them.
+     * Gölge Bahçesi is only activated after its APK is installed from the repository.
      */
     @Synchronized
     fun ensureApplied(context: Context) {
         val appContext = context.applicationContext
-        val golgeSource = MangaExtensionLoader.registerBuiltInSources(appContext)
         KotatsuExtensionAdapter.loadSavedPrefs(appContext)
 
         val prefs = appContext.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
         seedDefaultMangaRepoIfNeeded(appContext, prefs)
+        if (prefs.getBoolean(KEY_REPO_PROFILE_APPLIED_V2, false)) return
 
-        if (prefs.getBoolean(KEY_SINGLE_GOLGE_APPLIED_V1, false)) {
-            return
-        }
-
-        Log.i(TAG, "Tek-kaynak Gölge Bahçesi varsayılan profili uygulanıyor...")
-
-        // 1) Kotatsu dillerini varsayılan profilde tamamen kapat (otomatik yeniden yüklenmesin)
+        Log.i(TAG, "Kitsugi manga repository default profile applying")
         KotatsuExtensionAdapter.setActiveLangs(emptySet(), appContext)
 
-        // 2) Yüklü diğer eklentileri silmeden devre dışı bırak; Gölge Bahçesi'ni sağlıklı/aktif yap
         runCatching {
             val stateStore = MangaSourceStateStore(appContext)
-            stateStore.setHealthStatus(golgeSource, SourceHealthStatus.Healthy, reason = "default_active")
-
-            MangaExtensionLoader.getExternalSourcesSnapshot().forEach { externalSource ->
-                if (!isDefaultActiveSource(externalSource)) {
-                    stateStore.setHealthStatus(
-                        externalSource,
-                        SourceHealthStatus.Disabled,
-                        reason = "default_profile_disabled",
-                    )
-                    markExternalSourceDefaulted(appContext, externalSource)
+            MangaExtensionLoader.getExternalSourcesSnapshot().forEach { source ->
+                if (isDefaultActiveSource(source)) {
+                    stateStore.setHealthStatus(source, SourceHealthStatus.Healthy, reason = "repo_default_source")
+                } else {
+                    stateStore.setHealthStatus(source, SourceHealthStatus.Disabled, reason = "default_profile_disabled")
+                    markExternalSourceDefaulted(appContext, source)
                 }
             }
-        }.onFailure { e ->
-            Log.w(TAG, "Varsayılan kaynak durumu uygulanırken uyarı: ${e.message}")
+        }.onFailure { error ->
+            Log.w(TAG, "Could not apply default manga source state: ${error.message}")
         }
 
-        prefs.edit().putBoolean(KEY_SINGLE_GOLGE_APPLIED_V1, true).apply()
-        Log.i(TAG, "Varsayılan manga profili tamamlandı: yalnızca Gölge Bahçesi aktif.")
+        prefs.edit().putBoolean(KEY_REPO_PROFILE_APPLIED_V2, true).apply()
     }
 
-    /**
-     * İlk tek-kaynak geçişinden sonra yeni kurulan harici eklentileri yalnızca bir kez
-     * varsayılan olarak devre dışı bırakır; kullanıcının sonraki manuel etkinleştirmesi
-     * süreç yeniden başlayınca korunur.
-     */
+    /** New APKs remain disabled by default, except the repo's preferred Gölge Bahçesi package. */
     fun onExternalSourcesLoaded(context: Context, sources: List<MangaSource>) {
         val appContext = context.applicationContext
-        val profilePrefs = appContext.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
-        if (!profilePrefs.getBoolean(KEY_SINGLE_GOLGE_APPLIED_V1, false)) return
+        val prefs = appContext.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_REPO_PROFILE_APPLIED_V2, false)) return
 
         val stateStore = MangaSourceStateStore(appContext)
         sources.forEach { source ->
-            if (isDefaultActiveSource(source) || source.isBuiltIn) return@forEach
-            val markerKey = externalSourceMarker(source)
-            if (profilePrefs.getBoolean(markerKey, false)) return@forEach
+            if (source.isBuiltIn || isDefaultActiveSource(source)) return@forEach
+            val marker = externalSourceMarker(source)
+            if (prefs.getBoolean(marker, false)) return@forEach
             stateStore.setHealthStatus(source, SourceHealthStatus.Disabled, reason = "default_profile_disabled")
-            profilePrefs.edit().putBoolean(markerKey, true).apply()
+            prefs.edit().putBoolean(marker, true).apply()
         }
     }
 
@@ -115,17 +84,12 @@ object KitsugiMangaDefaultProfile {
     private fun externalSourceMarker(source: MangaSource): String =
         "disabled_default_source_${source.stableSourceKey()}"
 
-    /**
-     * Kayıtlı manga depo listesini okur; ilk kurulumda veya güncellemede
-     * `f26901964-eng/Kitsugi-Manga-Plugins` resmi deposunu listenin en başına ekler.
-     */
+    /** The user's repository is seeded first so the Manga extension screen opens on their catalog. */
     fun loadOrSeedMangaRepos(context: Context): List<String> {
         val appContext = context.applicationContext
         val profilePrefs = appContext.getSharedPreferences(PROFILE_PREFS, Context.MODE_PRIVATE)
         seedDefaultMangaRepoIfNeeded(appContext, profilePrefs)
-
-        val repoPrefs = appContext.getSharedPreferences(MANGA_REPOS_PREFS, Context.MODE_PRIVATE)
-        return readRepoUrls(repoPrefs)
+        return readRepoUrls(appContext.getSharedPreferences(MANGA_REPOS_PREFS, Context.MODE_PRIVATE))
     }
 
     private fun seedDefaultMangaRepoIfNeeded(
@@ -143,18 +107,13 @@ object KitsugiMangaDefaultProfile {
             .map { MangaRepoClient.normalizeMangaRepoUrl(it) }
             .distinct()
 
-        val alreadySeeded = profilePrefs.getBoolean(KEY_DEFAULT_REPO_SEEDED_V1, false)
-        if (!alreadySeeded) {
+        if (!profilePrefs.getBoolean(KEY_DEFAULT_REPO_SEEDED_V2, false)) {
             val merged = buildList {
                 add(officialUrl)
-                existing.forEach { url ->
-                    if (!MangaRepoClient.isKitsugiMangaRepoUrl(url)) {
-                        add(url)
-                    }
-                }
+                existing.filterNot { MangaRepoClient.isKitsugiMangaRepoUrl(it) }.forEach(::add)
             }
             writeRepoUrls(repoPrefs, merged)
-            profilePrefs.edit().putBoolean(KEY_DEFAULT_REPO_SEEDED_V1, true).apply()
+            profilePrefs.edit().putBoolean(KEY_DEFAULT_REPO_SEEDED_V2, true).apply()
         } else if (existing != readRepoUrls(repoPrefs)) {
             writeRepoUrls(repoPrefs, existing)
         }
@@ -167,8 +126,7 @@ object KitsugiMangaDefaultProfile {
             val arr = JSONArray(saved)
             buildList {
                 for (i in 0 until arr.length()) {
-                    val u = arr.optString(i, "").trim()
-                    if (u.isNotEmpty()) add(u)
+                    arr.optString(i, "").trim().takeIf(String::isNotEmpty)?.let(::add)
                 }
             }
         } catch (_: Exception) {

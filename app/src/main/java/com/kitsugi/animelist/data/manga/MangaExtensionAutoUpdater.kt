@@ -9,12 +9,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
+import org.json.JSONArray
 
 /**
  * MangaExtensionAutoUpdater
  *
- * Keiyoushi repo index'ini periyodik olarak kontrol ederek yüklü manga eklentilerini
- * otomatik günceller. Uygulama başlangıcında arka planda çalışır.
+ * Kullanıcının kayıtlı manga repo index'lerini kontrol ederek yüklü eklentileri günceller.
+ * İlk kurulumda varsayılan katalog Kitsugi-Manga-Plugins'tir.
  *
  * Mantık:
  *   1) Keiyoushi index.min.json çek
@@ -58,7 +59,7 @@ object MangaExtensionAutoUpdater {
             return@withContext UpdateResult.Skipped(minutesUntilNextCheck = ((CHECK_INTERVAL_MS - (now - lastCheck)) / 1000 / 60).toInt())
         }
 
-        Log.i(TAG, "Keiyoushi repo kontrolü başlıyor...")
+        Log.i(TAG, "Kayıtlı manga depoları kontrol ediliyor...")
         prefs.edit().putLong(KEY_LAST_CHECK_MS, now).apply()
 
         // Yüklü eklentileri al — loadedSources ve fiziksel klasör üzerinden paket adı → versionCode
@@ -71,20 +72,25 @@ object MangaExtensionAutoUpdater {
 
         Log.i(TAG, "${installedPackages.size} yüklü APK paketi bulundu.")
 
-        // Önce resmi Kitsugi-Manga-Plugins deposunu, ardından Keiyoushi V2 indeksini kontrol et
+        // Check every configured manga repository; Kitsugi-Manga-Plugins is seeded as default.
         val client = MangaRepoClient(context)
-        val kitsugiExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KITSUGI_MANGA_REPO_URL).orEmpty()
-        val keiyoushiExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KEIYOUSHI_INDEX_URL)
-        val repoExtensions = if (keiyoushiExtensions != null) {
-            (kitsugiExtensions + keiyoushiExtensions).distinctBy { it.pkg }
-        } else if (kitsugiExtensions.isNotEmpty()) {
-            kitsugiExtensions
-        } else {
-            null
-        }
+        val configuredRepos = runCatching {
+            val raw = context.getSharedPreferences("manga_repos", Context.MODE_PRIVATE)
+                .getString("repo_urls", null)
+            val json = raw?.let(::JSONArray)
+            buildList {
+                for (index in 0 until (json?.length() ?: 0)) {
+                    json?.optString(index, "")?.trim()?.takeIf(String::isNotEmpty)?.let(::add)
+                }
+            }
+        }.getOrDefault(emptyList())
+        val repoUrls = configuredRepos.ifEmpty { listOf(MangaRepoClient.KITSUGI_MANGA_REPO_URL) }
+        val repoExtensions = repoUrls
+            .flatMap { client.fetchExtensionsAutoDetect(it).orEmpty() }
+            .distinctBy { it.pkg }
 
-        if (repoExtensions == null) {
-            Log.e(TAG, "Keiyoushi repo çekilemedi.")
+        if (repoExtensions.isEmpty()) {
+            Log.e(TAG, "Configured manga repository catalogs could not be loaded or contained no extensions.")
             prefs.edit().putString(KEY_LAST_CHECK_RESULT, "REPO_FETCH_FAILED").apply()
             return@withContext UpdateResult.Failed(reasonCode = "REPO_FETCH_FAILED")
         }
@@ -169,9 +175,7 @@ object MangaExtensionAutoUpdater {
         for (source in sources) {
             if (source.isBuiltIn) continue
             val pkg = source.pkgName.trim()
-            if (pkg.isNotBlank() &&
-                !pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)
-            ) {
+            if (pkg.isNotBlank()) {
                 val vc = MangaExtensionLoader.getInstalledVersionCode(context, pkg)
                 if (vc >= 0) {
                     result[pkg] = vc
@@ -187,9 +191,6 @@ object MangaExtensionAutoUpdater {
                 apkFiles?.forEach { file ->
                     val filename = file.nameWithoutExtension
                     val pkg = filename.replace("_", ".")
-                    if (pkg.equals(com.kitsugi.animelist.data.manga.sources.golgebahcesi.GolgeBahcesiSource.PKG_NAME, ignoreCase = true)) {
-                        return@forEach
-                    }
                     val vc = MangaExtensionLoader.getInstalledVersionCode(context, pkg)
                     if (vc >= 0) {
                         result[pkg] = vc

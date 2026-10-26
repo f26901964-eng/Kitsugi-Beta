@@ -1,37 +1,36 @@
-# Plan / Task — Gölge Bahçesi manga entegrasyonu
+# Plan / Task — Kitsugi manga eklenti deposu entegrasyonu
 
 Tarih: 2026-10-26
 Dal: `arena/2809aa13-kitsugi-beta`
 
 ## Hedef
 
-Kitsugi manga bölümüne Gölge Bahçesi'ni yerleşik ve varsayılan olarak etkin kaynak olarak entegre etmek. Diğer Türkçe manga eklentilerini depoda tutup varsayılan profilde devre dışı bırakmak; eski Kotatsu Gölge Bahçesi parser'ını yüklememek. Arama, eser detayları, bölümler, normal görseller ve güvenli/şifreli sayfalar için uygulama entegrasyonu sağlamak.
+Kitsugi'nin manga bölümünü, video eklenti depolarındaki gibi repo-merkezli çalıştırmak. Varsayılan kaynak Gölge Bahçesi'ni uygulamaya gömmek değil; kullanıcının `Kitsugi-Manga-Plugins` deposunu varsayılan repo olarak eklemek ve eklentileri depodaki katalogdan tek tek veya toplu kurabilmek. Diğer Türkçe eklenti dosyaları korunur ancak ilk varsayılan profilde kapalı kalır. Eski Kotatsu Gölge Bahçesi parser'ı devre dışıdır.
 
 ## Yapılan kaynak kodu değişiklikleri
 
-- [x] Gölge Bahçesi için yerleşik kaynak, API DTO/parsing ve arama/detay/bölüm akışları eklendi.
-- [x] Alternatif eser adları arama/eşleştirme akışına dahil edildi.
-- [x] Güvenli bölüm sayfaları için WebView tabanlı oturum/yükleme yakalama ve sayfa akışı eklendi.
-- [x] Görsel yüklemeleri için kaynak özelinde Referer/Accept header politikası ve önbellek entegrasyonu eklendi.
-- [x] Gölge Bahçesi varsayılan kaynak profiline alındı; diğer harici Türkçe kaynakların dosyaları korunarak başlangıçta devre dışı olması sağlandı.
-- [x] Eski Kotatsu Gölge Bahçesi parser'ı uygulamanın etkin kaynak yüklemesinden çıkarıldı.
-- [x] Manga eklenti/repo ekranı, varsayılan Kitsugi manga repo bağlantısı ve katalog fallback'i entegre edildi.
-- [x] Kaynak seçimi için telefon/TV ayar yüzeyleri ve R8/WebKit yapılandırması güncellendi.
-- [x] Parser, profil politikası, alternatif başlık ve görsel header davranışları için test kaynakları eklendi.
+- [x] `Kitsugi-Manga-Plugins` varsayılan depo olarak uygulama başlatılırken manga repo listesine ekleniyor.
+- [x] Depo kök URL'si ve kısa repo adı, üretilen `builds/index.json` kataloğuna normalize ediliyor.
+- [x] Repo kataloğu Keiyoushi/Mihon uyumlu JSON veya desteklenen APK-listesi formatından okunuyor.
+- [x] Tekil APK kurma, mevcut bulk install akışı ve telefon/tablet UI bağlantıları repo kataloğuna bağlı.
+- [x] TV repo ekranının toplu kurulum butonu gerçek manga bulk-install callback'ine bağlandı.
+- [x] Katalog yoksa harici bir APK ya da gömülü Gölge Bahçesi girdisi uydurulmuyor; repo UI'da index/çıktı eksikliği açıklanıyor.
+- [x] Gölge Bahçesi için uygulama içine eklenmiş yerel kaynak/secure reader kaldırıldı; eklenti yalnızca kullanıcının reposundan kurulur.
+- [x] Varsayılan profilde Kotatsu kaynakları kapalı; Kotatsu `GOLGEBAHCESI` parser'ı hariç tutuluyor. Mevcut diğer APK/MEX eklentileri silinmiyor ve ilk geçişte devre dışı kalıyor.
+- [x] Repo URL normalize/kimlik testleri eklendi.
+
+## Önemli dağıtım bağımlılığı
+
+İnceleme anında GitHub deposunun `main` dalında kaynak kodlar var; uygulamanın indirebileceği `builds/index.json` ve APK yayın çıktıları görünmüyor. Uygulama varsayılan olarak `https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Manga-Plugins/builds/index.json` adresini kullanacak, alternatif uyumlu indeks yollarını da dener. Repo derleme/yayın iş akışı bu katalog ve APK'ları yayınlamadan uygulama eklenti listeleyemez veya indiremez. Başka bir kaynaktan sessiz fallback yapılmaz.
 
 ## Doğrulama durumu
 
-Bu belge kaynak kod değişikliklerini ve test hazırlığını kaydeder; cihazda çalıştığını kanıtlamaz.
-
-- [x] `git diff --check`: geçti.
-- [x] Okuyucu JavaScript kancaları için `node --check`: geçti.
-- [ ] Gradle unit testleri: çalıştırılamadı; ortamda `java`/JDK ve `JAVA_HOME` yok.
+- [ ] Gradle unit testleri: bu ortamda Java/JDK ve `JAVA_HOME` yok, çalıştırılamadı.
 - [ ] Android derlemesi / APK üretimi: yapılmadı.
-- [ ] Cihazda kapak, arama, detay, bölüm, normal sayfa ve güvenli/şifreli sayfa testi: yapılmadı.
-- [ ] Turnstile doğrulama etkileşimi ve CDN görsellerinin uçtan uca testi: yapılmadı.
+- [ ] Cihazda repo fetch, tekli kurulum, bulk kurulum ve kaynak etkinleştirme testi: yapılmadı.
 
-**Sonuç:** Bu teslim kaynak kodu değişikliklerinden oluşur. APK değildir; cihaza yüklenmemiştir. Güvenli sayfa yakalama/çözme ve Turnstile davranışı doğrulanana kadar kaynak için uçtan uca çalışma garantisi verilmez.
+**Sonuç:** Bu teslim app kaynak kodu değişikliğidir, APK değildir. Repo manifesti/APK'ları ve cihaz akışı yayınlandıktan sonra uçtan uca doğrulanmalıdır.
 
-## Paketin içeriği
+## Paket içeriği
 
-ZIP, bu plan dosyasını ve bu dalda değiştirilmiş/yeni eklenmiş depo dosyalarını, depo içindeki göreli yollarını koruyarak içerir. Tam depo yedeği veya APK değildir. ZIP içindeki `PACKAGE_MANIFEST.json`, paketlenen dosyaların SHA-256 özetlerini listeler.
+ZIP, bu plan dosyasını ve değişmiş/yeni depo dosyalarını depo içi göreli yollarla içerir. Tam depo veya APK değildir. `PACKAGE_MANIFEST.json`, paket dosyalarının yolları ve SHA-256 özetlerini verir.
