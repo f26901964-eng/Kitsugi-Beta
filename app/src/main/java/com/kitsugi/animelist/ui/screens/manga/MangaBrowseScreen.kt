@@ -421,6 +421,14 @@ fun MangaBrowseScreen(
             mangaSources = mangaViewModel.mangaSources,
             onInstallMangaExtension = { mangaViewModel.installMangaExtension(it) },
             onDeleteMangaExtension = { mangaViewModel.deleteMangaExtension(it) },
+            // Manga taraflı ayarlar diyalogu (initialTab = 2) da gerçek callback'i alsın;
+            // aksi halde buradaki "Toplu Sil" butonu ölü kalırdı.
+            mangaBulkDelete = com.kitsugi.animelist.ui.components.addons.MangaBulkDeleteState(
+                isDeleting = mangaViewModel.mangaIsBulkDeleting,
+                hiddenBuiltInCount = mangaViewModel.mangaBulkDeleteHiddenBuiltInCount,
+                onDeleteAll = { mangaViewModel.deleteAllMangaExtensions() },
+                onRestoreBuiltIns = { mangaViewModel.restoreBulkDeletedMangaBuiltIns() }
+            ),
             mangaRepos = mangaViewModel.mangaReposState,
             mangaRepoExtensions = mangaViewModel.mangaRepoExtensionsState,
             mangaRepoLoadingState = mangaViewModel.mangaRepoLoadingState,

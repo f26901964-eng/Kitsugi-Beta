@@ -357,6 +357,36 @@ object MangaExtensionLoader {
         return deleted
     }
 
+    /**
+     * Diskte kurulu TÜM manga eklentisi dosyalarını döner (.apk / .mex).
+     *
+     * "Toplu Sil" bu listeyi esas almak zorundadır: [getLoadedSources] yalnızca
+     * belleğe başarıyla yüklenmiş kaynakları görür; devre dışı bırakılmış,
+     * yüklenememiş ya da henüz taranmamış eklentiler orada yer almaz. Eski
+     * uygulama görünür `sources` listesini tek tek siliyordu ve bu yüzden
+     * dosyalar diskte kalıyordu (buton "çalışmıyor" sanılıyordu).
+     */
+    fun getInstalledExtensionFiles(context: Context): List<File> {
+        val dir = extensionDir(context)
+        if (!dir.isDirectory) return emptyList()
+        val files = dir.listFiles { file ->
+            file.isFile && (file.name.endsWith(".apk", ignoreCase = true) || file.name.endsWith(".mex", ignoreCase = true))
+        }
+        return files?.toList() ?: emptyList()
+    }
+
+    /** Belleğe yüklenmiş eklentilerin "kimlik → kaynaklar" anlık görüntüsü. */
+    fun getLoadedExtensions(): Map<String, List<MangaSource>> =
+        loadedSources.mapKeys { (path, _) -> File(path).nameWithoutExtension }
+
+    /**
+     * Uygulama içine gömülü Kotatsu kaynakları. Bunların diske yazılmış bir
+     * eklenti dosyası yoktur; `deleteExtension` onlar için her zaman `false`
+     * döner. Toplu silme bu kaynakları geri getirilebilir şekilde devre dışı
+     * bırakır (bkz. MangaSourceRepository.deleteAllExtensions).
+     */
+    fun getBuiltInSources(): List<MangaSource> = KotatsuExtensionAdapter.getActiveSources()
+
     /** Yüklü source sayısını döndürür (debug amaçlı) */
     fun getLoadedSourceCount(): Int = loadedSources.values.sumOf { it.size }
 

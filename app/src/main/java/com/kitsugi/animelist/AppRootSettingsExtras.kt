@@ -372,6 +372,15 @@ internal fun SettingsContext.buildSettingsParams() =
             onDeleteMangaExtension = { mangaViewModel.deleteMangaExtension(it) },
             onDeleteMangaExtensions = { sources, done -> mangaViewModel.deleteMangaExtensions(sources, done) },
             onToggleMangaSource = { source, enabled -> mangaViewModel.toggleMangaSource(source, enabled) },
+            // Manga > Kurulu > Toplu Sil: callback'ler doğrudan ViewModel'e bağlı.
+            // (CS eklentilerinde bu iki satır eksik olduğu için çöp kutusu ölüydü;
+            //  aynı hata burada tekrarlanmasın.)
+            mangaBulkDelete = com.kitsugi.animelist.ui.components.addons.MangaBulkDeleteState(
+                isDeleting = mangaViewModel.mangaIsBulkDeleting,
+                hiddenBuiltInCount = mangaViewModel.mangaBulkDeleteHiddenBuiltInCount,
+                onDeleteAll = { mangaViewModel.deleteAllMangaExtensions() },
+                onRestoreBuiltIns = { mangaViewModel.restoreBulkDeletedMangaBuiltIns() }
+            ),
             mangaRepos = mangaViewModel.mangaReposState,
             mangaRepoExtensions = mangaViewModel.mangaRepoExtensionsState,
             mangaRepoLoadingState = mangaViewModel.mangaRepoLoadingState,

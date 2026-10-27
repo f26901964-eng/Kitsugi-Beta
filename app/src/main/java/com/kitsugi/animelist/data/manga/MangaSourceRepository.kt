@@ -42,6 +42,12 @@ class MangaSourceRepository(private val context: Context) {
     private val mirrorResolver = SourceMirrorResolver(context, sourceConfigStore)
     private val sourceHealthService = SourceHealthService(context, sourceStateStore, mirrorResolver)
     private val searchCoordinator = MangaSearchCoordinator(sourceStateStore)
+    /** Toplu silme ile gizlenen yerleşik kaynakların geri getirilebilmesi için kalıcı anahtar seti. */
+    private val bulkDeletePrefs = context.getSharedPreferences("manga_bulk_delete", Context.MODE_PRIVATE)
+
+    private companion object {
+        const val KEY_HIDDEN_BUILT_IN_KEYS = "hidden_builtin_keys"
+    }
 
     init {
         KotatsuExtensionAdapter.loadSavedPrefs(context)
@@ -234,6 +240,78 @@ class MangaSourceRepository(private val context: Context) {
         resetSourceDiagnostics(source)
         val extId = MangaExtensionLoader.getExtensionIdForSource(source) ?: return false
         return MangaExtensionLoader.deleteExtension(context, extId)
+    }
+
+    /** "Toplu Sil" sonucu: silinen eklenti, silinemeyen eklenti ve gizlenen yerleşik kaynak sayısı. */
+    data class MangaBulkDeleteResult(
+        val deletedExtensions: Int,
+        val failedExtensions: Int,
+        val hiddenBuiltIns: Int,
+    ) {
+        val totalRemoved: Int get() = deletedExtensions + hiddenBuiltIns
+    }
+
+    /** Geri getirilebilecek (toplu silme ile gizlenmiş) yerleşik kaynak sayısı. */
+    fun getBulkDeleteHiddenBuiltInCount(): Int =
+        bulkDeletePrefs.getStringSet(KEY_HIDDEN_BUILT_IN_KEYS, emptySet())?.size ?: 0
+
+    /**
+     * Manga sekmesindeki "Toplu Sil" aksiyonunun gerçek işi.
+     *
+     * İki kaynak türü vardır:
+     *  1) İndirilmiş .apk/.mex eklentileri → dosyaları diskten silinir, bellekten çıkarılır,
+     *     tanılama/ayar kayıtları temizlenir. Görünür liste yerine DİSK esas alınır; böylece
+     *     devre dışı bırakılmış ya da yüklenememiş eklentiler de gerçekten silinir.
+     *  2) Uygulama içine gömülü Kotatsu kaynakları → silinecek dosyaları yoktur. Eski kod
+     *     `deleteExtension` ile bunları silmeye çalışıyor, her biri `false` döndüğü için
+     *     buton basılmasına rağmen hiçbir şey olmuyordu. Bunlar kalıcı olarak "Disabled"
+     *     yapılarak listeden/aramadan çıkarılır ve [restoreBulkDeletedBuiltIns] ile geri getirilir.
+     */
+    fun deleteAllExtensions(): MangaBulkDeleteResult {
+        // 1) Diskteki tüm eklentileri sil (görünür liste değil disk kaynak).
+        val extensionIds = MangaExtensionLoader.getInstalledExtensionFiles(context)
+            .map { it.nameWithoutExtension }
+            .distinct()
+        val loadedByExtension = MangaExtensionLoader.getLoadedExtensions()
+        extensionIds.forEach { id ->
+            loadedByExtension[id]?.forEach { resetSourceDiagnostics(it) }
+        }
+        var deleted = 0
+        var failed = 0
+        extensionIds.forEach { id ->
+            if (MangaExtensionLoader.deleteExtension(context, id)) deleted++ else failed++
+        }
+
+        // 2) Yerleşik kaynakları geri getirilebilir biçimde gizle.
+        val builtIns = MangaExtensionLoader.getBuiltInSources()
+        val hiddenKeys = LinkedHashSet(
+            bulkDeletePrefs.getStringSet(KEY_HIDDEN_BUILT_IN_KEYS, emptySet()).orEmpty()
+        )
+        val notYetDisabled = builtIns.filter {
+            sourceStateStore.getHealthStatus(it) != SourceHealthStatus.Disabled
+        }
+        sourceStateStore.setHealthStatusForAll(notYetDisabled, SourceHealthStatus.Disabled)
+        // Yalnızca BU işlemle gizlenenleri kaydet: kullanıcının daha önce kendisi
+        // devre dışı bıraktığı kaynaklar "Geri getir" ile istemeden açılmasın.
+        notYetDisabled.forEach { hiddenKeys.add(it.stableSourceKey()) }
+        bulkDeletePrefs.edit().putStringSet(KEY_HIDDEN_BUILT_IN_KEYS, hiddenKeys).apply()
+
+        return MangaBulkDeleteResult(
+            deletedExtensions = deleted,
+            failedExtensions = failed,
+            hiddenBuiltIns = notYetDisabled.size,
+        )
+    }
+
+    /** "Toplu Sil" ile gizlenen yerleşik kaynakları tekrar listeye/aramaya dahil eder. */
+    fun restoreBulkDeletedBuiltIns(): Int {
+        val hiddenKeys = bulkDeletePrefs.getStringSet(KEY_HIDDEN_BUILT_IN_KEYS, emptySet()).orEmpty()
+        if (hiddenKeys.isEmpty()) return 0
+        val toRestore = KotatsuExtensionAdapter.getLoadedSources()
+            .filter { it.stableSourceKey() in hiddenKeys }
+        sourceStateStore.setHealthStatusForAll(toRestore, SourceHealthStatus.Unknown)
+        bulkDeletePrefs.edit().remove(KEY_HIDDEN_BUILT_IN_KEYS).apply()
+        return toRestore.size
     }
 
 

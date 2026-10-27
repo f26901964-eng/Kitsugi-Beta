@@ -99,9 +99,23 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     var mangaSourceStateReport by mutableStateOf<List<MangaSourceStateEntity>>(emptyList())
         private set
 
+    /** Toplu silme sürerken yinelenen isteği engeller; butonun kendisini ASLA devre dışı bırakmaz. */
+    var mangaIsBulkDeleting by mutableStateOf(false)
+        private set
+
+    /** "Toplu Sil" ile gizlenmiş, "Geri getir" ile geri açılabilecek yerleşik kaynak sayısı. */
+    var mangaBulkDeleteHiddenBuiltInCount by mutableStateOf(0)
+        private set
+
     init {
         com.kitsugi.animelist.data.manga.KitsugiMangaDefaultProfile.ensureApplied(context)
         mangaSources = mangaRepository.getInstalledSources()
+
+        // Uygulama yeniden başlasa bile "Geri getir" butonu görünür kalmalı.
+        viewModelScope.launch(Dispatchers.IO) {
+            val hidden = mangaRepository.getBulkDeleteHiddenBuiltInCount()
+            withContext(Dispatchers.Main) { mangaBulkDeleteHiddenBuiltInCount = hidden }
+        }
 
         // Varsayılan resmi Kitsugi-Manga-Plugins deposunu yükle / tohumla
         val urls: List<String> = com.kitsugi.animelist.data.manga.KitsugiMangaDefaultProfile.loadOrSeedMangaRepos(context)
@@ -265,6 +279,62 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     onShowMessage?.invoke(KitsugiStrings.get(R.string.eklenti_kaldirildi_x_5014f43, source.name))
                 }
             }
+        }
+    }
+
+    /**
+     * Manga > Kurulu sekmesindeki "Toplu Sil" butonunun tek giriş noktası.
+     *
+     * Eski akış görünür `mangaSources` listesindeki her kaynak için `deleteExtension`
+     * çağırıyordu; listedekilerin tamamı uygulama içi Kotatsu kaynağı olduğunda her
+     * çağrı `false` dönüyor ve kullanıcı "butona basılmıyor" sanıyordu. Yeni akış
+     * [MangaSourceRepository.deleteAllExtensions] ile diski temizler, yerleşik
+     * kaynakları geri getirilebilir şekilde gizler ve her durumda sonucu bildirir.
+     */
+    fun deleteAllMangaExtensions() {
+        if (mangaIsBulkDeleting) return
+        mangaIsBulkDeleting = true
+        viewModelScope.launch {
+            // Hata durumunda bile bayrağı sıfırla; aksi halde buton bir daha tepki vermez.
+            try {
+                val summary = try {
+                    withContext(Dispatchers.IO) { mangaRepository.deleteAllExtensions() }
+                } catch (t: Throwable) {
+                    null
+                }
+                mangaSources = mangaRepository.getAvailableSources()
+                mangaBulkDeleteHiddenBuiltInCount = mangaRepository.getBulkDeleteHiddenBuiltInCount()
+                // Silinen eklentiler için "güncelleme var" sayacı bayat kalmasın.
+                checkAllUpdates()
+                onShowMessage?.invoke(
+                    when {
+                        summary == null -> KitsugiStrings.get(R.string.manga_bulk_delete_failed)
+                        summary.failedExtensions > 0 -> KitsugiStrings.get(
+                            R.string.manga_bulk_delete_partial,
+                            summary.deletedExtensions,
+                            summary.failedExtensions,
+                        )
+                        summary.totalRemoved == 0 -> KitsugiStrings.get(R.string.manga_bulk_delete_empty)
+                        else -> KitsugiStrings.get(
+                            R.string.manga_bulk_delete_result,
+                            summary.deletedExtensions,
+                            summary.hiddenBuiltIns,
+                        )
+                    }
+                )
+            } finally {
+                mangaIsBulkDeleting = false
+            }
+        }
+    }
+
+    /** "Toplu Sil" ile gizlenen yerleşik manga kaynaklarını geri getirir. */
+    fun restoreBulkDeletedMangaBuiltIns() {
+        viewModelScope.launch {
+            val restored = withContext(Dispatchers.IO) { mangaRepository.restoreBulkDeletedBuiltIns() }
+            mangaSources = mangaRepository.getAvailableSources()
+            mangaBulkDeleteHiddenBuiltInCount = mangaRepository.getBulkDeleteHiddenBuiltInCount()
+            onShowMessage?.invoke(KitsugiStrings.get(R.string.manga_bulk_restore_result, restored))
         }
     }
 

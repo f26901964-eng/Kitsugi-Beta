@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.components.addons
 import androidx.compose.foundation.lazy.itemsIndexed
 import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -97,7 +98,9 @@ internal fun MangaExtensionsTab(
     onOpenSourceHealthScreen: () -> Unit = {},
     onForceCheckUpdates: (onResult: (String) -> Unit) -> Unit = {},
     onVerifySource: ((String, String) -> Unit)? = null,
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    /** Null ise toplu silme butonu hiç çizilmez (callback'siz ölü buton yok). */
+    bulkDelete: MangaBulkDeleteState? = null,
 ) {
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -105,6 +108,7 @@ internal fun MangaExtensionsTab(
 
     var activeSection by rememberSaveable { mutableStateOf(MangaTabSection.REPOS) }
     var deleteTarget by remember { mutableStateOf<MangaSource?>(null) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var manageTarget by remember { mutableStateOf<MangaSource?>(null) }
     var reportOpen by remember { mutableStateOf(false) }
     var reportFilter by rememberSaveable { mutableStateOf("ALL") }
@@ -852,6 +856,93 @@ internal fun MangaExtensionsTab(
                     }
                 }
             }
+            // ── Toplu Sil (her zaman tıklanabilir) ──────────────────────────────
+            // Eski sürümde buton ya devre dışıydı ya da yalnızca yerleşik Kotatsu
+            // kaynakları için `deleteExtension` çağırıyordu; her çağrı false döndüğü
+            // için kullanıcı "basılmıyor" sanıyordu. Artık buton daima aktif, basınca
+            // onay açılır ve işlemin sonucu mutlaka bildirilir.
+            if (bulkDelete != null) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(KitsugiColors.SurfaceSoft)
+                            .border(
+                                1.dp,
+                                KitsugiColors.AccentRed.copy(alpha = 0.35f),
+                                RoundedCornerShape(14.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.manga_bulk_delete_action),
+                                color = KitsugiColors.TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                stringResource(R.string.manga_bulk_delete_hint, sources.size),
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 10.sp
+                            )
+                        }
+                        // `enabled = false` BİLEREK kullanılmaz: silinecek kaynak kalmasa
+                        // bile buton basılır ve nedenini anlatan sonuç mesajı gösterilir.
+                        KitsugiButton(
+                            onClick = { showBulkDeleteConfirm = true },
+                            modifier = Modifier.heightIn(min = 44.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = KitsugiColors.AccentRed,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                Icons.Rounded.DeleteSweep,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                if (bulkDelete.isDeleting) stringResource(R.string.manga_bulk_delete_progress)
+                                else stringResource(R.string.manga_bulk_delete_action),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (bulkDelete.hiddenBuiltInCount > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        KitsugiTonalButton(
+                            onClick = bulkDelete.onRestoreBuiltIns,
+                            modifier = Modifier.heightIn(min = 44.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Restore,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.manga_bulk_restore_action,
+                                    bulkDelete.hiddenBuiltInCount
+                                ),
+                                color = accentColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
             // ── Sağlık Raporu Başlığı ─────────────────────────────────────────────
             item {
                 Row(
@@ -1350,6 +1441,27 @@ internal fun MangaExtensionsTab(
                 }
             )
         }
+    }
+
+    // ── Toplu silme onayı ────────────────────────────────────────────────────
+    // KitsugiConfirmDialog hem telefon hem TV düzenini kendi içinde yönetir;
+    // onay verildiğinde tek gerçek callback çağrılır (varsayılan no-op yok).
+    if (showBulkDeleteConfirm && bulkDelete != null) {
+        KitsugiConfirmDialog(
+            title = stringResource(R.string.manga_bulk_delete_dialog_title),
+            message = stringResource(
+                R.string.manga_bulk_delete_dialog_message,
+                sources.size
+            ) + "\n\n" + stringResource(R.string.manga_bulk_delete_builtin_note),
+            confirmText = stringResource(R.string.manga_bulk_delete_action),
+            dismissText = stringResource(R.string.iptal),
+            isDestructive = true,
+            onConfirm = {
+                showBulkDeleteConfirm = false
+                bulkDelete.onDeleteAll()
+            },
+            onDismiss = { showBulkDeleteConfirm = false }
+        )
     }
 }
 
