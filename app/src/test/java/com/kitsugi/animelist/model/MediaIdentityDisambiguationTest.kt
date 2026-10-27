@@ -204,4 +204,55 @@ class MediaIdentityDisambiguationTest {
         )
         assertTrue(MediaIdentity.sameMedia(enriched, other, enrichedKeys, otherKeys))
     }
+
+    @Test
+    fun seasonSynonymVariantsMatchSecondSeasonAndSeasonTwoWithoutMergingSeasonOne() {
+        val ordinal = testEntry(id = 1, title = "Kaiju No. 8 2nd Season", source = "kitsu", malId = 300_049_001, year = 2025)
+        val cardinal = testEntry(id = 2, title = "Kaiju No. 8 Season 2", source = "anilist", malId = 59177, year = 2025)
+        val seasonOne = testEntry(id = 3, title = "Kaiju No. 8", source = "anilist", malId = 52588, year = 2024)
+
+        assertTrue(MediaIdentity.librarySameMedia(ordinal, cardinal))
+        assertFalse(MediaIdentity.librarySameMedia(ordinal, seasonOne))
+    }
+
+    @Test
+    fun animeTmdbDifferenceDoesNotVetoAuthoritativeMalMatch() {
+        val anilist = testEntry(id = 1, title = "Attack on Titan", source = "anilist", malId = 16498, year = 2013)
+            .copy(tmdbId = 1429)
+        val simkl = testEntry(id = 2, title = "Attack on Titan", source = "simkl", malId = 16498, year = 2013)
+            .copy(tmdbId = 88888)
+
+        assertTrue(MediaIdentity.authoritativeConflictingIdentityKeys(anilist, simkl).isEmpty())
+        assertTrue(MediaIdentity.librarySameMedia(anilist, simkl))
+    }
+
+    @Test
+    fun sameAnimeMovieAcrossTypeMatchesSingleEpisodeAnimeAndMovieOnly() {
+        val movie = testEntry(
+            id = 1,
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            source = "simkl",
+            type = MediaType.Movie,
+            year = 2025
+        ).copy(total = 1, tmdbId = 1311031)
+        val singleEpAnime = testEntry(
+            id = 2,
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            source = "simkl",
+            malId = 59192,
+            type = MediaType.Anime,
+            year = 2025
+        ).copy(total = 1, tmdbId = 1311031)
+        val tvSeriesAnime = testEntry(
+            id = 3,
+            title = "Demon Slayer: Kimetsu no Yaiba",
+            source = "simkl",
+            malId = 38000,
+            type = MediaType.Anime,
+            year = 2019
+        ).copy(total = 26)
+
+        assertTrue(MediaIdentity.sameAnimeMovieAcrossType(movie, singleEpAnime))
+        assertFalse(MediaIdentity.sameAnimeMovieAcrossType(movie, tvSeriesAnime))
+    }
 }

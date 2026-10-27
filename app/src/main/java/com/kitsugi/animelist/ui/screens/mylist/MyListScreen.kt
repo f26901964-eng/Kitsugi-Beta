@@ -89,6 +89,10 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
@@ -356,7 +360,11 @@ fun MyListScreen(
     val safeSelectedTabIndex = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
     val selectedTabEntries = librarySnapshot.entriesForTab(safeSelectedTabIndex)
 
-    val filteredEntries = remember(
+    // Filtering can touch thousands of rows (and optional fuzzy matching uses edit distance).
+    // Debounce keystrokes slightly, cancel obsolete work, and never run this on Compose's main
+    // thread. Keeping the previous result visible while work runs avoids a flash/blank list.
+    val filteredEntries by produceState(
+        selectedTabEntries,
         selectedTabEntries,
         librarySnapshot.searchAliasesByEntryId,
         searchQuery,
@@ -367,25 +375,37 @@ fun MyListScreen(
         selectedYearFilterId,
         selectedExtraFilterId
     ) {
-        filterMyListEntries(
-            entries = selectedTabEntries,
-            searchQuery = searchQuery,
-            selectedStatusFilterId = selectedStatusFilterId,
-            selectedTypeFilterId = selectedTypeFilterId,
-            selectedFavoriteFilterId = selectedFavoriteFilterId,
-            selectedScoreFilterId = selectedScoreFilterId,
-            selectedYearFilterId = selectedYearFilterId,
-            selectedExtraFilterId = selectedExtraFilterId,
-            searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
-        )
+        if (searchQuery.isNotBlank()) delay(90)
+        value = withContext(Dispatchers.Default) {
+            val filterJob = currentCoroutineContext()[Job]
+            filterMyListEntries(
+                entries = selectedTabEntries,
+                searchQuery = searchQuery,
+                selectedStatusFilterId = selectedStatusFilterId,
+                selectedTypeFilterId = selectedTypeFilterId,
+                selectedFavoriteFilterId = selectedFavoriteFilterId,
+                selectedScoreFilterId = selectedScoreFilterId,
+                selectedYearFilterId = selectedYearFilterId,
+                selectedExtraFilterId = selectedExtraFilterId,
+                searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId,
+                cancellationCheck = { filterJob?.ensureActive() }
+            )
+        }
     }
 
-    val visibleEntries = remember(filteredEntries, selectedSortId, appSettings.titleLanguage) {
-        applySort(
-            entries = filteredEntries,
-            sortId = selectedSortId,
-            titleLanguage = appSettings.titleLanguage
-        )
+    val visibleEntries by produceState(
+        filteredEntries,
+        filteredEntries,
+        selectedSortId,
+        appSettings.titleLanguage
+    ) {
+        value = withContext(Dispatchers.Default) {
+            applySort(
+                entries = filteredEntries,
+                sortId = selectedSortId,
+                titleLanguage = appSettings.titleLanguage
+            )
+        }
     }
 
     val listStats = remember(selectedTabEntries) {

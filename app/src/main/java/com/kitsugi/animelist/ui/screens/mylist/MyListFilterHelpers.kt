@@ -63,8 +63,10 @@ internal fun filterMyListEntries(
      * tuşa basıldığında ancak tarama BİTİNCE duruyordu (kare atlaması). Checkpoint her 32
      * kayıtta bir `ensureActive()` çağırır.
      */
-    checkActive: () -> Unit = {}
+    checkActive: () -> Unit = {},
+    cancellationCheck: (() -> Unit)? = null
 ): List<MediaEntry> {
+    val onCheckpoint = cancellationCheck ?: checkActive
     val selectedStatus = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.status
     val selectedType = typeFilters.firstOrNull { it.id == selectedTypeFilterId }?.type
     val favoritesOnly = selectedFavoriteFilterId == "favorites" || selectedStatusFilterId == "favorites"
@@ -82,7 +84,7 @@ internal fun filterMyListEntries(
     var scanned = 0
 
     return entries.asSequence()
-        .onEach { if (scanned++ % 32 == 0) checkActive() }
+        .onEach { if (scanned++ % 32 == 0) onCheckpoint() }
         .filter { entry -> selectedStatus == null || entry.status == selectedStatus }
         .filter { entry -> selectedType == null || entry.type == selectedType }
         .filter { entry -> !favoritesOnly || entry.isFavorite }

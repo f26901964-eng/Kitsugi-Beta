@@ -45,16 +45,16 @@ class MediaEntryRepository(
     val context: Context? = null,
     private val onExternalSyncMessage: ((String) -> Unit)? = null
 ) {
-    /**
-     * Liste içe aktarımlarını SERİLEŞTİRİR.
-     *
-     * Aynı kaynak için iki import eşzamanlı çalışabilir: sekmeyi yenileme (synchronizer
-     * single-flight'ı yalnızca kendi yolunu korur), çapraz eşitleme doğrulama turu,
-     * bildirim işçisinin Simkl birleştirmesi ve açılış senkronu farklı yollardan gelir.
-     * İkisi de aynı "mevcut satırlar" anlık görüntüsünü okuyup aynı kaydı "yok" sanırsa
-     * **çift kayıt** oluşur. Kilit, karşılaştırma+yazma bloğunu atomik hâle getirir.
-     */
-    private val importMutex = Mutex()
+    companion object {
+        /**
+         * Uygulama açılış senkronu (`KitsugiApplication`), arka plan işçisi
+         * (`AiringNotificationWorker`), manuel içe aktarım (`AuthViewModel`) ve tekil ekleme
+         * (`insert`) farklı `MediaEntryRepository` örnekleri üzerinden aynı tabloya yazar.
+         * Süreç-geneli tek kilit, eşzamanlı `getAll() + insertAll()` yarışlarının aynı kaynakta
+         * çift satır üretmesini engeller.
+         */
+        private val writeMutex = Mutex()
+    }
 
     /**
      * PERF (2026-10-20): [withCrossSourceAdultFlags] tüm tabloyu entity→domain'e çevirip
@@ -95,9 +95,25 @@ class MediaEntryRepository(
         val entryWithTime = withUpdated.copy(
             addedAt = resolveAddedAt(withUpdated, nowSeconds = nowSeconds)
         )
-        val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
-        // DB'de oluşan gerçek id ile sync yap (AniList entryId geri yazımı doğru entity'yi yakalar)
-        val persistedEntry = dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
+        val persistedEntry = writeMutex.withLock {
+            val targetCanonicalSource = com.kitsugi.animelist.model.MediaIdentity.canonicalSource(entryWithTime.source)
+            val existingSameSource = dao.getAll().firstOrNull { existing ->
+                com.kitsugi.animelist.model.MediaIdentity.canonicalSource(existing.source) == targetCanonicalSource &&
+                    com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(existing.toDomain(), entryWithTime)
+            }
+            if (existingSameSource != null) {
+                val merged = mergeDuplicateSameSourceEntry(
+                    survivor = existingSameSource.toDomain(),
+                    incoming = entryWithTime,
+                    preferIncomingUserFields = true
+                ).copy(id = existingSameSource.id)
+                dao.update(merged.toEntity())
+                dao.getById(existingSameSource.id)?.toDomain() ?: merged
+            } else {
+                val newId = dao.insert(entryWithTime.copy(id = 0).toEntity())
+                dao.getById(newId.toInt())?.toDomain() ?: entryWithTime.copy(id = newId.toInt())
+            }
+        }
         // Aynı yapımın başka kaynaklardaki yerel satırları da aynı kullanıcı değerlerini alsın.
         // Yeni satır eklendiği için "tam yazım" kümesi geçilir; ayna yine de monoton ve
         // yapışkan kurallara uyar (kardeş satırın 12 ilerlemesi 0'a çekilmez — E57).
@@ -113,18 +129,41 @@ class MediaEntryRepository(
 
     suspend fun insertAll(entries: List<MediaEntry>) {
         if (entries.isEmpty()) return
-        val entriesWithTime = entries.map { entry ->
-            val withUpdated = if (entry.updatedAt == 0L) {
-                entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
-            } else {
-                entry
+        writeMutex.withLock {
+            val nowSeconds = System.currentTimeMillis() / 1000L
+            val entriesWithTime = deduplicatePerSourceBatch(
+                entries.map { entry ->
+                    val withUpdated = if (entry.updatedAt == 0L) {
+                        entry.copy(updatedAt = nowSeconds)
+                    } else {
+                        entry
+                    }
+                    withUpdated.copy(addedAt = resolveAddedAt(entry))
+                }
+            )
+            val existingBySource = dao.getAll().groupBy {
+                com.kitsugi.animelist.model.MediaIdentity.canonicalSource(it.source)
             }
-            // Toplu yazımda "şimdi" UYDURULMAZ: yüzlerce tarihi kayıt aynı saniyeye
-            // damgalanıp "Son eklenen"in tepesine yığılırdı. Bu yüzden resolveAddedAt
-            // burada nowSeconds almaz; özgün (güncellenmemiş) satır üzerinden çözer.
-            withUpdated.copy(addedAt = resolveAddedAt(entry))
+            val toInsert = mutableListOf<MediaEntryEntity>()
+            val toUpdate = mutableListOf<MediaEntryEntity>()
+            for (incoming in entriesWithTime) {
+                val src = com.kitsugi.animelist.model.MediaIdentity.canonicalSource(incoming.source)
+                val match = existingBySource[src]?.firstOrNull { existing ->
+                    com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(existing.toDomain(), incoming)
+                }
+                if (match != null) {
+                    val merged = mergeDuplicateSameSourceEntry(
+                        survivor = match.toDomain(),
+                        incoming = incoming,
+                        preferIncomingUserFields = true
+                    ).copy(id = match.id)
+                    toUpdate += merged.toEntity()
+                } else {
+                    toInsert += incoming.copy(id = 0).toEntity()
+                }
+            }
+            dao.smartImportTransaction(toInsert, toUpdate, emptyList())
         }
-        dao.insertAll(entriesWithTime.map { it.copy(id = 0).toEntity() })
     }
 
     /**
@@ -152,7 +191,7 @@ class MediaEntryRepository(
         keepAdultRows: Boolean = false,
         guardAgainstPartialPayload: Boolean = false,
         isFullPull: Boolean = false
-    ): ImportStats = importMutex.withLock {
+    ): ImportStats = writeMutex.withLock {
         smartImportInternal(
             source = source,
             importedEntries = importedEntries,
@@ -201,9 +240,11 @@ class MediaEntryRepository(
             return ImportStats(source = source)
         }
 
+        val preserveLocalFavorite = !sourceCarriesRemoteFavoriteFlag(source)
         val updates = linkedMapOf<Int, MediaEntryEntity>()
         val inserts = mutableListOf<MediaEntry>()
         val matchedIds = mutableSetOf<Int>()
+        val redundantDuplicateIds = mutableSetOf<Int>()
         // Çevrimdışıyken yapılmış ve henüz uzak sunucuya GÖNDERİLEMEMİŞ düzenlemeler
         // taze uzak veriyle ezilmez (outbox / pending-safe uzlaştırma). Aksi halde
         // çevrimdışı girilen bölüm/puan, bağlantı gelip liste çekilince sessizce geri
@@ -216,8 +257,15 @@ class MediaEntryRepository(
         var deferred = 0
         for (entry in importedEntries) {
             val imported = entry.copy(source = source)
-            val matches = existing.filter {
+            val strictMatches = existing.filter {
                 com.kitsugi.animelist.model.MediaIdentity.sameMedia(it.toDomain(), imported)
+            }
+            val matches = if (strictMatches.isNotEmpty()) {
+                strictMatches
+            } else {
+                existing.filter {
+                    com.kitsugi.animelist.model.MediaIdentity.sameAnimeMovieAcrossType(it.toDomain(), imported)
+                }
             }
             val match = when {
                 matches.isEmpty() -> null
@@ -251,6 +299,9 @@ class MediaEntryRepository(
             }
             if (match != null) {
                 matchedIds.add(match.id)
+                matches.forEach { extra ->
+                    if (extra.id != match.id) redundantDuplicateIds += extra.id
+                }
                 if (match.id in pendingLocalIds) {
                     // Yerel düzenleme henüz uzak sunucuya gitmedi → taze uzak veri onu ezmez.
                     deferred++
@@ -271,9 +322,18 @@ class MediaEntryRepository(
                 // (Japonca/Çince) adı döndürdüğü için her yeniden içe aktarım, daha önce
                 // tamamlanmış Latin/İngilizce adları CJK adla eziyordu — liste, başlık dili
                 // İngilizce seçili olsa bile yeniden Japonca/Çinceye dönüyordu (v2.4.315).
+                val anyMatchedAdult = matches.any { it.isAdult }
+                val anyMatchedFavorite = matches.any { it.isFavorite }
+                val fallbackPoster = matches.firstNotNullOfOrNull { m -> m.imageUrl?.takeIf { it.isNotBlank() } }
+                val fallbackTmdb = matches.firstNotNullOfOrNull { m -> m.tmdbId?.takeIf { it > 0 } }
+                val fallbackSimkl = matches.firstNotNullOfOrNull { m -> m.simklId?.takeIf { it > 0 } }
                 val candidate = preserveResolvedTitles(match, imported).copy(
                     id = match.id,
-                    isAdult = imported.isAdult || match.isAdult,
+                    isAdult = imported.isAdult || match.isAdult || anyMatchedAdult,
+                    isFavorite = imported.isFavorite || (preserveLocalFavorite && anyMatchedFavorite),
+                    imageUrl = imported.imageUrl?.takeIf { it.isNotBlank() } ?: fallbackPoster,
+                    tmdbId = imported.tmdbId ?: fallbackTmdb,
+                    simklId = imported.simklId ?: fallbackSimkl,
                     // Eklenme zamanı GERİ ALINMAZ: kaynağın gerçek `createdAt`'i varsa
                     // o kazanır (ilk içe aktarım tahminini düzeltir); yoksa yerelde
                     // sabitlenmiş ilk-görülme değeri korunur. Aksi halde her eşitleme
@@ -298,7 +358,8 @@ class MediaEntryRepository(
                     continue
                 }
                 val prior = inserts.indexOfFirst {
-                    com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
+                    com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false) ||
+                        com.kitsugi.animelist.model.MediaIdentity.sameAnimeMovieAcrossType(it, imported, allowTitle = false)
                 }
                 if (prior >= 0) inserts[prior] = imported else inserts.add(imported)
             }
@@ -327,11 +388,11 @@ class MediaEntryRepository(
                 enforce = guardAgainstPartialPayload
             )
         ) {
-            com.kitsugi.animelist.data.sync.ImportReconciler.deletionCandidateIds(
+            (com.kitsugi.animelist.data.sync.ImportReconciler.deletionCandidateIds(
                 eligibleIds = eligibleForDeletion,
                 matchedIds = matchedIds,
                 protectedIds = pendingLocalIds
-            )
+            ) + redundantDuplicateIds).distinct()
         } else {
             emptyList()
         }
@@ -405,6 +466,7 @@ class MediaEntryRepository(
      */
     suspend fun mergeSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>): ImportStats {
         if (entries.isEmpty()) return ImportStats(source = source)
+        val deduplicatedIncoming = deduplicatePerSourceBatch(entries)
 
         // PERF: kaynak kapsamlı sorgu (tüm kütüphaneyi okuyup süzmek yerine).
         val existingRows = runCatching {
@@ -428,7 +490,7 @@ class MediaEntryRepository(
             }
         }
 
-        val enriched = entries.map { entry ->
+        val enriched = deduplicatedIncoming.map { entry ->
             val keys = com.kitsugi.animelist.model.MediaIdentity.keys(entry)
             val withAdult = if (entry.isAdult || keys.any { it in preservedKeys }) {
                 entry.copy(isAdult = true)
@@ -446,9 +508,142 @@ class MediaEntryRepository(
         return smartImport(source = source, importedEntries = enriched, allowDelete = false)
     }
 
-    /** Eski çağrılar için uyumluluk köprüsü (artık sil-yeniden-yaz yapmaz, fark-tabanlı birleştirir). */
+    /**
+     * Bir kaynağın listesini BAŞTAN yazarken +18, yerel favori ve çözülmüş başlık bilgilerini
+     * korur; tek atomik Room transaction içinde çalışır ve aynı kaynak içi çift satırları eler.
+     */
     suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
-        mergeSourcePreservingAdultFlags(source, entries)
+        writeMutex.withLock {
+            val existingRows = runCatching {
+                dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
+            }.getOrDefault(emptyList())
+
+            val preservedAdultKeys = existingRows
+                .filter { it.isAdult }
+                .map { it.toDomain() }
+                .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
+                .toSet()
+
+            val preserveLocalFavorite = !sourceCarriesRemoteFavoriteFlag(source)
+            val now = System.currentTimeMillis() / 1000L
+            val deduplicatedIncoming = deduplicatePerSourceBatch(
+                entries.map { entry ->
+                    entry.copy(
+                        source = source,
+                        updatedAt = if (entry.updatedAt == 0L) now else entry.updatedAt
+                    )
+                }
+            )
+
+            val enriched = deduplicatedIncoming.map { entry ->
+                val priorMatch = existingRows.firstOrNull { prev ->
+                    com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(prev.toDomain(), entry)
+                }
+                val withTitles = if (priorMatch != null) preserveResolvedTitles(priorMatch, entry) else entry
+                val adult = withTitles.isAdult ||
+                    priorMatch?.isAdult == true ||
+                    (preservedAdultKeys.isNotEmpty() &&
+                        com.kitsugi.animelist.model.MediaIdentity.keys(withTitles).any { it in preservedAdultKeys })
+                val fav = withTitles.isFavorite || (preserveLocalFavorite && priorMatch?.isFavorite == true)
+                withTitles.copy(
+                    id = 0,
+                    isAdult = adult,
+                    isFavorite = fav,
+                    imageUrl = withTitles.imageUrl?.takeIf { it.isNotBlank() }
+                        ?: priorMatch?.imageUrl?.takeIf { it.isNotBlank() },
+                    tmdbId = withTitles.tmdbId ?: priorMatch?.tmdbId,
+                    simklId = withTitles.simklId ?: priorMatch?.simklId,
+                    addedAt = resolveAddedAt(withTitles, existingAddedAt = priorMatch?.addedAt ?: 0L)
+                ).toEntity()
+            }
+
+            clearPendingJobsFor(source = source)
+            dao.replaceSourceTransaction(source, enriched)
+        }
+
+        if (sourceNeedsAdultRescan(source)) {
+            val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            if (appContext != null) {
+                runCatching {
+                    com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration.requestRescan(appContext)
+                }
+            }
+        }
+    }
+
+    /**
+     * Yerel veritabanında aynı sağlayıcı (`source`) altında birikmiş çift kayıtları
+     * (örn. TMDB üzerinden iki kez eklenmiş veya Movie + Anime olarak iki ayrı satır açılmış
+     * Simkl kayıtları) veri kaybı olmadan tek satırda birleştirir.
+     *
+     * @return Temizlenen (silinen) kopya satır sayısı
+     */
+    suspend fun deduplicateSameSourceDuplicates(): Int = writeMutex.withLock {
+        val allEntities = dao.getAll()
+        if (allEntities.size <= 1) return@withLock 0
+
+        val byCanonicalSource = allEntities.groupBy {
+            com.kitsugi.animelist.model.MediaIdentity.canonicalSource(it.source)
+        }
+        val toUpdate = mutableListOf<MediaEntryEntity>()
+        val toDeleteIds = mutableListOf<Int>()
+
+        for ((_, sourceEntities) in byCanonicalSource) {
+            if (sourceEntities.size <= 1) continue
+            val clusters = mutableListOf<MutableList<MediaEntry>>()
+            for (entity in sourceEntities) {
+                val domain = entity.toDomain()
+                val matchingCluster = clusters.firstOrNull { cluster ->
+                    cluster.none { member ->
+                        com.kitsugi.animelist.model.MediaIdentity
+                            .authoritativeConflictingIdentityKeys(member, domain)
+                            .isNotEmpty()
+                    } && cluster.any { member ->
+                        com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(member, domain)
+                    }
+                }
+                if (matchingCluster != null) {
+                    matchingCluster += domain
+                } else {
+                    clusters += mutableListOf(domain)
+                }
+            }
+
+            for (cluster in clusters) {
+                if (cluster.size <= 1) continue
+                val sorted = cluster.sortedWith(
+                    compareByDescending<MediaEntry> {
+                        // Anime + Movie çakışmasında gerçek MAL kimliği olan Anime satırı önceliklidir
+                        com.kitsugi.animelist.model.MediaIdentity.realMalId(it) != null
+                    }
+                        .thenByDescending { it.type == MediaType.Anime }
+                        .thenByDescending { it.aniListEntryId != null || it.malListId != null }
+                        .thenByDescending { it.simklId != null && it.simklId > 0 }
+                        .thenByDescending { it.tmdbId != null && it.tmdbId > 0 }
+                        .thenByDescending { it.updatedAt }
+                        .thenBy { it.id }
+                )
+                var merged = sorted.first()
+                val survivorId = merged.id
+                for (dup in sorted.drop(1)) {
+                    merged = mergeDuplicateSameSourceEntry(
+                        survivor = merged,
+                        incoming = dup,
+                        preferIncomingUserFields = dup.updatedAt > merged.updatedAt
+                    ).copy(id = survivorId)
+                    if (dup.id > 0 && dup.id != survivorId) {
+                        toDeleteIds += dup.id
+                    }
+                }
+                toUpdate += merged.toEntity()
+            }
+        }
+
+        if (toDeleteIds.isNotEmpty()) {
+            clearPendingJobsFor(entryIds = toDeleteIds)
+            dao.smartImportTransaction(emptyList(), toUpdate, toDeleteIds)
+        }
+        toDeleteIds.size
     }
 
     /** Bir kaynağın yereldeki satır sayısı (yenileme kararları için hafif sorgu). */
@@ -643,7 +838,7 @@ class MediaEntryRepository(
     // Kardeş satır tutarlılığı (aynı yapım, farklı kaynak kopyaları)
     // ────────────────────────────────────────────────
 
-    /** Bir satırın kimlik kümesi: kendi alanı + kalıcı çapraz kimlik önbelleği (ağ yok). */
+    /** Bir satırın kimlik kümesi: kendi alanı + kalıcı çapraz kimlik ve sağlayıcı eşleme önbellekleri (ağ yok). */
     private fun resolvedIdsFor(appContext: Context, row: MediaEntry): com.kitsugi.animelist.data.auth.CrossProviderIds {
         val decoded = com.kitsugi.animelist.data.auth.CrossProviderIds.decode(
             storedId = row.malId,
@@ -660,14 +855,55 @@ class MediaEntryRepository(
             year = row.year,
             source = row.source
         )
-        val cached = com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.read(appContext, key)?.ids
-        return decoded.mergedWith(cached)
+        var merged = decoded.mergedWith(com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.read(appContext, key)?.ids)
+        val isAnime = row.type != MediaType.Manga
+        if (row.type == MediaType.Anime || row.type == MediaType.Manga) {
+            if (merged.malId == null && merged.kitsuId != null) {
+                val malFromKitsu = runCatching {
+                    com.kitsugi.animelist.data.auth.ExternalAuthManager.findMalIdForKitsuMedia(
+                        context = appContext,
+                        kitsuMediaId = merged.kitsuId!!,
+                        isAnime = isAnime
+                    )
+                }.getOrNull()
+                if (malFromKitsu != null) {
+                    merged = merged.copy(malId = malFromKitsu)
+                    val malBundle = com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.read(
+                        appContext,
+                        "${row.type.name}:mal:$malFromKitsu"
+                    )?.ids
+                    merged = merged.mergedWith(malBundle)
+                }
+            }
+            if (merged.kitsuId == null && merged.malId != null) {
+                val kitsuFromMal = runCatching {
+                    com.kitsugi.animelist.data.auth.ExternalAuthManager.getKitsuMediaIdForMal(
+                        context = appContext,
+                        malId = merged.malId!!,
+                        isAnime = isAnime
+                    )
+                }.getOrNull()
+                if (kitsuFromMal != null) merged = merged.copy(kitsuId = kitsuFromMal)
+            }
+            if (merged.bangumiSubjectId == null && merged.malId != null) {
+                val subjectFromMal = runCatching {
+                    com.kitsugi.animelist.data.remote.BangumiLocalMappingCache.get(
+                        context = appContext,
+                        malId = merged.malId!!,
+                        subjectType = com.kitsugi.animelist.data.remote.BangumiIdNamespace.subjectTypeFor(row.type)
+                    )
+                }.getOrNull()?.takeIf { it > 0 }
+                if (subjectFromMal != null) merged = merged.copy(bangumiSubjectId = subjectFromMal)
+            }
+        }
+        return merged
     }
 
     /**
      * [entry] ile aynı yapımı gösteren diğer yerel satırlar. Eşleşme yalnızca doğrulanmış
      * kimlik kesişimiyle olur (aynı tür + ortak MAL/AniList/Kitsu/Shikimori/Bangumi/Simkl
-     * kimliği; film/dizide TMDB de). Başlık benzerliği asla kullanılmaz.
+     * kimliği; film/dizide TMDB de; anime filmlerde Anime ↔ Movie çapraz video kimliği de).
+     * Başlık benzerliği asla tek başına kullanılmaz.
      */
     private suspend fun findSiblingRows(entry: MediaEntry): List<MediaEntry> {
         val appContext = context ?: return emptyList()
@@ -678,11 +914,17 @@ class MediaEntryRepository(
         return dao.getAll()
             .map { it.toDomain() }
             .filter { other ->
-                other.id != entry.id && other.type == entry.type &&
-                    (
-                        (entry.aniListEntryId != null && entry.aniListEntryId == other.aniListEntryId) ||
-                            resolvedIdsFor(appContext, other).sharesAnyIdWith(entryIds, includeTmdb = includeTmdb)
-                        )
+                if (other.id == entry.id) return@filter false
+                if (other.type == entry.type) {
+                    (entry.aniListEntryId != null && entry.aniListEntryId == other.aniListEntryId) ||
+                        resolvedIdsFor(appContext, other).sharesAnyIdWith(entryIds, includeTmdb = includeTmdb)
+                } else {
+                    com.kitsugi.animelist.model.MediaIdentity.sameAnimeMovieAcrossType(
+                        a = entry,
+                        b = other,
+                        allowTitle = false
+                    )
+                }
             }
     }
 
@@ -1163,3 +1405,89 @@ internal fun sourceNeedsAdultRescan(source: String): Boolean =
  */
 internal fun MediaEntryEntity.samePayloadAs(other: MediaEntryEntity): Boolean =
     copy(updatedAt = 0L) == other.copy(updatedAt = 0L)
+
+/**
+ * Yalnızca AniList liste sorgusu `media.isFavourite` alanını doğrudan döndürür;
+ * diğer sağlayıcıların liste içe aktarma uçları `isFavorite = false` sabiti üretir.
+ * Bu kaynaklarda yeniden içe aktarım sırasında yerel favori yıldızının silinmemesi gerekir.
+ */
+internal fun sourceCarriesRemoteFavoriteFlag(source: String): Boolean =
+    com.kitsugi.animelist.model.MediaIdentity.canonicalSource(source) == "anilist"
+
+internal fun mergeDuplicateSameSourceEntry(
+    survivor: MediaEntry,
+    incoming: MediaEntry,
+    preferIncomingUserFields: Boolean
+): MediaEntry {
+    val userPrimary = if (preferIncomingUserFields) incoming else survivor
+    val userSecondary = if (preferIncomingUserFields) survivor else incoming
+    val titleMerged = preserveResolvedTitles(survivor.toEntity(), incoming)
+    // Anime + Movie çakışmasında gerçek MAL kimliği olan Anime türü korunur
+    val resolvedType = when {
+        survivor.type != incoming.type &&
+            (survivor.type == MediaType.Anime || incoming.type == MediaType.Anime) &&
+            (com.kitsugi.animelist.model.MediaIdentity.realMalId(survivor) != null ||
+                com.kitsugi.animelist.model.MediaIdentity.realMalId(incoming) != null) -> MediaType.Anime
+        else -> survivor.type
+    }
+    val realMal = com.kitsugi.animelist.model.MediaIdentity.realMalId(survivor)
+        ?: com.kitsugi.animelist.model.MediaIdentity.realMalId(incoming)
+    return survivor.copy(
+        title = titleMerged.title,
+        titleEnglish = titleMerged.titleEnglish,
+        titleJapanese = titleMerged.titleJapanese,
+        subtitle = userPrimary.subtitle.takeIf { it.isNotBlank() } ?: userSecondary.subtitle,
+        type = resolvedType,
+        status = userPrimary.status,
+        score = userPrimary.score ?: userSecondary.score,
+        progress = maxOf(survivor.progress, incoming.progress),
+        total = survivor.total ?: incoming.total,
+        isFavorite = survivor.isFavorite || incoming.isFavorite,
+        isAdult = survivor.isAdult || incoming.isAdult,
+        malId = realMal ?: survivor.malId ?: incoming.malId,
+        imageUrl = survivor.imageUrl?.takeIf { it.isNotBlank() }
+            ?: incoming.imageUrl?.takeIf { it.isNotBlank() },
+        year = survivor.year ?: incoming.year,
+        synopsis = survivor.synopsis?.takeIf { it.isNotBlank() }
+            ?: incoming.synopsis?.takeIf { it.isNotBlank() },
+        startDate = userPrimary.startDate?.takeIf { it.isNotBlank() } ?: userSecondary.startDate,
+        endDate = userPrimary.endDate?.takeIf { it.isNotBlank() } ?: userSecondary.endDate,
+        notes = userPrimary.notes?.takeIf { it.isNotBlank() } ?: userSecondary.notes,
+        tags = userPrimary.tags?.takeIf { it.isNotBlank() } ?: userSecondary.tags,
+        priority = userPrimary.priority ?: userSecondary.priority,
+        isRepeating = survivor.isRepeating || incoming.isRepeating,
+        repeatCount = maxOf(survivor.repeatCount, incoming.repeatCount),
+        repeatValue = maxOf(survivor.repeatValue, incoming.repeatValue),
+        volumeProgress = maxOf(survivor.volumeProgress, incoming.volumeProgress),
+        isPrivate = userPrimary.isPrivate || userSecondary.isPrivate,
+        isHiddenFromStatusLists = userPrimary.isHiddenFromStatusLists || userSecondary.isHiddenFromStatusLists,
+        updatedAt = maxOf(survivor.updatedAt, incoming.updatedAt),
+        addedAt = resolveAddedAt(incoming, existingAddedAt = survivor.addedAt),
+        aniListEntryId = survivor.aniListEntryId ?: incoming.aniListEntryId,
+        malListId = survivor.malListId ?: incoming.malListId,
+        tmdbId = survivor.tmdbId?.takeIf { it > 0 } ?: incoming.tmdbId?.takeIf { it > 0 },
+        simklId = survivor.simklId?.takeIf { it > 0 } ?: incoming.simklId?.takeIf { it > 0 }
+    )
+}
+
+internal fun deduplicatePerSourceBatch(entries: List<MediaEntry>): List<MediaEntry> {
+    if (entries.size <= 1) return entries
+    val out = mutableListOf<MediaEntry>()
+    for (incoming in entries) {
+        val canonicalSrc = com.kitsugi.animelist.model.MediaIdentity.canonicalSource(incoming.source)
+        val idx = out.indexOfFirst { existing ->
+            com.kitsugi.animelist.model.MediaIdentity.canonicalSource(existing.source) == canonicalSrc &&
+                com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(existing, incoming)
+        }
+        if (idx < 0) {
+            out += incoming
+        } else {
+            out[idx] = mergeDuplicateSameSourceEntry(
+                survivor = out[idx],
+                incoming = incoming,
+                preferIncomingUserFields = true
+            )
+        }
+    }
+    return out
+}

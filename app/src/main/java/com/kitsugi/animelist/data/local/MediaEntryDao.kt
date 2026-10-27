@@ -67,6 +67,13 @@ interface MediaEntryDao {
         if (entities.isNotEmpty()) insertAll(entities)
     }
 
+    /** Atomically replaces a single provider's rows so concurrent readers/workers never see half-states. */
+    @Transaction
+    suspend fun replaceSourceTransaction(source: String, entities: List<MediaEntryEntity>) {
+        deleteBySource(source)
+        if (entities.isNotEmpty()) insertAll(entities)
+    }
+
     /**
      * Tüm import işlemini tek atomik transaction olarak gerçekleştirir.
      * Bu sayede Room Flow yalnızca BİR KEZ tetiklenir ve tüm liste

@@ -1430,6 +1430,26 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         com.kitsugi.animelist.data.auth.CrossSyncMergePolicy
                             .dirtyFieldsFor(current, merge, provider)
 
+                    val learnedKitsuId = item.kitsu?.let { com.kitsugi.animelist.model.MediaIdentity.kitsuId(it) }
+                    val learnedShikimoriId = item.shikimori?.let { com.kitsugi.animelist.model.MediaIdentity.shikimoriId(it) }
+                    val learnedBangumiId = item.bangumi?.let { com.kitsugi.animelist.data.remote.BangumiIdNamespace.rawIdFromStable(it.malId) }
+                    val learnedAniListId = item.aniList?.let { com.kitsugi.animelist.model.MediaIdentity.aniListId(it) }
+                    val learnedSimklId = simklId ?: item.simkl?.simklId
+                    val learnedTmdbId = tmdbId ?: item.simkl?.tmdbId ?: newest.tmdbId
+
+                    if (realMalId != null && learnedKitsuId != null &&
+                        (mergedEntry.type == com.kitsugi.animelist.model.MediaType.Anime || mergedEntry.type == com.kitsugi.animelist.model.MediaType.Manga)
+                    ) {
+                        runCatching {
+                            ExternalAuthManager.saveKitsuMediaIdForMal(
+                                context = context,
+                                malId = realMalId,
+                                isAnime = mergedEntry.type != com.kitsugi.animelist.model.MediaType.Manga,
+                                mediaId = learnedKitsuId
+                            )
+                        }
+                    }
+
                     val trustedBangumi = item.bangumi?.takeIf { !item.isIdentityReviewed(it) }
                     // Reddedilen MAL adayı kalıcı eşleme önbelleğine kanıt olarak yazılamaz.
                     if (guardedMalId != null && trustedBangumi != null) {
@@ -1438,6 +1458,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 val bangumiSubjectType = com.kitsugi.animelist.data.remote.BangumiIdNamespace.subjectTypeFor(trustedBangumi.type)
                                 com.kitsugi.animelist.data.remote.BangumiLocalMappingCache.put(context, guardedMalId, bangumiSubjectType, subjectId)
                             }
+                        }
+                    }
+
+                    val bundle = com.kitsugi.animelist.data.auth.CrossProviderIds(
+                        malId = realMalId,
+                        aniListId = learnedAniListId,
+                        kitsuId = learnedKitsuId,
+                        shikimoriId = learnedShikimoriId,
+                        bangumiSubjectId = learnedBangumiId,
+                        tmdbId = learnedTmdbId,
+                        simklId = learnedSimklId
+                    )
+                    if (!bundle.isEmpty) {
+                        runCatching {
+                            com.kitsugi.animelist.data.auth.CrossProviderIdentityCache.writeBundle(
+                                context = context,
+                                type = mergedEntry.type,
+                                ids = bundle,
+                                complete = false,
+                                primaryKey = realMalId?.let { "${mergedEntry.type.name}:mal:$it" }
+                            )
                         }
                     }
 

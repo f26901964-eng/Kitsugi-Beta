@@ -387,4 +387,152 @@ class MyListLibraryGroupingTest {
         assertTrue(hiddenSnapshot.entriesForTab(MY_LIST_ANILIST_TAB_INDEX).isEmpty())
         assertTrue(hiddenSnapshot.entriesForTab(MY_LIST_BANGUMI_TAB_INDEX).isEmpty())
     }
+
+    @Test
+    fun attackOnTitanTmdbSeasonConflictDoesNotSplitVerifiedMalAndKitsuGroup() {
+        val simkl = entry(id = 1, title = "Shingeki no Kyojin", source = "simkl", malId = 16498, year = 2013)
+            .copy(titleEnglish = "Attack on Titan", tmdbId = 99999, simklId = 39687)
+        val anilist = entry(id = 2, title = "Shingeki no Kyojin", source = "anilist", malId = 16498, year = 2013)
+            .copy(titleEnglish = "Attack on Titan", tmdbId = 1429, isFavorite = true)
+        val mal = entry(id = 3, title = "Shingeki no Kyojin", source = "mal", malId = 16498, year = 2013)
+            .copy(titleEnglish = "Attack on Titan")
+        val bangumi = entry(id = 4, title = "進撃の巨人", source = "bangumi", malId = 500_055_870, year = 2013)
+        val shikimori = entry(id = 5, title = "Shingeki no Kyojin", source = "shikimori", malId = 400_016_498, year = 2013)
+            .copy(titleEnglish = "Attack on Titan")
+        val kitsu = entry(id = 6, title = "Attack on Titan", source = "kitsu", malId = 300_007_442, year = 2013)
+
+        val extras = mapOf(
+            bangumi.id to setOf("Anime:mal:16498"),
+            shikimori.id to setOf("Anime:mal:16498"),
+            kitsu.id to setOf("Anime:mal:16498")
+        )
+        val grouped = groupMyListEntries(
+            listOf(simkl, anilist, mal, bangumi, shikimori, kitsu),
+            identityExtras = extras
+        )
+
+        assertEquals("Farklı Anime TMDB ID'si doğrulanmış MAL/Kitsu grubunu bölmemeli", 1, grouped.size)
+        val merged = grouped.single()
+        assertEquals(anilist.id, merged.entry.id)
+        assertTrue("Favori bayrağı birleşik karta taşınmalı", merged.entry.isFavorite)
+        assertEquals(
+            setOf("simkl", "anilist", "mal", "bangumi", "shikimori", "kitsu"),
+            merged.sourceIds.toSet()
+        )
+    }
+
+    @Test
+    fun kaijuNo8Season2OrdinalVsSeasonNumberMergesKitsuWithAniListGroup() {
+        val kitsu = entry(
+            id = 10,
+            title = "Kaiju No. 8 2nd Season",
+            source = "kitsu",
+            malId = 300_049_001,
+            year = 2025
+        )
+        val anilist = entry(
+            id = 11,
+            title = "Kaijuu 8-gou 2nd Season",
+            source = "anilist",
+            malId = 59177,
+            year = 2025
+        ).copy(titleEnglish = "Kaiju No. 8 Season 2")
+        val mal = entry(
+            id = 12,
+            title = "Kaijuu 8-gou 2nd Season",
+            source = "mal",
+            malId = 59177,
+            year = 2025
+        )
+        val simkl = entry(
+            id = 13,
+            title = "Kaiju No. 8 Season 2",
+            source = "simkl",
+            malId = 59177,
+            year = 2025
+        )
+        val shikimori = entry(
+            id = 14,
+            title = "Kaijuu 8-gou 2nd Season",
+            source = "shikimori",
+            malId = 400_059_177,
+            year = 2025
+        )
+
+        val grouped = groupMyListEntries(listOf(kitsu, anilist, mal, simkl, shikimori))
+
+        assertEquals("2nd Season ile Season 2 yazılışı tek kartta birleşmeli", 1, grouped.size)
+        assertEquals(
+            setOf("kitsu", "anilist", "mal", "simkl", "shikimori"),
+            grouped.single().sourceIds.toSet()
+        )
+    }
+
+    @Test
+    fun differentSeasonsNeverMergeEvenWithSeasonSynonymExpansion() {
+        val season1 = entry(id = 1, title = "Kaiju No. 8", source = "anilist", malId = 52588, year = 2024)
+        val season2 = entry(id = 2, title = "Kaiju No. 8 2nd Season", source = "kitsu", malId = 300_049_001, year = 2025)
+
+        val grouped = groupMyListEntries(listOf(season1, season2))
+
+        assertEquals(2, grouped.size)
+    }
+
+    @Test
+    fun pass2UnionFindMergesCompatibleGroupsEvenWithIncompatibleMiddleGroup() {
+        val g0 = entry(id = 1, title = "Shared Alias", source = "anilist", malId = 1001, year = 2024)
+        val g1Incompatible = entry(id = 2, title = "Shared Alias", source = "mal", malId = 2002, year = 2024)
+        val g2CompatibleWithG0 = entry(id = 3, title = "Different Main Title", source = "kitsu", malId = 300_000_099, year = 2024)
+            .copy(titleEnglish = "Shared Alias")
+
+        val extras = mapOf(g2CompatibleWithG0.id to setOf("Anime:mal:1001"))
+        val grouped = groupMyListEntries(
+            listOf(g0, g1Incompatible, g2CompatibleWithG0),
+            identityExtras = extras
+        )
+
+        assertEquals("Ortadaki uyumsuz grup G0 ile G2'nin birleşmesini engellememeli", 2, grouped.size)
+        val g0Merged = grouped.first { it.entry.id == g0.id }
+        assertEquals(listOf("anilist", "kitsu"), g0Merged.sourceIds)
+    }
+
+    @Test
+    fun demonSlayerInfinityCastleMovieAndAnimeSameSourceDeduplicatesInSimkl() {
+        val tmdbAddedMovie = entry(
+            id = 20,
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            source = "simkl",
+            malId = null,
+            type = MediaType.Movie,
+            year = 2025
+        ).copy(
+            status = WatchStatus.Completed,
+            score = 8,
+            progress = 1,
+            total = 1,
+            isFavorite = true,
+            tmdbId = 1311031
+        )
+        val simklImportedAnime = entry(
+            id = 21,
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            source = "simkl",
+            malId = 59192,
+            type = MediaType.Anime,
+            year = 2025
+        ).copy(
+            status = WatchStatus.Completed,
+            score = 8,
+            progress = 1,
+            total = 1,
+            isFavorite = false,
+            tmdbId = 1311031,
+            simklId = 2258525
+        )
+
+        val deduped = deduplicateSingleSourceEntries(listOf(tmdbAddedMovie, simklImportedAnime))
+
+        assertEquals("Simkl sekmesinde aynı anime filmi iki kez gösterilmemeli", 1, deduped.size)
+        assertTrue("Favori yıldızı tekilleştirilmiş kartta korunmalı", deduped.single().isFavorite)
+    }
 }

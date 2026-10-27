@@ -230,8 +230,21 @@ object AniListImportManager {
                 val aniListEntryId = item.optInt("id", 0).takeIf { it > 0 }
 
                 val mediaId = media.optInt("id", 0)
-                val stableId = media.optInt("idMal", 0).takeIf { it > 0 }
-                    ?: (100_000_000 + mediaId)
+                val validIdMal = media.optInt("idMal", 0).takeIf { it in 1..99_999_999 }
+                val stableId = validIdMal ?: (100_000_000 + mediaId)
+                val entryMediaType = if (media.optNullableString("type") == "MANGA") MediaType.Manga else MediaType.Anime
+                if (mediaId > 0 && validIdMal != null) {
+                    val appContext = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+                    if (appContext != null) {
+                        CrossProviderIdentityCache.writeBundle(
+                            context = appContext,
+                            type = entryMediaType,
+                            ids = CrossProviderIds(malId = validIdMal, aniListId = mediaId),
+                            complete = false,
+                            primaryKey = "${entryMediaType.name}:mal:$validIdMal"
+                        )
+                    }
+                }
 
                 val titleObject = media.getJSONObject("title")
                 val romaji = titleObject.optNullableString("romaji")
@@ -365,6 +378,9 @@ object AniListImportManager {
         }
 
         return allEntries
+            .groupBy { "${it.type.name}:${it.malId ?: it.aniListEntryId ?: it.title}" }
+            .values
+            .map { dupes -> dupes.maxByOrNull { it.updatedAt } ?: dupes.first() }
     }
 
     private fun postGraphQl(

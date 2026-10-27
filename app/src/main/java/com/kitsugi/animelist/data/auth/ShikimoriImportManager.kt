@@ -110,6 +110,9 @@ object ShikimoriImportManager {
                 )
             }
             result
+                .groupBy { "${it.type.name}:${it.malId ?: it.title}" }
+                .values
+                .map { dupes -> dupes.maxByOrNull { it.updatedAt } ?: dupes.first() }
         }
     }
 

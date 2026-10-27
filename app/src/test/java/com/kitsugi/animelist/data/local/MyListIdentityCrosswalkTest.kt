@@ -6,6 +6,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -158,37 +159,63 @@ class MyListIdentityCrosswalkTest {
     }
 
     @Test
-    fun kitsuRowGainsMalKeyFromInvertedKitsuMapping() {
-        val kitsuAnime = entry(id = 21, title = "Kaiju No. 8", source = "kitsu", malId = 300_046_900)
-        val kitsuManga = entry(
-            id = 22,
-            title = "Kaiju No. 8",
-            source = "kitsu",
-            malId = 300_057_000,
-            type = MediaType.Manga
-        )
-        val kitsuToMal = MyListIdentityCrosswalk.reverseKitsuMapping(
-            mapOf(
-                "kitsu_media_default_a_52588" to 46900,
-                "kitsu_media_user_42_m_127907" to 57000
-            )
+    fun reverseKitsuMappingInvertsScopedAndGlobalKeysByMediaType() {
+        val raw = mapOf(
+            "kitsu_media_global_a_16498" to 7442,
+            "kitsu_media_user42_a_59177" to 49001,
+            "kitsu_media_global_m_23390" to 12500,
+            "unrelated_pref" to 99
         )
 
-        assertEquals(
-            setOf("Anime:mal:52588"),
-            MyListIdentityCrosswalk.extraKeysFor(kitsuAnime, ids = null, kitsuMediaToMal = kitsuToMal)
+        val reversed = MyListIdentityCrosswalk.reverseKitsuMapping(raw)
+
+        assertEquals(16498, reversed["Anime:7442"])
+        assertEquals(59177, reversed["Anime:49001"])
+        assertEquals(23390, reversed["Manga:12500"])
+        assertNull(reversed["Manga:7442"])
+    }
+
+    @Test
+    fun kitsuRowReceivesMalKeyFromReverseKitsuMappingEvenWithoutCacheBundle() {
+        val kitsu = entry(id = 20, title = "Attack on Titan", source = "kitsu", malId = 300_007_442)
+        val kitsuMap = MyListIdentityCrosswalk.reverseKitsuMapping(mapOf("kitsu_media_global_a_16498" to 7442))
+
+        val extras = MyListIdentityCrosswalk.extraKeysFor(
+            entry = kitsu,
+            ids = null,
+            bangumiSubjectToMal = emptyMap(),
+            kitsuMediaToMal = kitsuMap
         )
-        assertEquals(
-            setOf("Manga:mal:127907"),
-            MyListIdentityCrosswalk.extraKeysFor(kitsuManga, ids = null, kitsuMediaToMal = kitsuToMal)
+
+        assertEquals(setOf("Anime:mal:16498"), extras)
+    }
+
+    @Test
+    fun indexCrossIdentitySnapshotLinksKitsuAniListBangumiWithoutLeakingAnimeTmdb() {
+        val bundle = CrossProviderIds(
+            malId = 16498,
+            aniListId = 16498,
+            kitsuId = 7442,
+            shikimoriId = 16498,
+            bangumiSubjectId = 55870,
+            tmdbId = 1429,
+            simklId = 39687
         )
+        val indexed = MyListIdentityCrosswalk.indexCrossIdentitySnapshot(
+            mapOf("Anime:mal:16498" to bundle)
+        )
+
+        assertEquals(16498, indexed["Anime:kitsu:7442"]?.malId)
+        assertEquals(7442, indexed["Anime:bangumi:55870"]?.kitsuId)
+        assertEquals(7442, indexed["Anime:simkl:39687"]?.kitsuId)
+        assertNull("Anime için TMDB anahtarı sezon çakışması yaratacağından indekslenmemeli", indexed["Anime:tmdb:1429"])
     }
 
     @Test
     fun ambiguousKitsuMappingIsDropped() {
         val raw = mapOf(
-            "kitsu_media_default_a_52588" to 46900,
-            "kitsu_media_default_a_52589" to 46900
+            "kitsu_media_global_a_52588" to 46900,
+            "kitsu_media_global_a_52589" to 46900
         )
 
         assertTrue(MyListIdentityCrosswalk.reverseKitsuMapping(raw).isEmpty())

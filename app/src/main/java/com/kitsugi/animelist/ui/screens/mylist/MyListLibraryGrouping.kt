@@ -222,19 +222,18 @@ private fun clusterMyListGroups(
         val matchingGroupIndex = candidateGroups.firstOrNull { groupIndex ->
             val groupEntries = groups[groupIndex].members
             groupEntries.none { existing ->
-                MediaIdentity.conflictingIdentityKeys(
-                    typeA = existing.entry.type,
-                    typeB = entry.type,
+                MediaIdentity.authoritativeConflictingIdentityKeys(
+                    a = existing.entry,
+                    b = entry,
                     keysA = existing.keys,
                     keysB = identity.keys
                 ).isNotEmpty()
             } && groupEntries.any { existing ->
-                MediaIdentity.sameMedia(
+                MediaIdentity.librarySameMedia(
                     a = existing.entry,
                     b = entry,
                     keysA = existing.keys,
-                    keysB = identity.keys,
-                    allowCrossType = true
+                    keysB = identity.keys
                 )
             }
         }
@@ -278,9 +277,9 @@ private fun clusterMyListGroups(
             val rightMembers = groups[right].members
             for (existing in leftMembers) {
                 for (candidate in rightMembers) {
-                    val conflict = MediaIdentity.conflictingIdentityKeys(
-                        typeA = existing.entry.type,
-                        typeB = candidate.entry.type,
+                    val conflict = MediaIdentity.authoritativeConflictingIdentityKeys(
+                        a = existing.entry,
+                        b = candidate.entry,
                         keysA = existing.keys,
                         keysB = candidate.keys
                     )
@@ -289,12 +288,11 @@ private fun clusterMyListGroups(
             }
             return leftMembers.any { existing ->
                 rightMembers.any { candidate ->
-                    MediaIdentity.sameMedia(
+                    MediaIdentity.librarySameMedia(
                         a = existing.entry,
                         b = candidate.entry,
                         keysA = existing.keys,
-                        keysB = candidate.keys,
-                        allowCrossType = true
+                        keysB = candidate.keys
                     )
                 }
             }
@@ -302,22 +300,25 @@ private fun clusterMyListGroups(
 
         for (groupIndexes in groupIndexesByIdentity.values) {
             if (groupIndexes.size < 2) continue
-            var survivor = root(groupIndexes.first())
-            for (candidateIndex in groupIndexes.drop(1)) {
-                val other = root(candidateIndex)
-                if (other == survivor) continue
-                if (!compatible(survivor, other)) {
-                    survivor = other
-                    continue
+            for (i in 0 until groupIndexes.size) {
+                for (j in i + 1 until groupIndexes.size) {
+                    val leftRoot = root(groupIndexes[i])
+                    val rightRoot = root(groupIndexes[j])
+                    if (leftRoot == rightRoot) continue
+                    if (!compatible(leftRoot, rightRoot)) continue
+                    val survivor = minOf(leftRoot, rightRoot)
+                    val absorbed = maxOf(leftRoot, rightRoot)
+                    val target = groups[survivor]
+                    val source = groups[absorbed]
+                    target.members += source.members
+                    source.sourceIds.forEach { badge ->
+                        if (badge !in target.sourceIds) target.sourceIds += badge
+                    }
+                    if (isBetterRepresentative(source.representative, target.representative)) {
+                        target.representative = source.representative
+                    }
+                    parent[absorbed] = survivor
                 }
-                val target = groups[survivor]
-                val source = groups[other]
-                target.members += source.members
-                source.sourceIds.forEach { badge -> if (badge !in target.sourceIds) target.sourceIds += badge }
-                if (isBetterRepresentative(source.representative, target.representative)) {
-                    target.representative = source.representative
-                }
-                parent[other] = survivor
             }
         }
     }
@@ -356,11 +357,24 @@ internal fun groupMyListEntries(
         if (clustered.root(groupIndex) != groupIndex) return@mapIndexedNotNull null
         MyListLibraryItem(
             entry = group.representative.copy(
-                isAdult = group.members.any { it.entry.isAdult }
+                isAdult = group.members.any { it.entry.isAdult },
+                isFavorite = group.members.any { it.entry.isFavorite }
             ),
             sourceIds = group.sourceIds.toList()
         )
     }
+}
+
+/**
+ * Tekil sağlayıcı sekmelerinde (`Simkl`, `AniList`, `MAL`, `Kitsu`, `Shikimori`, `Bangumi`)
+ * veya profil listelerinde aynı kaynağa ait yinelenen satırları arayüz katmanında da tekilleştirir.
+ */
+fun deduplicateSingleSourceEntries(
+    entries: List<MediaEntry>,
+    identityExtras: Map<Int, Set<String>> = emptyMap()
+): List<MediaEntry> {
+    if (entries.size <= 1) return entries
+    return groupMyListEntries(entries, identityExtras).map { it.entry }
 }
 
 internal fun buildMyListLibrarySnapshot(
@@ -457,7 +471,10 @@ internal fun buildMyListLibrarySnapshot(
             bestEnglishTitle = bestEnglishTitle,
             bestNativeTitle = bestNativeTitle,
             groupIsAdult = groupIsAdult
-        ).copy(addedAt = earliestAddedAt)
+        ).copy(
+            addedAt = earliestAddedAt,
+            isFavorite = group.members.any { it.entry.isFavorite }
+        )
         val badges = group.sourceIds.toList()
         combinedItems += MyListLibraryItem(
             entry = enrichedRepresentative,
@@ -590,10 +607,31 @@ private fun identityCandidateKeys(identity: IdentityKeysOf): Set<String> = build
         }
     }
     listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese).forEach { title ->
-        val normalized = MediaIdentity.normalizedTitle(title)
-        if (normalized.isNotBlank()) {
-            add("title:${entry.type.name}:$normalized")
-            if (watchable) add("xtitle:${entry.year ?: 0}:$normalized")
+        MediaIdentity.normalizedTitleVariants(title).forEach { normalized ->
+            if (normalized.isNotBlank()) {
+                add("title:${entry.type.name}:$normalized")
+                if (watchable) add("xtitle:${entry.year ?: 0}:$normalized")
+            }
+        }
+    }
+    // Anime filmler TMDB/Simkl'da Movie, anime sağlayıcılarında Anime olarak bulunabilir:
+    // yalnızca film/tek-bölüm uyumlu satırlarda tür-bağımsız aday anahtarı da üretilir.
+    val canMatchAsAnimeMovie = entry.type == MediaType.Movie ||
+        (entry.type == MediaType.Anime &&
+            (entry.total == null || entry.total <= 1) &&
+            entry.progress <= 1)
+    if (canMatchAsAnimeMovie) {
+        entry.simklId?.takeIf { it > 0 }?.let { add("amovie:simkl:$it") }
+        entry.tmdbId?.takeIf { it > 0 }?.let { add("amovie:tmdb:$it") }
+        MediaIdentity.realMalId(entry)?.let { add("amovie:mal:$it") }
+        identity.keys.forEach { key ->
+            val parts = key.split(':')
+            if (parts.size == 3 && parts[1] == "mal") add("amovie:mal:${parts[2]}")
+        }
+        listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese).forEach { title ->
+            MediaIdentity.normalizedTitleVariants(title).forEach { normalized ->
+                if (normalized.isNotBlank()) add("amovie:title:$normalized")
+            }
         }
     }
 }

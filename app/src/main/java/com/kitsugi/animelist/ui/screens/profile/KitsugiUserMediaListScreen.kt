@@ -166,6 +166,7 @@ fun KitsugiUserMediaListScreen(
             .filter { appSettings.showAdultContent || !it.isAdult }
             .map { it.toListemMediaEntry() }
             .toList()
+            .let { com.kitsugi.animelist.ui.screens.mylist.deduplicateSingleSourceEntries(it) }
     }
     val sourceItemByListEntryId = remember(state.items) {
         state.items.associateBy { it.listEntryId }

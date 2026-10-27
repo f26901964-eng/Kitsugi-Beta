@@ -509,26 +509,32 @@ object CrossProviderIdentityResolver {
         resolution.exceptionOrNull()?.let { if (it is CancellationException) throw it }
         val resolved = resolution.getOrNull() ?: ids
         val complete = isCompleteFor(entry, resolved, connected, requireAnimeVideoBridge)
-        CrossProviderIdentityCache.write(context, cacheKey, resolved, complete)
-        // Aynı yapım başka bir kaynaktan geldiğinde eşleme ağ isteği olmadan bulunsun diye
-        // çözülen kanonik MAL kimliğiyle de ikinci bir kayıt yazılır.
-        val canonicalKey = CrossProviderIds.cacheKey(
+        CrossProviderIdentityCache.writeBundle(
+            context = context,
             type = entry.type,
-            storedId = resolved.malId,
-            title = entry.title,
-            titleEnglish = entry.titleEnglish,
-            year = entry.year
+            ids = resolved,
+            complete = complete,
+            primaryKey = cacheKey
         )
-        if (resolved.malId != null && canonicalKey != cacheKey) {
-            CrossProviderIdentityCache.write(context, canonicalKey, resolved, complete)
+        // Kitsu ↔ MAL köprüsü iki yönde de kalıcı olsun (ARM üzerinden çözülse bile).
+        val learnedMalId = resolved.malId
+        val learnedKitsuId = resolved.kitsuId
+        if (learnedMalId != null && learnedKitsuId != null && CrossSyncPolicy.supportsKitsu(entry.type)) {
+            runSyncCatching {
+                ExternalAuthManager.saveKitsuMediaIdForMal(
+                    context = context,
+                    malId = learnedMalId,
+                    isAnime = entry.type != MediaType.Manga,
+                    mediaId = learnedKitsuId
+                )
+            }
         }
         // Bangumi ↔ MAL köprüsü iki yönde de kalıcı olsun: içe aktarılmış bir条目 satırının MAL
         // kimliği yalnızca bu tur için bellekte çözülmüştü. Çift yazılmazsa birleşik kütüphane
         // ("Listem → Tümü") o satırı hiçbir zaman MAL/AniList grubuna katamıyor ve sayaç
         // Bangumi kadar şişiyor — bkz. MyListIdentityCrosswalk.
-        val learnedMalId = resolved.malId
         val learnedSubjectId = resolved.bangumiSubjectId
-        if (learnedMalId != null && learnedSubjectId != null && connected.bangumi &&
+        if (learnedMalId != null && learnedSubjectId != null &&
             CrossSyncPolicy.supportsBangumi(entry.type)
         ) {
             runSyncCatching {
@@ -762,6 +768,10 @@ object CrossProviderIdentityCache {
 
     fun read(context: Context, key: String): Cached? = runCatching {
         val raw = prefs(context).getString(key, null) ?: return null
+        parseCached(raw)
+    }.getOrNull()
+
+    internal fun parseCached(raw: String): Cached? = runCatching {
         val json = JSONObject(raw)
         val viaObject = json.optJSONObject(CrossProviderIds.KEY_VIA)
         val via: Map<String, String> = if (viaObject == null) {
@@ -788,6 +798,20 @@ object CrossProviderIdentityCache {
     }.getOrNull()
 
     /**
+     * Disk üzerindeki tüm çapraz kimlik paketlerinin anlık görüntüsü (anahtar → [CrossProviderIds]).
+     * Eski sürümler yalnızca `Anime:mal:<id>` anahtarına yazdığından, `MyListIdentityCrosswalk`
+     * bu görüntüyü bellek içinde tersine indeksleyerek `kitsu`/`shikimori`/`bangumi`/`simkl`/`anilist`
+     * satırlarını yeniden ağa çıkmadan da eşleştirebilir.
+     */
+    fun snapshotAll(context: Context): Map<String, CrossProviderIds> = runCatching {
+        prefs(context).all.mapNotNull { (key, value) ->
+            val raw = value as? String ?: return@mapNotNull null
+            val parsed = parseCached(raw)?.ids?.takeUnless { it.isEmpty } ?: return@mapNotNull null
+            key to parsed
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
+    /**
      * Çözüm eksik kaldıysa (ör. Bangumi eşleşmesi bulunamadı) aynı kayıt için
      * tekrar tekrar tarama yapılmaz; [RETRY_COOLDOWN_MS] sonra bir kez daha denenir.
      */
@@ -802,6 +826,58 @@ object CrossProviderIdentityCache {
                 .put(CrossProviderIds.KEY_AT, System.currentTimeMillis())
                 .put(CrossProviderIds.KEY_COMPLETE, complete)
             prefs(context).edit().putString(key, json.toString()).apply()
+        }
+    }
+
+    /**
+     * Çözülen kimlik demetini hem [primaryKey] altına hem de bilinen tüm yapım-bazlı sağlayıcı
+     * uzaylarına (`mal`, `anilist`, `kitsu`, `shikimori`, `bangumi`, `simkl` ve yalnızca filmler
+     * için `tmdb`) yazar. Mevcut önbellekte daha önce öğrenilmiş alanlar varsa korunur.
+     *
+     * Not: Anime/dizi satırlarında `tmdb` sezonlar arasında paylaşıldığından (ör. tüm sezonlar tek
+     * bir TMDB dizi ID'sine bağlanır) anahtar olarak YAZILMAZ; aksi halde 2. sezon 1. sezonun MAL
+     * kimliğiyle kirlenirdi.
+     */
+    fun writeBundle(
+        context: Context,
+        type: MediaType?,
+        ids: CrossProviderIds,
+        complete: Boolean,
+        primaryKey: String? = null
+    ) {
+        runCatching {
+            val typeName = (type ?: MediaType.Anime).name
+            val targetKeys = LinkedHashSet<String>()
+            primaryKey?.takeIf { it.isNotBlank() }?.let { targetKeys += it }
+            ids.malId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:mal:$it" }
+            ids.aniListId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:anilist:$it" }
+            ids.kitsuId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:kitsu:$it" }
+            ids.shikimoriId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:shikimori:$it" }
+            ids.bangumiSubjectId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:bangumi:$it" }
+            ids.simklId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:simkl:$it" }
+            if (type == MediaType.Movie) {
+                ids.tmdbId?.takeIf { it > 0 }?.let { targetKeys += "$typeName:tmdb:$it" }
+            }
+            if (targetKeys.isEmpty()) return
+
+            val p = prefs(context)
+            var merged = ids
+            var anyExistingComplete = complete
+            targetKeys.forEach { k ->
+                val prev = p.getString(k, null)?.let(::parseCached)
+                if (prev != null) {
+                    merged = merged.mergedWith(prev.ids)
+                    if (prev.complete) anyExistingComplete = true
+                }
+            }
+            val now = System.currentTimeMillis()
+            val payload = merged.toJson()
+                .put(CrossProviderIds.KEY_AT, now)
+                .put(CrossProviderIds.KEY_COMPLETE, anyExistingComplete)
+                .toString()
+            val editor = p.edit()
+            targetKeys.forEach { k -> editor.putString(k, payload) }
+            editor.apply()
         }
     }
 

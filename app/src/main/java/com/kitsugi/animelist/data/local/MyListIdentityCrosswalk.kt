@@ -64,12 +64,6 @@ object MyListIdentityCrosswalk {
     ): Map<Int, Set<String>> {
         if (entries.isEmpty()) return emptyMap()
         return withContext(Dispatchers.IO) {
-            val crossTypeCandidates = if (allowNetwork) crossTypeResolutionCandidates(entries) else emptySet()
-            // A MAL ID is not a complete crosswalk. Its cached native IDs may be the
-            // only bridge to a differently titled AniList/Simkl/Bangumi row.
-            val pending = entries
-            if (pending.isEmpty()) return@withContext emptyMap()
-
             val bangumiSubjectToMal = buildMap {
                 runCatching { BangumiLocalMappingCache.snapshot(context) }
                     .getOrNull()
@@ -77,23 +71,27 @@ object MyListIdentityCrosswalk {
                 putAll(readDetailXrefBangumiToMal(context))
             }
 
-            val kitsuMediaToMal = if (pending.any { MediaIdentity.kitsuId(it) != null }) {
-                runCatching { ExternalAuthManager.getPrefs(context).all }
-                    .getOrNull()
-                    ?.let { reverseKitsuMapping(it) }
-                    .orEmpty()
-            } else {
-                emptyMap()
+            val kitsuMediaToMal = runCatching { ExternalAuthManager.kitsuMediaMappingSnapshot(context) }
+                .getOrNull()
+                ?.let { reverseKitsuMapping(it) }
+                .orEmpty()
+
+            val indexedBundles = runCatching { CrossProviderIdentityCache.snapshotAll(context) }
+                .getOrNull()
+                ?.let { indexCrossIdentitySnapshot(it) }
+                .orEmpty()
+
+            if (bangumiSubjectToMal.isEmpty() && kitsuMediaToMal.isEmpty() && indexedBundles.isEmpty()) {
+                return@withContext emptyMap()
             }
 
-            val result = LinkedHashMap<Int, Set<String>>(pending.size)
-            pending.forEach { entry ->
-                val cached = cachedIds(context, entry)
-                // Normal crosswalk reads are cache-only. Only the small set of exact
-                // title/year cross-type candidates may ask ARM for a verified anime↔video
-                // bridge; account-specific provider searches stay disabled.
-                val resolved = if (allowNetwork && entry.id in crossTypeCandidates) {
-                    try {
+            val crossTypeCandidates = if (allowNetwork) crossTypeResolutionCandidates(entries) else emptySet()
+
+            val result = LinkedHashMap<Int, Set<String>>(entries.size)
+            entries.forEach { entry ->
+                var ids = lookupIndexedIds(entry, indexedBundles) ?: cachedIds(context, entry)
+                if (ids == null && allowNetwork && entry.id in crossTypeCandidates) {
+                    ids = try {
                         CrossProviderIdentityResolver.resolve(
                             context = context,
                             entry = entry,
@@ -106,10 +104,11 @@ object MyListIdentityCrosswalk {
                     } catch (_: Exception) {
                         null
                     }
-                } else null
+                }
+                if (ids == null && !needsCrosswalk(entry)) return@forEach
                 val extras = extraKeysFor(
                     entry = entry,
-                    ids = resolved ?: cached,
+                    ids = ids,
                     bangumiSubjectToMal = bangumiSubjectToMal,
                     kitsuMediaToMal = kitsuMediaToMal
                 )
@@ -157,6 +156,92 @@ object MyListIdentityCrosswalk {
             MediaType.Anime, MediaType.Manga -> "$prefix:mal" !in namespaces
             else -> "$prefix:tmdb" !in namespaces && "$prefix:simkl" !in namespaces
         }
+    }
+
+    private fun lookupIndexedIds(
+        entry: MediaEntry,
+        indexedBundles: Map<String, CrossProviderIds>
+    ): CrossProviderIds? {
+        if (indexedBundles.isEmpty()) return null
+        val directKey = CrossProviderIds.cacheKey(
+            type = entry.type,
+            storedId = entry.malId,
+            title = entry.title,
+            titleEnglish = entry.titleEnglish,
+            year = entry.year,
+            source = entry.source
+        )
+        var acc: CrossProviderIds? = indexedBundles[directKey]
+        MediaIdentity.keys(entry).forEach { ownKey ->
+            if (entry.type != MediaType.Movie && ownKey.contains(":tmdb:")) return@forEach
+            val hit = indexedBundles[ownKey] ?: return@forEach
+            acc = if (acc == null) hit else mergeUnambiguousBundles(acc!!, hit)
+        }
+        return acc
+    }
+
+    /**
+     * Önbellekteki paketleri yapım-bazlı tüm sağlayıcı anahtarlarına göre tersine indeksler.
+     * Aynı ikincil anahtara iki çelişen birincil MAL kimliği düşerse o anahtar belirsiz kabul
+     * edilerek indeks dışı bırakılır.
+     */
+    internal fun indexCrossIdentitySnapshot(
+        snapshot: Map<String, CrossProviderIds>
+    ): Map<String, CrossProviderIds> {
+        if (snapshot.isEmpty()) return emptyMap()
+        val buckets = LinkedHashMap<String, CrossProviderIds>()
+        val ambiguousKeys = HashSet<String>()
+
+        fun putKey(indexKey: String, bundle: CrossProviderIds) {
+            if (indexKey in ambiguousKeys) return
+            val existing = buckets[indexKey]
+            if (existing == null) {
+                buckets[indexKey] = bundle
+                return
+            }
+            if (existing.malId != null && bundle.malId != null && existing.malId != bundle.malId) {
+                buckets.remove(indexKey)
+                ambiguousKeys += indexKey
+                return
+            }
+            buckets[indexKey] = mergeUnambiguousBundles(existing, bundle)
+        }
+
+        snapshot.forEach { (storedKey, ids) ->
+            val typePrefix = storedKey.substringBefore(':', missingDelimiterValue = "")
+                .takeIf { it.isNotBlank() }
+                ?: return@forEach
+            putKey(storedKey, ids)
+            ids.malId?.takeIf { it > 0 }?.let { putKey("$typePrefix:mal:$it", ids) }
+            ids.aniListId?.takeIf { it > 0 }?.let { putKey("$typePrefix:anilist:$it", ids) }
+            ids.kitsuId?.takeIf { it > 0 }?.let { putKey("$typePrefix:kitsu:$it", ids) }
+            ids.shikimoriId?.takeIf { it > 0 }?.let { putKey("$typePrefix:shikimori:$it", ids) }
+            ids.bangumiSubjectId?.takeIf { it > 0 }?.let { putKey("$typePrefix:bangumi:$it", ids) }
+            ids.simklId?.takeIf { it > 0 }?.let { putKey("$typePrefix:simkl:$it", ids) }
+            if (typePrefix == MediaType.Movie.name) {
+                ids.tmdbId?.takeIf { it > 0 }?.let { putKey("$typePrefix:tmdb:$it", ids) }
+            }
+        }
+        return buckets
+    }
+
+    private fun mergeUnambiguousBundles(a: CrossProviderIds, b: CrossProviderIds): CrossProviderIds =
+        CrossProviderIds(
+            malId = sameOrSingle(a.malId, b.malId),
+            aniListId = sameOrSingle(a.aniListId, b.aniListId),
+            kitsuId = sameOrSingle(a.kitsuId, b.kitsuId),
+            shikimoriId = sameOrSingle(a.shikimoriId, b.shikimoriId),
+            bangumiSubjectId = sameOrSingle(a.bangumiSubjectId, b.bangumiSubjectId),
+            tmdbId = sameOrSingle(a.tmdbId, b.tmdbId),
+            simklId = sameOrSingle(a.simklId, b.simklId),
+            via = a.via + b.via
+        )
+
+    private fun sameOrSingle(left: Int?, right: Int?): Int? = when {
+        left == null -> right
+        right == null -> left
+        left == right -> left
+        else -> null
     }
 
     private suspend fun cachedIds(context: Context, entry: MediaEntry): CrossProviderIds? {

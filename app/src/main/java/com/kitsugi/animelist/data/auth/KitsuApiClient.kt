@@ -78,7 +78,10 @@ object KitsuApiClient {
         val type: String,
         val titles: List<String>,
         val year: Int?,
-        val malIds: Set<Int>
+        val malIds: Set<Int>,
+        val aniListIds: Set<Int> = emptySet(),
+        val titleEnglish: String? = null,
+        val titleJapanese: String? = null
     )
 
     data class KitsuFullProfile(
@@ -113,6 +116,8 @@ object KitsuApiClient {
         val total: Int? = null,
         /** Kitsu mappings'ten çözümlenen gerçek MAL ID (null olabilir) */
         val realMalId: Int? = null,
+        /** Kitsu mappings'ten çözümlenen gerçek AniList media ID (null olabilir) */
+        val realAniListId: Int? = null,
         /** Sonraki bölümün yayın zamanı (ISO-8601, Kitsu `nextRelease` alanı) */
         val nextRelease: String? = null,
         /** Kitsu `startDate` alanından yayın yılı (çapraz eşitlemede kimlik doğrulaması için). */
@@ -420,8 +425,9 @@ object KitsuApiClient {
                 )
                 val mediaInfoMap = mutableMapOf<String, KitsuMediaInfo>()
                 val totalMap = mutableMapOf<String, Int?>()
-                // mapping id -> externalId ("myanimelist/anime" veya "myanimelist/manga" namespace için)
-                val mappingMalMap = mutableMapOf<String, Int>() // mappingId -> realMalId
+                // mapping id -> externalId ("myanimelist/{anime|manga}" ve "anilist/{anime|manga}")
+                val mappingMalMap = mutableMapOf<String, Int>()
+                val mappingAniListMap = mutableMapOf<String, Int>()
 
                 // İlk geçişte tüm mapping objelerini çöz
                 for (j in 0 until included.length()) {
@@ -436,6 +442,10 @@ object KitsuApiClient {
                             externalId.toIntOrNull()?.let { malId ->
                                 if (malId in 1..99_999_999) mappingMalMap[mappingId] = malId
                             }
+                        } else if ((externalSite == "anilist/anime" || externalSite == "anilist/manga") && externalId.isNotBlank()) {
+                            externalId.toIntOrNull()?.let { aniListId ->
+                                if (aniListId > 0) mappingAniListMap[mappingId] = aniListId
+                            }
                         }
                     }
                 }
@@ -449,12 +459,14 @@ object KitsuApiClient {
                     val incAttrs = inc.optJSONObject("attributes") ?: JSONObject()
                     val canonical = incAttrs.optString("canonicalTitle", "")
                     val titlesObj = incAttrs.optJSONObject("titles")
-                    val titleEn = titlesObj?.optString("en")?.takeIf { it.isNotBlank() }
-                    val titleRomaji = titlesObj?.optString("en_jp")?.takeIf { it.isNotBlank() }
-                    val titleJp = titlesObj?.optString("ja_jp")?.takeIf { it.isNotBlank() }
+                    val titleEn = titlesObj?.optString("en")?.takeIf { it.isNotBlank() && it != "null" }
+                        ?: titlesObj?.optString("en_us")?.takeIf { it.isNotBlank() && it != "null" }
+                        ?: titlesObj?.optString("en_cn")?.takeIf { it.isNotBlank() && it != "null" }
+                    val titleRomaji = titlesObj?.optString("en_jp")?.takeIf { it.isNotBlank() && it != "null" }
+                    val titleJp = titlesObj?.optString("ja_jp")?.takeIf { it.isNotBlank() && it != "null" }
 
                     val mainTitle = titleRomaji ?: canonical
-                    val effectiveEn = titleEn ?: if (canonical != mainTitle) canonical else null
+                    val effectiveEn = titleEn ?: canonical.takeIf { it.isNotBlank() && it != mainTitle }
 
                     val poster = incAttrs.optJSONObject("posterImage")
                     val img = poster?.optString("medium") ?: poster?.optString("original")
@@ -521,8 +533,9 @@ object KitsuApiClient {
                     val mediaKey = if (animeId != null) "anime_$animeId" else if (mangaId != null) "manga_$mangaId" else ""
                     val info = mediaInfoMap[mediaKey]
 
-                    // Bu media'nın mapping'lerinden MAL ID çöz
+                    // Bu media'nın mapping'lerinden MAL ve AniList ID çöz
                     val realMalId = info?.mappingIds?.firstNotNullOfOrNull { mappingMalMap[it] }
+                    val realAniListId = info?.mappingIds?.firstNotNullOfOrNull { mappingAniListMap[it] }
 
                     result.add(
                         KitsuLibraryEntry(
@@ -540,6 +553,7 @@ object KitsuApiClient {
                             imageUrl = info?.imageUrl,
                             total = totalMap[mediaKey],
                             realMalId = realMalId,
+                            realAniListId = realAniListId,
                             nextRelease = info?.nextRelease,
                             startYear = info?.startYear,
                             isAdult = info?.isAdult == true,
@@ -1262,9 +1276,13 @@ object KitsuApiClient {
         val type = data.optString("type").lowercase(java.util.Locale.ROOT)
         if (id != expectedId || type != endpoint) return null
         val attrs = data.optJSONObject("attributes") ?: return null
+        val titleObject = attrs.optJSONObject("titles")
+        val titleEnglish = titleObject?.optString("en_us")?.takeIf { it.isNotBlank() }
+            ?: titleObject?.optString("en")?.takeIf { it.isNotBlank() }
+        val titleJapanese = titleObject?.optString("ja_jp")?.takeIf { it.isNotBlank() }
+            ?: titleObject?.optString("en_cn")?.takeIf { it.isNotBlank() }
         val titles = buildList {
             attrs.optString("canonicalTitle").takeIf { it.isNotBlank() }?.let(::add)
-            val titleObject = attrs.optJSONObject("titles")
             if (titleObject != null) {
                 val keys = titleObject.keys()
                 while (keys.hasNext()) titleObject.optString(keys.next()).takeIf { it.isNotBlank() }?.let(::add)
@@ -1288,25 +1306,29 @@ object KitsuApiClient {
         }
         val included = root.optJSONArray("included") ?: JSONArray()
         val malSite = "myanimelist/$endpoint"
-        val malIds = buildSet {
-            for (index in 0 until included.length()) {
-                val mapping = included.optJSONObject(index) ?: continue
-                if (mapping.optString("type") != "mappings") continue
-                val mappingId = mapping.optString("id")
-                val item = mapping.optJSONObject("relationships")?.optJSONObject("item")?.optJSONObject("data")
-                val itemId = item?.optString("id")
-                val itemType = item?.optString("type")?.lowercase(java.util.Locale.ROOT)
-                val mappingIsLinked = mappingId in linkedMappingIds
-                val itemPointsToMedia = itemId == id.toString() && itemType == endpoint
-                val itemRelationIsConsistent = item == null || (itemId.isNullOrBlank() && itemType.isNullOrBlank()) || itemPointsToMedia
-                val belongsToMedia = itemRelationIsConsistent &&
-                    (mappingIsLinked || (linkedMappingIds.isEmpty() && itemPointsToMedia))
-                if (!belongsToMedia) continue
-                val mappingAttrs = mapping.optJSONObject("attributes") ?: continue
-                if (mappingAttrs.optString("externalSite").trim().lowercase(java.util.Locale.ROOT) != malSite) continue
-                val externalId = mappingAttrs.optString("externalId").toIntOrNull()
-                    ?.takeIf { it in 1..99_999_999 } ?: continue
-                add(externalId)
+        val aniListSite = "anilist/$endpoint"
+        val malIds = mutableSetOf<Int>()
+        val aniListIds = mutableSetOf<Int>()
+        for (index in 0 until included.length()) {
+            val mapping = included.optJSONObject(index) ?: continue
+            if (mapping.optString("type") != "mappings") continue
+            val mappingId = mapping.optString("id")
+            val item = mapping.optJSONObject("relationships")?.optJSONObject("item")?.optJSONObject("data")
+            val itemId = item?.optString("id")
+            val itemType = item?.optString("type")?.lowercase(java.util.Locale.ROOT)
+            val mappingIsLinked = mappingId in linkedMappingIds
+            val itemPointsToMedia = itemId == id.toString() && itemType == endpoint
+            val itemRelationIsConsistent = item == null || (itemId.isNullOrBlank() && itemType.isNullOrBlank()) || itemPointsToMedia
+            val belongsToMedia = itemRelationIsConsistent &&
+                (mappingIsLinked || (linkedMappingIds.isEmpty() && itemPointsToMedia))
+            if (!belongsToMedia) continue
+            val mappingAttrs = mapping.optJSONObject("attributes") ?: continue
+            val site = mappingAttrs.optString("externalSite").trim().lowercase(java.util.Locale.ROOT)
+            val externalId = mappingAttrs.optString("externalId").toIntOrNull()
+                ?.takeIf { it in 1..99_999_999 } ?: continue
+            when (site) {
+                malSite -> malIds.add(externalId)
+                aniListSite -> aniListIds.add(externalId)
             }
         }
         return KitsuMediaIdentity(
@@ -1314,7 +1336,10 @@ object KitsuApiClient {
             type = type,
             titles = titles,
             year = attrs.optString("startDate").take(4).toIntOrNull()?.takeIf { it > 0 },
-            malIds = malIds
+            malIds = malIds,
+            aniListIds = aniListIds,
+            titleEnglish = titleEnglish,
+            titleJapanese = titleJapanese
         )
     }
 }

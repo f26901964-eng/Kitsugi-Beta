@@ -13,6 +13,7 @@ import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.BangumiMediaEntryFactory
 import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
 import com.kitsugi.animelist.data.remote.matchesInSource
+import com.kitsugi.animelist.data.remote.firstMatchingInTargetOrResultSource
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.settings.KitsugiContentPrefs
 import com.kitsugi.animelist.model.EntryAutoRules
@@ -543,31 +544,21 @@ class AppViewModel : ViewModel() {
 
         // Kaynak belirleme: unified entry'nin hangi source olacağını seç
         val resultSource = com.kitsugi.animelist.data.remote.canonicalMediaSourceId(result.source)
-        val primarySource = when {
-            result.type == MediaType.TvShow || result.type == MediaType.Movie -> when {
-                prefersTmdbAccount && isTmdbConnected ->
-                    com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
-                resultSource == "tmdb" && isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
-                isSimklConnected -> "simkl"
-                isBangumiConnected -> com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE
-                isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
-                else -> "simkl"
-            }
-            resultSource == "anilist" && isAniListConnected -> "anilist"
-            resultSource == "mal" -> "mal"
-            resultSource == "kitsu" && isKitsuConnected -> "kitsu"
-            resultSource == "shikimori" && isShikimoriConnected -> "shikimori"
-            isAniListConnected -> "anilist"
-            isMalConnected -> "mal"
-            isSimklConnected -> "simkl"
-            isKitsuConnected -> "kitsu"
-            isShikimoriConnected -> "shikimori"
-            else -> "simkl"
-        }
+        val primarySource = resolvePrimarySourceForApiResult(
+            result = result,
+            isAniListConnected = isAniListConnected,
+            isMalConnected = isMalConnected,
+            isSimklConnected = isSimklConnected,
+            isBangumiConnected = isBangumiConnected,
+            isKitsuConnected = isKitsuConnected,
+            isShikimoriConnected = isShikimoriConnected,
+            isTmdbConnected = isTmdbConnected,
+            preferredSource = preferredSource
+        )
 
-        // Provider listeleri birbirinden bağımsızdır: başka bir kaynaktaki kopya, bu
-        // kaynağın ekleme işlemini engellememeli. For an explicit TMDB target, probe the
-        // account namespace rather than the search result's original provider namespace.
+        // Provider listeleri birbirinden bağımsızdır: başka bir kaynaktaki kopya bu kaynağın
+        // ekleme işlemini engellememeli; ancak YAZILACAK hedef kaynakta (`primarySource`) zaten
+        // kayıt varsa (örn. TMDB ekranından Simkl'a eklenmiş film) çift satır açılmamalıdır.
         val targetResult = if (primarySource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE) {
             val targetId = result.tmdbId ?: result.malId.takeIf { resultSource == "tmdb" && it > 0 }
             result.copy(
@@ -576,7 +567,7 @@ class AppViewModel : ViewModel() {
                 tmdbId = targetId
             )
         } else result
-        val existingEntry = currentEntries.firstOrNull { entry -> entry.matchesInSource(targetResult) }
+        val existingEntry = currentEntries.firstMatchingInTargetOrResultSource(targetResult, primarySource)
         if (existingEntry != null) {
             if (markFavorite && !existingEntry.isFavorite) {
                 repository.update(existingEntry.copy(isFavorite = true))
@@ -629,7 +620,7 @@ class AppViewModel : ViewModel() {
             } else targetResult.malId,
             tmdbId = targetResult.tmdbId ?: finalTmdbId
         )
-        val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matchesInSource(resolvedProbe) }
+        val existingAfterResolve = currentEntries.firstMatchingInTargetOrResultSource(resolvedProbe, primarySource)
         if (existingAfterResolve != null) {
             if (markFavorite && !existingAfterResolve.isFavorite) {
                 repository.update(existingAfterResolve.copy(isFavorite = true))
@@ -650,6 +641,21 @@ class AppViewModel : ViewModel() {
                 )
             }.getOrNull()
         } else null
+
+        // Simkl ID çözüldükten sonra da mevcut kayıt kontrolü (farklı başlık/yıl varyantı için)
+        if (resolvedSimklId != null && resolvedSimklId > 0) {
+            val existingBySimkl = currentEntries.firstOrNull { entry ->
+                com.kitsugi.animelist.data.remote.canonicalMediaSourceId(entry.source) ==
+                    com.kitsugi.animelist.data.remote.canonicalMediaSourceId(primarySource) &&
+                    entry.simklId == resolvedSimklId
+            }
+            if (existingBySimkl != null) {
+                if (markFavorite && !existingBySimkl.isFavorite) {
+                    repository.update(existingBySimkl.copy(isFavorite = true))
+                }
+                return ApiInsertOutcome(ApiInsertStatus.DUPLICATE, duplicateListMessage(existingBySimkl))
+            }
+        }
 
         // 3. Unified MediaEntry oluştur — tüm çözümlenen ID'leri tek bir kayıtta birleştir
         //
@@ -923,6 +929,48 @@ class AppViewModel : ViewModel() {
                 } catch (e: Exception) {
                     android.util.Log.w("AppViewModel", "Failed to clear TV channel during deleteAllEntries", e)
                 }
+            }
+        }
+    }
+
+    companion object {
+        fun resolvePrimarySourceForApiResult(
+            result: com.kitsugi.animelist.data.remote.JikanSearchResult,
+            isAniListConnected: Boolean,
+            isMalConnected: Boolean,
+            isSimklConnected: Boolean,
+            isBangumiConnected: Boolean,
+            isKitsuConnected: Boolean,
+            isShikimoriConnected: Boolean,
+            isTmdbConnected: Boolean = false,
+            preferredSource: String? = null
+        ): String {
+            val prefersTmdbAccount = preferredSource == com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+            val resultSource = canonicalMediaSourceId(result.source)
+            return when {
+                prefersTmdbAccount && isTmdbConnected && com.kitsugi.animelist.data.auth.supportsTmdbAccountType(result.type) ->
+                    com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+                result.type == MediaType.TvShow || result.type == MediaType.Movie -> when {
+                    prefersTmdbAccount && isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+                    resultSource == "tmdb" && isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+                    isSimklConnected -> "simkl"
+                    isBangumiConnected -> com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE
+                    isTmdbConnected -> com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+                    else -> "simkl"
+                }
+                resultSource == "anilist" && isAniListConnected -> "anilist"
+                resultSource == "mal" && isMalConnected -> "mal"
+                resultSource == "kitsu" && isKitsuConnected -> "kitsu"
+                resultSource == "shikimori" && isShikimoriConnected -> "shikimori"
+                resultSource == "bangumi" && isBangumiConnected -> com.kitsugi.animelist.data.remote.BangumiIdNamespace.SOURCE
+                isAniListConnected -> "anilist"
+                isMalConnected -> "mal"
+                isSimklConnected -> "simkl"
+                isKitsuConnected -> "kitsu"
+                isShikimoriConnected -> "shikimori"
+                isTmdbConnected && com.kitsugi.animelist.data.auth.supportsTmdbAccountType(result.type) ->
+                    com.kitsugi.animelist.data.auth.TMDB_ACCOUNT_SOURCE
+                else -> "simkl"
             }
         }
     }

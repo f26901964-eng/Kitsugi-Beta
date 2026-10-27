@@ -119,8 +119,63 @@ object SimklImportManager {
             val shows = fetchList(token, "shows")
             kotlinx.coroutines.delay(1500L)
             val anime = fetchList(token, "anime")
-            movies + shows + anime
+            val merged = deduplicateImportedEntries(movies + shows + anime)
+            val appContext = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            if (appContext != null) {
+                merged.forEach { entry ->
+                    val realMal = entry.malId?.takeIf { it in 1..99_999_999 }
+                    val simkl = entry.simklId?.takeIf { it > 0 }
+                    if (realMal != null && simkl != null) {
+                        CrossProviderIdentityCache.writeBundle(
+                            context = appContext,
+                            type = entry.type,
+                            ids = CrossProviderIds(
+                                malId = realMal,
+                                simklId = simkl,
+                                tmdbId = entry.tmdbId?.takeIf { it > 0 }
+                            ),
+                            complete = false,
+                            primaryKey = "${entry.type.name}:mal:$realMal"
+                        )
+                    }
+                }
+            }
+            merged
         }
+    }
+
+    internal fun deduplicateImportedEntries(entries: List<MediaEntry>): List<MediaEntry> {
+        if (entries.size <= 1) return entries
+        val out = mutableListOf<MediaEntry>()
+        for (incoming in entries) {
+            val idx = out.indexOfFirst { existing ->
+                com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(existing, incoming)
+            }
+            if (idx < 0) {
+                out += incoming
+            } else {
+                val prev = out[idx]
+                // Anime + Movie çakışmasında gerçek MAL kimliği taşıyan Anime kaydı tercih edilir
+                // ki "Tümü" görünümünde AniList/MAL/Kitsu/Shikimori/Bangumi ile doğrudan birleşsin.
+                val preferIncomingPrimary = (incoming.type == MediaType.Anime && prev.type == MediaType.Movie) ||
+                    (incoming.malId != null && prev.malId == null)
+                val base = if (preferIncomingPrimary) incoming else prev
+                val other = if (preferIncomingPrimary) prev else incoming
+                out[idx] = base.copy(
+                    score = base.score ?: other.score,
+                    progress = maxOf(base.progress, other.progress),
+                    total = base.total ?: other.total,
+                    isAdult = base.isAdult || other.isAdult,
+                    isFavorite = base.isFavorite || other.isFavorite,
+                    malId = base.malId ?: other.malId,
+                    tmdbId = base.tmdbId ?: other.tmdbId,
+                    simklId = base.simklId ?: other.simklId,
+                    imageUrl = base.imageUrl?.takeIf { it.isNotBlank() } ?: other.imageUrl,
+                    year = base.year ?: other.year
+                )
+            }
+        }
+        return out
     }
 
     private suspend fun fetchList(token: String, type: String): List<MediaEntry> {

@@ -330,6 +330,42 @@ class CsTitleMatcherTest {
     }
 
     @Test
+    fun matcherNormalizesTurkishDottedIAndAsciiTransliterations() {
+        assertEquals("istanbul cagisi", CsTitleMatcher.normalizeTitleForMatch("İstanbul Çağısı"))
+        val match = CsTitleMatcher.findBestMatch(
+            results = listOf(createSearchResponse("İstanbul Çağrısı", 2024)),
+            mainTitle = "Istanbul Cagrisi",
+            altTitles = emptyList(),
+            targetYear = 2024,
+            targetSeason = 1,
+            isMovie = false
+        )
+
+        assertEquals("İstanbul Çağrısı", match?.name)
+    }
+
+    @Test
+    fun matcherRejectsUnrelatedAnimeForTurkishSeriesTitle() {
+        val unrelatedAnimeTrailerResult = createSearchResponse(
+            "Arifureta: From Commonplace to World's Strongest Season 2",
+            "https://example.com/arifureta-season-2",
+            2022,
+            TvType.Anime
+        )
+
+        val match = CsTitleMatcher.findBestMatch(
+            results = listOf(unrelatedAnimeTrailerResult),
+            mainTitle = "Osmanlı Tokadı",
+            altTitles = emptyList(),
+            targetYear = 2013,
+            targetSeason = 1,
+            isMovie = false
+        )
+
+        assertNull("An unrelated provider result must never supply this title's trailer", match)
+    }
+
+    @Test
     fun matcherRejectsOnlyFirstWordFranchiseCollision() {
         val results = listOf(
             createSearchResponse("Naruto", 2002),

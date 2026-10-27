@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.data.local.toDomain
 import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
@@ -83,6 +84,9 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // Kitsu kimlik alanını kanonik stableId uzayına taşı (eski sürüm import'ları
             // bu alana gerçek MAL ID yazıyordu → ayrıntı sayfası alakasız veri açıyordu)
             KitsuIdentityMigration.runIfNeeded(context, dao)
+            // Aynı sağlayıcı altında birikmiş yinelenen satırları (örn. TMDB + Simkl Movie/Anime
+            // çift kaydı) veri kaybetmeden tek satırda birleştir.
+            runCatching { repository.deduplicateSameSourceDuplicates() }
             // +18 blur'unun TÜM kaynaklarda uygulanması için eksik yetişkin işaretlerini
             // kimlik üzerinden tamamla: Simkl/Shikimori/Bangumi liste API'leri `adult`
             // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
@@ -196,21 +200,25 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
         val isAniListConnected = ExternalAuthManager.getAniListToken(context) != null
         val isMalConnected = ExternalAuthManager.getMalToken(context) != null
 
+        // Yalnızca eski sürüm Jikan arama eklemeleri (`source == "jikan"`) taşınabilir;
+        // gerçek `source == "mal"` kayıtlarını AniList'e çevirmek MAL bağlantısı koptuğunda
+        // AniList sekmesinde yüzlerce kopya kart üretiyordu. Ayrıca hedef AniList listesinde
+        // aynı yapım zaten varsa eski Jikan satırı silinir, ikinci bir kopya yaratılmaz.
         if (isAniListConnected && !isMalConnected) {
             val all = dao.getAll()
-            val ownedAniListIds = all.asSequence()
-                .filter { it.source.equals("anilist", ignoreCase = true) }
-                .mapNotNull { it.aniListEntryId?.takeIf { id -> id > 0 } }
-                .toHashSet()
-            val misclassified = all.filter { entity ->
-                (entity.source == "jikan" || entity.source == "mal") &&
-                    entity.malListId == null &&
-                    entity.aniListEntryId != null &&
-                    entity.aniListEntryId > 0 &&
-                    entity.aniListEntryId !in ownedAniListIds
-            }
+            val anilistRows = all.filter { it.source.equals("anilist", ignoreCase = true) }
+                .map { it.toDomain() }
+            val misclassified = all.filter { it.source.equals("jikan", ignoreCase = true) }
             misclassified.forEach { entity ->
-                dao.update(entity.copy(source = "anilist"))
+                val domain = entity.toDomain()
+                val alreadyInAniList = anilistRows.any { existing ->
+                    com.kitsugi.animelist.model.MediaIdentity.librarySameMedia(existing, domain)
+                }
+                if (alreadyInAniList) {
+                    dao.deleteById(entity.id)
+                } else {
+                    dao.update(entity.copy(source = "anilist"))
+                }
             }
         }
     }

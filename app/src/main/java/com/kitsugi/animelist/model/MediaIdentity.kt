@@ -6,9 +6,23 @@ import java.util.Locale
 /** Provider IDs are namespaced by media type. A title must never override conflicting IDs. */
 object MediaIdentity {
     private val nonIdentityCharacters = Regex("[^\\p{L}\\p{N}]")
+    private val seasonOrdinalPatterns: List<Pair<Regex, String>> = listOf(
+        Regex("\\b(?:2nd|second)\\s+season\\b", RegexOption.IGNORE_CASE) to "season 2",
+        Regex("\\b(?:3rd|third)\\s+season\\b", RegexOption.IGNORE_CASE) to "season 3",
+        Regex("\\b(?:4th|fourth)\\s+season\\b", RegexOption.IGNORE_CASE) to "season 4",
+        Regex("\\b(?:5th|fifth)\\s+season\\b", RegexOption.IGNORE_CASE) to "season 5",
+        Regex("\\b(?:6th|sixth)\\s+season\\b", RegexOption.IGNORE_CASE) to "season 6",
+        Regex("\\b(?:7th|seventh)\\s+season\\b", RegexOption.IGNORE_CASE) to "season 7",
+        Regex("\\bpart\\s+ii\\b", RegexOption.IGNORE_CASE) to "part 2",
+        Regex("\\bpart\\s+iii\\b", RegexOption.IGNORE_CASE) to "part 3",
+        Regex("\\bpart\\s+iv\\b", RegexOption.IGNORE_CASE) to "part 4"
+    )
 
     fun canonicalSource(source: String): String = when (val value = source.trim().lowercase(Locale.ROOT)) {
         "jikan", "myanimelist" -> "mal"
+        "al" -> "anilist"
+        "shiki" -> "shikimori"
+        "bgm", "bgm.tv" -> "bangumi"
         "themoviedb", "tmdb_account" -> "tmdb"
         else -> value
     }
@@ -129,6 +143,26 @@ object MediaIdentity {
     fun normalizedTitle(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKC)
         .lowercase(Locale.ROOT).replace(nonIdentityCharacters, "")
 
+    /**
+     * Normalized title plus canonical season/part ordinal synonyms (e.g. `"2nd Season"` ↔
+     * `"Season 2"`), without loosening distinct sequel/season numbers.
+     */
+    fun normalizedTitleVariants(title: String): Set<String> {
+        val base = normalizedTitle(title)
+        if (base.isBlank()) return emptySet()
+        val normalizedRaw = Normalizer.normalize(title, Normalizer.Form.NFKC)
+        var rewritten = normalizedRaw
+        seasonOrdinalPatterns.forEach { (pattern, replacement) ->
+            rewritten = pattern.replace(rewritten, replacement)
+        }
+        val canonicalSeason = normalizedTitle(rewritten)
+        return if (canonicalSeason.isNotBlank() && canonicalSeason != base) {
+            setOf(base, canonicalSeason)
+        } else {
+            setOf(base)
+        }
+    }
+
     /** Provider-ID namespaces present on both entries but pointing at different IDs. */
     fun conflictingIdentityKeys(a: MediaEntry, b: MediaEntry): Set<String> =
         conflictingIdentityKeys(a.type, b.type, keys(a), keys(b))
@@ -154,6 +188,50 @@ object MediaIdentity {
         return byNamespaceA.keys.intersect(byNamespaceB.keys).filterTo(mutableSetOf()) { namespace ->
             byNamespaceA.getValue(namespace).intersect(byNamespaceB.getValue(namespace)).isEmpty()
         }
+    }
+
+    /**
+     * Library grouping / deduplication conflict check.
+     *
+     * On TMDB, anime seasons do not have independent IDs — Simkl and ARM frequently attach
+     * different `tmdbId` values (TV series vs compilation/season entry) to rows that already
+     * agree on authoritative anime IDs (`mal`/`anilist`/`kitsu`/`shikimori`/`bangumi`/`simkl`)
+     * or exact season title. A lone `Anime:tmdb` disagreement must not split a verified anime
+     * group, while any primary anime-ID conflict still strictly vetoes merging.
+     */
+    fun authoritativeConflictingIdentityKeys(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String> = keys(a),
+        keysB: Set<String> = keys(b)
+    ): Set<String> {
+        if (a.type != b.type) {
+            if (!isAnimeMoviePair(a, b)) return setOf("Type:${a.type.name}!=${b.type.name}")
+            val conflicts = mutableSetOf<String>()
+            val malA = extractMalIdFromKeys(a, keysA)
+            val malB = extractMalIdFromKeys(b, keysB)
+            if (malA != null && malB != null && malA != malB) conflicts += "CrossType:mal"
+            val simklA = a.simklId?.takeIf { it > 0 }
+            val simklB = b.simklId?.takeIf { it > 0 }
+            if (simklA != null && simklB != null && simklA != simklB) conflicts += "CrossType:simkl"
+            val tmdbA = a.tmdbId?.takeIf { it > 0 }
+            val tmdbB = b.tmdbId?.takeIf { it > 0 }
+            val hasSharedPrimary = (malA != null && malA == malB) || (simklA != null && simklA == simklB)
+            if (!hasSharedPrimary && tmdbA != null && tmdbB != null && tmdbA != tmdbB) {
+                conflicts += "CrossType:tmdb"
+            }
+            return conflicts
+        }
+        val rawConflicts = conflictingIdentityKeys(a.type, b.type, keysA, keysB)
+        if (rawConflicts.isEmpty()) return emptySet()
+        if (a.type == MediaType.Anime && rawConflicts == setOf("Anime:tmdb")) {
+            val primaryA = keysA.filterNotTo(HashSet()) { it.startsWith("Anime:tmdb:") }
+            val primaryB = keysB.filterNotTo(HashSet()) { it.startsWith("Anime:tmdb:") }
+            if (primaryA.intersect(primaryB).isNotEmpty() || libraryTitleMatch(a, b)) {
+                return emptySet()
+            }
+        }
+        return rawConflicts
     }
 
     /** `"Anime:mal:123"` → `("Anime:mal" to "123")`; namespaces may hold several values. */
@@ -192,6 +270,91 @@ object MediaIdentity {
         if (keysA.intersect(keysB).isNotEmpty()) return true
         if (!allowTitle) return false
         return titleMatch(a, b)
+    }
+
+    /**
+     * Library-level identity check used for Listem ("Tümü" and per-provider deduplication):
+     *  • Honors all primary provider ID conflicts,
+     *  • Prevents two distinct anime seasons sharing one show-level `Anime:tmdb:<id>` from
+     *    collapsing unless primary IDs or season titles also match,
+     *  • Tolerates ±1 year release-date discrepancies across catalogs (winter cour Dec/Jan,
+     *    JP vs international theatrical anime movie release) when titles match,
+     *  • Bridges anime movies stored as [MediaType.Movie] (e.g. added via TMDB/Simkl movies)
+     *    with [MediaType.Anime] records (e.g. Simkl `/anime`, AniList, MAL, Kitsu, Shikimori, Bangumi).
+     */
+    fun librarySameMedia(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String> = keys(a),
+        keysB: Set<String> = keys(b),
+        allowTitle: Boolean = true
+    ): Boolean {
+        if (a.type != b.type) {
+            return sameAnimeMovieAcrossType(a, b, keysA, keysB, allowTitle)
+        }
+        if (authoritativeConflictingIdentityKeys(a, b, keysA, keysB).isNotEmpty()) return false
+        val shared = keysA.intersect(keysB)
+        if (shared.isNotEmpty()) {
+            if (a.type == MediaType.Anime && shared.all { it.startsWith("Anime:tmdb:") }) {
+                return allowTitle && libraryTitleMatch(a, b)
+            }
+            return true
+        }
+        if (!allowTitle) return false
+        return libraryTitleMatch(a, b)
+    }
+
+    /**
+     * True when an anime film exists once as [MediaType.Movie] (TMDB / Simkl `/movies`) and
+     * once as [MediaType.Anime] (Simkl `/anime`, AniList, MAL, Kitsu, Shikimori, Bangumi).
+     */
+    fun sameAnimeMovieAcrossType(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String> = keys(a),
+        keysB: Set<String> = keys(b),
+        allowTitle: Boolean = true
+    ): Boolean {
+        if (!isAnimeMoviePair(a, b)) return false
+        if (authoritativeConflictingIdentityKeys(a, b, keysA, keysB).isNotEmpty()) return false
+        val anime = if (a.type == MediaType.Anime) a else b
+        if ((anime.total != null && anime.total > 1) || anime.progress > 1) return false
+
+        val simklA = a.simklId?.takeIf { it > 0 }
+        val simklB = b.simklId?.takeIf { it > 0 }
+        if (simklA != null && simklA == simklB) return true
+
+        val malA = extractMalIdFromKeys(a, keysA)
+        val malB = extractMalIdFromKeys(b, keysB)
+        if (malA != null && malA == malB) return true
+
+        val tmdbA = a.tmdbId?.takeIf { it > 0 }
+        val tmdbB = b.tmdbId?.takeIf { it > 0 }
+        if (tmdbA != null && tmdbB != null && tmdbA == tmdbB) {
+            val yearMatches = a.year == null || b.year == null || a.year == b.year
+            if (yearMatches && (!allowTitle || titleMatch(a, b) || a.title.isBlank() || b.title.isBlank())) {
+                return true
+            }
+        }
+
+        if (canonicalSource(a.source) == canonicalSource(b.source)) {
+            return allowTitle && libraryTitleMatch(a, b)
+        }
+
+        return false
+    }
+
+    private fun isAnimeMoviePair(a: MediaEntry, b: MediaEntry): Boolean =
+        (a.type == MediaType.Anime && b.type == MediaType.Movie) ||
+            (a.type == MediaType.Movie && b.type == MediaType.Anime)
+
+    private fun extractMalIdFromKeys(entry: MediaEntry, entryKeys: Set<String>): Int? {
+        realMalId(entry)?.let { return it }
+        return entryKeys.firstNotNullOfOrNull { key ->
+            val parts = key.split(':')
+            if (parts.size == 3 && parts[1] == "mal") parts[2].toIntOrNull()?.takeIf { it in 1..99_999_999 }
+            else null
+        }
     }
 
     private val strongAnimeProviders = setOf("mal", "anilist", "kitsu", "shikimori", "bangumi")
@@ -239,15 +402,33 @@ object MediaIdentity {
      * decides. A known release year on both sides must agree (a re-make with the identical title
      * is still a different production).
      */
-    private fun titleMatch(a: MediaEntry, b: MediaEntry): Boolean {
-        if (a.year != null && b.year != null && a.year != b.year) return false
+    private fun titleMatch(a: MediaEntry, b: MediaEntry): Boolean =
+        titleMatchWithYearTolerance(a, b, maxYearDelta = 0)
+
+    fun libraryTitleMatch(a: MediaEntry, b: MediaEntry): Boolean =
+        titleMatchWithYearTolerance(a, b, maxYearDelta = 1)
+
+    private fun titleMatchWithYearTolerance(
+        a: MediaEntry,
+        b: MediaEntry,
+        maxYearDelta: Int
+    ): Boolean {
+        if (a.year != null && b.year != null && kotlin.math.abs(a.year - b.year) > maxYearDelta) {
+            return false
+        }
 
         val normA = normalizedTitle(a.title)
         val normB = normalizedTitle(b.title)
         if (normA.isNotBlank() && normA == normB) return true
 
-        val aTitles = listOfNotNull(a.title, a.titleEnglish).map(::normalizedTitle).filter { it.length >= 2 }.toSet()
-        val bTitles = listOfNotNull(b.title, b.titleEnglish).map(::normalizedTitle).filter { it.length >= 2 }.toSet()
+        val aTitles = listOfNotNull(a.title, a.titleEnglish)
+            .flatMap(::normalizedTitleVariants)
+            .filter { it.length >= 2 }
+            .toSet()
+        val bTitles = listOfNotNull(b.title, b.titleEnglish)
+            .flatMap(::normalizedTitleVariants)
+            .filter { it.length >= 2 }
+            .toSet()
         if (aTitles.intersect(bTitles).isNotEmpty()) return true
 
         // Yalnızca Japonca/CJK başlık eşleştiğinde, iki kaydın ana başlıkları tamamen farklı Latin

@@ -240,28 +240,6 @@ class MediaEntryMatchesTest {
         assertTrue(listOf(storedBangumi).firstMatchingInSource(bangumiResult) === storedBangumi)
     }
 
-    @Test
-    fun `tmdb movie detail recognises the Simkl list membership`() {
-        val simklMovie = entry(
-            title = "Demon Slayer: Infinity Castle",
-            source = "simkl",
-            type = MediaType.Movie,
-            year = 2025,
-            tmdbId = 12345
-        )
-        val tmdbResult = result(
-            title = "Demon Slayer: Infinity Castle",
-            malId = 12345,
-            source = "tmdb",
-            type = MediaType.Movie,
-            year = 2025,
-            tmdbId = 12345
-        )
-
-        assertTrue(simklMovie.matchesInSource(tmdbResult))
-        assertTrue(simklMovie.matchesInSource(12345, "tmdb"))
-        assertTrue(listOf(simklMovie).firstMatchingInSource(tmdbResult) === simklMovie)
-    }
 
     @Test
     fun `tmdb account lookup does not borrow Simkl or legacy catalog membership`() {
@@ -339,5 +317,48 @@ class MediaEntryMatchesTest {
             realMalId = 5681
         )
         assertFalse(unrelated.matches(asResult))
+    }
+
+    @Test
+    fun `matchesTargetSource detects TMDB selection already saved under Simkl`() {
+        val simklMovie = entry(
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            malId = null,
+            source = "simkl",
+            type = MediaType.Movie,
+            tmdbId = 1311031
+        ).copy(total = 1)
+        val tmdbResult = result(
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            malId = 1311031,
+            source = "tmdb",
+            type = MediaType.Movie,
+            tmdbId = 1311031
+        )
+
+        assertFalse(simklMovie.matchesInSource(tmdbResult))
+        assertTrue(simklMovie.matchesTargetSource(tmdbResult, "simkl"))
+        assertTrue(listOf(simklMovie).firstMatchingInTargetOrResultSource(tmdbResult, "simkl") === simklMovie)
+    }
+
+    @Test
+    fun `matchesTargetSource detects anime movie across Movie and single episode Anime`() {
+        val simklAnimeMovie = entry(
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            malId = 59192,
+            source = "simkl",
+            type = MediaType.Anime,
+            tmdbId = 1311031
+        ).copy(total = 1, progress = 1)
+        val tmdbMovieResult = result(
+            title = "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+            malId = 1311031,
+            source = "tmdb",
+            type = MediaType.Movie,
+            tmdbId = 1311031
+        )
+
+        assertTrue(simklAnimeMovie.matchesTargetSource(tmdbMovieResult, "simkl"))
+        assertTrue(listOf(simklAnimeMovie).firstMatchingInTargetOrResultSource(tmdbMovieResult, "simkl") === simklAnimeMovie)
     }
 }

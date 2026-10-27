@@ -18,6 +18,7 @@ import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.matches
 import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.remote.firstMatchingInSource
+import com.kitsugi.animelist.data.remote.firstMatchingInTargetOrResultSource
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.MangaMappingEntity
@@ -317,7 +318,18 @@ fun AppRootDetailPages(
                     mdbListShowTrakt = appSettings.mdbListShowTrakt,
                     settingsDataStore = settingsDataStore,
                     onToggleFavoriteClick = { selection ->
-                        val entry = mediaEntries.firstMatchingInSource(selection.result)
+                        val result = selection.result
+                        val targetSource = AppViewModel.resolvePrimarySourceForApiResult(
+                            result = result,
+                            isAniListConnected = authViewModel.isAniListConnected,
+                            isMalConnected = authViewModel.isMalConnected,
+                            isSimklConnected = authViewModel.isSimklConnected,
+                            isBangumiConnected = authViewModel.isBangumiConnected,
+                            isKitsuConnected = authViewModel.isKitsuConnected,
+                            isShikimoriConnected = authViewModel.isShikimoriConnected,
+                            isTmdbConnected = authViewModel.isTmdbConnected
+                        )
+                        val entry = mediaEntries.firstMatchingInTargetOrResultSource(result, targetSource)
                         if (entry != null) {
                             // Toggle existing entry
                             val updatedEntry = entry.copy(isFavorite = !entry.isFavorite)

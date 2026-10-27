@@ -627,7 +627,11 @@ internal object CsTitleMatcher {
     /** Unicode NFKC + punctuation folding, preserving Japanese, Chinese, and other scripts. */
     fun normalizeTitleForMatch(title: String): String {
         if (title.isBlank()) return ""
-        var normalized = Normalizer.normalize(title, Normalizer.Form.NFKC).lowercase(Locale.ROOT)
+        var normalized = Normalizer.normalize(title, Normalizer.Form.NFKC)
+            .lowercase(Locale.ROOT)
+            // Locale.ROOT lowercases capital dotted İ to `i` + U+0307. Keeping that mark
+            // turns it into a word boundary below, splitting "İstanbul" into "i stanbul".
+            .replace("\u0307", "")
         // Treat dotted/dotless Turkish i and common Turkish characters like their ASCII spellings.
         normalized = normalized
             .replace('ı', 'i')

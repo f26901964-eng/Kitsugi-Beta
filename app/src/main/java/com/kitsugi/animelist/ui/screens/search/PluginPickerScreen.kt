@@ -60,6 +60,11 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.utils.KitsugiStrings
 
+private data class SearchablePlugin(
+    val api: MainAPI,
+    val normalizedSearchText: String
+)
+
 private data class PluginTypeGroup(
     val label: String,
     val emoji: String,
@@ -150,12 +155,29 @@ fun PluginPickerScreen(
         }
     }
 
-    val filteredApis = remember(activeApis, selectedGroupLabel, queryText) {
-        var list = activeApis
+    // Eklenti metinlerini API listesi değiştiğinde bir kez normalize et. Her karakterde
+    // URL/eklenti adı üzerinde Unicode normalizasyonu çalıştırmak yerine yalnızca sorguyu
+    // normalize edip önbellekteki metinlerde ara.
+    val searchableApis = remember(activeApis) {
+        activeApis.map { api ->
+            SearchablePlugin(
+                api = api,
+                normalizedSearchText = normalizePluginPortalSearchText(
+                    listOf(api.name, api.mainUrl, api.lang, api.sourcePlugin.orEmpty(), api.javaClass.simpleName)
+                        .joinToString(" ")
+                )
+            )
+        }
+    }
+
+    // Eklentileri sadece kategori ve arama kutusuna göre filtrele.
+    val filteredApis = remember(searchableApis, selectedGroupLabel, queryText) {
+        var list = searchableApis
         if (selectedGroupLabel != null) {
             val group = pluginTypeGroups.firstOrNull { it.label == selectedGroupLabel }
             if (group != null) {
-                list = list.filter { api ->
+                list = list.filter { searchable ->
+                    val api = searchable.api
                     if (group.label == "+18") {
                         api.supportedTypes.contains(TvType.NSFW) ||
                         api.name.contains("18", ignoreCase = true) ||
@@ -167,15 +189,11 @@ fun PluginPickerScreen(
                 }
             }
         }
-        if (queryText.isNotBlank()) {
-            val q = queryText.trim().lowercase()
-            list = list.filter { api ->
-                api.name.lowercase().contains(q) ||
-                api.mainUrl.lowercase().contains(q) ||
-                api.lang.lowercase().contains(q)
-            }
+        val normalizedQuery = normalizePluginPortalSearchText(queryText)
+        if (normalizedQuery.isNotBlank()) {
+            list = list.filter { it.normalizedSearchText.contains(normalizedQuery) }
         }
-        list
+        list.map { it.api }
     }
 
     val alphabet = remember { listOf("#") + ('A'..'Z').map { it.toString() } }

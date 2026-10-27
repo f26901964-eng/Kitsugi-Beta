@@ -273,13 +273,56 @@ object ExternalAuthManager {
     }
 
     fun saveKitsuMediaIdForMal(context: Context, malId: Int, isAnime: Boolean, mediaId: Int) {
-        val key = "kitsu_media_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$malId"
-        prefs(context).edit().putInt(key, mediaId).apply()
+        if (malId <= 0 || mediaId <= 0) return
+        val kind = if (isAnime) "a" else "m"
+        val userScope = getKitsuUserId(context)?.takeIf { it.isNotBlank() }
+        val editor = prefs(context).edit()
+            .putInt("kitsu_media_global_${kind}_$malId", mediaId)
+        if (userScope != null) {
+            editor.putInt("kitsu_media_${userScope}_${kind}_$malId", mediaId)
+        }
+        editor.apply()
     }
 
     fun getKitsuMediaIdForMal(context: Context, malId: Int, isAnime: Boolean): Int? {
-        val key = "kitsu_media_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$malId"
-        return prefs(context).getInt(key, 0).takeIf { it > 0 }
+        if (malId <= 0) return null
+        val kind = if (isAnime) "a" else "m"
+        val p = prefs(context)
+        val userScope = getKitsuUserId(context)?.takeIf { it.isNotBlank() }
+        if (userScope != null) {
+            p.getInt("kitsu_media_${userScope}_${kind}_$malId", 0).takeIf { it > 0 }?.let { return it }
+        }
+        return p.getInt("kitsu_media_global_${kind}_$malId", 0).takeIf { it > 0 }
+    }
+
+    /**
+     * Kayıtlı tüm `kitsu_media_<scope>_<a|m>_<malId> → kitsuMediaId` eşlemelerinin anlık
+     * görüntüsü. Katalog kimliği kullanıcıdan bağımsız olduğu için tüm geçerli anahtarlar
+     * okunur; `MyListIdentityCrosswalk` bu haritayı tersine çevirerek Kitsu satırlarını
+     * çevrimdışı MAL/AniList gruplarına bağlar.
+     */
+    fun kitsuMediaMappingSnapshot(context: Context): Map<String, Int> = runCatching {
+        prefs(context).all.mapNotNull { (key, value) ->
+            if (!key.startsWith("kitsu_media_")) return@mapNotNull null
+            val id = (value as? Number)?.toInt()?.takeIf { it > 0 } ?: return@mapNotNull null
+            key to id
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
+    fun findMalIdForKitsuMedia(context: Context, kitsuMediaId: Int, isAnime: Boolean): Int? {
+        if (kitsuMediaId <= 0) return null
+        val suffixPrefix = "_${if (isAnime) "a" else "m"}_"
+        val matches = LinkedHashSet<Int>()
+        kitsuMediaMappingSnapshot(context).forEach { (key, mappedKitsuId) ->
+            if (mappedKitsuId != kitsuMediaId) return@forEach
+            val idx = key.lastIndexOf(suffixPrefix)
+            if (idx < 0) return@forEach
+            val malId = key.substring(idx + suffixPrefix.length).toIntOrNull()
+                ?.takeIf { it in 1..99_999_999 }
+                ?: return@forEach
+            matches += malId
+        }
+        return matches.singleOrNull()
     }
 
     fun getShikimoriToken(context: Context): String? = prefs(context).getString(KEY_SHIKIMORI_TOKEN, null)
