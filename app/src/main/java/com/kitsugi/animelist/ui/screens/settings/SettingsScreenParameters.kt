@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.settings
 
 import com.kitsugi.animelist.ui.components.BackupImportMode
+import com.kitsugi.animelist.ui.components.addons.MangaBulkDeleteState
 import com.kitsugi.animelist.data.local.CloudstreamRepoEntity
 import com.kitsugi.animelist.data.local.CsPluginEntity
 import com.kitsugi.animelist.data.local.ManagedAddonEntity
@@ -358,6 +359,8 @@ data class MangaSettings(
     val mangaSources: List<com.kitsugi.animelist.data.manga.MangaSource> = emptyList(),
     val onInstallMangaExtension: (android.net.Uri) -> Unit = {},
     val onDeleteMangaExtension: (com.kitsugi.animelist.data.manga.MangaSource) -> Unit = {},
+    /** Manga > Kurulu "Toplu Sil" durumu. Null ise buton gösterilmez. */
+    val mangaBulkDelete: MangaBulkDeleteState? = null,
     val mangaRepos: List<String> = emptyList(),
     val mangaRepoExtensions: Map<String, List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>?> = emptyMap(),
     val mangaRepoLoadingState: Map<String, Boolean> = emptyMap(),

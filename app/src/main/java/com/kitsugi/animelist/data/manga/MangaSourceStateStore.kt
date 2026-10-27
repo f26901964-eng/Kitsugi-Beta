@@ -87,6 +87,30 @@ class MangaSourceStateStore(context: Context) {
         persistSnapshotAsync(source)
     }
 
+    /**
+     * Toplu silme / geri getirme için N kaynağın sağlık durumunu TEK SharedPreferences
+     * yazımı ve TEK Room upsert'ı ile günceller. [setHealthStatus] döngüye sokulursa
+     * 121 kaynak için 121 ayrı coroutine + 121 ayrı DB yazımı oluşuyordu.
+     */
+    fun setHealthStatusForAll(sources: List<MangaSource>, status: SourceHealthStatus) {
+        if (sources.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val editor = prefs.edit()
+        sources.forEach { source ->
+            editor
+                .putString(key(source, KEY_HEALTH), status.name)
+                .putLong(key(source, KEY_UPDATED_AT), now)
+                .putLong(key(source, KEY_LAST_CHECKED_AT), now)
+                .putString(key(source, KEY_REASON), null)
+                .putString(key(source, KEY_ERROR_TYPE), null)
+                .putString(key(source, KEY_ERROR_CODE), null)
+        }
+        editor.apply()
+        scope.launch {
+            dao.upsertAll(sources.map { source -> buildEntitySnapshot(source) })
+        }
+    }
+
     fun recordOperationSuccess(source: MangaSource, operation: String, elapsedMs: Long) {
         val now = System.currentTimeMillis()
         val currentStats = getRuntimeStats(source)

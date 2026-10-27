@@ -17757,4 +17757,18 @@
     <string name="inline_video_unsupported_title">This video could not be played inline</string>
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
+
+    <!-- Manga > Extensions & Sources > Installed > Delete All (2026-10-27) -->
+    <string name="manga_bulk_delete_action">Delete All</string>
+    <string name="manga_bulk_delete_hint">%1$d installed sources will be removed from the list</string>
+    <string name="manga_bulk_delete_progress">Deleting…</string>
+    <string name="manga_bulk_restore_action">Restore (%1$d)</string>
+    <string name="manga_bulk_delete_dialog_title">Delete all manga sources?</string>
+    <string name="manga_bulk_delete_dialog_message">%1$d installed manga sources will be removed. Downloaded extensions are permanently deleted from disk.</string>
+    <string name="manga_bulk_delete_builtin_note">Built-in sources have no files to delete; they are disabled and removed from the list. You can bring them back with the Restore button.</string>
+    <string name="manga_bulk_delete_result">🗑️ %1$d extensions deleted • %2$d built-in sources hidden</string>
+    <string name="manga_bulk_delete_partial">⚠️ %1$d extensions deleted, %2$d could not be removed</string>
+    <string name="manga_bulk_delete_empty">ℹ️ No manga sources to remove</string>
+    <string name="manga_bulk_delete_failed">❌ Bulk delete failed</string>
+    <string name="manga_bulk_restore_result">♻️ %1$d built-in manga sources restored</string>
 </resources>

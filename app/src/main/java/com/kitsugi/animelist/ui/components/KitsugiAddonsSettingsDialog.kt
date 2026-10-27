@@ -33,6 +33,7 @@ import com.kitsugi.animelist.data.local.MangaSourceStateEntity
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.remote.CsPlugin
 import com.kitsugi.animelist.ui.components.addons.CloudstreamExtensionsTab
+import com.kitsugi.animelist.ui.components.addons.MangaBulkDeleteState
 import com.kitsugi.animelist.ui.components.addons.MangaExtensionsTab
 import com.kitsugi.animelist.ui.components.addons.StremioTab
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -82,6 +83,8 @@ fun KitsugiAddonsSettingsDialog(
     mangaSources: List<MangaSource> = emptyList(),
     onInstallMangaExtension: (Uri) -> Unit = {},
     onDeleteMangaExtension: (MangaSource) -> Unit = {},
+    /** Null → manga sekmesinde callback'siz "Toplu Sil" butonu çizilmez. */
+    mangaBulkDelete: MangaBulkDeleteState? = null,
     // Manga repos (Keiyoushi / native)
     mangaRepos: List<String> = emptyList(),
     mangaRepoExtensions: Map<String, List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>?> = emptyMap(),
@@ -372,7 +375,8 @@ fun KitsugiAddonsSettingsDialog(
                             onClearSourceMirror = onClearMangaSourceMirror,
                             onOpenSourceHealthScreen = onOpenMangaSourceHealthScreen,
                             onForceCheckUpdates = onForceCheckMangaUpdates,
-                            listState = mangaListState
+                            listState = mangaListState,
+                            bulkDelete = mangaBulkDelete
                         )
                     }
                 }

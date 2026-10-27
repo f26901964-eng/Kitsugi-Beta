@@ -17762,4 +17762,18 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
     <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
     <string name="inline_open_fullscreen">Tam ekranda aç</string>
+
+    <!-- Manga > Eklentiler & Kaynaklar > Kurulu > Toplu Sil (2026-10-27) -->
+    <string name="manga_bulk_delete_action">Toplu Sil</string>
+    <string name="manga_bulk_delete_hint">%1$d kurulu kaynak listeden kaldırılır</string>
+    <string name="manga_bulk_delete_progress">Siliniyor…</string>
+    <string name="manga_bulk_restore_action">Geri getir (%1$d)</string>
+    <string name="manga_bulk_delete_dialog_title">Tüm manga kaynakları silinsin mi?</string>
+    <string name="manga_bulk_delete_dialog_message">%1$d kurulu manga kaynağı listeden kaldırılacak. İndirilmiş eklentiler diskten kalıcı olarak silinir.</string>
+    <string name="manga_bulk_delete_builtin_note">Uygulama içi yerleşik kaynakların silinecek dosyası yoktur; onlar devre dışı bırakılıp listeden çıkarılır. Geri getir düğmesi ile tekrar açabilirsiniz.</string>
+    <string name="manga_bulk_delete_result">🗑️ %1$d eklenti silindi • %2$d yerleşik kaynak gizlendi</string>
+    <string name="manga_bulk_delete_partial">⚠️ %1$d eklenti silindi, %2$d eklenti silinemedi</string>
+    <string name="manga_bulk_delete_empty">ℹ️ Kaldırılacak manga kaynağı bulunamadı</string>
+    <string name="manga_bulk_delete_failed">❌ Toplu silme başarısız oldu</string>
+    <string name="manga_bulk_restore_result">♻️ %1$d yerleşik manga kaynağı geri getirildi</string>
 </resources>
