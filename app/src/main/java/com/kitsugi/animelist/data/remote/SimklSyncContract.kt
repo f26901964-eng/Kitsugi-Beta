@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.model.MediaEntry
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -99,5 +100,60 @@ object SimklSyncContract {
     /** Anime progress is an absolute, contiguous count, not a single watched episode. */
     fun animeEpisodes(progress: Int): JSONArray = JSONArray().apply {
         for (number in 1..progress) put(JSONObject().put("number", number))
+    }
+
+    /**
+     * Simkl kategori yanıtlarını **tekilleştirerek** birleştirir.
+     *
+     * `GET /sync/all-items/{movies|shows|anime}` üç ayrı kategori döndürür ve aynı öğe birden
+     * fazla kategoride yer alabilir (anime filmleri `movies` + `anime`; anime dizileri
+     * `shows` + `anime`). Üç listeyi olduğu gibi toplamak aynı `simklId`'yi iki kez getiriyor,
+     * `Movie`/`Anime` (veya `TvShow`/`Anime`) etiketli iki satır yazılıyor ve Listem'de aynı
+     * yapım iki kart oluyordu. Aynı `simklId` (yoksa aynı başlık + yıl) tek kayda iner;
+     * **anime** kategorisinden gelen kayıt tercih edilir (bölüm ilerlemesi ve çapraz eşitleme
+     * anime ekseninde çalışır).
+     *
+     * @param lists sırayla movies, shows, anime listeleri (Simkl öncelik sırası: sonra gelen
+     *        aynı yapımın daha zengin kaydıdır).
+     */
+    fun mergeCategories(vararg lists: List<MediaEntry>): List<MediaEntry> {
+        val merged = LinkedHashMap<String, MediaEntry>()
+        lists.forEach { list ->
+            list.forEach { entry ->
+                val key = categoryEntryKey(entry)
+                val existing = merged[key]
+                merged[key] = if (existing == null) entry else preferredCategoryRecord(existing, entry)
+            }
+        }
+        return merged.values.toList()
+    }
+
+    private fun categoryEntryKey(entry: MediaEntry): String {
+        val simklId = entry.simklId?.takeIf { it > 0 }
+        if (simklId != null) return "simkl:$simklId"
+        val tmdbId = entry.tmdbId?.takeIf { it > 0 }
+        if (tmdbId != null) return "tmdb:$tmdbId"
+        val title = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title)
+        return "title:$title:${entry.year ?: 0}"
+    }
+
+    /** Aynı öğenin iki kategori kaydından hangisi tutulur. */
+    private fun preferredCategoryRecord(current: MediaEntry, candidate: MediaEntry): MediaEntry {
+        val currentRank = com.kitsugi.animelist.model.MediaIdentity.preferredTypeRank(current.type)
+        val candidateRank = com.kitsugi.animelist.model.MediaIdentity.preferredTypeRank(candidate.type)
+        val winner = if (candidateRank < currentRank) candidate else current
+        val loser = if (winner === candidate) current else candidate
+        return winner.copy(
+            // Kullanıcı verisi hiçbir yönde kaybolmaz.
+            progress = maxOf(winner.progress, loser.progress),
+            score = winner.score ?: loser.score,
+            imageUrl = winner.imageUrl?.takeIf { it.isNotBlank() } ?: loser.imageUrl,
+            year = winner.year ?: loser.year,
+            total = winner.total ?: loser.total,
+            titleEnglish = winner.titleEnglish?.takeIf { it.isNotBlank() } ?: loser.titleEnglish,
+            titleJapanese = winner.titleJapanese?.takeIf { it.isNotBlank() } ?: loser.titleJapanese,
+            tmdbId = winner.tmdbId ?: loser.tmdbId,
+            simklId = winner.simklId ?: loser.simklId
+        )
     }
 }

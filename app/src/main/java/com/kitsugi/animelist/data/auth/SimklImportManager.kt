@@ -80,7 +80,11 @@ object SimklImportManager {
             val shows = fetchList(token, "shows")
             kotlinx.coroutines.delay(1500L)
             val anime = fetchList(token, "anime")
-            movies + shows + anime
+            // Kategoriler ÖRTÜŞEBİLİR: Simkl aynı anime filmini hem `movies` hem `anime`
+            // ucunda döndürür. Üç listeyi olduğu gibi birleştirmek aynı `simklId`'yi iki kez
+            // (Movie + Anime) getiriyor ve kitaplıkta kopya kart oluşuyordu. Tekilleştirme
+            // burada yapılır; anime etiketi korunur.
+            com.kitsugi.animelist.data.remote.SimklSyncContract.mergeCategories(movies, shows, anime)
         }
     }
 

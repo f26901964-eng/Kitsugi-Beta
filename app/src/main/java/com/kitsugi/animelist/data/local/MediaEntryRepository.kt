@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.sync.withLock
 
 class MediaEntryRepository(
     private val dao: MediaEntryDao,
@@ -62,13 +63,17 @@ class MediaEntryRepository(
 
     suspend fun insertAll(entries: List<MediaEntry>) {
         if (entries.isEmpty()) return
-        val entriesWithTime = entries.map { entry ->
-            if (entry.updatedAt == 0L) {
-                entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
-            } else {
-                entry
+        // Aynı kaynağın aynı yapımı iki kez taşıyan satırları (yedek birleştirme, kaynak
+        // yeniden yazımı) tek satıra iner — aksi halde platform sekmelerinde çift kart.
+        val entriesWithTime = com.kitsugi.animelist.data.local.ProviderImportDedupe
+            .collapse(entries)
+            .map { entry ->
+                if (entry.updatedAt == 0L) {
+                    entry.copy(updatedAt = System.currentTimeMillis() / 1000L)
+                } else {
+                    entry
+                }
             }
-        }
         dao.insertAll(entriesWithTime.map { it.copy(id = 0).toEntity() })
     }
 
@@ -85,30 +90,50 @@ class MediaEntryRepository(
         source: String,
         importedEntries: List<MediaEntry>,
         allowDelete: Boolean = true
-    ) {
+    ) = LibraryWriteLocks.forSource(source).withLock {
         if (importedEntries.isEmpty()) {
             if (allowDelete) {
                 clearPendingJobsFor(source = source)
                 dao.deleteBySource(source)
             }
-            return
+            return@withLock
         }
 
         val existing = dao.getAll().filter { it.source.equals(source, ignoreCase = true) }
+        // İçe aktarım listesinin KENDİSİ tekilleştirilir: Simkl aynı anime filmini hem
+        // `movies` hem `anime` ucunda döndürüyor ve tür etiketi (Movie / Anime) yüzünden
+        // aşağıdaki eşleştirme onları ayrı kayıt sanıp iki satır yazıyordu.
+        val incomingEntries = com.kitsugi.animelist.data.local.ProviderImportDedupe.collapse(
+            importedEntries.map { it.copy(source = source) }
+        )
+        // Kimlikler satır başına BİR kez: 800 × 800 karşılaştırmada her çift için yeniden
+        // hesaplamak (eski davranış) büyük kitaplıklarda içe aktarımı yavaşlatıyordu.
+        val existingDomains = existing.map { it.toDomain() }
+        val existingKeys = existingDomains.map {
+            com.kitsugi.animelist.model.MediaIdentity.keys(it)
+        }
         val updates = linkedMapOf<Int, MediaEntryEntity>()
         val inserts = mutableListOf<MediaEntry>()
         val matchedIds = mutableSetOf<Int>()
-        for (entry in importedEntries) {
+        for (entry in incomingEntries) {
             val imported = entry.copy(source = source)
-            val matches = existing.filter {
-                com.kitsugi.animelist.model.MediaIdentity.sameMedia(it.toDomain(), imported)
+            val importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported)
+            // Kanıtlanmış kimlik: aynı türde ID kesişimi/başlık yedeği, tür etiketi farklıysa
+            // yalnızca ortak `simklId`/`subject_id` (Simkl movie ↔ anime kopyası).
+            val matchIndices = existingDomains.indices.filter { index ->
+                com.kitsugi.animelist.model.MediaIdentity.sameProduction(
+                    a = existingDomains[index],
+                    b = imported,
+                    keysA = existingKeys[index],
+                    keysB = importedKeys
+                )
             }
+            val matches = matchIndices.map { existing[it] }
             val match = when {
                 matches.isEmpty() -> null
                 matches.size == 1 -> matches.single()
                 else -> {
                     // Birden fazla eşleşme durumunda en doğru kaydı tespit et (çökmeyi engelle)
-                    val importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported)
                     val keyMatch = matches.firstOrNull { m ->
                         val mKeys = com.kitsugi.animelist.model.MediaIdentity.keys(m.toDomain())
                         importedKeys.intersect(mKeys).isNotEmpty()
@@ -141,10 +166,19 @@ class MediaEntryRepository(
                     isAdult = imported.isAdult || match.isAdult
                 ).toEntity()
             } else {
+                // Tür etiketi farklı ama aynı kanıtlanmış kimliği taşıyan ikinci kopya da
+                // (Simkl `Movie` + `Anime`) tek satıra iner.
                 val prior = inserts.indexOfFirst {
-                    com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
+                    com.kitsugi.animelist.model.MediaIdentity.sameProduction(it, imported, allowTitle = false)
                 }
-                if (prior >= 0) inserts[prior] = imported else inserts.add(imported)
+                if (prior >= 0) {
+                    inserts[prior] = com.kitsugi.animelist.data.local.ProviderImportDedupe.prefer(
+                        inserts[prior],
+                        imported
+                    )
+                } else {
+                    inserts.add(imported)
+                }
             }
         }
         // allowDelete=false must really mean NO deletion, including alleged title duplicates.
@@ -175,7 +209,8 @@ class MediaEntryRepository(
      * yine bozuldu" şikâyetinin kökü. Bu metot eski işaretleri kanonik kimlikler
      * üzerinden yeni listeye geri yazar.
      */
-    suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
+    suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) =
+        LibraryWriteLocks.forSource(source).withLock {
         val preservedKeys = runCatching {
             dao.getAll()
                 .filter { it.source.equals(source, ignoreCase = true) && it.isAdult }
@@ -190,11 +225,17 @@ class MediaEntryRepository(
             ) entry.copy(isAdult = true) else entry
         }
 
+        // Aynı liste iki kategori döndürebilir (Simkl: anime filmi `movies` + `anime`).
+        // Tekilleştirilmezse kaynak baştan yazılırken aynı yapım iki satır olarak eklenir.
+        val deduped = com.kitsugi.animelist.data.local.ProviderImportDedupe.collapse(
+            enriched.map { it.copy(source = source) }
+        )
+
         // Kaynak BAŞTAN yeniden yazılıyor: o kaynağın bayat bekleyen işleri (eski satır
         // id'leri) temizlenmezse drain'de taze içe aktarımı ESKİ kopyayla ezerekti.
         clearPendingJobsFor(source = source)
         dao.deleteBySource(source)
-        insertAll(enriched)
+        insertAll(deduped)
 
         if (sourceNeedsAdultRescan(source)) {
             val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext

@@ -99,10 +99,20 @@ import com.kitsugi.animelist.R
 internal data class CombinedMyListLibrary(
     val items: List<MyListLibraryItem>,
     val entries: List<MediaEntry>,
-    val sourceBadgesByEntryId: Map<Int, List<String>>
+    val sourceBadgesByEntryId: Map<Int, List<String>>,
+    /**
+     * Platform sekmeleri (AniList / MAL / Simkl / Kitsu / Shikimori / Bangumi) için
+     * **yalnızca aynı kaynağın** kopyalarını eriten liste.
+     *
+     * Kaynak sekmeleri kayıtları gruplamıyordu: aynı yapım bir kaynakta iki satır olarak
+     * kaldığında (Simkl aynı anime filmini hem `movies` hem `anime` ucunda döndürüyor →
+     * `Movie` + `Anime`) sekmede ve "Tümü"nde aynı kart iki kez görünüyordu
+     * (bkz. `KOK_NEDEN_RAPORU_LISTEM_CIFT_KART_VE_KAYNAK_ICI_IKIZLER_2026-10-27.md`).
+     */
+    val sourceDedupedEntries: List<MediaEntry>
 ) {
     companion object {
-        val EMPTY = CombinedMyListLibrary(emptyList(), emptyList(), emptyMap())
+        val EMPTY = CombinedMyListLibrary(emptyList(), emptyList(), emptyMap(), emptyList())
     }
 }
 
@@ -316,10 +326,18 @@ fun MyListScreen(
         value = withContext(Dispatchers.Default) {
             val extras = MyListIdentityCrosswalk.build(appContext, entriesForLibrary)
             val items = groupMyListEntries(entriesForLibrary, extras)
+            // Platform sekmeleri de aynı motoru kullanır, ancak yalnızca KENDİ kaynağının
+            // kopyalarını eritir: AniList sekmesinde bir MAL satırı belirmemeli.
+            val sourceDeduped = groupMyListEntries(
+                entries = entriesForLibrary,
+                identityExtras = extras,
+                collapseAcrossSources = false
+            )
             CombinedMyListLibrary(
                 items = items,
                 entries = items.map { it.entry },
-                sourceBadgesByEntryId = items.associate { it.entry.id to it.sourceIds }
+                sourceBadgesByEntryId = items.associate { it.entry.id to it.sourceIds },
+                sourceDedupedEntries = sourceDeduped.map { it.entry }
             )
         }.also { computed ->
             // Detay dönüşünde ilk karede eski sonuç hazır olsun diye ViewModel'de sakla.
@@ -329,10 +347,15 @@ fun MyListScreen(
     val allLibraryItems = combinedLibrary.items
     val allLibraryEntries = combinedLibrary.entries
     val allSourceBadgesByEntryId = combinedLibrary.sourceBadgesByEntryId
+    // Kaynak sekmeleri için: aynı kaynağın kopyaları eritilmiş liste. İlk hesaplama
+    // tamamlanana kadar ham liste gösterilir (boş liste yerine mevcut veri).
+    val sourceDedupedEntries = combinedLibrary.sourceDedupedEntries
+        .ifEmpty { entriesAfterAdultFilter }
 
     val selectedTabEntries = remember(
         entriesAfterAdultFilter,
         allLibraryEntries,
+        sourceDedupedEntries,
         selectedTabIndex,
         searchQuery
     ) {
@@ -340,8 +363,8 @@ fun MyListScreen(
             selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
             // Preserve the existing cross-provider search behavior everywhere except Bangumi:
             // Bangumi must never surface an unrelated provider's row, even during search.
-            searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> entriesAfterAdultFilter
-            else -> entriesAfterAdultFilter.filter { entry ->
+            searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_BANGUMI_TAB_INDEX -> sourceDedupedEntries
+            else -> sourceDedupedEntries.filter { entry ->
                 myListSourceMatchesTab(selectedTabIndex, entry.source, entry.malId)
             }
         }
@@ -478,7 +501,9 @@ fun MyListScreen(
                 selectedTabIndex = selectedTabIndex,
                 onTabIndexChange = onTabIndexChange,
                 visibleEntries = visibleEntries,
-                allEntries = entriesAfterAdultFilter,
+                // Sayaçlar GÖRÜNEN kartlarla eşleşmeli: aynı kaynağın çift satırları
+                // (Simkl movie+anime kopyası) sayıya da yansımamalı.
+                allEntries = sourceDedupedEntries,
                 allLibraryEntryCount = allLibraryItems.size,
                 isAniListConnected = isAniListConnected,
                 isMalConnected = isMalConnected,
@@ -563,11 +588,11 @@ fun MyListScreen(
                     else -> false
                 }
                 val pageScrollState = tabScrollStates[pageTabIndex]
-                val pageEntries = remember(entriesAfterAdultFilter, allLibraryEntries, pageTabIndex) {
+                val pageEntries = remember(sourceDedupedEntries, allLibraryEntries, pageTabIndex) {
                     if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) {
                         allLibraryEntries
                     } else {
-                        entriesAfterAdultFilter.filter { entry ->
+                        sourceDedupedEntries.filter { entry ->
                             myListSourceMatchesTab(pageTabIndex, entry.source, entry.malId)
                         }
                     }

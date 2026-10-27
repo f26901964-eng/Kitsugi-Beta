@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.model.WatchStatus
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -49,6 +52,51 @@ class SimklSyncContractTest {
         val episodes = SimklSyncContract.animeEpisodes(12)
         assertEquals(12, episodes.length())
         (1..12).forEach { assertEquals(it, episodes.getJSONObject(it - 1).getInt("number")) }
+    }
+
+    @Test fun overlappingCategoriesCollapseToOneLibraryRow() {
+        // Anime filmi hem `movies` hem `anime` ucunda döner → Movie + Anime iki satır yazılıyordu.
+        fun row(id: Int, title: String, type: MediaType, simklId: Int) = MediaEntry(
+            id = id,
+            title = title,
+            type = type,
+            status = WatchStatus.Completed,
+            score = 8,
+            progress = 1,
+            total = 1,
+            source = "simkl",
+            year = 2025,
+            simklId = simklId
+        )
+        val movies = listOf(row(1, "Demon Slayer: Infinity Castle", MediaType.Movie, 2098300))
+        val shows = emptyList<MediaEntry>()
+        val anime = listOf(row(2, "Demon Slayer: Infinity Castle", MediaType.Anime, 2098300))
+
+        val merged = SimklSyncContract.mergeCategories(movies, shows, anime)
+
+        assertEquals(1, merged.size)
+        assertEquals(MediaType.Anime, merged.single().type)
+        assertEquals(2098300, merged.single().simklId)
+    }
+
+    @Test fun distinctSimklItemsSurviveCategoryMerge() {
+        fun row(id: Int, title: String, simklId: Int) = MediaEntry(
+            id = id,
+            title = title,
+            type = MediaType.Anime,
+            status = WatchStatus.Planned,
+            score = null,
+            progress = 0,
+            total = null,
+            source = "simkl",
+            simklId = simklId
+        )
+        val merged = SimklSyncContract.mergeCategories(
+            listOf(row(1, "Frieren", 111)),
+            emptyList(),
+            listOf(row(2, "Frieren", 222))
+        )
+        assertEquals(2, merged.size)
     }
 
     @Test fun unsupportedMangaIsNotSilentlyATvShow() {

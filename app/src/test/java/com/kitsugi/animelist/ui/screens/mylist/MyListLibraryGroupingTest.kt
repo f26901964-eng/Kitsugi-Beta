@@ -131,6 +131,69 @@ class MyListLibraryGroupingTest {
     }
 
     @Test
+    fun simklMovieAndAnimeCopiesCollapseIntoOneTileInTheCombinedLibrary() {
+        // Simkl aynı anime filmini `movies` ve `anime` uçlarında döndürür → Movie + Anime satırı.
+        val asMovie = entry(id = 30, title = "Demon Slayer: Infinity Castle", source = "simkl")
+            .copy(type = MediaType.Movie, simklId = 2098300, total = 1, progress = 1)
+        val asAnime = entry(id = 31, title = "Demon Slayer: Infinity Castle", source = "simkl")
+            .copy(type = MediaType.Anime, simklId = 2098300, total = 1, progress = 1)
+
+        val grouped = groupMyListEntries(listOf(asMovie, asAnime))
+
+        assertEquals("aynı film tek kart olmalı", 1, grouped.size)
+        assertEquals("temsilci Anime etiketini korur", MediaType.Anime, grouped.single().entry.type)
+        assertEquals(listOf("simkl"), grouped.single().sourceIds)
+    }
+
+    @Test
+    fun perSourceCollapseRemovesDuplicatesInsideATabButNeverAcrossSources() {
+        val simklMovie = entry(id = 40, title = "Attack on Titan", source = "simkl")
+            .copy(type = MediaType.Movie, simklId = 1234)
+        val simklAnime = entry(id = 41, title = "Attack on Titan", source = "simkl")
+            .copy(type = MediaType.Anime, simklId = 1234)
+        val anilistCopy = entry(id = 42, title = "Attack on Titan", source = "anilist", malId = 100_000_164)
+
+        val sourceScoped = groupMyListEntries(
+            entries = listOf(simklMovie, simklAnime, anilistCopy),
+            collapseAcrossSources = false
+        )
+
+        assertEquals("aynı kaynağın kopyası erir, farklı kaynak korunur", 2, sourceScoped.size)
+        assertEquals(2, sourceScoped.count { it.sourceIds.size == 1 })
+    }
+
+    @Test
+    fun staleCrosswalkHintCannotSplitTwoIdenticalTitles() {
+        // Ekran görüntüsündeki Kaiju No. 8 / Attack on Titan çiftleri: bir satırın çapraz kimlik
+        // önbelleğinde kalan BAYAT bir mal:/kitsu: değeri, aynı başlığı taşıyan iki grubun
+        // birleşmesini "kimlik çakışması" sayıp engelliyordu.
+        val anilist = entry(id = 50, title = "Kaiju No. 8 Season 2", source = "anilist", malId = 100_000_999)
+        val mal = entry(id = 51, title = "Kaiju No. 8 Season 2", source = "mal", malId = 52991)
+        val simkl = entry(id = 52, title = "Kaiju No. 8 Season 2", source = "simkl")
+            .copy(simklId = 4188123, malId = null)
+
+        val grouped = groupMyListEntries(
+            entries = listOf(anilist, mal, simkl),
+            identityExtras = mapOf(simkl.id to setOf("Anime:mal:999999", "Anime:kitsu:777"))
+        )
+
+        assertEquals("ipucu çakışması birleşmeyi engellemez", 1, grouped.size)
+        assertEquals(anilist.id, grouped.single().entry.id)
+        assertEquals(listOf("anilist", "mal", "simkl"), grouped.single().sourceIds)
+    }
+
+    @Test
+    fun perSourceCollapseHonoursBangumiSubjectProof() {
+        val animeSubject = entry(id = 60, title = "葬送のフリーレン", source = "bangumi", malId = 500_057_162)
+        val duplicateSubject = entry(id = 61, title = "葬送のフリーレン", source = "bangumi", malId = 500_057_162)
+
+        val grouped = groupMyListEntries(listOf(animeSubject, duplicateSubject), collapseAcrossSources = false)
+
+        assertEquals(1, grouped.size)
+        assertEquals(1, grouped.single().sourceIds.size)
+    }
+
+    @Test
     fun normalizesProviderAliasesForBadges() {
         val grouped = groupMyListEntries(
             listOf(

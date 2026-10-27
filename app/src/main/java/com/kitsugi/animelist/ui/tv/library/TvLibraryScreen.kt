@@ -98,13 +98,22 @@ fun TvLibraryScreen(
     var selectedContentType by remember { mutableStateOf(TvLibraryContentType.Anime) }
     var selectedTab by remember { mutableStateOf(TvWatchTab.Watching) }
 
+    // Aynı kaynağın aynı yapımı iki kez tuttuğu satırlar (Simkl `movies` + `anime`) tek satıra
+    // iner; aksi halde TV kütüphanesinde ve sayaçlarda aynı yapım iki kez görünüyordu.
+    val dedupedEntries = remember(entries) {
+        com.kitsugi.animelist.ui.screens.mylist.groupMyListEntries(
+            entries = entries,
+            collapseAcrossSources = false
+        ).map { it.entry }
+    }
+
     // İçerik tipine göre filtrele; Anime = Anime + Movie + TvShow, Manga = Manga
-    val typeFilteredEntries = remember(entries, selectedContentType) {
+    val typeFilteredEntries = remember(dedupedEntries, selectedContentType) {
         when (selectedContentType) {
-            TvLibraryContentType.Anime -> entries.filter {
+            TvLibraryContentType.Anime -> dedupedEntries.filter {
                 it.type != MediaType.Manga
             }
-            TvLibraryContentType.Manga -> entries.filter {
+            TvLibraryContentType.Manga -> dedupedEntries.filter {
                 it.type == MediaType.Manga
             }
         }

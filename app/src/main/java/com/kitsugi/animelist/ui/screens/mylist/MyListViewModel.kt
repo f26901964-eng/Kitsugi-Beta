@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.data.local.MyListDuplicateRepair
 import com.kitsugi.animelist.model.EntryAutoRules
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
@@ -80,6 +81,18 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // kimlik üzerinden tamamla: Simkl/Shikimori/Bangumi liste API'leri `adult`
             // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
             // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
+            // Aynı kaynağın aynı yapımı iki kez tuttuğu satırları birleştir: Simkl aynı anime
+            // filmini `movies` + `anime` uçlarında döndürdüğü için `Movie` ve `Anime` etiketli
+            // iki satır oluşuyor, hem Simkl sekmesinde hem "Tümü"nde aynı kart iki kez
+            // görünüyordu. Onarım yalnızca kanıtlanmış kimlik eşleşmelerini birleştirir.
+            //
+            // SIRALAMA: +18 taraması ağa çıkıp uzun sürebilir; çift kartlar kullanıcının
+            // gördüğü ilk şey olduğu için onarım ÖNCE koşar.
+            MyListDuplicateRepair.runIfNeeded(
+                context = context,
+                dao = dao,
+                pendingSyncDao = KitsugiDatabase.getDatabase(context).pendingSyncDao()
+            )
             AdultFlagBackfillMigration.runIfNeeded(context, dao)
         }
 

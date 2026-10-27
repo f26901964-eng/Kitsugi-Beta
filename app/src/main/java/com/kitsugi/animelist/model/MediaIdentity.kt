@@ -164,11 +164,17 @@ object MediaIdentity {
 
     /**
      * The two rows look like the same production but share no verified ID, so the catalog title
-     * decides. A known release year on both sides must agree (a re-make with the identical title
-     * is still a different production).
+     * decides. A known release year on both sides must agree **within one year** (a re-make with
+     * the identical title is still a different production, but providers disagree by ±1 year all
+     * the time: AniList stores the *season* year, Kitsu/MAL store the *premiere* year, so a
+     * December/January boundary flips the number and the same title never merged).
+     *
+     * The ±1 tolerance matches the long-standing add-to-list rule
+     * (`KitsugiModels.matchesTitleVariant`), so the two paths can no longer disagree about
+     * whether a title is already in the library.
      */
     private fun titleMatch(a: MediaEntry, b: MediaEntry): Boolean {
-        if (a.year != null && b.year != null && a.year != b.year) return false
+        if (a.year != null && b.year != null && kotlin.math.abs(a.year - b.year) > 1) return false
 
         val normA = normalizedTitle(a.title)
         val normB = normalizedTitle(b.title)
@@ -192,4 +198,90 @@ object MediaIdentity {
 
     fun sameLibraryRecord(a: MediaEntry, b: MediaEntry): Boolean =
         canonicalSource(a.source) == canonicalSource(b.source) && sameMedia(a, b)
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Tür etiketi farklı ama AYNI yapım: Simkl'in anime/film/dizi kopyaları
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /** Film/dizi/anime türleri — aynı yapımı farklı etiketle taşıyabilen türler. */
+    private val videoTypes: Set<MediaType> =
+        setOf(MediaType.Anime, MediaType.Movie, MediaType.TvShow)
+
+    /**
+     * Tür etiketinden BAĞIMSIZ kanıt sayılabilen kimlik uzayları.
+     *
+     * Simkl tek bir `simklId` uzayı kullanır: aynı film kullanıcı kitaplığında hem
+     * `movies` hem `anime` kategorisinde dönebilir ve iki satır `Movie` / `Anime` olarak
+     * yazılır. Bangumi `subject_id` uzayı da türden bağımsızdır.
+     *
+     * **TMDB bilinçli olarak dışarıda:** TMDB'de film kimliği 123 ile dizi kimliği 123
+     * birbirinden alakasız yapımlardır; `tmdbId` alanı ikisini ayırt etmez.
+     */
+    private val crossTypeEvidenceNamespaces: Set<String> = setOf("simkl", "bangumi")
+
+    /**
+     * `"Anime:simkl:42"` → `"simkl:42"`: tür etiketi atılmış kimlik jetonları.
+     * Yalnızca [crossTypeEvidenceNamespaces] içindeki uzaylar döner.
+     */
+    private fun crossTypeTokens(keys: Set<String>): Set<String> = buildSet {
+        keys.forEach { key ->
+            val token = key.substringAfter(':') // "simkl:42"
+            val namespace = token.substringBefore(':')
+            if (namespace in crossTypeEvidenceNamespaces) add(token)
+        }
+    }
+
+    /** İki kaydın tür etiketi aynı yapımı gösterebilecek şekilde uyumlu mu? */
+    fun compatibleTypes(typeA: MediaType, typeB: MediaType): Boolean =
+        typeA == typeB || (typeA in videoTypes && typeB in videoTypes)
+
+    /**
+     * Aynı yapımın farklı tür etiketli kopyalarından hangisi tercih edilir.
+     *
+     * Simkl aynı anime filmini `movies` ve `anime` uçlarında birlikte döndürdüğünde iki satır
+     * oluşuyor; bölüm ilerlemesi, detay sayfası ve çapraz eşitleme anime ekseninde çalıştığı
+     * için **Anime** etiketi kazanır.
+     */
+    fun preferredTypeRank(type: MediaType): Int = when (type) {
+        MediaType.Anime -> 0
+        MediaType.TvShow -> 1
+        MediaType.Movie -> 2
+        MediaType.Manga -> 3
+    }
+
+    /**
+     * Tür etiketleri farklı iki satırın kanıtlanmış ortak kimlikleri.
+     * Aynı türde çağrıldığında boş küme döner — o durumda [sameMedia] zaten tam kararı verir.
+     */
+    fun crossTypeProof(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String> = keys(a),
+        keysB: Set<String> = keys(b)
+    ): Set<String> {
+        if (a.type == b.type) return emptySet()
+        if (!compatibleTypes(a.type, b.type)) return emptySet()
+        return crossTypeTokens(keysA) intersect crossTypeTokens(keysB)
+    }
+
+    /**
+     * Aynı **yapım** mı? [sameMedia] tür eşitliği ister; oysa bir yapımın kopyaları
+     * kaynaklarda farklı tür etiketiyle durabilir (Simkl aynı anime filmini hem
+     * `movies` hem `anime` listesinde döndürür → `Movie` + `Anime` iki satır).
+     *
+     * Kural: türler aynıysa mevcut [sameMedia] sözleşmesi aynen işler (kimlik kesişimi
+     * ya da başlık + yıl yedeği). Türler farklıysa **yalnızca kanıtlanmış ortak kimlik**
+     * birleştirir; başlık benzerliği asla. Anime ↔ Manga bu yolla asla birleşmez.
+     */
+    fun sameProduction(
+        a: MediaEntry,
+        b: MediaEntry,
+        keysA: Set<String> = keys(a),
+        keysB: Set<String> = keys(b),
+        allowTitle: Boolean = true
+    ): Boolean = if (a.type == b.type) {
+        sameMedia(a, b, keysA, keysB, allowTitle)
+    } else {
+        crossTypeProof(a, b, keysA, keysB).isNotEmpty()
+    }
 }
