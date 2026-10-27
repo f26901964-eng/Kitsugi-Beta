@@ -1,14 +1,14 @@
 {
   "_comment": "Kitsugi Eklenti Domain Listesi — GitHub Actions + AI tarafından otomatik güncellenir.",
   "_format": "eklentiAdi (küçük harf) → güncel ana URL",
-  "_updated": "2026-10-26 03:22 UTC",
+  "_updated": "2026-10-27 03:21 UTC",
   "_stats": {
-    "total": 81,
+    "total": 80,
     "added": 0,
-    "removed": 0,
+    "removed": 1,
     "changed": 0,
     "ai_assisted": 0,
-    "blocked": 153
+    "blocked": 154
   },
   "domains": {
     "animecix": "https://animecix.tv",
@@ -32,7 +32,6 @@
     "dizikorea": "https://dizikorea3.com",
     "dizilife": "https://dizi77.life",
     "dizilla": "https://dizilla.now",
-    "dizimom": "https://www.dizimom.cafe",
     "dizipal": "https://dizipal3008.com",
     "dizipaloriginal": "https://dizipal3008.com",
     "dizipod": "https://dizipod.com",
@@ -119,6 +118,7 @@
     "cumlouder",
     "dirtyship",
     "dizimag",
+    "dizimom",
     "documentaryarea",
     "doeda",
     "doedaorijinal",
