@@ -920,8 +920,12 @@ private fun WikiSectionRow(
                                     onOpenLink = onOpenLink,
                                     onOpenWikiLink = onOpenWikiLink,
                                     gallerySource = gallerySource,
-                                    baseKey = sectionBaseKey,
-                                    translations = sectionTranslations
+                                    // Never feed translated blocks to the renderer while
+                                    // Original is selected.  The old call kept the
+                                    // structured translation map alive, so the toggle changed
+                                    // only the button label while the body stayed translated.
+                                    baseKey = if (showingOriginal) "" else sectionBaseKey,
+                                    translations = if (showingOriginal) emptyMap() else sectionTranslations
                                 )
                             }
                         }

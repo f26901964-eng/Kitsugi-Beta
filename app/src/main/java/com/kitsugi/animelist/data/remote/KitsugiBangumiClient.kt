@@ -466,24 +466,33 @@ object KitsugiBangumiClient {
     }.getOrElse { logAndEmpty("seasonFor($year-$month)", it) }
 
     /** "Şu An Yayında" — bu ay + geçen ay birleşimi (Bangumi'de airing durumu yoktur). */
-    suspend fun airingAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun airingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0
+    ): List<JikanSearchResult> {
+        val safeOffset = offset.coerceAtLeast(0)
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val previous = if (month == 1) (year - 1) to 12 else year to (month - 1)
-        val current = seasonFor(year, month, limit, context)
+        val current = seasonFor(year, month, limit, context, offset = safeOffset)
         if (current.size >= limit) return current.take(limit)
-        val older = seasonFor(previous.first, previous.second, limit - current.size, context)
+        val older = seasonFor(previous.first, previous.second, limit - current.size, context, offset = safeOffset)
         return (current + older).distinctBy { it.malId }.take(limit)
     }
 
     /** "Yaklaşan" — gelecek ayın条目'ları. */
-    suspend fun upcomingAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun upcomingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val next = if (month == 12) (year + 1) to 1 else year to (month + 1)
-        return seasonFor(next.first, next.second, limit, context)
+        return seasonFor(next.first, next.second, limit, context, offset = offset.coerceAtLeast(0))
     }
 
     /** "Anime Filmleri" — `cat=3` (Movie) alt kategorisi. */
@@ -590,6 +599,7 @@ object KitsugiBangumiClient {
         val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH) + 1
         val next = if (month == 12) (year + 1) to 1 else year to (month + 1)
+        val publishingBooks = publishingManga(limit, context)
         return BangumiExploreData(
             topAnime = topAnime(limit, context),
             trendingAnime = trendingAnime(limit, context),
@@ -602,7 +612,8 @@ object KitsugiBangumiClient {
             bangumiMovies = realMovies(limit, context),
             newlyAddedAnime = newlyAddedAnime(limit, context),
             topManga = topManga(limit, context),
-            publishingManga = publishingManga(limit, context),
+            publishingManga = publishingBooks,
+            newlyAddedManga = publishingBooks,
             trendingManga = trendingManga(limit, context),
             topRatedManga = topRatedManga(limit, context)
         )
@@ -622,6 +633,7 @@ object KitsugiBangumiClient {
         val newlyAddedAnime: List<JikanSearchResult> = emptyList(),
         val topManga: List<JikanSearchResult> = emptyList(),
         val publishingManga: List<JikanSearchResult> = emptyList(),
+        val newlyAddedManga: List<JikanSearchResult> = emptyList(),
         val trendingManga: List<JikanSearchResult> = emptyList(),
         val topRatedManga: List<JikanSearchResult> = emptyList()
     )

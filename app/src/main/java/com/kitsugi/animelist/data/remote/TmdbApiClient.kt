@@ -109,6 +109,8 @@ class TmdbApiClient(
                     val body = response.body?.string() ?: return@withContext false
                     JSONObject(body).optJSONObject("images") != null
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w("TmdbApiClient", "TMDB key validation failed (${e.javaClass.simpleName})")
                 false
@@ -154,6 +156,8 @@ class TmdbApiClient(
             withTimeoutOrNull(800L) {
                 com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             null
         }
@@ -399,6 +403,9 @@ class TmdbApiClient(
                 val rating = item.optDouble("vote_average", 0.0)
                 val score = if (rating > 0.0) (rating * 10).toInt().coerceIn(0, 100) / 10 else null
                 val imageUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
+                val genreIds = item.optJSONArray("genre_ids")?.let { genres ->
+                    (0 until genres.length()).mapNotNull { genres.optInt(it, 0).takeIf { id -> id > 0 } }
+                }.orEmpty()
                 val subtitleParts = buildList {
                     add(if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString())
                     if (year != null && year > 0) add(year.toString())
@@ -418,15 +425,91 @@ class TmdbApiClient(
                         realMalId = null,
                         titleEnglish = resolvedTitleEnglish,
                         titleJapanese = resolvedTitleJapanese,
-                        tmdbId = tmdbId
+                        tmdbId = tmdbId,
+                        genreIds = genreIds
                     )
                 )
             }
             list
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "search error: ${e.message}", e)
             emptyList()
         }
+    }
+
+    /**
+     * Text + discover facets. TMDB has no endpoint that accepts a free-text title and
+     * `with_networks`/provider facets together. Search the bounded discover window and
+     * apply the title terms locally instead of silently dropping the selected institution
+     * or studio filter.
+     */
+    suspend fun searchAdvanced(
+        query: String,
+        isMovie: Boolean,
+        page: Int = 1,
+        sortBy: String = "popularity.desc",
+        genres: List<Int>? = null,
+        excludedGenres: List<Int>? = null,
+        originCountry: String? = null,
+        startYear: Int? = null,
+        endYear: Int? = null,
+        minScore: Double? = null,
+        maxScore: Double? = null,
+        minVoteCount: Int? = null,
+        minRuntime: Int? = null,
+        maxRuntime: Int? = null,
+        watchProviderId: Int? = null,
+        networkId: Int? = null,
+        keyword: String? = null,
+        tvStatus: String? = null,
+        tvType: String? = null,
+        includeAdult: Boolean = false
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val terms = query.trim().lowercase(java.util.Locale.ROOT)
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+        if (terms.isEmpty()) return@withContext emptyList()
+        val pagesToInspect = (page.coerceAtLeast(1) * 3).coerceAtMost(10)
+        val candidates = buildList {
+            for (candidatePage in 1..pagesToInspect) {
+                addAll(
+                    discoverAdvanced(
+                        isMovie = isMovie,
+                        page = candidatePage,
+                        sortBy = sortBy,
+                        genres = genres,
+                        excludedGenres = excludedGenres,
+                        originCountry = originCountry,
+                        startYear = startYear,
+                        endYear = endYear,
+                        minScore = minScore,
+                        maxScore = maxScore,
+                        minVoteCount = minVoteCount,
+                        minRuntime = minRuntime,
+                        maxRuntime = maxRuntime,
+                        watchProviderId = watchProviderId,
+                        networkId = networkId,
+                        keyword = keyword,
+                        tvStatus = tvStatus,
+                        tvType = tvType,
+                        includeAdult = includeAdult
+                    )
+                )
+            }
+        }
+        candidates
+            .distinctBy { "${it.type}:${it.tmdbId ?: it.malId}" }
+            .filter { item ->
+                val haystack = listOf(item.title, item.titleEnglish, item.titleJapanese)
+                    .filterNotNull()
+                    .joinToString(" ")
+                    .lowercase(java.util.Locale.ROOT)
+                terms.all { it in haystack }
+            }
+            .drop((page - 1).coerceAtLeast(0) * 20)
+            .take(20)
     }
 
     suspend fun discoverAdvanced(
@@ -515,6 +598,9 @@ class TmdbApiClient(
                 val rating = item.optDouble("vote_average", 0.0)
                 val score = if (rating > 0.0) (rating * 10).toInt().coerceIn(0, 100) / 10 else null
                 val imageUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
+                val genreIds = item.optJSONArray("genre_ids")?.let { genres ->
+                    (0 until genres.length()).mapNotNull { genres.optInt(it, 0).takeIf { id -> id > 0 } }
+                }.orEmpty()
                 val subtitleParts = buildList {
                     add(if (isMovie) "movie".toLocalizedMediaTypeString() else "tv".toLocalizedMediaTypeString())
                     if (year != null && year > 0) add(year.toString())
@@ -527,11 +613,14 @@ class TmdbApiClient(
                         isAdult = item.optBoolean("adult", false),
                         imageUrl = imageUrl, year = year, source = "tmdb",
                         realMalId = null, titleEnglish = resolved.english, titleJapanese = resolved.native,
-                        tmdbId = tmdbId
+                        tmdbId = tmdbId,
+                        genreIds = genreIds
                     )
                 )
             }
             list
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "discoverAdvanced error: ${e.message}", e)
             emptyList()
@@ -572,6 +661,8 @@ class TmdbApiClient(
                 )
             }
             list
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyList()
         }
@@ -612,6 +703,8 @@ class TmdbApiClient(
                 )
             }
             list
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyList()
         }
@@ -635,6 +728,8 @@ class TmdbApiClient(
                         null
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "executeGet failed (${e.javaClass.simpleName}) — ${SensitiveUrlRedactor.redact(urlStr)}")
                 null

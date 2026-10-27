@@ -38,6 +38,26 @@ import com.kitsugi.animelist.data.remote.SimklApiClient
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
 
+/** Common format chips constrain TMDB's two media families as well as AniList/MAL. */
+private fun List<String>.forMediaType(mediaType: MediaType): List<String> {
+    val printTypes = setOf("manga", "novel", "one_shot", "one-shot", "one shot", "manhwa", "manhua", "lightnovel", "light_novel")
+    return filter { (it.lowercase() in printTypes) == (mediaType == MediaType.Manga) }
+}
+
+private fun List<MediaType>.filterByCommonFormats(state: SearchUiState): List<MediaType> {
+    if (state.selectedFormats.isEmpty()) return this
+    val allowed = state.selectedFormats.mapNotNull { format ->
+        when (format.apiValue) {
+            "MOVIE" -> MediaType.Movie
+            "TV", "TV_SHORT", "SPECIAL", "OVA", "ONA", "MUSIC" -> MediaType.TvShow
+            // TMDB has no print catalog.  A manga-only common selection must not
+            // accidentally return unrelated movies or TV shows.
+            else -> null
+        }
+    }.toSet()
+    return filter { it in allowed }
+}
+
 /**
  * Search ViewModel.
  * MoeList SearchViewModel.kt ve AniHyou SearchViewModel.kt'den ilham alınarak
@@ -106,6 +126,20 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         val hasSearched: Boolean = false,
         val errorMessage: String? = null
     )
+
+    /**
+     * Immutable request boundary.  Paging must not read the live filter sheet state: a
+     * user can open the sheet while page 2 is in flight.  The generation and this snapshot
+     * make every page of one search use the same source, scope and effective filters.
+     */
+    private data class SearchRequestSnapshot(
+        val state: SearchUiState,
+        val showAdult: Boolean,
+        val generation: Int
+    )
+
+    @Volatile
+    private var activeSearchSnapshot: SearchRequestSnapshot? = null
 
     private val stateCache = mutableMapOf<String, TabSearchState>()
 
@@ -306,7 +340,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 hasNextPage = false
             )
         }
-        if (query.isNotBlank()) search(seedResults = shelf)
+        if (query.isNotBlank() || _uiState.value.hasFiltersApplied) {
+            search(seedResults = shelf)
+        }
     }
 
     fun setTab(tab: KitsugiSearchTab) {
@@ -330,6 +366,21 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             else -> MediaType.Anime
         }
 
+        val targetEngine = when (tab) {
+            KitsugiSearchTab.Anime, KitsugiSearchTab.Manga -> SearchSourceEngine.ANILIST
+            KitsugiSearchTab.MAL -> SearchSourceEngine.MAL
+            KitsugiSearchTab.TMDB -> SearchSourceEngine.TMDB
+            KitsugiSearchTab.Shikimori -> SearchSourceEngine.SHIKIMORI
+            KitsugiSearchTab.Kitsu -> SearchSourceEngine.KITSU
+            KitsugiSearchTab.Simkl -> SearchSourceEngine.SIMKL
+            KitsugiSearchTab.Bangumi -> SearchSourceEngine.BANGUMI
+            else -> SearchSourceEngine.ALL
+        }
+        val targetScope = when (tab) {
+            KitsugiSearchTab.Manga -> SearchScope.MANGA
+            else -> _uiState.value.selectedScope.takeIf { it in targetEngine.availableScopes() }
+                ?: SearchScope.ALL_MIXED
+        }
         val cached = loadStateFromCache(tab, mappedPlatform, mappedMediaType)
 
         // Keep active query if user was actively searching!
@@ -353,6 +404,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update {
             it.copy(
                 currentTab = tab,
+                selectedEngine = targetEngine,
+                selectedScope = targetScope,
                 selectedPlatform = mappedPlatform,
                 selectedMediaType = mappedMediaType,
                 query = effectiveQuery,
@@ -400,10 +453,36 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     fun setPlatform(value: SearchPlatform) {
         val currentQuery = _uiState.value.query.trim()
         saveCurrentStateToCache()
-        val cached = loadStateFromCache(_uiState.value.currentTab, value, _uiState.value.selectedMediaType)
+        val engine = when (value) {
+            SearchPlatform.All -> SearchSourceEngine.ALL
+            SearchPlatform.AniList -> SearchSourceEngine.ANILIST
+            SearchPlatform.MAL -> SearchSourceEngine.MAL
+            SearchPlatform.TMDB -> SearchSourceEngine.TMDB
+            SearchPlatform.Shikimori -> SearchSourceEngine.SHIKIMORI
+            SearchPlatform.Kitsu -> SearchSourceEngine.KITSU
+            SearchPlatform.Simkl -> SearchSourceEngine.SIMKL
+            SearchPlatform.Bangumi -> SearchSourceEngine.BANGUMI
+            SearchPlatform.CS3 -> SearchSourceEngine.ALL
+        }
+        val scope = _uiState.value.selectedScope.takeIf { it in engine.availableScopes() }
+            ?: engine.availableScopes().first()
+        val tab = when (engine) {
+            SearchSourceEngine.ALL -> KitsugiSearchTab.All
+            SearchSourceEngine.ANILIST -> if (scope == SearchScope.MANGA) KitsugiSearchTab.Manga else KitsugiSearchTab.Anime
+            SearchSourceEngine.MAL -> KitsugiSearchTab.MAL
+            SearchSourceEngine.TMDB -> KitsugiSearchTab.TMDB
+            SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
+            SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
+            SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
+        }
+        val cached = loadStateFromCache(tab, value, _uiState.value.selectedMediaType)
         val effectiveQuery = if (currentQuery.isNotBlank()) currentQuery else cached.query
         _uiState.update {
             it.copy(
+                selectedEngine = engine,
+                selectedScope = scope,
+                currentTab = tab,
                 selectedPlatform = value,
                 query = effectiveQuery,
                 results = if (currentQuery.isNotBlank() && cached.results.isEmpty()) it.results else cached.results,
@@ -722,13 +801,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     fun getActiveFilterCountForEngine(engine: SearchSourceEngine): Int {
         val state = _uiState.value
         return when (engine) {
-            SearchSourceEngine.ANILIST -> state.aniListSpecificFilters.activeCount
-            SearchSourceEngine.MAL -> state.malSpecificFilters.activeCount
-            SearchSourceEngine.TMDB -> state.tmdbSpecificFilters.activeCount
-            SearchSourceEngine.SHIKIMORI -> state.shikimoriSpecificFilters.activeCount
-            SearchSourceEngine.KITSU -> state.kitsuSpecificFilters.activeCount
-            SearchSourceEngine.SIMKL -> state.simklSpecificFilters.activeCount
-            SearchSourceEngine.BANGUMI -> state.bangumiSpecificFilters.activeCount
+            SearchSourceEngine.ANILIST -> state.commonFilterCount + state.aniListSpecificFilters.activeCount
+            SearchSourceEngine.MAL -> state.commonFilterCount + state.malSpecificFilters.activeCount
+            SearchSourceEngine.TMDB -> state.commonFilterCount + state.tmdbSpecificFilters.activeCount
+            SearchSourceEngine.SHIKIMORI -> state.commonFilterCount + state.shikimoriSpecificFilters.activeCount
+            SearchSourceEngine.KITSU -> state.commonFilterCount + state.kitsuSpecificFilters.activeCount
+            SearchSourceEngine.SIMKL -> state.commonFilterCount + state.simklSpecificFilters.activeCount
+            SearchSourceEngine.BANGUMI -> state.commonFilterCount + state.bangumiSpecificFilters.activeCount
             SearchSourceEngine.ALL -> state.activeFilterCount
         }
     }
@@ -1199,6 +1278,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         // (iptali yutan) eski çalışmalar UI durumuna yazamaz.
         val generation = searchGeneration.incrementAndGet()
         val searchStartedAt = System.currentTimeMillis()
+        // Capture before the loading-state update.  The state object is immutable, so
+        // effective provider bridges derived from it remain stable for every page.
+        activeSearchSnapshot = SearchRequestSnapshot(
+            state = state,
+            showAdult = showAdultContentState,
+            generation = generation
+        )
 
         val queryNotBlank = state.query.isNotBlank()
         val newHistoryItem = if (queryNotBlank) {
@@ -1233,7 +1319,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         searchJob = viewModelScope.launch {
             try {
                 val rawQuery = state.query.trim()
-                val (fetched, hasNext) = executeSearchForPage(rawQuery, page = 1, generation = generation)
+                val (fetched, hasNext) = executeSearchForPage(
+                    rawQuery,
+                    page = 1,
+                    generation = generation,
+                    requestState = state,
+                    requestShowAdult = showAdultContentState
+                )
                 // Kaynağın gevşek eşleşme/popülerlik kuyruğunu alta it; sorguyla
                 // gerçekten örtüşenleri öne al.
                 val results = SearchRelevance.rank(rawQuery, fetched)
@@ -1283,17 +1375,26 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadMore() {
-        val state = _uiState.value
-        if (state.isLoading || state.isLoadingMore || !state.hasNextPage) return
+        val liveState = _uiState.value
+        if (liveState.isLoading || liveState.isLoadingMore || !liveState.hasNextPage) return
+        val generation = searchGeneration.get()
+        val request = activeSearchSnapshot?.takeIf { it.generation == generation }
+            ?: SearchRequestSnapshot(liveState, showAdultContentState, generation)
+        val state = request.state
         if (state.query.isBlank() && !state.hasFiltersApplied) return
 
-        val nextPage = state.page + 1
-        val generation = searchGeneration.get()
+        val nextPage = liveState.page + 1
         _uiState.update { it.copy(isLoadingMore = true) }
 
         viewModelScope.launch {
             try {
-                val (moreResults, hasNext) = executeSearchForPage(state.query.trim(), page = nextPage, generation = generation)
+                val (moreResults, hasNext) = executeSearchForPage(
+                    state.query.trim(),
+                    page = nextPage,
+                    generation = generation,
+                    requestState = state,
+                    requestShowAdult = request.showAdult
+                )
                 _uiState.update { current ->
                     // Nesil değiştiyse (araya yeni bir arama girdiyse) sayfalamayı uygulama.
                     if (searchGeneration.get() != generation) return@update current
@@ -1302,7 +1403,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     current.copy(
                         results = current.results + uniqueNew,
                         page = nextPage,
-                        hasNextPage = hasNext,
+                        // A provider may repeat its last page.  Do not keep an infinite
+                        // scroll alive when the aggregate page added nothing new.
+                        hasNextPage = hasNext && uniqueNew.isNotEmpty(),
                         isLoadingMore = false
                     )
                 }
@@ -1318,10 +1421,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         queryText: String,
         page: Int,
         generation: Int = searchGeneration.get(),
-        scopeOverride: SearchScope? = null
+        scopeOverride: SearchScope? = null,
+        requestState: SearchUiState? = null,
+        requestShowAdult: Boolean? = null
     ): Pair<List<JikanSearchResult>, Boolean> {
-        val state = _uiState.value
-        val showAdult = showAdultContentState
+        val snapshot = activeSearchSnapshot?.takeIf { it.generation == generation }
+        val state = requestState ?: snapshot?.state ?: _uiState.value
+        val showAdult = requestShowAdult ?: snapshot?.showAdult ?: showAdultContentState
 
         val engine = state.selectedEngine
         val scope = scopeOverride ?: state.selectedScope
@@ -1332,7 +1438,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             return supervisorScope {
                 suspend fun fetch(mediaScope: SearchScope): Result<Pair<List<JikanSearchResult>, Boolean>> =
                     try {
-                        Result.success(executeSearchForPage(queryText, page, generation, mediaScope))
+                        Result.success(
+                            executeSearchForPage(
+                                queryText = queryText,
+                                page = page,
+                                generation = generation,
+                                scopeOverride = mediaScope,
+                                requestState = state,
+                                requestShowAdult = showAdult
+                            )
+                        )
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -1357,7 +1472,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         if (engine != SearchSourceEngine.ALL) {
             when (engine) {
                 SearchSourceEngine.MAL -> {
-                    val f = state.malSpecificFilters
+                    val f = state.effectiveMalFilters()
                     when (scope) {
                         SearchScope.CHARACTER -> {
                             val res = apiClient.searchMalCharacters(queryText, page = page)
@@ -1373,34 +1488,52 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         else -> {
                             val mediaType = if (scope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL)) MediaType.Manga else MediaType.Anime
-                            val res = apiClient.searchMalAdvanced(
-                                query = queryText,
-                                mediaType = mediaType,
-                                showAdultContent = showAdult,
-                                status = f.status,
-                                format = f.type,
-                                genres = f.genres,
-                                excludedGenres = f.excludedGenres,
-                                rating = f.rating,
-                                minScore = f.minScore,
-                                maxScore = f.maxScore,
-                                producerId = f.producerId,
-                                magazineId = f.magazineId,
-                                letter = f.letter,
-                                sort = f.sortDirection,
-                                orderBy = f.orderBy,
-                                page = page,
-                                season = f.season,
-                                seasonYear = f.seasonYear,
-                                startYear = f.startYear,
-                                endYear = f.endYear
-                            )
-                            return Pair(res, res.size >= 24)
+                            val malTypes = f.types.ifEmpty { listOfNotNull(f.type) }
+                            val mediaTypes = malTypes.forMediaType(mediaType)
+                            if (malTypes.isNotEmpty() && mediaTypes.isEmpty()) return Pair(emptyList(), false)
+                            val requestedTypes = if (mediaTypes.isEmpty()) listOf<String?>(null) else mediaTypes.map { it }
+                            val requestedStatuses = f.statuses.ifEmpty { listOfNotNull(f.status) }
+                            val statuses = if (requestedStatuses.isEmpty()) listOf<String?>(null) else requestedStatuses.map { it }
+                            suspend fun searchMalWithType(type: String?, status: String?): List<JikanSearchResult> =
+                                apiClient.searchMalAdvanced(
+                                    query = queryText,
+                                    mediaType = mediaType,
+                                    showAdultContent = showAdult,
+                                    status = status,
+                                    format = type,
+                                    genres = f.genres.takeIf { it.isNotEmpty() },
+                                    excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                                    rating = f.rating,
+                                    minScore = f.minScore,
+                                    maxScore = f.maxScore,
+                                    producerId = f.producerId,
+                                    magazineId = f.magazineId,
+                                    letter = f.letter,
+                                    sort = f.sortDirection,
+                                    orderBy = f.orderBy,
+                                    page = page,
+                                    season = f.season,
+                                    seasonYear = f.seasonYear,
+                                    startYear = f.startYear,
+                                    endYear = f.endYear
+                                )
+                            val requests = requestedTypes.flatMap { type -> statuses.map { status -> type to status } }
+                            val typeResults = if (requests.size == 1) {
+                                listOf(searchMalWithType(requests.first().first, requests.first().second))
+                            } else {
+                                coroutineScope {
+                                    requests.map { (type, status) ->
+                                        async(Dispatchers.IO) { searchMalWithType(type, status) }
+                                    }.map { it.await() }
+                                }
+                            }
+                            val res = typeResults.flatten().distinctBy { SearchRelevance.keyOf(it) }
+                            return Pair(res, typeResults.any { it.size >= 24 })
                         }
                     }
                 }
                 SearchSourceEngine.TMDB -> {
-                    val f = state.tmdbSpecificFilters
+                    val f = state.effectiveTmdbFilters()
                     when (scope) {
                         SearchScope.STAFF -> {
                             val res = TmdbApiClient().searchPerson(queryText, page = page)
@@ -1411,47 +1544,104 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             return Pair(res, res.size >= 24)
                         }
                         else -> {
-                            // TMDB discover/with_keywords sayısal keyword ID bekler; serbest metin
-                            // başlığını buraya göndermek rafın bulduğu filmi/diziyi gizliyordu.
-                            if (queryText.isNotBlank() && f.activeCount == 0) {
-                                val res = TmdbApiClient().search(queryText, page = page).filter {
-                                    when (scope) {
-                                        SearchScope.MOVIE -> it.type == MediaType.Movie
-                                        SearchScope.TV -> it.type == MediaType.TvShow
-                                        else -> true
-                                    }
+                            // TMDB's discover endpoint has no free-text query parameter and
+                            // `with_keywords` accepts an ID, not the user's title.  Search first
+                            // whenever text is present, then apply the fields available in the
+                            // search payload locally.  This preserves the query and avoids the
+                            // old "text passed as keyword ID => empty results" failure.
+                            if (queryText.isNotBlank()) {
+                                val discoveryCountry = if (scope == SearchScope.K_DRAMA) "KR" else f.originCountry
+                                val requiresDiscovery = scope == SearchScope.K_DRAMA || discoveryCountry != null || f.minVoteCount != null ||
+                                    f.minRuntime != null || f.maxRuntime != null || f.watchProviderId != null ||
+                                    f.networkId != null || f.keyword != null || f.tvStatus != null || f.tvType != null
+                                val baseMediaKinds = if (scope == SearchScope.ALL_MIXED) {
+                                    listOf(MediaType.Movie, MediaType.TvShow)
+                                } else {
+                                    listOf(if (scope == SearchScope.MOVIE || (scope != SearchScope.TV && state.selectedMediaType == MediaType.Movie)) MediaType.Movie else MediaType.TvShow)
                                 }
-                                return Pair(res, res.size >= 20)
+                                val mediaKinds = baseMediaKinds.filterByCommonFormats(state)
+                                if (mediaKinds.isEmpty()) return Pair(emptyList(), false)
+                                if (requiresDiscovery) {
+                                    val client = TmdbApiClient()
+                                    val res = mediaKinds.flatMap { kind ->
+                                        client.searchAdvanced(
+                                            query = queryText,
+                                            isMovie = kind == MediaType.Movie,
+                                            page = page,
+                                            sortBy = f.sortBy,
+                                            genres = f.genres.takeIf { it.isNotEmpty() },
+                                            excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                                            originCountry = discoveryCountry,
+                                            startYear = f.startYear,
+                                            endYear = f.endYear,
+                                            minScore = f.minScore,
+                                            maxScore = f.maxScore,
+                                            minVoteCount = f.minVoteCount,
+                                            minRuntime = f.minRuntime,
+                                            maxRuntime = f.maxRuntime,
+                                            watchProviderId = f.watchProviderId,
+                                            networkId = f.networkId,
+                                            keyword = f.keyword,
+                                            tvStatus = f.tvStatus,
+                                            tvType = f.tvType,
+                                            includeAdult = f.includeAdult
+                                        )
+                                    }.distinctBy { SearchRelevance.keyOf(it) }
+                                    return Pair(res, res.size >= 20)
+                                }
+                                val raw = TmdbApiClient().search(queryText, page = page)
+                                val res = raw.filter {
+                                    it.type in mediaKinds &&
+                                        (scope !in setOf(SearchScope.MOVIE, SearchScope.TV, SearchScope.K_DRAMA) ||
+                                            (scope == SearchScope.MOVIE && it.type == MediaType.Movie) ||
+                                            (scope != SearchScope.MOVIE && it.type == MediaType.TvShow)) &&
+                                        (showAdult || !it.isAdult) &&
+                                        (f.genres.isEmpty() || f.genres.all { id -> id in it.genreIds }) &&
+                                        (f.excludedGenres.none { id -> id in it.genreIds }) &&
+                                        (f.startYear == null || (it.year ?: Int.MIN_VALUE) >= f.startYear) &&
+                                        (f.endYear == null || (it.year ?: Int.MAX_VALUE) <= f.endYear) &&
+                                        (f.minScore == null || (it.score ?: 0).toDouble() >= f.minScore) &&
+                                        (f.maxScore == null || (it.score ?: 10).toDouble() <= f.maxScore)
+                                }
+                                return Pair(res, raw.size >= 20)
                             }
-                            val isMovie = scope == SearchScope.MOVIE || (scope != SearchScope.TV && state.selectedMediaType == MediaType.Movie)
+                            val baseMediaKinds = if (scope == SearchScope.ALL_MIXED) {
+                                listOf(MediaType.Movie, MediaType.TvShow)
+                            } else {
+                                listOf(if (scope == SearchScope.MOVIE || (scope != SearchScope.TV && state.selectedMediaType == MediaType.Movie)) MediaType.Movie else MediaType.TvShow)
+                            }
+                            val mediaKinds = baseMediaKinds.filterByCommonFormats(state)
+                            if (mediaKinds.isEmpty()) return Pair(emptyList(), false)
                             val country = if (scope == SearchScope.K_DRAMA) "KR" else f.originCountry
-                            val res = TmdbApiClient().discoverAdvanced(
-                                isMovie = isMovie,
-                                page = page,
-                                sortBy = f.sortBy,
-                                genres = f.genres,
-                                excludedGenres = f.excludedGenres,
-                                originCountry = country,
-                                startYear = f.startYear,
-                                endYear = f.endYear,
-                                minScore = f.minScore,
-                                maxScore = f.maxScore,
-                                minVoteCount = f.minVoteCount,
-                                minRuntime = f.minRuntime,
-                                maxRuntime = f.maxRuntime,
-                                watchProviderId = f.watchProviderId,
-                                networkId = f.networkId,
-                                keyword = if (queryText.isNotBlank()) queryText else f.keyword,
-                                tvStatus = f.tvStatus,
-                                tvType = f.tvType,
-                                includeAdult = f.includeAdult
-                            )
-                            return Pair(res, res.size >= 24)
+                            val res = mediaKinds.flatMap { kind ->
+                                TmdbApiClient().discoverAdvanced(
+                                    isMovie = kind == MediaType.Movie,
+                                    page = page,
+                                    sortBy = f.sortBy,
+                                    genres = f.genres,
+                                    excludedGenres = f.excludedGenres,
+                                    originCountry = country,
+                                    startYear = f.startYear,
+                                    endYear = f.endYear,
+                                    minScore = f.minScore,
+                                    maxScore = f.maxScore,
+                                    minVoteCount = f.minVoteCount,
+                                    minRuntime = f.minRuntime,
+                                    maxRuntime = f.maxRuntime,
+                                    watchProviderId = f.watchProviderId,
+                                    networkId = f.networkId,
+                                    keyword = f.keyword,
+                                    tvStatus = f.tvStatus,
+                                    tvType = f.tvType,
+                                    includeAdult = f.includeAdult
+                                )
+                            }.distinctBy { SearchRelevance.keyOf(it) }
+                            return Pair(res, res.size >= 20)
                         }
                     }
                 }
                 SearchSourceEngine.SHIKIMORI -> {
-                    val f = state.shikimoriSpecificFilters
+                    val f = state.effectiveShikimoriFilters()
                     when (scope) {
                         SearchScope.CHARACTER -> {
                             val res = KitsugiShikimoriClient.searchCharacters(queryText, page = page)
@@ -1489,7 +1679,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 SearchSourceEngine.BANGUMI -> {
-                    val f = state.bangumiSpecificFilters
+                    val f = state.effectiveBangumiFilters()
                     // Bangumi arama uçları sayfa başına EN FAZLA 20 kayıt döndürür (sunucu limiti
                     // sessizce 20'ye kısar). 24 istenirse offset her sayfada 4 kayıt atlar ve
                     // `size >= 24` kontrolü "sonraki sayfa yok" sonucu verir.
@@ -1526,7 +1716,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 SearchSourceEngine.KITSU -> {
-                    val f = state.kitsuSpecificFilters
+                    val f = state.effectiveKitsuFilters()
                     when (scope) {
                         SearchScope.CHARACTER -> {
                             val res = KitsuExploreClient.searchCharacters(queryText, page = page)
@@ -1558,35 +1748,67 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
                 SearchSourceEngine.SIMKL -> {
-                    val f = state.simklSpecificFilters
+                    val f = state.effectiveSimklFilters()
                     val simklType = when (scope) {
                         SearchScope.MOVIE -> "movies"
                         SearchScope.TV -> "tv"
                         SearchScope.ANIME -> "anime"
                         else -> "anime"
                     }
-                    val hasCustomFilters = f.subtype != null || f.genre != null || f.country != null || f.year != null
-                    val res = if (queryText.isNotBlank() && scope == SearchScope.ALL_MIXED) {
+                    val genres = f.genres.ifEmpty { listOfNotNull(f.genre) }
+                    val hasCustomFilters = f.activeCount > 0
+                    suspend fun searchSimklType(type: String): List<JikanSearchResult> {
+                        if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
+                            return SimklApiClient().getTrendingPeriodPage(type, f.trendingPeriod, page, pageSize = 20)
+                        }
+                        if (genres.size <= 1) {
+                            return SimklApiClient().searchAdvanced(
+                                type = type,
+                                query = queryText,
+                                subtype = f.subtype,
+                                genre = genres.firstOrNull(),
+                                country = f.country,
+                                year = f.year,
+                                sort = f.sort,
+                                page = page
+                            )
+                        }
+                        // The Simkl discovery path accepts one genre segment. Query each
+                        // selected genre and merge unique records instead of silently using
+                        // only the first chip.
+                        return coroutineScope {
+                            genres.map { selectedGenre ->
+                                async(Dispatchers.IO) {
+                                    SimklApiClient().searchAdvanced(
+                                        type = type,
+                                        query = queryText,
+                                        subtype = f.subtype,
+                                        genre = selectedGenre,
+                                        country = f.country,
+                                        year = f.year,
+                                        sort = f.sort,
+                                        page = page
+                                    )
+                                }
+                            }.flatMap { it.await() }.distinctBy { SearchRelevance.keyOf(it) }
+                        }
+                    }
+                    val res = if (queryText.isNotBlank() && scope == SearchScope.ALL_MIXED && !hasCustomFilters) {
                         // Raf da üç Simkl kataloğunu (anime, dizi, film) birlikte arıyor.
                         SimklApiClient().search(queryText, limit = 20, page = page)
-                    } else if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
-                        SimklApiClient().getTrendingPeriodPage(simklType, f.trendingPeriod, page, pageSize = 20)
+                    } else if (scope == SearchScope.ALL_MIXED) {
+                        coroutineScope {
+                            listOf("anime", "tv", "movies").map { type ->
+                                async(Dispatchers.IO) { searchSimklType(type) }
+                            }.flatMap { it.await() }.distinctBy { SearchRelevance.keyOf(it) }
+                        }
                     } else {
-                        SimklApiClient().searchAdvanced(
-                            type = simklType,
-                            query = queryText,
-                            subtype = f.subtype,
-                            genre = f.genre,
-                            country = f.country,
-                            year = f.year,
-                            sort = f.sort,
-                            page = page
-                        )
+                        searchSimklType(simklType)
                     }
                     return Pair(res, res.size >= 20)
                 }
                 SearchSourceEngine.ANILIST -> {
-                    val f = state.aniListSpecificFilters
+                    val f = state.effectiveAniListFilters()
                     when (scope) {
                         SearchScope.CHARACTER -> {
                             val paged = apiClient.searchCharacters(queryText, page = page, perPage = 24)
@@ -1770,27 +1992,34 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 /** Tek içerik ailesi olan kaynaklar (TMDB, Simkl) için. */
                 suspend fun fetchSingleShelf(
                     active: Boolean,
-                    block: suspend () -> List<JikanSearchResult>
+                    block: suspend (Int) -> List<JikanSearchResult>
                 ): List<JikanSearchResult> {
                     if (!active) return emptyList()
-                    val raw = withTimeoutOrNull(allSourceTimeoutMs) { fetchSource(block) } ?: emptyList()
+                    val raw = withTimeoutOrNull(allSourceTimeoutMs) { fetchSource { block(page) } } ?: emptyList()
                     return SearchRelevance.refine(queryText, raw).take(allShelfLimit)
                 }
 
+                fun appendPage(previous: List<JikanSearchResult>, next: List<JikanSearchResult>): List<JikanSearchResult> =
+                    if (page <= 1) next else (previous + next).distinctBy { SearchRelevance.keyOf(it) }
+
                 val aniListDef = async(Dispatchers.IO) {
-                    val f = state.aniListSpecificFilters
+                    val f = state.effectiveAniListFilters()
                     val globalAniListGenres = state.genres.filter { CanonicalFilterBridge.isOfficialAniListGenre(it) }
                         .map(::translateToEnglishForSearch)
                     val globalAniListTags = (state.tags + state.genres.filterNot { CanonicalFilterBridge.isOfficialAniListGenre(it) })
                         .map(::translateToEnglishForSearch).distinct()
+                    val requestedFormats = f.formats.ifEmpty { state.selectedFormats.map { it.apiValue } }
+                    val animeFormats = requestedFormats.forMediaType(MediaType.Anime)
+                    val mangaFormats = requestedFormats.forMediaType(MediaType.Manga)
                     val res = fetchMediaShelf(
                         active = plan.aniList,
                         anime = {
-                            apiClient.searchAniListPaged(
+                            if (requestedFormats.isNotEmpty() && animeFormats.isEmpty()) emptyList()
+                            else apiClient.searchAniListPaged(
                                 query = queryText,
                                 mediaType = MediaType.Anime,
                                 showAdultContent = showAdult,
-                                formats = f.formats.ifEmpty { state.selectedFormats.map { it.apiValue } }.takeIf { it.isNotEmpty() },
+                                formats = animeFormats.takeIf { it.isNotEmpty() },
                                 statuses = f.statuses.ifEmpty { state.selectedStatuses.map { it.apiValue } }.takeIf { it.isNotEmpty() },
                                 season = f.season ?: state.season?.apiValue,
                                 seasonYear = f.seasonYear ?: state.startYear,
@@ -1803,7 +2032,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 country = aniListCountry ?: f.country,
                                 sources = f.sources.takeIf { it.isNotEmpty() },
                                 isAdult = f.isAdult,
-                                page = 1,
+                                page = page,
                                 perPage = allShelfFetchLimit
                             ).results
                         },
@@ -1812,7 +2041,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 query = queryText,
                                 mediaType = MediaType.Manga,
                                 showAdultContent = showAdult,
-                                formats = f.formats.ifEmpty { state.selectedFormats.map { it.apiValue } }.takeIf { it.isNotEmpty() },
+                                formats = mangaFormats.takeIf { it.isNotEmpty() },
                                 statuses = f.statuses.ifEmpty { state.selectedStatuses.map { it.apiValue } }.takeIf { it.isNotEmpty() },
                                 season = f.season ?: state.season?.apiValue,
                                 seasonYear = f.seasonYear ?: state.startYear,
@@ -1825,67 +2054,127 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 country = aniListCountry ?: f.country,
                                 sources = f.sources.takeIf { it.isNotEmpty() },
                                 isAdult = f.isAdult,
-                                page = 1,
+                                page = page,
                                 perPage = allShelfFetchLimit
                             ).results
                         }
                     )
-                    onPlatformCompleted(res) { it.copy(aniListResults = res, isLoadingAniList = false) }
+                    onPlatformCompleted(res) { it.copy(aniListResults = appendPage(it.aniListResults, res), isLoadingAniList = false) }
                     res
                 }
 
                 val malDef = async(Dispatchers.IO) {
-                    val f = state.malSpecificFilters
-                    suspend fun searchMal(type: MediaType) = apiClient.searchMalAdvanced(
-                        query = queryText,
-                        mediaType = type,
-                        showAdultContent = showAdult,
-                        status = f.status,
-                        format = f.type,
-                        genres = f.genres.takeIf { it.isNotEmpty() },
-                        excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
-                        rating = f.rating,
-                        minScore = f.minScore,
-                        maxScore = f.maxScore,
-                        producerId = f.producerId,
-                        magazineId = f.magazineId,
-                        letter = f.letter,
-                        sort = f.sortDirection,
-                        orderBy = f.orderBy,
-                        page = 1,
-                        season = f.season,
-                        seasonYear = f.seasonYear,
-                        startYear = f.startYear,
-                        endYear = f.endYear
-                    )
+                    val f = state.effectiveMalFilters()
+                    suspend fun searchMal(type: MediaType): List<JikanSearchResult> {
+                        val allRequestedTypes = f.types.ifEmpty { listOfNotNull(f.type) }
+                        val requestedTypes = allRequestedTypes.forMediaType(type)
+                        if (allRequestedTypes.isNotEmpty() && requestedTypes.isEmpty()) return emptyList()
+                        val requestedStatuses = f.statuses.ifEmpty { listOfNotNull(f.status) }
+                        suspend fun fetch(format: String?, status: String?): List<JikanSearchResult> = apiClient.searchMalAdvanced(
+                            query = queryText,
+                            mediaType = type,
+                            showAdultContent = showAdult,
+                            status = status,
+                            format = format,
+                            genres = f.genres.takeIf { it.isNotEmpty() },
+                            excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                            rating = f.rating,
+                            minScore = f.minScore,
+                            maxScore = f.maxScore,
+                            producerId = f.producerId,
+                            magazineId = f.magazineId,
+                            letter = f.letter,
+                            sort = f.sortDirection,
+                            orderBy = f.orderBy,
+                            page = page,
+                            season = f.season,
+                            seasonYear = f.seasonYear,
+                            startYear = f.startYear,
+                            endYear = f.endYear
+                        )
+                        val formats = if (requestedTypes.isEmpty()) listOf<String?>(null) else requestedTypes.map { it }
+                        val statuses = if (requestedStatuses.isEmpty()) listOf<String?>(null) else requestedStatuses.map { it }
+                        val requests = formats.flatMap { format -> statuses.map { status -> format to status } }
+                        if (requests.size == 1) fetch(requests.first().first, requests.first().second)
+                        else coroutineScope {
+                            requests.map { (format, status) ->
+                                async(Dispatchers.IO) { fetch(format, status) }
+                            }.flatMap { it.await() }.distinctBy { SearchRelevance.keyOf(it) }
+                        }
+                    }
                     val res = fetchMediaShelf(
                         active = plan.mal,
                         anime = { searchMal(MediaType.Anime) },
                         manga = { searchMal(MediaType.Manga) }
                     )
-                    onPlatformCompleted(res) { it.copy(malResults = res, isLoadingMal = false) }
+                    onPlatformCompleted(res) { it.copy(malResults = appendPage(it.malResults, res), isLoadingMal = false) }
                     res
                 }
 
                 val tmdbDef = async(Dispatchers.IO) {
-                    val f = state.tmdbSpecificFilters
+                    val f = state.effectiveTmdbFilters()
                     val res = fetchSingleShelf(active = plan.tmdb) {
                         val client = TmdbApiClient()
                         val allowed = tmdbAllowedTypes
-                        if (queryText.isNotBlank() && f.activeCount == 0) {
-                            val list = client.search(queryText)
-                            if (allowed == null) list else list.filter { it.type in allowed }
+                        if (queryText.isNotBlank()) {
+                            val discoveryCountry = if (scope == SearchScope.K_DRAMA) "KR" else f.originCountry
+                            val needsDiscovery = scope == SearchScope.K_DRAMA || discoveryCountry != null || f.minVoteCount != null ||
+                                f.minRuntime != null || f.maxRuntime != null || f.watchProviderId != null ||
+                                f.networkId != null || f.keyword != null || f.tvStatus != null || f.tvType != null
+                            val baseMediaKinds = allowed?.toList() ?: listOf(MediaType.Movie, MediaType.TvShow)
+                            val mediaKinds = baseMediaKinds.filterByCommonFormats(state)
+                            if (mediaKinds.isEmpty()) return@fetchSingleShelf emptyList()
+                            if (needsDiscovery) {
+                                mediaKinds.flatMap { type ->
+                                    client.searchAdvanced(
+                                        query = queryText,
+                                        isMovie = type == MediaType.Movie,
+                                        page = page,
+                                        sortBy = f.sortBy,
+                                        genres = f.genres.takeIf { it.isNotEmpty() },
+                                        excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                                        originCountry = discoveryCountry,
+                                        startYear = f.startYear ?: state.startYear,
+                                        endYear = f.endYear ?: state.endYear,
+                                        minScore = f.minScore,
+                                        maxScore = f.maxScore,
+                                        minVoteCount = f.minVoteCount,
+                                        minRuntime = f.minRuntime,
+                                        maxRuntime = f.maxRuntime,
+                                        watchProviderId = f.watchProviderId,
+                                        networkId = f.networkId,
+                                        keyword = f.keyword,
+                                        tvStatus = f.tvStatus,
+                                        tvType = f.tvType,
+                                        includeAdult = f.includeAdult
+                                    )
+                                }.distinctBy { SearchRelevance.keyOf(it) }
+                            } else {
+                                val raw = client.search(queryText, page = page)
+                                raw.filter {
+                                    it.type in mediaKinds &&
+                                        (showAdult || !it.isAdult) &&
+                                        (f.genres.isEmpty() || f.genres.all { id -> id in it.genreIds }) &&
+                                        (f.excludedGenres.none { id -> id in it.genreIds }) &&
+                                        (f.startYear == null || (it.year ?: Int.MIN_VALUE) >= f.startYear) &&
+                                        (f.endYear == null || (it.year ?: Int.MAX_VALUE) <= f.endYear) &&
+                                        (f.minScore == null || (it.score ?: 0).toDouble() >= f.minScore) &&
+                                        (f.maxScore == null || (it.score ?: 10).toDouble() <= f.maxScore)
+                                }
+                            }
                         } else {
-                            val mediaKinds = allowed ?: setOf(MediaType.Movie, MediaType.TvShow)
+                            val baseMediaKinds = allowed?.toList() ?: listOf(MediaType.Movie, MediaType.TvShow)
+                            val mediaKinds = baseMediaKinds.filterByCommonFormats(state)
+                            if (mediaKinds.isEmpty()) return@fetchSingleShelf emptyList()
                             mediaKinds.flatMap { type ->
                                 val isMovie = type == MediaType.Movie
                                 client.discoverAdvanced(
                                     isMovie = isMovie,
-                                    page = 1,
+                                    page = page,
                                     sortBy = f.sortBy,
                                     genres = f.genres.takeIf { it.isNotEmpty() },
                                     excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
-                                    originCountry = f.originCountry,
+                                    originCountry = if (scope == SearchScope.K_DRAMA) "KR" else f.originCountry,
                                     startYear = f.startYear ?: state.startYear,
                                     endYear = f.endYear ?: state.endYear,
                                     minScore = f.minScore,
@@ -1903,45 +2192,49 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             }.distinctBy { SearchRelevance.keyOf(it) }
                         }
                     }
-                    onPlatformCompleted(res) { it.copy(tmdbResults = res, isLoadingTmdb = false) }
+                    onPlatformCompleted(res) { it.copy(tmdbResults = appendPage(it.tmdbResults, res), isLoadingTmdb = false) }
                     res
                 }
 
                 val shikimoriDef = async(Dispatchers.IO) {
-                    val f = state.shikimoriSpecificFilters
-                    suspend fun searchShikimori(type: MediaType) = KitsugiShikimoriClient.searchMediaAdvanced(
-                        mediaType = type,
-                        query = queryText,
-                        page = 1,
-                        limit = allShelfFetchLimit,
-                        order = f.order,
-                        kinds = f.kinds.takeIf { it.isNotEmpty() },
-                        statuses = f.statuses.takeIf { it.isNotEmpty() },
-                        season = f.season,
-                        score = f.minScore,
-                        duration = f.duration,
-                        rating = f.rating,
-                        genres = f.genres.takeIf { it.isNotEmpty() },
-                        excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
-                        studioId = f.studioId,
-                        publisherId = f.publisherId,
-                        censored = f.censored
-                    )
+                    val f = state.effectiveShikimoriFilters()
+                    suspend fun searchShikimori(type: MediaType): List<JikanSearchResult> {
+                        val requestedKinds = f.kinds.forMediaType(type)
+                        if (f.kinds.isNotEmpty() && requestedKinds.isEmpty()) return emptyList()
+                        return KitsugiShikimoriClient.searchMediaAdvanced(
+                            mediaType = type,
+                            query = queryText,
+                            page = page,
+                            limit = allShelfFetchLimit,
+                            order = f.order,
+                            kinds = requestedKinds.takeIf { it.isNotEmpty() },
+                            statuses = f.statuses.takeIf { it.isNotEmpty() },
+                            season = f.season,
+                            score = f.minScore,
+                            duration = f.duration,
+                            rating = f.rating,
+                            genres = f.genres.takeIf { it.isNotEmpty() },
+                            excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                            studioId = f.studioId,
+                            publisherId = f.publisherId,
+                            censored = f.censored
+                        )
+                    }
                     val res = fetchMediaShelf(
                         active = plan.shikimori,
                         anime = { searchShikimori(MediaType.Anime) },
                         manga = { searchShikimori(MediaType.Manga) }
                     )
-                    onPlatformCompleted(res) { it.copy(shikimoriResults = res, isLoadingShikimori = false) }
+                    onPlatformCompleted(res) { it.copy(shikimoriResults = appendPage(it.shikimoriResults, res), isLoadingShikimori = false) }
                     res
                 }
 
                 val bangumiDef = async(Dispatchers.IO) {
-                    val f = state.bangumiSpecificFilters
+                    val f = state.effectiveBangumiFilters()
                     suspend fun searchBangumi(type: MediaType) = KitsugiBangumiClient.searchMediaAdvanced(
                         mediaType = type,
                         query = queryText,
-                        page = 1,
+                        page = page,
                         limit = BangumiApiClient.SEARCH_PAGE_SIZE,
                         sort = f.sort,
                         tags = f.tags,
@@ -1955,21 +2248,25 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         anime = { searchBangumi(MediaType.Anime) },
                         manga = { searchBangumi(MediaType.Manga) }
                     )
-                    onPlatformCompleted(res) { it.copy(bangumiResults = res, isLoadingBangumi = false) }
+                    onPlatformCompleted(res) { it.copy(bangumiResults = appendPage(it.bangumiResults, res), isLoadingBangumi = false) }
                     res
                 }
 
                 val kitsuDef = async(Dispatchers.IO) {
-                    val f = state.kitsuSpecificFilters
+                    val f = state.effectiveKitsuFilters()
+                    val requestedKitsuSubtypes = f.subtypes
                     val res = fetchMediaShelf(
                         active = plan.kitsu,
                         anime = {
-                            KitsuExploreClient.searchMediaAdvanced(
+                            val animeSubtypes = requestedKitsuSubtypes.forMediaType(MediaType.Anime)
+                            if (requestedKitsuSubtypes.isNotEmpty() && animeSubtypes.isEmpty()) emptyList()
+                            else KitsuExploreClient.searchMediaAdvanced(
                                 mediaType = MediaType.Anime,
                                 query = queryText,
+                                page = page,
                                 limit = allShelfFetchLimit,
                                 sort = f.sort,
-                                subtypes = f.subtypes.takeIf { it.isNotEmpty() },
+                                subtypes = animeSubtypes.takeIf { it.isNotEmpty() },
                                 statuses = f.statuses.takeIf { it.isNotEmpty() },
                                 season = f.season,
                                 seasonYear = f.seasonYear,
@@ -1980,12 +2277,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             )
                         },
                         manga = {
-                            KitsuExploreClient.searchMediaAdvanced(
+                            val mangaSubtypes = (kitsuSubtypes ?: requestedKitsuSubtypes).forMediaType(MediaType.Manga)
+                            val hasMangaSubtypeFilter = kitsuSubtypes != null || requestedKitsuSubtypes.isNotEmpty()
+                            if (hasMangaSubtypeFilter && mangaSubtypes.isEmpty()) emptyList()
+                            else KitsuExploreClient.searchMediaAdvanced(
                                 mediaType = MediaType.Manga,
                                 query = queryText,
+                                page = page,
                                 limit = allShelfFetchLimit,
                                 sort = f.sort,
-                                subtypes = kitsuSubtypes ?: f.subtypes.takeIf { it.isNotEmpty() },
+                                subtypes = mangaSubtypes.takeIf { it.isNotEmpty() },
                                 statuses = f.statuses.takeIf { it.isNotEmpty() },
                                 season = f.season,
                                 seasonYear = f.seasonYear,
@@ -1996,45 +2297,78 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             )
                         }
                     )
-                    onPlatformCompleted(res) { it.copy(kitsuResults = res, isLoadingKitsu = false) }
+                    onPlatformCompleted(res) { it.copy(kitsuResults = appendPage(it.kitsuResults, res), isLoadingKitsu = false) }
                     res
                 }
 
                 val simklDef = async(Dispatchers.IO) {
-                    val f = state.simklSpecificFilters
+                    val f = state.effectiveSimklFilters()
                     val res = fetchSingleShelf(active = plan.simkl) {
                         val client = SimklApiClient()
-                        if (queryText.isNotBlank() && f.activeCount == 0) {
-                            client.search(
-                                queryText,
-                                type = scope.simklTypeFilter,
-                                limit = allShelfFetchLimit
-                            )
+                        val genres = f.genres.ifEmpty { listOfNotNull(f.genre) }
+                        val simklTypes = if (scope == SearchScope.ALL_MIXED) {
+                            listOf("anime", "tv", "movies")
                         } else {
-                            client.searchAdvanced(
-                                type = scope.simklTypeFilter ?: "anime",
-                                query = queryText,
-                                subtype = f.subtype,
-                                genre = f.genre,
-                                country = f.country,
-                                year = f.year,
-                                sort = f.sort,
-                                limit = allShelfFetchLimit,
-                                page = 1
-                            )
+                            listOf(scope.simklTypeFilter ?: "anime")
+                        }
+
+                        suspend fun fetchSimklType(type: String): List<JikanSearchResult> {
+                            if (queryText.isNotBlank() && f.activeCount == 0) {
+                                return client.search(queryText, type = type, limit = allShelfFetchLimit, page = page)
+                            }
+                            if (genres.size <= 1) {
+                                return client.searchAdvanced(
+                                    type = type,
+                                    query = queryText,
+                                    subtype = f.subtype,
+                                    genre = genres.firstOrNull(),
+                                    country = f.country,
+                                    year = f.year,
+                                    sort = f.sort,
+                                    limit = allShelfFetchLimit,
+                                    page = page
+                                )
+                            }
+                            return coroutineScope {
+                                genres.map { selectedGenre ->
+                                    async(Dispatchers.IO) {
+                                        client.searchAdvanced(
+                                            type = type,
+                                            query = queryText,
+                                            subtype = f.subtype,
+                                            genre = selectedGenre,
+                                            country = f.country,
+                                            year = f.year,
+                                            sort = f.sort,
+                                            limit = allShelfFetchLimit,
+                                            page = page
+                                        )
+                                    }
+                                }.flatMap { it.await() }.distinctBy { SearchRelevance.keyOf(it) }
+                            }
+                        }
+
+                        if (simklTypes.size == 1) {
+                            fetchSimklType(simklTypes.single())
+                        } else {
+                            coroutineScope {
+                                simklTypes.map { type ->
+                                    async(Dispatchers.IO) { fetchSimklType(type) }
+                                }.flatMap { it.await() }.distinctBy { SearchRelevance.keyOf(it) }
+                            }
                         }
                     }
-                    onPlatformCompleted(res) { it.copy(simklResults = res, isLoadingSimkl = false) }
+                    onPlatformCompleted(res) { it.copy(simklResults = appendPage(it.simklResults, res), isLoadingSimkl = false) }
                     res
                 }
 
-                val aniListRes = runCatching { aniListDef.await() }.getOrDefault(emptyList())
-                val malRes = runCatching { malDef.await() }.getOrDefault(emptyList())
-                val tmdbRes = runCatching { tmdbDef.await() }.getOrDefault(emptyList())
-                val shikimoriRes = runCatching { shikimoriDef.await() }.getOrDefault(emptyList())
-                val kitsuRes = runCatching { kitsuDef.await() }.getOrDefault(emptyList())
-                val simklRes = runCatching { simklDef.await() }.getOrDefault(emptyList())
-                val bangumiRes = runCatching { bangumiDef.await() }.getOrDefault(emptyList())
+                val aniListRes = runCatching { aniListDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
+                val malRes = runCatching { malDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
+                val tmdbRes = runCatching { tmdbDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
+                val shikimoriRes = runCatching { shikimoriDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
+                val kitsuRes = runCatching { kitsuDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
+                val simklRes = runCatching { simklDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
+                val bangumiRes = runCatching { bangumiDef.await() }.getOrElse { error -> rethrowIfCancellation(error); emptyList() }
 
                 val finalCombined = SearchRelevance.dedupe(
                     aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes + bangumiRes
@@ -2049,13 +2383,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update {
                     it.copy(
                         multiResults = MultiPlatformResults(
-                            aniListResults = aniListRes,
-                            malResults = malRes,
-                            tmdbResults = tmdbRes,
-                            shikimoriResults = shikimoriRes,
-                            kitsuResults = kitsuRes,
-                            simklResults = simklRes,
-                            bangumiResults = bangumiRes,
+                            aniListResults = appendPage(it.multiResults.aniListResults, aniListRes),
+                            malResults = appendPage(it.multiResults.malResults, malRes),
+                            tmdbResults = appendPage(it.multiResults.tmdbResults, tmdbRes),
+                            shikimoriResults = appendPage(it.multiResults.shikimoriResults, shikimoriRes),
+                            kitsuResults = appendPage(it.multiResults.kitsuResults, kitsuRes),
+                            simklResults = appendPage(it.multiResults.simklResults, simklRes),
+                            bangumiResults = appendPage(it.multiResults.bangumiResults, bangumiRes),
                             isLoadingAniList = false,
                             isLoadingMal = false,
                             isLoadingTmdb = false,
@@ -2068,7 +2402,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 }
 
-                Pair(finalCombined, false)
+                // Each provider is fetched with the requested page.  An empty aggregate
+                // page is the only reliable stop signal because the seven APIs expose
+                // different pagination metadata.
+                Pair(finalCombined, finalCombined.isNotEmpty())
             }
         }
 
@@ -2084,7 +2421,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // 2. Shikimori (Rusya / Shikimori.one)
         if (state.currentTab == KitsugiSearchTab.Shikimori || state.selectedPlatform == SearchPlatform.Shikimori) {
-            val f = state.shikimoriSpecificFilters
+            val f = state.effectiveShikimoriFilters()
             val results = when (state.selectedScope) {
                 SearchScope.CHARACTER -> KitsugiShikimoriClient.searchCharacters(queryText, page = page, limit = 24)
                 SearchScope.STAFF -> KitsugiShikimoriClient.searchPeople(queryText, page = page, limit = 24, kind = f.peopleKind)
@@ -2119,7 +2456,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // 3. Kitsu
         if (state.currentTab == KitsugiSearchTab.Kitsu || state.selectedPlatform == SearchPlatform.Kitsu) {
-            val f = state.kitsuSpecificFilters
+            val f = state.effectiveKitsuFilters()
             val results = when (state.selectedScope) {
                 SearchScope.CHARACTER -> KitsuExploreClient.searchCharacters(queryText, page = page, limit = 20)
                 else -> {
@@ -2162,7 +2499,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // 4b. Bangumi (Çin / bgm.tv)
         if (state.currentTab == KitsugiSearchTab.Bangumi || state.selectedPlatform == SearchPlatform.Bangumi) {
-            val f = state.bangumiSpecificFilters
+            val f = state.effectiveBangumiFilters()
             val bangumiPageSize = BangumiApiClient.SEARCH_PAGE_SIZE
             val results = when (state.selectedScope) {
                 SearchScope.CHARACTER -> KitsugiBangumiClient.searchCharacters(

@@ -896,7 +896,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             block: suspend () -> List<com.kitsugi.animelist.data.remote.JikanSearchResult>
         ): List<com.kitsugi.animelist.data.remote.JikanSearchResult> =
             withTimeoutOrNull(BANGUMI_SHELF_TIMEOUT_MS) {
-                runCatching { block() }.getOrDefault(emptyList())
+                try {
+                    block()
+                } catch (cancelled: CancellationException) {
+                    // A parent/request cancellation must not be converted into a
+                    // successful empty shelf.  TimeoutCancellationException is handled
+                    // by the outer withTimeoutOrNull and still gives this shelf a bounded
+                    // failure.
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
             } ?: emptyList()
 
         val topAnimeDeferred = async { shelf { bangumi.topAnime(20, context) } }
@@ -934,6 +944,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             seasonalAnime = seasonalAnimeDeferred.await(),
             trendingManga = trendingMangaDeferred.await(),
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),
+            // Bangumi has no separate "newly added books" helper; its publishing
+            // browse endpoint is date-sorted and is the canonical equivalent.  Leaving
+            // this field at its default made the corresponding shelf disappear.
+            newlyAddedManga = publishingMangaDeferred.await(),
+            publishingManga = publishingMangaDeferred.await(),
             topRatedAnime = topRatedAnimeDeferred.await(),
             topRatedManga = topRatedMangaDeferred.await(),
             airingSoonAnime = airingSoonDeferred.await()

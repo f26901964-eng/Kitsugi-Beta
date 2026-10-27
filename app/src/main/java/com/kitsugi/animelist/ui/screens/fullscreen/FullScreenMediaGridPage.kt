@@ -330,8 +330,8 @@ fun FullScreenMediaGridPage(
             ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset)
             ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset)
             ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset)
-            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit)
-            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit)
+            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit, offset = offset)
+            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit, offset = offset)
             ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset)
             ExploreCategoryType.BANGUMI_TV -> bangumi.realTvShows(limit, offset = offset)
             ExploreCategoryType.BANGUMI_MOVIES -> bangumi.realMovies(limit, offset = offset)
@@ -546,6 +546,8 @@ fun FullScreenMediaGridPage(
                         hasMorePages = false
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (generation == filterGeneration) loadError = e.message ?: "Yükleme hatası"
             } finally {
@@ -675,8 +677,12 @@ fun FullScreenMediaGridPage(
     }
 
     suspend fun scrollToTopOfGrid() {
-        runCatching {
+        try {
             if (isGridView) gridState.scrollToItem(0) else listState.scrollToItem(0)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // The list can leave composition while a filter reload is completing.
         }
     }
 
@@ -716,6 +722,8 @@ fun FullScreenMediaGridPage(
             // Boş ilk sayfa = bu filtrede sonuç yok → sonsuz sağlamaya çalışıp döngüye girme.
             hasMorePages = items.isNotEmpty()
             scrollToTopOfGrid()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             if (generation == filterGeneration) loadError = e.message ?: "Yükleme hatası"
         } finally {

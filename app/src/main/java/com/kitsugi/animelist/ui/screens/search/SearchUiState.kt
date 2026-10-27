@@ -172,45 +172,27 @@ data class SearchUiState(
     val activeFilterCount: Int get() {
         return when (selectedEngine) {
             SearchSourceEngine.ALL -> {
-                var c = 0
-                if (genres.isNotEmpty()) c += genres.size
-                if (tags.isNotEmpty()) c += tags.size
-                if (startYear != null || endYear != null) c++
-                if (season != null) c++
-                if (isAdultFilter != null) c++
-                // Detay sayfası çip tıklamalarından gelen kimlik facetleri (stüdyo/
-                // yapımcı/dergi/kanal): sayılırlarsa boş sorguyla arama tetiklenir.
-                if (malSpecificFilters.producerId != null) c++
-                if (malSpecificFilters.magazineId != null) c++
-                if (tmdbSpecificFilters.networkId != null) c++
-                c
+                // The common sheet remains available after a source is selected and detail
+                // pages can pre-populate a provider bundle. Count both so a filter-only
+                // search is never cleared before its first request is made.
+                commonFilterCount +
+                    aniListSpecificFilters.activeCount +
+                    malSpecificFilters.activeCount +
+                    tmdbSpecificFilters.activeCount +
+                    shikimoriSpecificFilters.activeCount +
+                    kitsuSpecificFilters.activeCount +
+                    simklSpecificFilters.activeCount +
+                    bangumiSpecificFilters.activeCount
             }
             SearchSourceEngine.ANILIST -> {
-                var count = 0
-                if (genres.isNotEmpty()) count += genres.size
-                if (excludedGenres.isNotEmpty()) count += excludedGenres.size
-                if (tags.isNotEmpty()) count += tags.size
-                if (selectedFormats.isNotEmpty()) count += selectedFormats.size
-                if (selectedStatuses.isNotEmpty()) count += selectedStatuses.size
-                if (country != null) count++
-                if (selectedSources.isNotEmpty()) count += selectedSources.size
-                if (startYear != null) count++
-                if (endYear != null) count++
-                if (season != null) count++
-                if (minScore != null || maxScore != null) count++
-                if (minEpCh != null || maxEpCh != null) count++
-                if (minDuration != null || maxDuration != null) count++
-                if (onMyList != null) count++
-                if (isDoujin != null) count++
-                if (isAdultFilter != null) count++
-                count + aniListSpecificFilters.activeCount
+                commonFilterCount + aniListSpecificFilters.activeCount
             }
-            SearchSourceEngine.MAL -> malSpecificFilters.activeCount
-            SearchSourceEngine.TMDB -> tmdbSpecificFilters.activeCount
-            SearchSourceEngine.SHIKIMORI -> shikimoriSpecificFilters.activeCount
-            SearchSourceEngine.KITSU -> kitsuSpecificFilters.activeCount
-            SearchSourceEngine.SIMKL -> simklSpecificFilters.activeCount
-            SearchSourceEngine.BANGUMI -> bangumiSpecificFilters.activeCount
+            SearchSourceEngine.MAL -> commonFilterCount + malSpecificFilters.activeCount
+            SearchSourceEngine.TMDB -> commonFilterCount + tmdbSpecificFilters.activeCount
+            SearchSourceEngine.SHIKIMORI -> commonFilterCount + shikimoriSpecificFilters.activeCount
+            SearchSourceEngine.KITSU -> commonFilterCount + kitsuSpecificFilters.activeCount
+            SearchSourceEngine.SIMKL -> commonFilterCount + simklSpecificFilters.activeCount
+            SearchSourceEngine.BANGUMI -> commonFilterCount + bangumiSpecificFilters.activeCount
         }
     }
 

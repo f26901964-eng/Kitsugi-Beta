@@ -4,6 +4,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.MediaTitleResolver
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.model.MediaEntry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.R
@@ -314,6 +316,8 @@ class SimklApiClient(
                 }
                 results
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "search $endpoint failed: ${e.message}", e)
             emptyList()
@@ -383,7 +387,12 @@ class SimklApiClient(
         page: Int = 1,
         network: String? = null
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        if (query.isNotBlank()) {
+        // Simkl's text-search endpoint cannot receive genre/country/year facets.  Keep
+        // the fast endpoint for an unfiltered text search, but use the discovery path
+        // when facets are active so a query never silently discards its filters.
+        val hasDiscoveryFilters = subtype != null || genre != null || country != null || year != null ||
+            !network.isNullOrBlank() || (!sort.isNullOrBlank() && sort != "rank")
+        if (query.isNotBlank() && !hasDiscoveryFilters) {
             return@withContext search(query, type, limit, page)
         }
         val safeType = when (type.lowercase()) {
@@ -419,8 +428,41 @@ class SimklApiClient(
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
-                parseSimklArray(responseText, safeType, limit)
+                val firstPage = parseSimklArray(responseText, safeType, limit)
+                if (query.isBlank()) {
+                    firstPage
+                } else {
+                    // Discovery is ranked before the local text match.  Fetch a small,
+                    // bounded window so page 1 does not become empty merely because the
+                    // first discovery page contains unrelated popular titles.
+                    val pagesToInspect = (page.coerceAtLeast(1) * 3).coerceAtMost(20)
+                    val candidates = buildList {
+                        addAll(firstPage)
+                        for (candidatePage in 2..pagesToInspect) {
+                            val candidateUrl = url.substringBefore("&page=") + "&page=$candidatePage&limit=$limit"
+                            val candidateRequest = jsonRequest(candidateUrl)
+                            awaitSimklRateLimit(candidateRequest)
+                            client.newCall(candidateRequest).execute().use { candidateResponse ->
+                                if (candidateResponse.isSuccessful) {
+                                    addAll(parseSimklArray(candidateResponse.body?.string().orEmpty(), safeType, limit))
+                                }
+                            }
+                        }
+                    }
+                    val terms = query.trim().lowercase(Locale.ROOT).split(Regex("\\s+"))
+                        .filter { it.isNotBlank() }
+                    candidates.distinctBy { "${it.source}:${it.type}:${it.malId}:${it.tmdbId ?: 0}" }
+                        .filter { item ->
+                            val haystack = listOf(item.title, item.titleEnglish, item.titleJapanese, item.subtitle)
+                                .filterNotNull().joinToString(" ").lowercase(Locale.ROOT)
+                            terms.all { term -> haystack.contains(term) }
+                        }
+                        .drop((page - 1).coerceAtLeast(0) * limit)
+                        .take(limit)
+                }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyList()
         }

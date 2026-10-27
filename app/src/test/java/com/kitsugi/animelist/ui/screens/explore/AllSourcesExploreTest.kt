@@ -106,6 +106,19 @@ class AllSourcesExploreTest {
         assertTrue(p.forSource(ExplorePlatform.MAL).bangumiTvShows.orEmpty().isEmpty())
     }
 
+    @Test fun bangumiNewlyAddedMangaIsNotDroppedFromTheContentSections() {
+        val newlyAdded = media("bangumi", id = 91, type = MediaType.Manga)
+        val p = payload(emptyList()).copy(newlyAddedManga = listOf(newlyAdded))
+
+        val section = allSourceSections(
+            mapOf(ExplorePlatform.BANGUMI to ExploreSourceState(p)),
+            showAdultContent = false
+        ).single()
+
+        assertEquals(ExploreCategoryType.NEWLY_ADDED_MANGA, section.category)
+        assertEquals(listOf(newlyAdded), section.results)
+    }
+
     @Test fun scoreChartsAreDistinctFromPopularityCharts() {
         val popular = media()
         val rated = media(id = 2)
