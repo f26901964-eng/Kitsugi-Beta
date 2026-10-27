@@ -386,6 +386,9 @@ fun ApiResultDetailPage(
         )
     }
     LaunchedEffect(wikiQuery, wikiPrefs.enabled, wikiPrefs.nameFallback) {
+        if (wikiPrefs.enabled) {
+            kotlinx.coroutines.delay(220L)
+        }
         wikiViewModel.bind(wikiQuery.takeIf { wikiPrefs.enabled })
     }
 

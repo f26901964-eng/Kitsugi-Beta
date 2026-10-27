@@ -6630,6 +6630,11 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="simkl_sync_rating_updated">Simkl puanı güncellendi: %1$d/10</string>
     <string name="simkl_sync_rating_failed">Simkl puanı güncellenemedi</string>
     <string name="simkl_sync_rating_error">Simkl puan hatası: %1$s</string>
+    <string name="simkl_sync_rating_clear_missing_id">[Simkl] %1$s puanı temizlenemedi; Simkl medya kimliği yok. Diğer desteklenen alanlar işlendi.</string>
+    <string name="simkl_sync_progress_clear_unsupported">[Simkl] %1$s için bölüm ilerlemesi silinemedi; mevcut Simkl geçmişi korundu.</string>
+    <string name="simkl_sync_progress_not_supported_for_type">[Simkl] %1$s için ilerleme bu medya türünde eşitlenmiyor; diğer desteklenen alanlar işlendi.</string>
+    <string name="cross_sync_unsupported_fields">[%1$s] Bu değişiklikler desteklenmiyor ve gönderilmedi: %2$s.</string>
+    <string name="account_sync_mal_rate_limit">MyAnimeList hız sınırı (429); %1$d denemeden sonra içe aktarma durduruldu. %2$d saniye bekleyip yeniden deneyin. Yerel verileriniz değiştirilmedi.</string>
     <string name="simkl_sync_entry_deleted">Simkl listesinden silindi (%1$s)</string>
     <string name="simkl_sync_entry_delete_failed">Simkl listesinden silinemedi</string>
     <string name="simkl_sync_entry_delete_error">Simkl removeFromList hatası: %1$s</string>

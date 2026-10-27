@@ -465,11 +465,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         lastResult = result
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
 
-        val cachedDetail = DetailCache.getMediaDetail(result.source, result.malId)
+        val cachedDetail = DetailCache.getMediaDetail(result.source, result.malId, result.type.name)
         val cachedDetailSynopsis = cachedDetail?.synopsis
         val cachedSynopsisTranslation = cachedDetailSynopsis?.let { raw ->
             DetailCache.getTranslation("synopsis", result.source, result.malId, sourceText = raw)
         }
+        val cachedHeroArtwork = KitsugiHeroArtworkResolver.getCached(result)
         val cachedVideos = DetailCache.getMediaVideos(result.source, result.malId, _targetSeason.value)
         _videoItems.value = cachedVideos ?: KitsugiMediaVideoAggregator.seedFromDetail(cachedDetail, result.source)
         videosTracker.reset()
@@ -487,8 +488,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _mdbListRatings.value = null
         _mdbListLoading.value = false
         _galleryItems.value = emptyList()
-        _heroArtwork.value = null
-        heroArtworkKey = null
+        _heroArtwork.value = cachedHeroArtwork
+        heroArtworkKey = cachedHeroArtwork?.let { KitsugiHeroArtworkResolver.cacheKey(result) }
         galleryTracker.reset()
 
         val cachedCharacters = DetailCache.getMediaCharacters(result.source, result.malId)
@@ -695,7 +696,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val settings = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()
         val tmdbEnabled = settings?.tmdbEnabled ?: true
 
-        val cached = DetailCache.getMediaDetail(result.source, result.malId)
+        val cached = DetailCache.getMediaDetail(result.source, result.malId, result.type.name)
         // ── Aşama 1: BİRİNCİL DETAY (kaynak + fallback + Room önbelleği) ─────────────
         // Sayfa bu veriyle HEMEN açılır; TMDB/TR zenginleştirmesi için beklenmez.
         val detail = if (cached != null) {
@@ -720,7 +721,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 null
             }
             if (fetched != null) {
-                DetailCache.putMediaDetail(result.source, result.malId, fetched)
+                DetailCache.putMediaDetail(result.source, result.malId, fetched, result.type.name)
             }
             fetched
         }
@@ -790,9 +791,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
 
             val finalDetail = enriched ?: detail
-            if (enriched != null && enriched !== detail) {
-                DetailCache.putMediaDetail(result.source, result.malId, enriched)
+            if (enriched != null && enriched != detail) {
+                DetailCache.putMediaDetail(result.source, result.malId, enriched, result.type.name)
                 _detailState.value = enriched
+                viewModelScope.launch {
+                    resolveHeroArtwork(result, enriched)
+                }
             }
 
             val determinedSeason = KitsugiEpisodeRatingsRepository.determineTargetSeason(

@@ -34,6 +34,7 @@ data class JikanSearchResult(
     val cs3Url: String? = null,
     val cs3ApiName: String? = null,
     val genres: List<String> = emptyList(),
+    val genreIds: List<Int> = emptyList(),
     /** Bangumi subject namespace type (2=anime, 1=book, 6=real); null for other sources. */
     val bangumiSubjectType: Int? = null
 )

@@ -430,6 +430,7 @@ object SimklSyncManager {
         val simklStatus = watchStatusToSimkl(entry.status, entry.type)
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
         var unresolvedMedia = false
 
         // Sıra (toplu hatla aynı): geçmiş/puan yazımları Simkl'de liste durumunu
@@ -445,6 +446,11 @@ object SimklSyncManager {
         // İlerleme değişmediyse geçmiş yazımı atlanır; ancak DURUM değiştiyse (ör. "Tamamlandı")
         // Simkl'in kendi geçmişini tutarlı tutmak için bölümler yine işaretlenir.
         val progressDirty = writeAll || SyncField.PROGRESS in fields || SyncField.STATUS in fields
+        if (SyncField.PROGRESS in fields && entry.type != MediaType.Anime) {
+            warnings.add(context.getString(R.string.simkl_sync_progress_not_supported_for_type, entry.title))
+        } else if (SyncField.PROGRESS in fields && progress <= 0) {
+            warnings.add(context.getString(R.string.simkl_sync_progress_clear_unsupported, entry.title))
+        }
         if (progress > 0 && entry.type == MediaType.Anime && progressDirty) {
             runCatching {
                 simklApiClient.historyBatchReceipt(
@@ -510,6 +516,8 @@ object SimklSyncManager {
                 Log.e(TAG, "Simkl removeRating hatası", e)
                 errors.add(context.getString(R.string.simkl_sync_rating_error, e.message ?: context.getString(R.string.account_sync_unknown_error)))
             }
+        } else if (!fullWrite && SyncField.SCORE in fields && (score == null || score == 0)) {
+            warnings.add(context.getString(R.string.simkl_sync_rating_clear_missing_id, entry.title))
         }
 
         // 3. İstenen liste durumu EN SON uygulanır (POST /sync/add-to-list): yukarıdaki
@@ -574,10 +582,11 @@ object SimklSyncManager {
             SyncResult(
                 messages = messages,
                 errors = errors.distinct(),
+                warnings = warnings.distinct(),
                 unresolvedMedia = true
             )
         } else {
-            SyncResult(messages = messages, errors = errors)
+            SyncResult(messages = messages, errors = errors, warnings = warnings.distinct())
         }
     }
 

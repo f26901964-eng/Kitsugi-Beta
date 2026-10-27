@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.unit.dp
 
 // ─── Motion Token'ları ─────────────────────────────────────────────────────
 // KitsugiMobile Tokens.kt'deki motion.normalMillis vb. değerlerden uyarlama.
@@ -162,28 +163,46 @@ fun Modifier.animateDetailContentSize(): Modifier =
 /**
  * Hysteresis for mini toolbars tied to a LazyColumn: show after the hero boundary and
  * hide only after returning above it, so a boundary index cannot flicker the header.
- *
- * The standard detail layout has exactly three rows: hero (0), sticky tabs (1), and
- * pager content (2). Keep those defaults shared by media, character, and staff pages;
- * using an index above 2 makes the floating toolbar unreachable in that layout.
  */
 @Composable
 fun rememberDetailStickyHeaderVisible(
     listState: LazyListState,
-    showAtIndex: Int = 2,
+    showAtIndex: Int = 1,
     hideAtIndex: Int = 0
 ): Boolean {
     require(hideAtIndex < showAtIndex) { "hideAtIndex must be smaller than showAtIndex" }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    // 64.dp kayan üst çubuk yüksekliğinden belirgin biçimde büyük histerezis eşiği (88.dp):
+    // çubuk kapandığında hero öğesi tekrar ekran dışına itilip sınırda titreşim (flicker) üretemez.
+    val hideHeroVisibleThresholdPx = with(density) { 88.dp.roundToPx() }
 
     var isVisible by remember(listState, showAtIndex, hideAtIndex) { mutableStateOf(false) }
-    LaunchedEffect(listState, showAtIndex, hideAtIndex) {
-        snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
-            isVisible = resolveDetailStickyHeaderVisibility(
-                isCurrentlyVisible = isVisible,
-                firstVisibleItemIndex = index,
-                showAtIndex = showAtIndex,
-                hideAtIndex = hideAtIndex
-            )
+    LaunchedEffect(listState, showAtIndex, hideAtIndex, hideHeroVisibleThresholdPx) {
+        snapshotFlow {
+            val firstIdx = listState.firstVisibleItemIndex
+            val firstOffset = listState.firstVisibleItemScrollOffset
+            val heroInfo = if (firstIdx <= hideAtIndex) {
+                listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == hideAtIndex }
+            } else {
+                null
+            }
+            val heroVisiblePx = if (heroInfo != null) {
+                (heroInfo.size + heroInfo.offset).coerceAtLeast(0)
+            } else {
+                0
+            }
+            Triple(firstIdx, firstOffset, heroVisiblePx)
+        }.collect { triple ->
+            val (index, offset, heroVisiblePx) = triple
+            when {
+                index >= showAtIndex -> isVisible = true
+                index < hideAtIndex -> isVisible = false
+                index == hideAtIndex -> {
+                    if (offset == 0 || heroVisiblePx >= hideHeroVisibleThresholdPx) {
+                        isVisible = false
+                    }
+                }
+            }
         }
     }
     return isVisible

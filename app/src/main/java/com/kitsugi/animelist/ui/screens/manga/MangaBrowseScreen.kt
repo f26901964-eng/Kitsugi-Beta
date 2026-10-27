@@ -109,6 +109,12 @@ fun MangaBrowseScreen(
             }
         }
     }
+
+    // Yeni manga eklentisi kurulduğunda / silindiğinde / etkinleştirildiğinde
+    // Browse VM'in kaynak listesini otomatik yenile.
+    LaunchedEffect(mangaViewModel.mangaSources) {
+        vm.refreshSources()
+    }
     val accentColor = LocalKitsugiAccent.current
     val cols = rememberKitsugiGridColumns()
 

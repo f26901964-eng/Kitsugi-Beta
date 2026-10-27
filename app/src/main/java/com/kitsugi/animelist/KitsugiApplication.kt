@@ -205,6 +205,12 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
 
         // Buraya geldiysek tüm kritik init'ler denendi; UI hâlâ çizilmedi.
         com.kitsugi.animelist.core.diagnostics.StartupStage.mark(this, "Application.onCreate tamamlandı (UI bekleniyor)")
+        // Bangumi sözlüklerini (orgs.tsv + tags.tsv) ve R.string alan haritasını
+        // arka planda ısıt; ilk detay sayfası açılışında UI iş parçacığında bekletme yapmasın.
+        applicationScope.launch {
+            runCatching { com.kitsugi.animelist.utils.prewarmTranslationCaches() }
+        }
+
         applicationScope.launch {
             try {
                 val dataStore = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication)

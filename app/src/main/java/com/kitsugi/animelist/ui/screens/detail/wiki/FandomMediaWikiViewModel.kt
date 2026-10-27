@@ -450,7 +450,15 @@ class FandomMediaWikiViewModel(application: Application) : AndroidViewModel(appl
 
     /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */
     fun toggleOriginal(key: String) {
+        val wasOriginal = key in _originalKeys.value
         _originalKeys.update { if (key in it) it - key else it + key }
+        // If Original was selected while a structured section was still translating,
+        // returning to Translation should immediately resume/request that section.
+        if (wasOriginal && !_translations.value.hasWikiTranslation(key)) {
+            viewModelScope.launch {
+                if (isAutoTranslateEnabled()) translate(key)
+            }
+        }
     }
 
     private fun rebind() {

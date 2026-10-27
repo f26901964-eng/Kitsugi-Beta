@@ -370,7 +370,16 @@ class FandomCharacterWikiViewModel(application: Application) : AndroidViewModel(
 
     /** Orijinal / çeviri geçişi: bu anahtar için orijinal metnin gösterilip gösterilmeyeceğini değiştirir. */
     fun toggleOriginal(key: String) {
+        val wasOriginal = key in _originalKeys.value
         _originalKeys.update { if (key in it) it - key else it + key }
+        // A user can tap Original before the section translation finishes. Switching
+        // back must request the missing translation instead of leaving the raw text on
+        // screen until a later unrelated recomposition.
+        if (wasOriginal && !_translations.value.hasWikiTranslation(key)) {
+            viewModelScope.launch {
+                if (isAutoTranslateEnabled()) translate(key)
+            }
+        }
     }
 
     fun loadSection(index: Int) {

@@ -75,7 +75,8 @@ fun KitsugiMediaEntryCard(
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,
     onPosterLongClick: ((String) -> Unit)? = null,
-    sourceBadges: List<String>? = null
+    sourceBadges: List<String>? = null,
+    reserveSourceStripSpace: Boolean = false
 ) {
     val additionalSources = remember(entry.source, sourceBadges) {
         additionalLibraryBadgeSources(entry.source, sourceBadges)
@@ -164,8 +165,9 @@ fun KitsugiMediaEntryCard(
         }
 
         if (additionalSources.isNotEmpty()) {
-            if (layoutId == "grid_2col") Spacer(Modifier.weight(1f))
             LibrarySourceBadgeStrip(sources = additionalSources)
+        } else if (reserveSourceStripSpace && layoutId == "grid_2col") {
+            Spacer(Modifier.height(38.dp))
         }
     }
 }
@@ -1237,17 +1239,14 @@ private fun MinimalistMediaEntryCard(
 
 // ─── Poster köşe rozetleri ──────────────────────────────────────────────────
 
-/**
- * Sağ üstteki durum etiketi: posterin üst ve sağ kenarları boyunca boşluk
- * bırakmaz; yalnızca görsele bakan iç köşe yumuşak kalır.
- */
+/** Sağ üst köşeye tam oturan rozet biçimi: dış köşe düz, iç köşeler yumuşak. */
 private val TopEndCornerShape = RoundedCornerShape(
-    topStart = 0.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 0.dp
+    topStart = 6.dp, topEnd = 0.dp, bottomStart = 6.dp, bottomEnd = 6.dp
 )
 
-/** Sağ alttaki puan etiketi: alt ve sağ kenara tam oturur. */
+/** Sağ alt köşeye tam oturan rozet biçimi. */
 private val BottomEndCornerShape = RoundedCornerShape(
-    topStart = 6.dp, topEnd = 0.dp, bottomStart = 0.dp, bottomEnd = 0.dp
+    topStart = 6.dp, topEnd = 6.dp, bottomStart = 6.dp, bottomEnd = 0.dp
 )
 
 /**
@@ -1268,7 +1267,7 @@ private fun PosterCornerTag(
             .widthIn(max = 108.dp)
             .clip(shape)
             .background(Color.Black.copy(alpha = 0.66f))
-            .padding(horizontal = 5.dp, vertical = 2.dp)
+            .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {
         Text(
             text = text,

@@ -1,10 +1,8 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -191,22 +189,31 @@ private fun LazyListScope.MyListSectionEntries(
             items = rows,
             key = { row -> "${keyPrefix}_grid_row_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
         ) { row ->
+            val hasExtra = if (sourceBadgesByEntryId.isNotEmpty()) {
+                row.any { entry ->
+                    val badges = sourceBadgesByEntryId[entry.id]
+                    !badges.isNullOrEmpty() &&
+                        com.kitsugi.animelist.ui.components.additionalLibraryBadgeSources(entry.source, badges)
+                            .any { com.kitsugi.animelist.ui.components.KitsugiPlatformLogos.resFor(it) != null }
+                }
+            } else false
             Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 row.forEach { entry ->
                     KitsugiMediaEntryCard(
                         entry = entry,
                         layoutId = selectedListLayoutId,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier.weight(1f),
                         onClick = { onEntryClick(entry) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores,
                         blurAdultMedia = blurAdultMedia,
                         onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) },
-                        sourceBadges = sourceBadgesByEntryId[entry.id]
+                        sourceBadges = sourceBadgesByEntryId[entry.id],
+                        reserveSourceStripSpace = hasExtra
                     )
                 }
                 if (row.size < gridColumns) {

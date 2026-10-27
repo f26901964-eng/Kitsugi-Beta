@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,7 +87,7 @@ fun StatsTabContent(
             if (stats == null) {
                 NoStatsText(isTurkish)
             } else {
-                val statusSlices = buildStatusSlices(stats)
+                val statusSlices = rememberStatusSlices(stats)
                 val hasAnything = stats.rankings.isNotEmpty() ||
                     statusSlices.isNotEmpty() ||
                     stats.scoreDistribution.isNotEmpty()
@@ -295,29 +296,36 @@ private data class StatusSlice(
 )
 
 @Composable
-private fun buildStatusSlices(stats: KitsugiStats): List<StatusSlice> {
-    val watching = stats.watching ?: 0
-    val completed = stats.completed ?: 0
-    val planned = stats.planned ?: 0
-    val dropped = stats.dropped ?: 0
-    val paused = stats.paused ?: 0
-    val slices = mutableListOf<StatusSlice>()
-    if (watching > 0) {
-        slices += StatusSlice(stringResource(R.string.detail_stats_status_watching), watching, StatusWatching)
+private fun rememberStatusSlices(stats: KitsugiStats): List<StatusSlice> {
+    val watchingLabel = stringResource(R.string.detail_stats_status_watching)
+    val completedLabel = stringResource(R.string.detail_stats_status_completed)
+    val plannedLabel = stringResource(R.string.detail_stats_status_planned)
+    val droppedLabel = stringResource(R.string.detail_stats_status_dropped)
+    val pausedLabel = stringResource(R.string.detail_stats_status_paused)
+    return remember(stats, watchingLabel, completedLabel, plannedLabel, droppedLabel, pausedLabel) {
+        val watching = stats.watching ?: 0
+        val completed = stats.completed ?: 0
+        val planned = stats.planned ?: 0
+        val dropped = stats.dropped ?: 0
+        val paused = stats.paused ?: 0
+        val slices = mutableListOf<StatusSlice>()
+        if (watching > 0) {
+            slices += StatusSlice(watchingLabel, watching, StatusWatching)
+        }
+        if (completed > 0) {
+            slices += StatusSlice(completedLabel, completed, StatusCompleted)
+        }
+        if (planned > 0) {
+            slices += StatusSlice(plannedLabel, planned, StatusPlanned)
+        }
+        if (dropped > 0) {
+            slices += StatusSlice(droppedLabel, dropped, StatusDropped)
+        }
+        if (paused > 0) {
+            slices += StatusSlice(pausedLabel, paused, StatusPaused)
+        }
+        slices
     }
-    if (completed > 0) {
-        slices += StatusSlice(stringResource(R.string.detail_stats_status_completed), completed, StatusCompleted)
-    }
-    if (planned > 0) {
-        slices += StatusSlice(stringResource(R.string.detail_stats_status_planned), planned, StatusPlanned)
-    }
-    if (dropped > 0) {
-        slices += StatusSlice(stringResource(R.string.detail_stats_status_dropped), dropped, StatusDropped)
-    }
-    if (paused > 0) {
-        slices += StatusSlice(stringResource(R.string.detail_stats_status_paused), paused, StatusPaused)
-    }
-    return slices
 }
 
 @OptIn(ExperimentalLayoutApi::class)

@@ -286,6 +286,9 @@ fun MediaEntryDetailPage(
         )
     }
     LaunchedEffect(wikiQuery, wikiPrefs.enabled, wikiPrefs.nameFallback) {
+        if (wikiPrefs.enabled) {
+            kotlinx.coroutines.delay(220L)
+        }
         wikiViewModel.bind(wikiQuery.takeIf { wikiPrefs.enabled })
     }
 
@@ -432,16 +435,6 @@ fun MediaEntryDetailPage(
                 )
             },
             floatingHeaderActions = {
-                IconButton(onClick = {
-                    val url = com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(displayEntry)
-                    com.kitsugi.animelist.utils.ShareUtils.shareText(context, displayEntry.title, url)
-                }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Share,
-                        contentDescription = stringResource(R.string.paylas),
-                        tint = KitsugiColors.TextSecondary
-                    )
-                }
                 if (galleryItems.isNotEmpty() || !displayEntry.imageUrl.isNullOrBlank()) {
                     KitsugiGalleryIconButton(onClick = {
                         val clickedUrl = displayEntry.imageUrl
@@ -471,6 +464,16 @@ fun MediaEntryDetailPage(
                             activeGalleryIndex = posterIndex
                         }
                     }, accentColor = accentColor)
+                }
+                IconButton(onClick = {
+                    val url = com.kitsugi.animelist.utils.ShareUtils.buildMediaUrl(displayEntry)
+                    com.kitsugi.animelist.utils.ShareUtils.shareText(context, displayEntry.title, url)
+                }) {
+                    Icon(
+                        imageVector = Icons.Rounded.Share,
+                        contentDescription = stringResource(R.string.paylas),
+                        tint = KitsugiColors.TextSecondary
+                    )
                 }
                 if (showFavouriteButton) {
                     IconButton(onClick = onToggleFavoriteClick) {

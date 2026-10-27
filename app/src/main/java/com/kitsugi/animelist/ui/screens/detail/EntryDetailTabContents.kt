@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -625,102 +627,121 @@ private fun GalleryCategorySectionBlock(
                 )
             }
 
-            val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
-            LazyRow(
-                state = snapRowState,
-                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
-                contentPadding = PaddingValues(horizontal = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            val configuration = LocalConfiguration.current
+            val screenWidthDp = configuration.screenWidthDp
+            val gridColumns = remember(screenWidthDp) {
+                // GridCells.Adaptive(minSize = 150.dp) paritesi:
+                // Küçük telefon (~300dp): 2 sütun
+                // Orta telefon (~450dp): 3 sütun
+                // Tablet dikey (~600dp): 4 sütun
+                // Tablet yatay/büyük ekran (~900dp+): 5–6+ sütun
+                when {
+                    screenWidthDp >= 900 -> 6
+                    screenWidthDp >= 600 -> 4
+                    screenWidthDp >= 450 -> 3
+                    else -> 2
+                }
+            }
+
+            val chunkedRows = remember(rowModel.entries, gridColumns) {
+                rowModel.entries.chunked(gridColumns)
+            }
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
-                    .graphicsLayer {
-                        alpha = if (galleryLoadingState.value) 0.5f else 1f
-                    }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                itemsIndexed(
-                    items = rowModel.entries,
-                    key = { _, entry -> entry.stableKey },
-                    contentType = { _, _ -> "gallery_thumb" }
-                ) { _, entry ->
-                    val item = entry.item
-                    val thumbRequest = GalleryThumbnailImagePolicy.rememberThumbnailImageRequest(
-                        url = item.url,
-                        widthDp = entry.cardWidthDp.dp,
-                        heightDp = 100.dp
-                    )
-                    val cardShape = RoundedCornerShape(12.dp)
+                chunkedRows.forEach { rowEntries ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowEntries.forEach { entry ->
+                            val item = entry.item
+                            val cardShape = RoundedCornerShape(12.dp)
 
-                    Box(
-                        modifier = Modifier
-                            .size(width = entry.cardWidthDp.dp, height = 100.dp)
-                            .clip(cardShape)
-                            .border(1.dp, KitsugiColors.Border, cardShape)
-                            .tvClickable(shape = cardShape) {
-                                if (!galleryLoadingState.value) {
-                                    onItemClickState.value(entry.globalIndex)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(entry.aspectRatio)
+                                    .clip(cardShape)
+                                    .border(1.dp, KitsugiColors.Border, cardShape)
+                                    .graphicsLayer {
+                                        alpha = if (galleryLoadingState.value) 0.5f else 1f
+                                    }
+                                    .tvClickable(shape = cardShape) {
+                                        if (!galleryLoadingState.value) {
+                                            onItemClickState.value(entry.globalIndex)
+                                        }
+                                    }
+                            ) {
+                                com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
+                                    model = item.url,
+                                    contentDescription = "$localizedCategoryLabel – $sourceName",
+                                    isAdult = isAdult,
+                                    modifier = Modifier.matchParentSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(GalleryThumbScrimBrush)
+                                )
+
+                                if (sourceLogoRes != null) {
+                                    KitsugiPlatformLogo(
+                                        platformId = sourceName,
+                                        size = 20.dp,
+                                        cornerRadius = 4.dp,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .padding(6.dp)
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .padding(6.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(badgeBgColor)
+                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = sourceName,
+                                            color = badgeTextColor,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                if (!item.description.isNullOrBlank()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(6.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(Color.Black.copy(alpha = 0.65f))
+                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = item.description,
+                                            color = Color.White,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
-                    ) {
-                        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
-                            model = thumbRequest ?: item.url,
-                            contentDescription = "$localizedCategoryLabel – $sourceName",
-                            isAdult = isAdult,
-                            modifier = Modifier.matchParentSize(),
-                            contentScale = ContentScale.Crop
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(GalleryThumbScrimBrush)
-                        )
-
-                        if (sourceLogoRes != null) {
-                            KitsugiPlatformLogo(
-                                platformId = sourceName,
-                                size = 20.dp,
-                                cornerRadius = 4.dp,
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(6.dp)
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(6.dp)
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .background(badgeBgColor)
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = sourceName,
-                                    color = badgeTextColor,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
                         }
-
-                        if (!item.description.isNullOrBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(6.dp)
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .background(Color.Black.copy(alpha = 0.65f))
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = item.description,
-                                    color = Color.White,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                        // Son satırda eksik kalan sütunları doldurarak eşit genişlik koruma:
+                        repeat(gridColumns - rowEntries.size) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }

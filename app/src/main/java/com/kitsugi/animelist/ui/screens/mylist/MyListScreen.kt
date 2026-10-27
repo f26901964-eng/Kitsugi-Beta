@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiListStatusBottomSheet
@@ -360,51 +361,90 @@ fun MyListScreen(
     val safeSelectedTabIndex = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)
     val selectedTabEntries = librarySnapshot.entriesForTab(safeSelectedTabIndex)
 
-    // Filtering can touch thousands of rows (and optional fuzzy matching uses edit distance).
-    // Debounce keystrokes slightly, cancel obsolete work, and never run this on Compose's main
-    // thread. Keeping the previous result visible while work runs avoids a flash/blank list.
-    val filteredEntries by produceState(
+    // Sorgusuz ("") filtrelenmiş + sıralanmış temel görünüm önbelleği:
+    // 1) Kullanıcı karakterleri silip aramayı boşalttığında ("") 0.0 ms'de tek referans takasıyla
+    //    tüm liste (ör. 829+ sonuç) yeniden filtreleme/sıralama yapılmadan geri yüklenir.
+    // 2) Sıralama alt diziler üzerinde sıra koruyucu (order-preserving) olduğu için, arama sorgusu
+    //    doluyken zaten sıralanmış olan `baseSortedWithoutQuery` taranır; böylece her tuş vuruşu ve
+    //    silme adımında `applySort` maliyeti tamamen sıfırlanır.
+    val baseSortedWithoutQuery by produceState(
         selectedTabEntries,
         selectedTabEntries,
         librarySnapshot.searchAliasesByEntryId,
-        searchQuery,
         selectedStatusFilterId,
         selectedTypeFilterId,
         selectedFavoriteFilterId,
         selectedScoreFilterId,
         selectedYearFilterId,
-        selectedExtraFilterId
+        selectedExtraFilterId,
+        selectedSortId,
+        appSettings.titleLanguage
     ) {
-        if (searchQuery.isNotBlank()) delay(90)
+        val tabItems = selectedTabEntries
+        val aliases = librarySnapshot.searchAliasesByEntryId
         value = withContext(Dispatchers.Default) {
-            val filterJob = currentCoroutineContext()[Job]
-            filterMyListEntries(
-                entries = selectedTabEntries,
-                searchQuery = searchQuery,
+            val baseFiltered = filterMyListEntries(
+                entries = tabItems,
+                searchQuery = "",
                 selectedStatusFilterId = selectedStatusFilterId,
                 selectedTypeFilterId = selectedTypeFilterId,
                 selectedFavoriteFilterId = selectedFavoriteFilterId,
                 selectedScoreFilterId = selectedScoreFilterId,
                 selectedYearFilterId = selectedYearFilterId,
                 selectedExtraFilterId = selectedExtraFilterId,
-                searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId,
+                searchAliasesByEntryId = aliases
+            )
+            applySort(
+                entries = baseFiltered,
+                sortId = selectedSortId,
+                titleLanguage = appSettings.titleLanguage
+            )
+        }
+    }
+
+    val baseSectionsWithoutQuery = remember(baseSortedWithoutQuery, selectedGroupId) {
+        groupMyListEntries(baseSortedWithoutQuery, selectedGroupId)
+    }
+
+    val queryFilteredState by produceState<List<MediaEntry>?>(
+        initialValue = null,
+        baseSortedWithoutQuery,
+        searchQuery,
+        librarySnapshot.searchAliasesByEntryId
+    ) {
+        if (searchQuery.isBlank()) {
+            value = null
+            return@produceState
+        }
+        val sortedBase = baseSortedWithoutQuery
+        val q = searchQuery
+        val aliases = librarySnapshot.searchAliasesByEntryId
+        value = withContext(Dispatchers.Default) {
+            val filterJob = currentCoroutineContext()[Job]
+            filterMyListEntries(
+                entries = sortedBase,
+                searchQuery = q,
+                selectedStatusFilterId = "all",
+                selectedTypeFilterId = "all",
+                selectedFavoriteFilterId = "all",
+                selectedScoreFilterId = "all",
+                selectedYearFilterId = "all",
+                selectedExtraFilterId = "all",
+                searchAliasesByEntryId = aliases,
                 cancellationCheck = { filterJob?.ensureActive() }
             )
         }
     }
 
-    val visibleEntries by produceState(
-        filteredEntries,
-        filteredEntries,
-        selectedSortId,
-        appSettings.titleLanguage
-    ) {
-        value = withContext(Dispatchers.Default) {
-            applySort(
-                entries = filteredEntries,
-                sortId = selectedSortId,
-                titleLanguage = appSettings.titleLanguage
-            )
+    val visibleEntries: List<MediaEntry>
+    val visibleSections: List<MyListSection>
+    if (searchQuery.isBlank()) {
+        visibleEntries = baseSortedWithoutQuery
+        visibleSections = baseSectionsWithoutQuery
+    } else {
+        visibleEntries = queryFilteredState ?: baseSortedWithoutQuery
+        visibleSections = remember(visibleEntries, selectedGroupId) {
+            groupMyListEntries(visibleEntries, selectedGroupId)
         }
     }
 
@@ -498,6 +538,18 @@ fun MyListScreen(
             )
         }
 
+        val currentVisibleEntries by rememberUpdatedState(visibleEntries)
+        val onPickRandom = remember {
+            {
+                val list = currentVisibleEntries
+                if (list.isNotEmpty()) {
+                    onEntryClick(list.random())
+                } else {
+                    onExternalSyncMessage("Gösterilecek bir öğe yok")
+                }
+            }
+        }
+
         // ── Sabit platform tab bar (AniList / MAL / Simkl) ──────────────────────
         androidx.compose.material3.Surface(
             modifier = Modifier
@@ -508,7 +560,7 @@ fun MyListScreen(
             MyListTabBar(
                 selectedTabIndex = safeSelectedTabIndex,
                 onTabIndexChange = onTabIndexChange,
-                visibleEntries = visibleEntries,
+                onPickRandomClick = onPickRandom,
                 allEntries = librarySnapshot.combinedEntries,
                 allLibraryEntryCount = librarySnapshot.combinedItems.size,
                 tabCounts = tabCounts,
@@ -601,39 +653,11 @@ fun MyListScreen(
                 }
                 val pageScrollState = tabScrollStates[pageTabIndex]
                 val pageEntries = librarySnapshot.entriesForTab(pageTabIndex)
-                val pageFilteredEntries = remember(
-                    pageEntries,
-                    librarySnapshot.searchAliasesByEntryId,
-                    searchQuery,
-                    selectedStatusFilterId,
-                    selectedTypeFilterId,
-                    selectedFavoriteFilterId,
-                    selectedScoreFilterId,
-                    selectedYearFilterId,
-                    selectedExtraFilterId
-                ) {
-                    filterMyListEntries(
-                        entries = pageEntries,
-                        searchQuery = searchQuery,
-                        selectedStatusFilterId = selectedStatusFilterId,
-                        selectedTypeFilterId = selectedTypeFilterId,
-                        selectedFavoriteFilterId = selectedFavoriteFilterId,
-                        selectedScoreFilterId = selectedScoreFilterId,
-                        selectedYearFilterId = selectedYearFilterId,
-                        selectedExtraFilterId = selectedExtraFilterId,
-                        searchAliasesByEntryId = librarySnapshot.searchAliasesByEntryId
-                    )
-                }
-                val pageVisibleEntries = remember(pageFilteredEntries, selectedSortId, appSettings.titleLanguage) {
-                    applySort(
-                        entries = pageFilteredEntries,
-                        sortId = selectedSortId,
-                        titleLanguage = appSettings.titleLanguage
-                    )
-                }
-                val pageVisibleSections = remember(pageVisibleEntries, selectedGroupId) {
-                    groupMyListEntries(pageVisibleEntries, selectedGroupId)
-                }
+                val isActivePage = pageTabIndex == safeSelectedTabIndex
+                val isGlobalSearchActive = searchQuery.isNotBlank() && safeSelectedTabIndex != MY_LIST_ALL_TAB_INDEX
+                val useActiveVisible = isActivePage || isGlobalSearchActive
+                val pageVisibleEntries = if (useActiveVisible) visibleEntries else pageEntries
+                val pageVisibleSections = if (useActiveVisible) visibleSections else emptyList()
 
                 // Wait until this page has actual items before restoring a deep position.
                 // A loading/empty LazyColumn would otherwise reset the saved index to zero.

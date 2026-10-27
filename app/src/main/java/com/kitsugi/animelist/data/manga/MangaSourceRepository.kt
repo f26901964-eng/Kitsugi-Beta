@@ -16,6 +16,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -45,15 +47,25 @@ class MangaSourceRepository(private val context: Context) {
     /** Toplu silme ile gizlenen yerleşik kaynakların geri getirilebilmesi için kalıcı anahtar seti. */
     private val bulkDeletePrefs = context.getSharedPreferences("manga_bulk_delete", Context.MODE_PRIVATE)
 
+    private val _availableSourcesFlow = MutableStateFlow<List<MangaSource>>(emptyList())
+    val availableSourcesFlow: Flow<List<MangaSource>> = _availableSourcesFlow.asStateFlow()
+
+    private fun refreshAvailableSources() {
+        _availableSourcesFlow.value = searchCoordinator.getAvailableSources(MangaExtensionLoader.getLoadedSources())
+    }
+
     private companion object {
         const val KEY_HIDDEN_BUILT_IN_KEYS = "hidden_builtin_keys"
     }
 
     init {
         KotatsuExtensionAdapter.loadSavedPrefs(context)
+        // Loader her yeni eklenti yüklediğinde available sources listesini yenile
+        MangaExtensionLoader.addLoadListener { refreshAvailableSources() }
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             MangaExtensionLoader.loadAllExtensions(context)
             KitsugiMangaDefaultProfile.ensureApplied(context)
+            refreshAvailableSources()
         }
     }
 
@@ -67,7 +79,9 @@ class MangaSourceRepository(private val context: Context) {
      * - devre dışı bırakılan kaynaklar gizlenir
      */
     fun getAvailableSources(): List<MangaSource> =
-        searchCoordinator.getAvailableSources(MangaExtensionLoader.getLoadedSources())
+        searchCoordinator.getAvailableSources(MangaExtensionLoader.getLoadedSources()).also {
+            if (_availableSourcesFlow.value !== it) _availableSourcesFlow.value = it
+        }
 
     /** All loaded sources including user-disabled extensions for the installed-sources UI. */
     fun getInstalledSources(): List<MangaSource> =

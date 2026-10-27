@@ -234,14 +234,18 @@ class MangaRepoClient(context: android.content.Context) {
 
                 if (name.isBlank() || pkg.isBlank()) continue
 
+                val explicitUrl = obj.optString("url", "").trim()
                 val apkFileName = obj.optString("apk", "").trim().ifBlank { "$pkg.apk" }
-                val apkUrl = if (apkFileName.startsWith("http")) {
-                    apkFileName
-                } else {
-                    "${apkBaseUrl.trimEnd('/')}/$apkFileName"
+                val rawApkUrl = when {
+                    explicitUrl.startsWith("http") -> explicitUrl
+                    apkFileName.startsWith("http") -> apkFileName
+                    else -> "${apkBaseUrl.trimEnd('/')}/$apkFileName"
                 }
+                // Türkiye'deki raw.githubusercontent.com engelleri için mirror uygula
+                val apkUrl = applyMirror(rawApkUrl)
 
-                val iconUrl = obj.optString("iconUrl", "").takeIf { it.isNotBlank() }
+                val rawIconUrl = obj.optString("iconUrl", "").trim()
+                val iconUrl = if (rawIconUrl.startsWith("http")) applyMirror(rawIconUrl) else rawIconUrl.ifBlank { null }
 
                 val categories = mutableListOf<String>()
                 val sourcesArr = obj.optJSONArray("sources")
@@ -354,7 +358,7 @@ class MangaRepoClient(context: android.content.Context) {
         val arr = JSONArray(trimmed)
         if (arr.length() == 0) return emptyList()
         val firstObj = arr.optJSONObject(0)
-        val isKeiyoushiV1 = firstObj?.has("pkg") == true && !firstObj.has("url")
+        val isKeiyoushiV1 = firstObj?.has("pkg") == true
         return if (isKeiyoushiV1) {
             parseKeiyoushiV1Index(trimmed, deriveApkBaseUrl(sourceUrl))
         } else {

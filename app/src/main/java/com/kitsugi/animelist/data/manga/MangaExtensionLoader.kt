@@ -46,6 +46,26 @@ object MangaExtensionLoader {
     /** Yüklü kaynak örneklerini tutar: filePath -> List<MangaSource> (birden fazla source içerebilir) */
     private val loadedSources = ConcurrentHashMap<String, List<MangaSource>>()
 
+    /** Yükleme tamamlandığında (herhangi bir değişiklikte) çağrılan dinleyiciler. */
+    private val loadListeners = mutableListOf<() -> Unit>()
+
+    @Synchronized
+    fun addLoadListener(listener: () -> Unit) {
+        loadListeners += listener
+    }
+
+    @Synchronized
+    fun removeLoadListener(listener: () -> Unit) {
+        loadListeners -= listener
+    }
+
+    @Synchronized
+    fun notifyLoadComplete() {
+        loadListeners.toList().forEach { listener ->
+            runCatching { listener() }.onFailure { Log.w(TAG, "load listener error: ${it.message}") }
+        }
+    }
+
     fun getExternalSourcesSnapshot(): List<MangaSource> = loadedSources.values.flatten()
 
     // ─── Yüklü Kaynakları Sorgulama ─────────────────────────────────────────
@@ -176,7 +196,7 @@ object MangaExtensionLoader {
         val apk = apkFile(context, extensionId)
         val mex = mexFile(context, extensionId)
 
-        return when {
+        val result = when {
             apk.exists() -> loadMihonApk(context, extensionId, apk)
             mex.exists() -> loadNativeMex(context, extensionId, mex)
             else -> {
@@ -184,6 +204,10 @@ object MangaExtensionLoader {
                 null
             }
         }
+        if (result != null) {
+            notifyLoadComplete()
+        }
+        return result
     }
 
     /**
@@ -215,7 +239,7 @@ object MangaExtensionLoader {
                     throw SecurityException("Signature untrusted for package $packageName: $signatureHash")
                 }
             } else {
-                Log.w(TAG, "Could not extract signature for file: ${file.absolutePath}")
+                Log.w(TAG, "Unsigned APK uyarısı ($extensionId): imza doğrulanamadı, güven listesi atlanıyor")
             }
 
             Log.d(TAG, "$extensionId [APK]: paket=$packageName, sınıf yükleniyor -> $className")
@@ -246,11 +270,13 @@ object MangaExtensionLoader {
                         }
                         else -> {
                             val instance = try {
-                                clazz.getDeclaredConstructor(Context::class.java).newInstance(context) as Source
+                                clazz.fields.firstOrNull { it.name == "INSTANCE" && java.lang.reflect.Modifier.isStatic(it.modifiers) }
+                                    ?.get(null) as? Source
+                                    ?: clazz.getDeclaredConstructor(Context::class.java).newInstance(context) as Source
                             } catch (_: NoSuchMethodException) {
                                 clazz.getDeclaredConstructor().newInstance() as Source
                             }
-                            listOf(instance)
+                            listOfNotNull(instance)
                         }
                     }
                 } catch (e: Exception) {
@@ -287,12 +313,16 @@ object MangaExtensionLoader {
                 val stateStore = MangaSourceStateStore(context)
                 wrappers.forEach { wrapper ->
                     val health = stateStore.getHealthStatus(wrapper)
-                    if (health == com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Broken ||
-                        health == com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Degraded ||
-                        stateStore.isCoolingDown(wrapper)
+                    if (health == com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Unknown &&
+                        stateStore.getLastUpdatedAt(wrapper) == 0L
                     ) {
-                        Log.d(TAG, "$extensionId [${wrapper.name}]: eski ${health.name} durumu sıfırlandı")
+                        stateStore.setHealthStatus(wrapper, com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Healthy,
+                            reason = "initial_install_default")
+                        stateStore.recordOperationSuccess(wrapper, "load", 0L)
+                    } else if (health != com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Disabled) {
                         stateStore.resetSource(wrapper)
+                        stateStore.setHealthStatus(wrapper, com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Healthy,
+                            reason = "fresh_load_reset")
                     }
                 }
             } catch (e: Exception) {
@@ -341,9 +371,10 @@ object MangaExtensionLoader {
     // ─── Kaldırma / Silme ────────────────────────────────────────────────────
 
     fun unloadExtension(context: Context, extensionId: String) {
-        loadedSources.remove(apkFile(context, extensionId).absolutePath)
-        loadedSources.remove(mexFile(context, extensionId).absolutePath)
+        val removed = loadedSources.remove(apkFile(context, extensionId).absolutePath) != null ||
+            loadedSources.remove(mexFile(context, extensionId).absolutePath) != null
         Log.i(TAG, "$extensionId bellekten kaldırıldı")
+        if (removed) notifyLoadComplete()
     }
 
     fun deleteExtension(context: Context, extensionId: String): Boolean {
@@ -407,6 +438,7 @@ object MangaExtensionLoader {
         val newFiles = files.filter { !loadedSources.containsKey(it.absolutePath) }
         if (newFiles.isEmpty()) {
             Log.d(TAG, "Tüm eklentiler zaten yüklü (${loadedSources.size} APK/MEX, ${getLoadedSourceCount()} kaynak)")
+            notifyLoadComplete()
             return
         }
 
@@ -417,6 +449,7 @@ object MangaExtensionLoader {
             catch (e: Exception) { Log.e(TAG, "Eklenti yükleme hatası ($extensionId): ${e.message}", e) }
         }
         Log.i(TAG, "Toplam yüklü kaynak: ${getLoadedSourceCount()}")
+        notifyLoadComplete()
     }
 
     // ─── Preference Varsayılanları ────────────────────────────────────────────
@@ -496,37 +529,50 @@ object MangaExtensionLoader {
 
         val engine = try {
             ZipFile(apkFile).use { zip ->
-                // classes.dex yoksa UNKNOWN
-                val dexEntry = zip.getEntry("classes.dex") ?: return ExtensionEngine.UNKNOWN
-                val bytes = zip.getInputStream(dexEntry).use { it.readBytes() }
-
-                // ISO-8859-1 is a 1-to-1 byte-to-char mapping. This performs direct conversion in native C++
-                // and avoids multi-MB StringBuilder loops in Kotlin, using native String.contains (Boyer-Moore/SIMD).
-                val dexStr = String(bytes, Charsets.ISO_8859_1)
+                // Tüm dex dosyalarını tara (Keiyoushi 2026+ eklentilerde sınıflar
+                // classes5.dex, classes13.dex vb. çoklu-dex dosyalarına dağılmış
+                // olabilir; sadece classes.dex bakmak yanlış tespit üretir).
+                val dexEntries = zip.entries().asSequence()
+                    .filter { !it.isDirectory && it.name.matches(Regex("classes[0-9]*\\.dex")) }
+                    .toList()
+                if (dexEntries.isEmpty()) return@use ExtensionEngine.UNKNOWN
+                val combined = buildString(dexEntries.sumOf { (it.size / 4).coerceAtMost(80_000).toInt() } + 16) {
+                    for (entry in dexEntries) {
+                        try {
+                            zip.getInputStream(entry).use { ins ->
+                                // Büyük dex'lerin tamamını okumaya gerek yok; ilk 80KB'lık kısım
+                                // fingerprint string'lerini içermeye yeter.
+                                val buf = ByteArray(entry.size.coerceAtMost(80_000L).toInt())
+                                val read = ins.read(buf)
+                                if (read > 0) append(String(buf, 0, read, Charsets.ISO_8859_1))
+                            }
+                        } catch (_: Exception) { /* bir dex okunamazsa diğerlerine devam et */ }
+                    }
+                }
 
                 when {
                     // Inertia.js — en spesifik, önce kontrol et
-                    "InertiaDto" in dexStr || "X-Inertia" in dexStr ||
-                    ("inertia" in dexStr && "mangadenizi" in dexStr) ->
+                    "InertiaDto" in combined || "X-Inertia" in combined ||
+                    ("inertia" in combined && "mangadenizi" in combined) ->
                         ExtensionEngine.INERTIA
 
                     // SvelteKit — __data.json veya SvelteNode varlığı
-                    "SvelteNode" in dexStr || "SvelteResponse" in dexStr ||
-                    "__data.json" in dexStr || ("__data" in dexStr && "cdn-u.efsaneler" in dexStr) ->
+                    "SvelteNode" in combined || "SvelteResponse" in combined ||
+                    "__data.json" in combined || ("__data" in combined && "cdn-u.efsaneler" in combined) ->
                         ExtensionEngine.SVELTE
 
                     // Madara — WP-Manga Plugin spesifik string'ler
-                    "wpmangaprotectornonce" in dexStr || "madara_load_more" in dexStr ||
-                    "wp_manga_chapter_type" in dexStr ->
+                    "wpmangaprotectornonce" in combined || "madara_load_more" in combined ||
+                    "wp_manga_chapter_type" in combined ->
                         ExtensionEngine.MADARA
 
                     // Themesia — WP Manga Themesia spesifik
-                    "themesia" in dexStr || "ts_reader" in dexStr ||
-                    "MangaThemesia" in dexStr ->
+                    "themesia" in combined || "ts_reader" in combined ||
+                    "MangaThemesia" in combined ->
                         ExtensionEngine.THEMESIA
 
                     // Keiyoushi — Modern KeiSource / Keiyoushi core mimarisi
-                    "keiyoushi" in dexStr || "KeiSource" in dexStr ->
+                    "keiyoushi" in combined || "KeiSource" in combined ->
                         ExtensionEngine.KEI_SOURCE
 
                     // Diğer tüm HTML tabanlı extensionlar

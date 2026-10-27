@@ -594,13 +594,13 @@ object ExternalListSyncManager {
             onSuccess = { result ->
                 when {
                     // Simkl'de desteklenmeyen alanlar (ör. yalnız cilt) süzüldüğünde hiçbir istek
-                    // atılmamış olabilir: mesaj yoksa "eşitlendi" demeyiz.
-                    result.isSuccess && result.messages.isEmpty() -> SourceResult(SIMKL, OUTCOME_UP_TO_DATE)
-                    result.isSuccess -> SourceResult(SIMKL, OUTCOME_SYNCED, synced = true)
+                    // atılmamış olabilir: mesaj ve uyarı yoksa "eşitlendi" demeyiz.
+                    result.isSuccess && result.messages.isEmpty() && result.warnings.isEmpty() -> SourceResult(SIMKL, OUTCOME_UP_TO_DATE)
+                    result.isSuccess -> SourceResult(SIMKL, OUTCOME_SYNCED, synced = result.messages.isNotEmpty(), skipped = result.warnings)
                     // Katalog eşleşmesi üretilemedi (medya Simkl'de yok / kimlik yok):
                     // hata değil atlandı — "Çevrimdışı kaydedildi" kuyruğuna düşmemeli.
-                    result.unresolvedMedia -> SourceResult(SIMKL, OUTCOME_SKIPPED_IDENTITY, skipped = result.errors)
-                    else -> SourceResult(SIMKL, OUTCOME_FAILED, errors = result.errors)
+                    result.unresolvedMedia -> SourceResult(SIMKL, OUTCOME_SKIPPED_IDENTITY, skipped = result.errors + result.warnings)
+                    else -> SourceResult(SIMKL, OUTCOME_FAILED, errors = result.errors, skipped = result.warnings)
                 }
             },
             onFailure = { error ->
@@ -919,10 +919,10 @@ object ExternalListSyncManager {
         }.fold(
             onSuccess = { result ->
                 when {
-                    result.isSuccess -> SourceResult(SIMKL, OUTCOME_SYNCED, synced = true)
+                    result.isSuccess -> SourceResult(SIMKL, OUTCOME_SYNCED, synced = true, skipped = result.warnings)
                     // Kimlik/katalog eşleşmesi üretilemedi: hata değil, güvenli atlama.
-                    result.unresolvedMedia -> SourceResult(SIMKL, OUTCOME_SKIPPED_IDENTITY, skipped = result.errors)
-                    else -> SourceResult(SIMKL, OUTCOME_FAILED, errors = result.errors)
+                    result.unresolvedMedia -> SourceResult(SIMKL, OUTCOME_SKIPPED_IDENTITY, skipped = result.errors + result.warnings)
+                    else -> SourceResult(SIMKL, OUTCOME_FAILED, errors = result.errors, skipped = result.warnings)
                 }
             },
             onFailure = { error ->

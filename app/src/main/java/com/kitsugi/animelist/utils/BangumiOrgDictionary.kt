@@ -315,6 +315,12 @@ internal object BangumiOrgDictionary {
         return null
     }
 
+    /** Arka plan iş parçacığında (Application.onCreate) tabloları önceden ısıtır. */
+    fun prewarm() {
+        byLabel.size
+        byCompact.size
+    }
+
     /** Girdi sayısı (test/telemetri için). */
     val size: Int get() = rows.size
 
@@ -322,16 +328,29 @@ internal object BangumiOrgDictionary {
     private fun normalize(value: String): String {
         if (value.isBlank()) return ""
         val sb = StringBuilder(value.length)
+        var prevSpace = true
         for (ch in value) {
-            when (ch) {
-                '　' -> sb.append(' ')
-                '（', '(', '[', '【', '《', '「', '『' -> Unit
-                '）', ')', ']', '】', '》', '」', '』' -> Unit
-                '：', ':', '・', '·', '。', '、', '，', ',' -> sb.append(' ')
-                else -> sb.append(ch)
+            val mapped = when (ch) {
+                '　', '：', ':', '・', '·', '。', '、', '，', ',' -> ' '
+                '（', '(', '[', '【', '《', '「', '『',
+                '）', ')', ']', '】', '》', '」', '』' -> '\u0000'
+                else -> if (ch.isWhitespace()) ' ' else ch
+            }
+            if (mapped == '\u0000') continue
+            if (mapped == ' ') {
+                if (!prevSpace) {
+                    sb.append(' ')
+                    prevSpace = true
+                }
+            } else {
+                sb.append(mapped)
+                prevSpace = false
             }
         }
-        return sb.toString().trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)
+        if (sb.isNotEmpty() && sb[sb.length - 1] == ' ') {
+            sb.setLength(sb.length - 1)
+        }
+        return sb.toString().lowercase(Locale.ROOT)
     }
 
     /** Yalnızca harf/rakam bırakan sıkı anahtar: `Production.IG` → `productionig`. */

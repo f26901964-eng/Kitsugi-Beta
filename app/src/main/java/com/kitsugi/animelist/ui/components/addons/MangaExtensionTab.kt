@@ -981,12 +981,13 @@ internal fun MangaExtensionsTab(
                 val domain = onGetConfiguredDomain(source)
                 val sourceState = sourceStateByKey[source.stableSourceKey()]
                 val errorCode = PlatformErrorCode.fromMangaState(sourceState?.lastErrorCode, sourceState?.lastErrorType)?.id
+                val isEnabled = health != com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Disabled
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(KitsugiColors.SurfaceSoft)
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -997,7 +998,11 @@ internal fun MangaExtensionsTab(
                         Text(source.lang.uppercase().take(2), color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(source.name, color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            source.name,
+                            color = if (isEnabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
                         Text(onGetConfiguredBaseUrl(source).ifBlank { "Mihon APK" }, color = KitsugiColors.TextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             HealthBadge(health = health, accentColor = accentColor)
@@ -1012,17 +1017,16 @@ internal fun MangaExtensionsTab(
                             PlatformErrorCodeHint(code = errorCode)
                         }
                     }
+                    // ── AÇ/KAPA SWITCH ──────────────────────────────────────────────
                     if (isBusy) {
-                        KitsugiPlasmaLoader(size = 18.dp)
+                        KitsugiPlasmaLoader(size = 22.dp)
+                    } else {
+                        Switch(
+                            checked = isEnabled,
+                            enabled = !isBusy,
+                            onCheckedChange = { enabled -> onToggleSource(source, enabled) },
+                        )
                     }
-                    Switch(
-                        checked = health != com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Disabled,
-                        enabled = !isBusy,
-                        onCheckedChange = { onToggleSource(source, it) },
-                    )
-                    Box(
-                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) { Text(source.lang, color = KitsugiColors.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
                     IconButton(
                         onClick = {
                             val url = onGetConfiguredBaseUrl(source).ifBlank { source.baseUrl }

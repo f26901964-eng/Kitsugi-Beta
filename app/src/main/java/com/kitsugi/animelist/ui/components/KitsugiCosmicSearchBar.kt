@@ -24,7 +24,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.Search
@@ -76,6 +78,7 @@ fun KitsugiCosmicSearchBar(
     onFilterClick: (() -> Unit)? = null,
     isFilterActive: Boolean = false,
     height: Dp = 56.dp,
+    debounceMillis: Long = 0L,
     focusRequester: FocusRequester? = null
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -86,19 +89,40 @@ fun KitsugiCosmicSearchBar(
     val textFieldState = remember { TextFieldState(query) }
     val latestQuery by rememberUpdatedState(query)
     val latestOnQueryChange by rememberUpdatedState(onQueryChange)
+    // Ebeveyn yeniden kompozisyonu tuş vuruşlarının gerisinden geldiğinde eski `query`
+    // değerinin kullanıcının yazdığı/sildiği metni geri ezmesini (feedback loop) önler.
+    var lastLocalText by remember { mutableStateOf(query) }
 
-    // Dışarıdan gelen query değişikliklerini (temizle, geçmiş, vb.) içeri yansıt.
+    val hasText by remember {
+        androidx.compose.runtime.derivedStateOf { textFieldState.text.isNotEmpty() }
+    }
+    val hasNonBlankText by remember {
+        androidx.compose.runtime.derivedStateOf { textFieldState.text.isNotBlank() }
+    }
+
+    // Yalnızca dışarıdan programatik olarak gelen (geçmiş seçimi, geri tuşu sıfırlaması vb.)
+    // gerçek değişiklikleri metin alanına yansıt.
     LaunchedEffect(query) {
-        if (query != textFieldState.text.toString()) {
+        val currentFieldText = textFieldState.text.toString()
+        if (query != lastLocalText && query != currentFieldText) {
+            lastLocalText = query
             textFieldState.setTextAndPlaceCursorAtEnd(query)
         }
     }
 
-    // İçeride yazılan metni dışarıya aktar.
-    LaunchedEffect(Unit) {
+    // İçeride yazılan metni dışarıya aktar: boşaltma ("") her zaman 0 ms anında iletilir;
+    // art arda yazma/silme sırasında isteğe bağlı debounce ara kare yığılmasını keser.
+    LaunchedEffect(debounceMillis) {
         snapshotFlow { textFieldState.text.toString() }
-            .collect { t ->
-                if (t != latestQuery) latestOnQueryChange(t)
+            .collectLatest { current ->
+                lastLocalText = current
+                if (current == latestQuery) return@collectLatest
+                if (debounceMillis > 0L && current.isNotEmpty()) {
+                    kotlinx.coroutines.delay(debounceMillis)
+                }
+                if (current != latestQuery) {
+                    latestOnQueryChange(current)
+                }
             }
     }
 
@@ -173,7 +197,7 @@ fun KitsugiCosmicSearchBar(
             // Klavyesi olmayan/donanım klavyesi "Ara" tuşu göndermeyen cihazlarda
             // da arama tetiklenebilsin diye metin doluyken görünür.
             AnimatedVisibility(
-                visible = query.isNotBlank(),
+                visible = hasNonBlankText,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut()
             ) {
@@ -195,12 +219,14 @@ fun KitsugiCosmicSearchBar(
 
             // Temizle Butonu ("X")
             AnimatedVisibility(
-                visible = query.isNotEmpty(),
+                visible = hasText,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut()
             ) {
                 IconButton(
                     onClick = {
+                        lastLocalText = ""
+                        textFieldState.clearText()
                         onClearQuery()
                         keyboardController?.hide()
                     },

@@ -74,7 +74,7 @@ object ExploreSourceFilters {
             ExplorePlatform.TMDB -> spec.tmdbKinds.any { isMovie ->
                 CanonicalFilterBridge.mapTmdbGenreId(term, !isMovie) != null
             }
-            ExplorePlatform.KITSU -> true
+            ExplorePlatform.KITSU -> CanonicalFilterBridge.mapSimklGenre(term) != null
             ExplorePlatform.SHIKIMORI -> CanonicalFilterBridge.mapAnimeGenreId(term) != null ||
                 CanonicalFilterBridge.mapMalGenreId(term, spec.mediaType == MediaType.Manga) != null
             ExplorePlatform.SIMKL -> CanonicalFilterBridge.mapSimklGenre(term) != null
@@ -330,7 +330,10 @@ private suspend fun kitsuPage(
     sort = kitsuSort(sort),
     subtypes = spec.kitsuSubtypes,
     statuses = spec.kitsuStatuses,
-    categories = term?.let { listOf(kitsuCategorySlug(it)) }
+    categories = term
+        ?.let(CanonicalFilterBridge::mapSimklGenre)
+        ?.let(::kitsuCategorySlug)
+        ?.let { listOf(it) }
 )
 
 private suspend fun shikimoriPage(

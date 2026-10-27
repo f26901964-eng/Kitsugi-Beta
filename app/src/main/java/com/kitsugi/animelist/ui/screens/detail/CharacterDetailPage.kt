@@ -302,7 +302,7 @@ fun CharacterDetailPage(
                     val listState = rememberLazyListState()
                 val showFloatingHeader = rememberDetailStickyHeaderVisible(
                     listState = listState,
-                    showAtIndex = 2,
+                    showAtIndex = 1,
                     hideAtIndex = 0
                 )
                 val tabAbout      = stringResource(R.string.character_tab_about)

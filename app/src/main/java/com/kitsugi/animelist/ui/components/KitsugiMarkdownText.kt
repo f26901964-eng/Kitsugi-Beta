@@ -118,6 +118,10 @@ private class KitsugiClickableImageTransformer(
  * @param onImageGalleryRequest  Called when an inline image is tapped.
  *                              Receives the ordered URL list and the tapped index.
  */
+private val MARKDOWN_IMAGE_URL_REGEX = Regex("""!\[.*?\]\((https?://[^\s)]+)\)""")
+private val ANILIST_IMAGE_URL_REGEX = Regex("""img\d*%*[({\[](https?://[^\s)}\]]+)[)}\]]""")
+private val RAW_IMAGE_URL_REGEX = Regex("""https?://[^\s<>"'\)]+\.(?:jpe?g|png|gif|webp)(?:\?[^\s<>"'\)]*)?""", RegexOption.IGNORE_CASE)
+
 @Composable
 fun KitsugiMarkdownText(
     text: String?,
@@ -135,10 +139,15 @@ fun KitsugiMarkdownText(
     val rendered = remember(text) { text?.formatAniListMarkdown().orEmpty() }
 
     val allImageUrls = remember(text, rendered) {
-        val fromMarkdown = Regex("""!\[.*?\]\((https?://[^\s)]+)\)""").findAll(rendered).map { it.groupValues[1].trim() }.toList()
-        val fromAniList = Regex("""img\d*%*[({\[](https?://[^\s)}\]]+)[)}\]]""").findAll(text.orEmpty()).map { it.groupValues[1].trim() }.toList()
-        val fromRaw = Regex("""https?://[^\s<>"'\)]+\.(?:jpe?g|png|gif|webp)(?:\?[^\s<>"'\)]*)?""", RegexOption.IGNORE_CASE).findAll(text.orEmpty()).map { it.value.trim() }.toList()
-        (fromMarkdown + fromAniList + fromRaw).distinct()
+        val raw = text.orEmpty()
+        if (!raw.contains("http", ignoreCase = true) && !rendered.contains("http", ignoreCase = true)) {
+            emptyList()
+        } else {
+            val fromMarkdown = MARKDOWN_IMAGE_URL_REGEX.findAll(rendered).map { it.groupValues[1].trim() }.toList()
+            val fromAniList = ANILIST_IMAGE_URL_REGEX.findAll(raw).map { it.groupValues[1].trim() }.toList()
+            val fromRaw = RAW_IMAGE_URL_REGEX.findAll(raw).map { it.value.trim() }.toList()
+            (fromMarkdown + fromAniList + fromRaw).distinct()
+        }
     }
 
     val imageTransformer = remember(allImageUrls, onImageGalleryRequest) {

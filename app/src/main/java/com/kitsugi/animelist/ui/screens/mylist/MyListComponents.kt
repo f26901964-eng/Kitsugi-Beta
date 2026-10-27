@@ -473,7 +473,8 @@ fun MyListSingleSourceBar(
 fun MyListTabBar(
     selectedTabIndex: Int,
     onTabIndexChange: (Int) -> Unit,
-    visibleEntries: List<MediaEntry>,
+    visibleEntries: List<MediaEntry> = emptyList(),
+    onPickRandomClick: (() -> Unit)? = null,
     allEntries: List<MediaEntry> = emptyList(),
     allLibraryEntryCount: Int = allEntries.size,
     tabCounts: List<Int>? = null,
@@ -745,7 +746,9 @@ fun MyListTabBar(
                     shape = RoundedCornerShape(14.dp)
                 )
                 .tvClickable(shape = RoundedCornerShape(14.dp)) {
-                    if (visibleEntries.isNotEmpty()) {
+                    if (onPickRandomClick != null) {
+                        onPickRandomClick()
+                    } else if (visibleEntries.isNotEmpty()) {
                         onEntryClick(visibleEntries.random())
                     } else {
                         onExternalSyncMessage("Gösterilecek bir öğe yok")
@@ -1023,7 +1026,7 @@ fun MyListContentPage(
                     .then(if (isTvDevice) Modifier.dpadVerticalFastScroll(pageScrollState) else Modifier),
                 verticalArrangement = Arrangement.Top
             ) {
-                item {
+                item(key = "result_count_header", contentType = "mylist_count_header") {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "${displayEntries.size} sonuç",
@@ -1034,7 +1037,7 @@ fun MyListContentPage(
                     )
                 }
                 if (displayEntries.isEmpty()) {
-                    item {
+                    item(key = "empty_result_card", contentType = "mylist_empty") {
                         EmptyListResultCard(
                             searchQuery = searchQuery,
                             selectedStatusFilterId = selectedStatusFilterId,
@@ -1076,7 +1079,7 @@ fun MyListContentPage(
                         onPosterLongClick = onPosterLongClick
                     )
                 }
-                item { Spacer(modifier = Modifier.height(90.dp)) }
+                item(key = "bottom_spacer", contentType = "mylist_spacer") { Spacer(modifier = Modifier.height(90.dp)) }
             }
         }
     }

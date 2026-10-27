@@ -274,7 +274,7 @@ fun StaffDetailPage(
                 val listState = rememberLazyListState()
                 val showFloatingHeader = rememberDetailStickyHeaderVisible(
                     listState = listState,
-                    showAtIndex = 2,
+                    showAtIndex = 1,
                     hideAtIndex = 0
                 )
                 // Wiki çözümlemesi ham detayla yapılır (ad gösterim tercihinden bağımsız).

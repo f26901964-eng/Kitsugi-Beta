@@ -6628,6 +6628,11 @@
     <string name="simkl_sync_rating_updated">Simkl rating updated: %1$d/10.</string>
     <string name="simkl_sync_rating_failed">Could not update the Simkl rating.</string>
     <string name="simkl_sync_rating_error">Simkl rating error: %1$s</string>
+    <string name="simkl_sync_rating_clear_missing_id">[Simkl] Could not clear the rating for %1$s because its Simkl media ID is unavailable. Other supported fields were processed.</string>
+    <string name="simkl_sync_progress_clear_unsupported">[Simkl] Could not clear episode progress for %1$s; existing Simkl history was preserved.</string>
+    <string name="simkl_sync_progress_not_supported_for_type">[Simkl] Progress for %1$s is not synced for this media type; other supported fields were processed.</string>
+    <string name="cross_sync_unsupported_fields">[%1$s] These changes are unsupported and were not sent: %2$s.</string>
+    <string name="account_sync_mal_rate_limit">MyAnimeList rate limit (429); import stopped after %1$d attempts. Wait %2$d seconds and retry. Your local data was not changed.</string>
     <string name="simkl_sync_entry_deleted">Removed from the Simkl list (%1$s).</string>
     <string name="simkl_sync_entry_delete_failed">Could not remove the entry from the Simkl list.</string>
     <string name="simkl_sync_entry_delete_error">Simkl removeFromList error: %1$s</string>

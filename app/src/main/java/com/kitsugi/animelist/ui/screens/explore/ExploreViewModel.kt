@@ -1124,7 +1124,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             block: suspend () -> List<com.kitsugi.animelist.data.remote.JikanSearchResult>
         ): List<com.kitsugi.animelist.data.remote.JikanSearchResult> =
             withTimeoutOrNull(BANGUMI_SHELF_TIMEOUT_MS) {
-                runCatching { block() }.getOrDefault(emptyList())
+                try {
+                    block()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    emptyList()
+                }
             } ?: emptyList()
 
         val topAnimeDeferred = async { shelf { bangumi.topAnime(20, context) } }
@@ -1166,7 +1172,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),
             topRatedAnime = topRatedAnimeDeferred.await(),
             topRatedManga = topRatedMangaDeferred.await(),
-            newlyAddedManga = newlyAddedMangaDeferred.await(),
+            newlyAddedManga = publishingMangaDeferred.await(),
             novels = novelsDeferred.await(),
             airingSoonAnime = airingSoonDeferred.await()
         )

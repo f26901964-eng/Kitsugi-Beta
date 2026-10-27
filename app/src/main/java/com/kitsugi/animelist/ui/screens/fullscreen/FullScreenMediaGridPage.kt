@@ -330,8 +330,8 @@ fun FullScreenMediaGridPage(
             ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset)
             ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset)
             ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset)
-            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit)
-            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit)
+            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit, offset = offset)
+            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit, offset = offset)
             ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset)
             ExploreCategoryType.BANGUMI_TV -> bangumi.realTvShows(limit, offset = offset)
             ExploreCategoryType.BANGUMI_MOVIES -> bangumi.realMovies(limit, offset = offset)
@@ -572,6 +572,8 @@ fun FullScreenMediaGridPage(
                         hasMorePages = false
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (generation == filterGeneration) loadError = e.message ?: "Yükleme hatası"
             } finally {

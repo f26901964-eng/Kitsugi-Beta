@@ -238,7 +238,8 @@ fun ReviewsTabContent(
                     // API sayfaları çakışırsa aynı konu iki kez gelebilir → çökmeyen anahtar.
                     uniqueItems(
                         items = forumTopics,
-                        key = { topic -> "${topic.source}_${topic.id}" }
+                        key = { topic -> "topic_${topic.source}_${topic.id}" },
+                        contentType = { "forum_topic_card" }
                     ) { topic ->
                         TopicCard(
                             topic = topic,
@@ -323,7 +324,8 @@ fun ReviewsTabContent(
                 ) {
                     uniqueItems(
                         items = activitiesList,
-                        key = { activity -> "act_${activity.id}" }
+                        key = { activity -> "activity_${activity.id}" },
+                        contentType = { "activity_card" }
                     ) { activity ->
                         ActivityCard(
                             activity = activity,
@@ -438,7 +440,8 @@ fun ReviewsTabContent(
                             // her kart "tmdb_null" anahtarını alıp LazyRow'u çökertiyordu.
                             uniqueItems(
                                 items = reviewsList,
-                                key = { rev -> rev.stableKey() }
+                                key = { rev -> rev.stableKey() },
+                                contentType = { "review_card" }
                             ) { rev ->
                                 KitsugiReviewCard(
                                     rev = rev,

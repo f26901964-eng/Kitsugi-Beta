@@ -35,6 +35,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
+private val REVIEW_MARKDOWN_STRIP_REGEX = Regex("[*_`~]")
+
 /**
  * İnceleme (review) kart bileşeni.
  * ReviewsTab.kt dosyasından çıkarılmıştır.
@@ -52,6 +54,9 @@ internal fun KitsugiReviewCard(
 ) {
     val accentColor = LocalKitsugiAccent.current
     val displaySummary = rev.summary ?: ""
+    val cleanedSummary = remember(displaySummary) {
+        if (displaySummary.isEmpty()) "" else displaySummary.replace(REVIEW_MARKDOWN_STRIP_REGEX, "")
+    }
 
     Column(
         modifier = modifier
@@ -64,7 +69,7 @@ internal fun KitsugiReviewCard(
     ) {
         // Center-aligned italic summary text
         Text(
-            text = displaySummary.replace(Regex("[*_`~]"), ""),
+            text = cleanedSummary,
             color = KitsugiColors.TextPrimary,
             fontSize = 13.sp,
             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,

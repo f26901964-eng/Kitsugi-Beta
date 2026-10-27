@@ -41,6 +41,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +78,15 @@ fun EpisodesTabContent(
     onRatingClick: ((season: Int, episode: Int) -> Unit)? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val downloads by com.kitsugi.animelist.data.local.AnimeDownloadManager.downloads.collectAsState()
+    val downloadMapFlow = remember(animeId) {
+        com.kitsugi.animelist.data.local.AnimeDownloadManager.downloads
+            .map { all ->
+                if (animeId.isEmpty()) emptyMap()
+                else all.filter { it.animeId == animeId }.associateBy { it.season to it.episode }
+            }
+            .distinctUntilChanged()
+    }
+    val downloadMap by downloadMapFlow.collectAsState(initial = emptyMap())
 
     when (state) {
         is DetailTabState.Loading -> {
@@ -83,10 +94,6 @@ fun EpisodesTabContent(
         }
         is DetailTabState.Success -> {
             val episodes = state.data
-            val downloadMap = remember(downloads, animeId) {
-                downloads.filter { it.animeId == animeId }
-                    .associateBy { (it.season to it.episode) }
-            }
 
             // Eğer birden fazla sezon varsa → Accordion görünüm
             if (totalSeasons != null && totalSeasons > 1) {
@@ -180,29 +187,31 @@ private fun SeasonAccordion(
         for (season in 1..totalSeasons) {
             val isExpanded = expandedSeason == season
 
-            SeasonAccordionItem(
-                seasonNumber = season,
-                isAdult = isAdult,
-                isExpanded = isExpanded,
-                episodes = episodesBySeason[season].orEmpty(),
-                episodeRatings = episodeRatings,
-                targetSeason = season,
-                accentColor = accentColor,
-                onHeaderClick = {
-                    // Aynı sezona basılırsa aç/kapat; farklı sezon basılırsa sadece onu aç
-                    if (isExpanded) {
-                        expandedSeason = -1
-                    } else {
-                        expandedSeason = season
-                        onSeasonSelected?.invoke(season)
-                    }
-                },
-                onEpisodeClick = onEpisodeClick,
-                onDownloadClick = onDownloadClick,
-                onRatingClick = onRatingClick,
-                animeId = animeId,
-                downloadMap = downloadMap
-            )
+            key("season_acc_$season") {
+                SeasonAccordionItem(
+                    seasonNumber = season,
+                    isAdult = isAdult,
+                    isExpanded = isExpanded,
+                    episodes = episodesBySeason[season].orEmpty(),
+                    episodeRatings = episodeRatings,
+                    targetSeason = season,
+                    accentColor = accentColor,
+                    onHeaderClick = {
+                        // Aynı sezona basılırsa aç/kapat; farklı sezon basılırsa sadece onu aç
+                        if (isExpanded) {
+                            expandedSeason = -1
+                        } else {
+                            expandedSeason = season
+                            onSeasonSelected?.invoke(season)
+                        }
+                    },
+                    onEpisodeClick = onEpisodeClick,
+                    onDownloadClick = onDownloadClick,
+                    onRatingClick = onRatingClick,
+                    animeId = animeId,
+                    downloadMap = downloadMap
+                )
+            }
         }
     }
 }
@@ -341,7 +350,7 @@ private fun PaginatedEpisodesList(
         return
     }
 
-    val CHUNK_SIZE = 50
+    val CHUNK_SIZE = 25
     val totalChunks = (episodes.size + CHUNK_SIZE - 1) / CHUNK_SIZE
     var selectedChunkIndex by remember(episodes.size) { mutableStateOf(0) }
 

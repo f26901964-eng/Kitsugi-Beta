@@ -321,7 +321,9 @@ class SimklApiClient(
         page: Int = 1,
         network: String? = null
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        if (query.isNotBlank()) {
+        val hasDiscoveryFilters = subtype != null || genre != null || country != null || year != null ||
+            !network.isNullOrBlank() || (!sort.isNullOrBlank() && sort != "rank")
+        if (query.isNotBlank() && !hasDiscoveryFilters) {
             return@withContext search(query, type, limit, page)
         }
         val safeType = when (type.lowercase()) {
@@ -356,8 +358,37 @@ class SimklApiClient(
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val responseText = response.body?.string().orEmpty()
-                parseSimklArray(responseText, safeType, limit)
+                val firstPage = parseSimklArray(responseText, safeType, limit)
+                if (query.isBlank()) {
+                    firstPage
+                } else {
+                    val pagesToInspect = (page.coerceAtLeast(1) * 3).coerceAtMost(20)
+                    val candidates = buildList {
+                        addAll(firstPage)
+                        for (candidatePage in 2..pagesToInspect) {
+                            val candidateUrl = url.substringBefore("&page=") + "&page=$candidatePage&limit=$limit"
+                            val candidateRequest = jsonRequest(candidateUrl)
+                            client.newCall(candidateRequest).execute().use { candidateResponse ->
+                                if (candidateResponse.isSuccessful) {
+                                    addAll(parseSimklArray(candidateResponse.body?.string().orEmpty(), safeType, limit))
+                                }
+                            }
+                        }
+                    }
+                    val terms = query.trim().lowercase(java.util.Locale.ROOT).split(Regex("\\s+"))
+                        .filter { it.isNotBlank() }
+                    candidates.distinctBy { "${it.source}:${it.type}:${it.malId}:${it.tmdbId ?: 0}" }
+                        .filter { item ->
+                            val haystack = listOf(item.title, item.titleEnglish, item.titleJapanese, item.subtitle)
+                                .filterNotNull().joinToString(" ").lowercase(java.util.Locale.ROOT)
+                            terms.all { term -> haystack.contains(term) }
+                        }
+                        .drop((page - 1).coerceAtLeast(0) * limit)
+                        .take(limit)
+                }
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyList()
         }

@@ -77,7 +77,28 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         if (available.isNotEmpty()) fetchPopularMangas(1)
     }
 
-    init { refreshSources() }
+    init {
+        refreshSources()
+        // Repository'nin canlı flow'unu dinle: loader arka planda eklenti yüklediğinde
+        // veya eklenti kurulduğunda/silindiğinde UI otomatik güncellenir.
+        viewModelScope.launch {
+            repository.availableSourcesFlow.collect { available ->
+                val prev = _ui.value.sources
+                val changed = prev.map { it.stableSourceKey() } != available.map { it.stableSourceKey() }
+                if (changed) {
+                    _ui.update { s ->
+                        s.copy(
+                            sources = available,
+                            selectedSourceFilter = s.selectedSourceFilter?.takeIf { cur ->
+                                available.any { it.stableSourceKey() == cur.stableSourceKey() }
+                            } ?: available.firstOrNull()
+                        )
+                    }
+                    if (_ui.value.searchQuery.isBlank()) fetchPopularMangas(1)
+                }
+            }
+        }
+    }
 
     fun refreshSources() {
         val available = repository.getAvailableSources()

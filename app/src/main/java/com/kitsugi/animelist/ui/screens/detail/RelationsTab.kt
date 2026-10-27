@@ -76,8 +76,38 @@ fun RelationsTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
-                DetailAutoPagingColumn(items = list, spacing = 8.dp) { rel ->
-                    RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
+                var visibleLimit by remember(list) { mutableIntStateOf(20) }
+                val displayedList = remember(list, visibleLimit) { list.take(visibleLimit) }
+                val remainingCount = (list.size - displayedList.size).coerceAtLeast(0)
+                val accentColor = LocalKitsugiAccent.current
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    displayedList.forEachIndexed { idx, rel ->
+                        key("rel_${idx}_${rel.source}_${rel.malId}_${rel.relationType}") {
+                            RelationCard(rel, titleLanguage, blurAdultMedia, onRelationClick)
+                        }
+                    }
+                    if (remainingCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(accentColor.copy(alpha = 0.12f))
+                                .tvClickable(shape = RoundedCornerShape(14.dp)) {
+                                    visibleLimit += 24
+                                }
+                                .padding(vertical = 11.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.x_daha, remainingCount),
+                                color = accentColor,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }

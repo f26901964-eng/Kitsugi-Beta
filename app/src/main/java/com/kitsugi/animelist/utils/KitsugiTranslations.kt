@@ -151,34 +151,79 @@ fun List<String>.toTurkishGenres(): List<String> = map { it.toTurkishGenre() }
 fun isEnglish(): Boolean = java.util.Locale.getDefault().language.equals("en", ignoreCase = true)
 
 /**
- * `bangumi_tag_*` kaynak araması sonucu önbelleği (anahtar: `dil:kaynakAdı`).
+ * İsimle string kaynağı okuma önbelleği (anahtar: `dil:kaynakAdı`).
  *
- * Sözlükte ~770 etiket var ve `getIdentifier` her çağrıda isimle arama yapar; detay
- * sayfasındaki her çip her yeniden çizimde buraya uğradığı için sonuç önbelleğe alınır.
- * Bulunamayan kaynaklar boş metinle işaretlenir (negatif önbellek). Anahtar arayüz dilini
- * içerdiğinden dil değişince otomatik olarak yeni değerler okunur.
+ * Uygulamada ~40.000 `bangumi_*` dizesi var (üç vault modülü + uygulama). Android'in
+ * `Resources.getIdentifier` çağrısı **her seferinde tüm kaynak tablosunu tarar**; isim
+ * başına 20-40 ms sürebiliyor ve `Resources` içindeki kilit yüzünden tüm iş parçacıklarını
+ * sıraya sokuyor. Bangumi ekranları (etiket çipleri, görev adları, kurum adları) bunu yüzlerce
+ * kez tetiklediği için veri "dakikalarca geç" geliyordu.
+ *
+ * Bu önbellek hem bulunan hem **bulunamayan** isimleri saklar; böylece aynı isim ikinci kez
+ * aranmaz. Anahtar arayüz dilini içerir, dil değişince yeni değerler okunur.
  */
-private val bangumiTagResourceCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+private val stringResourceCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-/** `bangumi_tag_*` dil dosyası kaynağını ismiyle okur; bulunamazsa null. */
-private fun getStringResourceByName(name: String): String? {
-    val cacheKey = java.util.Locale.getDefault().language + ":" + name
-    bangumiTagResourceCache[cacheKey]?.let { return it.takeIf { cached -> cached.isNotEmpty() } }
-    val resolved = try {
-        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()
-        if (context == null) {
-            null
-        } else {
-            val resId = context.resources.getIdentifier(name, "string", context.packageName)
-            if (resId != 0) context.getString(resId) else null
+/**
+ * `com.kitsugi.animelist.R.string` içindeki statik `int` kimliklerinin O(1) haritası.
+ *
+ * `Resources.getIdentifier` 58.000+ dize içeren kaynak tablosunun tamamını tarayıp global
+ * `AssetManager` kilidini tuttuğu için detay sayfasında yüzlerce etiket/stüdyo/görev çipi
+ * açılırken ana iş parçacığını saniyelerce dondurabiliyordu. Bu harita sınıf alanlarını tek
+ * seferde belleğe indeksler (`getIdentifier` çağrısını sıfırlar).
+ */
+private val appStringIdMap: Map<String, Int> by lazy {
+    try {
+        val fields = com.kitsugi.animelist.R.string::class.java.declaredFields
+        val map = HashMap<String, Int>(fields.size * 2)
+        for (field in fields) {
+            if (field.type == Int::class.javaPrimitiveType) {
+                map[field.name] = field.getInt(null)
+            }
         }
-    } catch (_: Throwable) { null }
-    // Uygulama bağlamı henüz yoksa önbelleğe yazma — ileride gerçek değer okunabilsin.
-    if (resolved != null || com.kitsugi.animelist.KitsugiApplication.getInstance() != null) {
-        bangumiTagResourceCache[cacheKey] = resolved.orEmpty()
+        map
+    } catch (_: Throwable) {
+        emptyMap()
     }
+}
+
+internal fun prewarmTranslationCaches() {
+    appStringIdMap.size
+    BangumiTagDictionary.prewarm()
+    BangumiOrgDictionary.prewarm()
+}
+
+/**
+ * [name] adlı string kaynağını (önbellekli) okur; yoksa `null` döner.
+ *
+ * `internal` — aynı modüldeki arama/çeviri yardımcıları da kullanır. Çağıranlar Çince/Japonca
+ * etiketler için türetilmiş anahtarın boş kaldığını denetler; boş anahtar hiç aranmaz.
+ */
+internal fun cachedStringResourceByName(name: String): String? {
+    if (name.isBlank()) return null
+    val context = com.kitsugi.animelist.KitsugiApplication.getInstance() ?: return null
+    val languageTag = runCatching {
+        context.resources.configuration.locales[0].toLanguageTag()
+    }.getOrNull()?.takeIf { it.isNotBlank() } ?: java.util.Locale.getDefault().language
+    val cacheKey = "$languageTag:$name"
+    stringResourceCache[cacheKey]?.let { return it.ifEmpty { null } }
+    val resolved = try {
+        val fastId = appStringIdMap[name]
+        val resId = when {
+            fastId != null -> fastId
+            name.startsWith("bangumi_") -> context.resources.getIdentifier(name, "string", context.packageName)
+            else -> 0
+        }
+        if (resId != 0) context.getString(resId) else null
+    } catch (_: Throwable) {
+        null
+    }
+    stringResourceCache[cacheKey] = resolved.orEmpty()
     return resolved
 }
+
+/** `bangumi_tag_*` dil dosyası kaynağını ismiyle okur; bulunamazsa null. */
+private fun getStringResourceByName(name: String): String? = cachedStringResourceByName(name)
 
 /** Bangumi etiketinin sözlük girişi (Türkçe + İngilizce karşılık); bilinmiyorsa null. */
 internal fun bangumiTagEntryOrNull(label: String?): BangumiTagEntry? = BangumiTagDictionary.entryFor(label)
@@ -186,17 +231,14 @@ internal fun bangumiTagEntryOrNull(label: String?): BangumiTagEntry? = BangumiTa
 /**
  * Bangumi Çince/Japonca etiketini arayüz diline göre yerelleştirir.
  *
- * Sıra: dil dosyası (`bangumi_tag_*`; yalnızca tr/en arayüzünde — diğer dillerde varsayılan
- * kaynak Türkçe olduğu için yanlış sonuc verirdi) → sözlük tablosu. Eşleme yoksa null döner
- * ve çağıran taraf orijinal metni gösterir.
+ * Sözlük satırı (`bangumi/tags.tsv` + `values/values-en` aynı kaynaktan üretilir) hem Türkçe
+ * hem İngilizce karşılığı taşır. Bu yüzden **`getIdentifier` çağrısı yapılmaz**: uygulamada
+ * 50.000'den fazla `bangumi_*` dize kaynağı olduğu için her `getIdentifier` tüm kaynak
+ * tablosunu tarar ve detay sayfasındaki onlarca çip bunu tekrar tekrar tetikliyordu.
+ * Eşleme yoksa null döner ve çağıran taraf orijinal metni gösterir.
  */
 fun String.toLocalizedBangumiTagOrNull(): String? {
     val tag = BangumiTagDictionary.entryFor(this) ?: return null
-    if (isTurkish() || isEnglish()) {
-        getStringResourceByName("bangumi_tag_${tag.key}")
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-    }
     return if (isTurkish()) tag.turkish else tag.english
 }
 
@@ -473,11 +515,6 @@ fun String.toTurkishCharacterRole(): String = if (!isTurkish()) this else charac
  */
 private fun localizedBangumiRoleOrNull(label: String): String? {
     val entry = BangumiRoleDictionary.entryFor(label) ?: return null
-    if (isTurkish() || isEnglish()) {
-        getStringResourceByName("bangumi_role_${entry.key}")
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-    }
     return if (isTurkish()) entry.turkish else entry.english
 }
 
@@ -1276,18 +1313,15 @@ fun String.toTurkishStaffRole(): String {
             .joinToString(", ")
     }
 
-    // Dynamic resource lookup first
-    val context = com.kitsugi.animelist.KitsugiApplication.getInstance()
-    if (context != null) {
-        val normalized = trimmed.lowercase()
-            .replace(Regex("[^a-z0-9_]"), "_")
-            .replace(Regex("__+"), "_")
-            .trim('_')
-        val key = "staff_role_$normalized"
-        val resId = context.resources.getIdentifier(key, "string", context.packageName)
-        if (resId != 0) {
-            return context.getString(resId)
-        }
+    // Görev adı dil dosyası (`staff_role_*`, 25 kayıt). Önbellekli okunur: Bangumi ekip
+    // listeleri 100 satıra kadar çıkıyor ve her satır eskiden tam kaynak taraması yapıyordu.
+    // `lowercase()` yerine ROOT: Türkçe yerelde "I" → "ı" olup kaynak anahtarını bozuyordu.
+    val normalizedRole = trimmed.lowercase(java.util.Locale.ROOT)
+        .replace(Regex("[^a-z0-9_]"), "_")
+        .replace(Regex("__+"), "_")
+        .trim('_')
+    if (normalizedRole.isNotEmpty()) {
+        cachedStringResourceByName("staff_role_$normalizedRole")?.takeIf { it.isNotBlank() }?.let { return it }
     }
 
     val exactMatch = staffRoleMap[trimmed]
@@ -1539,13 +1573,14 @@ fun String.sanitizeOrgName(): String {
 fun String.toLocalizedOrgName(): String {
     val cleaned = this.sanitizeOrgName()
     if (cleaned.isEmpty()) return cleaned
-    val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
-        ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
-    if (key != null && (isTurkish() || isEnglish())) {
-        getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
+    val turkish = isTurkish()
+    BangumiOrgDictionary.localizedNameFor(cleaned, turkish)?.let { return it }
+    val latin = cleaned.toLatinStudioName()
+    if (latin != cleaned) {
+        BangumiOrgDictionary.localizedNameFor(latin, turkish)?.let { return it }
     }
     // Kurum adları özel addır: dil bağımsız Latin yazımı. Kaynak bulunmazsa Kiril romanize edilir.
-    val fallback = BangumiOrgDictionary.latinNameFor(cleaned) ?: toLatinStudioName()
+    val fallback = BangumiOrgDictionary.latinNameFor(cleaned) ?: latin
     return if (fallback.hasCyrillicCharacters()) fallback.transliterateCyrillic() else fallback
 }
 
@@ -1557,11 +1592,10 @@ fun String.toLocalizedOrgNameOrNull(): String? {
     val cleaned = this.sanitizeOrgName()
     if (cleaned.isEmpty()) return null
     val turkish = isTurkish()
-    val key = BangumiOrgDictionary.resourceKeyFor(cleaned)
-        ?: BangumiOrgDictionary.resourceKeyFor(toLatinStudioName())
-        ?: return BangumiOrgDictionary.localizedNameFor(cleaned, turkish)
-    if (isTurkish() || isEnglish()) {
-        getStringResourceByName(key)?.takeIf { it.isNotBlank() }?.let { return it }
+    BangumiOrgDictionary.localizedNameFor(cleaned, turkish)?.let { return it }
+    val latin = cleaned.toLatinStudioName()
+    if (latin != cleaned) {
+        BangumiOrgDictionary.localizedNameFor(latin, turkish)?.let { return it }
     }
     val fallback = BangumiOrgDictionary.latinNameFor(cleaned)
     return if (fallback?.hasCyrillicCharacters() == true) fallback.transliterateCyrillic() else fallback

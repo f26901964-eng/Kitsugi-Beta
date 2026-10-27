@@ -1027,67 +1027,80 @@ private fun DetailVideoGroup(
             }
         }
 
-        filteredItems.forEachIndexed { index, item ->
-            key(item.key) {
-                KitsugiDetailReveal(visible = expanded || index < initialCount) {
-                    Column(
+        @Composable
+        fun RenderVideoItem(item: DetailVideoItem) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                val isSelected = activeVideoKey == item.key && !item.videoUrl.isNullOrBlank()
+                DetailVideoRow(
+                    item = item,
+                    isSelected = isSelected,
+                    accentColor = accentColor,
+                    showSourceBadges = showPerRowSources,
+                    onClick = {
+                        if (item.videoUrl.isNullOrBlank()) onSearch(item)
+                        else onVideoSelected(item.key)
+                    },
+                    onShare = { onShare(item) }
+                )
+
+                // Oynatıcı aynı kartın içinde, satırın hemen altında açılır.
+                if (isSelected) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .animateDetailContentSize()
+                            .aspectRatio(16f / 9f)
                     ) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val isSelected = activeVideoKey == item.key && !item.videoUrl.isNullOrBlank()
-                        DetailVideoRow(
-                            item = item,
-                            isSelected = isSelected,
-                            accentColor = accentColor,
-                            showSourceBadges = showPerRowSources,
-                            onClick = {
-                                if (item.videoUrl.isNullOrBlank()) onSearch(item)
-                                else onVideoSelected(item.key)
-                            },
-                            onShare = { onShare(item) }
+                        ThemePlayerContainer(
+                            url = item.videoUrl!!,
+                            modifier = Modifier.fillMaxSize()
                         )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .tvClickable(shape = RoundedCornerShape(9.dp)) { onVideoSelected(item.key) }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.KeyboardArrowUp,
+                                contentDescription = null,
+                                tint = KitsugiColors.TextMuted,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.kapat),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
-                        // Oynatıcı aynı kartın içinde, satırın hemen altında açılır.
-                        if (isSelected) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(16f / 9f)
-                            ) {
-                                ThemePlayerContainer(
-                                    url = item.videoUrl!!,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .padding(top = 4.dp)
-                                        .clip(RoundedCornerShape(9.dp))
-                                        .tvClickable(shape = RoundedCornerShape(9.dp)) { onVideoSelected(item.key) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.KeyboardArrowUp,
-                                        contentDescription = null,
-                                        tint = KitsugiColors.TextMuted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.kapat),
-                                        color = KitsugiColors.TextMuted,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                            }
+        val initialItems = remember(filteredItems) { filteredItems.take(initialCount) }
+        val extraItems = remember(filteredItems) { filteredItems.drop(initialCount) }
+
+        initialItems.forEach { item ->
+            key(item.key) {
+                RenderVideoItem(item)
+            }
+        }
+        if (extraItems.isNotEmpty()) {
+            KitsugiDetailReveal(visible = expanded) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    extraItems.forEach { item ->
+                        key(item.key) {
+                            RenderVideoItem(item)
                         }
                     }
                 }
@@ -1365,61 +1378,66 @@ private fun ThemeVideoSection(
             }
         }
 
-        themes.forEachIndexed { index, theme ->
-            key("${title}_${index}_${theme.label}") {
-                KitsugiDetailReveal(visible = expanded || index < initialCount) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateDetailContentSize()
-                    ) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        ThemeRow(
-                            theme = theme,
-                            isActive = activeVideoUrl == theme.videoUrl && activeVideoUrl != null,
-                            accentColor = accentColor,
-                            onClick = { onThemeClick(theme) }
+        @Composable
+        fun RenderThemeItem(theme: com.kitsugi.animelist.data.remote.KitsugiTheme) {
+            val isActive = activeVideoUrl == theme.videoUrl && activeVideoUrl != null
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                ThemeRow(
+                    theme = theme,
+                    isActive = isActive,
+                    accentColor = accentColor,
+                    onClick = { onThemeClick(theme) }
+                )
+                if (isActive && theme.videoUrl != null) {
+                    Column(modifier = Modifier.padding(top = 8.dp)) {
+                        ThemePlayerContainer(
+                            url = theme.videoUrl,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
                         )
-                        KitsugiDetailReveal(
-                            visible = activeVideoUrl == theme.videoUrl && activeVideoUrl != null
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onClosePlayer)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            theme.videoUrl?.let { url ->
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .animateDetailContentSize()
-                                        .padding(top = 8.dp)
-                                ) {
-                                    ThemePlayerContainer(
-                                        url = url,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .aspectRatio(16f / 9f)
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onClosePlayer)
-                                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.KeyboardArrowUp,
-                                            contentDescription = null,
-                                            tint = KitsugiColors.TextSecondary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.kapat),
-                                            color = KitsugiColors.TextSecondary,
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-                            }
+                            Icon(
+                                imageVector = Icons.Rounded.KeyboardArrowUp,
+                                contentDescription = null,
+                                tint = KitsugiColors.TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.kapat),
+                                color = KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+        }
+
+        val initialThemes = remember(themes) { themes.take(initialCount) }
+        val extraThemes = remember(themes) { themes.drop(initialCount) }
+
+        initialThemes.forEachIndexed { index, theme ->
+            key("${title}_init_${index}_${theme.label}") {
+                RenderThemeItem(theme)
+            }
+        }
+        if (extraThemes.isNotEmpty()) {
+            KitsugiDetailReveal(visible = expanded) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    extraThemes.forEachIndexed { index, theme ->
+                        key("${title}_extra_${index}_${theme.label}") {
+                            RenderThemeItem(theme)
                         }
                     }
                 }

@@ -4,6 +4,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.ui.app.AppNavigationState
 import com.kitsugi.animelist.ui.app.AppViewModel
@@ -481,13 +482,62 @@ private fun MyListTabPageWrapper(
     isBottomBarVisible: Boolean,
     onScrollReset: () -> Unit
 ) {
-    MyListScreen(
-        selectedListLayoutId = appSettings.selectedListLayoutId,
-        onListLayoutChange = { layoutId ->
+    val latestContext = androidx.compose.runtime.rememberUpdatedState(context)
+
+    val stableOnListLayoutChange = remember(coroutineScope, settingsDataStore) {
+        { layoutId: String ->
             coroutineScope.launch {
                 settingsDataStore.setSelectedListLayoutId(layoutId)
             }
-        },
+            Unit
+        }
+    }
+    val stableOnTabIndexChange = remember(appViewModel) {
+        { idx: Int -> appViewModel.updateMyListTabIndex(latestContext.value, idx) }
+    }
+    val stableOnSearchQueryChange = remember(appViewModel) {
+        { q: String -> appViewModel.updateMyListSearchQuery(q) }
+    }
+    val stableOnStatusFilterChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListStatusFilter(latestContext.value, id) }
+    }
+    val stableOnTypeFilterChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListTypeFilter(latestContext.value, id) }
+    }
+    val stableOnFavoriteFilterChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListFavoriteFilter(latestContext.value, id) }
+    }
+    val stableOnScoreFilterChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListScoreFilter(latestContext.value, id) }
+    }
+    val stableOnYearFilterChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListYearFilter(latestContext.value, id) }
+    }
+    val stableOnExtraFilterChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListExtraFilter(latestContext.value, id) }
+    }
+    val stableOnSortChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListSort(latestContext.value, id) }
+    }
+    val stableOnGroupChange = remember(appViewModel) {
+        { id: String -> appViewModel.updateMyListGroup(latestContext.value, id) }
+    }
+    val stableOnScrollPositionChange = remember(appViewModel) {
+        { index: Int, offset: Int -> appViewModel.updateMyListScrollPosition(index, offset) }
+    }
+    val stableOnExternalSyncMessage = remember(appViewModel) {
+        { msg: String -> appViewModel.showSnackbarMessage(msg) }
+    }
+    val stableOnEntryClick = remember(navState) {
+        { entry: MediaEntry -> navState.navigateToDetail(DetailScreen.MediaDetail(entry.id)) }
+    }
+    val stableOnSettingsClick = remember(appViewModel) {
+        { appViewModel.selectTab(MainTab.Settings) }
+    }
+
+    MyListScreen(
+        selectedListLayoutId = appSettings.selectedListLayoutId,
+        onListLayoutChange = stableOnListLayoutChange,
         showAdultContent = appSettings.showAdultContent,
         appSettings = appSettings,
         searchQuery = appViewModel.myListSearchQuery,
@@ -502,20 +552,18 @@ private fun MyListTabPageWrapper(
         initialScrollIndex = appViewModel.myListScrollIndex,
         initialScrollOffset = appViewModel.myListScrollOffset,
         selectedTabIndex = appViewModel.myListTabIndex,
-        onTabIndexChange = { appViewModel.updateMyListTabIndex(context, it) },
-        onSearchQueryChange = { appViewModel.updateMyListSearchQuery(it) },
-        onStatusFilterChange = { appViewModel.updateMyListStatusFilter(context, it) },
-        onTypeFilterChange = { appViewModel.updateMyListTypeFilter(context, it) },
-        onFavoriteFilterChange = { appViewModel.updateMyListFavoriteFilter(context, it) },
-        onScoreFilterChange = { appViewModel.updateMyListScoreFilter(context, it) },
-        onYearFilterChange = { appViewModel.updateMyListYearFilter(context, it) },
-        onExtraFilterChange = { appViewModel.updateMyListExtraFilter(context, it) },
-        onSortChange = { appViewModel.updateMyListSort(context, it) },
-        onGroupChange = { appViewModel.updateMyListGroup(context, it) },
-        onScrollPositionChange = { index, offset ->
-            appViewModel.updateMyListScrollPosition(index, offset)
-        },
-        onExternalSyncMessage = { appViewModel.showSnackbarMessage(it) },
+        onTabIndexChange = stableOnTabIndexChange,
+        onSearchQueryChange = stableOnSearchQueryChange,
+        onStatusFilterChange = stableOnStatusFilterChange,
+        onTypeFilterChange = stableOnTypeFilterChange,
+        onFavoriteFilterChange = stableOnFavoriteFilterChange,
+        onScoreFilterChange = stableOnScoreFilterChange,
+        onYearFilterChange = stableOnYearFilterChange,
+        onExtraFilterChange = stableOnExtraFilterChange,
+        onSortChange = stableOnSortChange,
+        onGroupChange = stableOnGroupChange,
+        onScrollPositionChange = stableOnScrollPositionChange,
+        onExternalSyncMessage = stableOnExternalSyncMessage,
         isAniListConnected = authViewModel.isAniListConnected,
         isMalConnected = authViewModel.isMalConnected,
         isSimklConnected = authViewModel.isSimklConnected,
@@ -598,12 +646,8 @@ private fun MyListTabPageWrapper(
                 onError = { onComplete(false, it) }
             )
         },
-        onEntryClick = { entry ->
-            navState.navigateToDetail(DetailScreen.MediaDetail(entry.id))
-        },
-        onSettingsClick = {
-            appViewModel.selectTab(MainTab.Settings)
-        },
+        onEntryClick = stableOnEntryClick,
+        onSettingsClick = stableOnSettingsClick,
         isBottomBarVisible = isBottomBarVisible,
         onScrollReset = onScrollReset,
         isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected || authViewModel.isTmdbConnected,

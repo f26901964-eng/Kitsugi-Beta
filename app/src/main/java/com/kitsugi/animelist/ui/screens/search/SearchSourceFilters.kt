@@ -245,7 +245,12 @@ data class AniListSpecificFilters(
 data class MalSpecificFilters(
     val orderBy: String = "popularity",
     val sortDirection: String = "desc",
+    /** Multiple MAL types come from the common format multi-select; the legacy [type]
+     * field remains the first value for callers that support only one type. */
+    val types: List<String> = emptyList(),
     val type: String? = null,
+    /** Jikan accepts one status per request; the effective bridge may fan out a multi-select. */
+    val statuses: List<String> = emptyList(),
     val status: String? = null,
     val season: String? = null,
     val seasonYear: Int? = null,
@@ -263,8 +268,8 @@ data class MalSpecificFilters(
 ) {
     val activeCount: Int get() {
         var count = 0
-        if (type != null) count++
-        if (status != null) count++
+        if (types.isNotEmpty() || type != null) count += maxOf(types.size, 1)
+        if (statuses.isNotEmpty() || status != null) count += maxOf(statuses.size, 1)
         if (season != null) count++
         if (seasonYear != null) count++
         if (rating != null) count++
@@ -393,6 +398,9 @@ data class SimklSpecificFilters(
     val trendingPeriod: String = "today", // today, week, month, calendar
     val sort: String = "rank", // rank, popular-today, popular-this-week, votes, release-date, a-z
     val subtype: String? = null, // tv, movies, ovas, onas, specials
+    /** Simkl accepts one genre per discovery path; this list is used for multi-select
+     * requests and [genre] remains the backwards-compatible first value. */
+    val genres: List<String> = emptyList(),
     val genre: String? = null, // action, comedy, drama, fantasy...
     val country: String? = null, // jp, kr, cn, us
     val year: String? = null, // 2026, 2025, 2020s, 1990s
@@ -401,7 +409,7 @@ data class SimklSpecificFilters(
     val activeCount: Int get() {
         var count = 0
         if (subtype != null) count++
-        if (genre != null) count++
+        if (genres.isNotEmpty() || genre != null) count += maxOf(genres.size, 1)
         if (country != null) count++
         if (year != null) count++
         if (minScore != null) count++

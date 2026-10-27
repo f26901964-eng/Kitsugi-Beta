@@ -103,13 +103,39 @@ fun DetailPageScaffold(
 
     val leftPanelFocusRequester = remember { FocusRequester() }
     val tabBarFocusRequester = remember { FocusRequester() }
-    val selectedTab = pagerState.currentPage
-    // Yapışkan başlık yüksekliği index == 2 sınırında gidip gelmesin.
+    val selectedTab by remember(pagerState) { derivedStateOf { pagerState.currentPage } }
+    // Dikey modda LazyColumn öğeleri: 0 = "hero", 1 = stickyHeader("tabs"), 2 = "content".
+    // stickyHeader tepeye sabitlendiğinde firstVisibleItemIndex == 1 olur ve kaydırma boyunca 1 kalır;
+    // bu nedenle showAtIndex = 1, hideAtIndex = 0 (88.dp histerezis ile sıfır titreşim) kullanılır.
     val showFloatingHeader = rememberDetailStickyHeaderVisible(
         listState = listState,
-        showAtIndex = 3,
-        hideAtIndex = 1
+        showAtIndex = 1,
+        hideAtIndex = 0
     )
+
+    // Önceden ziyaret edilmiş (önbellekte hazır) bir detay sayfasına girildiğinde ilk karede (Frame 0)
+    // hem geçiş animasyonunun hem vitrinin hem de ağır sekme gövdesinin aynı anda ana iş parçacığına
+    // binmesini önlemek için sekme gövdesini 1 kare (vsync) sonra monte et.
+    val startedPreloaded = remember { !isLoading && !isError }
+    var pagerBodyReady by remember { mutableStateOf(!startedPreloaded) }
+    LaunchedEffect(isLoading, isError) {
+        if (!isLoading && !isError && !pagerBodyReady) {
+            withFrameNanos { }
+            pagerBodyReady = true
+        }
+    }
+
+    val onSelectTab: (Int) -> Unit = remember(pagerState, coroutineScope) {
+        { index: Int ->
+            coroutineScope.launch {
+                if (kotlin.math.abs(index - pagerState.currentPage) <= 1) {
+                    pagerState.animateScrollToPage(index)
+                } else {
+                    pagerState.scrollToPage(index)
+                }
+            }
+        }
+    }
 
     when {
         isLoading -> loadingScreen()
@@ -177,12 +203,15 @@ fun DetailPageScaffold(
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    itemsIndexed(tabs) { index, tabTitle ->
+                                    itemsIndexed(
+                                        tabs,
+                                        key = { index, tabTitle -> "tab_${index}_$tabTitle" }
+                                    ) { index, tabTitle ->
                                         DetailTabChip(
                                             title = tabTitle,
                                             isSelected = selectedTab == index,
                                             accentColor = accentColor,
-                                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } }
+                                            onClick = { onSelectTab(index) }
                                         )
                                     }
                                 }
@@ -295,12 +324,15 @@ fun DetailPageScaffold(
                                                 .padding(horizontal = 8.dp, vertical = 10.dp),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            itemsIndexed(tabs) { index, tabTitle ->
+                                            itemsIndexed(
+                                                tabs,
+                                                key = { index, tabTitle -> "tab_${index}_$tabTitle" }
+                                            ) { index, tabTitle ->
                                                 DetailTabChip(
                                                     title = tabTitle,
                                                     isSelected = selectedTab == index,
                                                     accentColor = stickyAccent,
-                                                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } }
+                                                    onClick = { onSelectTab(index) }
                                                 )
                                             }
                                         }
@@ -322,7 +354,10 @@ fun DetailPageScaffold(
                                     // sıfır recomposition ile yalnızca yerleşim fazında işlenir.
                                     val screenHeightDp = LocalConfiguration.current.screenHeightDp
 
-                                    HorizontalPager(
+                                    if (!pagerBodyReady) {
+                                        Spacer(modifier = Modifier.fillMaxWidth().height(600.dp))
+                                    } else {
+                                        HorizontalPager(
                                         state = pagerState,
                                         userScrollEnabled = !isTv,
                                         beyondViewportPageCount = 0,
@@ -380,6 +415,7 @@ fun DetailPageScaffold(
                                                 }
                                             }
                                         }
+                                    }
                                     }
 
                                     Spacer(modifier = Modifier.height(90.dp))

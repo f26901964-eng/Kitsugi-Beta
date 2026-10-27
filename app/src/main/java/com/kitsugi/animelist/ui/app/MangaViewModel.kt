@@ -131,6 +131,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             if (urls.isNotEmpty()) {
                 checkAllUpdates()
             }
+            ensureDefaultTurkishSourceInstalled()
         }
 
         viewModelScope.launch {
@@ -138,10 +139,77 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                 mangaSourceStateReport = report
             }
         }
+
+        // Loader arka planda eklentileri diskten yüklerken (ilk açılışta birkaç yüz ms alır)
+        // veya sonradan eklenti kurulduğunda/silindiğinde mangaSources listesini otomatik yenile.
+        viewModelScope.launch {
+            mangaRepository.availableSourcesFlow.collect { _ ->
+                val installed = withContext(Dispatchers.IO) { mangaRepository.getInstalledSources() }
+                if (installed.map { it.stableSourceKey() }.toSet() !=
+                    mangaSources.map { it.stableSourceKey() }.toSet()
+                ) {
+                    mangaSources = installed
+                }
+            }
+        }
     }
 
     private fun saveMangaRepos(urls: List<String>) {
         mangaRepoPrefs.edit().putString("repo_urls", org.json.JSONArray(urls).toString()).apply()
+    }
+
+    /**
+     * İlk kurulumda hiç manga eklentisi kurulu değilse, bilinen güvenilir bir Türkçe
+     * kaynağı (Nirvana Manga) otomatik olarak indirip kurar. Tekrar tekrar denememek
+     * için "default_source_installed" flag'ini SharedPreferences'a yazar.
+     */
+    private suspend fun ensureDefaultTurkishSourceInstalled() {
+        val prefs = context.getSharedPreferences("manga_bootstrap", android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean("default_source_installed", false)) return
+
+        // Zaten kurulu TR kaynak varsa bootstrap atla
+        if (mangaSources.any { it.lang.equals("tr", ignoreCase = true) }) {
+            prefs.edit().putBoolean("default_source_installed", true).apply()
+            return
+        }
+
+        // Repo verisinin yüklenmesini bekle (en fazla 15sn)
+        val defaultRepo = mangaReposState.firstOrNull {
+            it.contains("Kitsugi-Manga-Plugins", ignoreCase = true)
+        } ?: return
+
+        var waited = 0
+        while (mangaRepoLoadingState[defaultRepo] == true && waited < 15_000) {
+            kotlinx.coroutines.delay(500)
+            waited += 500
+        }
+
+        val extensions = mangaRepoExtensionsState[defaultRepo]
+        // Nirvana Manga (MangaThemesia/KeiSource tabanlı, stabil, TR) veya ilk sıradaki TR non-nsfw
+        val target = extensions?.firstOrNull { it.pkg.contains("nirvanamanga", ignoreCase = true) && !it.isNsfw }
+            ?: extensions?.firstOrNull { it.lang.equals("tr", ignoreCase = true) && !it.isNsfw }
+            ?: run {
+                Log.w("MangaViewModel", "Varsayılan TR kaynak bulunamadı, bootstrap atlandı")
+                return
+            }
+
+        Log.i("MangaViewModel", "Varsayılan TR kaynak otomatik kuruluyor: ${target.name}")
+        try {
+            val success = withContext(Dispatchers.IO) {
+                val extensionId = target.pkg.replace(".", "_")
+                val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, target.apkUrl)
+                if (downloaded) {
+                    MangaExtensionLoader.loadExtension(context, extensionId) != null
+                } else false
+            }
+            if (success) {
+                mangaSources = mangaRepository.getInstalledSources()
+                onShowMessage?.invoke("✨ Varsayılan manga kaynağı kuruldu: ${target.name}")
+                prefs.edit().putBoolean("default_source_installed", true).apply()
+            }
+        } catch (e: Exception) {
+            Log.e("MangaViewModel", "Varsayılan kaynak kurulum hatası: ${e.message}", e)
+        }
     }
 
     fun fetchMangaRepo(repoUrl: String) {

@@ -27,6 +27,11 @@ import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.kitsugi.animelist.ui.components.GalleryThumbnailImagePolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -89,11 +94,41 @@ fun RecommendationsTabContent(
                     )
                 }
             } else {
-                DetailAutoPagingColumn(
-                    items = list,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                ) { rel ->
-                    RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
+                var visibleLimit by remember(list) { mutableIntStateOf(20) }
+                val displayedList = remember(list, visibleLimit) { list.take(visibleLimit) }
+                val remainingCount = (list.size - displayedList.size).coerceAtLeast(0)
+                val accentColor = LocalKitsugiAccent.current
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    displayedList.forEachIndexed { idx, rel ->
+                        key("rec_${idx}_${rel.source}_${rel.malId}") {
+                            RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
+                        }
+                    }
+                    if (remainingCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(accentColor.copy(alpha = 0.12f))
+                                .tvClickable(shape = RoundedCornerShape(14.dp)) {
+                                    visibleLimit += 24
+                                }
+                                .padding(vertical = 11.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.x_daha, remainingCount),
+                                color = accentColor,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }

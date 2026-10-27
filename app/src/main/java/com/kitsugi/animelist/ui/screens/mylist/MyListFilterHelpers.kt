@@ -242,27 +242,8 @@ private fun singleWordTypoMatches(candidateTokens: List<String>, token: String):
     }
 }
 
-private fun boundedLevenshtein(a: String, b: String, maxDistance: Int): Int {
-    if (a == b) return 0
-    if (kotlin.math.abs(a.length - b.length) > maxDistance) return maxDistance + 1
-    var prev = IntArray(b.length + 1) { it }
-    var curr = IntArray(b.length + 1)
-    for (i in 1..a.length) {
-        curr[0] = i
-        var rowMin = curr[0]
-        for (j in 1..b.length) {
-            val cost = if (a[i - 1] == b[j - 1]) 0 else 1
-            val value = minOf(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
-            curr[j] = value
-            if (value < rowMin) rowMin = value
-        }
-        if (rowMin > maxDistance) return maxDistance + 1
-        val tmp = prev
-        prev = curr
-        curr = tmp
-    }
-    return prev[b.length]
-}
+private fun boundedLevenshtein(a: String, b: String, maxDistance: Int): Int =
+    KitsugiContentPrefs.levenshteinBounded(a, b, maxDistance)
 
 internal fun groupMyListEntriesByStatus(
     entries: List<MediaEntry>

@@ -465,7 +465,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         cancelTabLoads()
 
         // Reset states
-        val cachedDetail = DetailCache.getMediaDetail(entry.source, stableId)
+        val cachedDetail = DetailCache.getMediaDetail(entry.source, stableId, entry.type.name)
+            ?: DetailCache.getMediaDetail(entry.source, stableId)
         val cachedSynopsisTranslation = DetailCache.getTranslation(
             "synopsis", entry.source, stableId, sourceText = entry.synopsis
         )
