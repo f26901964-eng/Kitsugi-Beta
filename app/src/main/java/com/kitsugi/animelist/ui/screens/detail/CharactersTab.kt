@@ -51,7 +51,7 @@ fun CharactersTabContent(
     onCharacterClick: (KitsugiCharacter) -> Unit,
     onStaffClick: (Int, String, String?, String?) -> Unit,
     onMediaClick: (Int, String, String) -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage
 ) {
     var selectedCharacterForVoiceActors by remember { mutableStateOf<KitsugiCharacter?>(null) }
@@ -472,7 +472,7 @@ fun CharacterVoiceActorCard(
 fun StaffTabContent(
     state: DetailTabState<List<KitsugiStaff>>,
     onStaffClick: (Int, String, String?, String?) -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage
 ) {
     when (state) {

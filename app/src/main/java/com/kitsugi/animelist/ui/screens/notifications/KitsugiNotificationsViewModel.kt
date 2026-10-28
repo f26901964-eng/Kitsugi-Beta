@@ -1303,7 +1303,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     runCatching { BangumiAuthStore.resolveUsername(ctx) }.getOrNull()
                 } else null
                 val resolvedTitleLanguage = titleLanguage
-                    ?: runCatching { settingsDataStore.settingsFlow.first().titleLanguage }.getOrDefault("ROMAJI")
+                    ?: runCatching { settingsDataStore.settingsFlow.first().titleLanguage }.getOrDefault("ENGLISH")
 
                 val watching = mutableListOf<BangumiWatching>()
 

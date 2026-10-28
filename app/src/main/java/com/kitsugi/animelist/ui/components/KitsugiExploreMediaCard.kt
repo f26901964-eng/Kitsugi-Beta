@@ -67,7 +67,7 @@ fun KitsugiExploreMediaCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,

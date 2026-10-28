@@ -100,7 +100,7 @@ fun LazyListScope.allSourcesExploreSections(
     onItemClick: (JikanSearchResult) -> Unit,
     onLongClickItem: ((JikanSearchResult) -> Unit)?,
     onSeeAllSection: (String, ExploreCategoryType, List<JikanSearchResult>, ExplorePlatform) -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,

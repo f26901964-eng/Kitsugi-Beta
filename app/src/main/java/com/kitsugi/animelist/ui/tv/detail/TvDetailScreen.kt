@@ -106,7 +106,7 @@ fun TvDetailScreen(
     onNavigateToRelationDetail: (JikanSearchResult) -> Unit,
     onCharacterClick: (characterId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
     onStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     viewModel: ApiResultDetailViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current

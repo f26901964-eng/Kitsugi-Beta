@@ -53,7 +53,7 @@ fun KitsugiAllActivitiesBottomSheet(
     apiClient: JikanApiClient,
     tmdbId: Int? = null,
     realMalId: Int? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {

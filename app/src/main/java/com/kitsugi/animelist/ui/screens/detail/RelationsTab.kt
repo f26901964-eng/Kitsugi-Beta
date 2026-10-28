@@ -35,7 +35,7 @@ import androidx.compose.foundation.layout.Arrangement
 @Composable
 fun RelationsTabContent(
     state: DetailTabState<List<KitsugiRelation>>,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     onRelationClick: (KitsugiRelation) -> Unit
 ) {
@@ -84,7 +84,7 @@ fun RelationsTabContent(
 @Composable
 fun RelationCard(
     rel: KitsugiRelation,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     onClick: (KitsugiRelation) -> Unit
 ) {

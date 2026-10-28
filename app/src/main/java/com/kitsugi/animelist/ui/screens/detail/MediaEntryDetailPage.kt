@@ -155,7 +155,7 @@ fun MediaEntryDetailPage(
     onSearchByGenre: (String) -> Unit = {},
     onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
     onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {},
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     /** Kişi/karakter adı dili — başlık dilinden bağımsız ayar (bkz. [ApiResultDetailPage]). */
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     scoreFormat: String = "POINT_10",

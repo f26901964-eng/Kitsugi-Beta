@@ -223,7 +223,7 @@ fun KitsugiHeroSection(
     alreadyInList: (JikanSearchResult) -> Boolean,
     onInfoClick: (JikanSearchResult) -> Unit,
     modifier: Modifier = Modifier,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,

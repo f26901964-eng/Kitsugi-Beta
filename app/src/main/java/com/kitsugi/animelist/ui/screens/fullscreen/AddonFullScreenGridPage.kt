@@ -110,7 +110,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 fun AddonFullScreenGridPage(
     state: AddonFullScreenGridState,
     onBackClick: () -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false

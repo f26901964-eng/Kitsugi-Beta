@@ -170,7 +170,7 @@ fun AiringSoonHorizontalCard(
     alreadyInList: Boolean,
     onItemClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -326,7 +326,7 @@ fun ExploreAiringSoonSection(
     onLongClickItem: (JikanSearchResult) -> Unit,
     onOpenAiringCalendar: () -> Unit,
     accentColor: Color,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     modifier: Modifier = Modifier
 ) {

@@ -37,7 +37,7 @@ data class GeneralSettings(
     val hideScores: Boolean,
     val showAnimeLogos: Boolean,
     // ─── AniHyou paritesi: eksik içerik/liste ayarları ─────────────────────
-    val staffNameLanguage: String = "ROMAJI",
+    val staffNameLanguage: String = "ENGLISH",
     val onStaffNameLanguageSelected: (String) -> Unit = {},
     val scoreStep: String = "1",
     val onScoreStepSelected: (String) -> Unit = {},

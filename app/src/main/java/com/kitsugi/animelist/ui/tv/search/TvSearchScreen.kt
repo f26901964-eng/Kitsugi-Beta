@@ -91,7 +91,7 @@ private val TvChipShape = RoundedCornerShape(20.dp)
 @Composable
 fun TvSearchScreen(
     searchViewModel: SearchViewModel = viewModel(),
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onNavigateToDetail: (JikanSearchResult) -> Unit = {}
 ) {
     val state by searchViewModel.uiState.collectAsStateWithLifecycle()
@@ -421,7 +421,7 @@ private fun TvFilterChip(
 @Composable
 private fun TvSearchResultCard(
     item: JikanSearchResult,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }

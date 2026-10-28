@@ -104,7 +104,7 @@ fun SearchScreen(
     onOpenApiDetail: (JikanSearchResult) -> Unit,
     onAddSelectionToList: (ApiSearchSelection) -> Unit,
     viewModel: SearchViewModel = viewModel(),
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
@@ -1037,7 +1037,7 @@ private fun MultiSearchSection(
     getMediaEntry: (JikanSearchResult) -> MediaEntry? = { null },
     onItemClick: (JikanSearchResult) -> Unit,
     onSeeAllClick: () -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false

@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.Arrangement
 @Composable
 fun RecommendationsTabContent(
     state: DetailTabState<List<KitsugiRelation>>,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     onRecommendationClick: (KitsugiRelation) -> Unit
 ) {
@@ -100,7 +100,7 @@ fun RecommendationsTabContent(
 @Composable
 fun RecommendationCard(
     rel: KitsugiRelation,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     onClick: (KitsugiRelation) -> Unit
 ) {

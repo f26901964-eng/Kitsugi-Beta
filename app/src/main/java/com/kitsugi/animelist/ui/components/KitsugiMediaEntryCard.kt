@@ -68,7 +68,7 @@ fun KitsugiMediaEntryCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onIncrementClick: () -> Unit = {},
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,

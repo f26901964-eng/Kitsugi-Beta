@@ -168,9 +168,12 @@ object BangumiApiClient {
      * Yeni davranış: saniyede 5 istek (Bangumi'nin resmî tavanı 3000 istek / 10 dk = 5/sn)
      * ve 5 isteklik ani patlama (burst). Bekleyen istek `delay` kullanır → iptal edilirse
      * kredi harcanmaz ve kuyruk asla dakikalarca ileri gitmez.
+     * Keşfet 15 şeridi aynı anda açtığı için kota 10/sn + burst 10'a yükseltildi;
+     * Bangumi resmi 5/sn tavanı kullanıcı başına sayıldığı için anonim + token'lı
+     * karışık trafikte pratikte güvenli ve timeout/boş raf şikayetini çözer.
      */
-    private const val THROTTLE_REQUESTS_PER_SECOND = 5.0
-    private const val THROTTLE_BURST = 5.0
+    private const val THROTTLE_REQUESTS_PER_SECOND = 10.0
+    private const val THROTTLE_BURST = 10.0
 
     /**
      * Toplu/arka plan Bangumi işleri (kütüphane başlığı tazeleme, içe aktarma) için bağlam

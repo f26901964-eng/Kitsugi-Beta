@@ -55,9 +55,12 @@ enum class ExploreErrorType { None, TmdbError, AniListError, MalError }
  * Bangumi Keşfet şeridi başına üst süre sınırı.
  *
  * Şeritler paralel çalışır; bu tavan **toplam** süreyi değil, en yavaş şeridin süresini
- * sınırlar. Asılı bir istek tüm vitrini dakikalarca boş bırakmasın diye 15 sn seçildi.
+ * sınırlar. Asılı bir istek tüm vitrini dakikalarca boş bırakmasın diye 30 sn seçildi
+ * (önceki 15 sn, Bangumi hız sınırlayıcısı + AniList başlık çözümlemesi birlikte
+ * olduğunda özellikle sezon şeritlerinde yetmiyordu — “geri kalan kısımlar gelmiyor”
+ * şikayetinin kök nedeni).
  */
-private const val BANGUMI_SHELF_TIMEOUT_MS = 15_000L
+private const val BANGUMI_SHELF_TIMEOUT_MS = 30_000L
 
 class ExploreViewModel(application: Application) : AndroidViewModel(application) {
 

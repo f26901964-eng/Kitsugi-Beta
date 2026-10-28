@@ -266,7 +266,7 @@ internal fun StudioHeroHeader(
 @Composable
 internal fun StudioMediaGridItem(
     work: KitsugiStaffMediaWork,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit
 ) {
     val displayTitle = work.getDisplayTitle(titleLanguage)

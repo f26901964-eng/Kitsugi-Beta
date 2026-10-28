@@ -123,7 +123,7 @@ fun FullScreenMediaGridPage(
     alreadyInList: (JikanSearchResult) -> Boolean,
     onItemClick: (JikanSearchResult) -> Unit,
     onBackClick: () -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAdultContent: Boolean = false,
