@@ -81,7 +81,7 @@ fun ExploreScreen(
     initialScrollOffset: Int = 0,
     onScrollPositionChange: (index: Int, offset: Int) -> Unit = { _, _ -> },
     viewModel: ExploreViewModel = viewModel(),
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,

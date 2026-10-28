@@ -613,7 +613,7 @@ object KitsugiApiBase {
      */
     fun aniListGateBlocking(
         priority: AniListQuotaGate.Priority,
-        maxWaitMs: Long = 1_500L
+        maxWaitMs: Long = 15_000L
     ): Boolean = AniListQuotaGate.acquireBlocking(priority, maxWaitMs) is
         AniListQuotaGate.Decision.Granted
 

@@ -52,7 +52,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 fun KitsugiActivityDetailBottomSheet(
     activityId: Int,
     apiClient: JikanApiClient,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onMediaClick: ((mediaId: Int, mediaType: com.kitsugi.animelist.model.MediaType, source: String) -> Unit)? = null,

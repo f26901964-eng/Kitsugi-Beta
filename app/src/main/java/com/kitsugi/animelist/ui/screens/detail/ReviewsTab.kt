@@ -68,7 +68,7 @@ fun ReviewsTabContent(
     apiClient: JikanApiClient,
     tmdbId: Int? = null,
     realMalId: Int? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     preferredTranslator: String = "DEFAULT",
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?, source: String) -> Unit,
     onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null
@@ -717,7 +717,7 @@ private fun TopicCard(
 @Composable
 private fun ActivityCard(
     activity: KitsugiActivity,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?, source: String) -> Unit)? = null,
     onClick: () -> Unit,
     onLikeClick: () -> Unit,

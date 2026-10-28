@@ -62,7 +62,7 @@ fun SearchResultRow(
     onItemClick: () -> Unit,
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAddButton: Boolean = true

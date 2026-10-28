@@ -134,7 +134,7 @@ fun StaffDetailPage(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     name: String? = null,
     imageUrl: String? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     preferredTranslator: String = "DEFAULT"
 ) {

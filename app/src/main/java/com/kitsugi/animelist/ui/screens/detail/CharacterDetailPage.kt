@@ -145,7 +145,7 @@ fun CharacterDetailPage(
     onCharacterClick: (characterId: Int, characterSource: String, name: String?, imageUrl: String?) -> Unit,
     name: String? = null,
     imageUrl: String? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     preferredTranslator: String = "DEFAULT",
     isRealMediaRole: Boolean = false

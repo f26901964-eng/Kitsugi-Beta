@@ -54,7 +54,7 @@ fun KitsugiHorizontalMediaSection(
     onItemClick: (JikanSearchResult) -> Unit,
     onLongClickItem: ((JikanSearchResult) -> Unit)? = null,
     onSeeAllClick: (() -> Unit)? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,

@@ -180,7 +180,7 @@ fun ApiResultDetailPage(
     onSearchByGenre: (String) -> Unit = {},
     onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
     onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {},
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     /**
      * Kişi/karakter adı dili (`ROMAJI` / `ENGLISH` / `NATIVE`). Ayar ekranındaki ayrı
      * "personel adı dili" tercihidir; sekmelere açıkça geçirilir ki başlık dili ile

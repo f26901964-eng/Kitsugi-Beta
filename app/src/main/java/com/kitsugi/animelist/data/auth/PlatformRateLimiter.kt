@@ -55,10 +55,12 @@ object PlatformRateLimiter {
         }
         val mutex = getMutex(key)
         mutex.withLock {
-            // Wait once. Writing a future timestamp before sleeping made the next acquire()
-            // wait the same Retry-After period a second time.
-            delay(waitMs)
+            // lastCallTime'ı GELECEĞE ayarlama: acquire() sonraki çağrısında elapsed
+            // negatif çıkar ve minInterval + waitMs kadar tekrar bekler (çift ceza).
+            // Şimdiki zamanı kaydet, sadece bekle — sonraki acquire() zaten 2100 ms aralığıyla
+            // çağrılar arasında gereken boşluğu sağlar.
             lastCallTime[key] = System.currentTimeMillis()
+            delay(waitMs)
         }
     }
 }

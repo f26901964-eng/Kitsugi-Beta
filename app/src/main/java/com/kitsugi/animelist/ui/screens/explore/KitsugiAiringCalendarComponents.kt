@@ -513,7 +513,7 @@ internal fun AiringEntryGridList(
 internal fun AiringEntryGridCard(
     entry: AiringEntry,
     isInWatchingList: Boolean,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onClick: () -> Unit = {}
 ) {
     if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -642,7 +642,7 @@ internal fun AiringEntryGridCard(
 internal fun AiringEntryCard(
     entry: AiringEntry,
     isInWatchingList: Boolean,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onClick: () -> Unit = {}
 ) = AiringEntryWideCard(entry, isInWatchingList, titleLanguage, onClick)
 

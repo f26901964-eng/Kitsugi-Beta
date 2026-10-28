@@ -55,7 +55,7 @@ fun SourceSearchPage(
     initialResults: List<JikanSearchResult>,
     mediaEntries: List<MediaEntry>,
     showAdultContent: Boolean,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     onBackClick: () -> Unit,

@@ -64,7 +64,7 @@ fun KitsugiRankingBottomSheet(
     alreadyInList: (JikanSearchResult) -> Boolean,
     onItemClick: (JikanSearchResult) -> Unit,
     onDismissRequest: () -> Unit,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     hideScores: Boolean = false,
     showAdultContent: Boolean = false,
     blurAdultMedia: Boolean = false,

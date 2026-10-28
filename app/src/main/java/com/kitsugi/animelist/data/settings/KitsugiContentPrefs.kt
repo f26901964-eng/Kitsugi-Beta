@@ -17,7 +17,7 @@ import org.json.JSONObject
  */
 object KitsugiContentPrefs {
     @Volatile
-    var staffNameLanguage: String = "ROMAJI"
+    var staffNameLanguage: String = "ENGLISH"
         private set
 
     @Volatile

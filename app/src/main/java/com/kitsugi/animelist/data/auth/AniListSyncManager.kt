@@ -968,13 +968,6 @@ object AniListSyncManager {
         variables: JSONObject,
         context: Context? = null
     ): String {
-        // Kotayı görünmez şekilde tüketen doğrudan POST: kapıdan geçir.
-        if (!com.kitsugi.animelist.data.remote.KitsugiApiBase.aniListGateBlocking(
-                com.kitsugi.animelist.data.remote.AniListQuotaGate.Priority.BACKGROUND
-            )
-        ) {
-            throw IllegalStateException("AniList kotası dolu; eşitleme sonraki tura ertelendi.")
-        }
         val payload = JSONObject()
             .put("query", query)
             .put("variables", variables)
@@ -992,6 +985,16 @@ object AniListSyncManager {
 
         val request = requestBuilder.build()
 
+        // Her tekil GraphQL çağrısı arasında AniList'in 30/dk sınırını aşmamak için rate limit.
+        // Bu acquire postAniList'in her çağrısında (media çözümle, kimlik doğrulama, kayıt
+        // güncelleme, favori sorgusu, silme) gerçekleşir; ExternalListSyncManager'da zaten
+        // tek seferlik bir acquire yoktur, böylece çift sınırlama ve iç içe burst yapısı
+        // ortadan kalkar. Eski davranışta tek bir syncEntry içinde 4-5 çağrı anında giderdi
+        // ve AniList 429 "kota doldu" dönüyordu.
+        kotlinx.coroutines.runBlocking {
+            PlatformRateLimiter.acquire("anilist")
+        }
+
         // AniList'in fiili limiti 30 istek/dk; 429 aldığımızda Retry-After kadar (yoksa 60 sn)
         // bekleyip aynı isteği en fazla 3 kez tekrarlıyoruz. Böylece toplu eşitlemede tek bir
         // hız sınırı yanıtı kaydı "hata" olarak işaretlemiyor.
@@ -1000,18 +1003,16 @@ object AniListSyncManager {
             attempt++
             try {
                 com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
+                    val limitHeader = response.header("X-RateLimit-Limit")?.toIntOrNull()
+                    val remainingHeader = response.header("X-RateLimit-Remaining")?.toIntOrNull()
+                    val resetHeader = response.header("X-RateLimit-Reset")?.toLongOrNull()
+                    com.kitsugi.animelist.data.remote.AniListQuotaGate.onHttpResponse(limitHeader, remainingHeader, resetHeader)
+
                     if (response.code == 429) {
                         val retrySec = response.header("Retry-After")?.toLongOrNull()?.coerceIn(1L, 120L) ?: 60L
-                        // `notifyRateLimited` geri çekilme durumunu (lastCallTime) yazar ve
-                        // `delay(waitMs)` yapar. Burada BLOKLAYAN bir bağlamdayız (postAniList
-                        // suspend değil) ve `withTimeoutOrNull` bloklayan çağrıyı KESEMEZ:
-                        // Retry-After=120 sn olduğunda tek bir istek tüm yayılımı 2 dakika
-                        // kilitliyordu. Bu yüzden bekleme 5 sn ile sınırlanır; sayaç yine de
-                        // gerçek değerle işaretlenir, sonraki istekler doğru süre bekler.
+                        com.kitsugi.animelist.data.remote.AniListQuotaGate.onRateLimited(retrySec * 1000L)
                         kotlinx.coroutines.runBlocking {
-                            kotlinx.coroutines.withTimeoutOrNull(5_000L) {
-                                PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
-                            }
+                            PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
                         }
                         if (attempt >= MAX_ANILIST_ATTEMPTS) {
                             throw IllegalStateException(

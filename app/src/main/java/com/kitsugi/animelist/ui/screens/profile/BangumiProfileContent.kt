@@ -143,7 +143,7 @@ private fun progressLabel(item: BangumiUserCollection): String? {
 fun BangumiProfileContent(
     state: BangumiProfileState,
     accentColor: Color,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onOpenAnimeOrManga: (subjectId: Int, mediaType: MediaType, title: String, imageUrl: String?) -> Unit,
     onCharacterClick: (charId: Int, name: String?, imageUrl: String?) -> Unit,
     onPersonClick: (personId: Int, name: String?, imageUrl: String?) -> Unit,

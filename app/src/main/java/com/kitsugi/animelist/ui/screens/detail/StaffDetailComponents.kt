@@ -76,7 +76,7 @@ import androidx.compose.material.icons.rounded.ContentCopy
 @Composable
 internal fun StaffCharacterRoleCard(
     role: com.kitsugi.animelist.data.remote.KitsugiStaffCharacterRole,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onCharacterClick: (characterId: Int, characterSource: String, name: String?, imageUrl: String?) -> Unit,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit
 ) {
@@ -149,7 +149,7 @@ internal fun StaffCharacterRoleCard(
 @Composable
 internal fun StaffMediaWorkRow(
     work: com.kitsugi.animelist.data.remote.KitsugiStaffMediaWork,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit
 ) {
     val displayTitle = work.getDisplayTitle(titleLanguage)

@@ -52,7 +52,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 fun TvActivityDetailDialog(
     activityId: Int,
     apiClient: JikanApiClient,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current

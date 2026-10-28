@@ -51,7 +51,7 @@ fun DetailedSeasonalMediaCard(
     alreadyInList: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     blurAdultMedia: Boolean = false,
     onQuickAddClick: (() -> Unit)? = null
 ) {

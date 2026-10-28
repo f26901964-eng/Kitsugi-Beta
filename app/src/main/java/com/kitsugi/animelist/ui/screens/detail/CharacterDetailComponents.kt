@@ -82,7 +82,7 @@ import com.kitsugi.animelist.R
 @Composable
 internal fun MediaAppearanceRow(
     appearance: com.kitsugi.animelist.data.remote.KitsugiCharacterMediaAppearance,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit
 ) {
     val displayTitle = appearance.getDisplayTitle(titleLanguage)

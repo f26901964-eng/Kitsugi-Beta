@@ -59,7 +59,7 @@ fun KitsugiRankingMediaCard(
     mediaEntry: com.kitsugi.animelist.model.MediaEntry? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,
     onQuickAddClick: (() -> Unit)? = null

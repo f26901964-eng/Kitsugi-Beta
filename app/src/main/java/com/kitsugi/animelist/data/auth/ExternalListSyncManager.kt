@@ -427,7 +427,9 @@ object ExternalListSyncManager {
         if (fields.isEmpty()) return SourceResult(ANILIST, OUTCOME_UP_TO_DATE)
 
         val update = runSyncCatching {
-            PlatformRateLimiter.acquire("anilist")
+            // Rate limiting artık AniListSyncManager.postAniList içinde her tekil
+            // GraphQL çağrısı için gerçekleşir; burada tekrar acquire yapmak çift
+            // sınırlamaya (ve ~4 sn/giriş gereksiz gecikmeye) neden olurdu.
             AniListSyncManager.updateAniListEntry(
                 token = token,
                 entry = run.remoteEntry,
@@ -848,7 +850,8 @@ object ExternalListSyncManager {
             return SourceResult(ANILIST, deleteGateOutcome(run.isOn("anilist"), !token.isNullOrBlank(), applicable))
         }
         return runSyncCatching {
-            PlatformRateLimiter.acquire("anilist")
+            // Rate limiting artık AniListSyncManager.postAniList içinde her tekil
+            // GraphQL çağrısı için gerçekleşir.
             AniListSyncManager.deleteAniListEntry(token = token, entry = run.remoteEntry, context = context)
         }.fold(
             onSuccess = { SourceResult(ANILIST, OUTCOME_SYNCED, synced = true) },

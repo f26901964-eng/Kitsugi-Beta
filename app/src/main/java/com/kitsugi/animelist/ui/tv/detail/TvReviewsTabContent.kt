@@ -61,7 +61,7 @@ fun TvReviewsTabContent(
     apiClient: JikanApiClient,
     tmdbId: Int? = null,
     realMalId: Int? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     focusRequester: FocusRequester,
     focusUp: FocusRequester,
     focusDown: FocusRequester
@@ -448,7 +448,7 @@ private fun TvTopicCard(
 @Composable
 private fun TvActivityCard(
     activity: KitsugiActivity,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     onClick: () -> Unit,
     onLikeClick: () -> Unit
 ) {

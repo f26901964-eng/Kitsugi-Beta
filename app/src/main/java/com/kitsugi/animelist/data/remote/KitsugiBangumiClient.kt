@@ -442,12 +442,13 @@ object KitsugiBangumiClient {
      */
     suspend fun seasonalAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
-        return seasonFor(
+        val result = seasonFor(
             year = calendar.get(Calendar.YEAR),
             month = calendar.get(Calendar.MONTH) + 1,
             limit = limit,
             context = context
         )
+        return result.ifEmpty { trendingAnime(limit, context) }
     }
 
     /** Belirli yıl/ay için göz atma (`GET /v0/subjects?type=2&year=..&month=..&sort=date`). */
@@ -476,7 +477,8 @@ object KitsugiBangumiClient {
         val current = seasonFor(year, month, limit, context, offset = safeOffset)
         if (current.size >= limit) return current.take(limit)
         val older = seasonFor(previous.first, previous.second, limit - current.size, context, offset = safeOffset)
-        return (current + older).distinctBy { it.malId }.take(limit)
+        val merged = (current + older).distinctBy { it.malId }.take(limit)
+        return merged.ifEmpty { trendingAnime(limit, context, offset = safeOffset) }
     }
 
     /** "Yaklaşan" — gelecek ayın条目'ları. */
@@ -489,7 +491,9 @@ object KitsugiBangumiClient {
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val next = if (month == 12) (year + 1) to 1 else year to (month + 1)
-        return seasonFor(next.first, next.second, limit, context, offset = offset.coerceAtLeast(0))
+        val safeOffset = offset.coerceAtLeast(0)
+        val result = seasonFor(next.first, next.second, limit, context, offset = safeOffset)
+        return result.ifEmpty { newlyAddedAnime(limit, context, offset = safeOffset) }
     }
 
     /** "Anime Filmleri" — `cat=3` (Movie) alt kategorisi. */
@@ -503,6 +507,7 @@ object KitsugiBangumiClient {
                 limit = limit,
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
+                .ifEmpty { topAnime(limit, context, offset) }
         }.getOrElse { logAndEmpty("movieAnime", it) }
 
     /** Bangumi REAL / 三次元 TV-drama şeridi (`type=6&cat=6001`). */
@@ -516,6 +521,7 @@ object KitsugiBangumiClient {
                 limit = limit,
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.TvShow) }.withLatinBangumiNames(context)
+                .ifEmpty { trendingAnime(limit, context) }
         }.getOrElse { logAndEmpty("realTvShows", it) }
 
     /** Bangumi REAL film şeridi (`type=6&cat=6002`), anime filmlerinden ayrı tutulur. */
@@ -529,6 +535,7 @@ object KitsugiBangumiClient {
                 limit = limit,
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
+                .ifEmpty { movieAnime(limit, context, offset) }
         }.getOrElse { logAndEmpty("realMovies", it) }
 
     /** "Yeni Eklenen Animeler" — yayın tarihine göre en yeni条目'lar. */
@@ -541,6 +548,7 @@ object KitsugiBangumiClient {
                 limit = limit,
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
+                .ifEmpty { trendingAnime(limit, context) }
         }.getOrElse { logAndEmpty("newlyAddedAnime", it) }
 
     /** "En İyi Mangalar" — 书籍 kategori sıralaması. */
