@@ -1,14 +1,14 @@
 {
   "_comment": "Kitsugi Eklenti Domain Listesi — GitHub Actions + AI tarafından otomatik güncellenir.",
   "_format": "eklentiAdi (küçük harf) → güncel ana URL",
-  "_updated": "2026-10-27 03:21 UTC",
+  "_updated": "2026-10-28 03:29 UTC",
   "_stats": {
-    "total": 80,
+    "total": 79,
     "added": 0,
     "removed": 1,
     "changed": 0,
     "ai_assisted": 0,
-    "blocked": 154
+    "blocked": 155
   },
   "domains": {
     "animecix": "https://animecix.tv",
@@ -17,7 +17,6 @@
     "anizium": "https://api.anizium.co",
     "asyaanimeleri": "https://asyaanimeleri.top",
     "asyaanimeleri2": "https://asyaanimeleri.top",
-    "asyafilmizlesene": "https://asyafilmizlesene.com",
     "asyawatch": "https://asyawatch.com",
     "belgeselx": "https://belgeselx.com",
     "cizgimax": "https://cizgimax.online",
@@ -104,6 +103,7 @@
     "animeav",
     "animejara",
     "animeworld",
+    "asyafilmizlesene",
     "aznude",
     "badtv",
     "basketballreplays",
