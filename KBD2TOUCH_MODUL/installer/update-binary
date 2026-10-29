@@ -1,0 +1,53 @@
+#!/sbin/sh
+# Evrensel modul kurucusu: Magisk / KernelSU / SukiSU Ultra / APatch
+umask 022
+OUTFD=$2
+ZIPFILE=$3
+
+ui_print() { echo "$1"; }
+
+mount /data 2>/dev/null
+
+# --- 1) Magisk varsa resmi installer'i kullan ---
+if [ -f /data/adb/magisk/util_functions.sh ]; then
+  . /data/adb/magisk/util_functions.sh
+  install_module
+  exit 0
+fi
+
+# --- 2) KernelSU / SukiSU Ultra / APatch: kendi kendine kurulum ---
+MODID=kbd2touch
+MODDIR=/data/adb/modules/$MODID
+TMP=/dev/tmp-kbd2touch
+BB=""
+for c in /data/adb/ksu/bin/busybox /data/adb/ap/bin/busybox busybox /system/bin/busybox; do
+  if command -v "$c" >/dev/null 2>&1; then BB="$c"; break; fi
+done
+
+ui_print "- KernelSU/SukiSU algilandi, modul dogrudan kuruluyor"
+rm -rf "$TMP"; mkdir -p "$TMP"
+
+if [ -n "$BB" ]; then
+  "$BB" unzip -o "$ZIPFILE" -d "$TMP" >/dev/null 2>&1
+else
+  unzip -o "$ZIPFILE" -d "$TMP" >/dev/null 2>&1
+fi
+
+if [ ! -f "$TMP/module.prop" ]; then
+  ui_print "! zip cozulemedi, kurulum iptal"
+  rm -rf "$TMP"; exit 1
+fi
+
+mkdir -p "$MODDIR"
+cp -rf "$TMP"/. "$MODDIR"/
+rm -rf "$MODDIR/META-INF"
+chmod 755 "$MODDIR"/*.sh 2>/dev/null
+chmod 755 "$MODDIR/system/bin/kbd2touch" 2>/dev/null
+
+export MODPATH="$MODDIR"
+sh "$MODDIR/customize.sh" 2>&1 | while read -r l; do ui_print "$l"; done
+
+rm -rf "$TMP"
+ui_print "- kuruldu: $MODDIR"
+ui_print "- Cihazi yeniden baslat."
+exit 0
