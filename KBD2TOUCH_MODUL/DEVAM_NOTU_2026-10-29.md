@@ -64,6 +64,7 @@
 ## Bilinen açık işler / fikirler
 - [ ] Dokunmatik profil koordinatları kullanıcının HUD'ına göre ayarlanacak (işaretçi konumu ile)
 - [ ] Touchpad'i fare olarak kamera kontrolüne bağlama (XtMapper'da var, bizde yok)
+- [ ] Touchpad tıklamaları (BTN_LEFT/RIGHT) ayrı evdev düğümünde — istenirse ikinci cihaz olarak grab edilip Dead Cells'te sol/sağ tık = X/Y yapılabilir
 - [ ] Çapraz hareket (W+A) için bileşik bind desteği
 - [ ] İsteğe bağlı GUI Android uygulaması (ekran üstü sürükle-bırak düzenleyici)
 - [ ] Online oyunlar için jitter profil şablonları
