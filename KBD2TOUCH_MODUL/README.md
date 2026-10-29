@@ -76,6 +76,36 @@ KBD2TOUCH_MODUL/
 
 ---
 
+## 2.5) Senin cihazınla uyumluluk analizi (ekran görüntünden doğrulandı)
+
+| Özellik (SukiSU Ultra ana sayfası) | Değer | Kbd2Touch etkisi |
+|---|---|---|
+| Kernel | **4.19.325-perf+** (pipa, SM8250) | ✅ 4.19'ta `uinput` ve `EVIOCGRAB` mevcut. **Tek doğrulama:** `su -c "ls -l /dev/uinput"` → dosya varsa tamam. Yoksa: `su -c "zcat /proc/config.gz \| grep UINPUT"` ile bak; kapalıysa Bölüm 8'deki alternatife geç |
+| Android | **13** (API 33) | ✅ Tam destekli (min API sınırı yok; musl statik binary 4.4+ çalışır) |
+| Yönetici | **SukiSU Ultra v3.2.0 (13375)** | ✅ Modul sistemi KernelSU ile birebir aynı: `dist/*.zip` yöneticiden flaşlanır ya da `install.sh` ile kurulur |
+| SELinux | **Enforcing (Etkin)** | ✅ Sorun DEĞİL: KernelSU/SukiSU modül betiklerini Magisk-uyumlu (`u:r:magisk:s0`) bağlamda çalıştırır ve bu bağlam permissiftir. **SELinux'u permissive yapma** |
+| KPM | Destekleniyor (3072) | ➖ Gerekmiyor (kernel patch module kullanmıyoruz; kullanıcı alanında çalışıyoruz) |
+| SuSFS | **v1.5.7 (Manuel Kanca)** | ✅ Bonus: root'u oyunlardan gizler → anti-cheat'ın modülü görme ihtimali daha da düşer |
+| Klavye | Orijinal Pad 6 klavyesi (pogo-pin) | ✅ Sistemde USB HID klavye + ayrı touchpad düğümü olarak görünür. Daemon harf/tuş düğümünü otomatik bulur (`--list-devices`), touchpad'e dokunmaz → **touchpad'i fare gibi kullanmaya devam edersin** |
+
+**Orijinal klavye gündelik kullanımda bozulur mu?** Hayır — `grab_mode = 1` (varsayılan) sayesinde:
+- Masaüstü / tarayıcı / sohbet / Kitsugi: klavye **%100 normal** yazar (daemon arka planda sessizce bekler).
+- Dancing Line / GTA SA açıldığı an: daemon klavyeyi ele geçirir → oyun ham tuşu görmez, sadece eşlenmiş dokunuşlar gider (çift tetikleme imkânsız).
+- Oyundan çıkınca: otomatik serbest bırakır.
+- İstediğin an **F9** ile tüm eşlemeyi kapatırsın.
+
+**Aklıma gelmeyenler / ekstra kontrol listesi**
+1. `su -c "ls -l /dev/uinput"` → yoksa kernel uinput'suz demektir (Bölüm 8 alternatifi).
+2. Geliştirici seçenekleri → **USB hata ayıklama (Güvenlik ayarları)**: tablette SIM olmadığı için UI'dan açılamaz; modül kurulumda `persist.security.adbinput=1` yapıyor (Shizuku/KeySync/scrcpy kullanacaksan şart; Kbd2Touch'un kendisi buna ihtiyaç duymaz).
+3. **Game Turbo → "Tuşları ve hareketleri kısıtla" = KAPALI** (fiziksel tuşları yutar).
+4. Oyun sırasında **otomatik ekran döndürme kapalı** kalsın (koordinatlar kaymasın); kalibrasyonu oyunla aynı yönelimde yap.
+5. Klavyenin **Fn kısayolları** (parlaklık/ses) oyun içindeyken çalışmaz (klavye ele geçirilmiş olur) — oyun dışındaysa normal.
+6. Ekran klavyesi kaybolursa: `virtual_keyboard = 0`.
+7. Daemon bir **root sistem servisi** olduğu için MIUI pil yönetimi onu öldüremez (uygulama değil). Yine de SukiSU'da modülün "açılışta çalışsın" listesinde olduğundan emin ol (varsayılan: evet).
+8. Yedek: `profiles/` ve `config.ini` senin ayarların — Drive yedeğini tut (bu oturumda oluşturuldu).
+
+---
+
 ## 3) Kurulum
 
 ### Yöntem A — Zip flaşlama (önerilen)
@@ -197,7 +227,8 @@ su -c "pkill -f kbd2touch; sleep 1; /data/adb/kbd2touch/kbd2touch -c /data/adb/k
 | `swap_xy`, `invert_x`, `invert_y` | Ek eksen düzeltmeleri | 0 |
 | `jitter` | Dokunuşa eklenecek rastgele piksel (anti-detection). Offline oyunda `0` | 0 |
 | `slots` | Aynı anda basılı tutulabilecek parmak sayısı (≤10) | 10 |
-| `grab_keyboard` | `1` = klavyeyi EVIOCGRAB ile ele geçir (önerilen) | 1 |
+| `grab_keyboard` | `0` = klavyeyi hiç ele geçirme | 1 |
+| `grab_mode` | **Klavye ne zaman ele geçirilsin?** `0`=asla · `1`=**sadece eşlenen oyun açıkken (önerilen)** · `2`=eşleme açıkken her zaman. `1` iken tarayıcıda/sohbette klavyen **normal yazmaya devam eder**, oyuna girince otomatik ele geçirilir → çift tetikleme olmaz | 1 |
 | `device` | Klavyenin `/dev/input/eventX` yolu (elle seçim) | — |
 | `device_match` | İsim içinde aranacak metin (`Xiaomi` gibi) | — |
 | `tap_ms` | Tek dokunuşun basılı kalma süresi | 40 |

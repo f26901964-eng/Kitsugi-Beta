@@ -207,7 +207,8 @@ typedef struct {
     int   touch_max_x, touch_max_y;
     int   rotation;               /* 0/90/180/270 */
     int   swap_xy, invert_x, invert_y;
-    int   grab_keyboard;
+    int   grab_keyboard;      /* 0 = hic ele gecirme (eski anahtar) */
+    int   grab_mode;          /* 0=asla 1=sadece eslenen uygulama acikken 2=her zaman */
     int   tap_ms;
     int   swipe_ms;
     int   gamepad_enable;
@@ -227,7 +228,7 @@ static Cfg g_cfg = {
     .screen_w = 2880, .screen_h = 1800,
     .touch_max_x = 2879, .touch_max_y = 1799,
     .rotation = 0, .swap_xy = 0, .invert_x = 0, .invert_y = 0,
-    .grab_keyboard = 1, .tap_ms = 45, .swipe_ms = 90,
+    .grab_keyboard = 1, .grab_mode = 1, .tap_ms = 45, .swipe_ms = 90,
     .gamepad_enable = 0, .virtual_keyboard = 1,
     .gamepad_name = "Microsoft X-Box 360 pad",
     .toggle_key = KEY_F9, .profile_key = KEY_F10,
@@ -249,7 +250,9 @@ static int  g_enabled = 1;
 /* ------------------------------------------------------------------ */
 static int g_touch_fd = -1;
 static int g_pad_fd = -1;
-static int g_key_fd = -1;      /* sanal klavye: KEY_BACK / KEY_HOME vb. gondermek icin */
+static int g_key_fd = -1;
+static int g_kbd_fd = -1;      /* fiziksel klavyenin evdev dugumu */
+static int g_grabbed = 0;      /* klavye su an exclusive mi */      /* sanal klavye: KEY_BACK / KEY_HOME vb. gondermek icin */
 
 static void ev(int fd, int type, int code, int val) {
     struct input_event e;
@@ -276,7 +279,14 @@ static void abs_setup(int fd, int code, int max, int fuzz) {
 static int touch_create(void) {
     int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (fd < 0) fd = open("/dev/input/uinput", O_WRONLY | O_NONBLOCK);
-    if (fd < 0) { logmsg("/dev/uinput acilamadi: %s (root gerekli)", strerror(errno)); return -1; }
+    if (fd < 0) {
+        if (errno == ENOENT)
+            logmsg("HATA: /dev/uinput YOK -> kernel'de CONFIG_INPUT_UINPUT kapali olabilir. "
+                   "Kontrol: su -c \"zcat /proc/config.gz | grep UINPUT\" veya ls -l /dev/uinput");
+        else
+            logmsg("HATA: /dev/uinput acilamadi: %s (root/SELinux izin problemi)", strerror(errno));
+        return -1;
+    }
 
     ioctl(fd, UI_SET_EVBIT, EV_KEY);
     ioctl(fd, UI_SET_KEYBIT, BTN_TOUCH);
@@ -534,7 +544,8 @@ static void cfg_int(Cfg *c, const char *k, const char *v) {
     else if (EQ("swap_xy")) c->swap_xy = n;
     else if (EQ("invert_x")) c->invert_x = n;
     else if (EQ("invert_y")) c->invert_y = n;
-    else if (EQ("grab_keyboard")) c->grab_keyboard = n;
+    else if (EQ("grab_keyboard")) { c->grab_keyboard = n; if (!n) c->grab_mode = 0; }
+    else if (EQ("grab_mode")) c->grab_mode = n;
     else if (EQ("tap_ms")) c->tap_ms = n;
     else if (EQ("swipe_ms")) c->swipe_ms = n;
     else if (EQ("gamepad")) c->gamepad_enable = n;
@@ -889,6 +900,43 @@ static void list_devices(void) {
     closedir(d);
 }
 
+static void write_status(const char *fmt, ...);   /* ileri bildirim */
+
+/* On plandaki uygulama icin uygulama-kapsamli (profil) eslesme var mi? */
+static int app_has_profile(const char *app) {
+    if (!app || !*app) return 0;
+    for (int i = 0; i < g_nbinds; i++) {
+        Bind *b = &g_binds[i];
+        if (b->manual) continue;
+        if (b->app[0] && b->src[0] && strcasecmp(b->app, app) == 0) return 1;
+    }
+    return 0;
+}
+
+/* Klavyeyi ele gecirip gecirmeme karari.
+ * grab_mode=1 iken YALNIZCA eslenen bir oyun on plandayken grab edilir;
+ * boylece tarayicida/sohbette yazı yazarken klavye NORMAL calismaya devam eder. */
+static int should_grab(void) {
+    if (!g_enabled || !g_cfg.grab_keyboard) return 0;
+    if (g_cfg.grab_mode == 2) return 1;
+    if (g_cfg.grab_mode == 1)
+        return g_active_profile[0] || app_has_profile(g_current_app);
+    return 0;
+}
+
+static void set_grab(int on) {
+    if (g_kbd_fd < 0 || on == g_grabbed) return;
+    int v = on ? 1 : 0;
+    if (ioctl(g_kbd_fd, EVIOCGRAB, &v) < 0) {
+        logmsg("UYARI: EVIOCGRAB %s basarisiz: %s", on ? "acma" : "kapama", strerror(errno));
+        return;
+    }
+    g_grabbed = on;
+    logmsg("klavye %s", on ? "ELE GECIRILDI (oyun ham tuslari gormez)"
+                           : "SERBEST BIRAKILDI (normal yazi yazma aktif)");
+    write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, g_current_app);
+}
+
 /* ------------------------------------------------------------------ */
 /* on plandaki uygulama                                                */
 /* ------------------------------------------------------------------ */
@@ -1143,7 +1191,7 @@ static void on_signal(int s) { (void)s; g_stop = 1; }
 
 static void cleanup(int kbd_fd) {
     release_all();
-    if (kbd_fd >= 0 && g_cfg.grab_keyboard) { int z = 0; ioctl(kbd_fd, EVIOCGRAB, &z); }
+    if (kbd_fd >= 0 && g_grabbed) { int z = 0; ioctl(kbd_fd, EVIOCGRAB, &z); g_grabbed = 0; }
     if (g_touch_fd >= 0) { ioctl(g_touch_fd, UI_DEV_DESTROY); close(g_touch_fd); g_touch_fd = -1; }
     if (g_pad_fd >= 0) { ioctl(g_pad_fd, UI_DEV_DESTROY); close(g_pad_fd); g_pad_fd = -1; }
     if (g_key_fd >= 0) { ioctl(g_key_fd, UI_DEV_DESTROY); close(g_key_fd); g_key_fd = -1; }
@@ -1249,9 +1297,10 @@ int main(int argc, char **argv) {
                g_cfg.screen_w, g_cfg.screen_h, g_cfg.touch_max_x + 1, g_cfg.touch_max_y + 1);
         printf("  rotation     : %d  swap_xy=%d invert=%d/%d\n",
                g_cfg.rotation, g_cfg.swap_xy, g_cfg.invert_x, g_cfg.invert_y);
-        printf("  grab_keyboard: %d   slots: %d   gamepad: %d   sanal_klavye: %d\n",
-               g_cfg.grab_keyboard, g_cfg.slot_count, g_cfg.gamepad_enable,
-               g_cfg.virtual_keyboard);
+        printf("  grab_keyboard: %d (mod=%d: 0=asla 1=eslenen uygulamada 2=her zaman)\n",
+               g_cfg.grab_keyboard, g_cfg.grab_mode);
+        printf("  slots: %d   gamepad: %d   sanal_klavye: %d\n",
+               g_cfg.slot_count, g_cfg.gamepad_enable, g_cfg.virtual_keyboard);
         printf("  kisayollar   : ac/kapa=%s profil=%s kalibrasyon=%s\n",
                keyname(g_cfg.toggle_key), keyname(g_cfg.profile_key), keyname(g_cfg.calib_key));
         printf("  profiller    : %d\n", g_profile_count);
@@ -1321,22 +1370,14 @@ int main(int argc, char **argv) {
                 "(action=key eslesmeleri calismaz)");
     if (g_cfg.gamepad_enable) pad_create();
 
-    int kbd = find_keyboard();
+    g_kbd_fd = find_keyboard();
+    int kbd = g_kbd_fd;
     if (kbd < 0) {
         logmsg("KLAVYE BULUNAMADI. 'kbd2touch --list-devices' ile cihazlara bak, "
                "sonra config'e device=/dev/input/eventX yaz.");
         cleanup(-1);
         return 2;
     }
-    if (g_cfg.grab_keyboard) {
-        int one = 1;
-        if (ioctl(kbd, EVIOCGRAB, &one) < 0)
-            logmsg("UYARI: klavye ele gecirilemedi (EVIOCGRAB): %s — oyun ham tuslari da gorebilir",
-                   strerror(errno));
-        else
-            logmsg("klavye exclusive olarak ele gecirildi (oyun ham tuslari gormeyecek)");
-    }
-
     g_enabled = g_cfg.enable_on_boot ? 1 : 0;
     logmsg("kbd2touch v%s basladi. enabled=%d auto_profile=%d", VERSION, g_enabled, g_cfg.auto_profile);
     write_status("basladi (enabled=%d)", g_enabled);
@@ -1359,9 +1400,11 @@ int main(int argc, char **argv) {
                     close(kbd);
                     for (int tries = 0; tries < 600 && !g_stop; tries++) {
                         sleep(2);
-                        kbd = find_keyboard();
-                        if (kbd >= 0) {
-                            if (g_cfg.grab_keyboard) { int one = 1; ioctl(kbd, EVIOCGRAB, &one); }
+                        g_kbd_fd = find_keyboard();
+                        if (g_kbd_fd >= 0) {
+                            kbd = g_kbd_fd;
+                            g_grabbed = 0;
+                            set_grab(should_grab());
                             logmsg("klavye yeniden baglandi");
                             break;
                         }
@@ -1383,7 +1426,8 @@ int main(int argc, char **argv) {
                             g_enabled = !g_enabled;
                             if (!g_enabled) release_all();
                             logmsg("esleme %s", g_enabled ? "ACIK" : "KAPALI");
-                            write_status("enabled=%d", g_enabled);
+                            set_grab(should_grab());
+                            write_status("enabled=%d grab=%d", g_enabled, g_grabbed);
                         }
                         continue;
                     }
@@ -1396,7 +1440,8 @@ int main(int argc, char **argv) {
                             if (g_profile_idx == 0) {
                                 g_active_profile[0] = 0;
                                 logmsg("profil: OTOMATIK (on plandaki uygulamaya gore)");
-                                write_status("profil=auto enabled=%d", g_enabled);
+                                set_grab(should_grab());
+                                write_status("profil=auto enabled=%d grab=%d", g_enabled, g_grabbed);
                             } else {
                                 const char *f = g_profile_files[g_profile_idx - 1];
                                 const char *b = strrchr(f, '/'); b = b ? b + 1 : f;
@@ -1404,7 +1449,8 @@ int main(int argc, char **argv) {
                                 char *dot = strrchr(nm, '.'); if (dot) *dot = 0;
                                 snprintf(g_active_profile, sizeof g_active_profile, "%s", nm);
                                 logmsg("profil: %s (elle secildi)", nm);
-                                write_status("profil=%s enabled=%d", nm, g_enabled);
+                                set_grab(should_grab());
+                                write_status("profil=%s enabled=%d grab=%d", nm, g_enabled, g_grabbed);
                             }
                         } else {
                             logmsg("profil yok: %s bos", g_profiledir);
@@ -1448,7 +1494,8 @@ int main(int argc, char **argv) {
                 snprintf(last_app, sizeof last_app, "%s", app);
                 snprintf(g_current_app, sizeof g_current_app, "%s", app);
                 logv("on plandaki uygulama: %s", app);
-                write_status("enabled=%d app=%s", g_enabled, app);
+                set_grab(should_grab());
+                write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, app);
             }
         }
     }
