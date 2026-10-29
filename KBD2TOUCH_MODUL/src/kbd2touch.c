@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.8"
+#define VERSION        "1.0.9"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024
@@ -1157,6 +1157,21 @@ static void axis_emit(int idx) {
     int v = g_axis_n[idx] > 0 ? g_axis_own[idx][g_axis_n[idx] - 1].val : 0;
     ev(g_pad_fd, EV_ABS, axis_code(idx), v);
 }
+/* v1.0.9 IKILI D-PAD: LX/LY'nin en ust sahibi ayni anda HAT0X/0Y'ye de
+ * yazilir. NEDEN: (1) Bazi oyun ekranlari/menuler yalniz D-pad okur
+ * (Dead Cells wiki: "Move = stick VEYA D-pad" — ikisi ayni yonde basiliysa
+ * cakisma olmaz). (2) ANDROID diyaloglari (oyun paketi icinde acilan mod
+ * menu/popup'lar) HAT eksenlerini DPAD tus kodlarina cevirir: klavye ele
+ * gecirilmisken bile Android pencerelerinde oklar/WASD gezinir, A=onay.
+ * Boylece ayni tus oyun ekraninda analog, Android penceresinde D-pad olur —
+ * "hangi pencerede hangi tus" kararini HER PENCERE KENDI standart parcasiyla verir. */
+static void hat_sync(void) {
+    if (g_pad_fd < 0) return;
+    int tx = g_axis_n[0] > 0 ? g_axis_own[0][g_axis_n[0] - 1].val : 0;
+    int ty = g_axis_n[1] > 0 ? g_axis_own[1][g_axis_n[1] - 1].val : 0;
+    ev(g_pad_fd, EV_ABS, ABS_HAT0X, tx > 0 ? 1 : tx < 0 ? -1 : 0);
+    ev(g_pad_fd, EV_ABS, ABS_HAT0Y, ty > 0 ? 1 : ty < 0 ? -1 : 0);
+}
 static void axis_own_set(Bind *b, int idx, int val) {
     for (int i = 0; i < g_axis_n[idx]; i++)
         if (g_axis_own[idx][i].b == b) { g_axis_own[idx][i].val = val; return; }
@@ -1224,6 +1239,7 @@ static void stick_press(Bind *b) {
     if (i2 >= 0) axis_own_set(b, i2, v2);
     axis_emit(i1);
     if (i2 >= 0) axis_emit(i2);
+    hat_sync();   /* v1.0.9: D-pad ikili emisyon */
     if (g_pad_fd >= 0) syn(g_pad_fd);
     b->ref_held = 1;
 }
@@ -1233,6 +1249,7 @@ static void stick_release(Bind *b) {
     if (i2 >= 0) axis_own_clear(b, i2);
     axis_emit(i1);
     if (i2 >= 0) axis_emit(i2);
+    hat_sync();   /* v1.0.9: D-pad ikili emisyon */
     if (g_pad_fd >= 0) syn(g_pad_fd);
     b->ref_held = 0;
 }
@@ -1648,6 +1665,7 @@ int main(int argc, char **argv) {
         printf("  kisayollar   : ac/kapa=%s profil=%s kalibrasyon=%s\n",
                keyname(g_cfg.toggle_key), keyname(g_cfg.profile_key), keyname(g_cfg.calib_key));
         printf("  pad eksenleri: X/Y/RX/RY -32768..32767 (merkez 0), LT/RT 0..255, D-pad HAT0\n");
+        printf("  D-pad ikili emisyon: LX/LY -> HAT0X/Y otomatik (v1.0.9 — oyun menu + Android diyalog gezinme)\n");
         printf("  gamepad_sticky: %d (1=pad olustuktan sonra kaldirilmaz — Unity hotplug cozumu)\n",
                g_cfg.gamepad_sticky);
         printf("  coklu-tus hakemligi: aktif (v1.0.7 — ayni hedefe birden fazla tus: biri birakinca digeri basili kalir)\n");

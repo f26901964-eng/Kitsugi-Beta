@@ -38,6 +38,53 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.9 — KULLANICI FİKRİ: "modül oyun dosyalarını okuyup pencereye göre karar versin" → araştırma + ikili D-pad
+
+**Kullanıcı fikri:** modül oyunun dosyalarını doğrudan algılasa, hangi
+pencerede hangi tuşun nasıl çalışacağına modül karar verse? "Benzeri veya
+daha iyisini araştırıp uygula, Android 13/MIUI 14/SukiSU ile tam uyumlu."
+
+**ARAŞTIRMA SONUCU (dürüst teknik cevap):**
+- Oyunun hangi ekranda olduğu (menü/oynanış/envanter) HİÇBİR dosyada
+  yazmaz; RAM'deki canlı durumdur. Google'ın resmî çözümü Unity Input SDK
+  1.1 "InputContext" (developer.android.com): aynı tuşun menü/oynanış
+  bağlamlarında farklı eylemi — bağlamı OYUN kendisi tetikler ("Triggering
+  context changes"), dış gözlemciye API yok. Unity New Input System
+  "Action Maps" de aynı: oyun menüye girince gameplay map'i kapatır, UI
+  map'i açar. İkisi de oyun GELİŞTİRİCİSİNİN uyguladığı mekanizmalar;
+  Dead Cells mobil (2020 portu) bunları kullanmıyor.
+- RAM okuma = oyun+sürüm başına tersine mühendislik; her oyun
+  güncellemesinde kırılır; "tam uyumlu" garanti edilemez → REDDEDİLDİ.
+- Ekran görüntüsü/OCR ile menü tespiti = ağır, kırılgı, gecikmeli → REDDEDİLDİ.
+- **DOĞRU MİMARİ ZATEN KURULU:** sanal gamepad = fiziksel kol soyutlaması.
+  Konsol standardı: oyun, butonlara her ekranda anlamını KENDİSİ verir
+  (A=oyunda zıpla/menüde onayla; B=takla/geri; START=duraklat/devam).
+  Kullanıcının istediği "pencereye göre tuş kararı"nı oyunun kendi bağlam
+  motoru veriyor — modülün dosya okumasına GEREK YOK. BT kol da aynı
+  şekilde çalışır; bu endüstri standardının ta kendisi.
+
+**UYGULANAN İYİLEŞTİRME — İKİLİ D-PAD (hat_sync):** pad'de HAT0X/0Y
+eksenleri v1.0.5'ten beri tanımlıydı ama hiç sürülmüyordu. Artık her
+stick_press/stick_release sonrası LX/LY'nin en üst sahibinin işaretinden
+HAT0X/0Y = ±1/0 yazılıyor. Kazanımlar: (1) yalnız D-pad okuyan oyun
+ekranları gezinir (wiki: Move = stick VEYA D-pad — aynı yön ikisi de
+basılı = çakışma yok); (2) Android InputReader HAT'ı DPAD_* tuş koduna
+çevirir → oyun paketi içinde açılan ANDROID diyalogları (FivePlay mod
+menüsü! izin popup'ları) oklar/WASD ile gezilir, BTN_SOUTH=BUTTON_A
+onaylar — klavye grab'lıyken bile; (3) GTA SA vb. diğer oyun menüleri.
+Kullanıcı fikrinin ruhuna en yakın SAĞLAM çözüm: aynı tuş, oyun
+ekranında analog+D-pad, Android penceresinde DPAD tuşu.
+
+**"Emin misin?" sorusunun dürüst cevabı (risk defteri):** Kod tarafı
+garantili: birim test 7/7, --check 94 eşleşme/0 bilinmeyen, kurulum
+simülasyonu, 0 uyarı derleme, profil zorla-güncelleme (v1.0.6), çoklu-tuş
+hakemliği (v1.0.7), menü tuşları (v1.0.8). Cihaz tarafı kalan riskler ve
+karşı önlemleri: (a) Unity'nin kolu ilk açılışta görmesi → sticky pad +
+oyunu TAM kapatıp açma; (b) BT fare modeli → v1.0.8 kanıt satırları
+(status.txt fare=, log "FARE olayi ALINDI") + mouse_device= elle bağlama;
+(c) bazı alt menülerde START davranışı → Shift/Backspace=B yedeği. Sorun
+çıkarsa log 5 dakikada hangi halkayı gösterir.
+
 ## v1.0.8 — MENÜ TUŞLARI (Enter=seç, geri=B) + fare teşhis kanıtları
 
 **Kullanıcı geri bildirimi (öfkeli, haklı kısımlar var):** "Enter tuşu seçmesi

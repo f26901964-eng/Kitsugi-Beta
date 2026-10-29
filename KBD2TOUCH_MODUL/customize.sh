@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # Kbd2Touch kurulum betigi (Magisk / KernelSU / SukiSU Ultra)
 ui_print "*******************************************"
-ui_print "  Kbd2Touch v1.0.8 - menu tuslari (Enter=sec, geri=B)     "
+ui_print "  Kbd2Touch v1.0.9 - ikili D-pad: her ekranda gezinme     "
 ui_print "*******************************************"
 
 KBD_DIR=/data/adb/kbd2touch

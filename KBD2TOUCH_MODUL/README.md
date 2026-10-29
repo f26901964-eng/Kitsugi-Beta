@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.8** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.9** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -60,6 +60,25 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 > Cihazında doğrulama: `cat /data/adb/kbd2touch/log.txt` → oyun açılınca
 > `on plandaki uygulama: com.playdigious.deadcells.mobile` +
 > `klavye ELE GECIRILDI` + `sanal gamepad OLUSTURULDU` satırlarını görmelisin.
+
+> **v1.0.9 notu ("modül oyunun dosyalarını okuyup pencereye göre tuş kararı
+> versin" fikri — araştırma sonucu ve uygulanan daha iyi çözüm):**
+> Oyunun hangi ekranda olduğu (menü/oynanış) HİÇBİR dosyada yazmaz — bu
+> bilgi oyunun RAM'indeki canlı durumdur. Google'ın resmî Unity Input
+> SDK'sındaki "InputContext" ve Unity'nin "Action Map" mekanizmalarında
+> bile bağlamı OYUNUN KENDİSİ bildirir/yönetir; dışarıdan okunmaz (RAM
+> okumak = oyun-oyun, sürüm-sürüm tersine mühendislik, her güncellemede
+> kırılır). **İyi haber: sanal gamepad tam olarak bu işi yapar** — konsol
+> standardı gereği oyun, A/B/START/oklara her ekranda ANLAMINI KENDİSİ
+> verir (A: oyunda zıpla, menüde onayla). Modül fiziksel kol gibi davranır,
+> oyunun kendi bağlam motoru bizim için çalışır.
+> **Üstüne v1.0.9 iyileştirmesi — İKİLİ D-PAD:** oklar/WASD artık aynı anda
+> hem sol analog HEM D-pad (HAT0X/0Y) basıyor. Kazanç: ① yalnız D-pad
+> okuyan menü/ekranlar garanti gezinir (Dead Cells wiki: "Move = stick
+> VEYA D-pad"), ② oyun paketinin içinde açılan ANDROID diyalogları
+> (FivePlay mod menüsü, izin popup'ları) HAT eksenlerini DPAD tuş kodu
+> olarak görür → klavye ele geçirilmişken bile oklarla gezinilir,
+> A/Enter onaylar, ③ diğer oyunların (GTA SA vb.) menüleri sağlamlaşır.
 
 > **v1.0.8 notu (menü tuşları — kullanıcı geri bildirimi):**
 > ① **ENTER / numpad ENTER = seç/onayla (A)** — PC'de menüler Enter/Space
@@ -137,7 +156,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.8.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.9.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
