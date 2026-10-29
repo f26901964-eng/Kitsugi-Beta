@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.1** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.2** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -58,7 +58,8 @@ KBD2TOUCH_MODUL/
 ├── post-fs-data.sh         ← her açılışta: binary + config hazırlığı + MIUI prop
 ├── service.sh              ← boot sonrası: ekran boyutunu algıla, daemon'u başlat
 ├── uninstall.sh            ← modül kaldırılırken
-├── install.sh              ← ⭐ MANUEL KURULUM (zip flaşlamak istemiyorsan, en sağlam yol)
+├── install.sh              ← ⭐ MANUEL KURULUM — **flaş zip'inde YOK!** (KSU legacy yolunu
+│                              tetikler; tam paket zip'inde ve Drive'da durur)
 ├── config.ini              ← ana yapılandırma (şablon)
 ├── profiles/
 │   ├── com.cmplay.dancingline.ini      ← Dancing Line (Space = dokun, oklar = menü/bölüm)
@@ -72,7 +73,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.1.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.2.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -110,7 +111,7 @@ KBD2TOUCH_MODUL/
 ## 3) Kurulum
 
 ### Yöntem A — Zip flaşlama (önerilen)
-1. `dist/kbd2touch-v1.0.1.zip` dosyasını tablete kopyala (İndirilenler'e).
+1. `dist/kbd2touch-v1.0.2.zip` dosyasını tablete kopyala (İndirilenler'e).
 2. **SukiSU Ultra / KernelSU yöneticisi** → Modüller → **Depodan yükle** → zip'i seç.
    (Magisk kullanıyorsan: Magisk → Modüller → Depodan yükle.)
 3. **Yeniden başlat.**
@@ -123,6 +124,8 @@ KBD2TOUCH_MODUL/
 Zip'i ve bu klasörü tabletin aynı yerine çıkart, sonra root kabukta:
 
 ```bash
+# install.sh flaslama zip'inin icinde DEGIL (SukiSU legacy kurulum yolunu tetikler);
+# tam paket zip'inden veya Drive'dan al:
 su -c "sh /sdcard/Download/kbd2touch/install.sh /sdcard/Download/kbd2touch"
 ```
 

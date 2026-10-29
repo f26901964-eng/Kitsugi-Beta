@@ -9,7 +9,10 @@ rm -f "$OUT"
 
 STAGE=$(mktemp -d)
 mkdir -p "$STAGE/system/bin" "$STAGE/profiles" "$STAGE/META-INF/com/google/android"
-cp module.prop customize.sh post-fs-data.sh service.sh uninstall.sh config.ini install.sh "$STAGE/"
+# DIKKAT: install.sh BURADA KOPIALANMAZ! KernelSU/SukiSU zip'te install.sh gorurse
+# modulu "legacy script" sanip sadece 3 dosyayi /dev/tmp'ye cozer ve kurulum patlar
+# (v1.0.1'de yasanan hata). Manuel kurulum scripti tam pakette / Drive'da kalir.
+cp module.prop customize.sh post-fs-data.sh service.sh uninstall.sh config.ini "$STAGE/"
 cp profiles/*.ini "$STAGE/profiles/"
 cp system/bin/kbd2touch "$STAGE/system/bin/kbd2touch"
 chmod 755 "$STAGE/system/bin/kbd2touch" "$STAGE"/*.sh

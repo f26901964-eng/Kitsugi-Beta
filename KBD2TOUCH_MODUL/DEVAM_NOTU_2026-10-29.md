@@ -38,6 +38,19 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.2 — GERÇEK CİHAZ HATASI (kullanıcı flaş denemesinde patladı, kök neden bulundu)
+- Kullanıcı SukiSU Ultra'dan flaşladı → "Kaynak: /dev/tmp / HATA: /dev/tmp/system/bin/kbd2touch yok /
+  Failed to install module script (kod 1)".
+- **Kök neden:** SukiSU ksud `installer.sh` → `is_legacy_script()`: zip kökünde `install.sh`
+  varsa modül LEGACY sayılır; sadece `module.prop install.sh uninstall.sh common/*` /dev/tmp'ye
+  açılır ve install.sh SOURCE edilir (system/ hiç açılmaz!) → guard'ımız haklı olarak abort etti.
+  Kanıt: SukiSU-Ultra/userspace/ksud/src/installer.sh (GitHub'dan okundu) + eski zip ile
+  `unzip -l zip install.sh | grep -q install.sh` = TRUE.
+- **Çözüm:** pack.sh artık install.sh'i flash zip'ine KOYMUYOR → is_legacy_script=FALSE →
+  normal akış: tüm zip (META-INF hariç) $MODPATH'a açılır, customize.sh Magisk-uyumlu
+  ortamda source edilir. install.sh manuel kurulum için tam pakette/Drive'da kaldı.
+- v1.0.2 = v1.0.1 + bu tek ama kritik değişiklik (kod aynı, paket içeriği farklı).
+
 ## v1.0.1 kritik kurulum düzeltmeleri (3. tur — SukiSU install simülasyonunda bulundu)
 - **(a) pkill intihar hatası**: service.sh/uninstall.sh/install.sh içindeki `pkill -f kbd2touch`,
   betiğin KENDİ cmdline'ını da eşleştiriyordu (`sh /data/adb/modules/kbd2touch/service.sh`)
