@@ -1,7 +1,7 @@
 #!/system/bin/sh
 # Kbd2Touch kurulum betigi (Magisk / KernelSU / SukiSU Ultra)
 ui_print "*******************************************"
-ui_print "  Kbd2Touch v1.0.6 - menu gezinme + profil guncelleme     "
+ui_print "  Kbd2Touch v1.0.7 - coklu-tus + fare + yazma korumasi    "
 ui_print "*******************************************"
 
 KBD_DIR=/data/adb/kbd2touch

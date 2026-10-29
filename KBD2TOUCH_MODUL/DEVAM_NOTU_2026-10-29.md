@@ -38,6 +38,60 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.7 — ÇOKLU TUŞ KİLİDİ + fare yeniden bağlanma + yazma koruması + tam PC eşitliği
+
+**Kullanıcı geri bildirimi (4 şikâyet):** ① "aynı anda 2 tuşa basınca
+kilitleniyor", ② "fareyi algılamıyor (Dead Cells)", ③ "tuşların yeri hep
+yanlış — PC'de hangisiyse fare dahil birebir öyle olmalı", ④ "modül sadece
+seçili programlara etki etmeli, yoksa klavyeyi yazı için kullanamıyoruz".
+NOT: Kullanıcı büyük olasılıkla v1.0.5'i flaşladı; v1.0.6'nın profil-güncelleme
+düzeltmesi cihazına HİÇ ulaşmadı (v1.0.6 mesajı kesintiye uğradı) → "tuşların
+yeri yanlış" şikâyetinin ana kaynağı cihazda hâlâ duran v1.0.2 profili.
+
+**KÖK NEDEN 1 (çoklu tuş):** do_action_press/release hedefleri SAHİPLİK
+SAYMADAN yazıyordu. Space+W → BTN_SOUTH: EV_KEY dedupe + release'lerden biri
+butonu düşürüyordu. A/D + ←/→ → LX: bırakılan tuş ekseni 0'lıyordu (diğeri
+basılıyken). Sonuç: kombinasyonlar (S+Space düşme, Shift+Space hava taklası)
+ve hızlı tuş geçişleri "kilitlenme" hissi veriyordu.
+**ÇÖZÜM:** g_padbtn_refs[]/g_outkey_refs[] referans sayaçları + IDX_TRIG_LT/RT;
+eksenler için g_axis_own[4][8] sahiplik listesi (son basan üstte; release'te
+alttaki devralır). Bind.ref_held bayrağı çift-release'i ve pending/keyup çakışmasını
+engeller. release_all → arbiter_reset + pad_center_all. 7 senaryoluk birim test
+(/tmp/hakem_test.c, .c'yi #define main hilesiyle include eder) 7/7 GEÇTİ.
+
+**KÖK NEDEN 2 (fare):** find_mouse yalnızca açılışta ve ÖN PLAN UYGULAMASI
+DEĞİŞİNCE çağrılıyordu; BT fare oyunda uyuyup yeniden bağlanınca (sık olur)
+bir daha bulunamıyordu. ÇÖZÜM: ana döngüde g_mouse_fd<0 iken 2 sn'de bir
+yeniden tarama + bulununca grab durumuyla senkron. Ayrıca parse_keyname'e
+BTN_SIDE/BTN_EXTRA adları eklendi (FARE_YAN1/FARE_YAN2/SOL_YAN/SAG_YAN/
+MOUSE4/MOUSE5, BTN_FORWARD) — wiki'nin "Left/Right Side Mouse Button" beceri
+tuşları artık bağlanabilir.
+
+**KÖK NEDEN 3 (yazma koruması):** should_grab() `g_active_profile[0] || ...`
+içeriyordu → F10 ile elle profil seçiliyken klavye HER uygulamada grab
+ediliyordu (F10 yanlışlıkla basılı kalırsa sistem genelinde yazma ölür).
+ÇÖZÜM: grab_mode=1'de grab YALNIZ app_has_profile(g_current_app); uygulama
+değişiminde manuel profil otomatiğe döner (loglanır) + release_all çağrılır
+(basılı tuş/eksen yeni uygulamaya taşınmaz).
+
+**KÖK NEDEN 4 (hold):** deadcells profilindeki gp_button bind'larında hold
+yoktu → her basış 60 ms'lik pending-release blip'ine dönüşüyordu (R basılı
+tut = sırt çantası boşalt ÇALIŞMAZDI). ÇÖZÜM: tüm buton bind'larına hold=1.
+
+**PC EŞİTLİĞİ (wiki.gg + fandom + Reddit doğrulandı):** Dead Cells PC'de fare
+hareketiyle nişan YOK ("there is no aiming, the only thing the mouse really
+does is attack") → mouse_aim GEREKMİYOR (v1.0.6 önerisi geri çekildi; fare
+hareketi oyunda bilerek etkisiz = PC ile aynı). Profil v1.0.7: J/K uydurma
+bind'ları kaldırıldı; X→BTN_X, Y→BTN_Y (menüde özel eylem 1/2 = PC ile aynı,
+oyun içinde yan etki: X/Y butonları zaten silah — belgelendi); T→START
+(fandom Pause bind 2); FARE_YAN1→LT, FARE_YAN2→RT; ↑=LY yukarı (menü+tırmanma)
+korundu (bağlam ayırt edilemediği için bilinçli seçim, zıplama Space/W).
+32 bind. Bonus: g_profile_files 384→640 (format-truncation uyarısı giderildi).
+
+**Doğrulamalar:** gcc -O2 -Wall -Wextra 0 uyarı; ARM64 zig 0.17.0 ELF 0xb7;
+hakem birim testleri 7/7; --check 90 eşleşme/0 bilinmeyen; yükseltme
+simülasyonu (bayat profil güncellenir + .bak + kullanıcı config korunur).
+
 ## v1.0.6 — PROFİL GÜNCELLEME TUZAĞI + menü gezinme (kullanıcı sorusuyla bulundu)
 
 **Kullanıcı sorusu:** "Dead Cells ANA MENÜSÜNDE de PC'deki gibi ok tuşları

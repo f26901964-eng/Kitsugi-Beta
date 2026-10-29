@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.6** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.7** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -61,6 +61,26 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 > `on plandaki uygulama: com.playdigious.deadcells.mobile` +
 > `klavye ELE GECIRILDI` + `sanal gamepad OLUSTURULDU` satırlarını görmelisin.
 
+> **v1.0.7 notu (kullanıcı geri bildirimi — 4 kök düzeltme):**
+> ① **ÇOKLU TUŞ KİLİDİ:** Aynı hedefi paylaşan iki tuş (Space+W → A,
+> Shift+Ctrl → B, A/D+oklar → LX ekseni, Q+3+fare yanı → LT) birbirini
+> düşürüyordu: biri bırakılınca diğeri HÂLÂ basılı olsa bile hedef
+> sıfırlanıyordu → tuşlar "kilitleniyor", S+Space (platformdan düşme) ve
+> havada takla gibi kombinasyonlar çalışmıyordu. Artık buton/trigger'lar
+> referans sayacıyla, eksenler sahiplik listesiyle yönetiliyor (son basan
+> kazanır; bırakılınca sıradaki devralır). Birim testlerle doğrulandı (7/7).
+> ② **FARE:** BT fare uyuyup yeniden bağlanınca yalnızca UYGULAMA DEĞİŞİMİNDE
+> aranıyor, aynı oyunda kalınca bir daha bulunamıyordu → "fareyi algılamıyor".
+> Artık 2 sn'de bir otomatik yeniden taranır. Fare yan tuşları eklendi
+> (FARE_YAN1/FARE_YAN2 → Dead Cells'te LT/RT beceriler, PC'deki gibi).
+> ③ **YAZMA KORUMASI:** F10 (manuel profil) bir kere seçili kalınca klavye
+> HER YERDE ele geçiriliyordu → oyun dışında yazı yazılamıyordu. Artık grab
+> YALNIZCA profili olan uygulama ön plandayken; F10 seçimi uygulama
+> değişiminde otomatik modda döner.
+> ④ **BASILI TUTMA (hold=1):** Tüm Dead Cells butonları artık tuş basılı
+> tutuldukça basılı kalır (özellikle R basılı = sırt çantası boşalt, PC'deki
+> gibi). Eskiden tuşlar 60 ms'lik kısa basıma dönüştürülüyordu.
+
 > **v1.0.5 notu (gerçek cihaz testi sonrası):** İki kritik oyun-kolu hatası
 > düzeltildi: ① Sanal pad'in analog eksenleri `0..32767` tanımlanıyordu
 > (`minimum` hiç yazılmamıştı) → kernel `-32767`'yi `0`'a kırpıyor, Android
@@ -99,7 +119,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.6.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.7.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -394,14 +414,14 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 | **S** veya **↓** | sol analog aşağı | eğil; **S+Space = platformdan düş** (oyundaki "aşağı+A") |
 | **I** | sol analog yukarı | asma/zincir tırmanma |
 | **Shift** veya **Ctrl** | B | takla (dodge-roll) |
-| **1 / J / sol tık** | X | ana silah |
-| **2 / K / sağ tık** | Y | ikinci silah |
-| **Q** veya **3** | LT | sol beceri (el bombası vb.) |
-| **E** veya **4** | RT | sağ beceri (taret vb.) |
-| **R** | RB | kullan / etkileş (kapı, sandık, NPC) |
+| **1 / sol tık / X** | X | ana silah (X tuşu menülerde = özel eylem 1: silah değiştir) |
+| **2 / sağ tık / Y** | Y | ikinci silah (Y tuşu menülerde = özel eylem 2: beceri değiştir) |
+| **Q / 3 / fare yan 1** | LT | sol beceri (el bombası vb.) |
+| **E / 4 / fare yan 2** | RT | sağ beceri (taret vb.) |
+| **R** (basılı tut!) | RB | kullan / etkileş — **basılı: sırt çantası boşalt** (hold=1) |
 | **F / H / orta tık** | LB | iyileştir (iksir) |
 | **Tab** | SELECT | harita |
-| **Esc** | START | duraklat |
+| **Esc** veya **T** | START | duraklat |
 
 > 📋 **MENÜLERDE (ana menü, duraklat, koleksiyoncu, sandık/upgrade):**
 > ↑/↓/←/→ = gezin (dört yön tam), **Space/W = onayla** (A), **Shift/Ctrl = geri** (B),
@@ -409,10 +429,14 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 > ok tuşlarıyla; tek fark: PC'de ↑ oyun içinde de zıplatır, burada ↑ menü
 > gezinmeye ayrılmış durumda (zıplama Space/W'de — PC'nin birincil tuşları).
 >
-> 🏹 **Yay nişanı:** kol modunda sağ analogla alınır; bu profil okları PC
-> alışkanlığıyla harekete verdiği için sağ analoga tuş atamaz —
-> Dead Cells'in **kontrolcü nişan yardımı (aim assist)** bunu büyük ölçüde
-> karşılar. İstersen ileride `mouse_aim` (fare hareketi → sağ analog) eklenir.
+> 🖱️ **FARE — PC ile birebir aynı rol:** Dead Cells PC'de fare HAREKETİyle
+> nişan alınmaz (oyunda otomatik nişan yardımı vardır; fare yalnızca tıklar —
+> wiki ve oyuncu raporlarıyla doğrulandı). Bu profilde de aynı: sol tık = ana
+> silah, sağ tık = ikinci silah, orta tık = iyileştir, yan tuşlar = beceriler;
+> fare hareketi oyunda bilinçli olarak hiçbir şey yapmaz (PC eşitliği).
+> Oyun dışında imleç normal çalışır (fare yalnızca oyun açıkken yakalanır).
+> J/K gibi PC'de olmayan uydurma bind'lar v1.0.7'de KALDIRILDI — tablo artık
+> birebir deadcells.wiki.gg/Controls "Keyboard/Mouse" sütunları.
 >
 > 🔄 **v1.0.6 profil güncelleme düzeltmesi:** Eski sürümlerde flaşlama,
 > CİHAZDA ZATEN VAR olan profillerin ÜZERİNE YAZMIYORDU ("yalnızca yoksa

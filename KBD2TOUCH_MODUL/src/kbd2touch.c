@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.6"
+#define VERSION        "1.0.7"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024
@@ -155,11 +155,18 @@ static int parse_keyname(const char *s) {
     }
     if (strncmp(p, "BTN_", 4) == 0 || !strcmp(p, "SOL_TIK") || !strcmp(p, "SAG_TIK") ||
         !strcmp(p, "ORTA_TIK") || !strcmp(p, "TEKERLEK_UP") || !strcmp(p, "TEKERLEK_DOWN") ||
-        !strcmp(p, "WHEEL_UP") || !strcmp(p, "WHEEL_DOWN")) {
+        !strcmp(p, "WHEEL_UP") || !strcmp(p, "WHEEL_DOWN") ||
+        !strcmp(p, "FARE_YAN1") || !strcmp(p, "FARE_YAN2") ||
+        !strcmp(p, "SOL_YAN") || !strcmp(p, "SAG_YAN") ||
+        !strcmp(p, "MOUSE4") || !strcmp(p, "MOUSE5")) {
         /* BTN_MOUSE / BTN_LEFT / BTN_RIGHT / BTN_MIDDLE + Turkce takma adlar */
         if (!strcmp(p, "BTN_LEFT") || !strcmp(p, "BTN_MOUSE") || !strcmp(p, "SOL_TIK")) return BTN_LEFT;
         if (!strcmp(p, "BTN_RIGHT") || !strcmp(p, "SAG_TIK")) return BTN_RIGHT;
         if (!strcmp(p, "BTN_MIDDLE") || !strcmp(p, "ORTA_TIK")) return BTN_MIDDLE;
+        /* v1.0.7: fare YAN tuslari (Dead Cells PC: sol yan = Q becerisi, sag yan = E) */
+        if (!strcmp(p, "BTN_SIDE") || !strcmp(p, "FARE_YAN1") || !strcmp(p, "SOL_YAN") || !strcmp(p, "MOUSE4")) return BTN_SIDE;
+        if (!strcmp(p, "BTN_EXTRA") || !strcmp(p, "FARE_YAN2") || !strcmp(p, "SAG_YAN") || !strcmp(p, "MOUSE5")) return BTN_EXTRA;
+        if (!strcmp(p, "BTN_FORWARD")) return BTN_FORWARD;
         if (!strcmp(p, "TEKERLEK_UP") || !strcmp(p, "WHEEL_UP")) return KEY_WHEEL_UP;
         if (!strcmp(p, "TEKERLEK_DOWN") || !strcmp(p, "WHEEL_DOWN")) return KEY_WHEEL_DOWN;
     }
@@ -196,6 +203,7 @@ typedef struct {
 
     /* calisma zamani durumu */
     int   pressed;          /* su an tetikleyici basili mi              */
+    int   ref_held;         /* v1.0.7: bu bind hedefinde sayac sahibi mi */
     int   slot;             /* ayrilmis touch slot (-1 = yok)           */
     int   curx, cury;       /* su anki parmak konumu                    */
     int   swiping;
@@ -249,7 +257,7 @@ static Cfg g_cfg = {
 
 static const char *g_cfgpath = "/data/adb/kbd2touch/config.ini";
 static char g_profiledir[256] = "/data/adb/kbd2touch/profiles";
-static char g_profile_files[PROFILE_SLOTS][384];
+static char g_profile_files[PROFILE_SLOTS][640];
 static int  g_profile_count = 0, g_profile_idx = 0;
 static char g_current_app[128] = "";
 static char g_active_profile[64] = "";   /* F10 ile elle secilen profil (bos = otomatik) */
@@ -439,6 +447,8 @@ static const char *keyname(int code) {
     if (code == BTN_LEFT) return "SOL_TIK";
     if (code == BTN_RIGHT) return "SAG_TIK";
     if (code == BTN_MIDDLE) return "ORTA_TIK";
+    if (code == BTN_SIDE) return "FARE_YAN1";
+    if (code == BTN_EXTRA) return "FARE_YAN2";
     if (code == KEY_WHEEL_UP) return "TEKERLEK_UP";
     if (code == KEY_WHEEL_DOWN) return "TEKERLEK_DOWN";
     snprintf(b, sizeof b, "%d", code);
@@ -819,6 +829,8 @@ static void scan_profiles(void) {
 }
 
 static void ensure_pad_for_context(void);   /* ileri bildirim (tanim asagida) */
+static void pad_center_all(void);           /* ileri bildirim (tanim asagida) */
+static void arbiter_reset(void);            /* ileri bildirim (tanim asagida) */
 
 static void reload_all(void) {
     /* aktif dokunuslari birak */
@@ -826,6 +838,7 @@ static void reload_all(void) {
         if (g_binds[i].slot >= 0 && g_touch_fd >= 0) touch_up(g_binds[i].slot);
     g_nbinds = 0;
     memset(g_binds, 0, sizeof g_binds);
+    arbiter_reset();
 
     if (load_config(g_cfgpath, 0) != 0)
         logmsg("UYARI: %s okunamadi, varsayilanlar kullaniliyor", g_cfgpath);
@@ -1013,8 +1026,14 @@ static int app_has_profile(const char *app) {
 static int should_grab(void) {
     if (!g_enabled || !g_cfg.grab_keyboard) return 0;
     if (g_cfg.grab_mode == 2) return 1;
+    /* v1.0.7 KOK DUZELTME ("klavyeyi yazı yazmak icin kullanamiyoruz"):
+     * grab ARTIK YALNIZCA profili olan uygulama on plandayken. Eski surumde
+     * F10 ile elle secilen profil (g_active_profile) Her YERDE grab yaptiriyordu;
+     * F10 bir kere yanlislikla basili kalirsa klavye tum sistemde kilitleniyordu.
+     * Elle profil artik sadece ESLEMEYI degistirir, grab'i genislemez;
+     * uygulama degisince de otomatiğe doner (asagida). */
     if (g_cfg.grab_mode == 1)
-        return g_active_profile[0] || app_has_profile(g_current_app);
+        return app_has_profile(g_current_app);
     return 0;
 }
 
@@ -1094,15 +1113,133 @@ static long ms_now(void) {
     return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-typedef struct { int slot; long until; } PendingUp;
+typedef struct { int slot; long until; Bind *b; } PendingUp;
 static PendingUp g_pending[MAX_BINDS];
 static int g_pending_n = 0;
 
-static void pending_add(int slot, long until) {
+static void pending_add(int slot, long until, Bind *b) {
     if (g_pending_n >= MAX_BINDS) return;
     g_pending[g_pending_n].slot = slot;
     g_pending[g_pending_n].until = until;
+    g_pending[g_pending_n].b = b;
     g_pending_n++;
+}
+
+/* ------------------------------------------------------------------ */
+/* v1.0.7 COKLU-TUS HAKEMLIGI                                          */
+/* KOK NEDEN ("ayni anda 2 tusa basinca kilitleniyor"): ayni hedefe    */
+/* birden fazla tus bagli (Space+W -> A butonu, Shift+Ctrl -> B,       */
+/* A/D + oklar -> LX ekseni, Q+3+fareyani -> LT...). Eski kod hedefi   */
+/* SAHIPLIK SAYMADAN yaziyordu: iki tus basiliyken biri birakilinca    */
+/* digeri HALA BASILI olsa bile buton/eksen sifirlaniyordu -> tus      */
+/* "oluyor", yeniden basmak gerekiyordu; kombinasyonlar (S+Space ile   */
+/* platformdan dusme, havada Shift+Space) calismiyordu.                */
+/* COZUM: buton/trigger/iletilen-tus icin referans sayaci; eksenler    */
+/* icin sahiplik listesi (son basan kazanir, birakilinca alttaki devir).*/
+/* ------------------------------------------------------------------ */
+#define REFS_N      (KEY_MAX + 4)
+#define IDX_TRIG_LT (KEY_MAX + 1)
+#define IDX_TRIG_RT (KEY_MAX + 2)
+static int g_padbtn_refs[REFS_N];
+static int g_outkey_refs[REFS_N];
+
+typedef struct { Bind *b; int val; } AxisOwner;
+#define AXIS_OWNERS 8
+static AxisOwner g_axis_own[4][AXIS_OWNERS];
+static int g_axis_n[4];
+
+static int axis_code(int idx) {
+    return idx == 0 ? ABS_X : idx == 1 ? ABS_Y : idx == 2 ? ABS_RX : ABS_RY;
+}
+static void axis_emit(int idx) {
+    if (g_pad_fd < 0) return;
+    int v = g_axis_n[idx] > 0 ? g_axis_own[idx][g_axis_n[idx] - 1].val : 0;
+    ev(g_pad_fd, EV_ABS, axis_code(idx), v);
+}
+static void axis_own_set(Bind *b, int idx, int val) {
+    for (int i = 0; i < g_axis_n[idx]; i++)
+        if (g_axis_own[idx][i].b == b) { g_axis_own[idx][i].val = val; return; }
+    if (g_axis_n[idx] < AXIS_OWNERS) {
+        g_axis_own[idx][g_axis_n[idx]].b = b;
+        g_axis_own[idx][g_axis_n[idx]].val = val;
+        g_axis_n[idx]++;
+    }
+}
+static void axis_own_clear(Bind *b, int idx) {
+    int w = 0;
+    for (int i = 0; i < g_axis_n[idx]; i++)
+        if (g_axis_own[idx][i].b != b) g_axis_own[idx][w++] = g_axis_own[idx][i];
+    g_axis_n[idx] = w;
+}
+static int gpbtn_idx(int gp_button) {
+    return gp_button == -100 ? IDX_TRIG_LT : gp_button == -101 ? IDX_TRIG_RT : gp_button;
+}
+static void padbtn_press(Bind *b, int idx) {
+    if (b->ref_held) return;
+    b->ref_held = 1;
+    int was = g_padbtn_refs[idx]++;
+    if (was == 0 && g_pad_fd >= 0) {
+        if (idx == IDX_TRIG_LT) ev(g_pad_fd, EV_ABS, ABS_Z, 255);
+        else if (idx == IDX_TRIG_RT) ev(g_pad_fd, EV_ABS, ABS_RZ, 255);
+        else ev(g_pad_fd, EV_KEY, idx, 1);
+        syn(g_pad_fd);
+    }
+}
+static void padbtn_release(Bind *b, int idx) {
+    if (!b->ref_held) return;
+    b->ref_held = 0;
+    if (g_padbtn_refs[idx] > 0) g_padbtn_refs[idx]--;
+    if (g_padbtn_refs[idx] == 0 && g_pad_fd >= 0) {
+        if (idx == IDX_TRIG_LT) ev(g_pad_fd, EV_ABS, ABS_Z, 0);
+        else if (idx == IDX_TRIG_RT) ev(g_pad_fd, EV_ABS, ABS_RZ, 0);
+        else ev(g_pad_fd, EV_KEY, idx, 0);
+        syn(g_pad_fd);
+    }
+}
+static void outkey_press(Bind *b, int k) {
+    if (b->ref_held) return;
+    b->ref_held = 1;
+    int was = g_outkey_refs[k]++;
+    if (was == 0 && g_key_fd >= 0) { ev(g_key_fd, EV_KEY, k, 1); syn(g_key_fd); }
+}
+static void outkey_release(Bind *b, int k) {
+    if (!b->ref_held) return;
+    b->ref_held = 0;
+    if (g_outkey_refs[k] > 0) g_outkey_refs[k]--;
+    if (g_outkey_refs[k] == 0 && g_key_fd >= 0) { ev(g_key_fd, EV_KEY, k, 0); syn(g_key_fd); }
+}
+static void stick_axes(Bind *b, int *i1, int *v1, int *i2, int *v2) {
+    *i2 = -1; *v2 = 0;
+    int ax = b->gp_axis;
+    if (b->gp_x && b->gp_y) {           /* tek tus iki ekseni birden surer (capraz) */
+        if (ax == 2 || ax == 3) { *i1 = 2; *v1 = b->gp_x; *i2 = 3; *v2 = b->gp_y; }
+        else                    { *i1 = 0; *v1 = b->gp_x; *i2 = 1; *v2 = b->gp_y; }
+    } else if (ax == 0 || ax == 2) { *i1 = ax; *v1 = b->gp_x; }
+    else                           { *i1 = ax; *v1 = b->gp_y; }
+}
+static void stick_press(Bind *b) {
+    int i1, v1, i2, v2; stick_axes(b, &i1, &v1, &i2, &v2);
+    axis_own_set(b, i1, v1);
+    if (i2 >= 0) axis_own_set(b, i2, v2);
+    axis_emit(i1);
+    if (i2 >= 0) axis_emit(i2);
+    if (g_pad_fd >= 0) syn(g_pad_fd);
+    b->ref_held = 1;
+}
+static void stick_release(Bind *b) {
+    int i1, v1, i2, v2; stick_axes(b, &i1, &v1, &i2, &v2);
+    axis_own_clear(b, i1);
+    if (i2 >= 0) axis_own_clear(b, i2);
+    axis_emit(i1);
+    if (i2 >= 0) axis_emit(i2);
+    if (g_pad_fd >= 0) syn(g_pad_fd);
+    b->ref_held = 0;
+}
+static void arbiter_reset(void) {
+    memset(g_padbtn_refs, 0, sizeof g_padbtn_refs);
+    memset(g_outkey_refs, 0, sizeof g_outkey_refs);
+    memset(g_axis_n, 0, sizeof g_axis_n);
+    for (int i = 0; i < g_nbinds; i++) g_binds[i].ref_held = 0;
 }
 
 static void do_action_press(Bind *b) {
@@ -1119,7 +1256,7 @@ static void do_action_press(Bind *b) {
             if (b->hold) {
                 /* tus birakilana kadar basili */
             } else {
-                pending_add(slot, ms_now() + dur);
+                pending_add(slot, ms_now() + dur, NULL);
                 b->slot = -1;   /* slot pending tarafindan birakilacak */
             }
             logv("TAP slot=%d ekran(%d,%d)->touch(%d,%d) dur=%dms hold=%d",
@@ -1143,33 +1280,22 @@ static void do_action_press(Bind *b) {
         case ACT_KEY: {
             if (g_key_fd < 0) { logv("sanal klavye yok, KEY eylemi atlandi"); return; }
             int k = b->out_key > 0 ? b->out_key : b->keycode;
-            ev(g_key_fd, EV_KEY, k, 1);
-            syn(g_key_fd);
-            if (!b->hold) pending_add(-1000 - k, ms_now() + (b->out_hold_ms > 0 ? b->out_hold_ms : 40));
+            outkey_press(b, k);
+            if (!b->hold) pending_add(-1000 - k, ms_now() + (b->out_hold_ms > 0 ? b->out_hold_ms : 40), b);
             logv("KEY %d basildi", k);
             break;
         }
         case ACT_GP_BUTTON: {
             if (g_pad_fd < 0) return;
-            if (b->gp_button == -100) { ev(g_pad_fd, EV_ABS, ABS_Z, 255); syn(g_pad_fd); return; }
-            if (b->gp_button == -101) { ev(g_pad_fd, EV_ABS, ABS_RZ, 255); syn(g_pad_fd); return; }
-            ev(g_pad_fd, EV_KEY, b->gp_button, 1);
-            syn(g_pad_fd);
+            padbtn_press(b, gpbtn_idx(b->gp_button));
             if (!b->hold && b->gp_button >= 0)
-                pending_add(-2000 - b->gp_button, ms_now() + (b->duration_ms >= 0 ? b->duration_ms : 60));
+                pending_add(-2000 - b->gp_button, ms_now() + (b->duration_ms >= 0 ? b->duration_ms : 60), b);
             logv("GAMEPAD buton %d basildi", b->gp_button);
             break;
         }
         case ACT_GP_STICK: {
             if (g_pad_fd < 0) return;
-            int ax = b->gp_axis == 0 ? ABS_X : b->gp_axis == 1 ? ABS_Y :
-                     b->gp_axis == 2 ? ABS_RX : ABS_RY;
-            ev(g_pad_fd, EV_ABS, ax, b->gp_axis == 0 || b->gp_axis == 2 ? b->gp_x : b->gp_y);
-            if (b->gp_x && b->gp_y) {
-                int ax2 = b->gp_axis == 0 ? ABS_Y : b->gp_axis == 2 ? ABS_RY : ABS_X;
-                ev(g_pad_fd, EV_ABS, ax2, b->gp_axis == 0 || b->gp_axis == 2 ? b->gp_y : b->gp_x);
-            }
-            syn(g_pad_fd);
+            stick_press(b);   /* v1.0.7: sahiplikli eksen yonetimi */
             logv("GAMEPAD ekseni ayarlandi");
             break;
         }
@@ -1188,29 +1314,15 @@ static void do_action_release(Bind *b) {
             break;
         case ACT_KEY: {
             int k = b->out_key > 0 ? b->out_key : b->keycode;
-            if (g_key_fd >= 0) { ev(g_key_fd, EV_KEY, k, 0); syn(g_key_fd); }
+            outkey_release(b, k);
             break;
         }
         case ACT_GP_BUTTON:
-            if (g_pad_fd >= 0) {
-                if (b->gp_button == -100) { ev(g_pad_fd, EV_ABS, ABS_Z, 0); }
-                else if (b->gp_button == -101) { ev(g_pad_fd, EV_ABS, ABS_RZ, 0); }
-                else ev(g_pad_fd, EV_KEY, b->gp_button, 0);
-                syn(g_pad_fd);
-            }
+            padbtn_release(b, gpbtn_idx(b->gp_button));
             break;
-        case ACT_GP_STICK: {
-            if (g_pad_fd < 0) break;
-            int ax = b->gp_axis == 0 ? ABS_X : b->gp_axis == 1 ? ABS_Y :
-                     b->gp_axis == 2 ? ABS_RX : ABS_RY;
-            ev(g_pad_fd, EV_ABS, ax, 0);
-            if (b->gp_x && b->gp_y) {
-                int ax2 = b->gp_axis == 0 ? ABS_Y : b->gp_axis == 2 ? ABS_RY : ABS_X;
-                ev(g_pad_fd, EV_ABS, ax2, 0);
-            }
-            syn(g_pad_fd);
+        case ACT_GP_STICK:
+            stick_release(b);
             break;
-        }
         default: break;
     }
 }
@@ -1241,6 +1353,11 @@ static void update_pending(void) {
         if (p->until <= now) {
             if (p->slot >= 0) {
                 if (g_touch_fd >= 0) touch_up(p->slot);
+            } else if (p->b && p->b->action == ACT_GP_BUTTON) {
+                padbtn_release(p->b, gpbtn_idx(p->b->gp_button));   /* sayaclı: digeri basiliysa dusmez */
+            } else if (p->b && p->b->action == ACT_KEY) {
+                int k = p->b->out_key > 0 ? p->b->out_key : p->b->keycode;
+                outkey_release(p->b, k);
             } else if (p->slot <= -2000) {
                 int btn = -2000 - p->slot;
                 if (g_pad_fd >= 0) { ev(g_pad_fd, EV_KEY, btn, 0); syn(g_pad_fd); }
@@ -1271,6 +1388,7 @@ static void release_all(void) {
     for (int i = 0; i < g_nbinds; i++) {
         Bind *b = &g_binds[i];
         if (b->slot >= 0 || b->swiping) do_action_release(b);
+        if (b->ref_held) do_action_release(b);   /* v1.0.7: gp buton/eksen/tus hedeflerini birak */
         b->pressed = 0;
         b->repeat_last_ms = 0;
     }
@@ -1285,6 +1403,8 @@ static void release_all(void) {
         ev(g_touch_fd, EV_KEY, BTN_TOOL_FINGER, 0);
         syn(g_touch_fd);
     }
+    arbiter_reset();                      /* kalinti sayac/sahiplik kalmasin */
+    if (g_pad_fd >= 0) pad_center_all();  /* fiziksel pad de notrlensin */
 }
 
 /* ------------------------------------------------------------------ */
@@ -1529,6 +1649,7 @@ int main(int argc, char **argv) {
         printf("  pad eksenleri: X/Y/RX/RY -32768..32767 (merkez 0), LT/RT 0..255, D-pad HAT0\n");
         printf("  gamepad_sticky: %d (1=pad olustuktan sonra kaldirilmaz — Unity hotplug cozumu)\n",
                g_cfg.gamepad_sticky);
+        printf("  coklu-tus hakemligi: aktif (v1.0.7 — ayni hedefe birden fazla tus: biri birakinca digeri basili kalir)\n");
         printf("  profiller    : %d\n", g_profile_count);
         for (int i = 0; i < g_profile_count; i++) printf("     - %s\n", g_profile_files[i]);
         printf("  eslesmeler   : %d\n", g_nbinds);
@@ -1619,6 +1740,7 @@ int main(int argc, char **argv) {
     write_status("basladi (enabled=%d)", g_enabled);
 
     long last_app_check = 0;
+    long last_mouse_scan = 0;
     char last_app[128] = "";
 
     while (!g_stop) {
@@ -1753,6 +1875,12 @@ int main(int argc, char **argv) {
                 snprintf(last_app, sizeof last_app, "%s", app);
                 snprintf(g_current_app, sizeof g_current_app, "%s", app);
                 logmsg("on plandaki uygulama: %s", app);
+                if (g_active_profile[0]) {   /* v1.0.7: F10 secimi uygulama degisince otomatiğe doner */
+                    logmsg("F10 manuel profili (%s) uygulama degisimiyle OTOMATIGE dondu", g_active_profile);
+                    g_active_profile[0] = 0;
+                    g_profile_idx = 0;
+                }
+                release_all();               /* basili tus/eksen/dokunus yeni uygulamaya TASINMASIN */
                 if (g_mouse_fd < 0) {
                     g_mouse_fd = find_mouse();
                     if (g_mouse_fd >= 0 && g_grabbed && g_cfg.grab_mouse) {
@@ -1763,6 +1891,19 @@ int main(int argc, char **argv) {
                 ensure_pad_for_context();
                 set_grab(should_grab());
                 write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, app);
+            }
+        }
+
+        /* v1.0.7: fare AYNI uygulamadayken de (uyku->yeniden baglanma, sonradan
+         * takilan BT fare) 2 sn'de bir yeniden aranir. Eski surum yalnizca
+         * uygulama degisiminde ariyordu -> "fareyi algilamiyor". */
+        if (g_mouse_fd < 0 && now - last_mouse_scan >= 2000) {
+            last_mouse_scan = now;
+            int mfd = find_mouse();
+            if (mfd >= 0) {
+                g_mouse_fd = mfd;
+                if (g_grabbed && g_cfg.grab_mouse) { int one = 1; ioctl(g_mouse_fd, EVIOCGRAB, &one); }
+                logmsg("fare baglandi/yeniden bulundu: %s", g_mouse_path);
             }
         }
     }
