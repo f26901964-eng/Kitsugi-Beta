@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.0"
+#define VERSION        "1.0.4"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024
@@ -1026,21 +1026,46 @@ static void set_grab(int on) {
 /* ------------------------------------------------------------------ */
 /* on plandaki uygulama                                                */
 /* ------------------------------------------------------------------ */
+/* dumpsys window satirinden PAKET adini cikar.
+ * Gercek AOSP/MIUI bicimi:
+ *   mCurrentFocus=Window{3af0708 u0 com.pkg/com.pkg.Activity}
+ *   mFocusedApp=ActivityRecord{abc1234 u0 com.pkg/.Act t2537}
+ * KOK NEDEN (v1.0.4'te duzeltildi): eski parser '{' icindeki ILK bosluktan
+ * sonrasini alip ilk '/'e kadari paket saniyordu; gercek bicimde hash'ten
+ * sonra bir de kullanici kimligi ("u0") oldugu icin sonuc
+ * "u0 com.pkg" cikiyordu -> hicbir profil eslesmiyordu (grab=0, pad yok). */
+static int parse_focus_pkg(const char *line, char *out, size_t n) {
+    const char *lt = strchr(line, '{');
+    const char *gt = lt ? strchr(lt, '}') : NULL;
+    if (!lt || !gt || gt <= lt) return -1;
+    char buf[512];
+    size_t len = (size_t)(gt - lt - 1);
+    if (len >= sizeof buf) len = sizeof buf - 1;
+    memcpy(buf, lt + 1, len);
+    buf[len] = 0;
+    out[0] = 0;
+    char fallback[256] = "";
+    char *save = NULL;
+    for (char *t = strtok_r(buf, " \t", &save); t; t = strtok_r(NULL, " \t", &save)) {
+        char *slash = strchr(t, '/');
+        if (slash) {                       /* component: com.pkg/act */
+            *slash = 0;
+            if (*t && strchr(t, '.')) { snprintf(out, n, "%s", t); return 0; }
+        } else if (!fallback[0] && strchr(t, '.')) {
+            snprintf(fallback, sizeof fallback, "%s", t);   /* '/'siz component */
+        }
+    }
+    if (fallback[0]) { snprintf(out, n, "%s", fallback); return 0; }
+    return -1;
+}
+
 static int get_foreground_app(char *out, size_t n) {
     FILE *p = popen("dumpsys window 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | head -2", "r");
     if (!p) return -1;
     char line[1024];
     out[0] = 0;
     while (fgets(line, sizeof line, p)) {
-        char *lt = strchr(line, '{');
-        char *gt = lt ? strchr(lt, '}') : NULL;
-        if (!lt || !gt) continue;
-        *gt = 0;
-        char *sp = strchr(lt + 1, ' ');
-        char *tok = sp ? sp + 1 : lt + 1;
-        char *slash = strchr(tok, '/');
-        if (slash) *slash = 0;
-        if (*tok && !out[0]) snprintf(out, n, "%s", tok);
+        if (parse_focus_pkg(line, out, n) == 0 && out[0]) break;
     }
     pclose(p);
     return out[0] ? 0 : -1;
@@ -1282,6 +1307,7 @@ static void ensure_pad_for_context(void) {
         if (g_pad_fd >= 0 || g_pad_auto_failed) return;
         if (pad_create() == 0) {
             g_pad_auto = 1;
+            logmsg("sanal gamepad OLUSTURULDU (X-Box 360 pad) — oyun artik kol görmeli");
         } else {
             g_pad_auto_failed = 1;
             logmsg("UYARI: gamepad profili aktif ama sanal pad olusturulamadi (uinput?)");
@@ -1375,6 +1401,7 @@ int main(int argc, char **argv) {
     srand((unsigned)time(NULL));
 
     const char *test_x = NULL; int do_test = 0, do_calib = 0, do_list = 0;
+    const char *fg_parse_arg = NULL;
     int do_map = 0, do_check = 0; const char *map_arg = NULL;
     int arg_rotation = -1;
     const char *extra_profile = NULL;
@@ -1396,6 +1423,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--home") && i + 1 < argc) {
             snprintf(g_home, sizeof g_home, "%s", argv[++i]);
         }
+        else if (!strcmp(argv[i], "--fg-parse") && i + 1 < argc) fg_parse_arg = argv[++i];
         else if (!strcmp(argv[i], "--version")) { printf("kbd2touch %s\n", VERSION); return 0; }
         else if (!strcmp(argv[i], "--rotation") && i + 1 < argc) arg_rotation = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--test") && i + 2 < argc) {
@@ -1404,6 +1432,13 @@ int main(int argc, char **argv) {
             test_x = xb; i += 2;
         }
         else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) { usage(argv[0]); return 0; }
+    }
+
+    if (fg_parse_arg) {
+        char out[256];
+        if (parse_focus_pkg(fg_parse_arg, out, sizeof out) == 0) printf("%s\n", out);
+        else printf("(parse edilemedi)\n");
+        return 0;
     }
 
     {
@@ -1520,10 +1555,17 @@ int main(int argc, char **argv) {
     if (g_mouse_fd >= 0) logmsg("fare izlemeye alindi: %s", g_mouse_path);
     else logv("fare yok: BT fare oyun sirasinda baglanirsa otomatik yakalanir");
     if (kbd < 0) {
-        logmsg("KLAVYE BULUNAMADI. 'kbd2touch --list-devices' ile cihazlara bak, "
-               "sonra config'e device=/dev/input/eventX yaz.");
-        cleanup(-1);
-        return 2;
+        logmsg("klavye henuz bulunamadi — daemon BEKLEMEDE (2 sn'de bir tekrar arar; "
+               "klavyeyi takinca kendiliginden baslar, reboot gerekmez)");
+        write_status("klavye bekleniyor");
+        for (int tries = 0; !g_stop; tries++) {
+            sleep(2);
+            g_kbd_fd = find_keyboard();
+            if (g_kbd_fd >= 0) { kbd = g_kbd_fd; logmsg("klavye bulundu, bekleyis bitti"); break; }
+            if (tries % 30 == 29)
+                logmsg("klavye hala yok (%d sn), bekleniyor... ipucu: --list-devices", (tries + 1) * 2);
+        }
+        if (g_stop || kbd < 0) { cleanup(-1); return 0; }
     }
     g_enabled = g_cfg.enable_on_boot ? 1 : 0;
     logmsg("kbd2touch v%s basladi. enabled=%d auto_profile=%d", VERSION, g_enabled, g_cfg.auto_profile);
@@ -1663,7 +1705,7 @@ int main(int argc, char **argv) {
             if (get_foreground_app(app, sizeof app) == 0 && strcmp(app, last_app) != 0) {
                 snprintf(last_app, sizeof last_app, "%s", app);
                 snprintf(g_current_app, sizeof g_current_app, "%s", app);
-                logv("on plandaki uygulama: %s", app);
+                logmsg("on plandaki uygulama: %s", app);
                 if (g_mouse_fd < 0) {
                     g_mouse_fd = find_mouse();
                     if (g_mouse_fd >= 0 && g_grabbed && g_cfg.grab_mouse) {

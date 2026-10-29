@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.3** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.4** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -51,6 +51,16 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 
 ---
 
+> **v1.0.4 notu:** Gerçek cihaz bugreport analiziyle kritik hata bulundu ve
+> düzeltildi: ön plan uygulama adı `dumpsys window` çıktısından ayrıştırılırken
+> `u0` (kullanıcı kimliği) öneki pakete yapışıyordu → profiller hiç devreye
+> girmiyordu (grab=0, sanal gamepad oluşmuyordu). v1.0.4'te ayrıştırma
+> token-tabanlı hale getirildi; ayrıca klavye boot'ta takılı değilse daemon
+> artık çıkmıyor, klavyeyi bekleyip takılınca yakalıyor.
+> Cihazında doğrulama: `cat /data/adb/kbd2touch/log.txt` → oyun açılınca
+> `on plandaki uygulama: com.playdigious.deadcells.mobile` +
+> `klavye ELE GECIRILDI` + `sanal gamepad OLUSTURULDU` satırlarını görmelisin.
+
 ## 2) Klasör yapısı
 
 ```
@@ -76,7 +86,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.3.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.4.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -114,7 +124,7 @@ KBD2TOUCH_MODUL/
 ## 3) Kurulum
 
 ### Yöntem A — Zip flaşlama (önerilen)
-1. `dist/kbd2touch-v1.0.3.zip` dosyasını tablete kopyala (İndirilenler'e).
+1. `dist/kbd2touch-v1.0.4.zip` dosyasını tablete kopyala (İndirilenler'e).
 2. **SukiSU Ultra / KernelSU yöneticisi** → Modüller → **Depodan yükle** → zip'i seç.
    (Magisk kullanıyorsan: Magisk → Modüller → Depodan yükle.)
 3. **Yeniden başlat.**

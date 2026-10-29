@@ -38,6 +38,39 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.4 — KÖK NEDEN BULUNDU: "u0 " öneki (gerçek cihaz bugreport analizi)
+
+**Belirti (kullanıcı, gerçek cihaz):** Modül sorunsuz kuruldu, daemon çalışıyor
+(logcat'ta `13152/kbd2touch` canlı, Gboard `kbd2touch keys` cihazını görüyor),
+ama Dead Cells ve Dancing Line'da klavye HİÇBİR şey yapmıyor.
+
+**Kanıt (KernelSU_bugreport_2026-10-29_21_50.tar.gz):**
+- `status.txt` = 41 bayt = `enabled=1 grab=0 app=u0 com.sukisu.ultra` → **grab=0!**
+- `log.txt` = 530 bayt, 21:42'den beri büyümüş değil → `set_grab` hiç logmamış
+  → klavye hiç ele geçirilmemiş, `ensure_pad_for_context` pad'i hiç oluşturmamış.
+- modül v1.0.2 olarak flaşlanmış (modules.json versionCode=102).
+
+**Kök neden:** `get_foreground_app()`, `dumpsys window` çıktısındaki
+`mCurrentFocus=Window{3af0708 u0 com.pkg/act}` satırını ayrıştırırken hash'ten
+sonraki **`u0` (kullanıcı kimliği) token'ını atlıyordu** → paket adı
+`"u0 com.pkg"` oluyordu → `app_has_profile`/`bind_for_key`/`context_needs_pad`
+hepsi boş dönüyordu. Simülasyonla birebir doğrulandı (gcc + eski parser kodu).
+
+**Düzeltmeler (v1.0.4):**
+1. `parse_focus_pkg()`: süslü parantez içi token'lanır; `/` içeren ve `.` içeren
+   token seçilir, `/` öncesi paket alınır. 8/8 gerçek-biçim testi geçiyor
+   (FivePlay mod activitiy, ActivityRecord+t, iç içe MIUI token, null, IME).
+2. `--fg-parse "<satır>"` debug flag'i (sandbox'ta test edilebilirlik).
+3. Klavye boot'ta yoksa daemon ARTIK ÇIKMIYOR: 2 sn'de bir yeniden arar
+   (pogo klavye sonradan takılınca reboot gerekmez).
+4. Ön plan değişimi artık `logmsg` (logv değil) → log.txt'de iz bırakır.
+5. Sanal pad oluşunca log: "sanal gamepad OLUSTURULDU".
+6. `VERSION` define'ı 1.0.4'e çekildi (kod içi log satırı için).
+
+**Ders:** dumpsys/window çıktıları cihaz sürümüne göre token sayısı değişebilir;
+ayrıştırma token-tabanlı olmalı, sabit boşluk sayısına güvenmemeli. Gerçek
+cihaz logu (bugreport) olmadan bu bulunamazdı — kullanıcıya bugreport için teşekkür.
+
 ## v1.0.3 — Bluetooth/USB fare desteği (kullanıcı isteği)
 - Daemon artık fare evdev düğümünü de açıyor (poll 2 fd): BT fare sonradan bağlanırsa
   ön-plan değişiminde otomatik yakalanıyor; `grab_mouse=1` iken grab_mode ile birlikte
