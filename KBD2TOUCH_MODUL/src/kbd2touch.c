@@ -130,6 +130,9 @@ static const struct { char c; unsigned short code; } kLetters[26] = {
 };
 
 /* "SPACE", "F9", "A", "1", "KEY_UP" -> Linux input keycode */
+#define KEY_WHEEL_UP   0x3001   /* sahte kod: fare tekerlegi yukari */
+#define KEY_WHEEL_DOWN 0x3002   /* sahte kod: fare tekerlegi asagi */
+
 static int parse_keyname(const char *s) {
     if (!s || !*s) return -1;
     char up[64]; size_t i = 0;
@@ -150,11 +153,15 @@ static int parse_keyname(const char *s) {
             return KEY_1 + (p[0] - '1');
         }
     }
-    if (strncmp(p, "BTN_", 4) == 0) {
-        /* BTN_MOUSE / BTN_LEFT / BTN_RIGHT / BTN_MIDDLE / BTN_TOUCH */
-        if (!strcmp(p, "BTN_LEFT") || !strcmp(p, "BTN_MOUSE")) return BTN_LEFT;
-        if (!strcmp(p, "BTN_RIGHT")) return BTN_RIGHT;
-        if (!strcmp(p, "BTN_MIDDLE")) return BTN_MIDDLE;
+    if (strncmp(p, "BTN_", 4) == 0 || !strcmp(p, "SOL_TIK") || !strcmp(p, "SAG_TIK") ||
+        !strcmp(p, "ORTA_TIK") || !strcmp(p, "TEKERLEK_UP") || !strcmp(p, "TEKERLEK_DOWN") ||
+        !strcmp(p, "WHEEL_UP") || !strcmp(p, "WHEEL_DOWN")) {
+        /* BTN_MOUSE / BTN_LEFT / BTN_RIGHT / BTN_MIDDLE + Turkce takma adlar */
+        if (!strcmp(p, "BTN_LEFT") || !strcmp(p, "BTN_MOUSE") || !strcmp(p, "SOL_TIK")) return BTN_LEFT;
+        if (!strcmp(p, "BTN_RIGHT") || !strcmp(p, "SAG_TIK")) return BTN_RIGHT;
+        if (!strcmp(p, "BTN_MIDDLE") || !strcmp(p, "ORTA_TIK")) return BTN_MIDDLE;
+        if (!strcmp(p, "TEKERLEK_UP") || !strcmp(p, "WHEEL_UP")) return KEY_WHEEL_UP;
+        if (!strcmp(p, "TEKERLEK_DOWN") || !strcmp(p, "WHEEL_DOWN")) return KEY_WHEEL_DOWN;
     }
     long v = strtol(p, NULL, 0);
     if (v > 0 && v < KEY_MAX) return (int)v;
@@ -208,6 +215,8 @@ typedef struct {
     int   rotation;               /* 0/90/180/270 */
     int   swap_xy, invert_x, invert_y;
     int   grab_keyboard;      /* 0 = hic ele gecirme (eski anahtar) */
+    int   grab_mouse;         /* 1 = eslenen oyun acikken fareyi de yakala */
+    char  mouse_device[128];  /* elle fare dugumu (bos = otomatik) */
     int   grab_mode;          /* 0=asla 1=sadece eslenen uygulama acikken 2=her zaman */
     int   tap_ms;
     int   swipe_ms;
@@ -228,7 +237,7 @@ static Cfg g_cfg = {
     .screen_w = 2880, .screen_h = 1800,
     .touch_max_x = 2879, .touch_max_y = 1799,
     .rotation = 0, .swap_xy = 0, .invert_x = 0, .invert_y = 0,
-    .grab_keyboard = 1, .grab_mode = 1, .tap_ms = 45, .swipe_ms = 90,
+    .grab_keyboard = 1, .grab_mode = 1, .grab_mouse = 1, .tap_ms = 45, .swipe_ms = 90,
     .gamepad_enable = 0, .virtual_keyboard = 1,
     .gamepad_name = "Microsoft X-Box 360 pad",
     .toggle_key = KEY_F9, .profile_key = KEY_F10,
@@ -254,6 +263,8 @@ static int g_pad_auto = 0;         /* pad, ensure_pad_for_context ile mi olustu 
 static int g_pad_auto_failed = 0;  /* otomatik olusturma denemesi basarisiz mi */
 static int g_key_fd = -1;
 static int g_kbd_fd = -1;      /* fiziksel klavyenin evdev dugumu */
+static int g_mouse_fd = -1;      /* fiziksel farenin evdev dugumu (BT/USB) */
+static char g_mouse_path[160] = "";
 static int g_grabbed = 0;      /* klavye su an exclusive mi */      /* sanal klavye: KEY_BACK / KEY_HOME vb. gondermek icin */
 
 static void ev(int fd, int type, int code, int val) {
@@ -414,6 +425,8 @@ static const char *keyname(int code) {
     if (code == BTN_LEFT) return "SOL_TIK";
     if (code == BTN_RIGHT) return "SAG_TIK";
     if (code == BTN_MIDDLE) return "ORTA_TIK";
+    if (code == KEY_WHEEL_UP) return "TEKERLEK_UP";
+    if (code == KEY_WHEEL_DOWN) return "TEKERLEK_DOWN";
     snprintf(b, sizeof b, "%d", code);
     return b;
 }
@@ -549,6 +562,8 @@ static void cfg_int(Cfg *c, const char *k, const char *v) {
     else if (EQ("invert_y")) c->invert_y = n;
     else if (EQ("grab_keyboard")) { c->grab_keyboard = n; if (!n) c->grab_mode = 0; }
     else if (EQ("grab_mode")) c->grab_mode = n;
+    else if (EQ("grab_mouse")) c->grab_mouse = n;
+    else if (EQ("mouse_device")) snprintf(c->mouse_device, sizeof c->mouse_device, "%s", v);
     else if (EQ("tap_ms")) c->tap_ms = n;
     else if (EQ("swipe_ms")) c->swipe_ms = n;
     else if (EQ("gamepad")) c->gamepad_enable = n;
@@ -838,6 +853,62 @@ static int looks_like_keyboard(int fd) {
     return ok >= 6;
 }
 
+/* Fare mi? BT/USB fare: BTN_LEFT + REL_X/REL_Y. Touchpad'ler (ABS_MT) HARIC:
+   dokunmatik imlec calismaya devam etsin. Sanal cihazlarimiz da elenir. */
+static int looks_like_mouse(int fd) {
+    unsigned long evbits[(EV_MAX + 63) / 64] = {0};
+    unsigned long keybits[(KEY_MAX + 63) / 64] = {0};
+    unsigned long relbits[(REL_MAX + 63) / 64] = {0};
+    unsigned long absbits[(ABS_MAX + 63) / 64] = {0};
+    if (ioctl(fd, EVIOCGBIT(0, sizeof evbits), evbits) < 0) return 0;
+    if (!((evbits[EV_KEY / 64] >> (EV_KEY % 64)) & 1UL)) return 0;
+    if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof keybits), keybits) < 0) return 0;
+    if (!has_key(keybits, BTN_LEFT)) return 0;
+    if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof absbits), absbits) == 0 &&
+        (absbits[ABS_MT_SLOT / 64] >> (ABS_MT_SLOT % 64)) & 1UL) return 0;  /* touchpad */
+    if ((evbits[EV_REL / 64] >> (EV_REL % 64)) & 1UL) {
+        if (ioctl(fd, EVIOCGBIT(EV_REL, sizeof relbits), relbits) == 0 &&
+            has_key(relbits, REL_X) && has_key(relbits, REL_Y)) return 1;
+    }
+    return !looks_like_keyboard(fd);
+}
+
+static int find_mouse(void) {
+    if (g_cfg.mouse_device[0]) {
+        int fd = open(g_cfg.mouse_device, O_RDONLY);
+        if (fd >= 0) { snprintf(g_mouse_path, sizeof g_mouse_path, "%s", g_cfg.mouse_device); return fd; }
+        logmsg("config'teki fare acilamadi: %s", g_cfg.mouse_device);
+    }
+    DIR *d = opendir("/dev/input");
+    if (!d) return -1;
+    struct dirent *e;
+    int best = -1; char bestpath[160] = ""; char bestname[256] = "";
+    while ((e = readdir(d))) {
+        if (strncmp(e->d_name, "event", 5) != 0) continue;
+        char path[320]; snprintf(path, sizeof path, "/dev/input/%s", e->d_name);
+        int fd = open(path, O_RDONLY);
+        if (fd < 0) continue;
+        char name[256] = "";
+        ioctl(fd, EVIOCGNAME(sizeof name), name);
+        if (strcasestr(name, "kbd2touch")) { close(fd); continue; }  /* sanal cihazlarimiz */
+        if (looks_like_mouse(fd)) {
+            int score = strcasestr(name, "mouse") ? 100 : 1;
+            if (best >= 0 && score < 100) { close(fd); continue; }
+            if (best >= 0) close(best);
+            best = fd;
+            snprintf(bestpath, sizeof bestpath, "%.140s", path);
+            snprintf(bestname, sizeof bestname, "%.200s", name);
+            if (score >= 100) break;
+        } else close(fd);
+    }
+    closedir(d);
+    if (best >= 0) {
+        snprintf(g_mouse_path, sizeof g_mouse_path, "%s", bestpath);
+        logmsg("fare bulundu: %s -> '%s'", bestpath, bestname);
+    }
+    return best;
+}
+
 static int find_keyboard(void) {
     if (g_cfg.device_path[0]) {
         int fd = open(g_cfg.device_path, O_RDONLY);
@@ -900,6 +971,7 @@ static void list_devices(void) {
         if (HAS(EV_REL)) strcat(cls, "REL(mouse) ");
         if (HAS(EV_ABS)) strcat(cls, "ABS ");
         if (looks_like_keyboard(fd)) strcat(cls, "=> KLAVYE ");
+        else if (looks_like_mouse(fd)) strcat(cls, "=> FARE ");
         #undef HAS
         printf("%-22s %-40s %s\n", path, name, cls);
         close(fd);
@@ -932,15 +1004,22 @@ static int should_grab(void) {
 }
 
 static void set_grab(int on) {
-    if (g_kbd_fd < 0 || on == g_grabbed) return;
+    if ((g_kbd_fd < 0 && g_mouse_fd < 0) || on == g_grabbed) return;
     int v = on ? 1 : 0;
-    if (ioctl(g_kbd_fd, EVIOCGRAB, &v) < 0) {
-        logmsg("UYARI: EVIOCGRAB %s basarisiz: %s", on ? "acma" : "kapama", strerror(errno));
-        return;
+    int ok = 0;
+    if (g_kbd_fd >= 0) {
+        if (ioctl(g_kbd_fd, EVIOCGRAB, &v) == 0) ok = 1;
+        else logmsg("UYARI: klavye EVIOCGRAB %s basarisiz: %s", on ? "acma" : "kapama", strerror(errno));
     }
+    if (g_mouse_fd >= 0 && g_cfg.grab_mouse) {
+        if (ioctl(g_mouse_fd, EVIOCGRAB, &v) == 0) ok = 1;
+        else logmsg("UYARI: fare EVIOCGRAB %s basarisiz: %s", on ? "acma" : "kapama", strerror(errno));
+    }
+    if (!ok) return;
     g_grabbed = on;
-    logmsg("klavye %s", on ? "ELE GECIRILDI (oyun ham tuslari gormez)"
-                           : "SERBEST BIRAKILDI (normal yazi yazma aktif)");
+    logmsg("klavye%s %s", g_mouse_fd >= 0 && g_cfg.grab_mouse ? " + fare" : "",
+           on ? "ELE GECIRILDI (oyun ham girdiyi gormez)"
+              : "SERBEST BIRAKILDI (normal yazma/imlec aktif)");
     write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, g_current_app);
 }
 
@@ -1254,6 +1333,7 @@ static void cleanup(int kbd_fd) {
     release_all();
     if (kbd_fd >= 0 && g_grabbed) { int z = 0; ioctl(kbd_fd, EVIOCGRAB, &z); g_grabbed = 0; }
     if (g_touch_fd >= 0) { ioctl(g_touch_fd, UI_DEV_DESTROY); close(g_touch_fd); g_touch_fd = -1; }
+    if (g_mouse_fd >= 0) { int zero = 0; ioctl(g_mouse_fd, EVIOCGRAB, &zero); close(g_mouse_fd); g_mouse_fd = -1; }
     if (g_pad_fd >= 0) { ioctl(g_pad_fd, UI_DEV_DESTROY); close(g_pad_fd); g_pad_fd = -1; }
     if (g_key_fd >= 0) { ioctl(g_key_fd, UI_DEV_DESTROY); close(g_key_fd); g_key_fd = -1; }
     if (kbd_fd >= 0) close(kbd_fd);
@@ -1362,6 +1442,9 @@ int main(int argc, char **argv) {
                g_cfg.grab_keyboard, g_cfg.grab_mode);
         printf("  slots: %d   gamepad: %d (0=OTOMATIK: gp profili acilinca olusur)   sanal_klavye: %d\n",
                g_cfg.slot_count, g_cfg.gamepad_enable, g_cfg.virtual_keyboard);
+        if (g_mouse_fd < 0) g_mouse_fd = find_mouse();
+        printf("  fare       : %s (grab_mouse=%d: eslenen oyun acikken fare de yakalanir)\n",
+               g_mouse_fd >= 0 ? g_mouse_path : "yok (BT fare baglaninca otomatik)", g_cfg.grab_mouse);
         printf("  kisayollar   : ac/kapa=%s profil=%s kalibrasyon=%s\n",
                keyname(g_cfg.toggle_key), keyname(g_cfg.profile_key), keyname(g_cfg.calib_key));
         printf("  profiller    : %d\n", g_profile_count);
@@ -1433,6 +1516,9 @@ int main(int argc, char **argv) {
 
     g_kbd_fd = find_keyboard();
     int kbd = g_kbd_fd;
+    g_mouse_fd = find_mouse();
+    if (g_mouse_fd >= 0) logmsg("fare izlemeye alindi: %s", g_mouse_path);
+    else logv("fare yok: BT fare oyun sirasinda baglanirsa otomatik yakalanir");
     if (kbd < 0) {
         logmsg("KLAVYE BULUNAMADI. 'kbd2touch --list-devices' ile cihazlara bak, "
                "sonra config'e device=/dev/input/eventX yaz.");
@@ -1443,18 +1529,29 @@ int main(int argc, char **argv) {
     logmsg("kbd2touch v%s basladi. enabled=%d auto_profile=%d", VERSION, g_enabled, g_cfg.auto_profile);
     write_status("basladi (enabled=%d)", g_enabled);
 
-    struct pollfd pfd = { .fd = kbd, .events = POLLIN };
     long last_app_check = 0;
     char last_app[128] = "";
 
     while (!g_stop) {
-        int pr = poll(&pfd, 1, 20);
+        struct pollfd pfds[2];
+        int nf = 0;
+        pfds[nf].fd = kbd; pfds[nf].events = POLLIN; pfds[nf].revents = 0; nf++;
+        if (g_mouse_fd >= 0) { pfds[nf].fd = g_mouse_fd; pfds[nf].events = POLLIN; pfds[nf].revents = 0; nf++; }
+        poll(pfds, nf, 20);
         long now = ms_now();
 
-        if (pr > 0 && (pfd.revents & POLLIN)) {
+        for (int fi = 0; fi < nf; fi++) {
+          if (!(pfds[fi].revents & POLLIN)) continue;
+          int fd = pfds[fi].fd;
+          int is_mouse = (g_mouse_fd >= 0 && fd == g_mouse_fd);
             struct input_event evs[32];
-            ssize_t n = read(kbd, evs, sizeof evs);
+            ssize_t n = read(fd, evs, sizeof evs);
             if (n <= 0) {
+                if (is_mouse) {
+                    logmsg("fare baglantisi koptu");
+                    close(fd); g_mouse_fd = -1; g_mouse_path[0] = 0;
+                    continue;
+                }
                 if (errno == ENODEV || errno == EIO) {
                     logmsg("klavye cikarildi, 2 sn icinde yeniden aranacak");
                     release_all();
@@ -1470,15 +1567,25 @@ int main(int argc, char **argv) {
                             break;
                         }
                     }
-                    if (kbd < 0) break;
-                    pfd.fd = kbd;
+                    if (kbd < 0) { g_stop = 1; break; }
                     continue;
                 }
             } else {
                 int cnt = (int)(n / (ssize_t)sizeof(struct input_event));
                 for (int i = 0; i < cnt; i++) {
                     struct input_event *e = &evs[i];
-                    if (e->type != EV_KEY) continue;
+                    if (is_mouse) {
+                        if (e->type == EV_REL && e->code == REL_WHEEL && e->value != 0) {
+                            int wc = e->value > 0 ? KEY_WHEEL_UP : KEY_WHEEL_DOWN;
+                            Bind *wb = bind_for_key(wc, g_current_app);
+                            if (wb && g_enabled) {
+                                wb->pressed = 1; do_action_press(wb);
+                                wb->pressed = 0; do_action_release(wb);
+                            }
+                            continue;
+                        }
+                        if (e->type != EV_KEY) continue;   /* REL_X/Y hareketi dokunulmaz */
+                    } else if (e->type != EV_KEY) continue;
                     int code = e->code;
 
                     /* ozel kisayollar */
@@ -1557,6 +1664,13 @@ int main(int argc, char **argv) {
                 snprintf(last_app, sizeof last_app, "%s", app);
                 snprintf(g_current_app, sizeof g_current_app, "%s", app);
                 logv("on plandaki uygulama: %s", app);
+                if (g_mouse_fd < 0) {
+                    g_mouse_fd = find_mouse();
+                    if (g_mouse_fd >= 0 && g_grabbed && g_cfg.grab_mouse) {
+                        int one = 1;
+                        ioctl(g_mouse_fd, EVIOCGRAB, &one);
+                    }
+                }
                 ensure_pad_for_context();
                 set_grab(should_grab());
                 write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, app);

@@ -38,6 +38,21 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.3 — Bluetooth/USB fare desteği (kullanıcı isteği)
+- Daemon artık fare evdev düğümünü de açıyor (poll 2 fd): BT fare sonradan bağlanırsa
+  ön-plan değişiminde otomatik yakalanıyor; `grab_mouse=1` iken grab_mode ile birlikte
+  sadece eşlenen oyun açıkken EVIOCGRAB (oyun dışında imleç normal).
+- Touchpad'ler HARİÇ (ABS_MT kontrolü) → klavye kılıfı touchpad'i imleç olarak kalır;
+  sanal cihazlarımız isimden ("kbd2touch") elenir.
+- Yeni bind adları: SOL_TIK/SAG_TIK/ORTA_TIK (BTN_* alias'ları parse'a eklendi —
+  önce sadece keyname()'deydi, profiller parse edilemiyordu!) + TEEKERLEK_UP/DOWN
+  (REL_WHEEL → sahte keycode 0x3001/2, press+release sentezi).
+- Profil fare eşlemeleri: Dead Cells (sol=X saldırı, sağ=Y ikinci silah, orta=LB iyileştir
+  = PC düzeni), GTA touch (sol=saldırı tap, sağ=nişan hold), GTA gamepad (sol=B, sağ=LT),
+  Dancing Line (sol tık zaten vardı).
+- Fare hareketi (REL_X/Y) bilinçli olarak dokunulmaz — imleç/nişan oyunun kendisinde kalır
+  (Dead Cells gamepad modunda nişanı sağ analog/oklar verir).
+
 ## v1.0.2 — GERÇEK CİHAZ HATASI (kullanıcı flaş denemesinde patladı, kök neden bulundu)
 - Kullanıcı SukiSU Ultra'dan flaşladı → "Kaynak: /dev/tmp / HATA: /dev/tmp/system/bin/kbd2touch yok /
   Failed to install module script (kod 1)".

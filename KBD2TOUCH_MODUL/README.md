@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.2** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.3** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -41,6 +41,9 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 - ✅ **Oyun başına profil + otomatik geçiş** — ön plandaki pakete göre kendisi seçer
 - ✅ **Akıllı sanal gamepad** — gamepad eşlemeli oyun (Dead Cells, GTA SA…) açılınca sanal Xbox kolu **otomatik** oluşur, oyun kapanınca kalkar. Oyun "kol bağlandı" moduna geçer
 - ✅ **Klavye gaspı (EVIOCGRAB)** — oyun ham tuşu görmez
+- ✅ **Bluetooth/USB fare desteği** — eşlenen oyun açıkken fare de yakalanır (`grab_mouse`):
+  sol/sağ/orta tık + tekerlek eşlenebilir; oyun dışında imleç **normal** çalışır.
+  Touchpad'e dokunulmaz (ABS_MT hariç) → klavye kılıfının touchpad'i fare olarak kalır
 - ✅ **MIUI bypass** — kurulumda `persist.security.adbinput=1` otomatik ayarlanır
 - ✅ **Dokunuş jitter'ı** — istenirse koordinatlara rastgelelik (anti-detection)
 - ✅ **F9** aç/kapa · **F10** profil değiştir · **F11** köşe kalibrasyonu
@@ -73,7 +76,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.2.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.3.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -111,7 +114,7 @@ KBD2TOUCH_MODUL/
 ## 3) Kurulum
 
 ### Yöntem A — Zip flaşlama (önerilen)
-1. `dist/kbd2touch-v1.0.2.zip` dosyasını tablete kopyala (İndirilenler'e).
+1. `dist/kbd2touch-v1.0.3.zip` dosyasını tablete kopyala (İndirilenler'e).
 2. **SukiSU Ultra / KernelSU yöneticisi** → Modüller → **Depodan yükle** → zip'i seç.
    (Magisk kullanıyorsan: Magisk → Modüller → Depodan yükle.)
 3. **Yeniden başlat.**
@@ -234,6 +237,7 @@ su -c "sh /data/adb/modules/kbd2touch/service.sh"
 | `jitter` | Dokunuşa eklenecek rastgele piksel (anti-detection). Offline oyunda `0` | 0 |
 | `slots` | Aynı anda basılı tutulabilecek parmak sayısı (≤10) | 10 |
 | `grab_keyboard` | `0` = klavyeyi hiç ele geçirme | 1 |
+| `grab_mouse` | `1` = eşlenen oyun açıkken **fare de** yakalanır (tık eşlemeleri çalışır), oyun dışında imleç normal · `0` = fareye dokunma | 1 |
 | `grab_mode` | **Klavye ne zaman ele geçirilsin?** `0`=asla · `1`=**sadece eşlenen oyun açıkken (önerilen)** · `2`=eşleme açıkken her zaman. `1` iken tarayıcıda/sohbette klavyen **normal yazmaya devam eder**, oyuna girince otomatik ele geçirilir → çift tetikleme olmaz | 1 |
 | `device` | Klavyenin `/dev/input/eventX` yolu (elle seçim) | — |
 | `device_match` | İsim içinde aranacak metin (`Xiaomi` gibi) | — |
@@ -373,6 +377,9 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 | **Tab** | SELECT | harita |
 | **Esc** | START | duraklat |
 | **Ok tuşları** | sağ analog | kamera / yay nişanı |
+| **Sol tık** (fare) | X | ana silah — PC'deki gibi |
+| **Sağ tık** (fare) | Y | ikinci silah — PC'deki gibi |
+| **Orta tık** (fare) | LB | iyileştir (iksir) |
 
 > 💀 Ölünce "vücuttan çıkma" (R3) gerekirse profildeki `[bind:V] THUMBR` örneğinin
 > başındaki `#` işaretlerini kaldır.
