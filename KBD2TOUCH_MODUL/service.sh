@@ -3,6 +3,26 @@
 MODDIR=${0%/*}
 export PATH=/system/bin:/system/xbin:/vendor/bin:/data/adb/magisk:/data/adb/ksu/bin:$PATH
 KBD_DIR=/data/adb/kbd2touch
+# kbd2touch DAEMON'larini oldurur; betiklerin/kabuklarin KENDINI oldurmez.
+# (pkill -f kbd2touch kullanilmaz: bu betigin kendi cmdline'i da eslesir
+#  ve script daha daemon'u baslatmadan intihar eder!)
+kill_daemon() {
+    for p in /proc/[0-9]*; do
+        pid=${p#/proc/}
+        [ "$pid" = "$$" ] && continue
+        [ "$pid" = "$PPID" ] && continue
+        cmd=$(tr '\0' ' ' < "$p/cmdline" 2>/dev/null) || continue
+        case "$cmd" in
+            *kbd2touch*)
+                case "$cmd" in
+                    *.sh*|*--check*|*--calibrate*|*--list-devices*|*--map*|*--test*) : ;;
+                    *) kill "$pid" 2>/dev/null ;;
+                esac ;;
+        esac
+    done
+    return 0
+}
+
 BIN="$KBD_DIR/kbd2touch"
 [ -x "$BIN" ] || BIN="$MODDIR/system/bin/kbd2touch"
 [ -x "$BIN" ] || exit 0
@@ -33,12 +53,9 @@ if grep -q '^enable_on_boot *= *0' "$KBD_DIR/config.ini" 2>/dev/null; then
     exit 0
 fi
 
-# Eski sureci kapat
-if [ -f "$KBD_DIR/daemon.pid" ]; then
-    kill "$(cat "$KBD_DIR/daemon.pid")" 2>/dev/null
-fi
-pkill -f kbd2touch 2>/dev/null
+# Eski sureci kapat (pid dosyasi bayat olabilir -> /proc taramasi esas)
+kill_daemon
 sleep 1
 
-nohup "$BIN" -c "$KBD_DIR/config.ini" >> "$KBD_DIR/daemon.out" 2>&1 &
+nohup "$BIN" -c "$KBD_DIR/config.ini" --home "$KBD_DIR" >> "$KBD_DIR/daemon.out" 2>&1 &
 echo "$!" > "$KBD_DIR/daemon.pid"

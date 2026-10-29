@@ -38,6 +38,29 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.1 kritik kurulum düzeltmeleri (3. tur — SukiSU install simülasyonunda bulundu)
+- **(a) pkill intihar hatası**: service.sh/uninstall.sh/install.sh içindeki `pkill -f kbd2touch`,
+  betiğin KENDİ cmdline'ını da eşleştiriyordu (`sh /data/adb/modules/kbd2touch/service.sh`)
+  → script daemon'u başlatamadan ölüyordu. Çözüm: /proc taramalı `kill_daemon()`
+  (`.sh` içeren ve tanı modlarını atlar, $$/$PPID korur). README'deki tüm pkill
+  komutları da güvenli karşılıklarıyla değiştirildi (service.sh ile yeniden başlat /
+  daemon.pid ile durdur).
+- **(b) update-binary ui_print hatası**: KSU akışında customize.sh `ui_print` tanımsız
+  çalışıyordu → konsol çıktısı "not found" çöpü oluyordu. Çözüm: alt-kabukta
+  `ui_print()` tanımlanıp customize.sh source ediliyor.
+- **(c)** module.prop: name içindeki UTF-8 uzun tire (—) düz '-' yapıldı (ayrıştırıcı
+  riski); version=v1.0.1, versionCode=101.
+- **(d)** daemon artık `--home "$KBD_DIR"` ile başlatılıyor (log/status/pid hep doğru dizinde).
+- **(e)** install.sh (reboot'suz kurulum): ekran boyutunu config'e otomatik doldurmuyordu
+  (daemon "ekran 0x0" ile başlıyordu) + daemon.pid yazmıyordu → ikisi de eklendi.
+- **(f)** customize.sh: kopyalama BAŞARISIZSA artık dürüstçe "! HATA" basıyor (önceden
+  sessizce "olusturuldu" diyordu); update-binary MODDIR kopyasını doğruluyor.
+- Doğrulama: tüm scriptler `bash -n` temiz; KSU-tipi update-binary dry-run simülasyonu,
+  service/uninstall/install akışları x86 sandbox'ta stub'larla uçtan uca test edildi.
+  Sonuç: **36/36 PASS** (A: update-binary KSU akışı 9, B: post-fs-data 3, C: service 7,
+  D: çift çalıştırma 3, E: uninstall 3, F: install.sh 8 + doğrulama). Sahte "decoy" daemon
+  ile kill_daemon'un hem öldürdüğü hem de betiğin kendisini ÖLDÜRMEDİĞİ kanıtlandı.
+
 ## v1.0.0'da olanlar
 - uinput çoklu dokunuş (10 parmak), tap/hold/swipe/repeat, sanal Xbox gamepad, sanal klavye (KEY_BACK)
 - oyun başına profil + ön plan otomatik geçişi, F9 aç/kapa, F10 profil, F11 kalibrasyon

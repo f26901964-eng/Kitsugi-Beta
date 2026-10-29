@@ -40,12 +40,18 @@ fi
 
 mkdir -p "$MODDIR"
 cp -rf "$TMP"/. "$MODDIR"/
+if [ ! -f "$MODDIR/module.prop" ]; then
+  ui_print "! modul $MODDIR icine kopyalanamadi, kurulum iptal"
+  rm -rf "$TMP"; exit 1
+fi
 rm -rf "$MODDIR/META-INF"
 chmod 755 "$MODDIR"/*.sh 2>/dev/null
 chmod 755 "$MODDIR/system/bin/kbd2touch" 2>/dev/null
 
 export MODPATH="$MODDIR"
-sh "$MODDIR/customize.sh" 2>&1 | while read -r l; do ui_print "$l"; done
+# customize.sh'i ui_print TANIMLI sekilde calistir (KSU akisinda manager
+# customize.sh'i kendisi calistirmaz; Magisk akisinda zaten tanimli olur).
+( ui_print() { echo "$1"; }; . "$MODDIR/customize.sh" ) 2>&1 | while read -r l; do ui_print "$l"; done
 
 rm -rf "$TMP"
 ui_print "- kuruldu: $MODDIR"

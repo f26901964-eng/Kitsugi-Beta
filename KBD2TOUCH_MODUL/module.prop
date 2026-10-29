@@ -1,6 +1,6 @@
 id=kbd2touch
-name=Kbd2Touch — Klavye -> Dokunus / Gamepad
-version=v1.0.0
-versionCode=100
+name=Kbd2Touch - Klavye -> Dokunus / Gamepad
+version=v1.0.1
+versionCode=101
 author=Arena Agent (Kitsugi-Beta icin hazirlandi)
 description=Fiziksel klavye tuslarini /dev/uinput ile gercek dokunus olaylarina ve sanal Xbox gamepad'e cevirir. MIUI INJECT_EVENTS kisitlamasindan etkilenmez, coklu dokunus ve basili tutma destekler. Xiaomi Pad 6 (pipa) + SukiSU Ultra / KernelSU / Magisk. Kisayollar: F9 ac/kapa, F10 profil degistir, F11 kose kalibrasyonu.

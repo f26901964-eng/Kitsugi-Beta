@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.0** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.1** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -72,7 +72,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.0.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.1.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -110,7 +110,7 @@ KBD2TOUCH_MODUL/
 ## 3) Kurulum
 
 ### Yöntem A — Zip flaşlama (önerilen)
-1. `dist/kbd2touch-v1.0.0.zip` dosyasını tablete kopyala (İndirilenler'e).
+1. `dist/kbd2touch-v1.0.1.zip` dosyasını tablete kopyala (İndirilenler'e).
 2. **SukiSU Ultra / KernelSU yöneticisi** → Modüller → **Depodan yükle** → zip'i seç.
    (Magisk kullanıyorsan: Magisk → Modüller → Depodan yükle.)
 3. **Yeniden başlat.**
@@ -210,10 +210,12 @@ su -c "nano /data/adb/kbd2touch/profiles/com.rockstargames.gtasa.ini"
 adb pull /data/adb/kbd2touch/profiles/ ./profiles_duzenle
 adb push ./profiles_duzenle/. /data/adb/kbd2touch/profiles/
 ```
-Değişiklikten sonra daemon'u yeniden başlat:
+Değişiklikten sonra daemon'u yeniden başlat (service.sh eski daemon'u **güvenle** öldürüp yenisini başlatır, ~10 sn sürer):
 ```bash
-su -c "pkill -f kbd2touch; sleep 1; /data/adb/kbd2touch/kbd2touch -c /data/adb/kbd2touch/config.ini &"
+su -c "sh /data/adb/modules/kbd2touch/service.sh"
 ```
+> ⚠️ `pkill -f kbd2touch` KULLANMA: komutu çalıştıran kabuğun kendi adı da
+> `kbd2touch` içerdiği için kabuk kendini öldürür, daemon yeniden başlamaz.
 
 ---
 
@@ -380,7 +382,7 @@ su
 cp /data/adb/kbd2touch/profiles/genel.ini /data/adb/kbd2touch/profiles/com.tencent.ig.ini
 nano /data/adb/kbd2touch/profiles/com.tencent.ig.ini
 # [bind:SPACE] action=tap x=… y=… satırlarının başındaki # işaretlerini kaldır
-pkill -f kbd2touch; /data/adb/kbd2touch/kbd2touch -c /data/adb/kbd2touch/config.ini &
+sh /data/adb/modules/kbd2touch/service.sh   # daemon'u yeniden başlat (güvenli)
 ```
 
 ---
@@ -395,7 +397,7 @@ pkill -f kbd2touch; /data/adb/kbd2touch/kbd2touch -c /data/adb/kbd2touch/config.
 | Koordinatlar kaydı | **F11** → köşe kalibrasyonu |
 | Ne durumda? | `su -c "cat /data/adb/kbd2touch/status.txt"` |
 | Log | `su -c "tail -f /data/adb/kbd2touch/log.txt"` |
-| Durdur | `su -c "pkill -f kbd2touch"` |
+| Durdur | `su -c 'kill $(cat /data/adb/kbd2touch/daemon.pid) 2>/dev/null'` |
 | Yeniden başlat | `su -c "sh /data/adb/modules/kbd2touch/service.sh"` |
 
 ---
