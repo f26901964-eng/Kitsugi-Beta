@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.4"
+#define VERSION        "1.0.5"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024
@@ -221,6 +221,7 @@ typedef struct {
     int   tap_ms;
     int   swipe_ms;
     int   gamepad_enable;
+    int   gamepad_sticky;     /* 1 = pad olustuktan sonra kaldirilmaz (Unity hotplug sorunu) */
     int   virtual_keyboard;   /* 0 ise sanal klavye cihazi olusturulmaz (yazilim klavyesi kaybolmasin diye) */
     char  gamepad_name[64];
     int   toggle_key, profile_key, calib_key, quit_key;
@@ -238,7 +239,7 @@ static Cfg g_cfg = {
     .touch_max_x = 2879, .touch_max_y = 1799,
     .rotation = 0, .swap_xy = 0, .invert_x = 0, .invert_y = 0,
     .grab_keyboard = 1, .grab_mode = 1, .grab_mouse = 1, .tap_ms = 45, .swipe_ms = 90,
-    .gamepad_enable = 0, .virtual_keyboard = 1,
+    .gamepad_enable = 0, .gamepad_sticky = 1, .virtual_keyboard = 1,
     .gamepad_name = "Microsoft X-Box 360 pad",
     .toggle_key = KEY_F9, .profile_key = KEY_F10,
     .calib_key = KEY_F11, .quit_key = -1,
@@ -277,13 +278,21 @@ static void ev(int fd, int type, int code, int val) {
 }
 static void syn(int fd) { ev(fd, EV_SYN, SYN_REPORT, 0); }
 
-static void abs_setup(int fd, int code, int max, int fuzz) {
+/* v1.0.5 KOK DUZELTME: 'minimum' artik acikca veriliyor.
+ * Eski surumde minimum=0 kaliyordu -> analog eksenler 0..32767 araliginda
+ * tanimlaniyor, kernel -32767'yi 0'a kirpiyor, Android de 0'i "araligin
+ * dibi = SONUNA KADAR SOL/YUKARI" diye normalize ediyordu. Sonuc: pad
+ * olusur olusmaz sol analog tam sola yapisiyor, karakter kendi kendine
+ * sola kosuyor, WASD/oklar sacmaliyordu. Dogru aralik: -32768..32767,
+ * merkez 0 (Linux gamepad standardi). */
+static void abs_setup(int fd, int code, int min, int max, int fuzz, int flat) {
     struct uinput_abs_setup s;
     memset(&s, 0, sizeof s);
     s.code = (__u16)code;
+    s.absinfo.minimum = min;
     s.absinfo.maximum = max;
     s.absinfo.fuzz = fuzz;
-    s.absinfo.flat = 0;
+    s.absinfo.flat = flat;
     s.absinfo.resolution = 0;
     if (ioctl(fd, UI_ABS_SETUP, &s) < 0)
         logmsg("UI_ABS_SETUP(%d) basarisiz: %s", code, strerror(errno));
@@ -307,15 +316,15 @@ static int touch_create(void) {
     ioctl(fd, UI_SET_EVBIT, EV_ABS);
 
     int mx = g_cfg.touch_max_x, my = g_cfg.touch_max_y;
-    abs_setup(fd, ABS_X, mx, 0);
-    abs_setup(fd, ABS_Y, my, 0);
-    abs_setup(fd, ABS_MT_SLOT, MAX_SLOTS - 1, 0);
-    abs_setup(fd, ABS_MT_TOUCH_MAJOR, 255, 0);
-    abs_setup(fd, ABS_MT_TOUCH_MINOR, 255, 0);
-    abs_setup(fd, ABS_MT_WIDTH_MAJOR, 255, 0);
-    abs_setup(fd, ABS_MT_POSITION_X, mx, 0);
-    abs_setup(fd, ABS_MT_POSITION_Y, my, 0);
-    abs_setup(fd, ABS_MT_TRACKING_ID, 65535, 0);
+    abs_setup(fd, ABS_X, 0, mx, 0, 0);
+    abs_setup(fd, ABS_Y, 0, my, 0, 0);
+    abs_setup(fd, ABS_MT_SLOT, 0, MAX_SLOTS - 1, 0, 0);
+    abs_setup(fd, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+    abs_setup(fd, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
+    abs_setup(fd, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+    abs_setup(fd, ABS_MT_POSITION_X, 0, mx, 0, 0);
+    abs_setup(fd, ABS_MT_POSITION_Y, 0, my, 0, 0);
+    abs_setup(fd, ABS_MT_TRACKING_ID, 0, 65535, 0, 0);
     ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_DIRECT);
 
     struct uinput_setup us;
@@ -379,16 +388,20 @@ static int pad_create(void) {
     /* LT / RT tetik eksenleri */
     ioctl(fd, UI_SET_ABSBIT, ABS_Z);
     ioctl(fd, UI_SET_ABSBIT, ABS_RZ);
+    ioctl(fd, UI_SET_ABSBIT, ABS_HAT0X);   /* D-pad (xpad ile ayni) */
+    ioctl(fd, UI_SET_ABSBIT, ABS_HAT0Y);
     for (unsigned i = 0; i < sizeof buttons / sizeof buttons[0]; i++)
         ioctl(fd, UI_SET_KEYBIT, buttons[i]);
 
     ioctl(fd, UI_SET_EVBIT, EV_ABS);
-    abs_setup(fd, ABS_X, 32767, 16);
-    abs_setup(fd, ABS_Y, 32767, 16);
-    abs_setup(fd, ABS_RX, 32767, 16);
-    abs_setup(fd, ABS_RY, 32767, 16);
-    abs_setup(fd, ABS_Z, 255, 0);
-    abs_setup(fd, ABS_RZ, 255, 0);
+    abs_setup(fd, ABS_X,  -32768, 32767, 16, 0);   /* sol analog  (merkez 0) */
+    abs_setup(fd, ABS_Y,  -32768, 32767, 16, 0);
+    abs_setup(fd, ABS_RX, -32768, 32767, 16, 0);   /* sag analog  (merkez 0) */
+    abs_setup(fd, ABS_RY, -32768, 32767, 16, 0);
+    abs_setup(fd, ABS_Z,  0, 255, 0, 0);           /* LT tetik */
+    abs_setup(fd, ABS_RZ, 0, 255, 0, 0);           /* RT tetik */
+    abs_setup(fd, ABS_HAT0X, -1, 1, 0, 0);         /* D-pad */
+    abs_setup(fd, ABS_HAT0Y, -1, 1, 0, 0);
 
     struct uinput_setup us;
     memset(&us, 0, sizeof us);
@@ -407,6 +420,7 @@ static int pad_create(void) {
     ev(fd, EV_ABS, ABS_X, 0); ev(fd, EV_ABS, ABS_Y, 0);
     ev(fd, EV_ABS, ABS_RX, 0); ev(fd, EV_ABS, ABS_RY, 0);
     ev(fd, EV_ABS, ABS_Z, 0); ev(fd, EV_ABS, ABS_RZ, 0);
+    ev(fd, EV_ABS, ABS_HAT0X, 0); ev(fd, EV_ABS, ABS_HAT0Y, 0);
     syn(fd);
     logmsg("sanal gamepad olusturuldu: '%s' (Xbox 360 VID/PID)", g_cfg.gamepad_name);
     usleep(300000);
@@ -567,6 +581,7 @@ static void cfg_int(Cfg *c, const char *k, const char *v) {
     else if (EQ("tap_ms")) c->tap_ms = n;
     else if (EQ("swipe_ms")) c->swipe_ms = n;
     else if (EQ("gamepad")) c->gamepad_enable = n;
+    else if (EQ("gamepad_sticky")) c->gamepad_sticky = n;
     else if (EQ("virtual_keyboard")) c->virtual_keyboard = n;
     else if (EQ("toggle_key")) c->toggle_key = parse_keyname(v);
     else if (EQ("profile_key")) c->profile_key = parse_keyname(v);
@@ -1296,21 +1311,46 @@ static int context_needs_pad(void) {
     return 0;
 }
 
-/* Sanal gamepad'i ihtiyaca gore olustur/kaldir:
+/* Pad'i notrle: tum eksenler merkezde, tum butonlar birakilmis.
+ * Uygulama degisiminde "takili tus/eksen" kalmasin diye. */
+static void pad_center_all(void) {
+    if (g_pad_fd < 0) return;
+    int axes[] = { ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_Z, ABS_RZ, ABS_HAT0X, ABS_HAT0Y };
+    for (unsigned i = 0; i < sizeof axes / sizeof axes[0]; i++) ev(g_pad_fd, EV_ABS, axes[i], 0);
+    int btns[] = { BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, BTN_TL, BTN_TR,
+                   BTN_SELECT, BTN_START, BTN_MODE, BTN_THUMBL, BTN_THUMBR };
+    for (unsigned i = 0; i < sizeof btns / sizeof btns[0]; i++) ev(g_pad_fd, EV_KEY, btns[i], 0);
+    syn(g_pad_fd);
+}
+
+/* Sanal gamepad'i ihtiyaca gore olustur/yonet:
  *  - gamepad = 1 (global) : pad acilista olusur, burada dokunulmaz
  *  - gamepad = 0 (vars.)  : gp eslemeli oyun one gelince pad OLUSTURULUR
- *    (Dead Cells "kontrolor baglandi" diye otomatik kol moduna gecer),
- *    oyun/profil degisince pad KALDIRILIR (dokunmatik oyunlar kol gormesin). */
+ *    (Dead Cells "kontrolor baglandi" diye otomatik kol moduna gecer).
+ *  - gamepad_sticky = 1 (vars., v1.0.5): olusan pad, oyun odak KAYBETSE
+ *    de (bildirim cubugu, MIUI overlay, kisa app degisimi) YOK EDILMEZ.
+ *    NEDEN: Unity tabanli oyunlar (Dead Cells) calisma sirasinda eklenen/
+ *    kaldirilan kolu YENIDEN TARAMAZ — pad'i yok etmek "oyun kolu bir kere
+ *    algiladi, sonra bir daha algilamadi" durumuna yol aciyordu. Bunun
+ *    yerine butonlar birakilir, eksenler merkezlenir.
+ *  - gamepad_sticky = 0   : eski davranis (oyun kapaninca pad kaldirilir).
+ *  - Olusturma basarisiz olursa artik KALICI olarak vazgecilmez: 10 sn'de
+ *    bir yeniden denenir (eski surumde tek hata pad'i sonsuza dek kapatirdi). */
 static void ensure_pad_for_context(void) {
+    static long last_try = 0;
     int need = context_needs_pad();
     if (need) {
-        if (g_pad_fd >= 0 || g_pad_auto_failed) return;
+        if (g_pad_fd >= 0) return;
+        long nowt = ms_now();
+        if (g_pad_auto_failed && nowt - last_try < 10000) return;
+        last_try = nowt;
         if (pad_create() == 0) {
             g_pad_auto = 1;
-            logmsg("sanal gamepad OLUSTURULDU (X-Box 360 pad) — oyun artik kol görmeli");
+            g_pad_auto_failed = 0;
+            logmsg("sanal gamepad OLUSTURULDU (X-Box 360 pad, eksenler -32768..32767) — oyun artik kol görmeli");
         } else {
             g_pad_auto_failed = 1;
-            logmsg("UYARI: gamepad profili aktif ama sanal pad olusturulamadi (uinput?)");
+            logmsg("UYARI: sanal pad olusturulamadi (uinput?) — 10 sn sonra tekrar denenecek");
         }
     } else if (g_pad_auto && g_pad_fd >= 0 && !g_cfg.gamepad_enable) {
         for (int i = 0; i < g_nbinds; i++) {   /* basili gp tus/eksen birak */
@@ -1319,11 +1359,15 @@ static void ensure_pad_for_context(void) {
                 do_action_release(b);
             b->pressed = 0;
         }
-        ioctl(g_pad_fd, UI_DEV_DESTROY);
-        close(g_pad_fd);
-        g_pad_fd = -1;
-        g_pad_auto = 0;
-        logmsg("sanal gamepad kaldirildi (gamepad oyunu/profili kapandi)");
+        if (g_cfg.gamepad_sticky) {
+            pad_center_all();   /* pad KALIR; sadece notrlenir (Unity hotplug sorunu) */
+        } else {
+            ioctl(g_pad_fd, UI_DEV_DESTROY);
+            close(g_pad_fd);
+            g_pad_fd = -1;
+            g_pad_auto = 0;
+            logmsg("sanal gamepad kaldirildi (gamepad oyunu/profili kapandi)");
+        }
     }
 }
 
@@ -1482,6 +1526,9 @@ int main(int argc, char **argv) {
                g_mouse_fd >= 0 ? g_mouse_path : "yok (BT fare baglaninca otomatik)", g_cfg.grab_mouse);
         printf("  kisayollar   : ac/kapa=%s profil=%s kalibrasyon=%s\n",
                keyname(g_cfg.toggle_key), keyname(g_cfg.profile_key), keyname(g_cfg.calib_key));
+        printf("  pad eksenleri: X/Y/RX/RY -32768..32767 (merkez 0), LT/RT 0..255, D-pad HAT0\n");
+        printf("  gamepad_sticky: %d (1=pad olustuktan sonra kaldirilmaz — Unity hotplug cozumu)\n",
+               g_cfg.gamepad_sticky);
         printf("  profiller    : %d\n", g_profile_count);
         for (int i = 0; i < g_profile_count; i++) printf("     - %s\n", g_profile_files[i]);
         printf("  eslesmeler   : %d\n", g_nbinds);

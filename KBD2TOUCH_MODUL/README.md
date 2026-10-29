@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.4** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.5** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -39,7 +39,7 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 - ✅ **Sürükleme** (`swipe`) — WASD'yi ekran joystick'ine çevirme, sayfa kaydırma
 - ✅ **Otomatik tekrar** (`repeat_ms`) — otomatik ateş / otomatik tık
 - ✅ **Oyun başına profil + otomatik geçiş** — ön plandaki pakete göre kendisi seçer
-- ✅ **Akıllı sanal gamepad** — gamepad eşlemeli oyun (Dead Cells, GTA SA…) açılınca sanal Xbox kolu **otomatik** oluşur, oyun kapanınca kalkar. Oyun "kol bağlandı" moduna geçer
+- ✅ **Akıllı sanal gamepad** — gamepad eşlemeli oyun (Dead Cells, GTA SA…) açılınca sanal Xbox kolu **otomatik** oluşur ve `gamepad_sticky=1` ile oyun odak kaybetse bile **kaldırılmaz** (Unity hotplug sorunu yok). Oyun "kol bağlandı" moduna geçer
 - ✅ **Klavye gaspı (EVIOCGRAB)** — oyun ham tuşu görmez
 - ✅ **Bluetooth/USB fare desteği** — eşlenen oyun açıkken fare de yakalanır (`grab_mouse`):
   sol/sağ/orta tık + tekerlek eşlenebilir; oyun dışında imleç **normal** çalışır.
@@ -60,6 +60,19 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 > Cihazında doğrulama: `cat /data/adb/kbd2touch/log.txt` → oyun açılınca
 > `on plandaki uygulama: com.playdigious.deadcells.mobile` +
 > `klavye ELE GECIRILDI` + `sanal gamepad OLUSTURULDU` satırlarını görmelisin.
+
+> **v1.0.5 notu (gerçek cihaz testi sonrası):** İki kritik oyun-kolu hatası
+> düzeltildi: ① Sanal pad'in analog eksenleri `0..32767` tanımlanıyordu
+> (`minimum` hiç yazılmamıştı) → kernel `-32767`'yi `0`'a kırpıyor, Android
+> `0`'ı "sonuna kadar sol" sayıyordu: **karakter kendi kendine sola koşuyor,
+> WASD/oklar saçmalıyor, sağ analog (oklar) ölüyordu.** Artık eksenler
+> `-32768..32767`, merkez gerçekten `0`. ② Pad, oyun her odak kaybettiğinde
+> (bildirim çubuğu, overlay, kısa geçiş) yok edilip yeniden yaratılıyordu;
+> Unity oyunlarda kol hot-plug'ı yeniden taramadığı için **"bir kere algıladı,
+> sonra algılamadı"** oluyordu. Artık `gamepad_sticky=1` (varsayılan): pad
+> bir kez oluşunca kalır, sadece nötrlenir. Ayrıca Dead Cells profili resmî
+> wiki'ye göre yenilendi: **W ve ↑ = zıpla** (PC'deki gibi), oklar = hareket,
+> **I = tırmanma**, S+Space = platformdan düş.
 
 ## 2) Klasör yapısı
 
@@ -86,7 +99,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.4.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.5.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -373,28 +386,33 @@ Analog sürüş ve nişan alma **dokunmatik eşlemeden çok daha doğal** olur.
 Oyunu açman yeterli (`com.playdigious.deadcells.mobile` ön plana gelince profil +
 sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları** (resmi wiki):
 
-| Tuş | Oyun içi (Xbox) | İşlev |
+| Tuş | Oyun içi (Xbox) | İşlev (PC karşılığı) |
 |---|---|---|
-| **W/A/S/D** | sol analog | hareket / tırmanma / eğilme |
-| **Space** | A | zıpla (S+Space = platformdan düş / hava saldırısı) |
+| **A / D** veya **← / →** | sol analog ∓ | sola/sağa yürüme (PC: A-D ve oklar) |
+| **Space / W / ↑** | A | **zıpla** — PC'de üçü de zıpla (wiki) |
+| **S** veya **↓** | sol analog aşağı | eğil; **S+Space = platformdan düş** (oyundaki "aşağı+A") |
+| **I** | sol analog yukarı | asma/zincir tırmanma |
 | **Shift** veya **Ctrl** | B | takla (dodge-roll) |
-| **1** veya **J** | X | ana silah |
-| **2** veya **K** | Y | ikinci silah |
+| **1 / J / sol tık** | X | ana silah |
+| **2 / K / sağ tık** | Y | ikinci silah |
 | **Q** veya **3** | LT | sol beceri (el bombası vb.) |
 | **E** veya **4** | RT | sağ beceri (taret vb.) |
 | **R** | RB | kullan / etkileş (kapı, sandık, NPC) |
-| **F** veya **H** | LB | iyileştir (iksir) |
+| **F / H / orta tık** | LB | iyileştir (iksir) |
 | **Tab** | SELECT | harita |
 | **Esc** | START | duraklat |
-| **Ok tuşları** | sağ analog | kamera / yay nişanı |
-| **Sol tık** (fare) | X | ana silah — PC'deki gibi |
-| **Sağ tık** (fare) | Y | ikinci silah — PC'deki gibi |
-| **Orta tık** (fare) | LB | iyileştir (iksir) |
+
+> 🏹 **Yay nişanı:** kol modunda sağ analogla alınır; bu profil okları PC
+> alışkanlığıyla harekete/zıplamaya verdiği için sağ analoga tuş atamaz —
+> Dead Cells'in **kontrolcü nişan yardımı (aim assist)** bunu büyük ölçüde
+> karşılar. İstersen ileride `mouse_aim` (fare hareketi → sağ analog) eklenir.
 
 > 💀 Ölünce "vücuttan çıkma" (R3) gerekirse profildeki `[bind:V] THUMBR` örneğinin
 > başındaki `#` işaretlerini kaldır.
-> 🎮 Oyun kolunu sonradan görürse (nadiren): oyunu bir kez kapat-aç; ikinci açılışta
-> pad hazır olduğu için kesin tanır.
+> 🎮 v1.0.5'te pad **kalıcı** (sticky): oyun açıkken bildirim çubuğu/overlay
+> odak çalsa bile kol yok olmaz. Yine de oyunu ilk açışında "kol görülmedi"
+> dersen oyunu TAM kapatıp (son uygulamalardan at) yeniden aç — Unity kolu
+> başlangıçta tarar.
 
 ### 🆕 Yeni oyun ekleme (3 dakika)
 ```bash

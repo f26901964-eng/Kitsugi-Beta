@@ -38,6 +38,61 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.5 — GERÇEK CİHAZ TESTİ SONUCU: analog eksen + sticky gamepad düzeltmeleri
+
+**Kullanıcı testi (v1.0.4 sonrası, gerçek cihaz):** Oyun "bir kere kol gibi
+algıladı sonra algılamadı"; karakter **sürekli sola** koşuyor; WASD düzgün
+çalışmıyor; ok tuşları hiç çalışmıyor. Game Booster kapatıldı, değişmedi.
+
+**Kök neden #1 — `abs_setup()` `minimum`'u hiç yazmıyordu:**
+`struct uinput_abs_setup` memset'lenip yalnız `maximum` set edilince analog
+eksenler **0..32767** aralığıyla oluşuyordu. Zincir:
+1. Profil `-32767` (sol/yukarı) yazıyor → kernel `input_handle_abs_event`
+   değeri `[min,max]=[0,32767]`'ye **kırpıyor** → 0.
+2. Pad oluşturulurken "merkezleme" diye yazılan 0 → aralığın DİBİ.
+3. Android InputReader ekseni `(v-min)/(max-min)*2-1` ile normalize eder →
+   0 → **-1.0 = SONUNA KADAR SOL/YUKARI**.
+Sonuç: pad doğar doğmaz sol analog tam sola yapışık → karakter sürekli sola
+koşuyor; W/A/S/D bırakınca 0 = yine sol; RX/RY de aynı → oklar ölü.
+**Düzeltme:** `abs_setup(fd, code, min, max, fuzz, flat)`; analoglar
+`-32768..32767` (merkez 0 = Linux gamepad standardı), tetikler `0..255`,
+D-pad `ABS_HAT0X/Y -1..1` (xpad ile aynı; cihaz menülerinde gezinme bonusu).
+
+**Kök neden #2 — pad'in odak kaybında yok edilmesi (Unity hot-plug):**
+`ensure_pad_for_context` her gp-dışı ön plana geçişte (bildirim çubuğu!,
+MIUI overlay, FivePlay menüsü, kısa app geçişi) pad'i `UI_DEV_DESTROY` ile
+yok edip dönüşte yeniden yaratıyordu. Unity tabanlı oyunlar çalışma sırasında
+eklenen/çıkan joystick'i **yeniden taramaz** → "bir kere algıladı, sonra
+algılamadı". Ayrıca yaratma bir kez başarısız olursa `g_pad_auto_failed`
+kalıcı latch'lenip pad'i sonsuza dek kapatıyordu.
+**Düzeltme:** `gamepad_sticky = 1` (yeni config, varsayılan): pad bir kez
+oluşunca KALDIRILMAZ; bağlam gp-dışına çıkınca `pad_center_all()` ile
+nötrlenir (tüm eksenler 0 + tüm butonlar release). Latch kaldırıldı:
+başarısız yaratma 10 sn'de bir yeniden denenir. `gamepad_sticky = 0` eski
+davranışı korur (dokunmatik oyunlar kol görmesin isteyenler için).
+
+**Profil düzeltmesi — Dead Cells resmî wiki'ye göre (deadcells.wiki.gg/Controls):**
+PC klavyesinde **Jump = Space VEYA W VEYA ↑** (üç keybind), hareket = A/D +
+←/→, eğil/düş = S/↓ (Drop = aşağı+A), tırman = yukarı (vine/chain). Eski
+profilimiz W'yi "sol analog yukarı" yapıyordu → PC alışkanlığıyla W'ye basan
+kullanıcı zıplayamıyordu. Yeni düzen: W/↑/Space → **A (zıpla)**; ←/→ → LX;
+↓ → LY aşağı; **I → LY yukarı (tırmanma)**; S+Space = platformdan düş
+(oyunun rebind edilemez "aşağı+A" kombinasyonu, birebir). Butonlar zaten
+wiki ile birebirdi (X ana silah, Y ikinci, LT/RT beceri, LB iyileştir,
+RB kullan, SELECT harita, START duraklat, B takla) — doğrulandı, dokunulmadı.
+Yay nişanı (sağ analog) bu sürümde tuşsuz: aim assist yeterli; istenirse
+v1.0.6'da `mouse_aim` (fare REL_X/Y → RX/RY, hassasiyetli, decay'li) eklenir.
+
+**Doğrulama:** gcc -Wall -Wextra 0 uyarı; `--check` → 87 eşleşme, 0
+bilinmeyen, W/↑/SPACE→A, I→LY↑, ←/→→LX, S/↓→LY↓ görünüyor; `--fg-parse`
+8/8; ARM64 (zig 0.17.0, aarch64 ELF makine kodu 0xb7 doğrulandı); SukiSU
+akış simülasyonu; zip integrity + legacy=FALSE.
+
+**Ders:** uinput ABS eksenlerinde `minimum` ASLA varsayılana (0)
+bırakılmamalı — çift kutuplu eksenler (analog) için -32768 şart; aksi halde
+kernel kırpma + Android normalizasyonu "nötr = tam basılı" üretiyor. Ve
+Unity oyunlarında sanal giriş cihazı YARAT-YOK etme: bir kez yarat, kalıcı tut.
+
 ## v1.0.4 — KÖK NEDEN BULUNDU: "u0 " öneki (gerçek cihaz bugreport analizi)
 
 **Belirti (kullanıcı, gerçek cihaz):** Modül sorunsuz kuruldu, daemon çalışıyor
