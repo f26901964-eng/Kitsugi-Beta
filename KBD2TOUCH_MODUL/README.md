@@ -39,7 +39,7 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 - ✅ **Sürükleme** (`swipe`) — WASD'yi ekran joystick'ine çevirme, sayfa kaydırma
 - ✅ **Otomatik tekrar** (`repeat_ms`) — otomatik ateş / otomatik tık
 - ✅ **Oyun başına profil + otomatik geçiş** — ön plandaki pakete göre kendisi seçer
-- ✅ **Sanal gamepad** — oyun "kol bağlandı" moduna geçer (GTA SA, Minecraft, Asphalt…)
+- ✅ **Akıllı sanal gamepad** — gamepad eşlemeli oyun (Dead Cells, GTA SA…) açılınca sanal Xbox kolu **otomatik** oluşur, oyun kapanınca kalkar. Oyun "kol bağlandı" moduna geçer
 - ✅ **Klavye gaspı (EVIOCGRAB)** — oyun ham tuşu görmez
 - ✅ **MIUI bypass** — kurulumda `persist.security.adbinput=1` otomatik ayarlanır
 - ✅ **Dokunuş jitter'ı** — istenirse koordinatlara rastgelelik (anti-detection)
@@ -63,6 +63,7 @@ KBD2TOUCH_MODUL/
 ├── profiles/
 │   ├── com.cmplay.dancingline.ini      ← Dancing Line (Space = dokun, oklar = menü/bölüm)
 │   ├── com.rockstargames.gtasa.ini     ← GTA SA dokunmatik eşleme (WASD joystick + butonlar)
+│   ├── com.playdigious.deadcells.mobile.ini ← ⭐ Dead Cells: sanal Xbox kolu (PC tuş düzeni, OTOMATİK)
 │   ├── gtasa_gamepad.ini               ← GTA SA sanal gamepad (PC tuşları gibi, sadece F10 ile)
 │   └── genel.ini                       ← boş şablon (yeni oyun için kopyala)
 ├── src/kbd2touch.c         ← kaynak kod (~1000 satır C, tamamı açık)
@@ -142,7 +143,7 @@ su
 ```
   ekran        : 2880x1800 (touch ekseni 2880x1800)
   rotation     : 0  swap_xy=0 invert=0/0
-  grab_keyboard: 1   slots: 10   gamepad: 0   sanal_klavye: 1
+  grab_keyboard: 1 (mod=1)   slots: 10   gamepad: 0 (OTOMATIK)   sanal_klavye: 1
   kisayollar   : ac/kapa=F9 profil=F10 kalibrasyon=F11
   profiller    : 4
   eslesmeler   : 55
@@ -234,7 +235,7 @@ su -c "pkill -f kbd2touch; sleep 1; /data/adb/kbd2touch/kbd2touch -c /data/adb/k
 | `tap_ms` | Tek dokunuşun basılı kalma süresi | 40 |
 | `swipe_ms` | Sürükleme süresi | 90 |
 | `virtual_keyboard` | `1` = `action = key` için ayrı sanal klavye cihazı oluştur. Bazı ROM'larda "fiziksel klavye bağlı" sayılıp ekran klavyesini gizleyebilir → sorun olursa `0` | 1 |
-| `gamepad` | `1` = sanal Xbox 360 kolu da oluştur | 0 |
+| `gamepad` | `0` = **akıllı**: sanal kol sadece gamepad eşlemeli oyun açılınca oluşur, kapanınca kalkar · `1` = kol her zaman mevcut | 0 |
 | `gamepad_name` | Sanal kolun görünen adı | `Microsoft X-Box 360 pad` |
 | `auto_profile` | Ön plandaki uygulamaya göre profil seç | 1 |
 | `auto_profile_ms` | Uygulama kontrol aralığı | 1500 |
@@ -328,11 +329,8 @@ L = nişan al, Shift = koş, C = eğil, R = şarjör, Q/E = silah değiştir, Ta
 oklar = kamera, 1-5 = slot.
 
 **(b) Gamepad profili** (`gtasa_gamepad.ini`) — oyunu **yerel kol moduna** geçirir:
-```ini
-# config.ini
-gamepad = 1
-```
-Sonra F10 ile `gtasa_gamepad` profiline geç. WASD = sol analog, oklar = sağ analog (kamera),
+F10 ile `gtasa_gamepad` profiline geç; sanal Xbox kolu **otomatik oluşur**
+(eskiden `gamepad = 1` gerekirdi, artık gerekmiyor). WASD = sol analog, oklar = sağ analog (kamera),
 Space = A, F = Y, J = B, L = LT (nişan), Shift = LT (koş), C = RT (eğil), Tab/Start = menü.
 Analog sürüş ve nişan alma **dokunmatik eşlemeden çok daha doğal** olur.
 
@@ -343,6 +341,38 @@ Analog sürüş ve nişan alma **dokunmatik eşlemeden çok daha doğal** olur.
 > 📌 GTA SA Android **klavyeyi yerel desteklemez** (2.11.13'ten sonra klavye ile hile kodu girme de kaldırıldı).
 > Bu yüzden ya bu modülle eşleme yap ya da **Winlator** ile PC sürümünü çalıştır
 > (bkz. araştırma raporu Bölüm 3.6).
+
+### ⚔️ Dead Cells — EN GÜVENİLİR profil (sanal kol, sıfır kalibrasyon)
+
+> **Neden özel:** Dead Cells mobil klavyeyi **native desteklemez** (Reddit'te kullanıcılar
+> yıllardır istiyor, eklenmedi) ama **kontrolcü desteği mükemmel** — oyun zaten kol için
+> tasarlanmış. Bu yüzden dokunma taklidi yerine **sanal Xbox 360 kolu** üretiyoruz:
+> oyun kolu görünce kendi kol moduna geçiyor (ekranda A/B/X/Y ipuçları), girdiyi
+> **doğal** okuyor. Koordinat yok, kalibrasyon yok, gecikme minimum → bu profil
+> "kesin çalışır" kategorisinde.
+
+Oyunu açman yeterli (`com.playdigious.deadcells.mobile` ön plana gelince profil +
+sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları** (resmi wiki):
+
+| Tuş | Oyun içi (Xbox) | İşlev |
+|---|---|---|
+| **W/A/S/D** | sol analog | hareket / tırmanma / eğilme |
+| **Space** | A | zıpla (S+Space = platformdan düş / hava saldırısı) |
+| **Shift** veya **Ctrl** | B | takla (dodge-roll) |
+| **1** veya **J** | X | ana silah |
+| **2** veya **K** | Y | ikinci silah |
+| **Q** veya **3** | LT | sol beceri (el bombası vb.) |
+| **E** veya **4** | RT | sağ beceri (taret vb.) |
+| **R** | RB | kullan / etkileş (kapı, sandık, NPC) |
+| **F** veya **H** | LB | iyileştir (iksir) |
+| **Tab** | SELECT | harita |
+| **Esc** | START | duraklat |
+| **Ok tuşları** | sağ analog | kamera / yay nişanı |
+
+> 💀 Ölünce "vücuttan çıkma" (R3) gerekirse profildeki `[bind:V] THUMBR` örneğinin
+> başındaki `#` işaretlerini kaldır.
+> 🎮 Oyun kolunu sonradan görürse (nadiren): oyunu bir kez kapat-aç; ikinci açılışta
+> pad hazır olduğu için kesin tanır.
 
 ### 🆕 Yeni oyun ekleme (3 dakika)
 ```bash

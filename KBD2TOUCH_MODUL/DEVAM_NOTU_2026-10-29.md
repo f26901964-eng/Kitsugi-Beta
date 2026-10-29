@@ -19,7 +19,7 @@
 1. `KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md` — 14 bölümlük araştırma
    (XtMapper / KeySync / Panda Mouse Pro / KeyMapper / sanal gamepad / Winlator karşılaştırması,
    MIUI `INJECT_EVENTS` engeli + çözümü, oyun tarifleri, ban riski, sorun giderme).
-2. `KBD2TOUCH_MODUL/` — özel KernelSU/Magisk modülü v1.0.0
+2. `KBD2TOUCH_MODUL/` — özel KernelSU/Magisk modülü v1.0.x
    - `dist/kbd2touch-v1.0.0.zip` → flaşlanabilir paket
    - `system/bin/kbd2touch` → ARM64 statik binary (zig cc, musl)
    - `src/kbd2touch.c` → kaynak (~1100 satır)
@@ -27,6 +27,16 @@
    - Kurulum: yöneticiden zip flaşla **veya** `install.sh`
 3. Google Drive yedeği: klasör **"Kitsugi-Beta_Klavye_Modul_Yedek_2026-10-29"**
    (tam paket zip + flaş zip + rapor + README + bu not).
+
+## v1.0.1'de eklenenler (aynı gün, 2. tur)
+- **Dead Cells profili** (`com.playdigious.deadcells.mobile.ini`): sanal Xbox kolu üzerinden,
+  PC klavye varsayılanlarıyla birebir (Space=A zıpla, Shift=B takla, 1/J=X, 2/K=Y, Q/3=LT, E/4=RT,
+  R=RB, F/H=LB iksir, Tab=SELECT harita, ESC=START, oklar=sağ analog kamera).
+  Kaynak: resmi deadcells.wiki.gg Controls sayfası + Reddit (mobil klavye desteği YOK, kol desteği mükemmel).
+- **Akıllı sanal gamepad** (C değişikliği): `gamepad = 0` iken bile gp eşlemeli profil/uygulama
+  öne gelince pad OTOMATİK oluşur (`ensure_pad_for_context`), bağlamdan çıkınca yıkılır.
+  `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
+- grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
 ## v1.0.0'da olanlar
 - uinput çoklu dokunuş (10 parmak), tap/hold/swipe/repeat, sanal Xbox gamepad, sanal klavye (KEY_BACK)

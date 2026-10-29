@@ -250,6 +250,8 @@ static int  g_enabled = 1;
 /* ------------------------------------------------------------------ */
 static int g_touch_fd = -1;
 static int g_pad_fd = -1;
+static int g_pad_auto = 0;         /* pad, ensure_pad_for_context ile mi olustu */
+static int g_pad_auto_failed = 0;  /* otomatik olusturma denemesi basarisiz mi */
 static int g_key_fd = -1;
 static int g_kbd_fd = -1;      /* fiziksel klavyenin evdev dugumu */
 static int g_grabbed = 0;      /* klavye su an exclusive mi */      /* sanal klavye: KEY_BACK / KEY_HOME vb. gondermek icin */
@@ -355,6 +357,7 @@ static int keydev_create(void) {
 }
 
 static int pad_create(void) {
+    if (g_pad_fd >= 0) return 0;   /* zaten var */
     int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (fd < 0) fd = open("/dev/input/uinput", O_WRONLY | O_NONBLOCK);
     if (fd < 0) return -1;
@@ -785,6 +788,8 @@ static void scan_profiles(void) {
             }
 }
 
+static void ensure_pad_for_context(void);   /* ileri bildirim (tanim asagida) */
+
 static void reload_all(void) {
     /* aktif dokunuslari birak */
     for (int i = 0; i < g_nbinds; i++)
@@ -807,6 +812,8 @@ static void reload_all(void) {
              i, b->keycode, b->src, b->app, b->action, b->x, b->y, b->x2, b->y2,
              b->hold, b->repeat_ms, b->out_key, b->gp_button, b->gp_axis);
     }
+    g_pad_auto_failed = 0;
+    ensure_pad_for_context();
 }
 
 /* ------------------------------------------------------------------ */
@@ -1162,6 +1169,60 @@ static void release_all(void) {
 }
 
 /* ------------------------------------------------------------------ */
+/* baglama gore sanal gamepad (Dead Cells vb. kontrolor destekli oyunlar) */
+/* ------------------------------------------------------------------ */
+
+/* Aktif baglam (F10 profili veya on plandaki uygulama) gamepad eslemesi
+ * iceriyor mu? bind_for_key ile ayni filtreleme mantigi kullanilir. */
+static int context_needs_pad(void) {
+    for (int i = 0; i < g_nbinds; i++) {
+        Bind *b = &g_binds[i];
+        if (b->action != ACT_GP_BUTTON && b->action != ACT_GP_STICK) continue;
+        if (g_active_profile[0]) {
+            if (!b->src[0] || strcasecmp(b->src, g_active_profile) == 0) return 1;
+        } else {
+            if (b->manual) continue;   /* elle secilen profil otomatik modda devre disi */
+            if (b->app[0]) {
+                if (g_current_app[0] && strcasecmp(b->app, g_current_app) == 0) return 1;
+            } else {
+                return 1;   /* config.ini'de genel gp eslemesi: pad hep gerekir */
+            }
+        }
+    }
+    return 0;
+}
+
+/* Sanal gamepad'i ihtiyaca gore olustur/kaldir:
+ *  - gamepad = 1 (global) : pad acilista olusur, burada dokunulmaz
+ *  - gamepad = 0 (vars.)  : gp eslemeli oyun one gelince pad OLUSTURULUR
+ *    (Dead Cells "kontrolor baglandi" diye otomatik kol moduna gecer),
+ *    oyun/profil degisince pad KALDIRILIR (dokunmatik oyunlar kol gormesin). */
+static void ensure_pad_for_context(void) {
+    int need = context_needs_pad();
+    if (need) {
+        if (g_pad_fd >= 0 || g_pad_auto_failed) return;
+        if (pad_create() == 0) {
+            g_pad_auto = 1;
+        } else {
+            g_pad_auto_failed = 1;
+            logmsg("UYARI: gamepad profili aktif ama sanal pad olusturulamadi (uinput?)");
+        }
+    } else if (g_pad_auto && g_pad_fd >= 0 && !g_cfg.gamepad_enable) {
+        for (int i = 0; i < g_nbinds; i++) {   /* basili gp tus/eksen birak */
+            Bind *b = &g_binds[i];
+            if ((b->action == ACT_GP_BUTTON || b->action == ACT_GP_STICK) && b->pressed)
+                do_action_release(b);
+            b->pressed = 0;
+        }
+        ioctl(g_pad_fd, UI_DEV_DESTROY);
+        close(g_pad_fd);
+        g_pad_fd = -1;
+        g_pad_auto = 0;
+        logmsg("sanal gamepad kaldirildi (gamepad oyunu/profili kapandi)");
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* kalibrasyon                                                         */
 /* ------------------------------------------------------------------ */
 static void calibrate(void) {
@@ -1299,7 +1360,7 @@ int main(int argc, char **argv) {
                g_cfg.rotation, g_cfg.swap_xy, g_cfg.invert_x, g_cfg.invert_y);
         printf("  grab_keyboard: %d (mod=%d: 0=asla 1=eslenen uygulamada 2=her zaman)\n",
                g_cfg.grab_keyboard, g_cfg.grab_mode);
-        printf("  slots: %d   gamepad: %d   sanal_klavye: %d\n",
+        printf("  slots: %d   gamepad: %d (0=OTOMATIK: gp profili acilinca olusur)   sanal_klavye: %d\n",
                g_cfg.slot_count, g_cfg.gamepad_enable, g_cfg.virtual_keyboard);
         printf("  kisayollar   : ac/kapa=%s profil=%s kalibrasyon=%s\n",
                keyname(g_cfg.toggle_key), keyname(g_cfg.profile_key), keyname(g_cfg.calib_key));
@@ -1440,6 +1501,7 @@ int main(int argc, char **argv) {
                             if (g_profile_idx == 0) {
                                 g_active_profile[0] = 0;
                                 logmsg("profil: OTOMATIK (on plandaki uygulamaya gore)");
+                                ensure_pad_for_context();
                                 set_grab(should_grab());
                                 write_status("profil=auto enabled=%d grab=%d", g_enabled, g_grabbed);
                             } else {
@@ -1449,6 +1511,7 @@ int main(int argc, char **argv) {
                                 char *dot = strrchr(nm, '.'); if (dot) *dot = 0;
                                 snprintf(g_active_profile, sizeof g_active_profile, "%s", nm);
                                 logmsg("profil: %s (elle secildi)", nm);
+                                ensure_pad_for_context();
                                 set_grab(should_grab());
                                 write_status("profil=%s enabled=%d grab=%d", nm, g_enabled, g_grabbed);
                             }
@@ -1494,6 +1557,7 @@ int main(int argc, char **argv) {
                 snprintf(last_app, sizeof last_app, "%s", app);
                 snprintf(g_current_app, sizeof g_current_app, "%s", app);
                 logv("on plandaki uygulama: %s", app);
+                ensure_pad_for_context();
                 set_grab(should_grab());
                 write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, app);
             }
