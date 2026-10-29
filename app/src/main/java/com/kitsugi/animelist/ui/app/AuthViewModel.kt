@@ -1429,10 +1429,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 if (res.isSuccess && res.getOrNull() != null) {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                     logEvent("AniList", context.getString(R.string.cross_sync_log_updated, "AniList", mergedEntry.title), isUpdate = true, details = mappingDetails)
+                                } else if (res.isSuccess) {
+                                    // null = AniList'te medya kimliği güvenle çözülemedi — atlandı (hata değil).
+                                    // Eski davranış update için hata sayıyordu; kimlik çözülemeyen kayıtlar
+                                    // "hata" olarak görünüp gerçek hatalarla karışıyordu.
+                                    recordSkip(
+                                    platform = "AniList",
+                                    reasonKey = context.getString(R.string.cross_sync_reason_anilist_media_id_unresolved),
+                                    title = mergedEntry.title,
+                                    message = context.getString(R.string.cross_sync_log_skipped, "AniList", context.getString(R.string.cross_sync_reason_anilist_media_id_unresolved), mergedEntry.title),
+                                    details = mappingDetails
+                                    )
                                 } else {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
                                     val failure = res.exceptionOrNull()?.crossSyncDiagnostic(context)
-                                        ?: context.getString(R.string.cross_sync_api_anilist_update_not_confirmed)
+                                    ?: context.getString(R.string.cross_sync_api_anilist_update_not_confirmed)
                                     logEvent("AniList", context.getString(R.string.cross_sync_log_failed_update, "AniList", mergedEntry.title), isError = true, details = "$failure\n$mappingDetails")
                                 }
                             }

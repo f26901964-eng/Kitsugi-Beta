@@ -293,6 +293,19 @@ object CrossSyncIdentityGuard {
     fun titlesAreIdentityEquivalent(a: Collection<String>, b: Collection<String>): Boolean =
         matchingLocalTitleAliases(a, b).isNotEmpty()
 
+    /**
+     * Normalized başlık tam eşitliği (NFKC + noktalamasız + küçük harf). AniList satırlarında
+     * `year` alanı seasonYear'dan, doğrulama ise startDate.year'dan gelir; sezon sınırında ±1
+     * yıl farkı same-production uyumsuzluğu değildir. Başlık tam kimlik eşitse (normalized
+     * eşit) yıl farkı yazımı engellemez; zayıf başlık eşleşişinde ise yıllar bilinen farklı
+     * yapım可能性i yüksek olduğundan güvenle atlanır.
+     */
+    fun exactNormalizedTitleMatch(a: Collection<String>, b: Collection<String>): Boolean {
+        val setA = a.mapNotNull { t -> MediaIdentity.normalizedTitle(t).takeIf { it.isNotBlank() } }.toSet()
+        val setB = b.mapNotNull { t -> MediaIdentity.normalizedTitle(t).takeIf { it.isNotBlank() } }.toSet()
+        return setA.isNotEmpty() && setB.isNotEmpty() && setA.intersect(setB).isNotEmpty()
+    }
+
     /** Same-ID cluster relation; unlike the UI/detail heuristic this never accepts one shared word. */
     fun entriesLookRelated(a: MediaEntry, b: MediaEntry): Boolean =
         titlesAreIdentityEquivalent(aliasesOf(a), aliasesOf(b))

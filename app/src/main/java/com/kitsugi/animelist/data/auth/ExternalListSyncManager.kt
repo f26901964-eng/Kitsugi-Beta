@@ -143,7 +143,7 @@ object ExternalListSyncManager {
             suspend fun crossWriteBlocked(target: String): Boolean {
                 if (target == rowSource || realMalId == null) return false
                 sourceIdentityVerified?.let { return it }
-                val verified = try {
+                val verdict = try {
                     CrossSyncIdentityGuard.verifyMalId(
                         malId = realMalId,
                         // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
@@ -151,9 +151,32 @@ object ExternalListSyncManager {
                         mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
                         localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
                         localYear = entry.year
-                    ) is CrossSyncIdentityGuard.Verdict.Verified
+                    )
                 } catch (_: Exception) {
-                    false
+                    CrossSyncIdentityGuard.Verdict.Unverifiable(
+                        context.getString(R.string.cross_sync_identity_remote_title_unavailable, realMalId)
+                    )
+                }
+                val verified = when (verdict) {
+                    is CrossSyncIdentityGuard.Verdict.Verified,
+                    is CrossSyncIdentityGuard.Verdict.Trusted -> true
+                    // Resmî MAL kataloğu ile GERÇEK uyuşmazlık: yazma güvenle durur.
+                    is CrossSyncIdentityGuard.Verdict.Rejected -> false
+                    // Resmî MAL kataloğuna erişilemedi: AniList'in KENDİ kataloğu (idMal +
+                    // tip + başlık + yıl) üzerinden ikinci doğrulama; ikisi de engellenirse
+                    // güvenli yana atlanır (yazım database'e gitmez). Bu fallback olmadan
+                    // resmî katalog bağlantısı tek noktada kırıldığında AniList ↔ MAL tüm
+                    // çapraz yazmaları sessizce atlıyordu.
+                    is CrossSyncIdentityGuard.Verdict.Unverifiable -> runSyncCatching {
+                        if (aniListToken.isNullOrBlank()) return@runSyncCatching false
+                        AniListSyncManager.verifyMalIdThroughAniList(
+                            token = aniListToken,
+                            malId = realMalId,
+                            mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME",
+                            localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                            localYear = entry.year
+                        )
+                    }.getOrDefault(false)
                 }
                 sourceIdentityVerified = verified
                 return !verified
@@ -551,7 +574,7 @@ object ExternalListSyncManager {
             suspend fun crossWriteBlocked(target: String): Boolean {
                 if (target == rowSource || realMalId == null) return false
                 sourceIdentityVerified?.let { return it }
-                val verified = try {
+                val verdict = try {
                     CrossSyncIdentityGuard.verifyMalId(
                         malId = realMalId,
                         // Movie/TvShow MAL'de anime-namespace'inde yaşar ("movie"/"tv");
@@ -559,9 +582,32 @@ object ExternalListSyncManager {
                         mediaType = if (entry.type == MediaType.Manga) MediaType.Manga else MediaType.Anime,
                         localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
                         localYear = entry.year
-                    ) is CrossSyncIdentityGuard.Verdict.Verified
+                    )
                 } catch (_: Exception) {
-                    false
+                    CrossSyncIdentityGuard.Verdict.Unverifiable(
+                        context.getString(R.string.cross_sync_identity_remote_title_unavailable, realMalId)
+                    )
+                }
+                val verified = when (verdict) {
+                    is CrossSyncIdentityGuard.Verdict.Verified,
+                    is CrossSyncIdentityGuard.Verdict.Trusted -> true
+                    // Resmî MAL kataloğu ile GERÇEK uyuşmazlık: yazma güvenle durur.
+                    is CrossSyncIdentityGuard.Verdict.Rejected -> false
+                    // Resmî MAL kataloğuna erişilemedi: AniList'in KENDİ kataloğu (idMal +
+                    // tip + başlık + yıl) üzerinden ikinci doğrulama; ikisi de engellenirse
+                    // güvenli yana atlanır (yazım database'e gitmez). Bu fallback olmadan
+                    // resmî katalog bağlantısı tek noktada kırıldığında AniList ↔ MAL tüm
+                    // çapraz yazmaları sessizce atlıyordu.
+                    is CrossSyncIdentityGuard.Verdict.Unverifiable -> runSyncCatching {
+                        if (aniListToken.isNullOrBlank()) return@runSyncCatching false
+                        AniListSyncManager.verifyMalIdThroughAniList(
+                            token = aniListToken,
+                            malId = realMalId,
+                            mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME",
+                            localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
+                            localYear = entry.year
+                        )
+                    }.getOrDefault(false)
                 }
                 sourceIdentityVerified = verified
                 return !verified
