@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.5"
+#define VERSION        "1.0.6"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024

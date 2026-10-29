@@ -38,6 +38,37 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.6 — PROFİL GÜNCELLEME TUZAĞI + menü gezinme (kullanıcı sorusuyla bulundu)
+
+**Kullanıcı sorusu:** "Dead Cells ANA MENÜSÜNDE de PC'deki gibi ok tuşları
+çalışacak mı?" → İki kritik sorun ortaya çıktı:
+
+**1. YÜKSEK ETKİLİ KURULUM HATASI — profiller flaşlamada güncellenmiyordu:**
+customize.sh ve post-fs-data.sh profilleri `[ -f hedef ] || cp` mantığıyla
+"YALNIZCA YOKSA" kopyalıyordu. Kullanıcının cihazında v1.0.2'den kalma
+profiller durduğu için v1.0.5 flaşlansa bile YENİ TUŞ DÜZENİ CİHAZA
+ULAŞMAYACAKTI (binary güncellenir, profil bayat kalır: W=analog yukarı,
+oklar=sağ analog). Bu, "flaşladım ama değişmedi" hissinin gizli ikinci
+kaynağıydı. Düzeltme: paketle gelen 5 profil artık her flaşlamada
+md5 karşılaştırmasıyla GÜNCELLENİR; farklıysa eski dosya `.bak` yapılır.
+Kullanıcının kendi profilleri (başka adlar) ve config.ini (ekran/rotasyon
+ayarları) korunur. post-fs-data.sh "yoksa onar" modunda kaldı (her boot'ta
+zorla üzerine yazmak runtime düzenlemeleri silerdi; güncelleme anı = flaş).
+
+**2. Menü gezinme eksikti — ↑ tuşu A'ya (onayla) bağlıydı:**
+Dead Cells menülerinde seçim ↑↓←→ ile gezilir; onay=A, geri=B. v1.0.5
+profilinde ↑=A (zıpla) olduğundan menüde YUKARI gezinme imkânsızdı
+(↑ basınca seçim onaylanıyordu!). PC'de ↑ hem zıpla hem menü-yukarı;
+daemon oyun-içi/menü bağlamını AYIRT EDEMEZ → seçim gerekti: ↑ = LY yukarı
+(menü gezin + asmada tırman), zıplama Space/W'de kaldı (PC'nin birincil
+iki jump bind'ı; wiki: Jump = Space, W, Up). Menü düzeni artık:
+↑↓←→ gezin, Space/W onayla (A), Shift/Ctrl geri (B), Esc START, Tab SELECT.
+
+**Doğrulama:** --check'te UP → gp_stick LY(0,-32767) görünüyor; yükseltme
+senaryosu simüle edildi (bayat profil + kullanıcı config'i + kullanıcı
+profili → customize → profil güncellendi, .bak oluştu, config ve kullanıcı
+profili dokunulmadı).
+
 ## v1.0.5 — GERÇEK CİHAZ TESTİ SONUCU: analog eksen + sticky gamepad düzeltmeleri
 
 **Kullanıcı testi (v1.0.4 sonrası, gerçek cihaz):** Oyun "bir kere kol gibi

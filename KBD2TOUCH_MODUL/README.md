@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.5** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.6** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -99,7 +99,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.5.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.6.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -389,7 +389,8 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 | Tuş | Oyun içi (Xbox) | İşlev (PC karşılığı) |
 |---|---|---|
 | **A / D** veya **← / →** | sol analog ∓ | sola/sağa yürüme (PC: A-D ve oklar) |
-| **Space / W / ↑** | A | **zıpla** — PC'de üçü de zıpla (wiki) |
+| **Space / W** | A | **zıpla** (PC'de ↑ de zıplar; bizde ↑ menüye ayrıldı) |
+| **↑** | sol analog yukarı | **menülerde yukarı gezin** + oyunda asma/zincir tırmanma |
 | **S** veya **↓** | sol analog aşağı | eğil; **S+Space = platformdan düş** (oyundaki "aşağı+A") |
 | **I** | sol analog yukarı | asma/zincir tırmanma |
 | **Shift** veya **Ctrl** | B | takla (dodge-roll) |
@@ -402,10 +403,24 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 | **Tab** | SELECT | harita |
 | **Esc** | START | duraklat |
 
+> 📋 **MENÜLERDE (ana menü, duraklat, koleksiyoncu, sandık/upgrade):**
+> ↑/↓/←/→ = gezin (dört yön tam), **Space/W = onayla** (A), **Shift/Ctrl = geri** (B),
+> Esc = duraklat (START), Tab = harita (SELECT). Yani menü akışı PC'deki gibi
+> ok tuşlarıyla; tek fark: PC'de ↑ oyun içinde de zıplatır, burada ↑ menü
+> gezinmeye ayrılmış durumda (zıplama Space/W'de — PC'nin birincil tuşları).
+>
 > 🏹 **Yay nişanı:** kol modunda sağ analogla alınır; bu profil okları PC
-> alışkanlığıyla harekete/zıplamaya verdiği için sağ analoga tuş atamaz —
+> alışkanlığıyla harekete verdiği için sağ analoga tuş atamaz —
 > Dead Cells'in **kontrolcü nişan yardımı (aim assist)** bunu büyük ölçüde
 > karşılar. İstersen ileride `mouse_aim` (fare hareketi → sağ analog) eklenir.
+>
+> 🔄 **v1.0.6 profil güncelleme düzeltmesi:** Eski sürümlerde flaşlama,
+> CİHAZDA ZATEN VAR olan profillerin ÜZERİNE YAZMIYORDU ("yalnızca yoksa
+> kopyala" mantığı) — yani kod düzeltmeleri gelse bile tuş düzenin bayat
+> kalıyordu. v1.0.6'dan itibaren paketle gelen 5 profil her flaşlamada
+> güncellenir; senin düzenlediğin sürüm `profil.ini.bak` olarak saklanır.
+> KENDİ eklediğin profiller (örn. `com.tencent.ig.ini`) asla ellenmez.
+> config.ini bilinçli olarak KORUNUR (ekran/rotasyon ayarların kaybolmasın).
 
 > 💀 Ölünce "vücuttan çıkma" (R3) gerekirse profildeki `[bind:V] THUMBR` örneğinin
 > başındaki `#` işaretlerini kaldır.
