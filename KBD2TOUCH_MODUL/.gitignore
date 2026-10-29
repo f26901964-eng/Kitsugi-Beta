@@ -1,2 +1,3 @@
 # derleme ciktilari (build.sh ile yeniden uretilir)
-bin/
+# NOT: "/bin/" -> sadece bu klasordeki bin/; system/bin/ (asil binary) HARIC
+/bin/
