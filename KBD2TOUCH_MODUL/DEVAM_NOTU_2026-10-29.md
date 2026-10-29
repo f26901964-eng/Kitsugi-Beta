@@ -38,6 +38,46 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.0.8 — MENÜ TUŞLARI (Enter=seç, geri=B) + fare teşhis kanıtları
+
+**Kullanıcı geri bildirimi (öfkeli, haklı kısımlar var):** "Enter tuşu seçmesi
+lazım değil mi, ben mi yanlış biliyorum? Geri tuşu yanlış. Fareyi hâlâ
+algılamıyor. Araştırmanı eksik yapıyorsun."
+
+**ÖZELEŞTİRİ / KÖK NEDEN:** wiki.gg/Controls sayfasının KLAVYE tablosu
+yalnız OYUN İÇİ tuşlarını listeler; menü tuşları (Confirm/Back) aynı
+sayfada sadece KOL tablosunda var (Confirm=A, Back=B). Klavye menü
+davranışı fandom'da: Custom Mode sayfası "Space: Confirm, Esc: Back".
+ENTER hiçbir sürümde bağlı değildi — eksik araştırma, kullanıcı haklı.
+
+**YENİ EŞLEMELER:** ENTER + KPENTER → A (hold=1, menüde seç/onayla; oyun
+içinde yan etki = zıpla, PC'de Enter'ın oyun içi işlevi yok, zararsız).
+BACKSPACE → B ve KEY_BACK (Android geri) → B (menüde geri; oyun içinde
+Backspace'in PC işlevi yok). ESC → START KORUNDU: PC'de Esc bağlamsal
+(oyunda duraklat / menüde geri) — daemon bağlamı GÖREMEZ; Esc→B olsaydı
+oyun içinde her Esc takla attırırdı (felaket). Çözüm: Esc=START
+(duraklat + duraklat menüsünde devam), alt menülerde geri = Shift/Ctrl/
+Backspace (B = fiziksel kolun Back'i, wiki "Back=B" ile birebir).
+
+**FARE "ALGILAMIYOR" TEŞHİSİ:** Kullanıcının v1.0.7'yi flaşlayıp
+flaşlamadığı BELİRSİZ (şikâyetler v1.0.5+bayat profil ile de birebir
+uyumlu). v1.0.8 teşhis kanıtları ekledi: (1) status.txt artık
+"fare=<düğüm|yok>" alanı yazıyor; (2) her fare tuşunun İLK olayında
+log'a "FARE olayi ALINDI: <ad>" düşüyor (kanıt satırı); (3) grab_mouse=0
+"natif işaretçi modu" belgelendi — Dead Cells Android'in touchpad/pointer
+girdisini natif okuduğuna dair kanıt var (Chromebook kullanıcısı raporu:
+dokununca ipuçları "tıkla eli"ne dönüyor). grab_mouse=0'da fare hiç
+yakalanmaz → menülerde imleç tıklanabilir; risk: oyun içi mod karışması.
+Önerilen varsayılan 1 (tık=senkron pad butonu, PC oyun içi davranışı).
+
+**AYRICA doğrulandı (bu tur):** service.sh binary'yi /data/adb/kbd2touch/
+kopyasından çalıştırıyor AMA post-fs-data.sh her boot'ta cp -f ile
+MODDIR'den tazeliyor → bayat binary riski YOK. wiki.gg sayfası bu sefer
+BAŞTAN SONA okundu (4 chunk): kol non-rebindable tablosunda Camera=sağ
+analog, Move=L-stick veya D-pad, Crouch=L-stick aşağı, Drop=down+A —
+hepsi mevcut eşlemelerle uyumlu; PageUp/PageDown (Collector filtresi)
+klavyeye özgü, pad karşılığı yok (bilinçli atlandı).
+
 ## v1.0.7 — ÇOKLU TUŞ KİLİDİ + fare yeniden bağlanma + yazma koruması + tam PC eşitliği
 
 **Kullanıcı geri bildirimi (4 şikâyet):** ① "aynı anda 2 tuşa basınca

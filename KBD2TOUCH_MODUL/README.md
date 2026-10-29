@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.7** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.0.8** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -61,6 +61,24 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 > `on plandaki uygulama: com.playdigious.deadcells.mobile` +
 > `klavye ELE GECIRILDI` + `sanal gamepad OLUSTURULDU` satırlarını görmelisin.
 
+> **v1.0.8 notu (menü tuşları — kullanıcı geri bildirimi):**
+> ① **ENTER / numpad ENTER = seç/onayla (A)** — PC'de menüler Enter/Space
+> ile seçilir (kaynak: fandom Custom Mode: "Space: Confirm, Esc: Back";
+> wiki kol tablosu: Confirm=A, Back=B). Önceki sürümlerde ENTER hiç
+> bağlı değildi — eksik araştırma, düzeltildi.
+> ② **BACKSPACE + Android geri tuşu = geri (B)** — menülerde geri için
+> Shift/Ctrl'e ek kesin tuşlar.
+> ③ **ESC bağlamı (dürüst açıklama):** PC'de Esc hem "duraklat" hem
+> "menüde geri" — oyunu ekranı kendisi ayırt eder; daemon AYIRT EDEMEZ.
+> Esc=START (oyun içinde duraklat, duraklat menüsünde devam — PC ile aynı);
+> alt menülerde geri = Shift/Ctrl/Backspace (=B, fiziksel koldaki Back'in
+> birebir karşılığı). Esc→B yapılsaydı oyun içinde her Esc takla attırırdı.
+> ④ **Fare teşhis kanıtları:** `status.txt` artık `fare=` alanı içeriyor;
+> ilk fare tıkında log'a "FARE olayi ALINDI" yazılıyor (boru hattı kanıtı).
+> `grab_mouse = 0` alternatifi belgelendi (fare hiç yakalanmaz → oyun onu
+> NATİF Android işaretçisi olarak görür: menülerde imleç tıklanabilir;
+> karşılığı oyun içi mod karışması riski — önerilen 1).
+
 > **v1.0.7 notu (kullanıcı geri bildirimi — 4 kök düzeltme):**
 > ① **ÇOKLU TUŞ KİLİDİ:** Aynı hedefi paylaşan iki tuş (Space+W → A,
 > Shift+Ctrl → B, A/D+oklar → LX ekseni, Q+3+fare yanı → LT) birbirini
@@ -119,7 +137,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.7.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.0.8.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---
@@ -424,10 +442,13 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 | **Esc** veya **T** | START | duraklat |
 
 > 📋 **MENÜLERDE (ana menü, duraklat, koleksiyoncu, sandık/upgrade):**
-> ↑/↓/←/→ = gezin (dört yön tam), **Space/W = onayla** (A), **Shift/Ctrl = geri** (B),
-> Esc = duraklat (START), Tab = harita (SELECT). Yani menü akışı PC'deki gibi
-> ok tuşlarıyla; tek fark: PC'de ↑ oyun içinde de zıplatır, burada ↑ menü
-> gezinmeye ayrılmış durumda (zıplama Space/W'de — PC'nin birincil tuşları).
+> ↑/↓/←/→ = gezin (dört yön tam) · **Enter / Space / W = seç, onayla** (A) ·
+> **Shift / Ctrl / Backspace = geri** (B) · Esc = oyun içinde duraklat,
+> duraklat menüsünde devam (START) · Tab = harita (SELECT) · X/Y = özel
+> eylemler (silah/beceri değiştir). PC'deki menü akışının birebir karşılığı;
+> tek fark Esc'in alt menülerde "geri" olamaması (bağlam sorunu — yukarıda
+> dürüst açıklama) ve ↑'nin oyun içinde zıplatmaması (menü gezinmeye ayrıldı;
+> zıplama Space/W = PC'nin birincil tuşları).
 >
 > 🖱️ **FARE — PC ile birebir aynı rol:** Dead Cells PC'de fare HAREKETİyle
 > nişan alınmaz (oyunda otomatik nişan yardımı vardır; fare yalnızca tıklar —
@@ -437,6 +458,14 @@ sanal kol otomatik devreye girer). Tuş düzeni = **PC klavye varsayılanları**
 > Oyun dışında imleç normal çalışır (fare yalnızca oyun açıkken yakalanır).
 > J/K gibi PC'de olmayan uydurma bind'lar v1.0.7'de KALDIRILDI — tablo artık
 > birebir deadcells.wiki.gg/Controls "Keyboard/Mouse" sütunları.
+> **Fare teşhisi (v1.0.8):** `cat /data/adb/kbd2touch/status.txt` →
+> `fare=/dev/input/eventN` görülmeli; fareyi oynatıp tıklayınca
+> `log.txt`'de "FARE olayi ALINDI: SOL_TIK (ilk olay…)" satırı çıkar.
+> İkisi de yoksa: `--list-devices` çıktısında fare düğümünü bul ve
+> config.ini'ye `mouse_device = /dev/input/eventN` yaz.
+> **Natif imleç modu:** menülerde imleçle tıklamak istersen
+> `grab_mouse = 0` (fare hiç yakalanmaz; oyun içi tıklar oyunun dokunma
+> mantığına gider, mod karışabilir — önerilen oyun içi PC hissi: 1).
 >
 > 🔄 **v1.0.6 profil güncelleme düzeltmesi:** Eski sürümlerde flaşlama,
 > CİHAZDA ZATEN VAR olan profillerin ÜZERİNE YAZMIYORDU ("yalnızca yoksa

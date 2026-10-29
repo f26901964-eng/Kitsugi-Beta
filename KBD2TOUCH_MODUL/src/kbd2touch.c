@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.7"
+#define VERSION        "1.0.8"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024
@@ -1054,7 +1054,8 @@ static void set_grab(int on) {
     logmsg("klavye%s %s", g_mouse_fd >= 0 && g_cfg.grab_mouse ? " + fare" : "",
            on ? "ELE GECIRILDI (oyun ham girdiyi gormez)"
               : "SERBEST BIRAKILDI (normal yazma/imlec aktif)");
-    write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, g_current_app);
+    write_status("enabled=%d grab=%d fare=%s app=%s", g_enabled, g_grabbed,
+                 g_mouse_fd >= 0 ? g_mouse_path : "yok", g_current_app);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1847,6 +1848,19 @@ int main(int argc, char **argv) {
                         g_stop = 1; break;
                     }
 
+                    /* v1.0.8: fare tus boru hattini LOG ile KANITLA — her fare
+                     * tusu icin ILK olayda bir kez yazilir. "Fare algilanmiyor"
+                     * teshisi: log.txt'de "FARE olayi ALINDI" varsa olaylar
+                     * daemon'a ULASIYOR demektir (gerisi esleme/is). */
+                    if (code >= BTN_LEFT && code <= BTN_EXTRA) {
+                        static int mbtn_logged = 0;
+                        int bit = 1 << (code - BTN_LEFT);
+                        if (!(mbtn_logged & bit)) {
+                            mbtn_logged |= bit;
+                            logmsg("FARE olayi ALINDI: %s (bu tusun ilk olayi — fare boru hatti calisiyor)", keyname(code));
+                        }
+                    }
+
                     Bind *b = bind_for_key(code, g_current_app);
                     if (!b) continue;
 
@@ -1890,7 +1904,8 @@ int main(int argc, char **argv) {
                 }
                 ensure_pad_for_context();
                 set_grab(should_grab());
-                write_status("enabled=%d grab=%d app=%s", g_enabled, g_grabbed, app);
+                write_status("enabled=%d grab=%d fare=%s app=%s", g_enabled, g_grabbed,
+                             g_mouse_fd >= 0 ? g_mouse_path : "yok", app);
             }
         }
 
