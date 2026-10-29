@@ -38,6 +38,52 @@
   `gamepad = 1` = eski davranış (her zaman var). gtasa_gamepad için artık config şartı yok.
 - grab_mode (1. turda): klavye sadece eşlenen oyun öndeyken ele geçiriliyor.
 
+## v1.10 — "KLAVYE/FARE HİÇ YOK" ŞİKÂYETİ: tek-halka teşhisi + kolda açılış yarışı kök çözümü + otomatik teşhis raporu
+
+**Kullanıcı (öfkeli, haklı olarak kanıt istiyor):** "tıpatıp PC tuşlamasıyla
+çalışmıyor, klavye fare hiç yok, menü/sayfa bağlam mantığı da çalışmıyor,
+adam akıllı kontrol edip düzelt."
+
+**ANALİZ — semptomlar TEK halkaya indirgeniyor:** Dead Cells mobil klavyeyi
+native OKUMAZ; bütün tuş/fare çevirileri sanal KOL üzerinden oyuna gider.
+Oyun kolu GÖRMEZSE: klavye hiç çalışmaz ✓, fare hiç çalışmaz ✓, menü
+bağlamı (A=onay/B=geri oyun içi anlamlandırması) hiç çalışmaz ✓ — üç
+şikâyetin üçü de "oyun pad'i görmüyor" ile açıklanır. (Alternatif hipotez:
+cihazda hâlâ v1.0.5+bayat v1.0.2 profili var — o da aynı semptomları verir;
+teşhis raporu ikisini AYIRT EDER: sürüm + profil eşleşme sayısı satırları.)
+
+**KÖK NEDEN (mühendislik):** Unity tabanlı oyunlar kontrolcüyü YALNIZ
+başlangıçta tarar (v1.0.5'te sticky ile YOK ETME sorununu çözmüştük; ama
+pad hâlâ oyun ön plana GELİNCE oluşuyordu → focus polling 1.5sn + dumpsys
+süresi + oyun açılışı = YARIŞ: Unity taramayı pad doğmadan bitirirse kol
+hiç algılanmıyor). Kullanıcının "bir kere algıladı sonra algılamadı"
+geçmişi bununla birebir uyumlu.
+
+**ÇÖZÜM 1 — gamepad_boot_create=1 (varsayılan):** gp eşlemeli HERHANGİ bir
+profil yüklüyse pad DAEMON AÇILIŞINDA oluşturulur (ensure_pad_for_context
+öncesi, main içinde) + sticky ile asla kaldırılmaz → oyun her açılışında
+kol ZATEN sistemde hazır. Yarış yapısal olarak bitti. Yan etki: kol tüm
+oturum boyunca bağlı görünür (Android oyunlarda kol simgesi) — kabul
+edildi; touch-only oyunlar (Dancing Line) gamepad girdisini zaten okumaz.
+
+**ÇÖZÜM 2 — OTOMATİK TEŞHİS (--diagnose):** service.sh daemon'dan 25sn
+sonra çalıştırır; /sdcard/Download/kbd2touch_teshis.txt + $HOME/teshis.txt
++ stdout'a yazar. İçerik: sürüm (v1.10 değilse eski modül çalışıyor!),
+daemon pid taraması (/proc), klavye/fare düğümü+EVIOCGNAME adı, dumpsys
+ön plan uygulaması, toplam eşleşme + PROFİL BAŞINA eşleşme sayısı (parmak
+izi: deadcells=35 → profil güncel; düşükse bayat), config değerleri,
+/proc/bus/input/devices X-Box grep (kol sistemde görünür mü), getevent -pl
+eksen aralıkları (min=-32768 cihaz kanıtı), status.txt, log son 30 satır.
+Salt-okunur: g_no_create=1 ile reload_all→ensure_pad ve boot-create
+blokları uinput AÇMAZ. reload_all artık her profil için "profil yuklendi:
+X -> N eslesme" logluyor (bayat profil log'dan da görünür).
+
+**Dürüstlük notu:** Sandbox testleri kod mantığını garanti eder (hakem
+7/7, --check, simülasyon); cihaz entegrasyonunun son halkası (Unity'nin
+pad'i görmesi, BT fare düğümü) ancak cihaz telemetrisiyle doğrulanır —
+v1.10 tam olarak bu telemetriyi otomatikleştiriyor. Kullanıcıdan tek
+istek: flaş + reboot + 30sn sonra Download/kbd2touch_teshis.txt içeriği.
+
 ## v1.0.9 — KULLANICI FİKRİ: "modül oyun dosyalarını okuyup pencereye göre karar versin" → araştırma + ikili D-pad
 
 **Kullanıcı fikri:** modül oyunun dosyalarını doğrudan algılasa, hangi

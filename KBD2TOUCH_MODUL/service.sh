@@ -58,4 +58,8 @@ kill_daemon
 sleep 1
 
 nohup "$BIN" -c "$KBD_DIR/config.ini" --home "$KBD_DIR" >> "$KBD_DIR/daemon.out" 2>&1 &
+
+# v1.10: 25 sn sonra OTOMATIK teshis raporu — /sdcard/Download/kbd2touch_teshis.txt
+# (kullanici bu dosyayi paylasinca hangi halkanin koptugu KANITLA gorunur)
+( sleep 25; "$BIN" --diagnose >/dev/null 2>&1 ) &
 echo "$!" > "$KBD_DIR/daemon.pid"

@@ -1,6 +1,6 @@
 # 🛠️ Kbd2Touch — Xiaomi Pad 6 için klavye → dokunuş / gamepad modülü
 
-**v1.0.9** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
+**v1.10** · MIT lisans · `aarch64` statik binary (bionic'e bağımlı değil)  
 Hedef cihaz: **Xiaomi Pad 6 (pipa)** + MIUI 14 / Android 13 + **SukiSU Ultra / KernelSU / Magisk** root
 
 > Bu modül, araştırma raporundaki ("`KLAVYE_OYUN_KONTROL_ARASTIRMA_RAPORU_2026-10-29.md`") hazır uygulamaların
@@ -60,6 +60,25 @@ Xiaomi Pad 6 klavyesi (pogo-pin, USB HID)
 > Cihazında doğrulama: `cat /data/adb/kbd2touch/log.txt` → oyun açılınca
 > `on plandaki uygulama: com.playdigious.deadcells.mobile` +
 > `klavye ELE GECIRILDI` + `sanal gamepad OLUSTURULDU` satırlarını görmelisin.
+
+> **v1.10 notu ("oyun kolu/klavyeyi HİÇ algılamıyor" — kök çözüm + teşhis):**
+> ① **KOL AÇILIŞTA HAZIR:** Unity oyunlar kontrolcuyu YALNIZ oyun
+> başlarken tarar. Pad eskiden oyun ön plana GELİNCE oluşuyordu → tarama
+> bittikten sonra doğan pad hiç görülmüyordu ("kol bir kere algıladı,
+> sonra algılamadı" ve "klavye/fare hiç yok" — çünkü Dead Cells klavyeyi
+> native okumaz, her şey sanal koldan geçer). Artık gp eşlemeli profil
+> varsa pad **daemon açılışında** oluşur (`gamepad_boot_create=1`) ve
+> sticky ile hiç kaldırılmaz: oyun ne zaman açılırsa açılsın kol ONU
+> ÖNCE hazır bekler.
+> ② **OTOMATİK TEŞHİS RAPORU:** her açılışta 25 sn sonra
+> `/sdcard/Download/kbd2touch_teshis.txt` yazılır: sürüm, daemon çalışıyor
+> mu, klavye/fare düğümü + adı, ön plandaki uygulama, profil başına
+> eşleşme sayısı (deadcells=35 değilse profil bayat!), sanal kol
+> /proc/bus/input/devices'te görünüyor mu, `getevent -pl` eksen
+> aralıkları (min=-32768 doğrulaması), status.txt + log son 30 satır.
+> Elle de çalışır: `su -c "/data/adb/kbd2touch/kbd2touch --diagnose"`.
+> "Çalışmıyor" demek artık kanıtsız kalmıyor — hangi halkanın koptuğu
+> tek dosyada görünür.
 
 > **v1.0.9 notu ("modül oyunun dosyalarını okuyup pencereye göre tuş kararı
 > versin" fikri — araştırma sonucu ve uygulanan daha iyi çözüm):**
@@ -156,7 +175,7 @@ KBD2TOUCH_MODUL/
 ├── build.sh                ← yeniden derleme (zig ile)
 ├── pack.sh                 ← flaşlanabilir zip üretme
 ├── installer/              ← evrensel update-binary (Magisk + KernelSU/SukiSU/APatch)
-└── dist/kbd2touch-v1.0.9.zip  ← ⭐ flaşlanabilir paket
+└── dist/kbd2touch-v1.10.zip  ← ⭐ flaşlanabilir paket
 ```
 
 ---

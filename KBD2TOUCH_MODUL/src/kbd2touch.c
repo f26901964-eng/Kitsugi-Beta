@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#define VERSION        "1.0.9"
+#define VERSION        "1.10"
 #define MAX_BINDS      512
 #define MAX_NAME       96
 #define MAX_LINE       1024
@@ -230,6 +230,7 @@ typedef struct {
     int   swipe_ms;
     int   gamepad_enable;
     int   gamepad_sticky;     /* 1 = pad olustuktan sonra kaldirilmaz (Unity hotplug sorunu) */
+    int   gamepad_boot_create;/* v1.10: 1 = gp profili varsa pad DAEMON ACILISINDA olusur */
     int   virtual_keyboard;   /* 0 ise sanal klavye cihazi olusturulmaz (yazilim klavyesi kaybolmasin diye) */
     char  gamepad_name[64];
     int   toggle_key, profile_key, calib_key, quit_key;
@@ -247,7 +248,7 @@ static Cfg g_cfg = {
     .touch_max_x = 2879, .touch_max_y = 1799,
     .rotation = 0, .swap_xy = 0, .invert_x = 0, .invert_y = 0,
     .grab_keyboard = 1, .grab_mode = 1, .grab_mouse = 1, .tap_ms = 45, .swipe_ms = 90,
-    .gamepad_enable = 0, .gamepad_sticky = 1, .virtual_keyboard = 1,
+    .gamepad_enable = 0, .gamepad_sticky = 1, .gamepad_boot_create = 1, .virtual_keyboard = 1,
     .gamepad_name = "Microsoft X-Box 360 pad",
     .toggle_key = KEY_F9, .profile_key = KEY_F10,
     .calib_key = KEY_F11, .quit_key = -1,
@@ -270,6 +271,7 @@ static int g_touch_fd = -1;
 static int g_pad_fd = -1;
 static int g_pad_auto = 0;         /* pad, ensure_pad_for_context ile mi olustu */
 static int g_pad_auto_failed = 0;  /* otomatik olusturma denemesi basarisiz mi */
+static int g_no_create = 0;        /* v1.10: --diagnose salt-okunur mod (uinput ACMAZ) */
 static int g_key_fd = -1;
 static int g_kbd_fd = -1;      /* fiziksel klavyenin evdev dugumu */
 static int g_mouse_fd = -1;      /* fiziksel farenin evdev dugumu (BT/USB) */
@@ -592,6 +594,7 @@ static void cfg_int(Cfg *c, const char *k, const char *v) {
     else if (EQ("swipe_ms")) c->swipe_ms = n;
     else if (EQ("gamepad")) c->gamepad_enable = n;
     else if (EQ("gamepad_sticky")) c->gamepad_sticky = n;
+    else if (EQ("gamepad_boot_create")) c->gamepad_boot_create = n;
     else if (EQ("virtual_keyboard")) c->virtual_keyboard = n;
     else if (EQ("toggle_key")) c->toggle_key = parse_keyname(v);
     else if (EQ("profile_key")) c->profile_key = parse_keyname(v);
@@ -829,6 +832,7 @@ static void scan_profiles(void) {
 }
 
 static void ensure_pad_for_context(void);   /* ileri bildirim (tanim asagida) */
+static void diagnose_report(void);          /* ileri bildirim (tanim asagida) */
 static void pad_center_all(void);           /* ileri bildirim (tanim asagida) */
 static void arbiter_reset(void);            /* ileri bildirim (tanim asagida) */
 
@@ -849,6 +853,16 @@ static void reload_all(void) {
 
     logmsg("config yuklendi: %d eslesme, %d profil, ekran %dx%d, rotation %d",
            g_nbinds, g_profile_count, g_cfg.screen_w, g_cfg.screen_h, g_cfg.rotation);
+    for (int i = 0; i < g_profile_count; i++) {   /* v1.10: profil parmak izi — bayat profil kaniti */
+        const char *f = g_profile_files[i];
+        const char *bn = strrchr(f, '/'); bn = bn ? bn + 1 : f;
+        char nm[80]; snprintf(nm, sizeof nm, "%.79s", bn);
+        char *dt = strrchr(nm, '.'); if (dt) *dt = 0;
+        int c = 0;
+        for (int j = 0; j < g_nbinds; j++)
+            if (g_binds[j].src[0] && strcasecmp(g_binds[j].src, nm) == 0) c++;
+        logmsg("profil yuklendi: %s -> %d eslesme", nm, c);
+    }
     for (int i = 0; i < g_nbinds; i++) {
         Bind *b = &g_binds[i];
         logv("  bind[%d] key=%d src='%s' app='%s' action=%d (%d,%d)->(%d,%d) hold=%d rep=%d outkey=%d gp=%d/%d",
@@ -1478,7 +1492,7 @@ static void ensure_pad_for_context(void) {
     static long last_try = 0;
     int need = context_needs_pad();
     if (need) {
-        if (g_pad_fd >= 0) return;
+        if (g_pad_fd >= 0 || g_no_create) return;
         long nowt = ms_now();
         if (g_pad_auto_failed && nowt - last_try < 10000) return;
         last_try = nowt;
@@ -1556,6 +1570,96 @@ static void write_status(const char *fmt, ...) {
     if (f) { fputs(buf, f); fputc('\n', f); fclose(f); }
 }
 
+/* ------------------------------------------------------------------ */
+/* v1.10 CIHAZ TESHISI — "hicbir sey calismiyor" dendiginde hangi      */
+/* halkanin koptugunu KANITLA gosterir. Salt-okunur (uinput/grab YOK). */
+/*stdout + /sdcard/Download/kbd2touch_teshis.txt + $HOME/teshis.txt    */
+/* ------------------------------------------------------------------ */
+static int daemon_pid(void) {
+    DIR *d = opendir("/proc");
+    if (!d) return -1;
+    struct dirent *e; int found = -1;
+    char self[32]; snprintf(self, sizeof self, "%d", (int)getpid());
+    while ((e = readdir(d))) {
+        if (e->d_name[0] < '0' || e->d_name[0] > '9') continue;
+        if (!strcmp(e->d_name, self)) continue;
+        char p[96]; snprintf(p, sizeof p, "/proc/%.31s/cmdline", e->d_name);
+        FILE *f = fopen(p, "r"); if (!f) continue;
+        char cl[512]; size_t r = fread(cl, 1, sizeof cl - 1, f); fclose(f);
+        for (size_t q = 0; q < r; q++) if (!cl[q]) cl[q] = ' ';
+        cl[r] = 0;
+        if (strstr(cl, "/kbd2touch -c") && !strstr(cl, "--diagnose")) { found = atoi(e->d_name); break; }
+    }
+    closedir(d);
+    return found;
+}
+
+static void dump_cmd(FILE **outs, int no, const char *title, const char *cmd) {
+    for (int i = 0; i < no; i++) fprintf(outs[i], "--- %s ---\n", title);
+    FILE *p = popen(cmd, "r");
+    char ln[512]; int lines = 0;
+    if (p) { while (fgets(ln, sizeof ln, p) && lines < 40) { for (int i = 0; i < no; i++) fputs(ln, outs[i]); lines++; } pclose(p); }
+    if (!lines) for (int i = 0; i < no; i++) fprintf(outs[i], "(bos veya komut yok)\n");
+}
+
+static void diagnose_report(void) {
+    FILE *outs[3]; int no = 0;
+    outs[no++] = stdout;
+    FILE *f1 = fopen("/sdcard/Download/kbd2touch_teshis.txt", "w"); if (f1) outs[no++] = f1;
+    char p2[320]; snprintf(p2, sizeof p2, "%s/teshis.txt", g_home);
+    FILE *f2 = fopen(p2, "w"); if (f2) outs[no++] = f2;
+    #define DP(...) do { for (int i_ = 0; i_ < no; i_++) fprintf(outs[i_], __VA_ARGS__); } while (0)
+
+    DP("============ KBD2TOUCH CIHAZ TESHISI (v1.10) ============\n");
+    DP("surum            : v%s  <- v1.10 degilse ESKI MODUL calisiyordur!\n", VERSION);
+    int pid = daemon_pid();
+    DP("daemon sureci    : %s\n", pid > 0 ? "CALISIYOR" : "CALISMIYOR (!) — service.sh calismadi, reboot dene");
+
+    int kfd = find_keyboard();
+    char kn[256] = ""; if (kfd >= 0) { ioctl(kfd, EVIOCGNAME(sizeof kn), kn); close(kfd); }
+    int mfd = find_mouse();
+    char mn[256] = ""; if (mfd >= 0) { ioctl(mfd, EVIOCGNAME(sizeof mn), mn); close(mfd); }
+    if (kfd >= 0) DP("klavye           : BULUNDU '%s'\n", kn);
+    else          DP("klavye           : BULUNAMADI (!) — pogo klavye takili mi?\n");
+    if (mfd >= 0) DP("fare             : BULUNDU '%s' -> %s\n", mn, g_mouse_path);
+    else          DP("fare             : BULUNAMADI — BT fare bagli mi? (oyunda 2 sn'de bir yeniden aranir)\n");
+
+    char app[128];
+    if (get_foreground_app(app, sizeof app) == 0) DP("on plandaki app  : %s\n", app);
+    else DP("on plandaki app  : OKUNAMADI (!) — dumpsys erisimi yok, eslesme calismaz\n");
+
+    DP("toplam eslesme   : %d\n", g_nbinds);
+    for (int i = 0; i < g_profile_count; i++) {
+        const char *f = g_profile_files[i];
+        const char *bn = strrchr(f, '/'); bn = bn ? bn + 1 : f;
+        char nm[80]; snprintf(nm, sizeof nm, "%.79s", bn);
+        char *dt = strrchr(nm, '.'); if (dt) *dt = 0;
+        int c = 0;
+        for (int j = 0; j < g_nbinds; j++)
+            if (g_binds[j].src[0] && strcasecmp(g_binds[j].src, nm) == 0) c++;
+        DP("profil %-28.28s: %d eslesme\n", nm, c);
+    }
+    DP("(deadcells profili v1.0.9+ = 35 eslesme olmali; dusukse profil BAYAT)\n");
+    DP("config           : grab_mode=%d grab_mouse=%d gamepad=%d sticky=%d boot_create=%d\n",
+       g_cfg.grab_mode, g_cfg.grab_mouse, g_cfg.gamepad_enable, g_cfg.gamepad_sticky, g_cfg.gamepad_boot_create);
+
+    char cmd[640];
+    snprintf(cmd, sizeof cmd, "grep -A4 'X-Box 360' /proc/bus/input/devices 2>/dev/null");
+    dump_cmd(outs, no, "sanal kol sistemde GORUNUYOR mu (bos ise kol YOK = oyun neden görmüyor belli)", cmd);
+    snprintf(cmd, sizeof cmd, "getevent -pl 2>/dev/null | grep -B2 -A12 'X-Box'");
+    dump_cmd(outs, no, "kol eksen araliklari (ABS_X min=-32768 max=32767 OLMALI)", cmd);
+    dump_cmd(outs, no, "sistemdeki tum input cihazlari", "grep 'Name=' /proc/bus/input/devices 2>/dev/null");
+    snprintf(cmd, sizeof cmd, "cat %s/status.txt 2>/dev/null", g_home);
+    dump_cmd(outs, no, "status.txt", cmd);
+    snprintf(cmd, sizeof cmd, "tail -n 30 %s/log.txt 2>/dev/null", g_home);
+    dump_cmd(outs, no, "log.txt son 30 satir", cmd);
+    DP("=========================================================\n");
+    DP("Bu rapor ayrica: /sdcard/Download/kbd2touch_teshis.txt ve %s/teshis.txt\n", g_home);
+    #undef DP
+    if (f1) fclose(f1);
+    if (f2) fclose(f2);
+}
+
 static void usage(const char *argv0) {
     printf(
 "kbd2touch v%s — fiziksel klavye -> dokunus / gamepad (root)\n"
@@ -1569,11 +1673,12 @@ static void usage(const char *argv0) {
 "  %s --calibrate              4 kose kalibrasyon testi ve cik\n"
 "  %s --rotation <0|90|180|270> --calibrate\n"
 "  %s --version\n"
+"  %s --diagnose              cihaz teshis raporu (v1.10; /sdcard/Download'a da yazar)\n"
 "\n"
 "Kisayollar (config ile degistirilebilir):\n"
 "  F9  = eslemeyi ac/kapa   F10 = profil degistir\n"
 "  F11 = koseleri kalibre et\n",
-VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
 }
 
 int main(int argc, char **argv) {
@@ -1584,7 +1689,7 @@ int main(int argc, char **argv) {
 
     const char *test_x = NULL; int do_test = 0, do_calib = 0, do_list = 0;
     const char *fg_parse_arg = NULL;
-    int do_map = 0, do_check = 0; const char *map_arg = NULL;
+    int do_map = 0, do_check = 0, do_diagnose = 0; const char *map_arg = NULL;
     int arg_rotation = -1;
     const char *extra_profile = NULL;
 
@@ -1606,6 +1711,7 @@ int main(int argc, char **argv) {
             snprintf(g_home, sizeof g_home, "%s", argv[++i]);
         }
         else if (!strcmp(argv[i], "--fg-parse") && i + 1 < argc) fg_parse_arg = argv[++i];
+        else if (!strcmp(argv[i], "--diagnose")) do_diagnose = 1;
         else if (!strcmp(argv[i], "--version")) { printf("kbd2touch %s\n", VERSION); return 0; }
         else if (!strcmp(argv[i], "--rotation") && i + 1 < argc) arg_rotation = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--test") && i + 2 < argc) {
@@ -1637,9 +1743,11 @@ int main(int argc, char **argv) {
 
     if (do_list) { list_devices(); return 0; }
 
+    if (do_diagnose) g_no_create = 1;   /* teshis salt-okunur: uinput cihazlari ACMAZ */
     reload_all();
     if (extra_profile) load_config(extra_profile, 1);
     if (arg_rotation >= 0) g_cfg.rotation = arg_rotation;
+    if (do_diagnose) { diagnose_report(); return 0; }
 
     if (do_map && map_arg) {
         int x = 0, y = 0; sscanf(map_arg, "%d %d", &x, &y);
@@ -1735,6 +1843,28 @@ int main(int argc, char **argv) {
     else logmsg("virtual_keyboard = 0 -> sanal klavye cihazi olusturulmadi "
                 "(action=key eslesmeleri calismaz)");
     if (g_cfg.gamepad_enable) pad_create();
+
+    /* v1.10 KOK COZUM ("oyun kolu hic algilamiyor"): Unity tabanli oyunlar
+     * kontrolcuyu YALNIZ baslangicta tarar. Pad eskiden oyun on plana
+     * GELINCE olusuyordu -> oyun taramayi bitirdikten sonra dogan pad
+     * hic gorulmuyordu ("kol bir kere algiladi, sonra algilamadi").
+     * Artik gp eslemesi olan HERHANGI bir profil yukluyse pad DAEMON
+     * ACILISINDA olusur ve gamepad_sticky ile hic kaldirilmaz: oyun ne
+     * zaman acilirsa acilsin kol ONU ONCE HAZIR bekler. */
+    if (!g_cfg.gamepad_enable && g_cfg.gamepad_boot_create && !g_no_create) {
+        int any_gp = 0;
+        for (int i = 0; i < g_nbinds; i++)
+            if (g_binds[i].action == ACT_GP_BUTTON || g_binds[i].action == ACT_GP_STICK) { any_gp = 1; break; }
+        if (any_gp) {
+            if (pad_create() == 0) {
+                g_pad_auto = 1;
+                logmsg("sanal gamepad ACILISTA olusturuldu (gamepad_boot_create=1) — oyunlar kolu daha ACILISTA gorur; Unity start-tarama yarisi BITTI");
+            } else {
+                g_pad_auto_failed = 1;
+                logmsg("UYARI: acilista pad olusturulamadi — ensure_pad_for_context 10 sn'de bir yeniden deneyecek");
+            }
+        }
+    }
 
     g_kbd_fd = find_keyboard();
     int kbd = g_kbd_fd;
