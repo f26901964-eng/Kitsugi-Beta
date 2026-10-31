@@ -112,7 +112,8 @@ object KitsugiBangumiClient {
                 sort = BangumiApiClient.SearchSort.MATCH,
                 includeAdult = includeAdult,
                 limit = limit,
-                offset = offset
+                offset = offset,
+                metaTags = metaTags
             )
                 .filter { it.type == BangumiApiClient.SubjectType.BOOK }
                 .filter { includeAdult || !it.nsfw }
@@ -203,7 +204,13 @@ object KitsugiBangumiClient {
          * listeliyordu; `platform` alanı sunucuda süzülemediği için (v0'da `platform`
          * yalnız oyun türünde çalışır) süzgeç burada uygulanır.
          */
-        comicsOnly: Boolean = true
+        comicsOnly: Boolean = true,
+        /**
+         * `meta_tags` süzgeci (`电视剧`, `电影`, `漫画`, `小说`…). Bangumi'de `type = 6`
+         * (三次元) içinde dizi ile filmi ayırmanın sunucu tarafındaki tek yolu; `type = 1`
+         * içinde manga ile romanı ayırır.
+         */
+        metaTags: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         try {
             val types = subjectTypes ?: when (mediaType) {
