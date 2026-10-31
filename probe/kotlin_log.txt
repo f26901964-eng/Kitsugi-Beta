@@ -1,15 +1,8 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: 15bba70
-date: 2026-10-31T22:41:46Z
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt:289:67 Unresolved reference 'metaTags'.
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt:290:29 Unresolved reference 'metaTags'.
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt:291:19 Overload resolution ambiguity between candidates:
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt:428:9 No parameter with name 'metaTags' found.
-> Task :app:compileFossDebugKotlin FAILED
-FAILURE: Build failed with an exception.
-BUILD FAILED in 1m 42s
-exit=1
+commit: 57a4aa5
+date: 2026-10-31T22:49:37Z
+BUILD SUCCESSFUL in 6m 12s
+exit=0
 ----- test özeti -----
 ----- son 600 satır -----
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
@@ -93,297 +86,243 @@ Please remove 'kotlin.incremental.useClasspathSnapshot=false' from 'gradle.prope
 > Task :bangumi-vault-resources-3:bundleLibCompileToJarDebug
 
 > Task :app:kspFossDebugKotlin
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-    1. Kotlin compile daemon is ready
 w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
 
 > Task :app:compileFossDebugKotlin
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt:289:67 Unresolved reference 'metaTags'.
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt:290:29 Unresolved reference 'metaTags'.
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt:291:19 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.distinct(): List<T>
-fun ByteArray.distinct(): List<Byte>
-fun ShortArray.distinct(): List<Short>
-fun IntArray.distinct(): List<Int>
-fun LongArray.distinct(): List<Long>
-fun FloatArray.distinct(): List<Float>
-fun DoubleArray.distinct(): List<Double>
-fun BooleanArray.distinct(): List<Boolean>
-fun CharArray.distinct(): List<Char>
-fun <T> Iterable<T>.distinct(): List<T>
-fun <T> Sequence<T>.distinct(): Sequence<T>
-e: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt:428:9 No parameter with name 'metaTags' found.
+w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiApplication.kt:829:19 'fun destroyDrawingCache(): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiSplashActivity.kt:72:40 'static field FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiSplashActivity.kt:73:40 'static field FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiSplashActivity.kt:215:13 'fun setRenderPriority(p0: WebSettings.RenderPriority!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiSplashActivity.kt:268:13 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiSplashActivity.kt:270:13 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/KitsugiSplashActivity.kt:298:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/diagnostics/KitsugiCrashLogger.kt:124:59 'val id: Long' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/diagnostics/StreamSpeedTester.kt:129:25 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/player/PlayerMediaSessionHelper.kt:57:32 'static field FLAG_HANDLES_MEDIA_BUTTONS: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/player/PlayerMediaSessionHelper.kt:58:32 'static field FLAG_HANDLES_TRANSPORT_CONTROLS: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/player/engine/Media3PlayerEngine.kt:380:31 'field unappliedRotationDegrees: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/player/engine/Media3PlayerEngine.kt:690:82 'static fun getCapabilities(p0: Context): AudioCapabilities' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/player/engine/Media3PlayerEngine.kt:692:26 'fun setAudioCapabilities(p0: AudioCapabilities): DefaultAudioSink.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/player/engine/MpvPlayerEngine.kt:511:51 'static field ACTION_MULTIPLE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/update/ApkInstallerHelper.kt:47:17 Condition is always 'false'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/update/KitsugiUpdateRepository.kt:194:96 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/core/update/KitsugiUpdateRepository.kt:201:75 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/auth/CrossProviderIdentity.kt:531:17 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsPluginLoader.kt:482:55 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsPluginLoader.kt:482:55 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsPluginLoader.kt:485:56 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsPluginLoader.kt:494:21 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/cloudstream/CsStreamRunner.kt:1666:33 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt:893:42 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/fandom/FandomRepository.kt:1060:42 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/manga/KotatsuExtensionAdapter.kt:264:26 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/manga/MangaCatalogManager.kt:154:88 'val KOTATSU_CATALOG_URL: String' is deprecated. Bu dosya Keiyoushi reposunda artik mevcut degil (404).
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/manga/MangaTitleMatcher.kt:18:29 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/manga/MihonSourceWrapper.kt:341:39 Condition is always 'false'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/CloudstreamRepoClient.kt:383:69 'fun String.capitalize(locale: Locale): String' is deprecated. Use replaceFirstChar instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiMalDetailClient.kt:542:21 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiMediaTabsClient.kt:79:28 Condition is always 'false'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiMediaTabsClient.kt:295:28 Condition is always 'false'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/remote/TvMazeClient.kt:72:51 Java type mismatch: inferred type is 'kotlin.Nothing?', but 'kotlin.String' was expected.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/repository/CloudstreamRepoRepository.kt:650:44 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/data/settings/AppLanguage.kt:117:28 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBackupDialog.kt:50:28 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:104:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:350:56 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:480:56 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:559:52 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiCrashRecoveryDialog.kt:186:44 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiEditMediaSheet.kt:833:50 'val Icons.Rounded.List: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.List.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiHorizontalMediaSection.kt:134:38 'fun Modifier.focusRestorer(onRestoreFailed: (() -> FocusRequester)?): Modifier' is deprecated. Use focusRestorer(FocusRequester) instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiKitsuLoginDialog.kt:277:39 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiMediaFilterBottomSheet.kt:225:53 'val Icons.Rounded.Sort: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Sort.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiOAuthWebViewDialog.kt:355:41 'var databaseEnabled: Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiOAuthWebViewDialog.kt:414:47 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPlayerSettingsDialog.kt:77:89 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPlayerSettingsDialog.kt:618:62 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPlayerSettingsDialog.kt:724:62 'val Icons.Rounded.CompareArrows: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.CompareArrows.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPlayerSettingsDialog.kt:1022:66 'val Icons.Rounded.FormatAlignLeft: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatAlignLeft.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPlayerSettingsDialog.kt:1337:66 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:186:114 'val Icons.Rounded.ListAlt: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ListAlt.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:187:116 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:1053:42 'val Icons.Rounded.ViewList: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewList.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:1617:38 'val Icons.Rounded.ViewList: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewList.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:1629:38 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:1645:38 'val Icons.Rounded.PlaylistAddCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAddCheck.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:1805:38 'val Icons.Rounded.ManageSearch: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ManageSearch.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiPreferencesSettingsDialog.kt:1819:38 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiRankingMediaCard.kt:398:24 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiReplyEditorBottomSheet.kt:47:66 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiShikimoriLoginDialog.kt:55:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiShikimoriLoginDialog.kt:264:52 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiSimklLoginDialog.kt:59:20 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiWebViewDialog.kt:177:54 'fun shouldOverrideUrlLoading(p0: WebView!, p1: String!): Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiWebViewDialog.kt:208:37 'var databaseEnabled: Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiWebViewDialog.kt:251:47 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/addons/CloudstreamExtensionTab.kt:85:28 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/addons/MangaExtensionTab.kt:127:28 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/addons/MangaExtensionTab.kt:832:46 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerGeneralTab.kt:218:50 'val Icons.Rounded.Launch: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Launch.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerGeneralTab.kt:444:42 'val Icons.Rounded.Help: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Help.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerGeneralTab.kt:571:46 'val Icons.Rounded.Forward: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Forward.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerGeneralTab.kt:725:42 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerParityOptions.kt:50:27 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerSubtitleAudioTab.kt:223:46 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerSubtitleAudioTab.kt:249:46 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerSubtitleAudioTab.kt:411:46 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerSubtitleAudioTab.kt:439:46 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/player/PlayerSubtitleAudioTab.kt:467:46 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/posteroptions/PosterOptionsDialog.kt:91:51 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/posteroptions/PosterOptionsDialog.kt:95:55 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/collection/CollectionManagementScreen.kt:52:43 'val Icons.Rounded.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/collection/FolderDetailScreen.kt:63:43 'val Icons.Rounded.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/ApiResultDetailPage.kt:333:14 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/ApiResultDetailViewModel.kt:765:22 Check for instance is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/ApiResultDetailViewModel.kt:1313:30 Check for instance is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/InlinePlayerLifecycle.kt:22:26 'val LocalLifecycleOwner: ProvidableCompositionLocal<LifecycleOwner>' is deprecated. Moved to lifecycle-runtime-compose library in androidx.lifecycle.compose package.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/KitsugiDetailHero.kt:501:72 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/KitsugiDetailHeroSection.kt:377:86 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/KitsugiDetailInfoSection.kt:480:32 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/MediaEntryDetailViewModel.kt:1631:30 Check for instance is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/StatsTab.kt:589:30 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/StudioDetailComponents.kt:654:53 'val Icons.Rounded.Sort: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Sort.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/CharacterWikiTabContent.kt:1302:53 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomWikiReader.kt:368:61 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomWikiReader.kt:520:38 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomWikiReader.kt:550:38 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/FandomWikiReader.kt:1409:57 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/MediaWikiTabContent.kt:1298:61 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/detail/wiki/WikiPagePreviewCard.kt:151:49 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreScreen.kt:550:81 'val outlinedButtonBorder: BorderStroke' is deprecated. Please use the version that takes an `enabled` param to get the `BorderStroke` with the correct opacity.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreScreen.kt:570:81 'val outlinedButtonBorder: BorderStroke' is deprecated. Please use the version that takes an `enabled` param to get the `BorderStroke` with the correct opacity.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreScreen.kt:573:89 'val Icons.Rounded.Login: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Login.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:193:69 'val Icons.Rounded.PlaylistAddCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAddCheck.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:193:105 'val Icons.Rounded.PlaylistPlay: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistPlay.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:212:61 'val Icons.Rounded.ViewList: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewList.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:874:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1078:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1293:43 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2358:112 'static field SHOW_FORCED: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2369:44 'fun toggleSoftInput(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2369:104 'static field SHOW_FORCED: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/components/PlayerLoadingViews.kt:140:33 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/manga/MangaSourceHealthScreen.kt:74:28 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/manga/MangaSourceHealthScreen.kt:412:48 'val Icons.Rounded.List: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.List.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/manga/MangaSourceHealthScreen.kt:473:23 'interface ClipboardManager : Any' is deprecated. Use Clipboard instead, which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/more/AboutScreen.kt:245:24 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/more/AboutScreen.kt:394:28 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/more/AboutScreen.kt:884:56 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/mylist/MyListComponents.kt:205:64 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/mylist/MyListComponents.kt:208:55 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/mylist/MyListEmptyState.kt:53:30 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/mylist/MyListScreen.kt:727:57 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/mylist/components/KitsugiListStatusBottomSheet.kt:75:75 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsScreen.kt:714:39 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsScreen.kt:714:69 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/notifications/KitsugiNotificationsScreen.kt:714:98 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/BangumiProfileContent.kt:423:49 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/KitsuProfileContent.kt:567:51 'val Icons.Rounded.Comment: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Comment.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/KitsugiUserMediaListScreen.kt:527:57 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/MalProfileExtras.kt:281:48 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/MalProfileExtras.kt:753:44 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/MalProfileExtras.kt:839:44 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/MalProfileExtras.kt:908:32 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/PlatformUserProfileScreen.kt:187:43 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/ProfileFavoritesListemStyle.kt:480:49 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/UserMediaListCards.kt:267:79 'val Icons.Rounded.FormatListBulleted: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.FormatListBulleted.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/UserProfileHeaderComponents.kt:162:40 'val Icons.Rounded.ListAlt: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ListAlt.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/AniListStatsTab.kt:131:32 'val Icons.Rounded.Label: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Label.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/DetailedProfileStatsOverview.kt:275:81 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/UserProfileStatsTab.kt:129:32 'val Icons.Rounded.Label: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Label.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchScreen.kt:1124:34 'fun Modifier.focusRestorer(onRestoreFailed: (() -> FocusRequester)?): Modifier' is deprecated. Use focusRestorer(FocusRequester) instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1102:13 Duplicate branch condition in 'when'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1103:13 Duplicate branch condition in 'when'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/AddonExploreDialog.kt:478:32 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/AddonSearchDialog.kt:188:57 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/PluginPickerBottomSheet.kt:214:53 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/DeveloperLogsDialog.kt:92:28 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/PlatformErrorCatalogScreen.kt:86:34 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:247:217 'val Icons.Rounded.ViewQuilt: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewQuilt.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:254:169 'val Icons.Rounded.ListAlt: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ListAlt.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:255:127 'val Icons.Rounded.ViewList: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewList.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:260:140 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:261:188 'val Icons.Rounded.PlaylistAddCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAddCheck.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:270:159 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:282:189 'val Icons.Rounded.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.VolumeUp.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:292:215 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:321:168 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:327:159 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsSearch.kt:333:125 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/settings/StorageSettingsContent.kt:686:56 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/stats/StatsScreen.kt:154:54 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/stats/StatsScreen.kt:178:54 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/stream/StreamScreenContent.kt:1149:40 'val Icons.Rounded.Sort: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Sort.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/ModernSidebarBlurPanel.kt:86:18 'fun Modifier.hazeChild(state: HazeState, shape: Shape = ..., tint: Color = ..., blurRadius: Dp = ..., noiseFactor: Float = ...): Modifier' is deprecated. Deprecated. Replaced with new HazeStyle object.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/TvRootScreen.kt:121:52 'val Icons.Filled.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/detail/TvActivityDetailDialog.kt:177:25 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/detail/TvReviewDetailDialog.kt:166:21 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/detail/TvTopicDetailDialog.kt:248:21 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/manga/TvMangaExtensionScreen.kt:231:42 'val Icons.Rounded.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/manga/TvMangaExtensionScreen.kt:1072:35 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/manga/TvMangaSourceHealthScreen.kt:166:50 'val Icons.Rounded.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ArrowBack.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/manga/TvMangaSourceHealthScreen.kt:459:35 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/player/TvPlayerActivity.kt:123:40 'fun getSerializableExtra(p0: String!): Serializable?' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/player/TvPlayerActivity.kt:126:37 'fun getSerializableExtra(p0: String!): Serializable?' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/tv/player/TvPlayerActivity.kt:145:32 'fun getSerializableExtra(p0: String!): Serializable?' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/utils/AirDateUtils.kt:17:64 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/utils/AirDateUtils.kt:18:64 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/utils/LanguageUtils.kt:25:34 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/utils/LanguageUtils.kt:25:66 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/utils/LanguageUtils.kt:31:30 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/utils/TypeLabelFormatter.kt:40:9 Duplicate branch condition in 'when'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/network/OkHttpExtensions.kt:16:23 'static fun <T : Any!> create(p0: Observable.OnSubscribe<T!>!): Observable<T!>!' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/network/OkHttpExtensions.kt:111:17 Condition is always 'true'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/CatalogueSource.kt:17:67 'fun fetchPopularManga(page: Int): Observable<MangasPage>' is deprecated. Use the suspend API instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/CatalogueSource.kt:19:68 'fun fetchLatestUpdates(page: Int): Observable<MangasPage>' is deprecated. Use the suspend API instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/CatalogueSource.kt:25:21 'fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage>' is deprecated. Use the suspend API instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/CatalogueSource.kt:33:52 'fun fetchMangaDetails(manga: SManga): Observable<SManga>' is deprecated. Use the combined suspend API instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/CatalogueSource.kt:34:56 'fun fetchChapterList(manga: SManga): Observable<List<SChapter>>' is deprecated. Use the combined suspend API instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/CatalogueSource.kt:38:71 'fun fetchPageList(chapter: SChapter): Observable<List<Page>>' is deprecated. Use the suspend API instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:52:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:63:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:79:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:90:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:104:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:118:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
 
-> Task :app:compileFossDebugKotlin FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793486406281.json
+> Task :app:javaPreCompileFossDebug FROM-CACHE
+> Task :app:compileFossDebugJavaWithJavac
+> Task :bangumi-vault-resources-1:bundleLibRuntimeToJarDebug
+> Task :bangumi-vault-resources-2:bundleLibRuntimeToJarDebug
+> Task :bangumi-vault-resources-3:bundleLibRuntimeToJarDebug
+> Task :app:hiltAggregateDepsFossDebug FROM-CACHE
+> Task :app:hiltJavaCompileFossDebug
+> Task :app:transformFossDebugClassesWithAsm
+> Task :app:bundleFossDebugClassesToRuntimeJar
+> Task :app:preFossDebugUnitTestBuild UP-TO-DATE
+> Task :app:processFossDebugJavaRes
+> Task :app:bundleFossDebugClassesToCompileJar
 
-FAILURE: Build failed with an exception.
+> Task :app:kspFossDebugUnitTestKotlin
+w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
 
-* What went wrong:
-Execution failed for task ':app:compileFossDebugKotlin'.
-> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
-   > Compilation error. See log for more details
+> Task :app:compileFossDebugUnitTestKotlin
+w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kitsugi/animelist/utils/KitsugiTranslationsTest.kt:20:27 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
 
-* Try:
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
+> Task :app:javaPreCompileFossDebugUnitTest FROM-CACHE
+> Task :app:compileFossDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:hiltAggregateDepsFossDebugUnitTest FROM-CACHE
+> Task :app:hiltJavaCompileFossDebugUnitTest NO-SOURCE
+> Task :app:processFossDebugUnitTestJavaRes
+> Task :app:transformFossDebugUnitTestClassesWithAsm
+> Task :bangumi-vault-resources-1:processDebugJavaRes NO-SOURCE
+> Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
+> Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
+> Task :app:testFossDebugUnitTest
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793486609245.json
 
-* Exception is:
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:compileFossDebugKotlin'.
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:130)
-	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:293)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:128)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
-	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:40)
-	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
-	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
-	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
-	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
-	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
-	at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:331)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:318)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
-Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
-	at org.gradle.workers.internal.DefaultWorkerExecutor$WorkItemExecution.waitForCompletion(DefaultWorkerExecutor.java:287)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.lambda$waitForItemsAndGatherFailures$2(DefaultAsyncWorkTracker.java:130)
-	at org.gradle.internal.Factories$1.create(Factories.java:31)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withoutLocks(DefaultWorkerLeaseService.java:335)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withoutLocks(DefaultWorkerLeaseService.java:318)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withoutLock(DefaultWorkerLeaseService.java:323)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForItemsAndGatherFailures(DefaultAsyncWorkTracker.java:126)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForItemsAndGatherFailures(DefaultAsyncWorkTracker.java:92)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForAll(DefaultAsyncWorkTracker.java:78)
-	at org.gradle.internal.work.DefaultAsyncWorkTracker.waitForCompletion(DefaultAsyncWorkTracker.java:66)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:252)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:30)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:27)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:48)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:229)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:212)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:195)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:162)
-	at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:105)
-	at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:44)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:59)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:56)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:56)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:44)
-	at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:42)
-	at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:75)
-	at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:50)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:28)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:67)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:37)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:61)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:26)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:69)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:46)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:40)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:29)
-	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:189)
-	at org.gradle.internal.execution.steps.BuildCacheStep.executeAndStoreInCache(BuildCacheStep.java:145)
-	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$executeWithCache$4(BuildCacheStep.java:101)
-	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$executeWithCache$5(BuildCacheStep.java:101)
-	at org.gradle.internal.Try$Success.map(Try.java:175)
-	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithCache(BuildCacheStep.java:85)
-	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$0(BuildCacheStep.java:74)
-	at org.gradle.internal.Either$Left.fold(Either.java:115)
-	at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:62)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:73)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:48)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:46)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:35)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:75)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:35)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
-	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:49)
-	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:27)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:71)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:39)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:65)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:36)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:107)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:56)
-	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:64)
-	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:43)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.executeWithNonEmptySources(AbstractSkipEmptyWorkStep.java:125)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:61)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:36)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:36)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:23)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:75)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:41)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.lambda$execute$0(AssignMutableWorkspaceStep.java:35)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:289)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:31)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:22)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:40)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:23)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.lambda$execute$2(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:39)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:46)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:34)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:48)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:35)
-	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:61)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:127)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
-	at org.gradle.api.internal.tasks.execution.ProblemsTaskPathTrackingTaskExecuter.execute(ProblemsTaskPathTrackingTaskExecuter.java:40)
-	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
-	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
-	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
-	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
-	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
-	at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:331)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:318)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
-Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details
-	at org.jetbrains.kotlin.gradle.tasks.TasksUtilsKt.throwExceptionIfCompilationFailed(tasksUtils.kt:21)
-	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:119)
-	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
-	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
-	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
-	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
-	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
-	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
-	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
-	at org.gradle.internal.Factories$1.create(Factories.java:31)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
-	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
-	... 2 more
-
-
-BUILD FAILED in 1m 42s
-54 actionable tasks: 16 executed, 38 from cache
-exit=1
+BUILD SUCCESSFUL in 6m 12s
+72 actionable tasks: 30 executed, 42 from cache
+exit=0
