@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.explore
 
+import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.KitsuExploreClient
@@ -389,6 +390,14 @@ private suspend fun bangumiPage(
     val tag = term?.let { bangumiTagFor(it) }
     // Etiketli (boş sorgulu) istekte "match" sıralaması anlamsızdır → rank/heat/score kullanılır.
     val effectiveSort = if (tag != null) bangumiSort(sort) else bangumiSort(KitsugiGridSortOption.DEFAULT)
+    // Bangumi REAL rafları ("Bangumi Dizileri/Filmleri") sunucuda `type=6` ile sınırlanır.
+    // Aksi hâlde "Tümünü Gör" ızgarasında dizi rafının altında anime, film rafının altında
+    // anime filmleri de listeleniyordu (raf başlığı ile içerik uyuşmuyordu).
+    val subjectTypes = when (spec.mediaType) {
+        MediaType.TvShow -> listOf(BangumiApiClient.SubjectType.REAL)
+        MediaType.Movie -> listOf(BangumiApiClient.SubjectType.REAL)
+        else -> null
+    }
     return KitsugiBangumiClient.searchMediaAdvanced(
         mediaType = spec.mediaType,
         query = "",
@@ -396,7 +405,8 @@ private suspend fun bangumiPage(
         limit = BANGUMI_PAGE_SIZE,
         sort = effectiveSort,
         tags = listOfNotNull(tag),
-        includeAdult = showAdultContent
+        includeAdult = showAdultContent,
+        subjectTypes = subjectTypes
     )
 }
 

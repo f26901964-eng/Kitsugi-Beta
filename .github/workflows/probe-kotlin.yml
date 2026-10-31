@@ -4,7 +4,7 @@ name: 🧪 Kotlin Derleme Günlüğü (geçici)
 #
 # Neden: GitHub Actions günlükleri ve artifact'leri bu sandbox'tan indirilemiyor
 # (`results-receiver` / blob depolama erişimi EOF veriyor). Bu iş akışı derleme
-# çıktısını doğrudan depoya (`probe/kotlin.log`) yazıyor; böylece hata metni
+# çıktısını doğrudan depoya (`probe/kotlin_log.txt`) yazıyor; böylece hata metni
 # `git pull` ile okunabiliyor.
 
 on:
@@ -79,14 +79,24 @@ jobs:
             grep -E "^(e: |w: .*Bangumi|BUILD |FAILURE|exit=)" /tmp/kotlin.log | tail -n 80
             echo "----- son 600 satır -----"
             cat /tmp/kotlin-tail.log
-          } > probe/kotlin.log
-          tail -n 5 probe/kotlin.log
+          } > probe/kotlin_log.txt
+          tail -n 5 probe/kotlin_log.txt
 
       - name: 📤 Günlüğü depoya yaz
+        if: always()
         run: |
           git config user.name "probe-bot"
           git config user.email "probe@example.com"
-          git add probe/kotlin.log
+          # `*.log` .gitignore'da olduğu için dosya adı `.txt`; `-f` yine de garanti eder.
+          git add -f probe/kotlin_log.txt
           git commit -m "probe: kotlin derleme günlüğü" || true
-          git pull --rebase origin "${GITHUB_REF_NAME}" || true
-          git push
+          for i in 1 2 3; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}" || git rebase --abort || true
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "günlük gönderildi"
+              break
+            fi
+            sleep 5
+          done
+          git status --short | head -5

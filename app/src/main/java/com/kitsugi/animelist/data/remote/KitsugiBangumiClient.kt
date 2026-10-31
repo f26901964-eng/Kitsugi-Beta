@@ -268,6 +268,11 @@ object KitsugiBangumiClient {
             }
             subjects
                 .filter { BangumiIdNamespace.supportsSubjectType(it.type) }
+                // Manga aramasında roman/画集/資料集 kayıtları listeyi kirletiyordu
+                // (2026-10-31 canlı API: "one piece" aramasının 2. sonucu `海贼王 小说` —
+                // platform 小说). `searchManga` ile aynı sözleşme burada da uygulanır:
+                // platform bilinmiyorsa (null) kayıt korunur.
+                .filter { mediaType != MediaType.Manga || it.platform == null || it.platform == "漫画" }
                 .filter { includeAdult || !it.nsfw }
                 .map { it.toSearchResult(mediaType) }.withLatinBangumiNames(context)
         } catch (error: kotlinx.coroutines.CancellationException) {
