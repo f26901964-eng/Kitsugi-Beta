@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53612d26956cbaa-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53614621e5f2913-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -335,4 +335,52 @@ total: 1000 limit: 3 offset: 0
  - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 1 votes 32240 | mt TV,恋爱,日本 | platform TV
  - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
  - 3375 t2 | 凉宫春日的消失 | score 8.7 rank 16 votes 24971 | mt 剧场版,校园,日本 | platform 剧场版
+===== P manga cat=1001 series=true rank =====
+HTTP 200
+total: 4587
+ - 18462 | 灌篮高手 完全版 | series= True | platform= 漫画 | rank= 1 score= 9.4 votes= 1919 | vols= 24
+ - 36752 | 灌篮高手 | series= True | platform= 漫画 | rank= 2 score= 9.3 votes= 1072 | vols= 31
+ - 9640 | 剑风传奇 | series= True | platform= 漫画 | rank= 3 score= 9.3 votes= 3169 | vols= 0
+ - 27684 | 哆啦A梦 | series= True | platform= 漫画 | rank= 4 score= 9.3 votes= 1591 | vols= 45
+ - 25896 | 火之鸟 | series= True | platform= 漫画 | rank= 5 score= 9.3 votes= 1359 | vols= 12
+===== P manga cat=1001 rank (series YOK) =====
+HTTP 200
+total: 6180
+ - 18462 | 灌篮高手 完全版 | series= True | platform= 漫画 | rank= 1 score= 9.4 votes= 1919 | vols= 24
+ - 36752 | 灌篮高手 | series= True | platform= 漫画 | rank= 2 score= 9.3 votes= 1072 | vols= 31
+ - 9640 | 剑风传奇 | series= True | platform= 漫画 | rank= 3 score= 9.3 votes= 3169 | vols= 0
+ - 27684 | 哆啦A梦 | series= True | platform= 漫画 | rank= 4 score= 9.3 votes= 1591 | vols= 45
+ - 25896 | 火之鸟 | series= True | platform= 漫画 | rank= 5 score= 9.3 votes= 1359 | vols= 12
+===== P manga cat=1001 series=true date =====
+HTTP 200
+total: 55828
+ - 700263 | Miles Morales: Spider-Man (2026) | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
+ - 701213 | Power Rangers Unlimited (2026) | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
+ - 711004 | はたらく細胞 デンタル | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
+ - 708892 | 私の生徒 | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
+ - 701211 | Mighty Morphin Power Rangers (2026) | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
+===== P4 BOOK heat (tum katalog) =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 268279 t1 | 链锯人 | score 7.9 rank 827 votes 6935 | mt 日本,漫画,战斗 | platform 漫画
+ - 377599 t1 | 再见绘梨 | score 8.2 rank 369 votes 6223 | mt 日本,漫画,原创 | platform 漫画
+ - 179872 t1 | 炎拳 | score 8.2 rank 311 votes 5566 | mt 日本,科幻,漫画 | platform 漫画
+ - 342254 t1 | 蓦然回首 | score 8.1 rank 413 votes 5397 | mt 日本,漫画,原创 | platform 漫画
+ - 305429 t1 | 葬送的芙莉莲 | score 8 rank 531 votes 3109 | mt 日本,漫画,原创 | platform 漫画
+===== P5 BOOK + tag 恋爱 (manga aramasi) =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 26 t1 | “文学少女”与渴望死亡的小丑 | score 8 rank 576 votes 1008 | mt  | platform 小说
+ - 27 t1 | “文学少女”与渴求真爱的幽灵 | score 8.1 rank 470 votes 890 | mt  | platform 小说
+ - 29 t1 | 云之彼端，约定的地方 | score 7.6 rank 2217 votes 180 | mt  | platform 小说
+ - 49 t1 | 小説・秒速5センチメートル | score 7.9 rank 1053 votes 303 | mt  | platform 小说
+ - 58 t1 | 凉宫春日的阴谋 | score 7.7 rank 1485 votes 340 | mt  | platform 小说
+===== P6 BOOK + tag 恋爱 + rank>=1 =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 37782 t1 | 来自新世界 | score 9 rank 12 votes 2332 | mt 日本,小说,科幻 | platform 小说
+ - 19120 t1 | 付丧堂古董店7 | score 9.1 rank 13 votes 253 | mt  | platform 小说
+ - 451466 t1 | 安达与岛村99.9 | score 9.1 rank 21 votes 206 | mt  | platform 小说
+ - 123224 t1 | 红楼梦 | score 9 rank 23 votes 528 | mt 小说,中国,名著 | platform 小说
+ - 32693 t1 | 好逑双物语 | score 8.9 rank 29 votes 529 | mt  | platform 漫画
 ===== done =====
