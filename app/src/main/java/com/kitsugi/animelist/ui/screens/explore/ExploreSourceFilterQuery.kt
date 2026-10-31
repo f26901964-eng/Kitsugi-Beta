@@ -404,9 +404,10 @@ private suspend fun bangumiPage(
     // Bangumi REAL rafları ("Bangumi Dizileri/Filmleri") sunucuda `type=6` ile sınırlanır.
     // Aksi hâlde "Tümünü Gör" ızgarasında dizi rafının altında anime, film rafının altında
     // anime filmleri de listeleniyordu (raf başlığı ile içerik uyuşmuyordu).
+    // `MediaType.Movie` normalde "anime filmi + gerçek film" demektir; ama bu ızgara
+    // "Bangumi Filmleri" rafının devamıdır → yalnızca 三次元 (type = 6).
     val subjectTypes = when (spec.mediaType) {
-        MediaType.TvShow -> listOf(BangumiApiClient.SubjectType.REAL)
-        MediaType.Movie -> listOf(BangumiApiClient.SubjectType.REAL)
+        MediaType.TvShow, MediaType.Movie -> listOf(BangumiApiClient.SubjectType.REAL)
         else -> null
     }
     // `type = 6` hem dizileri hem filmleri kapsar; raf başlığı ile içeriğin uyuşması için

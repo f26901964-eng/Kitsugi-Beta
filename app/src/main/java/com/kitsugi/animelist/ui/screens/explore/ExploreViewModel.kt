@@ -57,7 +57,17 @@ enum class ExploreErrorType { None, TmdbError, AniListError, MalError }
  * Şeritler paralel çalışır; bu tavan **toplam** süreyi değil, en yavaş şeridin süresini
  * sınırlar. Asılı bir istek tüm vitrini dakikalarca boş bırakmasın diye 15 sn seçildi.
  */
-private const val BANGUMI_SHELF_TIMEOUT_MS = 15_000L
+/**
+ * Bangumi şeritleri için tek-şerit süre tavanı.
+ *
+ * 15 sn, 17 şeridin aynı anda (OkHttp ana başına 8 eşzamanlı istek + Bangumi 5 rps
+ * kısıtı) çalıştığı cihazlarda **kuyruğun sonundaki** şeritleri kesiyordu: kesilen
+ * şerit `emptyList()` dönüyor ve `allSourceSections()` boş bölümleri çizmediği için
+ * kullanıcı "bazı bölümler hiç gelmiyor" görüyordu. Tavan, sıra sonundaki şeritlerin
+ * de tamamlanmasına izin verecek şekilde 20 sn'ye çıkarıldı; şeritler yine birbirinden
+ * ve ekranın tamamından bağımsız (supervisorScope) çalışır.
+ */
+private const val BANGUMI_SHELF_TIMEOUT_MS = 20_000L
 
 class ExploreViewModel(application: Application) : AndroidViewModel(application) {
 
