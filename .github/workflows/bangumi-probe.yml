@@ -182,6 +182,21 @@ jobs:
           grid '科幻'; grid '悬疑'; grid '恐怖'; grid '日常'; grid '冒险'
           grid '灵异'; grid '心理'; grid '运动'; grid '惊悚'; grid '机战'
           grid '音乐'; grid '历史'; grid '战争'; grid '校园'
+          # P: manga rafları — cat=1001 (漫画) ve series süzgeci (cilt/ciltçik kirliliği)
+          book() {
+            local label="$1" url="$2"
+            local code
+            code=$(curl -sS -o /tmp/t.json -w '%{http_code}' -m 25 -H "User-Agent: $UA_APP" -H 'Accept: application/json' "$url")
+            echo "===== P $label ====="
+            echo "HTTP $code"
+            python3 probe/series.py /tmp/t.json
+          }
+          book 'manga cat=1001 series=true rank' 'https://api.bgm.tv/v0/subjects?type=1&cat=1001&series=true&sort=rank&limit=5&offset=0'
+          book 'manga cat=1001 rank (series YOK)' 'https://api.bgm.tv/v0/subjects?type=1&cat=1001&sort=rank&limit=5&offset=0'
+          book 'manga cat=1001 series=true date' 'https://api.bgm.tv/v0/subjects?type=1&cat=1001&series=true&sort=date&limit=5&offset=0'
+          search "P4 BOOK heat (tum katalog)" '{"keyword":"","sort":"heat","filter":{"type":[1],"nsfw":false}}'
+          search "P5 BOOK + tag 恋爱 (manga aramasi)" '{"keyword":"","sort":"match","filter":{"type":[1],"tag":["恋爱"],"nsfw":false}}'
+          search "P6 BOOK + tag 恋爱 + rank>=1" '{"keyword":"","sort":"rank","filter":{"type":[1],"tag":["恋爱"],"rank":[">=1"],"nsfw":false}}'
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log
