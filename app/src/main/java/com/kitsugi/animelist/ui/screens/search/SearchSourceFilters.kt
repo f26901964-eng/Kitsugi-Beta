@@ -78,9 +78,11 @@ fun SearchSourceEngine.availableScopes(): List<SearchScope> = when (this) {
     SearchSourceEngine.SIMKL -> listOf(
         SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.TV, SearchScope.MOVIE
     )
+    // Bangumi yalnız anime/manga değil 三次元 (type = 6) dizileri ve filmleri de indeksler;
+    // sekmelerde bu kapsamlar yoktu, kullanıcı "Bangumi'de dizi/film araması" yapamıyordu.
     SearchSourceEngine.BANGUMI -> listOf(
         SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
-        SearchScope.LIGHT_NOVEL, SearchScope.CHARACTER, SearchScope.STAFF
+        SearchScope.LIGHT_NOVEL, SearchScope.TV, SearchScope.MOVIE, SearchScope.CHARACTER, SearchScope.STAFF
     )
 }
 

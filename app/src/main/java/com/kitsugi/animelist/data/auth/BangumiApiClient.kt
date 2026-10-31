@@ -413,6 +413,12 @@ object BangumiApiClient {
         val eps: Int,
         val totalEpisodes: Int,
         val volumes: Int,
+        /**
+         * Yalnızca书籍条目'larında dolu: `true` → serinin ana kaydı, `false` → cilt.
+         * Cilt kayıtları ("XXX (3)") manga ızgarasını doldurduğu için `series=true`
+         * süzgeciyle istenir; alan bilinmiyorsa `null` kalır.
+         */
+        val series: Boolean? = null,
         val images: BangumiImages?,
         val rating: BangumiRating?,
         val collection: BangumiCollectionCounts?,
@@ -1266,9 +1272,21 @@ object BangumiApiClient {
         type: Int,
         token: String? = null,
         limit: Int = 25,
-        offset: Int = 0
+        offset: Int = 0,
+        /** `type = 1` (书籍) için kategori süzgeci: `1001` manga, `1002` roman. */
+        cat: String? = null,
+        /** Yalnızca书籍条目'ları için: `true` → ciltler değil **seri** ana kaydı. */
+        series: Boolean? = null
     ): BangumiPage<BangumiSubject> =
-        browseSubjects(type = type, token = token, sort = "rank", limit = limit, offset = offset)
+        browseSubjects(
+            type = type,
+            token = token,
+            cat = cat,
+            sort = "rank",
+            series = series,
+            limit = limit,
+            offset = offset
+        )
 
     /**
      * En çok koleksiyona eklenen ("近期注目" benzeri popülerlik) liste.
@@ -1281,7 +1299,9 @@ object BangumiApiClient {
         type: Int,
         token: String? = null,
         limit: Int = 25,
-        offset: Int = 0
+        offset: Int = 0,
+        /** Isı sıralaması boş/hatalı olursa düşülecek göz atma kategorisi (`cat`). */
+        cat: String? = null
     ): BangumiPage<BangumiSubject> {
         val byHeat = runCatching {
             searchSubjects(
@@ -1295,7 +1315,14 @@ object BangumiApiClient {
         }.getOrNull()
         if (byHeat != null && byHeat.data.isNotEmpty()) return byHeat
         Log.w(TAG, "mostCollected(type=$type): heat araması boş/hatalı, tarih sıralamasına düşülüyor")
-        return browseSubjects(type = type, token = token, sort = "date", limit = limit, offset = offset)
+        return browseSubjects(
+            type = type,
+            token = token,
+            cat = cat,
+            sort = "date",
+            limit = limit,
+            offset = offset
+        )
     }
 
     // ── Detay ────────────────────────────────────────────────────────────────
@@ -2126,6 +2153,7 @@ object BangumiApiClient {
             eps = json.optInt("eps", 0),
             totalEpisodes = json.optInt("total_episodes", json.optInt("eps", 0)),
             volumes = json.optInt("volumes", 0),
+            series = if (json.has("series")) json.optBoolean("series", false) else null,
             images = parseImages(json.optJSONObject("images")),
             rating = ratingJson?.let {
                 BangumiRating(

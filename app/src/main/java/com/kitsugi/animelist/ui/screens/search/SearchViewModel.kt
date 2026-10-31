@@ -1508,7 +1508,23 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             return Pair(res, res.size >= bangumiPageSize)
                         }
                         else -> {
-                            val mediaType = if (scope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL)) MediaType.Manga else MediaType.Anime
+                            val mediaType = when (scope) {
+                                SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+                                SearchScope.LIGHT_NOVEL -> MediaType.Manga
+                                SearchScope.TV -> MediaType.TvShow
+                                SearchScope.MOVIE -> MediaType.Movie
+                                else -> MediaType.Anime
+                            }
+                            // "Diziler"/"Filmler" kapsamı Bangumi'de 三次元 (type = 6) demektir;
+                            // bu verilmezse dizi araması anime (type = 2) sonuçları döndürüyordu.
+                            val subjectTypes = when (scope) {
+                                SearchScope.TV, SearchScope.MOVIE ->
+                                    listOf(BangumiApiClient.SubjectType.REAL)
+                                SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+                                SearchScope.LIGHT_NOVEL -> listOf(BangumiApiClient.SubjectType.BOOK)
+                                SearchScope.ANIME -> listOf(BangumiApiClient.SubjectType.ANIME)
+                                else -> null
+                            }
                             val res = KitsugiBangumiClient.searchMediaAdvanced(
                                 mediaType = mediaType,
                                 query = queryText,
@@ -1519,7 +1535,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 yearFrom = f.yearFrom,
                                 yearTo = f.yearTo,
                                 minScore = f.minScore,
-                                includeAdult = f.nsfw || showAdult
+                                includeAdult = f.nsfw || showAdult,
+                                subjectTypes = subjectTypes,
+                                comicsOnly = f.comicsOnly
                             )
                             return Pair(res, res.size >= bangumiPageSize)
                         }

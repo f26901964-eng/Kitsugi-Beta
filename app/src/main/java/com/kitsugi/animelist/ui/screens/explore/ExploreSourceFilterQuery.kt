@@ -51,10 +51,21 @@ object ExploreSourceFilters {
         platform: ExplorePlatform,
         categoryType: ExploreCategoryType,
         genreId: String = "ALL"
-    ): Set<KitsugiGridSortOption> =
-        SORT_SUPPORT[platform].orEmpty().filterTo(mutableSetOf()) {
+    ): Set<KitsugiGridSortOption> {
+        // Bangumi'nin sıralama desteği **tür seçiliyken** açılır (`filter.tag` ile arama
+        // ucu); bu yüzden `SORT_SUPPORT[BANGUMI]` bilinçli olarak boştur. Boş kümeden
+        // filtrelemek yüzünden `serverSorts(BANGUMI, …, genre)` her zaman boş dönüyor,
+        // filtre sayfası da sunucunun gerçekten uygulayabildiği Puan/Popülerlik
+        // sıralamalarını "📱 yerel" diye işaretliyordu.
+        val base = if (platform == ExplorePlatform.BANGUMI) {
+            BANGUMI_SEARCH_SORTS
+        } else {
+            SORT_SUPPORT[platform].orEmpty()
+        }
+        return base.filterTo(mutableSetOf()) {
             supportsSort(platform, categoryType, it, genreId)
         }
+    }
 
     /**
      * Seçilen türün kaynak API'sinde gerçekten bir karşılığı var mı?
@@ -831,32 +842,16 @@ private val BANGUMI_SEARCH_SORTS = setOf(
  * etiketi **göndermez**; eskiden `null` etiket "süzgeç yok" sayılıp süzgeç uygulanmış gibi
  * görünen dengesiz bir liste dönüyordu.
  */
-private fun bangumiTagFor(term: String): String? {
-    BANGUMI_TAGS[term.lowercase()]?.let { return it }
-    return com.kitsugi.animelist.utils.BangumiTagDictionary.canonicalTagFor(term)
-}
-
-private val BANGUMI_TAGS: Map<String, String> = mapOf(
-    "drama" to "剧情",
-    "action" to "战斗",
-    "romance" to "恋爱",
-    "comedy" to "搞笑",
-    "fantasy" to "奇幻",
-    "sci-fi" to "科幻",
-    "mystery" to "悬疑",
-    "horror" to "恐怖",
-    "slice of life" to "日常",
-    "adventure" to "冒险",
-    "supernatural" to "超能力",
-    "psychological" to "心理",
-    "sports" to "运动",
-    "thriller" to "惊悚",
-    "mecha" to "机战",
-    "music" to "音乐",
-    "historical" to "历史",
-    "military" to "战争",
-    "school" to "校园"
-)
+/**
+ * Arayüz tür terimini Bangumi'nin **kendi** etiket yazımına çevirir.
+ *
+ * Terim çevirisi tek yerde (`BangumiTagDictionary`) yapılır: sözlük 58 bin etiket
+ * grubunu kapsar ve her grup için sunucuda dolu olan yazımı seçer
+ * (`运动系` değil `运动`). Burada ayrıca 19 girişlik ikinci bir harita tutmak,
+ * iki kaynağın ayrışmasına (örn. `Supernatural` → `超能力` vs `灵异`) yol açıyordu.
+ */
+private fun bangumiTagFor(term: String): String? =
+    com.kitsugi.animelist.utils.BangumiTagDictionary.canonicalTagFor(term)
 
 /**
  * Kaynak API'lerinin gerçekten uygulayabildiği sıralama seçenekleri.

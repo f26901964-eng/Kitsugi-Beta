@@ -188,7 +188,16 @@ object KitsugiBangumiClient {
          * kapsar; "Diziler/Filmler" (canlı çekim) kapsamında ise yalnızca `type=6`
          * istenmelidir, aksi hâlde film rafına anime filmleri karışıyordu.
          */
-        subjectTypes: List<Int>? = null
+        subjectTypes: List<Int>? = null,
+        /**
+         * `type = 1` (书籍) sonuçlarını yalnızca **manga** ile sınırla.
+         *
+         * Bangumi书籍 kataloğu manga (`平台 = 漫画`), roman (`小说`), 画集 ve 设定集
+         * kayıtlarını birlikte döndürür. Arama sayfasının "Manga" kapsamı roman
+         * listeliyordu; `platform` alanı sunucuda süzülemediği için (v0'da `platform`
+         * yalnız oyun türünde çalışır) süzgeç burada uygulanır.
+         */
+        comicsOnly: Boolean = true
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         try {
             val types = subjectTypes ?: when (mediaType) {
@@ -285,7 +294,10 @@ object KitsugiBangumiClient {
                 // (2026-10-31 canlı API: "one piece" aramasının 2. sonucu `海贼王 小说` —
                 // platform 小说). `searchManga` ile aynı sözleşme burada da uygulanır:
                 // platform bilinmiyorsa (null) kayıt korunur.
-                .filter { mediaType != MediaType.Manga || it.platform == null || it.platform == "漫画" }
+                .filter {
+                    mediaType != MediaType.Manga || !comicsOnly ||
+                        it.platform == null || it.platform == "漫画"
+                }
                 .filter { includeAdult || !it.nsfw }
                 .map { it.toSearchResult(mediaType) }.withLatinBangumiNames(context)
         } catch (error: kotlinx.coroutines.CancellationException) {
@@ -673,6 +685,7 @@ object KitsugiBangumiClient {
                 token = tokenOrNull(context),
                 cat = BangumiApiClient.Category.BOOK_COMIC,
                 sort = "date",
+                series = true,
                 limit = limit,
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
@@ -691,6 +704,7 @@ object KitsugiBangumiClient {
                 type = BangumiApiClient.SubjectType.BOOK,
                 token = tokenOrNull(context),
                 cat = BangumiApiClient.Category.BOOK_NOVEL,
+                series = true,
                 sort = "rank",
                 limit = limit,
                 offset = offset
@@ -700,7 +714,16 @@ object KitsugiBangumiClient {
     /** "En İyi Mangalar" — 书籍 kategori sıralaması. */
     suspend fun topManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            BangumiApiClient.topRanked(BangumiApiClient.SubjectType.BOOK, tokenOrNull(context), limit, offset)
+            // `cat=1001` (漫画) + `series=true`: 书籍 kataloğundaki roman/画集 kayıtları ve
+            // cilt (单行本) kayıtları elenir, ızgarada seri ana kayıtları görünür.
+            BangumiApiClient.topRanked(
+                type = BangumiApiClient.SubjectType.BOOK,
+                token = tokenOrNull(context),
+                limit = limit,
+                offset = offset,
+                cat = BangumiApiClient.Category.BOOK_COMIC,
+                series = true
+            )
                 .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("topManga", it) }
 
@@ -712,6 +735,7 @@ object KitsugiBangumiClient {
                 token = tokenOrNull(context),
                 cat = BangumiApiClient.Category.BOOK_COMIC,
                 sort = "date",
+                series = true,
                 limit = limit,
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
@@ -720,8 +744,22 @@ object KitsugiBangumiClient {
     /** "Popüler Mangalar" — koleksiyon sayısı sıralaması. */
     suspend fun trendingManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            BangumiApiClient.mostCollected(BangumiApiClient.SubjectType.BOOK, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
+            // `heat` sıralaması `cat` süzgecini desteklemez (v0'da `cat` yalnız göz atmada).
+            // Bu yüzden 20'lik sayfa çekilip `platform = 漫画` olanlar süzülür; süzgeç sonrası
+            // liste çok kısalırsa puan sıralamasına (cat=1001) düşülür ki şerit boş kalmasın.
+            val raw = BangumiApiClient.mostCollected(
+                type = BangumiApiClient.SubjectType.BOOK,
+                token = tokenOrNull(context),
+                limit = limit,
+                offset = offset
+            )
+            val comics = raw.data
+                .filter { it.type == BangumiApiClient.SubjectType.BOOK }
+                .filter { it.platform == null || it.platform == "漫画" }
+                .filter { it.series != false }
+                .map { it.toSearchResult(MediaType.Manga) }
+            if (comics.size >= 5) comics.withLatinBangumiNames(context)
+            else topManga(limit, context, offset)
         }.getOrElse { logAndEmpty("trendingManga", it) }
 
     /** "En Yüksek Puanlı Mangalar" — bkz. [topRatedAnime] (oy tabanlı sıralama düzeltmesi). */
