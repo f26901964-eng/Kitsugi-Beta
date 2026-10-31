@@ -910,6 +910,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val bangumiMoviesDeferred = async { shelf { bangumi.realMovies(20, context) } }
         val newlyAddedAnimeDeferred = async { shelf { bangumi.newlyAddedAnime(20, context) } }
         val topMangaDeferred = async { shelf { bangumi.topManga(20, context) } }
+        val newlyAddedMangaDeferred = async { shelf { bangumi.newlyAddedManga(20, context) } }
         val publishingMangaDeferred = async { shelf { bangumi.publishingManga(20, context) } }
         val trendingMangaDeferred = async { shelf { bangumi.trendingManga(20, context) } }
         val topRatedMangaDeferred = async { shelf { bangumi.topRatedManga(20, context) } }
@@ -929,6 +930,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             publishingManga = publishingMangaDeferred.await(),
             trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
+            newlyAddedManga = newlyAddedMangaDeferred.await(),
             bangumiTvShows = bangumiTvShowsDeferred.await(),
             bangumiMovies = bangumiMoviesDeferred.await(),
             seasonalAnime = seasonalAnimeDeferred.await(),

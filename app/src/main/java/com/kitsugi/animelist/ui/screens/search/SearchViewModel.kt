@@ -1938,7 +1938,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
                 val bangumiDef = async(Dispatchers.IO) {
                     val f = state.bangumiSpecificFilters
-                    suspend fun searchBangumi(type: MediaType) = KitsugiBangumiClient.searchMediaAdvanced(
+                    suspend fun searchBangumi(
+                        type: MediaType,
+                        subjectTypes: List<Int>? = null
+                    ) = KitsugiBangumiClient.searchMediaAdvanced(
                         mediaType = type,
                         query = queryText,
                         page = 1,
@@ -1948,13 +1951,49 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         yearFrom = f.yearFrom,
                         yearTo = f.yearTo,
                         minScore = f.minScore,
-                        includeAdult = f.nsfw || showAdult
+                        includeAdult = f.nsfw || showAdult,
+                        subjectTypes = subjectTypes
                     )
-                    val res = fetchMediaShelf(
-                        active = plan.bangumi,
+                    val mediaRes = fetchMediaShelf(
+                        active = plan.bangumi && (wantAnime || wantManga),
                         anime = { searchBangumi(MediaType.Anime) },
                         manga = { searchBangumi(MediaType.Manga) }
                     )
+                    // Bangumi 三次元 kataloğu: diziler (type=6, cat 6001) ve filmler
+                    // (cat 6002). Canlı çekim kapsamlarında anime/manga rafı hiç
+                    // sorgulanmaz; bu raf olmadan Bangumi "Tümü" aramasında tamamen
+                    // görünmezdi (bkz. `planAllSources`).
+                    val realRes = if (plan.bangumi && scope.wantsLiveActionSources) {
+                        withTimeoutOrNull(allSourceTimeoutMs) {
+                            fetchSource {
+                                coroutineScope {
+                                    val tvPart = async(Dispatchers.IO) {
+                                        fetchSource {
+                                            searchBangumi(
+                                                MediaType.TvShow,
+                                                listOf(BangumiApiClient.SubjectType.REAL)
+                                            )
+                                        }
+                                    }
+                                    val moviePart = async(Dispatchers.IO) {
+                                        fetchSource {
+                                            searchBangumi(
+                                                MediaType.Movie,
+                                                listOf(BangumiApiClient.SubjectType.REAL)
+                                            )
+                                        }
+                                    }
+                                    SearchRelevance.interleave(tvPart.await(), moviePart.await())
+                                }
+                            }
+                        } ?: emptyList()
+                    } else {
+                        emptyList()
+                    }
+                    val res = SearchRelevance.refine(
+                        queryText,
+                        SearchRelevance.interleave(mediaRes, realRes)
+                    ).take(allShelfLimit)
                     onPlatformCompleted(res) { it.copy(bangumiResults = res, isLoadingBangumi = false) }
                     res
                 }
@@ -2172,10 +2211,28 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     queryText, page = page, limit = bangumiPageSize, career = f.career
                 )
                 else -> {
-                    val targetType = if (state.selectedScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) || state.selectedMediaType == MediaType.Manga) {
-                        MediaType.Manga
-                    } else {
-                        MediaType.Anime
+                    // Kapsam → Bangumi tür ailesi. Eski kod yalnızca manga/anime ayrımı
+                    // yapıyordu; "Diziler" ve "Filmler" kapsamında da `type=2` (anime)
+                    // aranıyor, Bangumi'nin 三次元 kataloğu (type=6) hiç görünmüyordu.
+                    val mangaScopes = listOf(
+                        SearchScope.MANGA, SearchScope.MANHWA,
+                        SearchScope.MANHUA, SearchScope.LIGHT_NOVEL
+                    )
+                    val targetType = when {
+                        state.selectedScope in mangaScopes || state.selectedMediaType == MediaType.Manga -> MediaType.Manga
+                        state.selectedScope == SearchScope.TV || state.selectedMediaType == MediaType.TvShow -> MediaType.TvShow
+                        state.selectedScope == SearchScope.MOVIE || state.selectedMediaType == MediaType.Movie -> MediaType.Movie
+                        else -> MediaType.Anime
+                    }
+                    // Canlı çekim kapsamlarında yalnızca type=6 sorulur; anime filmleri
+                    // "Filmler" sonuçlarına karışmaz.
+                    val subjectTypes = when {
+                        targetType == MediaType.Manga -> null
+                        state.selectedScope == SearchScope.TV || state.selectedScope == SearchScope.K_DRAMA ->
+                            listOf(BangumiApiClient.SubjectType.REAL)
+                        state.selectedScope == SearchScope.MOVIE ->
+                            listOf(BangumiApiClient.SubjectType.REAL)
+                        else -> null
                     }
                     KitsugiBangumiClient.searchMediaAdvanced(
                         mediaType = targetType,
@@ -2187,7 +2244,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         yearFrom = f.yearFrom,
                         yearTo = f.yearTo,
                         minScore = f.minScore,
-                        includeAdult = f.nsfw || showAdult
+                        includeAdult = f.nsfw || showAdult,
+                        subjectTypes = subjectTypes
                     )
                 }
             }

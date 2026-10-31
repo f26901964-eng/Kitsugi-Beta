@@ -180,10 +180,18 @@ object KitsugiBangumiClient {
         yearTo: Int? = null,
         minScore: Int? = null,
         context: Context? = null,
-        includeAdult: Boolean = false
+        includeAdult: Boolean = false,
+        /**
+         * Sunucuya gönderilecek `filter.type` listesini zorlar.
+         *
+         * `MediaType.Movie` normalde hem anime filmlerini (2) hem gerçek filmleri (6)
+         * kapsar; "Diziler/Filmler" (canlı çekim) kapsamında ise yalnızca `type=6`
+         * istenmelidir, aksi hâlde film rafına anime filmleri karışıyordu.
+         */
+        subjectTypes: List<Int>? = null
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         try {
-            val types = when (mediaType) {
+            val types = subjectTypes ?: when (mediaType) {
                 MediaType.Manga -> listOf(BangumiApiClient.SubjectType.BOOK)
                 MediaType.Movie -> listOf(BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.REAL)
                 MediaType.TvShow -> listOf(BangumiApiClient.SubjectType.REAL)
@@ -195,16 +203,35 @@ object KitsugiBangumiClient {
             val rating = minScore?.takeIf { it > 0 }?.let { listOf(">=$it") } ?: emptyList()
 
             val effectiveQuery = query.trim()
+            // Bangumi etiket süzgeci sunucuda **birebir** karşılaştırılır (`tag = "科幻"`).
+            // Arayüzden gelen Türkçe/İngilizce çipler (`Aksiyon`, `Sci-Fi`, `School`) bu
+            // yüzden her zaman sıfır sonuç veriyordu; burada sözlükten geçirilip Bangumi'nin
+            // kendi yazımına çevriliyor. Sözlükte bulunamayan ve zaten CJK olmayan terim
+            // gönderilmez (aksi hâlde "süzgeç uygulanmış" görünen boş liste dönerdi).
+            val effectiveTags = tags.mapNotNull { raw ->
+                val mapped = com.kitsugi.animelist.utils.BangumiTagDictionary.canonicalTagFor(raw)
+                if (mapped == null) Log.w(TAG, "Bangumi etiketi sözlükte yok, atlandı: $raw")
+                mapped
+            }.distinct()
             // Arama ucu sayfa başına en fazla 20 kayıt verir; offset de AYNI boyuta göre
             // hesaplanmazsa her sayfada kayıt atlanır. Göz atma ucu ise 50'ye kadar destekler.
             val pageSize = if (effectiveQuery.isBlank()) limit else limit.coerceIn(1, BangumiApiClient.SEARCH_PAGE_SIZE)
             val offset = ((page - 1).coerceAtLeast(0)) * pageSize
 
-            // Browse does not accept the Bangumi tag filter. Use the advanced search
-            // endpoint for blank-query facet requests; only a truly unfiltered blank
-            // request may fall back to browse.
-            val hasSearchFilters = tags.isNotEmpty() || airDate.isNotEmpty() || rating.isNotEmpty()
-            val subjects = if (effectiveQuery.isBlank() && !hasSearchFilters) {
+            // Göz atma ucu (`GET /v0/subjects`) yalnızca `sort=date|rank` ve **tek** tür
+            // destekler; etiket/tarih/puan süzgeci de yoktur. Bu yüzden:
+            //   • süzgeç varsa, tür birden fazlaysa (film = anime + REAL) ya da sıralama
+            //     `heat`/`score` ise → arama ucu,
+            //   • notr/sıralamasız boş isteklerde → ucuz ve sunucuda önbelleklenen göz atma.
+            // Eski kod her boş isteği göz atmaya yolluyor ve `heat`/`score` sıralamalarını
+            // sessizce `date`e çeviriyordu: "Popüler" ızgarası popülerliğe göre değil, en
+            // yeniye göre sıralanıyordu ve film kategorisinde REAL yapıtlar hiç gelmiyordu.
+            val hasSearchFilters = effectiveTags.isNotEmpty() || airDate.isNotEmpty() || rating.isNotEmpty()
+            val wantsSearchSort = sort == BangumiApiClient.SearchSort.HEAT ||
+                sort == BangumiApiClient.SearchSort.SCORE
+            val canBrowse = effectiveQuery.isBlank() && !hasSearchFilters &&
+                !wantsSearchSort && types.size == 1
+            val subjects = if (canBrowse) {
                 BangumiApiClient.browseSubjects(
                     type = types.first(),
                     token = tokenOrNull(context),
@@ -214,17 +241,29 @@ object KitsugiBangumiClient {
                     offset = offset
                 ).data
             } else {
+                // Puan sıralamasında oy tabanı olmadan listenin tepesi tek oylu "10/10"
+                // kayıtlarla dolar (bkz. BangumiApiClient.topScored). Yalnızca anahtar
+                // kelimesiz puan sıralamasında uygulanır; kullanıcı süzgeci varsa
+                // (ör. minScore) kullanıcı ne istediğini söylemiştir.
+                val ratingCount = if (sort == BangumiApiClient.SearchSort.SCORE &&
+                    effectiveQuery.isBlank() && rating.isEmpty()
+                ) {
+                    listOf(">=${BangumiApiClient.MIN_RATING_VOTES}")
+                } else {
+                    emptyList()
+                }
                 searchWithFallback(
                     keyword = effectiveQuery,
                     token = tokenOrNull(context),
                     types = types,
                     sort = sort,
-                    tags = tags,
+                    tags = effectiveTags,
                     airDate = airDate,
                     rating = rating,
                     includeAdult = includeAdult,
                     limit = pageSize,
-                    offset = offset
+                    offset = offset,
+                    ratingCount = ratingCount
                 )
             }
             subjects
@@ -261,7 +300,8 @@ object KitsugiBangumiClient {
         offset: Int,
         tags: List<String> = emptyList(),
         airDate: List<String> = emptyList(),
-        rating: List<String> = emptyList()
+        rating: List<String> = emptyList(),
+        ratingCount: List<String> = emptyList()
     ): List<BangumiSubject> {
         val primary = runCatching {
             BangumiApiClient.searchSubjects(
@@ -274,7 +314,8 @@ object KitsugiBangumiClient {
                 rating = rating,
                 nsfw = if (includeAdult) null else false,
                 limit = limit,
-                offset = offset
+                offset = offset,
+                ratingCount = ratingCount
             )
         }
         primary.exceptionOrNull()?.let { if (it is kotlinx.coroutines.CancellationException) throw it }
@@ -282,6 +323,7 @@ object KitsugiBangumiClient {
         if (primaryData.isNotEmpty()) return primaryData
 
         // Eski uç tag/tarih/puan süzgeci desteklemez; süzgeçli aramada yedeğe düşme.
+        // `ratingCount` bir sıralama kalitesi süzgecidir, yedeğe düşmeyi engellemez.
         val plainQuery = tags.isEmpty() && airDate.isEmpty() && rating.isEmpty()
         if (!plainQuery || keyword.isBlank()) {
             primary.exceptionOrNull()?.let { throw it }
@@ -421,21 +463,24 @@ object KitsugiBangumiClient {
                 .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("trendingAnime", it) }
 
-    /** "En Yüksek Puanlı Animeler" — `sort=score` araması. */
+    /**
+     * "En Yüksek Puanlı Animeler".
+     *
+     * `sort = score` **tek başına yanlış sonuç verir**: Bangumi puan sıralaması oy sayısını
+     * hesaba katmadığı için tek oylu bir 10/10 kayıt binlerce oylu yapıtların önüne geçiyordu
+     * (2026-10-31 canlı API: ilk sonuç `rating.total = 1`). [BangumiApiClient.topScored]
+     * Bangumi'nin 排行榜 sırasını oy tabanıyla birleştirir; böylece şerit gerçekten
+     * "en yüksek puanlı" yapıtları gösterir.
+     */
     suspend fun topRatedAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            // Boş anahtar kelimeli arama sunucuda hata verebilir → rank sıralamasına düş.
-            runCatching {
-                BangumiApiClient.searchSubjects(
-                    keyword = "",
-                    token = tokenOrNull(context),
-                    types = listOf(BangumiApiClient.SubjectType.ANIME),
-                    sort = BangumiApiClient.SearchSort.SCORE,
-                    nsfw = false,
-                    limit = limit,
-                    offset = offset
-                ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
-            }.getOrDefault(emptyList())
+            BangumiApiClient.topScored(
+                type = BangumiApiClient.SubjectType.ANIME,
+                token = tokenOrNull(context),
+                limit = limit,
+                offset = offset,
+                minVotes = BangumiApiClient.MIN_RATING_VOTES
+            ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
                 .ifEmpty { topAnime(limit, context, offset) }
         }.getOrElse { logAndEmpty("topRatedAnime", it) }
 
@@ -499,30 +544,84 @@ object KitsugiBangumiClient {
             ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("movieAnime", it) }
 
-    /** Bangumi REAL / 三次元 TV-drama şeridi (`type=6&cat=6001`). */
+    /**
+     * `type = 6` (三次元) içinde **popüler** dizileri/filmleri getirir.
+     *
+     * Neden göz atma ucu (`GET /v0/subjects?type=6&cat=6001|6002&sort=rank`) yetmiyor?
+     *  - REAL kataloğunda sıralamaya girmiş kayıt sayısı çok küçük (2026-10-31 canlı API:
+     *    `cat=6001` toplam **51** kayıt) ve `sort=rank` sırası ağırlıklı olarak eski/niş
+     *    yapıtları öne çıkarıyordu. Keşfet'teki "Bangumi Dizileri/Filmleri" rafı bu yüzden
+     *    tanınmayan içerikle doluyor ya da boş kalıyordu.
+     *  - Arama ucu `meta_tags` süzgecini ve `heat` (koleksiyona ekleme) sıralamasını
+     *    destekliyor; böylece gerçekten popüler diziler/filmler öne geliyor.
+     *
+     * Arama ucu boş dönerse ya da hata verirse eski göz atma davranışına düşülür.
+     */
+    private suspend fun popularReal(
+        metaTag: String,
+        category: String,
+        mediaType: MediaType,
+        limit: Int,
+        context: Context?,
+        offset: Int
+    ): List<JikanSearchResult> {
+        val byHeat = runCatching {
+            BangumiApiClient.searchSubjects(
+                keyword = "",
+                token = tokenOrNull(context),
+                types = listOf(BangumiApiClient.SubjectType.REAL),
+                sort = BangumiApiClient.SearchSort.HEAT,
+                metaTags = listOf(metaTag),
+                nsfw = false,
+                limit = limit.coerceAtMost(BangumiApiClient.SEARCH_PAGE_SIZE),
+                offset = offset
+            ).data
+        }.getOrElse { error ->
+            Log.w(TAG, "popularReal($metaTag) araması başarısız: ${error.message}")
+            emptyList()
+        }
+        val subjects = byHeat.ifEmpty {
+            runCatching {
+                BangumiApiClient.browseSubjects(
+                    type = BangumiApiClient.SubjectType.REAL,
+                    token = tokenOrNull(context),
+                    cat = category,
+                    sort = "rank",
+                    limit = limit,
+                    offset = offset
+                ).data
+            }.getOrElse { logAndEmpty("popularReal($metaTag)/browse", it) }
+        }
+        return subjects
+            .filter { it.type == BangumiApiClient.SubjectType.REAL }
+            .map { it.toSearchResult(mediaType) }
+            .withLatinBangumiNames(context)
+    }
+
+    /** Bangumi REAL / 三次元 TV-drama şeridi — popülerlik sıralı (`meta_tags = 电视剧`). */
     suspend fun realTvShows(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            BangumiApiClient.browseSubjects(
-                type = BangumiApiClient.SubjectType.REAL,
-                token = tokenOrNull(context),
-                cat = BangumiApiClient.Category.REAL_TV,
-                sort = "rank",
+            popularReal(
+                metaTag = "电视剧",
+                category = BangumiApiClient.Category.REAL_TV,
+                mediaType = MediaType.TvShow,
                 limit = limit,
+                context = context,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.TvShow) }.withLatinBangumiNames(context)
+            )
         }.getOrElse { logAndEmpty("realTvShows", it) }
 
-    /** Bangumi REAL film şeridi (`type=6&cat=6002`), anime filmlerinden ayrı tutulur. */
+    /** Bangumi REAL film şeridi — popülerlik sıralı (`meta_tags = 电影`), anime filmlerinden ayrı. */
     suspend fun realMovies(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            BangumiApiClient.browseSubjects(
-                type = BangumiApiClient.SubjectType.REAL,
-                token = tokenOrNull(context),
-                cat = BangumiApiClient.Category.REAL_MOVIE,
-                sort = "rank",
+            popularReal(
+                metaTag = "电影",
+                category = BangumiApiClient.Category.REAL_MOVIE,
+                mediaType = MediaType.Movie,
                 limit = limit,
+                context = context,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
+            )
         }.getOrElse { logAndEmpty("realMovies", it) }
 
     /** "Yeni Eklenen Animeler" — yayın tarihine göre en yeni条目'lar. */
@@ -536,6 +635,24 @@ object KitsugiBangumiClient {
                 offset = offset
             ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("newlyAddedAnime", it) }
+
+    /**
+     * "Yeni Eklenen Mangalar" — 书籍 (manga) kataloğunda yayın tarihine göre en yeniler.
+     *
+     * Keşfet'in Bangumi bölümü bu şeridi de çiziyor; eksik olduğu için raf her zaman
+     * boş kalıyordu (bkz. `AllSourcesExplore.sourceSections` → `NEWLY_ADDED_MANGA`).
+     */
+    suspend fun newlyAddedManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
+        runCatching {
+            BangumiApiClient.browseSubjects(
+                type = BangumiApiClient.SubjectType.BOOK,
+                token = tokenOrNull(context),
+                cat = BangumiApiClient.Category.BOOK_COMIC,
+                sort = "date",
+                limit = limit,
+                offset = offset
+            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
+        }.getOrElse { logAndEmpty("newlyAddedManga", it) }
 
     /** "En İyi Mangalar" — 书籍 kategori sıralaması. */
     suspend fun topManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
@@ -564,18 +681,17 @@ object KitsugiBangumiClient {
                 .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("trendingManga", it) }
 
-    /** "En Yüksek Puanlı Mangalar". */
+    /** "En Yüksek Puanlı Mangalar" — bkz. [topRatedAnime] (oy tabanlı sıralama düzeltmesi). */
     suspend fun topRatedManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            BangumiApiClient.searchSubjects(
-                keyword = "",
+            BangumiApiClient.topScored(
+                type = BangumiApiClient.SubjectType.BOOK,
                 token = tokenOrNull(context),
-                types = listOf(BangumiApiClient.SubjectType.BOOK),
-                sort = BangumiApiClient.SearchSort.SCORE,
                 limit = limit,
-                offset = offset
+                offset = offset,
+                minVotes = BangumiApiClient.MIN_RATING_VOTES
             ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
-                .ifEmpty { topManga(limit, context) }
+                .ifEmpty { topManga(limit, context, offset) }
         }.getOrElse { logAndEmpty("topRatedManga", it) }
 
     /**

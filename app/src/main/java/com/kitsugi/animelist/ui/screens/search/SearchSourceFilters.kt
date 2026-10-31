@@ -174,7 +174,11 @@ internal fun planAllSources(scope: SearchScope): AllSourcePlan {
         kitsu = mediaDb,
         // Simkl tür süzgeci (anime/tv/movie) desteklediği için anime kapsamında da aktif.
         simkl = scope.wantsLiveActionSources || scope == SearchScope.ANIME,
-        bangumi = mediaDb
+        // Bangumi yalnızca anime/manga değil, **三次元** (type = 6) dizileri ve filmleri de
+        // barındırır (cat 6001/6002). `mediaDb` yalnızca anime/manga kapsamlarında true
+        // olduğu için "Tümü" aramasında Diziler/Filmler rafında Bangumi hiç sorgulanmıyordu;
+        // kullanıcı bunu "Bangumi dizileri/filmleri gelmiyor" olarak görüyordu.
+        bangumi = mediaDb || scope.wantsLiveActionSources
     )
 }
 

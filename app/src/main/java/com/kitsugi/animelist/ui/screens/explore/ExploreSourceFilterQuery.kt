@@ -79,7 +79,10 @@ object ExploreSourceFilters {
                 CanonicalFilterBridge.mapMalGenreId(term, spec.mediaType == MediaType.Manga) != null
             ExplorePlatform.SIMKL -> CanonicalFilterBridge.mapSimklGenre(term) != null
             // Bangumi etiket araması yerel sözlükle çalışır; eşlenemeyen çip gönderilmez.
-            ExplorePlatform.BANGUMI -> BANGUMI_TAGS.containsKey(term.lowercase())
+            // 3,18 MB'lık `bangumi/tags.tsv` sözlüğü 19 girişlik eski haritadan çok daha
+            // geniş bir kapsama sahiptir: "Aksiyon", "Bilim Kurgu", "Korku", "Spor" gibi
+            // çipler artık sunucunun anladığı Çince etikete çevrilebiliyor.
+            ExplorePlatform.BANGUMI -> bangumiTagFor(term) != null
             ExplorePlatform.ALL -> true
         }
     }
@@ -379,8 +382,11 @@ private suspend fun bangumiPage(
     page: Int,
     showAdultContent: Boolean
 ): List<JikanSearchResult> {
-    // Bangumi etiketleri topluluk sözlüğüdür ve yerel dilde tutulur; çip terimleri eşlenir.
-    val tag = term?.let { BANGUMI_TAGS[it.lowercase()] }
+    // Bangumi etiketleri topluluk sözlüğüdür ve **Çince/Japonca** tutulur; çip terimleri
+    // (Türkçe/İngilizce) sunucunun anladığı yazıma çevrilir. Eski 19 girişlik harita yerine
+    // `bangumi/tags.tsv` sözlüğü kullanılır; böylece "Psikolojik", "Seinen", "Isekai" gibi
+    // çipler de gerçekten süzülür (eşlenemeyen terim artık sessizce tüm kataloğa düşmez).
+    val tag = term?.let { bangumiTagFor(it) }
     // Etiketli (boş sorgulu) istekte "match" sıralaması anlamsızdır → rank/heat/score kullanılır.
     val effectiveSort = if (tag != null) bangumiSort(sort) else bangumiSort(KitsugiGridSortOption.DEFAULT)
     return KitsugiBangumiClient.searchMediaAdvanced(
@@ -807,6 +813,19 @@ private val BANGUMI_SEARCH_SORTS = setOf(
  * Bangumi etiketleri topluluk tarafından girilir ve ağırlıklı olarak yerel dilde tutulur;
  * eşlenemeyen bir çip sunucuya gönderilmez, cihazda süzülür.
  */
+/**
+ * Çip terimini Bangumi'nin `filter.tag` değerine çevirir.
+ *
+ * Sıra: yerel kısa harita (hızlı yol) → `BangumiTagDictionary` (3,18 MB sözlük) → terim
+ * zaten CJK yazımındaysa olduğu gibi. Hiçbiri tutmazsa `null` döner ve çağıran taraf
+ * etiketi **göndermez**; eskiden `null` etiket "süzgeç yok" sayılıp süzgeç uygulanmış gibi
+ * görünen dengesiz bir liste dönüyordu.
+ */
+private fun bangumiTagFor(term: String): String? {
+    BANGUMI_TAGS[term.lowercase()]?.let { return it }
+    return com.kitsugi.animelist.utils.BangumiTagDictionary.canonicalTagFor(term)
+}
+
 private val BANGUMI_TAGS: Map<String, String> = mapOf(
     "drama" to "剧情",
     "action" to "战斗",

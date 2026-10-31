@@ -102,13 +102,48 @@ internal object BangumiTagDictionary {
     }
 
     /** Tablo eşleşmesi; yıl/ay kalıpları dahil. Bilinmeyen etiket için `null`. */
-    fun entryFor(label: String?): BangumiTagEntry? {
+    fun entryFor(label: String?): BangumiTagEntry? = groupFor(label)?.entry
+
+    /**
+     * **Bangumi'nin kendi yazımı** (grup içindeki ilk etiket — neredeyse her zaman Çince).
+     *
+     * `POST /v0/search/subjects` `filter.tag` alanı sunucuda `tag = "科幻"` biçiminde
+     * Meilisearch süzgecine çevrilir; karşılaştırma **birebir** olduğu için uygulamanın
+     * Türkçe/İngilizce çip adlarını (`Sci-Fi`, `Bilim Kurgu`) doğrudan göndermek her zaman
+     * sıfır sonuç verir. Bu fonksiyon arayüz etiketini sunucunun anladığı yazıma çevirir.
+     *
+     * Eşleşme yoksa `null` döner; çağıran taraf etiketi göndermemeli (sessizce tüm
+     * kataloğu döndürmek, süzgeç uygulanmış gibi görünmesine yol açıyordu).
+     */
+    fun canonicalTagFor(label: String?): String? {
         val raw = label?.trim().orEmpty()
         if (raw.isEmpty()) return null
-        byLabel[normalize(raw)]?.let { return it.entry }
-        patternEntry(raw)?.let { return it }
+        groupFor(raw)?.let { group -> group.labels.firstOrNull()?.let { return it } }
+        // Zaten Bangumi yazımındaysa (Çince/Japonca) olduğu gibi bırak.
+        return raw.takeIf(::looksLikeNativeTag)
+    }
+
+    /** Etiket sunucunun kendi dilinde mi yazılmış (CJK ya da sözlükte bilinen yazım)? */
+    fun looksLikeNativeTag(label: String): Boolean {
+        if (label.isBlank()) return false
+        var cjk = 0
+        var latin = 0
+        for (ch in label) {
+            when {
+                ch.code in 0x3040..0x30FF || ch.code in 0x3400..0x9FFF || ch.code in 0xF900..0xFAFF -> cjk++
+                ch.isLetter() -> latin++
+            }
+        }
+        return cjk > 0 && cjk >= latin
+    }
+
+    private fun groupFor(label: String?): Group? {
+        val raw = label?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        byLabel[normalize(raw)]?.let { return it }
+        patternGroup(raw)?.let { return it }
         val compact = compact(raw)
-        if (compact.length >= 3) byCompact[compact]?.let { return it.entry }
+        if (compact.length >= 3) byCompact[compact]?.let { return it }
         return null
     }
 
@@ -160,6 +195,12 @@ internal object BangumiTagDictionary {
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     )
+
+    /** Takvim kalıbı eşleşmelerini de bir [Group] olarak döndürür (etiket yazımı = ham metin). */
+    private fun patternGroup(raw: String): Group? {
+        val entry = patternEntry(raw) ?: return null
+        return Group(entry, listOf(raw))
+    }
 
     /** `2008年10月`, `2008年`, `2000年代`, `10月` gibi takvim etiketlerini çevirir. */
     private fun patternEntry(raw: String): BangumiTagEntry? {
