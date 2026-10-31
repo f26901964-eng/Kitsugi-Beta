@@ -202,6 +202,9 @@ jobs:
           search "Q2 BOOK + meta_tags 漫画 + rank>=1" '{"keyword":"","sort":"rank","filter":{"type":[1],"meta_tags":["漫画"],"rank":[">=1"],"nsfw":false}}'
           search "Q3 BOOK + keyword one piece + meta_tags 漫画" '{"keyword":"one piece","sort":"match","filter":{"type":[1],"meta_tags":["漫画"],"nsfw":false}}'
           search "Q4 BOOK + meta_tags 小说" '{"keyword":"","sort":"rank","filter":{"type":[1],"meta_tags":["小说"],"rank":[">=1"],"nsfw":false}}'
+          # R: arama ekranındaki popüler etiket çipleri (sözlükten çevrilen yazımlar)
+          tagtotal '异世界'; tagtotal '魔法'; tagtotal '超能力'; tagtotal '生存'
+          tagtotal '赛博朋克'; tagtotal '武侠'; tagtotal '宇宙'; tagtotal '末世'; tagtotal '吸血鬼'
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log

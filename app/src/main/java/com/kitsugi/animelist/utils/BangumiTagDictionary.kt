@@ -168,7 +168,9 @@ internal object BangumiTagDictionary {
         normalize("savaş") to "战争",
         normalize("savas") to "战争",
         normalize("war") to "战争",
-        normalize("psikoloji") to "心理"
+        normalize("psikoloji") to "心理",
+        normalize("romantizm") to "恋爱",
+        normalize("romantik") to "恋爱"
     )
 
     /** Etiket sunucunun kendi dilinde mi yazılmış (CJK ya da sözlükte bilinen yazım)? */

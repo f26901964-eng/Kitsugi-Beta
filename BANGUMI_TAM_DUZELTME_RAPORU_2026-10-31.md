@@ -5,6 +5,8 @@
 **Uygulama sürümü:** `2.4.340-beta.<versionCode>` (`appVersionName = "2.4.340"`)
 **Kapsam:** Bangumi'nin (bgm.tv) beslediği **tüm** yüzeyler — Keşfet şeritleri, "Tümünü Gör"
 ızgaraları, Arama, detay sekmeleri, kütüphane/eşitleme ve hata gösterimi.
+**Son güncelleme:** 1 Kasım 2026 — üçüncü canlı prob yuvarlağı (`K`–`Q` blokları) ile
+tür çipleri, sıralama kalitesi ve manga kataloğu sözleşmeleri sabitlendi (R11–R16).
 
 ---
 
@@ -37,6 +39,15 @@ sorgulanmıyordu, manga aramasına roman/画集 karışıyordu, Bangumi HTTP ist
 deneme yoktu** (tek bir Cloudflare 504'ü koca bir şeridi boşaltıyordu) ve "Yeni Eklenen
 Mangalar" şeridi Bangumi için hiç doldurulmuyordu.
 
+Üçüncü prob yuvarlağında (1 Kasım 2026) **kullanıcının şikâyet ettiği ızgara ve arama
+kalitesi** ayrıca ölçüldü ve altı yeni sözleşme hatası bulundu (R11–R16): tür çiplerinin
+sözlükten seçilen ilk yazımı sunucuda **boş** olabiliyor (`悬疑惊悚` = 0, `运动系` = 8,
+`军事` = 63), etiketli ızgarada `sort=rank` sıralamaya girmemiş kayıtları (`rank = 0`)
+başa atıyor, manga rafları `type=1` kataloğunun tamamını (roman + 画集 + ciltler) çekiyor,
+Bangumi aramasında **"Diziler"/"Filmler" kapsamı hiç yok**, "Tümünü Gör" dizi/film
+ızgarası bu ikisini ayırmıyor ve filtre sayfası Bangumi'nin gerçekten uyguladığı
+sıralamaları "yerel" diye işaretliyordu. Hepsi canlı API ölçümleriyle düzeltildi (§4.6).
+
 Düzeltmeler sonrası `:app:compileFossDebugKotlin` **başarıyla** derleniyor
 (GitHub Actions çalışması `41243323730`), Bangumi birim testleri geçiyor ve canlı API
 matrisi beklenen sonuçları veriyor (bkz. §5).
@@ -57,6 +68,12 @@ matrisi beklenen sonuçları veriyor (bkz. §5).
 | Detay sekmeleri / kütüphane tek tek boş | R9: yeniden deneme yok; yavaş/502'de ilk hata kalıcı | `execute()` 3 deneme + üstel geri çekilme |
 | Keşfet → "Yeni Eklenen Mangalar" hep boş | R5: Bangumi şeridi hiç yoktu | `newlyAddedManga()` + `ExplorePayload` bağlantısı |
 | Keşfet → "Noveller & Light Novel" hep boş | R10: Bangumi roman kataloğu (cat=1002) hiç sorgulanmıyordu | `novels()` şeridi + `ExplorePayload.novels` |
+| "Tümünü Gör" → **Spor / Gerilim / Askeri / Doğaüstü / Psikolojik** çiplerinde 0–8 sonuç | R11: sözlüğün ilk yazımı sunucuda boş (`运动系` 8, `悬疑惊悚` **0**, `军事` 63, `心理` 34) | `PREFERRED_TAGS`: `运动` (516), `惊悚` (114), `战争` (445), `灵异` (65) |
+| Etiketli ızgaranın tepesinde 1–20 oylu niş yapıtlar | R12: `sort=rank` "sıralamaya girmemiş" kayıtların `rank = 0` değerini **başa** alıyor | Boş sorgu + `sort=rank` → `rank >= 1` süzgeci |
+| "En Yüksek Puanlı Mangalar"da roman/画集 ve cilt kayıtları; manga aramasında ilk sayfa tamamen roman | R13: `type=1` tüm书籍 kataloğu; `cat`/`series` süzgeci yok, `platform` sunucuda süzülemiyor | `cat=1001` + `series=true`; arama/puan sıralamasında `meta_tags=["漫画"]` |
+| Arama → Bangumi'de "Diziler"/"Filmler" sekmesi hiç yok | R14: `availableScopes()` Bangumi için TV/MOVIE içermiyordu; kapsam→tür eşlemesi de yoktu | Sekmeler eklendi; TV/MOVIE → `type=6`, manga kapsamları → `type=1` |
+| "Tümünü Gör" → Bangumi Dizileri/Filmleri ızgarası karışık (dizi rafında film) | R15: sayfalama `meta_tags` göndermiyordu, `type=6` ikisini birlikte döndürüyor | `meta_tags=["电视剧" | "电影"]` |
+| Filtre sayfası Bangumi'de sunucu sıralamalarını "📱 yerel" işaretliyor | R16: `serverSorts()` boş kümeden (`SORT_SUPPORT[BANGUMI] = ∅`) filtreliyordu | `BANGUMI_SEARCH_SORTS` temel alındı |
 
 ---
 
@@ -188,6 +205,81 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
   yolu `"/p1" + path` biçiminde kuruluyor ve çağıranlar `/subjects/...` verdiği için
   **çift `/p1` yok** (incelendi, hata bulunmadı).
 
+### 4.6 Üçüncü yuvarlak — tür çipleri, sıralama ve manga kataloğu (1 Kasım 2026)
+
+`probe/result.txt` içindeki `K`–`Q` blokları. Tüm istekler uygulamanın **kendi**
+`User-Agent`'ı ve `POST /v0/search/subjects` gövdesiyle atıldı (`type=2`, `sort=rank`).
+
+**K — tür çiplerinin sözlükten çevrilen ilk yazımı** (`filter.tag`, süzgeç yok):
+
+| Etiket | `total` | Etiket | `total` | Etiket | `total` |
+|---|---|---|---|---|---|
+| 剧情 | 692 | 恐怖 | **185** | 军事 | **63** |
+| 战斗 | 1000 | 日常 | 1000 | 运动系 | **8** |
+| 恋爱 | 1000 | 冒险 | 1000 | 悬疑惊悚 | **0** |
+| 搞笑 | 1000 | 灵异 | **65** | 机战 | 1000 |
+| 奇幻 | 1000 | 心理 | **34** | 音乐 | 627 |
+| 科幻 | 1000 | 悬疑 | 652 | 历史 | 418 |
+| 校园 | 1000 | | | | |
+
+**L/N — aynı gruplardaki alternatif Bangumi yazımları:**
+
+| Grup | Aday yazım → `total` | Seçim |
+|---|---|---|
+| Spor | `运动系` 8 · `运动` **516** · `スポーツ` | `运动` |
+| Gerilim | `悬疑惊悚` 0 · `悬念` 1 · `惊悚片` 0 · `惊悚` **114** | `惊悚` |
+| Askeri | `军事` 63 · `战争` **445** · `军事冲突` 0 | `战争` |
+| Doğaüstü | `灵异` **65** · `超自然` 7 · `超能力` 251 | `灵异` (anlam birebir) |
+| Psikolojik | `心理` **34** · `心理战` 1 · `智斗` 147 · `サイコスリラー` 0 | `心理` (anlam birebir) |
+
+**M/O — `rank >= 1` süzgeci ve sıra kalitesi:** `M` bloğunda `剧情/战斗/运动`
+etiketlerine `rank >= 1` eklendiğinde liste **rank artan** sırada geliyor
+(rank 8 → 12 → 14). `O` bloğu 19 çipin **tamamını** uygulamanın gerçek isteğiyle
+doğruladı; hepsi 3/3 sonuç verdi ve sıra `rank` artan:
+
+| Çip | Toplam (`rank>=1`) | İlk sonuç (rank) |
+|---|---|---|
+| 剧情 | 506 | 命运石之门 (8) |
+| 战斗 | 1000 | 攻壳机动队 S.A.C. 2nd GIG (2) |
+| 恋爱 | 1000 | CLANNAD 〜AFTER STORY〜 (1) |
+| 搞笑 | 1000 | 猫和老鼠（1965） (3) |
+| 奇幻 | 1000 | 猫和老鼠（1965） (3) |
+| 科幻 | 1000 | 攻壳机动队 S.A.C. 2nd GIG (2) |
+| 悬疑 | 544 | 命运石之门 (8) |
+| 恐怖 | 102 | 寒蝉鸣泣之时 (232) |
+| 日常 | 1000 | CLANNAD 〜AFTER STORY〜 (1) |
+| 冒险 | 1000 | 千与千寻 (28) |
+| 灵异 | 48 | ×××HOLiC◆继 (319) |
+| 心理 | 25 | 新世纪福音战士剧场版 Air/真心为你 (7) |
+| 运动 | 362 | 3月的狮子 第二季 (10) |
+| 惊悚 | 73 | 蓝色恐惧 (14) |
+| 机战 | 643 | 新世纪福音战士剧场版 Air/真心为你 (7) |
+| 音乐 | 469 | 猫和老鼠（1965） (3) |
+| 历史 | 278 | 浪客剑心 追忆篇 (6) |
+| 战争 | 362 | 攻壳机动队 S.A.C. 2nd GIG (2) |
+| 校园 | 1000 | CLANNAD 〜AFTER STORY〜 (1) |
+
+> Süzgeç öncesi/sonrası toplamlar (`剧情` 692 → 506, `运动` 516 → 362) küçülüyor;
+> kaybedilen kayıtlar **hiçbir kategori sıralamasına girmemiş** (oy almamış) yapıtlar.
+> Bu, "En Yüksek Puanlı" davranışıyla tutarlı: sıralamaya girmemiş kayıt resmî
+> 排行榜'da yoktur.
+
+**P — manga kataloğu:** `type=1&cat=1001&series=true` → 灌篮高手 (rank 2), 剑风传奇 (3),
+哆啦A梦 (4), 火之鸟 (5). `series` **verilmeden** aynı sorgu `灌篮高手 完全版` gibi
+**aynı serinin farklı baskısını** da listeye sokuyor (cilt/baskı kirliliği).
+`series=true + sort=date` yeni serileri getiriyor (beklenen).
+**P5** `type=1&tag=恋爱&sort=match` ilk 5 sonucunun **tamamı `platform=小说`** —
+istemci tarafı süzgeç sayfayı boşaltıp sayfalamayı durduruyordu.
+
+**Q — sunucu tarafı `meta_tags` süzgeci:**
+
+| Sorgu | Sonuç |
+|---|---|
+| `type=1&tag=恋爱&meta_tags=["漫画"]` | 1000, tamamı `platform=漫画` (人形电脑天使心, 水果篮子…) |
+| `type=1&meta_tags=["漫画"]&rank>=1` | 1000; 灌篮高手 完全版 (1), 剑风传奇 (3), 火之鸟 (5) |
+| `type=1&keyword="one piece"&meta_tags=["漫画"]` | 103; 航海王 (32), ONE PIECE 派生 serileri |
+| `type=1&meta_tags=["小说"]&rank>=1` | 539; 卡拉马佐夫兄弟 (6), 罪与罚 (8), 三体Ⅱ (10) |
+
 ---
 
 ## 5. Uygulanan düzeltmeler
@@ -201,6 +293,10 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 | `searchSubjects(..., ratingCount)` + `buildSearchSubjectsPayload(..., ratingCount, metaTags)` | `rating_count` ve `meta_tags` filtreleri eklendi (v0 sözleşmesinde var, uygulama hiç göndermiyordu) |
 | `topScored(type, minVotes)` | "En Yüksek Puanlı" için `rank + rank>=1 + rating_count>=100`; dört kademeli geri çekilme |
 | `MIN_RATING_VOTES = 100` | Tek oylu kayıtların listeyi ele geçirmesini engeller |
+| `topRanked(..., cat, series)` | Mangada `cat=1001` + `series=true` (R13) |
+| `mostCollected(..., cat)` | Isı sıralaması boşsa düşülen göz atma kategorisi |
+| `topScored(..., metaTags)` | "En Yüksek Puanlı Mangalar"da `meta_tags=["漫画"]` (R13) |
+| `BangumiSubject.series` | `series` alanı ayrıştırılıyor (`null` = bilinmiyor) |
 
 ### 5.2 `data/remote/KitsugiBangumiClient.kt`
 
@@ -213,6 +309,11 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 | `newlyAddedManga()` | R5 |
 | `novels()` (`type=1&cat=1002&sort=rank`) | R10 — Bangumi'nin roman kataloğu Keşfet'te hiç görünmüyordu |
 | Boş sorgu + puan sıralamasında `rating_count>=100` tabanı | R1 (ızgarada da geçerli) |
+| Boş sorgu + `sort=rank` → `rank >= 1` | R12 — etiketli ızgaranın tepesine `rank = 0` (sıralamaya girmemiş) kayıtlar oturuyordu |
+| `searchMediaAdvanced(..., comicsOnly, metaTags)` + mangada `meta_tags=["漫画"]` | R13 — `BOOK + tag` aramasında ilk sayfa tamamen romandı |
+| `topManga`: `cat=1001` + `series=true`; `newlyAddedManga`/`publishingManga`/`novels`: `series=true` | R13 — cilt/baskı kirliliği |
+| `trendingManga`: `platform = 漫画` süzgeci + boşsa `topManga` yedeği | R13 |
+| `searchMediaAdvanced(..., metaTags)`: REAL ızgaralarında `电视剧`/`电影` | R15 |
 
 ### 5.3 `ui/screens/explore/ExploreSourceFilterQuery.kt`
 
@@ -221,11 +322,20 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 | `bangumiTagFor()`: kısa harita → `BangumiTagDictionary.canonicalTagFor()` → CJK ise olduğu gibi | R3; eşlenemeyen çip artık sunucuya **gönderilmez** |
 | `supportsGenre` aynı çeviriciyi kullanır | Sözlükteki tüm etiketler çip olarak çalışır |
 | `bangumiPage` REAL raflarında `subjectTypes = [6]` | "Bangumi Dizileri/Filmleri" ızgarası anime karıştırıyordu |
+| `bangumiPage` REAL raflarında `metaTags = ["电视剧" / "电影"]` | R15 — dizi rafında film listeleniyordu |
+| 19 girişlik `BANGUMI_TAGS` haritası **kaldırıldı**, tek kaynak sözlük | İki harita ayrışıyordu (`Supernatural` → `超能力` vs `灵异`) |
+| `serverSorts()` Bangumi için `BANGUMI_SEARCH_SORTS` temel alır | R16 — sunucunun uyguladığı sıralamalar "yerel" görünüyordu |
 
 ### 5.4 `utils/BangumiTagDictionary.kt`
 
-- `canonicalTagFor(label)`: arayüz etiketini **Bangumi'nin kendi yazımına** (grubun ilk etiketi,
-  ör. `科幻`) çevirir.
+- `canonicalTagFor(label)`: arayüz etiketini **Bangumi'nin kendi yazımına** çevirir.
+- `PREFERRED_TAGS`: grup → sunucuda **dolu** olan yazım (`sports_theme`→`运动`,
+  `thriller`→`惊悚`, `military`→`战争`, `supernatural`→`灵异`). Değerler K/L/N problarıyla
+  sabitlendi (R11).
+- Latin etiket tercihi düzeltildi: grup içinde CJK yazım varsa **o** seçilir; eskiden
+  `Science-Fiction`, `Battle` gibi Latin yazımlar sunucuya gidip 0 sonuç alıyordu.
+- `ALIAS_TAGS`: sözlükte başka gruba düşen ama Bangumi karşılığı farklı olan terimler
+  (`Bilim Kurgu`/`Science Fiction` → `科幻`, `Savaş`/`War` → `战争`, `Psikoloji` → `心理`).
 - `looksLikeNativeTag()`: Çince/Japonca yazımlar olduğu gibi geçer.
 - `groupFor()`/`patternGroup()`: `entryFor` ile aynı eşleşme sırası paylaşılır (davranış değişmedi).
 
@@ -236,12 +346,20 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 | `planAllSources`: `bangumi = mediaDb \|\| scope.wantsLiveActionSources` | R6 — "Tümü" aramasında Diziler/Filmler rafında Bangumi hiç sorgulanmıyordu |
 | `bangumiDef`: canlı çekim kapsamlarında `type=6` dizi + film rafları eklenir | R6 |
 | Tek kaynak aramasında kapsam → tür eşlemesi (`TV/K_DRAMA → REAL`, `MOVIE → REAL`, manga kapsamları → BOOK) | R7 — eskiden her şey `type=2` aranıyordu |
+| Bangumi kapsam listesine **TV** ve **MOVIE** eklendi | R14 — Bangumi'de dizi/film araması hiç yapılamıyordu |
+| `executeSearchForPage` Bangumi dalında `subjectTypes` + `comicsOnly` iletimi | R14/R13 |
 
 ### 5.6 `ui/screens/explore/ExploreViewModel.kt`
 
 - `loadBangumiData()` içine `newlyAddedManga` (R5) ve `novels` (R10) şeritleri eklendi.
   Şeritler `supervisorScope` ve 15 sn'lik şerit tavanı içinde çalışır; bir erişim hatası
   diğer şeritleri etkilemez.
+
+### 5.7 `ui/components/KitsugiRankingBottomSheet.kt`
+
+- Bangumi sıralama sayfası **medya türünü** dikkate alır: `TvShow → realTvShows`,
+  `Movie → realMovies`, `Manga → topRatedManga/trendingManga/topManga/newlyAddedManga`,
+  anime → mevcut şeritler. Önceden dizi/film bağlamında da anime şeritleri açılıyordu.
 
 ---
 
