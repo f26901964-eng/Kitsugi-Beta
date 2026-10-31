@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5360d7e2ceb270a-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53612d26956cbaa-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -220,7 +220,7 @@ K 灵异       HTTP 200 total: 65 veri: 1
 HTTP 200
 total: 506 limit: 3 offset: 0
  - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
- - 1428 t2 | 钢之炼金术师 FULLMETAL ALCHEMIST | score 8.8 rank 12 votes 25385 | mt TV,日本,奇幻 | platform TV
+ - 1428 t2 | 钢之炼金术师 FULLMETAL ALCHEMIST | score 8.8 rank 12 votes 25415 | mt TV,日本,奇幻 | platform TV
  - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
 ===== M tag '战斗' + rank>=1 =====
 HTTP 200
@@ -234,4 +234,105 @@ total: 362 limit: 3 offset: 0
  - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
  - 93739 t2 | 乒乓 | score 8.7 rank 23 votes 17829 | mt TV,日本,运动 | platform TV
  - 67753 t2 | 明日之丈2 | score 8.7 rank 30 votes 940 | mt TV,日本,漫画改 | platform TV
+K 超能力    HTTP 200 total: 251 veri: 1
+K 心理战    HTTP 200 total: 1 veri: 1
+K 智斗       HTTP 200 total: 147 veri: 1
+K サイコスリラー HTTP 200 total: 0 veri: 0
+K 惊悚片    HTTP 200 total: 0 veri: 0
+K 悬念       HTTP 200 total: 1 veri: 1
+O 剧情       HTTP 200 total: 506 veri: 3
+total: 506 limit: 3 offset: 0
+ - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
+ - 1428 t2 | 钢之炼金术师 FULLMETAL ALCHEMIST | score 8.8 rank 12 votes 25415 | mt TV,日本,奇幻 | platform TV
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+O 战斗       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10279 | mt 科幻,TV,日本 | platform TV
+ - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
+ - 324 t2 | 攻壳机动队 STAND ALONE COMPLEX | score 9.1 rank 5 votes 11685 | mt 科幻,TV,日本 | platform TV
+O 恋爱       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 1 votes 32240 | mt TV,恋爱,日本 | platform TV
+ - 1728 t2 | 浪客剑心 追忆篇 | score 8.9 rank 6 votes 9787 | mt 日本,OVA,漫画改 | platform OVA
+ - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
+O 搞笑       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
+ - 110467 t2 | 白箱 | score 8.7 rank 13 votes 23677 | mt 百合,TV,日本 | platform TV
+ - 11834 t2 | 银魂' | score 8.7 rank 19 votes 13869 | mt TV,日本,漫画改 | platform TV
+O 奇幻       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
+ - 1428 t2 | 钢之炼金术师 FULLMETAL ALCHEMIST | score 8.8 rank 12 votes 25415 | mt TV,日本,奇幻 | platform TV
+ - 263750 t2 | 进击的巨人 第三季 Part.2 | score 8.7 rank 15 votes 24024 | mt TV,日本,奇幻 | platform TV
+O 科幻       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10279 | mt 科幻,TV,日本 | platform TV
+ - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
+ - 324 t2 | 攻壳机动队 STAND ALONE COMPLEX | score 9.1 rank 5 votes 11685 | mt 科幻,TV,日本 | platform TV
+O 悬疑       HTTP 200 total: 544 veri: 3
+total: 544 limit: 3 offset: 0
+ - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 263750 t2 | 进击的巨人 第三季 Part.2 | score 8.7 rank 15 votes 24024 | mt TV,日本,奇幻 | platform TV
+O 恐怖       HTTP 200 total: 102 veri: 3
+total: 102 limit: 3 offset: 0
+ - 289 t2 | 寒蝉鸣泣之时 | score 8 rank 232 votes 15733 | mt 惊悚,悬疑,TV | platform TV
+ - 252655 t2 | 佐贺偶像是传奇 | score 7.8 rank 409 votes 15296 | mt TV,日本,原创 | platform TV
+ - 9588 t2 | 金田一少年事件簿 | score 7.7 rank 521 votes 1126 | mt TV,日本,推理 | platform TV
+O 日常       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 1 votes 32240 | mt TV,恋爱,日本 | platform TV
+ - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
+ - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
+O 冒险       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 311 t2 | 千与千寻 | score 8.6 rank 28 votes 27950 | mt 剧场版,日本,奇幻 | platform 剧场版
+ - 518519 t2 | 航海王：粉丝来信 | score 8.6 rank 37 votes 4400 | mt TV,日本,小说改 | platform TV
+ - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36835 | mt TV,日本,奇幻 | platform TV
+O 灵异       HTTP 200 total: 48 veri: 3
+total: 48 limit: 3 offset: 0
+ - 2896 t2 | ×××HOLiC◆继 | score 7.9 rank 319 votes 3265 | mt TV,日本,奇幻 | platform TV
+ - 2439 t2 | ×××HOLiC | score 7.8 rank 475 votes 4433 | mt TV,日本,奇幻 | platform TV
+ - 4859 t2 | ×××HOLiC 笼 | score 7.7 rank 483 votes 2167 | mt 日本,OVA,漫画改 | platform OVA
+O 心理       HTTP 200 total: 25 veri: 3
+total: 25 limit: 3 offset: 0
+ - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22291 | mt 科幻,剧场版,机战 | platform 剧场版
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34775 | mt 科幻,机战,TV | platform TV
+O 运动       HTTP 200 total: 362 veri: 3
+total: 362 limit: 3 offset: 0
+ - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
+ - 93739 t2 | 乒乓 | score 8.7 rank 23 votes 17829 | mt TV,日本,运动 | platform TV
+ - 67753 t2 | 明日之丈2 | score 8.7 rank 30 votes 940 | mt TV,日本,漫画改 | platform TV
+O 惊悚       HTTP 200 total: 73 veri: 3
+total: 73 limit: 3 offset: 0
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 288 t2 | 寒蝉鸣泣之时 解 | score 8.1 rank 182 votes 13304 | mt 惊悚,悬疑,TV | platform TV
+ - 843 t2 | 妄想代理人 | score 8 rank 222 votes 5003 | mt 科幻,惊悚,悬疑 | platform TV
+O 机战       HTTP 200 total: 643 veri: 3
+total: 643 limit: 3 offset: 0
+ - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22291 | mt 科幻,剧场版,机战 | platform 剧场版
+ - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4115 | mt 科幻,剧场版,日本 | platform 剧场版
+ - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34775 | mt 科幻,机战,TV | platform TV
+O 音乐       HTTP 200 total: 469 veri: 3
+total: 469 limit: 3 offset: 0
+ - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
+ - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
+ - 216371 t2 | 莉兹与青鸟 | score 8.6 rank 27 votes 20840 | mt 百合,剧场版,校园 | platform 剧场版
+O 历史       HTTP 200 total: 278 veri: 3
+total: 278 limit: 3 offset: 0
+ - 1728 t2 | 浪客剑心 追忆篇 | score 8.9 rank 6 votes 9787 | mt 日本,OVA,漫画改 | platform OVA
+ - 840 t2 | 千年女优 | score 8.7 rank 18 votes 13181 | mt 剧场版,日本,原创 | platform 剧场版
+ - 240386 t2 | 冰海战记 | score 8.3 rank 79 votes 13570 | mt TV,历史,战斗 | platform TV
+O 战争       HTTP 200 total: 362 veri: 3
+total: 362 limit: 3 offset: 0
+ - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10279 | mt 科幻,TV,日本 | platform TV
+ - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4115 | mt 科幻,剧场版,日本 | platform 剧场版
+ - 263750 t2 | 进击的巨人 第三季 Part.2 | score 8.7 rank 15 votes 24024 | mt TV,日本,奇幻 | platform TV
+O 校园       HTTP 200 total: 1000 veri: 3
+total: 1000 limit: 3 offset: 0
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 1 votes 32240 | mt TV,恋爱,日本 | platform TV
+ - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
+ - 3375 t2 | 凉宫春日的消失 | score 8.7 rank 16 votes 24971 | mt 剧场版,校园,日本 | platform 剧场版
 ===== done =====
