@@ -62,21 +62,28 @@ jobs:
           kotlin.daemon.jvmargs=-Xmx4g -Xms1g -Xss16m -XX:+UseG1GC
           EOP
 
-      - name: 🔨 Kotlin derlemesi (günlük depoya yazılır)
+      - name: 🔨 Kotlin derlemesi + Bangumi testleri (günlük depoya yazılır)
         run: |
           chmod +x gradlew
           set +e
-          ./gradlew :app:compileFossDebugKotlin --console=plain --stacktrace \
+          ./gradlew :app:compileFossDebugKotlin :app:testFossDebugUnitTest \
+            --tests '*Bangumi*' \
+            --tests '*KitsugiTranslationsTest*' \
+            --tests '*HeroSelectionTest*' \
+            --tests '*AllSourcesExploreTest*' \
+            --console=plain --stacktrace \
             > /tmp/kotlin.log 2>&1
           echo "exit=$?" >> /tmp/kotlin.log
           # Hata ayıklama için son 600 satır yeterli; deposu şişirmeyelim.
           tail -n 600 /tmp/kotlin.log > /tmp/kotlin-tail.log
           mkdir -p probe
           {
-            echo "### :app:compileFossDebugKotlin"
+            echo "### :app:compileFossDebugKotlin + Bangumi testleri"
             echo "commit: $(git rev-parse --short HEAD)"
             echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            grep -E "^(e: |w: .*Bangumi|BUILD |FAILURE|exit=)" /tmp/kotlin.log | tail -n 80
+            grep -E "^(e: |BUILD |FAILURE|exit=|.*FAILED$)" /tmp/kotlin.log | tail -n 80
+            echo "----- test özeti -----"
+            grep -E "tests completed|Test .* FAILED|> There were failing" /tmp/kotlin.log | tail -n 40
             echo "----- son 600 satır -----"
             cat /tmp/kotlin-tail.log
           } > probe/kotlin_log.txt
