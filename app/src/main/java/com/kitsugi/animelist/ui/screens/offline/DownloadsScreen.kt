@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,6 +65,9 @@ import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivi
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -174,6 +178,36 @@ fun DownloadsScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var videoFilter by rememberSaveable { mutableStateOf(DownloadsVideoFilter.ALL) }
     var subtitleSort by rememberSaveable { mutableStateOf(DownloadsSortOrder.NEWEST) }
+
+    // Silme onayları: video tekli silme ve "tamamlananları sil" toplu işlemi.
+    var pendingVideoDelete by remember { mutableStateOf<AnimeDownload?>(null) }
+    var pendingDeleteCompleted by remember { mutableStateOf<List<AnimeDownload>>(emptyList()) }
+
+    // Arama açıkken geri tuşu aramayı kapatır; ekrandan çıkmaz.
+    BackHandler(enabled = searchOpen) {
+        searchQuery = ""
+        searchOpen = false
+    }
+
+    // Galeriden yeni resim indirip bu ekrana dönüldüğünde listeler bayat kalmasın:
+    // ekran her öne geldiğinde (ON_RESUME) altyazı ve resim taramasını tazele.
+    // İlk resume (ekran ilk açılış) atlanır — ilk yükleme zaten LaunchedEffect ile yapılıyor.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var resumeSeenOnce by remember { mutableStateOf(false) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (resumeSeenOnce) {
+                    refreshSubsTrigger++
+                    refreshImagesTrigger++
+                } else {
+                    resumeSeenOnce = true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // PERF: İndirme ilerlerken (downloadedBytes/progress değişirken) altyazı disk taramasını
     // her karede ana iş parçacığında tekrar çalıştırma! Yalnızca tamamlanan indirmelerin
@@ -351,6 +385,24 @@ fun DownloadsScreen(
                     it.status == AnimeDownload.Status.QUEUE
             }
             .forEach { AnimeDownloadManager.resumeDownload(context, it.animeId, it.episode) }
+    }
+
+    // ── Silme akışları (onaylı) ─────────────────────────────────────────────
+    val deleteVideoNow: (AnimeDownload) -> Unit = { download ->
+        AnimeDownloadManager.deleteDownload(context, download.animeId, download.episode)
+        refreshSubsTrigger++
+    }
+    val deleteCompletedNow: (List<AnimeDownload>) -> Unit = { list ->
+        list.forEach { download ->
+            AnimeDownloadManager.deleteDownload(context, download.animeId, download.episode)
+        }
+        refreshSubsTrigger++
+        refreshImagesTrigger++
+    }
+
+    val allRefreshed: () -> Unit = {
+        refreshSubsTrigger++
+        refreshImagesTrigger++
     }
 
     // ── Filtrelenmiş listeler ────────────────────────────────────────────────
@@ -537,7 +589,9 @@ fun DownloadsScreen(
                                 downloads = downloads,
                                 selected = videoFilter,
                                 accentColor = accentColor,
-                                onSelect = { videoFilter = it }
+                                onSelect = { videoFilter = it },
+                                onRefresh = allRefreshed,
+                                onDeleteCompleted = { list -> pendingDeleteCompleted = list }
                             )
                             if (filteredDownloads.isEmpty()) {
                                 DownloadsEmptyState(
@@ -620,14 +674,7 @@ fun DownloadsScreen(
                                                     download.episode
                                                 )
                                             },
-                                            onDelete = {
-                                                AnimeDownloadManager.deleteDownload(
-                                                    context,
-                                                    download.animeId,
-                                                    download.episode
-                                                )
-                                                refreshSubsTrigger++
-                                            },
+                                            onDelete = { pendingVideoDelete = download },
                                             onOpenFolder = {
                                                 val safeAnimeId = resolveSafeAnimeId(download.animeId, download.animeTitle)
                                                 val mediaId = "${safeAnimeId}_ep${download.episode}"
@@ -679,6 +726,13 @@ fun DownloadsScreen(
                                         onClick = { subtitleSort = option }
                                     )
                                 }
+                                DownloadsFilterChip(
+                                    label = stringResource(R.string.downloads_refresh),
+                                    selected = false,
+                                    accentColor = accentColor,
+                                    leadingIcon = Icons.Rounded.Refresh,
+                                    onClick = { refreshSubsTrigger++ }
+                                )
                             }
                             if (filteredSubtitles.isEmpty()) {
                                 DownloadsEmptyState(
@@ -723,6 +777,87 @@ fun DownloadsScreen(
                 }
             }
         }
+    }
+
+    // ── Onay: tekli video indirmesini sil ────────────────────────────────────
+    pendingVideoDelete?.let { download ->
+        AlertDialog(
+            onDismissRequest = { pendingVideoDelete = null },
+            containerColor = KitsugiColors.SurfaceSoft,
+            title = {
+                Text(
+                    text = stringResource(R.string.downloads_delete_video_title),
+                    color = KitsugiColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.downloads_delete_video_message,
+                        download.animeTitle,
+                        download.episode
+                    ),
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = download
+                    pendingVideoDelete = null
+                    deleteVideoNow(target)
+                }) {
+                    Text(stringResource(R.string.action_delete), color = KitsugiColors.AccentRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingVideoDelete = null }) {
+                    Text(stringResource(R.string.vazgec), color = KitsugiColors.TextSecondary)
+                }
+            }
+        )
+    }
+
+    // ── Onay: tamamlanan indirmeleri topluca sil ─────────────────────────────
+    if (pendingDeleteCompleted.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteCompleted = emptyList() },
+            containerColor = KitsugiColors.SurfaceSoft,
+            title = {
+                Text(
+                    text = stringResource(R.string.downloads_delete_completed_title),
+                    color = KitsugiColors.TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.downloads_delete_completed_message,
+                        pendingDeleteCompleted.size
+                    ),
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val targets = pendingDeleteCompleted
+                    pendingDeleteCompleted = emptyList()
+                    deleteCompletedNow(targets)
+                }) {
+                    Text(stringResource(R.string.action_delete), color = KitsugiColors.AccentRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteCompleted = emptyList() }) {
+                    Text(stringResource(R.string.vazgec), color = KitsugiColors.TextSecondary)
+                }
+            }
+        )
     }
 }
 
@@ -891,7 +1026,9 @@ private fun DownloadsVideoFilterRow(
     downloads: List<AnimeDownload>,
     selected: DownloadsVideoFilter,
     accentColor: Color,
-    onSelect: (DownloadsVideoFilter) -> Unit
+    onSelect: (DownloadsVideoFilter) -> Unit,
+    onRefresh: () -> Unit,
+    onDeleteCompleted: (List<AnimeDownload>) -> Unit
 ) {
     val counts = remember(downloads) {
         DownloadsVideoFilter.entries.associateWith { filter ->
@@ -916,6 +1053,27 @@ private fun DownloadsVideoFilterRow(
                     onClick = { onSelect(filter) }
                 )
             }
+        }
+        // Manuel tazeleme: dosya yöneticisinden/dışarıdan değişen disk durumunu yeniden tara.
+        DownloadsFilterChip(
+            label = stringResource(R.string.downloads_refresh),
+            selected = false,
+            accentColor = accentColor,
+            leadingIcon = Icons.Rounded.Refresh,
+            onClick = onRefresh
+        )
+        // Depolama yönetimi: tamamlanmış bölümleri tek seferde sil (onaylı).
+        val completed = remember(downloads) {
+            downloads.filter { it.status == AnimeDownload.Status.COMPLETED }
+        }
+        if (completed.isNotEmpty()) {
+            DownloadsFilterChip(
+                label = stringResource(R.string.downloads_delete_completed, completed.size),
+                selected = false,
+                accentColor = accentColor,
+                leadingIcon = Icons.Rounded.CleaningServices,
+                onClick = { onDeleteCompleted(completed) }
+            )
         }
     }
 }
@@ -971,6 +1129,14 @@ private fun DownloadsOverviewCard(
         (activeBytes.toFloat() / activeTotalBytes).coerceIn(0f, 1f)
     } else 0f
     val speed = rememberTransferSpeed(active = activeDownloads.isNotEmpty(), bytes = activeBytes)
+    // Boş alan yalnızca indirme sayısı/tamamlanan sayısı değiştiğinde yeniden hesaplanır
+    // (her ilerleme karesinde disk istatistiği okunmasın).
+    val completedCount = remember(downloads) { downloads.count { it.status == AnimeDownload.Status.COMPLETED } }
+    val freeSpaceBytes = remember(downloads.size, completedCount) {
+        runCatching {
+            android.os.StatFs(Environment.getExternalStorageDirectory().absolutePath).availableBytes
+        }.getOrDefault(0L)
+    }
     val remainingMs = if (speed > 0L && activeTotalBytes > activeBytes) {
         ((activeTotalBytes - activeBytes) * 1000L) / speed
     } else 0L
@@ -1044,6 +1210,9 @@ private fun DownloadsOverviewCard(
             }
             if (imageCount > 0) {
                 OverviewStatPill(Icons.Rounded.Image, imageCount, imageBytes, KitsugiColors.AccentPurple)
+            }
+            if (freeSpaceBytes > 0L) {
+                OverviewFreeSpacePill(freeSpaceBytes)
             }
         }
 
@@ -1119,6 +1288,31 @@ private fun DownloadsOverviewCard(
                 }
             }
         }
+    }
+}
+
+/** Cihazda kalan boş alan rozeti (depolama planlaması için). */
+@Composable
+private fun OverviewFreeSpacePill(freeBytes: Long) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(KitsugiColors.SurfaceSoft)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.SdStorage,
+            contentDescription = null,
+            tint = KitsugiColors.AccentGreen,
+            modifier = Modifier.size(13.dp)
+        )
+        Text(
+            text = stringResource(R.string.downloads_free_space, formatBytes(freeBytes)),
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp
+        )
     }
 }
 

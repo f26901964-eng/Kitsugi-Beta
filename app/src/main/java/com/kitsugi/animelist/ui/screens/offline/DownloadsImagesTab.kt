@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material.icons.rounded.VideoLibrary
@@ -354,6 +355,13 @@ fun DownloadedImagesTab(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                DownloadsFilterChip(
+                    label = stringResource(R.string.downloads_refresh),
+                    selected = false,
+                    accentColor = accentColor,
+                    leadingIcon = Icons.Rounded.Refresh,
+                    onClick = onRefresh
+                )
                 DownloadsFilterChip(
                     label = stringResource(R.string.downloads_select_images),
                     selected = false,

@@ -17800,4 +17800,11 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="downloads_duration_hour">sa</string>
     <string name="downloads_duration_minute">dk</string>
     <string name="downloads_duration_second">sn</string>
+    <string name="downloads_refresh">Yenile</string>
+    <string name="downloads_delete_completed">Tamamlananları sil (%1$d)</string>
+    <string name="downloads_delete_completed_title">Tamamlanan indirmeler silinsin mi?</string>
+    <string name="downloads_delete_completed_message">%1$d tamamlanmış bölüm, videoları ve yanındaki altyazı dosyalarıyla birlikte cihazdan silinecek. Devam eden ve duraklatılan indirmeler korunur.</string>
+    <string name="downloads_delete_video_title">İndirme silinsin mi?</string>
+    <string name="downloads_delete_video_message">\"%1$s\" bölüm %2$d cihazdan silinecek (video ve yanındaki altyazı dosyaları). Tekrar indirebilirsin.</string>
+    <string name="downloads_free_space">%1$s boş</string>
 </resources>

@@ -17795,4 +17795,11 @@
     <string name="downloads_duration_hour">h</string>
     <string name="downloads_duration_minute">m</string>
     <string name="downloads_duration_second">s</string>
+    <string name="downloads_refresh">Refresh</string>
+    <string name="downloads_delete_completed">Delete completed (%1$d)</string>
+    <string name="downloads_delete_completed_title">Delete completed downloads?</string>
+    <string name="downloads_delete_completed_message">%1$d completed episode(s) will be removed from the device together with their video and companion subtitle files. Active and paused downloads are kept.</string>
+    <string name="downloads_delete_video_title">Delete download?</string>
+    <string name="downloads_delete_video_message">\"%1$s\" episode %2$d will be removed from the device (video and companion subtitle files). You can download it again later.</string>
+    <string name="downloads_free_space">%1$s free</string>
 </resources>

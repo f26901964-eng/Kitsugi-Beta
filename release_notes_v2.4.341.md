@@ -15,12 +15,15 @@
 - **Cihazdaki indirmeler özeti:** Video / altyazı / resim adetleri ve her türün kapladığı alan ile toplam boyut tek kartta.
 - **Canlı ilerleme:** Devam eden indirmelerin birleşik ilerleme çubuğu, yüzde, **anlık toplam hız (MB/sn)** ve **tahmini kalan süre**.
 - **Toplu işlem:** "Tümünü duraklat" ve "Tümünü sürdür" düğmeleri.
+- **Güvenli silme:** Tek bir bölümü silerken onay penceresi çıkar; ayrıca **"Tamamlananları sil (n)"** ile tüm bitmiş bölümler (video + yanındaki altyazılar) tek onayla temizlenir.
+- **Boş alan rozeti:** Cihazda kalan depolama alanı özet kartında gösterilir.
 - **Satır bazlı ayrıntı:** Her indirme satırında hız, kalan süre, indirilen/toplam boyut, parça sayısı, eklenme tarihi ve tamamlananların dosya boyutu.
 
 ### 🔎 Arama ve Filtreler
 - **Tüm sekmelerde tek arama:** Başlık, kaynak, yayın adı, altyazı adı ve dil üzerinden arama; sonuç yoksa açıklayıcı boş durum.
 - **Videolar:** Tümü / İndiriliyor / Duraklatıldı / Tamamlandı / Hatalı hızlı filtreleri (adetlerle birlikte, devam edenler her zaman üstte).
 - **Altyazılar:** Sıralama düğmeleri (en yeni / en eski / isim / boyut).
+- **Tazeleme:** Ekrana her dönüşte (galeriden resim indirip geri gelmek dahil) listeler kendiliğinden yenilenir; ayrıca her sekmede manuel "Yenile" düğmesi var. Arama açıkken geri tuşu aramayı kapatır.
 
 ---
 
@@ -39,9 +42,12 @@
 - **On-device summary:** Video / subtitle / image counts plus per-type storage usage and total size in one card.
 - **Live progress:** Combined progress bar, percentage, **aggregate speed (MB/s)** and **estimated time remaining**.
 - **Bulk actions:** "Pause all" and "Resume all".
+- **Safe deletion:** Deleting a single episode now asks for confirmation; **"Delete completed (n)"** clears every finished episode (video + companion subtitles) with one confirmation.
+- **Free space badge:** Remaining device storage is shown on the overview card.
 - **Per-row detail:** Speed, ETA, downloaded/total size, segment count, added date and completed file size.
 
 ### 🔎 Search and Filters
 - **One search for every tab:** Matches titles, sources, stream names, subtitle names and languages, with a clear empty state when nothing matches.
 - **Videos:** Quick All / Downloading / Paused / Completed / Failed filters with counts (active downloads always on top).
 - **Subtitles:** Sort buttons (newest / oldest / name / size).
+- **Refresh:** Lists reload automatically whenever the screen comes back to the foreground (including returning after saving an image from the gallery); every tab also has a manual "Refresh" button. Back closes the search field instead of leaving the screen.
