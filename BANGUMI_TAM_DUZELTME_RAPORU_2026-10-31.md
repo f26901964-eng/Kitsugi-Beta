@@ -252,6 +252,14 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 | `:app:compileFossDebugKotlin` | **BUILD SUCCESSFUL**, 4 dk 47 sn (çalışma `41243323730`) |
 | `:app:compileFossDebugKotlin` + `:app:testFossDebugUnitTest` (`*Bangumi*`, `KitsugiTranslationsTest`, `HeroSelectionTest`, `AllSourcesExploreTest`) | **BUILD SUCCESSFUL**, 6 dk 20 sn, `exit=0`, test özetinde **0 başarısız** (çalışma `41243909173`) |
 | Tüm düzeltmeler dahil son derleme (roman rafı dâhil) | **BUILD SUCCESSFUL**, 5 dk 23 sn, `exit=0` (çalışma `41244697915`, commit `eb778eb`) |
+
+**Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
+`41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
+`🧪 MAL cihaz ayrıştırıcı testleri + eklenti güncelleme testleri + foss debug & R8 release
+APK + DEX doğrulama` adımı `success`, `📲 APK'ları yükle` adımı `success`. Yani tüm birim
+testleri (Bangumi başlık çözümü, sözlükler, kütüphane içe aktarma, detay istemcisi,
+Keşfet "Tümü" bölümleri dahil) geçti, hem debug hem **R8 küçültmeli release** APK derlendi
+ve DEX buyruk akışları ikili düzeyde doğrulandı.
 | Canlı API matrisi (E1–E4, F1–F2, G1–G3, H1–H4, I1–I2) | `probe/result.txt` — beklenen sonuçların tamamı alındı |
 | Regresyon: etiket sözlüğü grup sayısı (`58338`) ve `entryFor()` davranışı | `BangumiTagDictionary` eşleşme sırası korundu; `BangumiMasterDictionaryTest` bu çalıştırmada **geçti** |
 
@@ -317,13 +325,14 @@ indirilemediği için günlük doğrudan depoya işlendi).
 ## 8. Dosya özeti
 
 ```
-app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt        (+ ~195)
-app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt  (+ ~205)
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt (+ ~30)
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt (+2)
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt (+ ~76)
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt (+6)
-app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt        (+ ~49)
+app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt         +191/-…
+app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt   +233/-…
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +37/-…
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt  +4
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt   +76/-…
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt +6/-1
+app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt         +49/-…
+# toplam: 7 dosya, +516 / -80
 probe/result.txt                                                              (canlı API kanıtı)
 probe/kotlin_log.txt                                                          (derleme + test günlüğü)
 ```
