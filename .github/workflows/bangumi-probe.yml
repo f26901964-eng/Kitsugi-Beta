@@ -1,0 +1,75 @@
+name: 🩺 Bangumi API Probe (geçici)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe
+        run: |
+          set +e
+          UA_APP="f26901964-eng/Kitsugi-Beta/2.4.340-beta.1761 (Android) (https://github.com/f26901964-eng/Kitsugi-Beta)"
+          probe() {
+            local label="$1"; shift
+            echo "===== $label ====="
+            code=$(curl -sS -o /tmp/body.json -w '%{http_code}' -m 25 "$@")
+            echo "HTTP $code  bytes=$(wc -c </tmp/body.json)"
+            head -c 400 /tmp/body.json; echo
+          }
+          probe "A1 POST search score (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"score","filter":{"type":[2],"nsfw":false}}'
+          probe "A2 POST search heat (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"heat","filter":{"type":[1],"nsfw":false}}'
+          probe "A3 POST search match keyword (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"chainsaw man","sort":"match","filter":{"type":[2],"nsfw":false}}'
+          probe "A4 POST search rank filter (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"rank":[">=1"],"nsfw":false}}'
+          probe "A5 POST search rank + rating_count (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"ref":[],"rating_count":[">=200"],"nsfw":false}}'
+          probe "A6 POST search with air_date+rating filters (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"match","filter":{"type":[2],"air_date":[">=2020-01-01","<=2024-12-31"],"rating":[">=8"],"nsfw":false}}'
+          probe "B1 POST search score (okhttp UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H 'User-Agent: okhttp/4.12.0' -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"score","filter":{"type":[2],"nsfw":false}}'
+          probe "C1 GET browse rank (app UA)" \
+            'https://api.bgm.tv/v0/subjects?type=2&sort=rank&limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
+          probe "C2 GET browse season (app UA)" \
+            'https://api.bgm.tv/v0/subjects?type=2&sort=date&year=2026&month=10&limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
+          probe "C3 GET real tv (app UA)" \
+            'https://api.bgm.tv/v0/subjects?type=6&cat=6001&sort=rank&limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
+          probe "C4 GET legacy search (app UA)" \
+            'https://api.bgm.tv/search/subject/chainsaw?type=2&responseGroup=large&start=0&max_results=5' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
+          probe "D1 GET p1 subject (app UA)" \
+            'https://next.bgm.tv/p1/subjects/326' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
+          probe "D2 GET p1 subject collections" \
+            'https://next.bgm.tv/p1/subjects/326/collections' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
+          echo "===== done ====="
