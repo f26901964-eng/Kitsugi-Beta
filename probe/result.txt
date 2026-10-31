@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53614621e5f2913-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53616d9bbc729ab-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -315,8 +315,8 @@ total: 643 limit: 3 offset: 0
  - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22291 | mt 科幻,剧场版,机战 | platform 剧场版
  - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4115 | mt 科幻,剧场版,日本 | platform 剧场版
  - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34775 | mt 科幻,机战,TV | platform TV
-O 音乐       HTTP 200 total: 469 veri: 3
-total: 469 limit: 3 offset: 0
+O 音乐       HTTP 200 total: 468 veri: 3
+total: 468 limit: 3 offset: 0
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
  - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
  - 216371 t2 | 莉兹与青鸟 | score 8.6 rank 27 votes 20840 | mt 百合,剧场版,校园 | platform 剧场版
