@@ -72,7 +72,7 @@ matrisi beklenen sonuçları veriyor (bkz. §5).
 | Etiketli ızgaranın tepesinde 1–20 oylu niş yapıtlar | R12: `sort=rank` "sıralamaya girmemiş" kayıtların `rank = 0` değerini **başa** alıyor | Boş sorgu + `sort=rank` → `rank >= 1` süzgeci |
 | "En Yüksek Puanlı Mangalar"da roman/画集 ve cilt kayıtları; manga aramasında ilk sayfa tamamen roman | R13: `type=1` tüm书籍 kataloğu; `cat`/`series` süzgeci yok, `platform` sunucuda süzülemiyor | `cat=1001` + `series=true`; arama/puan sıralamasında `meta_tags=["漫画"]` |
 | Arama → Bangumi'de "Diziler"/"Filmler" sekmesi hiç yok | R14: `availableScopes()` Bangumi için TV/MOVIE içermiyordu; kapsam→tür eşlemesi de yoktu | Sekmeler eklendi; TV/MOVIE → `type=6`, manga kapsamları → `type=1` |
-| "Tümünü Gör" → Bangumi Dizileri/Filmleri ızgarası karışık (dizi rafında film) | R15: sayfalama `meta_tags` göndermiyordu, `type=6` ikisini birlikte döndürüyor | `meta_tags=["电视剧" | "电影"]` |
+| "Tümünü Gör" → Bangumi Dizileri/Filmleri ızgarası karışık (dizi rafında film) | R15: sayfalama `meta_tags` göndermiyordu, `type=6` ikisini birlikte döndürüyor | `meta_tags=电视剧 / 电影` |
 | Filtre sayfası Bangumi'de sunucu sıralamalarını "📱 yerel" işaretliyor | R16: `serverSorts()` boş kümeden (`SORT_SUPPORT[BANGUMI] = ∅`) filtreliyordu | `BANGUMI_SEARCH_SORTS` temel alındı |
 
 ---
@@ -371,7 +371,9 @@ istemci tarafı süzgeç sayfayı boşaltıp sayfalamayı durduruyordu.
 | `:app:compileFossDebugKotlin` + `:app:testFossDebugUnitTest` (`*Bangumi*`, `KitsugiTranslationsTest`, `HeroSelectionTest`, `AllSourcesExploreTest`) | **BUILD SUCCESSFUL**, 6 dk 20 sn, `exit=0`, test özetinde **0 başarısız** (çalışma `41243909173`) |
 | Tüm düzeltmeler dahil son derleme (roman rafı dâhil) | **BUILD SUCCESSFUL**, 5 dk 23 sn, `exit=0` (çalışma `41244697915`, commit `eb778eb`) |
 | Üçüncü yuvarlak düzeltmeleri (R11–R16 + `BangumiTagCanonicalizationTest`) | **BUILD SUCCESSFUL**, 6 dk 12 sn, `exit=0` (çalışma `41249402840`, commit `57a4aa5`) |
-| Üçüncü yuvarlak APK derlemesi (debug + R8 release + DEX) | çalışma `41249402867` — sonuç §6.3'te |
+| **Nihai** derleme + Bangumi testleri (tüm düzeltmeler, `ALL_MIXED` tür kapsamı dâhil) | **BUILD SUCCESSFUL**, `exit=0` (çalışma `41251983138`, commit `9136c98`) |
+| **Nihai** `🎌 Bangumi MASTER Doğrulama` (sözlük + `BangumiMasterDictionaryTest`) | **success** (çalışma `41251983148`, commit `9136c98`) |
+| **Nihai** tam APK doğrulaması (MAL testleri + foss debug + R8 release + DEX + APK yükleme) | **success**, 27 dk 44 sn (çalışma `41251983178`, commit `9136c98`) |
 
 **Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
 `41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
@@ -407,15 +409,27 @@ exit=0
 Tam günlük depoda `probe/kotlin_log.txt` dosyasındadır (GitHub artifact'leri bu ortamdan
 indirilemediği için günlük doğrudan depoya işlendi).
 
-> Not: `🎌 Bangumi MASTER Doğrulama` iş akışının `BangumiMasterDictionaryTest` adımı bu
-> dalda hata veriyordu; **aynı test, aynı kod üzerinde** yukarıdaki Gradle çalıştırmasında
-> (ve tam APK derlemesinde) **geçti**. Bu ortamdan GitHub artifact/günlük indirilemediği için
-> MASTER adımının hata metni doğrulanamadı; en olası neden, iş akışının kendi Gradle
-> ayarlarıdır (ayrı `gradle.properties`, `org.gradle.daemon=true`, tek `--tests` filtresi).
-> Uygulama kodundan kaynaklanan bir başarısızlık işareti **yok**; ancak MASTER iş akışının
-> yayın öncesi ayrıca ele alınması önerilir.
+> **Çözüldü (1 Kasım 2026):** `🎌 Bangumi MASTER Doğrulama` iş akışı, aynı commit üzerinde
+> (`9136c98`) **başarıyla** tamamlandı — çalışma `41251983148`:
+> `🐍 Python doğrulayıcı` ✅ · `♻️ Üreteç güncellik denetimi (--check)` ✅ ·
+> `🔨 Sözlükleri derle (kotlinc)` ✅ · `🧪 BangumiMasterDictionaryTest` ✅.
+> Daha önceki MASTER hataları **derleme hatalarından** kaynaklanıyordu (o commit'lerde
+> `:app:compileFossDebugKotlin` kırıktı); sözlük üretimi ve testin kendisi sağlamdı.
+> Raporun önceki sürümündeki "MASTER ayrıca ele alınmalı" notu bu kanıtla kapatıldı.
 
-### 6.2 Kullanıcı tarafında nasıl doğrulanır
+### 6.2 Nihai kanıt zinciri (commit `9136c98`)
+
+| İş akışı | Çalışma | Sonuç |
+|---|---|---|
+| 🧪 Kotlin Derleme Günlüğü (`compileFossDebugKotlin` + `--tests '*Bangumi*'` vb.) | `41251983138` | **success**, `exit=0` |
+| 🎌 Bangumi MASTER Doğrulama (Python doğrulayıcı + kotlinc + JUnit) | `41251983148` | **success** (`BangumiMasterDictionaryTest` adımı ✅) |
+| 🏗️ Android Derleme Doğrulama (cihaz testleri + APK + DEX) | `41251983178` | **success**, 27 dk 44 sn; `🧪 MAL … + foss debug & R8 release APK + DEX doğrulama` ✅, `📲 APK'ları yükle` ✅ |
+| 🩺 Bangumi API Probe (J–R blokları) | `41251983134` | **success** (`probe/result.txt`) |
+
+> Not: Android derleme iş akışının 13. adımı (`🩺 Derleme günlüğünü yükle`) yalnızca hata
+> durumunda çalışır; **atlanmış** olması derlemenin başarılı olduğunun kanıtıdır.
+
+### 6.3 Kullanıcı tarafında nasıl doğrulanır
 
 1. **Keşfet → Bangumi:** "En Yüksek Puanlı Animeler" artık sıralı liste (GitS SAC 2nd GIG,
    Clannad AS, Cowboy Bebop…) göstermeli; 10/10'luk tek oylu kayıtlar görünmemeli.
@@ -485,7 +499,7 @@ app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt
 app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt   +98
 app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt          +99
 app/src/test/java/com/kitsugi/animelist/utils/BangumiTagCanonicalizationTest.kt +80 (yeni)
-# toplam: 9 dosya, +858 / -120   (`git diff --stat c320ff6 -- app/src`)
+# toplam: 9 dosya, +879 / -122   (`git diff --stat c320ff6 -- app/src`)
 probe/result.txt                                                              (canlı API kanıtı)
 probe/kotlin_log.txt                                                          (derleme + test günlüğü)
 ```
