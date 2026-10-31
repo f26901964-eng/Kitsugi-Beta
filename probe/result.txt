@@ -11,7 +11,7 @@ HTTP 200  bytes=29861
 HTTP 200  bytes=16014
 {"data":[{"date":"2009-01-10","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/cb/8a/1530_kCJZo.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/cb/8a/1530_kCJZo.jpg","large":"https://lain.bgm.tv/pic/cover/l/cb/8a/1530_kCJZo.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/cb/8a/1530_kCJZo.jpg","common":"https://lain.b
 ===== A5 POST search rank + rating_count (app UA) =====
-HTTP 200  bytes=21958
+HTTP 200  bytes=21947
 {"data":[{"date":null,"platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/00/48/247349_wV7R0.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/00/48/247349_wV7R0.jpg","large":"https://lain.bgm.tv/pic/cover/l/00/48/247349_wV7R0.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/00/48/247349_wV7R0.jpg","common":"https://lain.b
 ===== A6 POST search air_date + rating (app UA) =====
 HTTP 200  bytes=49196
@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a535c337583889cc-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a535d1fd0b30ffae-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -36,8 +36,8 @@ HTTP 200  bytes=16713
 HTTP 200  bytes=8983
 {"results":9,"list":[{"id":485524,"url":"http:\/\/bgm.tv\/subject\/485524","type":2,"name":"Chainsaw Bunny","name_cn":"","summary":"","eps":1,"eps_count":1,"air_date":"2019-01-01","air_weekday":5,"rating":{"total":2,"count":{"10":0,"9":0,"8":1,"7":0,"6":1,"5":0,"4":0,"3":0,"2":0,"1":0},"score":7},"images":{"large":"http:\/\/lain.bgm.tv\/pic\/cover\
 ===== D1 GET p1 subject (app UA) =====
-HTTP 200  bytes=7142
-{"airtime":{"date":"2004-01-01","month":1,"weekday":4,"year":2004},"collection":{"1":9719,"2":15000,"3":1583,"4":754,"5":185},"eps":26,"id":326,"infobox":[{"key":"中文名","values":[{"v":"攻壳机动队 S.A.C. 2nd GIG"}]},{"key":"别名","values":[{"v":"Koukaku Kidoutai S.A.C. 2nd GIG"},{"v":"Ghost in the Shell: Stand Alone Complex 2nd GIG"}]},{
+HTTP 200  bytes=7133
+{"airtime":{"date":"2004-01-01","month":1,"weekday":4,"year":2004},"collection":{"1":9720,"2":15000,"3":1583,"4":754,"5":185},"eps":26,"id":326,"infobox":[{"key":"中文名","values":[{"v":"攻壳机动队 S.A.C. 2nd GIG"}]},{"key":"别名","values":[{"v":"Koukaku Kidoutai S.A.C. 2nd GIG"},{"v":"Ghost in the Shell: Stand Alone Complex 2nd GIG"}]},{
 ===== E1 rank + rank>=1 + rating_count>=100 =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
