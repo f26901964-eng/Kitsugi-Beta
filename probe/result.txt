@@ -1,0 +1,41 @@
+===== A1 POST search score (app UA) =====
+HTTP 200  bytes=17008
+{"data":[{"date":"1973-03-02","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/4e/84/187710_cAJJ1.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/4e/84/187710_cAJJ1.jpg","large":"https://lain.bgm.tv/pic/cover/l/4e/84/187710_cAJJ1.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/4e/84/187710_cAJJ1.jpg","common":"https:
+===== A2 POST search heat (app UA) =====
+HTTP 200  bytes=21173
+{"data":[{"date":"2019-03-04","platform":"漫画","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/85/aa/268279_9rynK.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/85/aa/268279_9rynK.jpg","large":"https://lain.bgm.tv/pic/cover/l/85/aa/268279_9rynK.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/85/aa/268279_9rynK.jpg","common":"ht
+===== A3 POST search match keyword (app UA) =====
+HTTP 200  bytes=29861
+{"data":[{"date":"2022-10-11","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/26/b4/321885_92uzU.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/26/b4/321885_92uzU.jpg","large":"https://lain.bgm.tv/pic/cover/l/26/b4/321885_92uzU.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/26/b4/321885_92uzU.jpg","common":"https:
+===== A4 POST search rank (app UA) =====
+HTTP 200  bytes=16014
+{"data":[{"date":"2009-01-10","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/cb/8a/1530_kCJZo.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/cb/8a/1530_kCJZo.jpg","large":"https://lain.bgm.tv/pic/cover/l/cb/8a/1530_kCJZo.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/cb/8a/1530_kCJZo.jpg","common":"https://lain.b
+===== A5 POST search rank + rating_count (app UA) =====
+HTTP 200  bytes=21958
+{"data":[{"date":null,"platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/00/48/247349_wV7R0.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/00/48/247349_wV7R0.jpg","large":"https://lain.bgm.tv/pic/cover/l/00/48/247349_wV7R0.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/00/48/247349_wV7R0.jpg","common":"https://lain.b
+===== A6 POST search air_date + rating (app UA) =====
+HTTP 200  bytes=49196
+{"data":[{"date":"2021-03-08","platform":"剧场版","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/04/dc/29883_jQ4Hz.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/04/dc/29883_jQ4Hz.jpg","large":"https://lain.bgm.tv/pic/cover/l/04/dc/29883_jQ4Hz.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/04/dc/29883_jQ4Hz.jpg","common":"htt
+===== A7 POST search tag (app UA) =====
+HTTP 200  bytes=23247
+{"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
+===== B1 POST search score (okhttp UA) =====
+HTTP 403  bytes=346
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5359732de06b1ef-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+
+===== C1 GET browse rank (app UA) =====
+HTTP 200  bytes=39538
+{"data":[{"date":"2004-01-01","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/a6/66/326_D8wjw.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/a6/66/326_D8wjw.jpg","large":"https://lain.bgm.tv/pic/cover/l/a6/66/326_D8wjw.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/a6/66/326_D8wjw.jpg","common":"https://lain.bgm.t
+===== C2 GET browse season (app UA) =====
+HTTP 200  bytes=17796
+{"data":[{"date":"2026-10-31","platform":"WEB","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/bb/77/712500_Ene6m.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/bb/77/712500_Ene6m.jpg","large":"https://lain.bgm.tv/pic/cover/l/bb/77/712500_Ene6m.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/bb/77/712500_Ene6m.jpg","common":"https
+===== C3 GET real tv (app UA) =====
+HTTP 200  bytes=16713
+{"data":[{"date":"2015-11-06","platform":"电视剧","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/47/d9/259879_947f3.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/47/d9/259879_947f3.jpg","large":"https://lain.bgm.tv/pic/cover/l/47/d9/259879_947f3.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/47/d9/259879_947f3.jpg","common":
+===== C4 GET legacy search (app UA) =====
+HTTP 200  bytes=8983
+{"results":9,"list":[{"id":485524,"url":"http:\/\/bgm.tv\/subject\/485524","type":2,"name":"Chainsaw Bunny","name_cn":"","summary":"","eps":1,"eps_count":1,"air_date":"2019-01-01","air_weekday":5,"rating":{"total":2,"count":{"10":0,"9":0,"8":1,"7":0,"6":1,"5":0,"4":0,"3":0,"2":0,"1":0},"score":7},"images":{"large":"http:\/\/lain.bgm.tv\/pic\/cover\
+===== D1 GET p1 subject (app UA) =====
+HTTP 200  bytes=7142
+{"airtime":{"date":"2004-01-01","month":1,"weekday":4,"year":2004},"collection":{"1":9719,"2":15000,"3":1583,"4":754,"5":185},"eps":26,"id":326,"infobox":[{"key":"中文名","values":[{"v":"攻壳机动队 S.A.C. 2nd GIG"}]},{"key":"别名","values":[{"v":"Koukaku Kidoutai S.A.C. 2nd GIG"},{"v":"Ghost in the Shell: Stand Alone Complex 2nd GIG"}]},{
+===== done =====
