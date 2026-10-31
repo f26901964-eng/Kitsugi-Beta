@@ -1,13 +1,9 @@
-### :app:compileFossDebugKotlin
-commit: 78e7114
-date: 2026-10-31T21:28:06Z
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:104:21 'val LocalClipboardManager: ProvidableCompositionLocal<ClipboardManager>' is deprecated. Use LocalClipboard instead which supports suspend functions.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:350:56 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:480:56 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiBangumiLoginDialog.kt:559:52 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/BangumiProfileContent.kt:423:49 'val Icons.Rounded.OpenInNew: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.OpenInNew.
-BUILD SUCCESSFUL in 4m 47s
+### :app:compileFossDebugKotlin + Bangumi testleri
+commit: f79b602
+date: 2026-10-31T21:37:20Z
+BUILD SUCCESSFUL in 6m 20s
 exit=0
+----- test özeti -----
 ----- son 600 satır -----
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
 Daemon will be stopped at the end of the build 
@@ -294,8 +290,39 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanad
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:90:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:104:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/eu/kanade/tachiyomi/source/online/HttpSource.kt:118:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Please add the '@Deprecated' annotation or suppress the diagnostic.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793481804463.json
 
-BUILD SUCCESSFUL in 4m 47s
-54 actionable tasks: 16 executed, 38 from cache
+> Task :app:javaPreCompileFossDebug FROM-CACHE
+> Task :app:compileFossDebugJavaWithJavac
+> Task :bangumi-vault-resources-1:bundleLibRuntimeToJarDebug
+> Task :bangumi-vault-resources-2:bundleLibRuntimeToJarDebug
+> Task :bangumi-vault-resources-3:bundleLibRuntimeToJarDebug
+> Task :app:hiltAggregateDepsFossDebug FROM-CACHE
+> Task :app:hiltJavaCompileFossDebug
+> Task :app:transformFossDebugClassesWithAsm
+> Task :app:bundleFossDebugClassesToRuntimeJar
+> Task :app:preFossDebugUnitTestBuild UP-TO-DATE
+> Task :app:processFossDebugJavaRes
+> Task :app:bundleFossDebugClassesToCompileJar
+
+> Task :app:kspFossDebugUnitTestKotlin
+w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
+
+> Task :app:compileFossDebugUnitTestKotlin
+w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kitsugi/animelist/utils/KitsugiTranslationsTest.kt:20:27 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileFossDebugUnitTest FROM-CACHE
+> Task :app:compileFossDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:hiltAggregateDepsFossDebugUnitTest FROM-CACHE
+> Task :app:hiltJavaCompileFossDebugUnitTest NO-SOURCE
+> Task :app:processFossDebugUnitTestJavaRes
+> Task :app:transformFossDebugUnitTestClassesWithAsm
+> Task :bangumi-vault-resources-1:processDebugJavaRes NO-SOURCE
+> Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
+> Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
+> Task :app:testFossDebugUnitTest
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793482263231.json
+
+BUILD SUCCESSFUL in 6m 20s
+72 actionable tasks: 30 executed, 42 from cache
 exit=0
