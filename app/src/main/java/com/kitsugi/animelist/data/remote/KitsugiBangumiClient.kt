@@ -279,8 +279,15 @@ object KitsugiBangumiClient {
                 // 2026-10-31 canlı API (G1): etiket süzgeçli `sort=rank` sorgusu oy
                 // sayısı 18 olan niş yapıtlarla başlıyordu. `rank>=1`, resmî 排行榜
                 // semantiğini geri getirir (browse ucu bunu zaten kendisi uygular).
-                val rankFilter = if (effectiveQuery.isBlank() &&
-                    sort == BangumiApiClient.SearchSort.RANK
+                // Anahtar kelime yokken `rank` ve `match` sıralamaları eşit dereceli
+                // olduğundan Meilisearch'ün varsayılan sırası geçerli olur ve `rank = 0`
+                // kayıtlar (hiçbir sıralamaya girmemiş, oy almamış yapıtlar) başa düşer
+                // (probe S: `剧情` 695 kayıt → ilk üç sonuç oy sayısı 34–45, rank 0).
+                // `heat`/`score` ise kendi doğal ölçütünü taşır; onlara dokunulmaz.
+                val rankFilter = if (
+                    effectiveQuery.isBlank() &&
+                    sort != BangumiApiClient.SearchSort.HEAT &&
+                    sort != BangumiApiClient.SearchSort.SCORE
                 ) {
                     listOf(">=1")
                 } else {
