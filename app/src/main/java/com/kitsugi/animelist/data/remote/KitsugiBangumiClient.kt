@@ -96,7 +96,13 @@ object KitsugiBangumiClient {
         offset: Int = 0,
         context: Context? = null,
         includeAdult: Boolean = false,
-        comicsOnly: Boolean = true
+        comicsOnly: Boolean = true,
+        /**
+         * `meta_tags` süzgeci (`电视剧`, `电影`, `漫画`, `小说`…). Bangumi'de `type = 6`
+         * (三次元) içinde dizi ile filmi ayırmanın sunucu tarafındaki tek yolu; `type = 1`
+         * içinde manga ile romanı ayırır.
+         */
+        metaTags: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         runCatching {
             searchWithFallback(
@@ -273,6 +279,16 @@ object KitsugiBangumiClient {
                 } else {
                     emptyList()
                 }
+                // `type = 1` (书籍) kataloğu manga + roman + 画集 karışık döner ve `platform`
+                // sunucuda süzülemez (v0: `platform` yalnız oyun türünde çalışır). Yalnız
+                // istemcide süzmek sayfalamayı bozuyordu: prob P5'te `BOOK + tag 恋爱` ilk
+                // 5 sonucunun **tamamı roman** çıktı, istemci süzgecinden sonra sayfa boş
+                // kalıp "sonraki sayfa yok" kararı veriliyordu. Q1/Q2/Q3 probları `漫画`
+                // meta etiketinin sunucuda doğru çalıştığını gösterdi.
+                val effectiveMetaTags = when {
+                    mediaType == MediaType.Manga && comicsOnly -> metaTags + "漫画"
+                    else -> metaTags
+                }.distinct()
                 searchWithFallback(
                     keyword = effectiveQuery,
                     token = tokenOrNull(context),
@@ -285,7 +301,8 @@ object KitsugiBangumiClient {
                     limit = pageSize,
                     offset = offset,
                     ratingCount = ratingCount,
-                    rank = rankFilter
+                    rank = rankFilter,
+                    metaTags = effectiveMetaTags
                 )
             }
             subjects
@@ -333,7 +350,9 @@ object KitsugiBangumiClient {
         rating: List<String> = emptyList(),
         ratingCount: List<String> = emptyList(),
         /** `rank` filtresi (`>=1`). Puan sıralamasında `rank = 0` kayıtları eler. */
-        rank: List<String> = emptyList()
+        rank: List<String> = emptyList(),
+        /** `meta_tags` (`漫画`, `小说`, `电视剧`…). `type = 1` içinde manga/roman ayrımı. */
+        metaTags: List<String> = emptyList()
     ): List<BangumiSubject> {
         val primary = runCatching {
             BangumiApiClient.searchSubjects(
@@ -348,7 +367,8 @@ object KitsugiBangumiClient {
                 nsfw = if (includeAdult) null else false,
                 limit = limit,
                 offset = offset,
-                ratingCount = ratingCount
+                ratingCount = ratingCount,
+                metaTags = metaTags
             )
         }
         primary.exceptionOrNull()?.let { if (it is kotlinx.coroutines.CancellationException) throw it }
@@ -770,7 +790,8 @@ object KitsugiBangumiClient {
                 token = tokenOrNull(context),
                 limit = limit,
                 offset = offset,
-                minVotes = BangumiApiClient.MIN_RATING_VOTES
+                minVotes = BangumiApiClient.MIN_RATING_VOTES,
+                metaTags = listOf("漫画")
             ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
                 .ifEmpty { topManga(limit, context, offset) }
         }.getOrElse { logAndEmpty("topRatedManga", it) }

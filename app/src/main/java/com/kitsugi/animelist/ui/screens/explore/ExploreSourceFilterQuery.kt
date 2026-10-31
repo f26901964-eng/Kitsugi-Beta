@@ -409,6 +409,13 @@ private suspend fun bangumiPage(
         MediaType.Movie -> listOf(BangumiApiClient.SubjectType.REAL)
         else -> null
     }
+    // `type = 6` hem dizileri hem filmleri kapsar; raf başlığı ile içeriğin uyuşması için
+    // 三次元 kayıtları Bangumi'nin kendi `meta_tags` değeriyle ayrılır (probe F1/F2).
+    val metaTags = when (spec.mediaType) {
+        MediaType.TvShow -> listOf("电视剧")
+        MediaType.Movie -> listOf("电影")
+        else -> emptyList()
+    }
     return KitsugiBangumiClient.searchMediaAdvanced(
         mediaType = spec.mediaType,
         query = "",
@@ -417,7 +424,8 @@ private suspend fun bangumiPage(
         sort = effectiveSort,
         tags = listOfNotNull(tag),
         includeAdult = showAdultContent,
-        subjectTypes = subjectTypes
+        subjectTypes = subjectTypes,
+        metaTags = metaTags
     )
 }
 

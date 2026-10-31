@@ -1034,7 +1034,13 @@ object BangumiApiClient {
         token: String? = null,
         limit: Int = 25,
         offset: Int = 0,
-        minVotes: Int = MIN_RATING_VOTES
+        minVotes: Int = MIN_RATING_VOTES,
+        /**
+         * `meta_tags` süzgeci. `type = 1` (书籍) kataloğunda manga ile roman aynı tür
+         * altında; `漫画` süzgeci olmadan romanlar "En Yüksek Puanlı Mangalar" rafına
+         * düşüyordu (2026-11-01 probu Q4: `meta_tags=["小说"]` 539 roman).
+         */
+        metaTags: List<String> = emptyList()
     ): BangumiPage<BangumiSubject> {
         /*
          * Sıralama varyantları — en doğrudan "en yüksek puanlı" tanımından en gevşeğe:
@@ -1048,10 +1054,10 @@ object BangumiApiClient {
          * 4. `sort=score` + `rating_count>=N` — rank alanı boşsa son çare.
          */
         val attempts: List<suspend () -> BangumiPage<BangumiSubject>> = listOf(
-            { searchSubjects("", token, listOf(type), SearchSort.RANK, limit = limit, offset = offset, nsfw = false, rank = listOf(">=1"), ratingCount = listOf(">=$minVotes")) },
-            { searchSubjects("", token, listOf(type), SearchSort.RANK, limit = limit, offset = offset, nsfw = false, ratingCount = listOf(">=$minVotes")) },
-            { searchSubjects("", token, listOf(type), SearchSort.RANK, limit = limit, offset = offset, nsfw = false, rank = listOf(">=1")) },
-            { searchSubjects("", token, listOf(type), SearchSort.SCORE, limit = limit, offset = offset, nsfw = false, ratingCount = listOf(">=$minVotes")) }
+            { searchSubjects("", token, listOf(type), SearchSort.RANK, limit = limit, offset = offset, nsfw = false, rank = listOf(">=1"), ratingCount = listOf(">=$minVotes"), metaTags = metaTags) },
+            { searchSubjects("", token, listOf(type), SearchSort.RANK, limit = limit, offset = offset, nsfw = false, ratingCount = listOf(">=$minVotes"), metaTags = metaTags) },
+            { searchSubjects("", token, listOf(type), SearchSort.RANK, limit = limit, offset = offset, nsfw = false, rank = listOf(">=1"), metaTags = metaTags) },
+            { searchSubjects("", token, listOf(type), SearchSort.SCORE, limit = limit, offset = offset, nsfw = false, ratingCount = listOf(">=$minVotes"), metaTags = metaTags) }
         )
         var lastError: Throwable? = null
         for ((index, attempt) in attempts.withIndex()) {
