@@ -662,6 +662,25 @@ object KitsugiBangumiClient {
             ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("newlyAddedManga", it) }
 
+    /**
+     * "Noveller & Light Novel" — 书籍 kataloğunda `小说` (cat = 1002) sıralaması.
+     *
+     * Keşfet'in kaynak-özel bölüm listesi bu rafı her kaynak için çiziyor; Bangumi'de
+     * (roman kataloğu binlerce kayıt olmasına rağmen) hiç doldurulmadığı için satır
+     * sürekli boş kalıyordu.
+     */
+    suspend fun novels(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
+        runCatching {
+            BangumiApiClient.browseSubjects(
+                type = BangumiApiClient.SubjectType.BOOK,
+                token = tokenOrNull(context),
+                cat = BangumiApiClient.Category.BOOK_NOVEL,
+                sort = "rank",
+                limit = limit,
+                offset = offset
+            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
+        }.getOrElse { logAndEmpty("novels", it) }
+
     /** "En İyi Mangalar" — 书籍 kategori sıralaması. */
     suspend fun topManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
