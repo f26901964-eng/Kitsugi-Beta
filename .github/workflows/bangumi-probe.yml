@@ -197,6 +197,11 @@ jobs:
           search "P4 BOOK heat (tum katalog)" '{"keyword":"","sort":"heat","filter":{"type":[1],"nsfw":false}}'
           search "P5 BOOK + tag 恋爱 (manga aramasi)" '{"keyword":"","sort":"match","filter":{"type":[1],"tag":["恋爱"],"nsfw":false}}'
           search "P6 BOOK + tag 恋爱 + rank>=1" '{"keyword":"","sort":"rank","filter":{"type":[1],"tag":["恋爱"],"rank":[">=1"],"nsfw":false}}'
+          # Q: manga (type=1) için sunucu tarafı `meta_tags` süzgeci — roman/画集 kirliliği
+          search "Q1 BOOK + tag 恋爱 + meta_tags 漫画" '{"keyword":"","sort":"match","filter":{"type":[1],"tag":["恋爱"],"meta_tags":["漫画"],"nsfw":false}}'
+          search "Q2 BOOK + meta_tags 漫画 + rank>=1" '{"keyword":"","sort":"rank","filter":{"type":[1],"meta_tags":["漫画"],"rank":[">=1"],"nsfw":false}}'
+          search "Q3 BOOK + keyword one piece + meta_tags 漫画" '{"keyword":"one piece","sort":"match","filter":{"type":[1],"meta_tags":["漫画"],"nsfw":false}}'
+          search "Q4 BOOK + meta_tags 小说" '{"keyword":"","sort":"rank","filter":{"type":[1],"meta_tags":["小说"],"rank":[">=1"],"nsfw":false}}'
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log
