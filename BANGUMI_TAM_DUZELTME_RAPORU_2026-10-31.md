@@ -56,6 +56,7 @@ matrisi beklenen sonuçları veriyor (bkz. §5).
 | Arama → manga sonuçlarında roman | R8: platform süzgeci yok | `platform == "漫画"` süzgeci |
 | Detay sekmeleri / kütüphane tek tek boş | R9: yeniden deneme yok; yavaş/502'de ilk hata kalıcı | `execute()` 3 deneme + üstel geri çekilme |
 | Keşfet → "Yeni Eklenen Mangalar" hep boş | R5: Bangumi şeridi hiç yoktu | `newlyAddedManga()` + `ExplorePayload` bağlantısı |
+| Keşfet → "Noveller & Light Novel" hep boş | R10: Bangumi roman kataloğu (cat=1002) hiç sorgulanmıyordu | `novels()` şeridi + `ExplorePayload.novels` |
 
 ---
 
@@ -210,6 +211,7 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 | `searchMediaAdvanced` göz atma koşulu: `canBrowse` artık `heat`/`score`, çok tür ve süzgeçte **arama ucuna** gider | R2 (popüler/puan sıralaması sessizce `date`'e düşüyordu; film kapsamında REAL hiç gelmiyordu) |
 | `popularReal()` + `realTvShows/realMovies` → `meta_tags + heat` (boşsa eski göz atma) | R4 |
 | `newlyAddedManga()` | R5 |
+| `novels()` (`type=1&cat=1002&sort=rank`) | R10 — Bangumi'nin roman kataloğu Keşfet'te hiç görünmüyordu |
 | Boş sorgu + puan sıralamasında `rating_count>=100` tabanı | R1 (ızgarada da geçerli) |
 
 ### 5.3 `ui/screens/explore/ExploreSourceFilterQuery.kt`
@@ -237,8 +239,9 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 
 ### 5.6 `ui/screens/explore/ExploreViewModel.kt`
 
-- `loadBangumiData()` içine `newlyAddedManga` şeridi eklendi (R5). Şerit, `supervisorScope`
-  ve 15 sn'lik şerit tavanı içinde çalışır; bir erişim hatası diğer şeritleri etkilemez.
+- `loadBangumiData()` içine `newlyAddedManga` (R5) ve `novels` (R10) şeritleri eklendi.
+  Şeritler `supervisorScope` ve 15 sn'lik şerit tavanı içinde çalışır; bir erişim hatası
+  diğer şeritleri etkilemez.
 
 ---
 
@@ -248,6 +251,7 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 |---|---|
 | `:app:compileFossDebugKotlin` | **BUILD SUCCESSFUL**, 4 dk 47 sn (çalışma `41243323730`) |
 | `:app:compileFossDebugKotlin` + `:app:testFossDebugUnitTest` (`*Bangumi*`, `KitsugiTranslationsTest`, `HeroSelectionTest`, `AllSourcesExploreTest`) | **BUILD SUCCESSFUL**, 6 dk 20 sn, `exit=0`, test özetinde **0 başarısız** (çalışma `41243909173`) |
+| Tüm düzeltmeler dahil son derleme (roman rafı dâhil) | **BUILD SUCCESSFUL**, 5 dk 23 sn, `exit=0` (çalışma `41244697915`, commit `eb778eb`) |
 | Canlı API matrisi (E1–E4, F1–F2, G1–G3, H1–H4, I1–I2) | `probe/result.txt` — beklenen sonuçların tamamı alındı |
 | Regresyon: etiket sözlüğü grup sayısı (`58338`) ve `entryFor()` davranışı | `BangumiTagDictionary` eşleşme sırası korundu; `BangumiMasterDictionaryTest` bu çalıştırmada **geçti** |
 
@@ -255,9 +259,9 @@ sonuç dönmüyordu; Keşfet'te ise yalnızca 19 sabit terim (`action`, `sci-fi`
 
 ```
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: f79b602
-date: 2026-10-31T21:37:20Z
-BUILD SUCCESSFUL in 6m 20s
+commit: eb778eb
+date: 2026-10-31T21:46:25Z
+BUILD SUCCESSFUL in 5m 23s
 exit=0
 ```
 
