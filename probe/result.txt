@@ -8,20 +8,20 @@ HTTP 200  bytes=21173
 HTTP 200  bytes=29861
 {"data":[{"date":"2022-10-11","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/26/b4/321885_92uzU.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/26/b4/321885_92uzU.jpg","large":"https://lain.bgm.tv/pic/cover/l/26/b4/321885_92uzU.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/26/b4/321885_92uzU.jpg","common":"https:
 ===== A4 POST search rank (app UA) =====
-HTTP 200  bytes=16014
-{"data":[{"date":"2009-01-10","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/cb/8a/1530_kCJZo.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/cb/8a/1530_kCJZo.jpg","large":"https://lain.bgm.tv/pic/cover/l/cb/8a/1530_kCJZo.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/cb/8a/1530_kCJZo.jpg","common":"https://lain.b
+HTTP 200  bytes=21821
+{"data":[{"date":"2008-03-28","platform":"OVA","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/85/4d/489_a34K8.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/85/4d/489_a34K8.jpg","large":"https://lain.bgm.tv/pic/cover/l/85/4d/489_a34K8.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/85/4d/489_a34K8.jpg","common":"https://lain.bgm.
 ===== A5 POST search rank + rating_count (app UA) =====
-HTTP 200  bytes=21947
-{"data":[{"date":null,"platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/00/48/247349_wV7R0.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/00/48/247349_wV7R0.jpg","large":"https://lain.bgm.tv/pic/cover/l/00/48/247349_wV7R0.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/00/48/247349_wV7R0.jpg","common":"https://lain.b
+HTTP 200  bytes=21821
+{"data":[{"date":"2008-03-28","platform":"OVA","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/85/4d/489_a34K8.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/85/4d/489_a34K8.jpg","large":"https://lain.bgm.tv/pic/cover/l/85/4d/489_a34K8.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/85/4d/489_a34K8.jpg","common":"https://lain.bgm.
 ===== A6 POST search air_date + rating (app UA) =====
-HTTP 200  bytes=49196
+HTTP 200  bytes=49194
 {"data":[{"date":"2021-03-08","platform":"剧场版","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/04/dc/29883_jQ4Hz.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/04/dc/29883_jQ4Hz.jpg","large":"https://lain.bgm.tv/pic/cover/l/04/dc/29883_jQ4Hz.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/04/dc/29883_jQ4Hz.jpg","common":"htt
 ===== A7 POST search tag (app UA) =====
-HTTP 200  bytes=23247
-{"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
+HTTP 200  bytes=24928
+{"data":[{"date":"2008-10-09","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/17/0c/884_PPxeJ.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/17/0c/884_PPxeJ.jpg","large":"https://lain.bgm.tv/pic/cover/l/17/0c/884_PPxeJ.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/17/0c/884_PPxeJ.jpg","common":"https://lain.bgm.t
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a535d1fd0b30ffae-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53609b7cb7b1e27-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -41,24 +41,24 @@ HTTP 200  bytes=7133
 ===== E1 rank + rank>=1 + rating_count>=100 =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
- - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 1 votes 10279 | mt 科幻,TV,日本 | platform TV
- - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 2 votes 32240 | mt TV,恋爱,日本 | platform TV
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 1 votes 32240 | mt TV,恋爱,日本 | platform TV
+ - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10279 | mt 科幻,TV,日本 | platform TV
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
  - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
  - 324 t2 | 攻壳机动队 STAND ALONE COMPLEX | score 9.1 rank 5 votes 11685 | mt 科幻,TV,日本 | platform TV
 ===== E2 rank + rating_count>=100 =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
+ - 1308 t2 | 龙鸣 | score 5.2 rank 9478 votes 302 | mt TV,日本,原创 | platform TV
+ - 1396 t2 | 绝对冲击 | score 4 rank 10310 votes 325 | mt OVA,原创 | platform OVA
+ - 2319 t2 | 夜明前的琉璃色-Crescent Love- | score 5.1 rank 9818 votes 683 | mt 后宫,TV,日本 | platform TV
+ - 2566 t2 | 11eyes | score 5.1 rank 9893 votes 1857 | mt TV,日本,游戏改 | platform TV
  - 247349 t2 | 在异世界开拓第二人生 | score 1.3 rank 0 votes 237 | mt  | platform TV
- - 401777 t2 | 原神 | score 3 rank 0 votes 313 | mt 日本,游戏改 | platform 其他
- - 512361 t2 | 呼唤少女 | score 7.1 rank 0 votes 336 | mt 校园,漫画改,日常 | platform 其他
- - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 1 votes 10279 | mt 科幻,TV,日本 | platform TV
- - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 2 votes 32240 | mt TV,恋爱,日本 | platform TV
 ===== E3 score + rating_count>=100 =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
- - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 1 votes 10279 | mt 科幻,TV,日本 | platform TV
- - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 2 votes 32240 | mt TV,恋爱,日本 | platform TV
+ - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10279 | mt 科幻,TV,日本 | platform TV
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 1 votes 32240 | mt TV,恋爱,日本 | platform TV
  - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
  - 324 t2 | 攻壳机动队 STAND ALONE COMPLEX | score 9.1 rank 5 votes 11685 | mt 科幻,TV,日本 | platform TV
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
@@ -90,10 +90,10 @@ total: 1000 limit: 5 offset: 0
 HTTP 200
 total: 1000 limit: 5 offset: 0
  - 1960 t2 | 懦弱鬼哈利 | score 6.1 rank 0 votes 18 | mt 科幻,TV,日本 | platform TV
+ - 2319 t2 | 夜明前的琉璃色-Crescent Love- | score 5.1 rank 9818 votes 683 | mt 后宫,TV,日本 | platform TV
  - 3827 t2 | 哥普拉 六人勇士 | score 6.1 rank 0 votes 45 | mt TV,日本,漫画改 | platform TV
  - 4202 t2 | 银装骑攻Ordian | score 4.9 rank 0 votes 19 | mt 科幻,机战,TV | platform TV
  - 6297 t2 | 机械女神J again | score 6.1 rank 0 votes 42 | mt OVA | platform OVA
- - 6298 t2 | 机械女神JtoX | score 6.6 rank 0 votes 41 | mt TV,日本 | platform TV
 ===== G2 tag Sci-Fi (Ingilizce) =====
 HTTP 200
 total: 2 limit: 5 offset: 0
@@ -105,7 +105,7 @@ total: 0 limit: 5 offset: 0
 ===== H1 match chainsaw man (anime) =====
 HTTP 200
 total: 9 limit: 5 offset: 0
- - 321885 t2 | 链锯人 | score 6.9 rank 3287 votes 19431 | mt TV,日本,漫画改 | platform TV
+ - 321885 t2 | 链锯人 | score 6.9 rank 3288 votes 19454 | mt TV,日本,漫画改 | platform TV
  - 580872 t2 | 链锯人 总集篇 | score 7.3 rank 1365 votes 1207 | mt 日本,漫画改,战斗 | platform WEB
  - 470660 t2 | 剧场版 链锯人 蕾塞篇 | score 8.3 rank 78 votes 14176 | mt 剧场版,日本,漫画改 | platform 剧场版
  - 662130 t2 | 动画【电锯人】手机游戏 OP Movie | score 5.9 rank 0 votes 9 | mt 短片,日本 | platform 其他
@@ -115,7 +115,7 @@ HTTP 200
 total: 636 limit: 5 offset: 0
  - 3510 t1 | 航海王 | score 8.8 rank 32 votes 2689 | mt 日本,漫画,战斗 | platform 漫画
  - 149890 t1 | 海贼王 小说 | score 0 rank 0 votes 0 | mt  | platform 小说
- - 12121 t1 | ONE PIECE (1) | score 8.4 rank 509 votes 55 | mt  | platform 漫画
+ - 12121 t1 | ONE PIECE (1) | score 8.4 rank 507 votes 55 | mt  | platform 漫画
  - 12122 t1 | ONE PIECE (2) | score 8.2 rank 927 votes 40 | mt  | platform 漫画
  - 12123 t1 | ONE PIECE (3) | score 8.5 rank 655 votes 34 | mt  | platform 漫画
 ===== H3 match reply 1988 (real) =====
@@ -128,9 +128,9 @@ total: 4 limit: 5 offset: 0
 ===== H4 heat anime (populer, suzgecsiz) =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
- - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41034 | mt 科幻,悬疑,TV | platform TV
- - 328609 t2 | 孤独摇滚！ | score 8.4 rank 73 votes 41505 | mt TV,日本,漫画改 | platform TV
- - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36794 | mt TV,日本,奇幻 | platform TV
+ - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
+ - 328609 t2 | 孤独摇滚！ | score 8.4 rank 74 votes 41505 | mt TV,日本,漫画改 | platform TV
+ - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36835 | mt TV,日本,奇幻 | platform TV
  - 9717 t2 | 魔法少女小圆 | score 8.6 rank 35 votes 39337 | mt TV,日本,原创 | platform TV
  - 27364 t2 | 冰菓 | score 8.1 rank 152 votes 33753 | mt 校园,TV,日本 | platform TV
 ===== I1 anime movie cat=3 rank =====
@@ -143,10 +143,69 @@ total: 1735 limit: 5 offset: 0
  - 3375 t2 | 凉宫春日的消失 | score 8.7 rank 16 votes 24971 | mt 剧场版,剧场版,校园 | platform 剧场版
 ===== I2 manga cat=1001 date =====
 HTTP 200
-total: 305988 limit: 5 offset: 0
+total: 305989 limit: 5 offset: 0
  - 707656 t1 | Coral’s Reef Vol. 2 | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 707671 t1 | Dungeon Crawlers Academy Book 2: The | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 656434 t1 | 諸星大二郎短編集成 第1集 生物都市 | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 587212 t1 | 陰陽廻天 Re:バース (2) | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 656433 t1 | 諸星大二郎短編集成 第12集 月童 | score 0 rank 0 votes 0 | mt  | platform 漫画
+===== J1 topScored BOOK (rank+rank>=1+rating_count>=100) =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 18462 t1 | 灌篮高手 完全版 | score 9.4 rank 1 votes 1919 | mt 日本,漫画,校园 | platform 漫画
+ - 36752 t1 | 灌篮高手 | score 9.3 rank 2 votes 1072 | mt  | platform 漫画
+ - 9640 t1 | 剑风传奇 | score 9.3 rank 3 votes 3169 | mt 日本,漫画,原创 | platform 漫画
+ - 27684 t1 | 哆啦A梦 | score 9.3 rank 4 votes 1591 | mt  | platform 漫画
+ - 25896 t1 | 火之鸟 | score 9.3 rank 5 votes 1359 | mt 日本,漫画,原创 | platform 漫画
+===== J2 novels cat=1002 rank =====
+HTTP 200
+total: 3306 limit: 5 offset: 0
+ - 352517 t1 | 卡拉马佐夫兄弟 | score 9.3 rank 6 votes 195 | mt 小说,名著 | platform 小说
+ - 352515 t1 | 罪与罚 | score 9.2 rank 8 votes 373 | mt 小说,名著 | platform 小说
+ - 9586 t1 | 三体Ⅱ：黑暗森林 | score 9 rank 10 votes 2033 | mt 小说,中国,单行本 | platform 小说
+ - 37782 t1 | 来自新世界 | score 9 rank 12 votes 2332 | mt 日本,小说,科幻 | platform 小说
+ - 19120 t1 | 付丧堂古董店7 | score 9.1 rank 13 votes 253 | mt  | platform 小说
+===== J3 real browse (cat YOK) rank =====
+HTTP 200
+total: 3639 limit: 5 offset: 0
+ - 16261 t6 | 是，大臣 第三季 | score 9.4 rank 1 votes 874 | mt 电视剧,喜剧,英国 | platform 欧美剧
+ - 16302 t6 | 是，首相 第一季 | score 9.3 rank 2 votes 879 | mt 电视剧,喜剧,英国 | platform 欧美剧
+ - 16266 t6 | 是，大臣 圣诞特别篇 | score 9.4 rank 3 votes 616 | mt 电视剧,喜剧,英国 | platform 欧美剧
+ - 123218 t6 | 三国演义 | score 9.3 rank 4 votes 1059 | mt 电视剧,小说改,战争 | platform 华语剧
+ - 16260 t6 | 是，大臣 第二季 | score 9.3 rank 5 votes 841 | mt 电视剧,喜剧,英国 | platform 欧美剧
+===== J4 real + tag (电视剧 kapsaminda 剧情) =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 1393 t6 | 太空堡垒卡拉狄加 第四季 | score 7.8 rank 0 votes 17 | mt 欧美,电视剧,科幻 | platform 欧美剧
+ - 2362 t6 | 广告狂人 第二季 | score 7.9 rank 0 votes 18 | mt 剧情,欧美,电视剧 | platform 欧美剧
+ - 2364 t6 | 广告狂人 第三季 | score 8.1 rank 0 votes 14 | mt 剧情,欧美,电视剧 | platform 欧美剧
+ - 2526 t6 | Ghost Friends | score 5.9 rank 0 votes 9 | mt 日本,电视剧 | platform 日剧
+ - 2702 t6 | 实习医生格蕾 第六季 | score 7.6 rank 0 votes 20 | mt 剧情,欧美,爱情 | platform 欧美剧
+===== J5 real film + meta_tags + keyword =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 12886 t6 | 情书 | score 8.4 rank 103 votes 1501 | mt 日本,爱情,电影 | platform 电影
+ - 320871 t6 | 流浪地球2 | score 7.9 rank 320 votes 1712 | mt 科幻,电影,中国 | platform 电影
+ - 283379 t6 | 新·奥特曼 | score 6.9 rank 2285 votes 1392 | mt 日本,特摄,科幻 | platform 电影
+ - 274128 t6 | 流浪地球 | score 7.2 rank 1560 votes 1467 | mt 科幻,电影,中国 | platform 电影
+ - 25461 t6 | 蝙蝠侠：黑暗骑士 | score 8.5 rank 64 votes 1173 | mt 犯罪,美国,科幻 | platform 电影
+K 剧情       HTTP 200 total: 692 veri: 1
+K 战斗       HTTP 200 total: 1000 veri: 1
+K 恋爱       HTTP 200 total: 1000 veri: 1
+K 搞笑       HTTP 200 total: 1000 veri: 1
+K 奇幻       HTTP 200 total: 1000 veri: 1
+K 科幻       HTTP 200 total: 1000 veri: 1
+K 悬疑       HTTP 200 total: 652 veri: 1
+K 恐怖       HTTP 200 total: 185 veri: 1
+K 日常       HTTP 200 total: 1000 veri: 1
+K 冒险       HTTP 200 total: 1000 veri: 1
+K 灵异       HTTP 200 total: 65 veri: 1
+K 心理       HTTP 200 total: 34 veri: 1
+K 运动系    HTTP 200 total: 8 veri: 1
+K 悬疑惊悚 HTTP 200 total: 0 veri: 0
+K 机战       HTTP 200 total: 1000 veri: 1
+K 音乐       HTTP 200 total: 627 veri: 1
+K 历史       HTTP 200 total: 418 veri: 1
+K 军事       HTTP 200 total: 63 veri: 1
+K 校园       HTTP 200 total: 1000 veri: 1
 ===== done =====
