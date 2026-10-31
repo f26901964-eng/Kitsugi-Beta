@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a535ab6dd8c7391f-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a535b7f08bf1e3c4-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -42,7 +42,7 @@ HTTP 200  bytes=7142
 HTTP 200
 total: 1000 limit: 5 offset: 0
  - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 1 votes 10279 | mt 科幻,TV,日本 | platform TV
- - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.1 rank 2 votes 32077 | mt TV,恋爱,日本 | platform TV
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 2 votes 32240 | mt TV,恋爱,日本 | platform TV
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
  - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
  - 324 t2 | 攻壳机动队 STAND ALONE COMPLEX | score 9.1 rank 5 votes 11685 | mt 科幻,TV,日本 | platform TV
@@ -53,14 +53,14 @@ total: 1000 limit: 5 offset: 0
  - 401777 t2 | 原神 | score 3 rank 0 votes 313 | mt 日本,游戏改 | platform 其他
  - 512361 t2 | 呼唤少女 | score 7.1 rank 0 votes 336 | mt 校园,漫画改,日常 | platform 其他
  - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 1 votes 10279 | mt 科幻,TV,日本 | platform TV
- - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.1 rank 2 votes 32077 | mt TV,恋爱,日本 | platform TV
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 2 votes 32240 | mt TV,恋爱,日本 | platform TV
 ===== E3 score + rating_count>=100 =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
  - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 1 votes 10279 | mt 科幻,TV,日本 | platform TV
+ - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.2 rank 2 votes 32240 | mt TV,恋爱,日本 | platform TV
  - 253 t2 | 星际牛仔 | score 9.1 rank 4 votes 19820 | mt 科幻,TV,日本 | platform TV
  - 324 t2 | 攻壳机动队 STAND ALONE COMPLEX | score 9.1 rank 5 votes 11685 | mt 科幻,TV,日本 | platform TV
- - 876 t2 | CLANNAD 〜AFTER STORY〜 | score 9.1 rank 2 votes 32077 | mt TV,恋爱,日本 | platform TV
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14322 | mt TV,原创,美国 | platform TV
 ===== E4 score (eski davranis) =====
 HTTP 200
@@ -132,7 +132,7 @@ total: 1000 limit: 5 offset: 0
  - 328609 t2 | 孤独摇滚！ | score 8.4 rank 73 votes 41505 | mt TV,日本,漫画改 | platform TV
  - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36794 | mt TV,日本,奇幻 | platform TV
  - 9717 t2 | 魔法少女小圆 | score 8.6 rank 35 votes 39337 | mt TV,日本,原创 | platform TV
- - 27364 t2 | 冰菓 | score 8.1 rank 152 votes 33744 | mt 校园,TV,日本 | platform TV
+ - 27364 t2 | 冰菓 | score 8.1 rank 152 votes 33753 | mt 校园,TV,日本 | platform TV
 ===== I1 anime movie cat=3 rank =====
 HTTP 200
 total: 1735 limit: 5 offset: 0
