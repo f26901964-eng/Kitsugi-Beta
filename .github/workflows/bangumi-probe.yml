@@ -1,6 +1,11 @@
 name: 🩺 Bangumi API Probe (geçici)
 
 on:
+  push:
+    branches: ['arena/**']
+    paths:
+      - '.github/workflows/bangumi-probe.yml'
+      - 'probe/**'
   workflow_dispatch:
 
 jobs:
