@@ -101,6 +101,14 @@ internal object BangumiTagDictionary {
         map
     }
 
+    /**
+     * Sorgu eşlemesi iki katmanlıdır: (1) [ALIAS_TAGS] elle sabitlenmiş anlam köprüleri,
+     * (2) sözlük grubu → [PREFERRED_TAGS] ya da grubun ilk **yerel** yazımı.
+     *
+     * Not: Bu tablo yalnızca **sorgu** için kullanılır (`filter.tag`); arayüzde etiketlerin
+     * görünen adı `entryFor()` üzerinden çevrilir ve bu değişiklikten etkilenmez.
+     */
+
     /** Tablo eşleşmesi; yıl/ay kalıpları dahil. Bilinmeyen etiket için `null`. */
     fun entryFor(label: String?): BangumiTagEntry? = groupFor(label)?.entry
 

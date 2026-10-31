@@ -370,6 +370,8 @@ istemci tarafı süzgeç sayfayı boşaltıp sayfalamayı durduruyordu.
 | `:app:compileFossDebugKotlin` | **BUILD SUCCESSFUL**, 4 dk 47 sn (çalışma `41243323730`) |
 | `:app:compileFossDebugKotlin` + `:app:testFossDebugUnitTest` (`*Bangumi*`, `KitsugiTranslationsTest`, `HeroSelectionTest`, `AllSourcesExploreTest`) | **BUILD SUCCESSFUL**, 6 dk 20 sn, `exit=0`, test özetinde **0 başarısız** (çalışma `41243909173`) |
 | Tüm düzeltmeler dahil son derleme (roman rafı dâhil) | **BUILD SUCCESSFUL**, 5 dk 23 sn, `exit=0` (çalışma `41244697915`, commit `eb778eb`) |
+| Üçüncü yuvarlak düzeltmeleri (R11–R16 + `BangumiTagCanonicalizationTest`) | **BUILD SUCCESSFUL**, 6 dk 12 sn, `exit=0` (çalışma `41249402840`, commit `57a4aa5`) |
+| Üçüncü yuvarlak APK derlemesi (debug + R8 release + DEX) | çalışma `41249402867` — sonuç §6.3'te |
 
 **Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
 `41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
@@ -379,6 +381,7 @@ testleri (Bangumi başlık çözümü, sözlükler, kütüphane içe aktarma, de
 Keşfet "Tümü" bölümleri dahil) geçti, hem debug hem **R8 küçültmeli release** APK derlendi
 ve DEX buyruk akışları ikili düzeyde doğrulandı.
 | Canlı API matrisi (E1–E4, F1–F2, G1–G3, H1–H4, I1–I2) | `probe/result.txt` — beklenen sonuçların tamamı alındı |
+| Üçüncü yuvarlak canlı API matrisi (J–R: etiket kapsamı, sıralama, manga kataloğu, `meta_tags`) | `probe/result.txt` — K/L/N/O/P/Q/R bloklarının tamamı beklenen sonucu verdi (§4.6) |
 | Regresyon: etiket sözlüğü grup sayısı (`58338`) ve `entryFor()` davranışı | `BangumiTagDictionary` eşleşme sırası korundu; `BangumiMasterDictionaryTest` bu çalıştırmada **geçti** |
 
 ### 6.1 Test günlüğü (özet)
@@ -389,7 +392,17 @@ commit: eb778eb
 date: 2026-10-31T21:46:25Z
 BUILD SUCCESSFUL in 5m 23s
 exit=0
+
+### Üçüncü yuvarlak (R11–R16)
+commit: 57a4aa5
+BUILD SUCCESSFUL in 6m 12s
+exit=0
 ```
+
+> Üçüncü yuvarlakta `app/src/test/.../BangumiTagCanonicalizationTest.kt` eklendi; test
+> filtresi (`--tests '*Bangumi*'`) bu sınıfı da çalıştırır. Test, tür çiplerinin
+> **hiçbirinin** Latin yazımla sunucuya gitmediğini ve zayıf yazımların dolu karşılıklarına
+> çevrildiğini doğrular (regresyon kilidi).
 
 Tam günlük depoda `probe/kotlin_log.txt` dosyasındadır (GitHub artifact'leri bu ortamdan
 indirilemediği için günlük doğrudan depoya işlendi).
@@ -415,6 +428,14 @@ indirilemediği için günlük doğrudan depoya işlendi).
 6. **Tümü araması → Diziler/Filmler:** Bangumi rafı da görünmeli.
 7. **Ağ dalgalanması:** Wi-Fi'yi birkaç saniye kesip geri açın; şeritlerin tamamı gelmeli
    (3 deneme + geri çekilme), boş kalmamalı.
+8. **Arama → Bangumi → "Diziler" / "Filmler" sekmeleri:** artık vardır; "reply 1988",
+   "半泽直树" gibi sorgular 三次元 (type = 6) sonuçları döndürmeli (R14).
+9. **"Tümünü Gör" → Bangumi Filmleri:** ızgarada **anime filmi değil**, yalnız gerçek
+   filmler (情书, 流浪地球2) görünmeli (R15).
+10. **"En Yüksek Puanlı Mangalar" / "Trend Mangalar":** roman/画集 ve cilt kayıtları
+    (ör. `XXX 3`, `XXX 完全版`) görünmemeli; seri ana kayıtları listelenmeli (R13).
+11. **Tür çipleri:** `Spor`, `Gerilim`, `Askeri`, `Doğaüstü`, `Psikolojik` çipleri artık
+    dolu ve **sıralı** liste vermeli (R11/R12).
 
 ---
 
@@ -438,20 +459,33 @@ indirilemediği için günlük doğrudan depoya işlendi).
 6. **Geçici teşhis dosyaları** (`probe/`, `.github/workflows/bangumi-probe.yml`,
    `.github/workflows/probe-kotlin.yml`) yayına çıkmadan **kaldırılmalıdır**; bunlar
    yalnızca bu incelemenin kanıt zinciri için eklendi.
+7. **Zayıf ama doğru etiketler:** `Psikolojik → 心理` (rank süzgeciyle 25 kayıt) ve
+   `Survival → 生存` (19 kayıt) anlamca birebir olan yazımlardır; alternatifleri
+   (`智斗` 147, `超能力` 250) **farklı** bir kavramı anlatır. Izgara "ince" görünürse
+   bilinçli bir tercih yapılmalı (şu an anlam doğruluğu seçildi).
+8. **Şerit süre tavanı 20 sn:** İlk açılışta 17 Bangumi şeridi paralel çalışır (Bangumi
+   5 rps + OkHttp ana başına 8 istek). Tavan 15 sn iken kuyruk sonundaki şeritler
+   kesiliyordu; 20 sn'ye çıkarıldı. Yavaş cihazlarda ilk yükleme bu süreye kadar
+   sürebilir (önbellek sonrası anlık).
+9. **`series=true` sunucu davranışına bağlı:** Bangumi `series` süzgecini kaldırırsa
+   manga raflarında cilt kayıtları geri döner; istemci tarafında `(n)` / `完全版`
+   temizliği yoktur (bilinçli olarak sunucuya güvenildi, P bloğuyla doğrulandı).
 
 ---
 
 ## 8. Dosya özeti
 
 ```
-app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt         +191/-…
-app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt   +233/-…
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +37/-…
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt  +4
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt   +76/-…
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt +6/-1
-app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt         +49/-…
-# toplam: 7 dosya, +516 / -80
+app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt          +233
+app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt    +325
+app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiRankingBottomSheet.kt +30
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +87
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt  +16
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt +10
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt   +98
+app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt          +99
+app/src/test/java/com/kitsugi/animelist/utils/BangumiTagCanonicalizationTest.kt +80 (yeni)
+# toplam: 9 dosya, +858 / -120   (`git diff --stat c320ff6 -- app/src`)
 probe/result.txt                                                              (canlı API kanıtı)
 probe/kotlin_log.txt                                                          (derleme + test günlüğü)
 ```

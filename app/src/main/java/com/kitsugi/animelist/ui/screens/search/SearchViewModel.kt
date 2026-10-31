@@ -1523,6 +1523,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
                                 SearchScope.LIGHT_NOVEL -> listOf(BangumiApiClient.SubjectType.BOOK)
                                 SearchScope.ANIME -> listOf(BangumiApiClient.SubjectType.ANIME)
+                                // "Tümü": Bangumi tek katalogda anime + 书籍 (manga/roman) +
+                                // 三次元 (dizi/film) barındırır. Yalnız anime aramak,
+                                // "reply 1988" gibi bir sorguda hiç sonuç vermiyordu.
+                                SearchScope.ALL_MIXED -> listOf(
+                                    BangumiApiClient.SubjectType.ANIME,
+                                    BangumiApiClient.SubjectType.BOOK,
+                                    BangumiApiClient.SubjectType.REAL
+                                )
                                 else -> null
                             }
                             val res = KitsugiBangumiClient.searchMediaAdvanced(

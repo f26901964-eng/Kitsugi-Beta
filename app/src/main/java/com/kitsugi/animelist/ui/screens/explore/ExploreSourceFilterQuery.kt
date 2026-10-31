@@ -115,8 +115,11 @@ object ExploreSourceFilters {
         if (platform == ExplorePlatform.ALL) return true
         if (shelfSpec(platform, categoryType) == null) return false
         if (platform == ExplorePlatform.BANGUMI) {
-            // Bangumi sıralaması yalnız etiketli aramada (tür seçili) sunucuda uygulanır.
-            return genreId != "ALL" && sort in BANGUMI_SEARCH_SORTS
+            // Bangumi'de `score`/`heat` sıralaması **boş sorguda** da çalışır: arama ucu
+            // `sort=score|heat` + `rating_count` süzgecini kabul eder (probe A2/A5/F1/F4).
+            // Eskiden tür seçili değilse sıralama "yerel" sayılıyor ve kullanıcı seçtiği
+            // sıralamanın sunucuda uygulanmadığını görüyordu.
+            return sort in BANGUMI_SEARCH_SORTS
         }
         return SORT_SUPPORT[platform].orEmpty().contains(sort)
     }
