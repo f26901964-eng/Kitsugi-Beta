@@ -8,6 +8,9 @@ on:
       - 'probe/**'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -16,6 +19,7 @@ jobs:
       - name: Probe
         run: |
           set +e
+          exec > >(tee /tmp/probe.log) 2>&1
           UA_APP="f26901964-eng/Kitsugi-Beta/2.4.340-beta.1761 (Android) (https://github.com/f26901964-eng/Kitsugi-Beta)"
           probe() {
             local label="$1"; shift
@@ -78,3 +82,12 @@ jobs:
             'https://next.bgm.tv/p1/subjects/326/collections' \
             -H "User-Agent: $UA_APP" -H 'Accept: application/json'
           echo "===== done ====="
+      - name: Sonucu depoya yaz
+        run: |
+          mkdir -p probe
+          cp /tmp/probe.log probe/result.txt
+          git config user.name "probe-bot"
+          git config user.email "probe@example.com"
+          git add probe/result.txt
+          git commit -m "probe: sonuç" || true
+          git push || true
