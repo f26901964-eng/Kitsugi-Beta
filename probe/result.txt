@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53616d9bbc729ab-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5361ae5ee6f1425-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -82,10 +82,10 @@ total: 1000 limit: 5 offset: 0
 HTTP 200
 total: 1000 limit: 5 offset: 0
  - 12886 t6 | 情书 | score 8.4 rank 103 votes 1501 | mt 日本,爱情,电影 | platform 电影
- - 320871 t6 | 流浪地球2 | score 7.9 rank 320 votes 1712 | mt 科幻,电影,中国 | platform 电影
+ - 320871 t6 | 流浪地球2 | score 7.9 rank 318 votes 1712 | mt 科幻,电影,中国 | platform 电影
  - 283379 t6 | 新·奥特曼 | score 6.9 rank 2285 votes 1392 | mt 日本,特摄,科幻 | platform 电影
- - 274128 t6 | 流浪地球 | score 7.2 rank 1560 votes 1467 | mt 科幻,电影,中国 | platform 电影
- - 25461 t6 | 蝙蝠侠：黑暗骑士 | score 8.5 rank 64 votes 1173 | mt 犯罪,美国,科幻 | platform 电影
+ - 274128 t6 | 流浪地球 | score 7.2 rank 1550 votes 1467 | mt 科幻,电影,中国 | platform 电影
+ - 25461 t6 | 蝙蝠侠：黑暗骑士 | score 8.5 rank 65 votes 1173 | mt 犯罪,美国,科幻 | platform 电影
 ===== G1 tag kexue (Cince) =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
@@ -121,7 +121,7 @@ total: 636 limit: 5 offset: 0
 ===== H3 match reply 1988 (real) =====
 HTTP 200
 total: 4 limit: 5 offset: 0
- - 259879 t6 | 请回答1988 | score 8.7 rank 49 votes 252 | mt 电视剧,喜剧,爱情 | platform 电视剧
+ - 259879 t6 | 请回答1988 | score 8.7 rank 53 votes 252 | mt 电视剧,喜剧,爱情 | platform 电视剧
  - 628086 t6 | 人生不易部 2nd LIVE Dou-Da? DOING! ～Reply | score 0 rank 0 votes 0 | mt 演出 | platform 演出
  - 347099 t6 | 请回答1994 | score 7.8 rank 0 votes 9 | mt 剧情,爱情,电视剧 | platform 电视剧
  - 345923 t6 | 请回答1997 | score 7.6 rank 0 votes 10 | mt 电视剧,喜剧,爱情 | platform 电视剧
@@ -176,19 +176,19 @@ total: 3639 limit: 5 offset: 0
 ===== J4 real + tag (电视剧 kapsaminda 剧情) =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
+ - 1386 t6 | 实习医生格雷 第五季 | score 7.5 rank 1203 votes 24 | mt 电视剧,美国,爱情 | platform 欧美剧
+ - 1392 t6 | 越狱 第四季 | score 6.9 rank 2270 votes 203 | mt 冒险,欧美,电视剧 | platform 欧美剧
  - 1393 t6 | 太空堡垒卡拉狄加 第四季 | score 7.8 rank 0 votes 17 | mt 欧美,电视剧,科幻 | platform 欧美剧
- - 2362 t6 | 广告狂人 第二季 | score 7.9 rank 0 votes 18 | mt 剧情,欧美,电视剧 | platform 欧美剧
- - 2364 t6 | 广告狂人 第三季 | score 8.1 rank 0 votes 14 | mt 剧情,欧美,电视剧 | platform 欧美剧
- - 2526 t6 | Ghost Friends | score 5.9 rank 0 votes 9 | mt 日本,电视剧 | platform 日剧
- - 2702 t6 | 实习医生格蕾 第六季 | score 7.6 rank 0 votes 20 | mt 剧情,欧美,爱情 | platform 欧美剧
+ - 2017 t6 | 益智游戏2 | score 6.7 rank 2438 votes 94 | mt 剧情,悬疑,日本 | platform 日剧
+ - 2182 t6 | 双头魔犬 | score 6.6 rank 2683 votes 172 | mt 剧情,日本,电视剧 | platform 日剧
 ===== J5 real film + meta_tags + keyword =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
  - 12886 t6 | 情书 | score 8.4 rank 103 votes 1501 | mt 日本,爱情,电影 | platform 电影
- - 320871 t6 | 流浪地球2 | score 7.9 rank 320 votes 1712 | mt 科幻,电影,中国 | platform 电影
+ - 320871 t6 | 流浪地球2 | score 7.9 rank 318 votes 1712 | mt 科幻,电影,中国 | platform 电影
  - 283379 t6 | 新·奥特曼 | score 6.9 rank 2285 votes 1392 | mt 日本,特摄,科幻 | platform 电影
- - 274128 t6 | 流浪地球 | score 7.2 rank 1560 votes 1467 | mt 科幻,电影,中国 | platform 电影
- - 25461 t6 | 蝙蝠侠：黑暗骑士 | score 8.5 rank 64 votes 1173 | mt 犯罪,美国,科幻 | platform 电影
+ - 274128 t6 | 流浪地球 | score 7.2 rank 1550 votes 1467 | mt 科幻,电影,中国 | platform 电影
+ - 25461 t6 | 蝙蝠侠：黑暗骑士 | score 8.5 rank 65 votes 1173 | mt 犯罪,美国,科幻 | platform 电影
 K 剧情       HTTP 200 total: 692 veri: 1
 K 战斗       HTTP 200 total: 1000 veri: 1
 K 恋爱       HTTP 200 total: 1000 veri: 1
@@ -204,7 +204,7 @@ K 心理       HTTP 200 total: 34 veri: 1
 K 运动系    HTTP 200 total: 8 veri: 1
 K 悬疑惊悚 HTTP 200 total: 0 veri: 0
 K 机战       HTTP 200 total: 1000 veri: 1
-K 音乐       HTTP 200 total: 627 veri: 1
+K 音乐       HTTP 200 total: 626 veri: 1
 K 历史       HTTP 200 total: 418 veri: 1
 K 军事       HTTP 200 total: 63 veri: 1
 K 校园       HTTP 200 total: 1000 veri: 1
@@ -383,4 +383,36 @@ total: 1000 limit: 5 offset: 0
  - 451466 t1 | 安达与岛村99.9 | score 9.1 rank 21 votes 206 | mt  | platform 小说
  - 123224 t1 | 红楼梦 | score 9 rank 23 votes 528 | mt 小说,中国,名著 | platform 小说
  - 32693 t1 | 好逑双物语 | score 8.9 rank 29 votes 529 | mt  | platform 漫画
+===== Q1 BOOK + tag 恋爱 + meta_tags 漫画 =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 497 t1 | 人形电脑天使心 | score 7.7 rank 1633 votes 559 | mt 日本,漫画,已完结 | platform 漫画
+ - 517 t1 | 水果篮子 | score 7.8 rank 1341 votes 212 | mt 日本,漫画,已完结 | platform 漫画
+ - 538 t1 | 魔法老师 | score 7.6 rank 1949 votes 238 | mt 日本,漫画,已完结 | platform 漫画
+ - 565 t1 | 名侦探柯南 | score 7.5 rank 2382 votes 636 | mt 日本,漫画,原创 | platform 漫画
+ - 592 t1 | 翼·年代记 | score 8 rank 692 votes 498 | mt 日本,漫画,少年 | platform 漫画
+===== Q2 BOOK + meta_tags 漫画 + rank>=1 =====
+HTTP 200
+total: 1000 limit: 5 offset: 0
+ - 18462 t1 | 灌篮高手 完全版 | score 9.4 rank 1 votes 1919 | mt 日本,漫画,校园 | platform 漫画
+ - 9640 t1 | 剑风传奇 | score 9.3 rank 3 votes 3169 | mt 日本,漫画,原创 | platform 漫画
+ - 25896 t1 | 火之鸟 | score 9.3 rank 5 votes 1359 | mt 日本,漫画,原创 | platform 漫画
+ - 44996 t1 | JoJo的奇妙冒险 第七部 飙马野郎 | score 9.1 rank 7 votes 3205 | mt 日本,漫画,战斗 | platform 漫画
+ - 25402 t1 | 风之谷的娜乌西卡 | score 9 rank 11 votes 795 | mt 日本,漫画,奇幻 | platform 漫画
+===== Q3 BOOK + keyword one piece + meta_tags 漫画 =====
+HTTP 200
+total: 103 limit: 5 offset: 0
+ - 3510 t1 | 航海王 | score 8.8 rank 32 votes 2689 | mt 日本,漫画,战斗 | platform 漫画
+ - 273149 t1 | ONE PIECE航海王 长得像克比的小日山～撞脸大秘宝～ | score 0 rank 0 votes 0 | mt 日本,漫画,系列 | platform 漫画
+ - 353235 t1 | 航海王学园 | score 7 rank 0 votes 1 | mt 日本,漫画,系列 | platform 漫画
+ - 637255 t1 | ONE PIECE CHOPPER’s 1 | score 0 rank 0 votes 0 | mt 漫画 | platform 漫画
+ - 353234 t1 | 鱼团×航海王 七个大秘宝 | score 0 rank 0 votes 0 | mt 日本,漫画,系列 | platform 漫画
+===== Q4 BOOK + meta_tags 小说 =====
+HTTP 200
+total: 539 limit: 5 offset: 0
+ - 352517 t1 | 卡拉马佐夫兄弟 | score 9.3 rank 6 votes 195 | mt 小说,名著 | platform 小说
+ - 352515 t1 | 罪与罚 | score 9.2 rank 8 votes 373 | mt 小说,名著 | platform 小说
+ - 9586 t1 | 三体Ⅱ：黑暗森林 | score 9 rank 10 votes 2033 | mt 小说,中国,单行本 | platform 小说
+ - 37782 t1 | 来自新世界 | score 9 rank 12 votes 2332 | mt 日本,小说,科幻 | platform 小说
+ - 113242 t1 | 魔戒 | score 9 rank 14 votes 375 | mt 小说,原创,系列 | platform 小说
 ===== done =====
