@@ -16,17 +16,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
       - name: Probe
         run: |
           set +e
-          exec > >(tee /tmp/probe.log) 2>&1
+          {
           UA_APP="f26901964-eng/Kitsugi-Beta/2.4.340-beta.1761 (Android) (https://github.com/f26901964-eng/Kitsugi-Beta)"
           probe() {
             local label="$1"; shift
             echo "===== $label ====="
             code=$(curl -sS -o /tmp/body.json -w '%{http_code}' -m 25 "$@")
             echo "HTTP $code  bytes=$(wc -c </tmp/body.json)"
-            head -c 400 /tmp/body.json; echo
+            head -c 350 /tmp/body.json; echo
           }
           probe "A1 POST search score (app UA)" \
             -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
@@ -43,21 +46,26 @@ jobs:
             -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
             --data '{"keyword":"chainsaw man","sort":"match","filter":{"type":[2],"nsfw":false}}'
-          probe "A4 POST search rank filter (app UA)" \
+          probe "A4 POST search rank (app UA)" \
             -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
             -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
-            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"rank":[">=1"],"nsfw":false}}'
+            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"nsfw":false}}'
           probe "A5 POST search rank + rating_count (app UA)" \
             -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
             -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
-            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"ref":[],"rating_count":[">=200"],"nsfw":false}}'
-          probe "A6 POST search with air_date+rating filters (app UA)" \
+            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"rating_count":[">=200"],"nsfw":false}}'
+          probe "A6 POST search air_date + rating (app UA)" \
             -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
             -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
             --data '{"keyword":"","sort":"match","filter":{"type":[2],"air_date":[">=2020-01-01","<=2024-12-31"],"rating":[">=8"],"nsfw":false}}'
+          probe "A7 POST search tag (app UA)" \
+            -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
+            -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["科幻"],"nsfw":false}}'
           probe "B1 POST search score (okhttp UA)" \
             -X POST 'https://api.bgm.tv/v0/search/subjects?limit=5&offset=0' \
             -H 'User-Agent: okhttp/4.12.0' -H 'Accept: application/json' \
@@ -78,10 +86,10 @@ jobs:
           probe "D1 GET p1 subject (app UA)" \
             'https://next.bgm.tv/p1/subjects/326' \
             -H "User-Agent: $UA_APP" -H 'Accept: application/json'
-          probe "D2 GET p1 subject collections" \
-            'https://next.bgm.tv/p1/subjects/326/collections' \
-            -H "User-Agent: $UA_APP" -H 'Accept: application/json'
           echo "===== done ====="
+          } > /tmp/probe.log 2>&1
+          cat /tmp/probe.log
+
       - name: Sonucu depoya yaz
         run: |
           mkdir -p probe
@@ -90,4 +98,4 @@ jobs:
           git config user.email "probe@example.com"
           git add probe/result.txt
           git commit -m "probe: sonuç" || true
-          git push || true
+          git push
