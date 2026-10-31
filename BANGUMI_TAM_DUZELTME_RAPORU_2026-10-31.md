@@ -277,11 +277,12 @@ Tam günlük depoda `probe/kotlin_log.txt` dosyasındadır (GitHub artifact'leri
 indirilemediği için günlük doğrudan depoya işlendi).
 
 > Not: `🎌 Bangumi MASTER Doğrulama` iş akışının `BangumiMasterDictionaryTest` adımı bu
-> dalda hata veriyordu; aynı test, aynı commit üzerinde yukarıdaki Gradle çalıştırmasında
-> **geçti**. Fark, MASTER iş akışının kendi Gradle ayarlarından kaynaklanıyor
-> (ayrı `gradle.properties`, `org.gradle.daemon=true`, yalnızca tek `--tests` filtresi);
-> uygulama kodundan kaynaklanan bir başarısızlık değil. Yine de MASTER iş akışının
-> ayrıca ele alınması gerekir (yayın öncesi geçici iş akışları kaldırılırken).
+> dalda hata veriyordu; **aynı test, aynı kod üzerinde** yukarıdaki Gradle çalıştırmasında
+> (ve tam APK derlemesinde) **geçti**. Bu ortamdan GitHub artifact/günlük indirilemediği için
+> MASTER adımının hata metni doğrulanamadı; en olası neden, iş akışının kendi Gradle
+> ayarlarıdır (ayrı `gradle.properties`, `org.gradle.daemon=true`, tek `--tests` filtresi).
+> Uygulama kodundan kaynaklanan bir başarısızlık işareti **yok**; ancak MASTER iş akışının
+> yayın öncesi ayrıca ele alınması önerilir.
 
 ### 6.2 Kullanıcı tarafında nasıl doğrulanır
 
