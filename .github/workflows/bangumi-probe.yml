@@ -92,16 +92,7 @@ jobs:
             echo "===== $label ====="
             code=$(curl -sS -o /tmp/b.json -w '%{http_code}' -m 25 "$@")
             echo "HTTP $code"
-            python3 - <<'PY'
-import json
-d = json.load(open('/tmp/b.json'))
-print("total:", d.get("total"), "limit:", d.get("limit"), "offset:", d.get("offset"))
-for s in (d.get("data") or [])[:5]:
-    r = s.get("rating") or {}
-    print(" -", s.get("id"), "t%s" % s.get("type"), "|", (s.get("name_cn") or s.get("name") or "")[:36],
-          "| score", r.get("score"), "rank", r.get("rank"), "votes", r.get("total"),
-          "| mt", ",".join((s.get("meta_tags") or [])[:3]), "| plat", s.get("platform"))
-PY
+            python3 probe/summarize.py /tmp/b.json
           }
           search() {
             local label="$1"; local body="$2"
@@ -117,19 +108,19 @@ PY
           search "E1 rank + rank>=1 + rating_count>=100" '{"keyword":"","sort":"rank","filter":{"type":[2],"rank":[">=1"],"rating_count":[">=100"],"nsfw":false}}'
           search "E2 rank + rating_count>=100" '{"keyword":"","sort":"rank","filter":{"type":[2],"rating_count":[">=100"],"nsfw":false}}'
           search "E3 score + rating_count>=100" '{"keyword":"","sort":"score","filter":{"type":[2],"rating_count":[">=100"],"nsfw":false}}'
-          search "E4 score (eski davranış)" '{"keyword":"","sort":"score","filter":{"type":[2],"nsfw":false}}'
-          # F: REAL (三次元) popülerlik — meta_tags süzgeci
-          search "F1 real tv heat (meta_tags 电视剧)" '{"keyword":"","sort":"heat","filter":{"type":[6],"meta_tags":["电视剧"],"nsfw":false}}'
-          search "F2 real movie heat (meta_tags 电影)" '{"keyword":"","sort":"heat","filter":{"type":[6],"meta_tags":["电影"],"nsfw":false}}'
-          # G: etiket çevirisi — Çince çalışır, Türkçe/İngilizce çalışmaz (kanıt)
-          search "G1 tag 科幻 (Çince)" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["科幻"],"nsfw":false}}'
-          search "G2 tag Sci-Fi (İngilizce)" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["Sci-Fi"],"nsfw":false}}'
-          search "G3 tag Bilim Kurgu (Türkçe)" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["Bilim Kurgu"],"nsfw":false}}'
-          # H: kullanıcı sorguları
+          search "E4 score (eski davranis)" '{"keyword":"","sort":"score","filter":{"type":[2],"nsfw":false}}'
+          # F: REAL (sanci yuan) populerlik - meta_tags suzgeci
+          search "F1 real tv heat meta_tags" '{"keyword":"","sort":"heat","filter":{"type":[6],"meta_tags":["电视剧"],"nsfw":false}}'
+          search "F2 real movie heat meta_tags" '{"keyword":"","sort":"heat","filter":{"type":[6],"meta_tags":["电影"],"nsfw":false}}'
+          # G: etiket cevirisi - Cince calisir, Turkce/Ingilizce calismaz (kanit)
+          search "G1 tag kexue (Cince)" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["科幻"],"nsfw":false}}'
+          search "G2 tag Sci-Fi (Ingilizce)" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["Sci-Fi"],"nsfw":false}}'
+          search "G3 tag Bilim Kurgu (Turkce)" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["Bilim Kurgu"],"nsfw":false}}'
+          # H: kullanici sorgulari
           search "H1 match chainsaw man (anime)" '{"keyword":"chainsaw man","sort":"match","filter":{"type":[2],"nsfw":false}}'
           search "H2 match one piece (manga)" '{"keyword":"one piece","sort":"match","filter":{"type":[1],"nsfw":false}}'
           search "H3 match reply 1988 (real)" '{"keyword":"reply 1988","sort":"match","filter":{"type":[6],"nsfw":false}}'
-          search "H4 heat anime (popüler, süzgeçsiz)" '{"keyword":"","sort":"heat","filter":{"type":[2],"nsfw":false}}'
+          search "H4 heat anime (populer, suzgecsiz)" '{"keyword":"","sort":"heat","filter":{"type":[2],"nsfw":false}}'
           # I: film/manga kategorileri
           get5 "I1 anime movie cat=3 rank" 'https://api.bgm.tv/v0/subjects?type=2&cat=3&sort=rank&limit=5&offset=0'
           get5 "I2 manga cat=1001 date" 'https://api.bgm.tv/v0/subjects?type=1&cat=1001&sort=date&limit=5&offset=0'
