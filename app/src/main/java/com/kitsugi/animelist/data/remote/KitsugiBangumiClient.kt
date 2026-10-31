@@ -595,7 +595,10 @@ object KitsugiBangumiClient {
                     limit = limit,
                     offset = offset
                 ).data
-            }.getOrElse { logAndEmpty("popularReal($metaTag)/browse", it) }
+            }.getOrElse { error ->
+                Log.e(TAG, "Bangumi popularReal($metaTag)/browse failed: ${error.message}", error)
+                emptyList()
+            }
         }
         return subjects
             .filter { it.type == BangumiApiClient.SubjectType.REAL }
