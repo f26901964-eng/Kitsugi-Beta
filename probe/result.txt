@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5366186c8199181-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53694c1eb92915e-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -143,7 +143,7 @@ total: 1735 limit: 5 offset: 0
  - 3375 t2 | 凉宫春日的消失 | score 8.7 rank 16 votes 24971 | mt 剧场版,剧场版,校园 | platform 剧场版
 ===== I2 manga cat=1001 date =====
 HTTP 200
-total: 305989 limit: 5 offset: 0
+total: 305990 limit: 5 offset: 0
  - 707656 t1 | Coral’s Reef Vol. 2 | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 707671 t1 | Dungeon Crawlers Academy Book 2: The | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 656434 t1 | 諸星大二郎短編集成 第1集 生物都市 | score 0 rank 0 votes 0 | mt  | platform 漫画
@@ -189,7 +189,7 @@ total: 1000 limit: 5 offset: 0
  - 283379 t6 | 新·奥特曼 | score 6.9 rank 2285 votes 1392 | mt 日本,特摄,科幻 | platform 电影
  - 274128 t6 | 流浪地球 | score 7.2 rank 1550 votes 1467 | mt 科幻,电影,中国 | platform 电影
  - 25461 t6 | 蝙蝠侠：黑暗骑士 | score 8.5 rank 65 votes 1173 | mt 犯罪,美国,科幻 | platform 电影
-K 剧情       HTTP 200 total: 693 veri: 1
+K 剧情       HTTP 200 total: 695 veri: 1
 K 战斗       HTTP 200 total: 1000 veri: 1
 K 恋爱       HTTP 200 total: 1000 veri: 1
 K 搞笑       HTTP 200 total: 1000 veri: 1
@@ -218,10 +218,10 @@ K 军事冲突 HTTP 200 total: 0 veri: 0
 K 灵异       HTTP 200 total: 65 veri: 1
 ===== M tag '剧情' + rank>=1 =====
 HTTP 200
-total: 507 limit: 3 offset: 0
+total: 509 limit: 3 offset: 0
  - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
  - 1428 t2 | 钢之炼金术师 FULLMETAL ALCHEMIST | score 8.8 rank 12 votes 25415 | mt TV,日本,奇幻 | platform TV
- - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11681 | mt 剧场版,惊悚,悬疑 | platform 剧场版
 ===== M tag '战斗' + rank>=1 =====
 HTTP 200
 total: 1000 limit: 3 offset: 0
@@ -240,11 +240,11 @@ K 智斗       HTTP 200 total: 147 veri: 1
 K サイコスリラー HTTP 200 total: 0 veri: 0
 K 惊悚片    HTTP 200 total: 0 veri: 0
 K 悬念       HTTP 200 total: 1 veri: 1
-O 剧情       HTTP 200 total: 507 veri: 3
-total: 507 limit: 3 offset: 0
+O 剧情       HTTP 200 total: 509 veri: 3
+total: 509 limit: 3 offset: 0
  - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
  - 1428 t2 | 钢之炼金术师 FULLMETAL ALCHEMIST | score 8.8 rank 12 votes 25415 | mt TV,日本,奇幻 | platform TV
- - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11681 | mt 剧场版,惊悚,悬疑 | platform 剧场版
 O 战斗       HTTP 200 total: 1000 veri: 3
 total: 1000 limit: 3 offset: 0
  - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10279 | mt 科幻,TV,日本 | platform TV
@@ -273,7 +273,7 @@ total: 1000 limit: 3 offset: 0
 O 悬疑       HTTP 200 total: 545 veri: 3
 total: 545 limit: 3 offset: 0
  - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41070 | mt 科幻,悬疑,TV | platform TV
- - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11681 | mt 剧场版,惊悚,悬疑 | platform 剧场版
  - 263750 t2 | 进击的巨人 第三季 Part.2 | score 8.7 rank 15 votes 24024 | mt TV,日本,奇幻 | platform TV
 O 恐怖       HTTP 200 total: 102 veri: 3
 total: 102 limit: 3 offset: 0
@@ -298,7 +298,7 @@ total: 48 limit: 3 offset: 0
 O 心理       HTTP 200 total: 25 veri: 3
 total: 25 limit: 3 offset: 0
  - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22291 | mt 科幻,剧场版,机战 | platform 剧场版
- - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11681 | mt 剧场版,惊悚,悬疑 | platform 剧场版
  - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34775 | mt 科幻,机战,TV | platform TV
 O 运动       HTTP 200 total: 362 veri: 3
 total: 362 limit: 3 offset: 0
@@ -307,7 +307,7 @@ total: 362 limit: 3 offset: 0
  - 67753 t2 | 明日之丈2 | score 8.7 rank 30 votes 940 | mt TV,日本,漫画改 | platform TV
 O 惊悚       HTTP 200 total: 73 veri: 3
 total: 73 limit: 3 offset: 0
- - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
+ - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11681 | mt 剧场版,惊悚,悬疑 | platform 剧场版
  - 288 t2 | 寒蝉鸣泣之时 解 | score 8.1 rank 182 votes 13304 | mt 惊悚,悬疑,TV | platform TV
  - 843 t2 | 妄想代理人 | score 8 rank 222 votes 5003 | mt 科幻,惊悚,悬疑 | platform TV
 O 机战       HTTP 200 total: 644 veri: 3
@@ -353,7 +353,7 @@ total: 6180
  - 25896 | 火之鸟 | series= True | platform= 漫画 | rank= 5 score= 9.3 votes= 1359 | vols= 12
 ===== P manga cat=1001 series=true date =====
 HTTP 200
-total: 55828
+total: 55829
  - 700263 | Miles Morales: Spider-Man (2026) | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
  - 701213 | Power Rangers Unlimited (2026) | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
  - 711004 | はたらく細胞 デンタル | series= True | platform= 漫画 | rank= 0 score= 0 votes= 0 | vols= 0
@@ -424,4 +424,211 @@ K 武侠       HTTP 200 total: 234 veri: 1
 K 宇宙       HTTP 200 total: 38 veri: 1
 K 末世       HTTP 200 total: 95 veri: 1
 K 吸血鬼    HTTP 200 total: 103 veri: 1
+===== S '剧情' =====
+HTTP 200
+total: 695 limit: 3 offset: 0
+ - 3827 t2 | 哥普拉 六人勇士 | score 6.1 rank 0 votes 45 | mt TV,日本,漫画改 | platform TV
+ - 10411 t2 | 吉尔伽美什 | score 5.7 rank 0 votes 42 | mt 科幻,TV,日本 | platform TV
+ - 14174 t2 | 无家可归的孩子蕾米 | score 6.6 rank 0 votes 34 | mt TV,日本,小说改 | platform TV
+===== S '战斗' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 1998 t2 | 战斗陀螺金属对决 | score 5.9 rank 0 votes 34 | mt TV,日本,原创 | platform TV
+ - 3328 t2 | 梦物语 | score 5.2 rank 0 votes 41 | mt TV,日本,游戏改 | platform TV
+ - 3357 t2 | 格斗美神·武龙 | score 5.4 rank 0 votes 28 | mt TV,日本,漫画改 | platform TV
+===== S '恋爱' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 1950 t2 | 钢琴恋曲 | score 6 rank 0 votes 46 | mt TV,恋爱,日本 | platform TV
+ - 3150 t2 | 剧场版 咕噜咕噜魔法阵 | score 7.3 rank 0 votes 44 | mt 剧场版 | platform 剧场版
+ - 3171 t2 | 冬季恋歌 | score 5.4 rank 0 votes 18 | mt TV,日本,韩国 | platform TV
+===== S '搞笑' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 2256 t2 | 日本第一男人之魂2 | score 7.1 rank 0 votes 27 | mt TV,日本,漫画改 | platform TV
+ - 3150 t2 | 剧场版 咕噜咕噜魔法阵 | score 7.3 rank 0 votes 44 | mt 剧场版 | platform 剧场版
+ - 3328 t2 | 梦物语 | score 5.2 rank 0 votes 41 | mt TV,日本,游戏改 | platform TV
+===== S '奇幻' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 3150 t2 | 剧场版 咕噜咕噜魔法阵 | score 7.3 rank 0 votes 44 | mt 剧场版 | platform 剧场版
+ - 3328 t2 | 梦物语 | score 5.2 rank 0 votes 41 | mt TV,日本,游戏改 | platform TV
+ - 4210 t2 | 煌罗万象 | score 5.4 rank 0 votes 33 | mt  | platform WEB
+===== S '科幻' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 1960 t2 | 懦弱鬼哈利 | score 6.1 rank 0 votes 18 | mt 科幻,TV,日本 | platform TV
+ - 3827 t2 | 哥普拉 六人勇士 | score 6.1 rank 0 votes 45 | mt TV,日本,漫画改 | platform TV
+ - 4202 t2 | 银装骑攻Ordian | score 4.9 rank 0 votes 19 | mt 科幻,机战,TV | platform TV
+===== S '悬疑' =====
+HTTP 200
+total: 653 limit: 3 offset: 0
+ - 9874 t2 | 名侦探福尔摩斯 | score 6.4 rank 0 votes 40 | mt TV,日本 | platform TV
+ - 66239 t2 | 妙妙探 | score 6.2 rank 0 votes 18 | mt 剧场版 | platform 剧场版
+ - 78080 t2 | 寒月一冻恶灵斩 | score 5.2 rank 0 votes 18 | mt 日本,OVA,小说改 | platform OVA
+===== S '恐怖' =====
+HTTP 200
+total: 185 limit: 3 offset: 0
+ - 5867 t2 | 火童 | score 7.5 rank 0 votes 41 | mt 剧场版,中国 | platform 剧场版
+ - 7369 t2 | 变幻退魔夜行 迦楼罗漫舞～仙台小芥子怨歌～ | score 6.2 rank 0 votes 26 | mt OVA | platform OVA
+ - 11949 t2 | 奈德梦游记 | score 8.2 rank 0 votes 18 | mt TV,欧美 | platform TV
+===== S '日常' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 1950 t2 | 钢琴恋曲 | score 6 rank 0 votes 46 | mt TV,恋爱,日本 | platform TV
+ - 3496 t2 | 小心啊公主 | score 6.2 rank 0 votes 39 | mt TV,日本 | platform TV
+ - 3643 t2 | 你好 安妮 | score 6.7 rank 0 votes 50 | mt TV,日本 | platform TV
+===== S '冒险' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 3827 t2 | 哥普拉 六人勇士 | score 6.1 rank 0 votes 45 | mt TV,日本,漫画改 | platform TV
+ - 12709 t2 | 高桥留美子的奇想世界 火焰旅程 | score 6.3 rank 0 votes 50 | mt OVA | platform OVA
+ - 13604 t2 | 人造人009 | score 6.8 rank 0 votes 12 | mt TV,日本,漫画改 | platform TV
+===== S '灵异' =====
+HTTP 200
+total: 65 limit: 3 offset: 0
+ - 19454 t2 | 灵异猎人 | score 6.6 rank 0 votes 30 | mt TV,日本,漫画改 | platform TV
+ - 34457 t2 | 校园恐怖传说 - 花子来了 | score 5 rank 0 votes 3 | mt TV,日本,小说改 | platform TV
+ - 141691 t2 | 暴走恐怖故事 第二季 | score 5.5 rank 0 votes 37 | mt TV,中国 | platform TV
+===== S '心理' =====
+HTTP 200
+total: 34 limit: 3 offset: 0
+ - 234843 t2 | 迷失的万圣节 | score 7.1 rank 0 votes 34 | mt  | platform 其他
+ - 290897 t2 | 抹去重来 | score 6.9 rank 0 votes 18 | mt WEB | platform WEB
+ - 296442 t2 | 史蒂文的宇宙 未来篇 | score 7.2 rank 0 votes 37 | mt TV,欧美 | platform TV
+===== S '运动' =====
+HTTP 200
+total: 516 limit: 3 offset: 0
+ - 9305 t2 | 胜利女排 | score 7.4 rank 0 votes 29 | mt TV,日本,运动 | platform TV
+ - 12923 t2 | 女棒甲子园 | score 6.3 rank 0 votes 32 | mt TV,日本,原创 | platform TV
+ - 19712 t2 | 野驁射手 | score 7.2 rank 0 votes 24 | mt TV,日本 | platform TV
+===== S '惊悚' =====
+HTTP 200
+total: 114 limit: 3 offset: 0
+ - 4609 t2 | 怪哉 | score 6.2 rank 0 votes 34 | mt 惊悚,中国,WEB | platform WEB
+ - 11949 t2 | 奈德梦游记 | score 8.2 rank 0 votes 18 | mt TV,欧美 | platform TV
+ - 18827 t2 | 令人战栗的日本昔话 | score 5.8 rank 0 votes 13 | mt OVA,短片集 | platform OVA
+===== S '机战' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 4202 t2 | 银装骑攻Ordian | score 4.9 rank 0 votes 19 | mt 科幻,机战,TV | platform TV
+ - 4234 t2 | 机动新撰组 萌之剑 TV | score 5.6 rank 0 votes 45 | mt TV,日本,游戏改 | platform TV
+ - 8291 t2 | 来访者 | score 4.7 rank 0 votes 11 | mt TV,日本 | platform TV
+===== S '音乐' =====
+HTTP 200
+total: 626 limit: 3 offset: 0
+ - 1950 t2 | 钢琴恋曲 | score 6 rank 0 votes 46 | mt TV,恋爱,日本 | platform TV
+ - 21104 t2 | 王室近卫队 | score 6.4 rank 0 votes 32 | mt TV,日本,原创 | platform TV
+ - 33399 t2 | 有时可能是列车 | score 6.7 rank 0 votes 43 | mt 剧场版 | platform 剧场版
+===== S '历史' =====
+HTTP 200
+total: 418 limit: 3 offset: 0
+ - 16893 t2 | 三国演义 3D | score 7.1 rank 0 votes 20 | mt TV,历史,小说改 | platform TV
+ - 18177 t2 | 鬼 | score 6.3 rank 0 votes 41 | mt 剧场版 | platform 剧场版
+ - 28957 t2 | 中华五千年历史故事动画系列—小太极 | score 6.3 rank 0 votes 34 | mt TV,中国 | platform TV
+===== S '战争' =====
+HTTP 200
+total: 445 limit: 3 offset: 0
+ - 13311 t2 | 圣少女舰队 | score 4.4 rank 0 votes 23 | mt 科幻,日本,OVA | platform OVA
+ - 15154 t2 | SD高达FORCE | score 5.9 rank 0 votes 49 | mt 科幻,喜剧,TV | platform TV
+ - 16357 t2 | 玻璃兔 | score 5 rank 0 votes 38 | mt 剧场版 | platform 剧场版
+===== S '校园' =====
+HTTP 200
+total: 1000 limit: 3 offset: 0
+ - 4210 t2 | 煌罗万象 | score 5.4 rank 0 votes 33 | mt  | platform WEB
+ - 12593 t2 | 教科书没教的事 | score 5.3 rank 0 votes 42 | mt OVA | platform OVA
+ - 19454 t2 | 灵异猎人 | score 6.6 rank 0 votes 30 | mt TV,日本,漫画改 | platform TV
+===== S '异世界' =====
+HTTP 200
+total: 805 limit: 3 offset: 0
+ - 8378 t2 | 星之海洋 | score 6 rank 0 votes 48 | mt TV,日本,游戏改 | platform TV
+ - 10400 t2 | 神秘的世界 | score 6.3 rank 0 votes 46 | mt TV,日本,原创 | platform TV
+ - 12709 t2 | 高桥留美子的奇想世界 火焰旅程 | score 6.3 rank 0 votes 50 | mt OVA | platform OVA
+===== S '魔法' =====
+HTTP 200
+total: 360 limit: 3 offset: 0
+ - 11731 t2 | 欢欢仙子 | score 6.1 rank 0 votes 28 | mt TV,日本,原创 | platform TV
+ - 19426 t2 | 魔法少女加奈 | score 5.3 rank 0 votes 45 | mt TV,日本,游戏改 | platform TV
+ - 19525 t2 | 缎带魔法少女 | score 6.8 rank 0 votes 37 | mt TV,日本,漫画改 | platform TV
+===== S '超能力' =====
+HTTP 200
+total: 250 limit: 3 offset: 0
+ - 4210 t2 | 煌罗万象 | score 5.4 rank 0 votes 33 | mt  | platform WEB
+ - 19040 t2 | 地球守护者21 | score 6.2 rank 0 votes 43 | mt 日本,OVA,原创 | platform OVA
+ - 37255 t2 | 超能机甲高巴里安 | score 5.5 rank 0 votes 19 | mt TV,日本 | platform TV
+===== S '生存' =====
+HTTP 200
+total: 19 limit: 3 offset: 0
+ - 396407 t2 | 史前战纪 第二季 | score 6.5 rank 0 votes 29 | mt WEB | platform WEB
+ - 588451 t2 | 史前战纪 第三季 | score 6 rank 0 votes 15 | mt  | platform TV
+ - 443179 t2 | 拾荒者统治 | score 7.5 rank 883 votes 1179 | mt 科幻,奇幻,原创 | platform WEB
+===== S '赛博朋克' =====
+HTTP 200
+total: 62 limit: 3 offset: 0
+ - 147753 t2 | 复活 | score 6.8 rank 0 votes 4 | mt 剧场版 | platform 剧场版
+ - 240741 t2 | 芯觉 | score 4.3 rank 0 votes 39 | mt 科幻,原创,中国 | platform WEB
+ - 318867 t2 | 虹棉 | score 4.1 rank 0 votes 7 | mt 短片,中国 | platform 其他
+===== S '武侠' =====
+HTTP 200
+total: 234 limit: 3 offset: 0
+ - 20032 t2 | 兔侠传奇 | score 5.3 rank 0 votes 32 | mt 剧场版 | platform 剧场版
+ - 25631 t2 | 神兵小将：电影版 | score 5.9 rank 0 votes 20 | mt 喜剧,剧场版,奇幻 | platform 剧场版
+ - 48811 t2 | 狐仙记 | score 5.5 rank 0 votes 26 | mt OVA | platform OVA
+===== S '宇宙' =====
+HTTP 200
+total: 38 limit: 3 offset: 0
+ - 38639 t2 | 宇宙海盗哈洛克 | score 7.3 rank 0 votes 48 | mt 科幻,TV,日本 | platform TV
+ - 73374 t2 | 星座神话 | score 6.4 rank 0 votes 26 | mt 剧场版 | platform 剧场版
+ - 78667 t2 | 超限猎兵凯能 | score 7.2 rank 0 votes 44 | mt TV,中国 | platform TV
+===== S '末世' =====
+HTTP 200
+total: 95 limit: 3 offset: 0
+ - 46137 t2 | 钢铁新世纪 | score 6.3 rank 0 votes 14 | mt TV,日本 | platform TV
+ - 47667 t2 | 未来少年柯南 剧场版 | score 5.9 rank 0 votes 18 | mt 剧场版,日本,冒险 | platform 剧场版
+ - 77607 t2 | 人偶玛丽斯 | score 5.9 rank 0 votes 27 | mt 日本,OVA | platform OVA
+===== S '吸血鬼' =====
+HTTP 200
+total: 103 limit: 3 offset: 0
+ - 9432 t2 | 嘻皮拉君 | score 6.3 rank 0 votes 39 | mt TV,日本,奇幻 | platform TV
+ - 15184 t2 | 致命紫罗兰 | score 5.5 rank 0 votes 32 | mt TV,日本,欧美 | platform TV
+ - 20862 t2 | 真夜中的侦探 | score 6.5 rank 0 votes 34 | mt TV,日本 | platform TV
+===== T1 topScored BOOK (rank+rank>=1+votes>=100+meta 漫画) =====
+HTTP 200
+total: 725 limit: 5 offset: 0
+ - 18462 t1 | 灌篮高手 完全版 | score 9.4 rank 1 votes 1919 | mt 日本,漫画,校园 | platform 漫画
+ - 9640 t1 | 剑风传奇 | score 9.3 rank 3 votes 3169 | mt 日本,漫画,原创 | platform 漫画
+ - 25896 t1 | 火之鸟 | score 9.3 rank 5 votes 1359 | mt 日本,漫画,原创 | platform 漫画
+ - 44996 t1 | JoJo的奇妙冒险 第七部 飙马野郎 | score 9.1 rank 7 votes 3205 | mt 日本,漫画,战斗 | platform 漫画
+ - 25402 t1 | 风之谷的娜乌西卡 | score 9 rank 11 votes 795 | mt 日本,漫画,奇幻 | platform 漫画
+===== T2 roman rafi (type=1&cat=1002&sort=rank) =====
+HTTP 200
+total: 3306 limit: 5 offset: 0
+ - 352517 t1 | 卡拉马佐夫兄弟 | score 9.3 rank 6 votes 195 | mt 小说,名著 | platform 小说
+ - 352515 t1 | 罪与罚 | score 9.2 rank 8 votes 373 | mt 小说,名著 | platform 小说
+ - 9586 t1 | 三体Ⅱ：黑暗森林 | score 9 rank 10 votes 2033 | mt 小说,中国,单行本 | platform 小说
+ - 37782 t1 | 来自新世界 | score 9 rank 12 votes 2332 | mt 日本,小说,科幻 | platform 小说
+ - 19120 t1 | 付丧堂古董店7 | score 9.1 rank 13 votes 253 | mt  | platform 小说
+===== T3 type=6 rank (cat YOK) =====
+HTTP 200
+total: 3639 limit: 5 offset: 0
+ - 16261 t6 | 是，大臣 第三季 | score 9.4 rank 1 votes 874 | mt 电视剧,喜剧,英国 | platform 欧美剧
+ - 16302 t6 | 是，首相 第一季 | score 9.3 rank 2 votes 879 | mt 电视剧,喜剧,英国 | platform 欧美剧
+ - 16266 t6 | 是，大臣 圣诞特别篇 | score 9.4 rank 3 votes 616 | mt 电视剧,喜剧,英国 | platform 欧美剧
+ - 123218 t6 | 三国演义 | score 9.3 rank 4 votes 1059 | mt 电视剧,小说改,战争 | platform 华语剧
+ - 16260 t6 | 是，大臣 第二季 | score 9.3 rank 5 votes 841 | mt 电视剧,喜剧,英国 | platform 欧美剧
+===== T4 type=6 cat=6001 series YOK =====
+HTTP 200
+total: 51 limit: 5 offset: 0
+ - 259879 t6 | 请回答1988 | score 8.7 rank 49 votes 252 | mt 电视剧,喜剧,爱情 | platform 电视剧
+ - 130089 t6 | 第五共和國 | score 8.5 rank 71 votes 333 | mt 电视剧,历史,韩国 | platform 电视剧
+ - 219644 t6 | 秘密森林 | score 8.2 rank 232 votes 95 | mt 犯罪,悬疑,电视剧 | platform 电视剧
+ - 313127 t6 | 秘密森林2 | score 8.2 rank 360 votes 48 | mt 犯罪,悬疑,电视剧 | platform 电视剧
+ - 277413 t6 | 我的大叔 | score 8.2 rank 366 votes 37 | mt 电视剧,剧情,韩国 | platform 电视剧
+===== T5 REAL + keyword reply 1988 =====
+HTTP 200
+total: 4 limit: 5 offset: 0
+ - 259879 t6 | 请回答1988 | score 8.7 rank 53 votes 252 | mt 电视剧,喜剧,爱情 | platform 电视剧
+ - 628086 t6 | 人生不易部 2nd LIVE Dou-Da? DOING! ～Reply | score 0 rank 0 votes 0 | mt 演出 | platform 演出
+ - 347099 t6 | 请回答1994 | score 7.8 rank 0 votes 9 | mt 剧情,爱情,电视剧 | platform 电视剧
+ - 345923 t6 | 请回答1997 | score 7.6 rank 0 votes 10 | mt 电视剧,喜剧,爱情 | platform 电视剧
 ===== done =====
