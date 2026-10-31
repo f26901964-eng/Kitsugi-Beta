@@ -145,6 +145,25 @@ jobs:
           tagtotal '科幻'; tagtotal '悬疑'; tagtotal '恐怖'; tagtotal '日常'; tagtotal '冒险'
           tagtotal '灵异'; tagtotal '心理'; tagtotal '运动系'; tagtotal '悬疑惊悚'; tagtotal '机战'
           tagtotal '音乐'; tagtotal '历史'; tagtotal '军事'; tagtotal '校园'
+          # L: zayıf çipler için alternatif Bangumi etiketleri
+          tagtotal '超自然'; tagtotal '心理描写'; tagtotal '运动'; tagtotal '惊悚'
+          tagtotal '战争'; tagtotal '历史剧'; tagtotal '军事冲突'; tagtotal '灵异'
+          # M: etiket + rank süzgeci (ızgarada sıralama kalitesi)
+          tag_order() {
+            local tag="$1"
+            local code
+            code=$(curl -sS -o /tmp/t.json -w '%{http_code}' -m 25 \
+              -X POST 'https://api.bgm.tv/v0/search/subjects?limit=3&offset=0' \
+              -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' \
+              --data "{\"keyword\":\"\",\"sort\":\"rank\",\"filter\":{\"type\":[2],\"tag\":[\"$tag\"],\"rank\":[\">=1\"],\"nsfw\":false}}")
+            echo "===== M tag '$tag' + rank>=1 ====="
+            echo "HTTP $code"
+            python3 probe/summarize.py /tmp/t.json
+          }
+          tag_order '剧情'
+          tag_order '战斗'
+          tag_order '运动'
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log
