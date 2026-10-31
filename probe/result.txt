@@ -2,7 +2,7 @@
 HTTP 200  bytes=17008
 {"data":[{"date":"1973-03-02","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/4e/84/187710_cAJJ1.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/4e/84/187710_cAJJ1.jpg","large":"https://lain.bgm.tv/pic/cover/l/4e/84/187710_cAJJ1.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/4e/84/187710_cAJJ1.jpg","common":"https:
 ===== A2 POST search heat (app UA) =====
-HTTP 200  bytes=21173
+HTTP 200  bytes=21164
 {"data":[{"date":"2019-03-04","platform":"漫画","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/85/aa/268279_9rynK.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/85/aa/268279_9rynK.jpg","large":"https://lain.bgm.tv/pic/cover/l/85/aa/268279_9rynK.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/85/aa/268279_9rynK.jpg","common":"ht
 ===== A3 POST search match keyword (app UA) =====
 HTTP 200  bytes=29861
@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53694c1eb92915e-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5369b0bdb3ac1cf-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -416,7 +416,7 @@ total: 539 limit: 5 offset: 0
  - 37782 t1 | 来自新世界 | score 9 rank 12 votes 2332 | mt 日本,小说,科幻 | platform 小说
  - 113242 t1 | 魔戒 | score 9 rank 14 votes 375 | mt 小说,原创,系列 | platform 小说
 K 异世界    HTTP 200 total: 805 veri: 1
-K 魔法       HTTP 200 total: 360 veri: 1
+K 魔法       HTTP 200 total: 361 veri: 1
 K 超能力    HTTP 200 total: 250 veri: 1
 K 生存       HTTP 200 total: 19 veri: 1
 K 赛博朋克 HTTP 200 total: 62 veri: 1
@@ -546,7 +546,7 @@ total: 805 limit: 3 offset: 0
  - 12709 t2 | 高桥留美子的奇想世界 火焰旅程 | score 6.3 rank 0 votes 50 | mt OVA | platform OVA
 ===== S '魔法' =====
 HTTP 200
-total: 360 limit: 3 offset: 0
+total: 361 limit: 3 offset: 0
  - 11731 t2 | 欢欢仙子 | score 6.1 rank 0 votes 28 | mt TV,日本,原创 | platform TV
  - 19426 t2 | 魔法少女加奈 | score 5.3 rank 0 votes 45 | mt TV,日本,游戏改 | platform TV
  - 19525 t2 | 缎带魔法少女 | score 6.8 rank 0 votes 37 | mt TV,日本,漫画改 | platform TV
