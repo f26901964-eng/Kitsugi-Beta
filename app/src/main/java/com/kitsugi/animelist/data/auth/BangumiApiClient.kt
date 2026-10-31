@@ -104,9 +104,6 @@ object BangumiApiClient {
      */
     const val MIN_RATING_VOTES = 100
 
-    /** REAL (三次元) kataloğu küçüktür; oy tabanı düşürülür ki şerit boş kalmasın. */
-    const val MIN_RATING_VOTES_REAL = 20
-
     /**
      * Koleksiyon (收藏) yazma uçlarının sunucu tarafı sınırları.
      * Kaynak: `bangumi/server` → `web/req/collection.go` → `Validate()`.
