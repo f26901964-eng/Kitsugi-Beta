@@ -252,6 +252,18 @@ object KitsugiBangumiClient {
                 } else {
                     emptyList()
                 }
+                // `sort=rank` Meilisearch'te `rank:asc` demektir; sıralamaya girmemiş
+                // kayıtların `rank` alanı **0** olduğu için listenin tepesine otururlar.
+                // 2026-10-31 canlı API (G1): etiket süzgeçli `sort=rank` sorgusu oy
+                // sayısı 18 olan niş yapıtlarla başlıyordu. `rank>=1`, resmî 排行榜
+                // semantiğini geri getirir (browse ucu bunu zaten kendisi uygular).
+                val rankFilter = if (effectiveQuery.isBlank() &&
+                    sort == BangumiApiClient.SearchSort.RANK
+                ) {
+                    listOf(">=1")
+                } else {
+                    emptyList()
+                }
                 searchWithFallback(
                     keyword = effectiveQuery,
                     token = tokenOrNull(context),
@@ -263,7 +275,8 @@ object KitsugiBangumiClient {
                     includeAdult = includeAdult,
                     limit = pageSize,
                     offset = offset,
-                    ratingCount = ratingCount
+                    ratingCount = ratingCount,
+                    rank = rankFilter
                 )
             }
             subjects
@@ -306,7 +319,9 @@ object KitsugiBangumiClient {
         tags: List<String> = emptyList(),
         airDate: List<String> = emptyList(),
         rating: List<String> = emptyList(),
-        ratingCount: List<String> = emptyList()
+        ratingCount: List<String> = emptyList(),
+        /** `rank` filtresi (`>=1`). Puan sıralamasında `rank = 0` kayıtları eler. */
+        rank: List<String> = emptyList()
     ): List<BangumiSubject> {
         val primary = runCatching {
             BangumiApiClient.searchSubjects(
@@ -317,6 +332,7 @@ object KitsugiBangumiClient {
                 tags = tags,
                 airDate = airDate,
                 rating = rating,
+                rank = rank,
                 nsfw = if (includeAdult) null else false,
                 limit = limit,
                 offset = offset,
