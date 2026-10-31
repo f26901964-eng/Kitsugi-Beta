@@ -124,6 +124,27 @@ jobs:
           # I: film/manga kategorileri
           get5 "I1 anime movie cat=3 rank" 'https://api.bgm.tv/v0/subjects?type=2&cat=3&sort=rank&limit=5&offset=0'
           get5 "I2 manga cat=1001 date" 'https://api.bgm.tv/v0/subjects?type=1&cat=1001&sort=date&limit=5&offset=0'
+          # J: yedek raflar ve kapsam yolları
+          search "J1 topScored BOOK (rank+rank>=1+rating_count>=100)" '{"keyword":"","sort":"rank","filter":{"type":[1],"rank":[">=1"],"rating_count":[">=100"],"nsfw":false}}'
+          get5 "J2 novels cat=1002 rank" 'https://api.bgm.tv/v0/subjects?type=1&cat=1002&sort=rank&limit=5&offset=0'
+          get5 "J3 real browse (cat YOK) rank" 'https://api.bgm.tv/v0/subjects?type=6&sort=rank&limit=5&offset=0'
+          search "J4 real + tag (电视剧 kapsaminda 剧情)" '{"keyword":"","sort":"rank","filter":{"type":[6],"tag":["剧情"],"nsfw":false}}'
+          search "J5 real film + meta_tags + keyword" '{"keyword":"","sort":"heat","filter":{"type":[6],"meta_tags":["电影"],"nsfw":false}}'
+          # K: arayüz tür çiplerinin sözlükten çevrilmiş Çince etiketleri (kapsama testi)
+          tagtotal() {
+            local tag="$1"
+            local code
+            code=$(curl -sS -o /tmp/t.json -w '%{http_code}' -m 25 \
+              -X POST 'https://api.bgm.tv/v0/search/subjects?limit=1&offset=0' \
+              -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' \
+              --data "{\"keyword\":\"\",\"sort\":\"rank\",\"filter\":{\"type\":[2],\"tag\":[\"$tag\"],\"nsfw\":false}}")
+            printf 'K %-12s HTTP %s ' "$tag" "$code"; python3 probe/total.py /tmp/t.json
+          }
+          tagtotal '剧情'; tagtotal '战斗'; tagtotal '恋爱'; tagtotal '搞笑'; tagtotal '奇幻'
+          tagtotal '科幻'; tagtotal '悬疑'; tagtotal '恐怖'; tagtotal '日常'; tagtotal '冒险'
+          tagtotal '灵异'; tagtotal '心理'; tagtotal '运动系'; tagtotal '悬疑惊悚'; tagtotal '机战'
+          tagtotal '音乐'; tagtotal '历史'; tagtotal '军事'; tagtotal '校园'
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log
