@@ -17802,4 +17802,16 @@
     <string name="downloads_delete_video_title">Delete download?</string>
     <string name="downloads_delete_video_message">\"%1$s\" episode %2$d will be removed from the device (video and companion subtitle files). You can download it again later.</string>
     <string name="downloads_free_space">%1$s free</string>
+    <string name="downloads_select_videos">Select</string>
+    <string name="downloads_select_subtitles">Select</string>
+    <string name="downloads_video_sort_queue">Queue order</string>
+    <string name="downloads_video_sort_episode">By episode</string>
+    <string name="downloads_video_group_badge">%1$d episodes • %2$d completed • %3$s</string>
+    <string name="downloads_move_up">Move up in queue</string>
+    <string name="downloads_move_down">Move down in queue</string>
+    <string name="downloads_subtitles_deleted">%1$d subtitles deleted.</string>
+    <string name="downloads_delete_selected_videos_title">Delete selected downloads?</string>
+    <string name="downloads_delete_selected_videos_message">%1$d selected episode(s) will be removed from the device together with their video and companion subtitle files. This cannot be undone.</string>
+    <string name="downloads_delete_selected_subtitles_title">Delete selected subtitles?</string>
+    <string name="downloads_delete_selected_subtitles_message">%1$d selected subtitle file(s) will be permanently deleted.</string>
 </resources>

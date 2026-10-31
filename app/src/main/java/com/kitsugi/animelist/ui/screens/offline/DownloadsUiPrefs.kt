@@ -16,6 +16,8 @@ internal object DownloadsUiPrefs {
     private const val KEY_TILE_SIZE = "images_tile_size"
     private const val KEY_SORT = "images_sort_order"
     private const val KEY_LAYOUT = "images_layout"
+    private const val KEY_VIDEO_SORT = "videos_sort_order"
+    private const val KEY_VIDEO_GROUPED = "videos_grouped"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -39,6 +41,20 @@ internal object DownloadsUiPrefs {
 
     fun setImageLayout(context: Context, value: DownloadsImageLayout) {
         prefs(context).edit().putString(KEY_LAYOUT, value.name).apply()
+    }
+
+    fun videoSort(context: Context): DownloadsVideoSort =
+        enumOrDefault(prefs(context).getString(KEY_VIDEO_SORT, null), DownloadsVideoSort.QUEUE_ORDER)
+
+    fun setVideoSort(context: Context, value: DownloadsVideoSort) {
+        prefs(context).edit().putString(KEY_VIDEO_SORT, value.name).apply()
+    }
+
+    fun videosGrouped(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_VIDEO_GROUPED, true)
+
+    fun setVideosGrouped(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_VIDEO_GROUPED, value).apply()
     }
 
     private inline fun <reified T : Enum<T>> enumOrDefault(name: String?, fallback: T): T {
@@ -71,6 +87,22 @@ internal enum class DownloadsSortOrder {
     OLDEST,
     NAME,
     SIZE
+}
+
+/**
+ * Videolar sekmesinin sıralaması.
+ *
+ * [QUEUE_ORDER] varsayılandır ve **kuyruk sırasını korur**: devam eden işler üstte,
+ * kuyrukta bekleyenler ise kullanıcı tarafından belirlenen öncelik sırasıyla listelenir
+ * (bu yüzden `AnimeDownloadManager.moveQueuedDownload` ile yukarı/aşağı taşıma yalnızca
+ * bu modda anlamlıdır).
+ */
+internal enum class DownloadsVideoSort {
+    QUEUE_ORDER,
+    TITLE,
+    EPISODE,
+    SIZE,
+    RECENT
 }
 
 internal enum class DownloadsImageLayout {
