@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -124,12 +126,7 @@ fun KitsugiCosmicSearchBar(
             if (leadingContent != null) {
                 leadingContent()
             } else {
-                Icon(
-                    imageVector = Icons.Rounded.Search,
-                    contentDescription = stringResource(R.string.ara),
-                    tint = if (isFocused) accentColor else KitsugiColors.TextMuted,
-                    modifier = Modifier.size(20.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.NavSearch, contentDescription = stringResource(R.string.ara), size = 20.dp)
             }
 
             BasicTextField(

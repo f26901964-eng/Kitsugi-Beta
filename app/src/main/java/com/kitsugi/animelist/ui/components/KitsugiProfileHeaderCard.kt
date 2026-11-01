@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import android.net.Uri
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -127,12 +129,7 @@ fun KitsugiProfileHeaderCard(
                             .tvClickable(shape = CircleShape, onClick = { onSettingsClick() }),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.ayarlar),
-                            tint = KitsugiColors.TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.NavSettings, contentDescription = stringResource(R.string.ayarlar), size = 20.dp)
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.settings
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -944,12 +946,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                             .background(KitsugiColors.AccentOrange.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.CloudSync,
-                            contentDescription = null,
-                            tint = KitsugiColors.AccentOrange,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Sync, size = 20.dp)
                     }
                     Column {
                         Text(

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import android.content.Intent
 import android.net.Uri
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -317,12 +319,7 @@ internal fun DetailGalleryCard(
                 onClick = { showCategoryMenu = true },
                 enabled = !galleryLoading
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.PhotoLibrary,
-                    contentDescription = stringResource(R.string.cd_open_gallery),
-                    tint = accentColor,
-                    modifier = Modifier.size(22.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Folder, contentDescription = stringResource(R.string.cd_open_gallery), size = 22.dp)
             }
         }
 

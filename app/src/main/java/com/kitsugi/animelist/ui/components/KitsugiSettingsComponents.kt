@@ -317,11 +317,7 @@ internal fun KitsugiSettingsSegmentedTabs(
                     } else {
                         val tabArt = KitsugiArt.fromVector(tab.icon)
                         if (tabArt != null) {
-                            KitsugiArtIcon(
-                                art = tabArt,
-                                size = 21.dp,
-                                alpha = if (selected) 1f else 0.8f
-                            )
+                            KitsugiArtIcon(art = tabArt, size = 21.dp, alpha = if (selected) 1f else 0.8f, accentGlow = selected)
                         } else {
                             Icon(
                                 imageVector = tab.icon,

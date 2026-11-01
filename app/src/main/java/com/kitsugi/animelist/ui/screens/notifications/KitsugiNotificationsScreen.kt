@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.notifications
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -838,12 +840,7 @@ private fun MalWebSessionActionCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Rounded.NotificationsNone,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(22.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Bell, size = 22.dp)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -1302,12 +1299,7 @@ private fun NotifItemRow(
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Icon(
-                    imageVector = Icons.Rounded.NotificationsNone,
-                    contentDescription = null,
-                    tint = KitsugiColors.TextMuted,
-                    modifier = Modifier.size(24.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Bell, size = 24.dp)
             }
             // Okunmamış göstergesi (Shikimori mesajları)
             if (notif.isUnread) {
@@ -1394,12 +1386,7 @@ private fun LoadingState(accentColor: Color) {
 private fun CenteredEmptyState(message: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Rounded.Notifications,
-                contentDescription = null,
-                tint = KitsugiColors.TextMuted,
-                modifier = Modifier.size(56.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Bell, size = 56.dp)
             Spacer(Modifier.height(16.dp))
             Text(
                 text = message,

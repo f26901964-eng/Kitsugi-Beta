@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.profile.tabs
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -158,12 +160,7 @@ fun FavouritesScreen(
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Favorite,
-                                contentDescription = null,
-                                tint = accentColor.copy(alpha = 0.4f),
-                                modifier = Modifier.size(64.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.Star, size = 64.dp)
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = stringResource(R.string.inline_no_favorites_added_yet_f1d0ab6),

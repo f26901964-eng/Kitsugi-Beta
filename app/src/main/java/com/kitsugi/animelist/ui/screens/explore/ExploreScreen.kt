@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.explore
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -476,12 +478,7 @@ fun ExploreScreen(
                                                             },
                                                         contentAlignment = Alignment.Center
                                                     ) {
-                                                        Icon(
-                                                            imageVector = Icons.Rounded.Notifications,
-                                                            contentDescription = stringResource(R.string.notif_title),
-                                                            tint = KitsugiColors.TextPrimary,
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
+                                                        KitsugiArtIcon(art = KitsugiArt.Bell, contentDescription = stringResource(R.string.notif_title), size = 20.dp)
                                                     }
                                                 }
                                             }

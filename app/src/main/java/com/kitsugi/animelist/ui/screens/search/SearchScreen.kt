@@ -2,6 +2,8 @@
 
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
 import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
@@ -345,12 +347,7 @@ fun SearchScreen(
                     CosmicCompanionButton(
                         onClick = { onOpenPluginPicker() },
                         icon = {
-                            Icon(
-                                imageVector = Icons.Default.Extension,
-                                contentDescription = stringResource(R.string.eklenti_portali),
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.Extensions, contentDescription = stringResource(R.string.eklenti_portali), size = 22.dp)
                         }
                     )
                 }

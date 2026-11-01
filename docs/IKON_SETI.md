@@ -50,6 +50,7 @@ tools/iconpack/normalize.js                       -> kırpar, dengeler, drawable
 tools/iconpack/icons.map.js                       -> mantıksal anahtar -> 3dicons adı + Türkçe etiket
 tools/iconpack/mock_previews.js                   -> ekran önizlemeleri (PNG) üretir
 tools/iconpack/sheet.js                           -> tüm setin etiketli sayfası (docs/ikon-seti-onizleme.png)
+tools/iconpack/theme_matrix.js                    -> tema/vurgu uyum sayfası (docs/ikon-tema-uyumu.png)
 third_party/3dicons_LICENSE.txt                   -> CC0 1.0 lisans metni
 third_party/3dicons_NOTICE.txt                    -> ayna depo / Apache-2.0 atıf notu
 docs/IKON_SETI.md                                 -> bu belge
@@ -67,6 +68,7 @@ npm run fetch        # 50 PNG -> raw3d/
 npm run normalize    # 50 ikon -> app/src/main/res/drawable-nodpi (192×192, saydam)
 npm run preview      # ekran önizleme PNG'leri
 npm run sheet        # docs/ikon-seti-onizleme.png
+npm run theme        # docs/ikon-tema-uyumu.png (koyu/AMOLED/açık + 6 vurgu rengi)
 ```
 
 Yeni bir ikon eklemek için:
@@ -170,3 +172,55 @@ ikonudur, "konu" ikonu değil.
   `art = KitsugiArt.X` ile açıkça belirtilir.
 - Aynı varlık birden fazla anahtar tarafından paylaşılabilir (ör. `wifi` → Ağ +
   Eşitleme, `clock` → Geçmiş + Zamanlayıcı, `computer` → Kod + TV).
+
+## Tema ve renk seçimi uyumu
+
+İkon paleti sabittir (cam mor → pembe → turuncu), ama **ekranın rengi kullanıcıya
+göre değişir**. Bu yüzden çizim katmanı üç kurala göre uyarlanır
+(`KitsugiArtIcon`, `ui/icons/KitsugiIconAssets.kt`):
+
+| Durum | Davranış | Neden |
+|---|---|---|
+| Koyu tema (`#080A10`) | Görsel olduğu gibi, ek katman yok | Cam parlaklıkları koyu zeminde zaten okunuyor |
+| AMOLED (`#000000`) | Görsel olduğu gibi | Saf siyahta degrade kontrastı en yüksek |
+| Açık tema (`#F3F4F6` / `#FFFFFF`) | İkonun arkasına **plaka değil**, yumuşak radyal gölge (`%24 → saydam`) | Beyaz cam parlamaları beyaz zeminde kaybolur; gölge ikonu "havada" tutar |
+| Seçili sekme / gezinme | Kullanıcının vurgu renginden **hâle** (`accentGlow = true`) | Vurgu mint, pembe, mor, mavi, yeşil, turuncu ya da özel renk/gradyan olabilir — ikon hangi renk seçilirse onunla çevrelenir |
+| Seçili değilken | `alpha 0.8–0.86` | Seçili/seçili olmayan farkı renk değiştirmeden korunur |
+
+Renk seçici iki renkli **gradyan vurguyu** da desteklediği için hâle, vurgunun *ilk*
+renginden üretilir; sekme çizgisi/rozetler zaten `LocalKitsugiAccentBrush` ile
+gradyanı çiziyor. Böylece ikon ile gradyan aynı ekranda birbirini ezer değil,
+tamamlar. Görsel kanıt: **`docs/ikon-tema-uyumu.png`** (`npm run theme`).
+
+## Nerede 3B, nerede 2B?
+
+Kural: **3B = "konu" ikonu, 2B = "kontrol" glifi.**
+
+- **3B (30 dp satır / 21 dp sekme / 21–24 dp gezinme):** ayar satırları, bölüm
+  başlıkları, oynatıcı sekmeleri, alt gezinme çubuğu, boş durum ekranları, durum
+  rozetleri, indirme/geçmiş/bildirim kartları, hakkında & güncelleme diyalogları.
+- **2B kalır:** kapat, geri, onay, chevron/ok, artı, filtre, sıralama, taşma (⋮),
+  dışa aç — bunlar 12–18 dp'lik kontrol mikro-ikonlarıdır; 3B'ye çevrilince
+  okunmaz, tıklanabilir alanı kirletir. Ayrıca **20 dp altındaki hiçbir boyutta**
+  3B kullanılmaz (kırpılmış 192 px render 16 dp'de lekeye döner).
+
+## Kapsam (bu değişiklikle)
+
+| Alan | Durum |
+|---|---|
+| Ayar satırları (`KitsugiSettingsItem`) | 3B — tek bileşen, tüm diyaloglar dâhil |
+| Oynatıcı ayarları sekme şeridi | 3B + seçili hâle |
+| Alt gezinme çubuğu | 3B + seçili hâle |
+| Ekranlarda doğrudan çizilen ikonlar | 88 çağrı 3B'ye çevrildi (indirmeler, bildirimler, hakkında, yayın takvimi, bölüm listesi, profil, arama, güncelleme, yayın kartları) |
+| Kalan doğrudan çizimler | 136 tanesi küçük aksiyon glifi (kopyala/paylaş/sil/yıldız/beğen, 10–18 dp) — bilinçli 2B |
+
+Yeni bir ekranda 3B ikon gerekiyorsa iki yol var:
+
+```kotlin
+// 1) Satır/başlık gibi ImageVector alan yerlerde:
+KitsugiRowIcon(icon = Icons.Rounded.Download, tint = tint, artSize = 30.dp)
+
+// 2) Doğrudan çizim:
+KitsugiArtIcon(art = KitsugiArt.Download, size = 26.dp)
+KitsugiArtIcon(art = KitsugiArt.NavSettings, size = 24.dp, accentGlow = selected)
+```

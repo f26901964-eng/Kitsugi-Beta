@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.detail
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
@@ -1775,12 +1777,7 @@ private fun TvThemeCard(
                     .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(20.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Play, size = 20.dp)
             }
             Column {
                 Text(

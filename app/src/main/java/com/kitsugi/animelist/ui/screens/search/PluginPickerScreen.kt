@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -268,12 +270,7 @@ fun PluginPickerScreen(
                         tint = KitsugiColors.TextPrimary
                     )
                 }
-                Icon(
-                    imageVector = Icons.Default.Extension,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Extensions, size = 24.dp)
                 Text(
                     text = stringResource(R.string.eklenti_portali),
                     color = KitsugiColors.TextPrimary,
@@ -313,12 +310,7 @@ fun PluginPickerScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.NavSearch, size = 20.dp)
 
                             BasicTextField(
                                 state = pluginQueryState,

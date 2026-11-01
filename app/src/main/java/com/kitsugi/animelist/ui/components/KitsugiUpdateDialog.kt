@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -209,12 +211,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
                 .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Rounded.NewReleases,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(30.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Sparkles, size = 30.dp)
         }
 
         Column(modifier = Modifier.weight(1f)) {
@@ -276,7 +273,6 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
             .fillMaxWidth()
             .weight(1f)
             .clip(RoundedCornerShape(18.dp))
-
             .background(KitsugiColors.SurfaceSoft)
             .border(1.dp, KitsugiColors.Border.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
             .padding(14.dp)
@@ -323,12 +319,7 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
             shape = RoundedCornerShape(14.dp),
             contentPadding = 0.dp
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Download,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Download, size = 20.dp)
             Text(stringResource(R.string.inline_update_now_f5b0013), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
@@ -356,12 +347,7 @@ private fun DownloadingBottomSheetContent(
                 .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Download,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(30.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Download, size = 30.dp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -422,12 +408,7 @@ private fun ReadyToInstallBottomSheetContent(
                 .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Rounded.CheckCircle,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(32.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.CheckCircle, size = 32.dp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -483,12 +464,7 @@ private fun FailedBottomSheetContent(
                 .background(Color(0xFFFF5252).copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Warning,
-                contentDescription = null,
-                tint = Color(0xFFFF5252),
-                modifier = Modifier.size(32.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Warning, size = 32.dp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))

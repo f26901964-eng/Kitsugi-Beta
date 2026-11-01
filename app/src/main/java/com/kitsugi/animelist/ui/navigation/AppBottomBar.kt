@@ -300,7 +300,10 @@ private fun NavTabIcon(
             art = art,
             contentDescription = label,
             size = if (isSelected) 24.dp else 21.dp,
-            alpha = if (isSelected) 1f else 0.86f
+            alpha = if (isSelected) 1f else 0.86f,
+            // Seçili sekmede vurgu renginden hâle: ikon paleti sabit olsa da
+            // kullanıcının seçtiği tema rengiyle (gradyan dâhil) uyum sağlar.
+            accentGlow = isSelected
         )
     } else {
         Icon(

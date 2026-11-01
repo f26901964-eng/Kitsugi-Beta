@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.history
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -95,12 +97,7 @@ fun WatchHistoryScreen(
         if (history.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Icon(
-                        imageVector = Icons.Rounded.History,
-                        contentDescription = null,
-                        tint = KitsugiColors.TextMuted,
-                        modifier = Modifier.size(72.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.History, size = 72.dp)
                     Text(
                         text = stringResource(R.string.inline_you_have_no_watch_history_28cb4be),
                         color = KitsugiColors.TextMuted,

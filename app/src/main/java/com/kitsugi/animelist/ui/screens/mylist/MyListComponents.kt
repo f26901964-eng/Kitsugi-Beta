@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.mylist
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiStickyHeaderReveal
 import androidx.compose.animation.AnimatedVisibility
@@ -648,12 +650,7 @@ fun MyListTabBar(
                     .tvClickable(shape = RoundedCornerShape(14.dp), onClick = onOpenNotifications),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Notifications,
-                    contentDescription = "Bildirimler",
-                    tint = KitsugiColors.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Bell, contentDescription = "Bildirimler", size = 20.dp)
             }
         }
 

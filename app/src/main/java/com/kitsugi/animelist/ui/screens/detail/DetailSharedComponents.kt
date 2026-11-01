@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.components.KitsugiButton
 import com.kitsugi.animelist.ui.components.PlatformErrorCodeChip
 import com.kitsugi.animelist.ui.components.PlatformErrorExplanationBlock
@@ -298,12 +300,7 @@ internal fun AiringCountdownCard(
                     .background(KitsugiColors.Accent.copy(0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Schedule,
-                    contentDescription = null,
-                    tint = KitsugiColors.Accent,
-                    modifier = Modifier.size(20.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Timer, size = 20.dp)
             }
 
             Column {
@@ -368,12 +365,7 @@ internal fun DataUnavailableScreen(
                     .background(KitsugiColors.AccentRed.copy(0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.SearchOff,
-                    contentDescription = null,
-                    tint = KitsugiColors.AccentRed,
-                    modifier = Modifier.size(40.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.NavSearch, size = 40.dp)
             }
 
             Text(

@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.fullscreen.components
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -68,11 +70,7 @@ fun PlaybackEndedOverlay(
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Replay,
-                        contentDescription = stringResource(R.string.yeniden_oynat),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.History, contentDescription = stringResource(R.string.yeniden_oynat), size = 20.dp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.yeniden_oynat), fontWeight = FontWeight.SemiBold)
                 }
@@ -86,11 +84,7 @@ fun PlaybackEndedOverlay(
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = stringResource(R.string.sonraki_bolum),
-                            modifier = Modifier.size(20.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Next, contentDescription = stringResource(R.string.sonraki_bolum), size = 20.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = stringResource(R.string.sonraki_bolum), fontWeight = FontWeight.SemiBold)
                     }

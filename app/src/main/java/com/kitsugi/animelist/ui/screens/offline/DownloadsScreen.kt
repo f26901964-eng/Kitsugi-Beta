@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.offline
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -403,12 +405,7 @@ fun DownloadsScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Rounded.DownloadForOffline,
-                            contentDescription = null,
-                            tint = KitsugiColors.TextMuted,
-                            modifier = Modifier.size(64.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Download, size = 64.dp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.inline_no_videos_have_been_downloaded_89e49a0),
@@ -509,12 +506,7 @@ fun DownloadsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Rounded.Subtitles,
-                                contentDescription = null,
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(64.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.Subtitles, size = 64.dp)
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = stringResource(R.string.inline_no_downloaded_subtitles_found_yet_160c9c9),
@@ -1147,12 +1139,7 @@ fun DownloadItemRow(
                     onClick = onOpenFolder,
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.FolderOpen,
-                        contentDescription = stringResource(R.string.klasoru_ac),
-                        tint = KitsugiColors.AccentBlue,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.Folder, contentDescription = stringResource(R.string.klasoru_ac), size = 20.dp)
                 }
 
                 when (download.status) {
@@ -1301,12 +1288,7 @@ fun SubtitleCardItem(
                     .background(KitsugiColors.AccentOrange.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Subtitles,
-                    contentDescription = null,
-                    tint = KitsugiColors.AccentOrange,
-                    modifier = Modifier.size(22.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Subtitles, size = 22.dp)
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -1391,12 +1373,7 @@ fun SubtitleCardItem(
                     onClick = onOpenFolder,
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.FolderOpen,
-                        contentDescription = stringResource(R.string.klasoru_ac),
-                        tint = KitsugiColors.AccentBlue,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.Folder, contentDescription = stringResource(R.string.klasoru_ac), size = 20.dp)
                 }
 
                 KitsugiAnimatedDeleteButton(

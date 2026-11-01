@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.fullscreen.controls
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -180,12 +182,7 @@ fun EpisodeListDialog(
                                 }
                             }
                             if (isCurrent) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                KitsugiArtIcon(art = KitsugiArt.Play, size = 24.dp)
                             }
                         }
                     }

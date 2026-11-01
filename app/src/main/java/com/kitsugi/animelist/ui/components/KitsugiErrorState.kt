@@ -1,5 +1,7 @@
 ﻿package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -42,12 +44,7 @@ fun KitsugiErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Rounded.ErrorOutline,
-            contentDescription = null,
-            tint = KitsugiColors.AccentRed.copy(alpha = 0.8f),
-            modifier = Modifier.size(72.dp)
-        )
+        KitsugiArtIcon(art = KitsugiArt.Warning, size = 72.dp)
 
         Spacer(modifier = Modifier.height(16.dp))
 

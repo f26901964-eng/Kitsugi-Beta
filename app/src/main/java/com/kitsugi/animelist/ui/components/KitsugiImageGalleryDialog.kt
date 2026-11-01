@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -2006,12 +2008,7 @@ private fun KitsugiGalleryHeader(
                                 .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onShowDetails),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Info,
-                                contentDescription = stringResource(R.string.gallery_details_accessibility),
-                                tint = accentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.Info, contentDescription = stringResource(R.string.gallery_details_accessibility), size = 20.dp)
                         }
                     }
 

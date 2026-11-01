@@ -5,16 +5,22 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 /**
  * Kitsugi 3B ikon seti (ayarlar satırları, sekmeler ve gezinme çubuğu).
@@ -189,22 +195,70 @@ enum class KitsugiArt(
     }
 }
 
-/** Tek bir 3B ikonu çizer (saydam arka plan, kutu doldurma). */
+/**
+ * Tek bir 3B ikonu çizer (saydam arka plan, kutu doldurma) — **tema uyumlu**.
+ *
+ * Uyum kuralları
+ * --------------
+ * - **Koyu tema / AMOLED:** görsel olduğu gibi çizilir. Cam parlaklıkları koyu zeminde
+ *   zaten okunur; ek katman yok (plaka yok, çerçeve yok).
+ * - **Açık tema:** beyaz cam parlamaları beyaz zeminde kaybolduğu için ikonun arkasına
+ *   *plaka değil*, çok yumuşak bir gölge (radyal, %22 → saydam) çizilir. İkon beyaz
+ *   kartta da "havada duran 3B nesne" gibi kalır.
+ * - **Seçili durum** (`accentGlow = true`): kullanıcının seçtiği vurgu renginden çok
+ *   hafif bir hâle. Böylece kullanıcı hangi vurguyu (mint, mor, turuncu, özel renk,
+ *   hatta iki renkli gradyan) seçerse seçsin ikon o renkle çevrelenmiş görünür —
+ *   ikon paleti sabit kalsa da ekranın rengiyle konuşur.
+ * - [alpha] seçili/seçili olmayan geçişlerinde yumuşak solma için kullanılır.
+ */
 @Composable
 fun KitsugiArtIcon(
     art: KitsugiArt,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     size: Dp = 30.dp,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    accentGlow: Boolean = false
 ) {
-    Image(
-        painter = painterResource(art.resId),
-        contentDescription = contentDescription,
-        modifier = modifier.size(size),
-        contentScale = ContentScale.Fit,
-        alpha = alpha
-    )
+    val accent = LocalKitsugiAccent.current
+    val lightSurface = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    // Hâle / gölge fırçaları, vurgu rengi değişmedikçe yeniden üretilmez.
+    val glowBrush = remember(accent) {
+        Brush.radialGradient(
+            0f to accent.copy(alpha = 0.40f),
+            0.55f to accent.copy(alpha = 0.12f),
+            1f to Color.Transparent
+        )
+    }
+    val shadeBrush = remember {
+        Brush.radialGradient(
+            0f to Color.Black.copy(alpha = 0.24f),
+            0.6f to Color.Black.copy(alpha = 0.08f),
+            1f to Color.Transparent
+        )
+    }
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        if (accentGlow || lightSurface) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .drawBehind {
+                        drawCircle(
+                            brush = if (accentGlow) glowBrush else shadeBrush,
+                            radius = this.size.minDimension * if (accentGlow) 0.66f else 0.56f,
+                            center = center
+                        )
+                    }
+            )
+        }
+        Image(
+            painter = painterResource(art.resId),
+            contentDescription = contentDescription,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Fit,
+            alpha = alpha
+        )
+    }
 }
 
 /**

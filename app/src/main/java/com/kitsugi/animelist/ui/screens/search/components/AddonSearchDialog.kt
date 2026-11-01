@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search.components
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -224,12 +226,7 @@ fun AddonSearchDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.ara),
-                            tint = KitsugiColors.TextMuted,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.NavSearch, contentDescription = stringResource(R.string.ara), size = 20.dp)
 
                         BasicTextField(
                             value = query,
@@ -409,12 +406,7 @@ fun AddonSearchDialog(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Extension,
-                                                    contentDescription = "Eklenti",
-                                                    tint = accentColor,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                                KitsugiArtIcon(art = KitsugiArt.Extensions, contentDescription = "Eklenti", size = 24.dp)
 
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
@@ -539,12 +531,7 @@ fun ResultItemCard(
                             .background(Color.Gray.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Extension,
-                            contentDescription = null,
-                            tint = KitsugiColors.TextMuted,
-                            modifier = Modifier.size(36.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Extensions, size = 36.dp)
                     }
                 }
 

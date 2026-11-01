@@ -1,4 +1,6 @@
 ﻿package com.kitsugi.animelist.ui.screens.more
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
@@ -189,12 +191,7 @@ fun AboutScreen(
                         .background(accentColor.copy(alpha = 0.16f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Info,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(40.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.Info, size = 40.dp)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -254,12 +251,7 @@ fun AboutScreen(
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Public,
-                                contentDescription = null,
-                                tint = KitsugiColors.textPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.Integrations, size = 24.dp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
@@ -286,12 +278,7 @@ fun AboutScreen(
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Code,
-                                contentDescription = null,
-                                tint = KitsugiColors.textPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            KitsugiArtIcon(art = KitsugiArt.Code, size = 24.dp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
@@ -616,12 +603,7 @@ fun AboutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Code,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.Code, size = 22.dp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = KitsugiStrings.get(R.string.inline_open_source_libraries_b703dea),
@@ -735,12 +717,7 @@ private fun ReleaseNotesCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Rounded.NewReleases,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(22.dp)
-                )
+                KitsugiArtIcon(art = KitsugiArt.Sparkles, size = 22.dp)
                 Spacer(Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -759,12 +736,7 @@ private fun ReleaseNotesCard(
                     onClick = onRefresh,
                     enabled = state !is ReleaseNotesUiState.Loading
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Refresh,
-                        contentDescription = stringResource(R.string.about_release_notes_refresh),
-                        tint = if (state is ReleaseNotesUiState.Loading) KitsugiColors.textMuted else accentColor,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.Sync, contentDescription = stringResource(R.string.about_release_notes_refresh), size = 20.dp)
                 }
             }
 

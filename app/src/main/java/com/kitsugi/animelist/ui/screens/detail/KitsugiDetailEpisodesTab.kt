@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.kitsugi.animelist.ui.components.KitsugiDetailReveal
@@ -531,12 +533,7 @@ private fun EpisodeRow(
                         .background(KitsugiColors.Background.copy(alpha = 0.35f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.PlayCircle,
-                        contentDescription = stringResource(R.string.oynat),
-                        tint = androidx.compose.ui.graphics.Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    KitsugiArtIcon(art = KitsugiArt.Player, contentDescription = stringResource(R.string.oynat), size = 28.dp)
                 }
             } else {
                 Column(
@@ -607,12 +604,7 @@ private fun EpisodeRow(
             if (download != null) {
                 when (download.status) {
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.QUEUE -> {
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = "Kuyrukta",
-                            tint = KitsugiColors.TextMuted,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Download, contentDescription = "Kuyrukta", size = 22.dp)
                     }
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.DOWNLOADING -> {
                         Box(
@@ -635,28 +627,13 @@ private fun EpisodeRow(
                         }
                     }
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.COMPLETED -> {
-                        Icon(
-                            imageVector = Icons.Rounded.DownloadDone,
-                            contentDescription = stringResource(R.string.indirildi),
-                            tint = KitsugiColors.AccentGreen,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Download, contentDescription = stringResource(R.string.indirildi), size = 22.dp)
                     }
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.ERROR -> {
-                        Icon(
-                            imageVector = Icons.Rounded.Error,
-                            contentDescription = stringResource(R.string.hata),
-                            tint = KitsugiColors.AccentRed,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Warning, contentDescription = stringResource(R.string.hata), size = 22.dp)
                     }
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.PAUSED -> {
-                        Icon(
-                            imageVector = Icons.Rounded.Pause,
-                            contentDescription = stringResource(R.string.duraklatildi),
-                            tint = KitsugiColors.AccentOrange,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Pause, contentDescription = stringResource(R.string.duraklatildi), size = 22.dp)
                     }
                 }
             } else {
@@ -665,22 +642,12 @@ private fun EpisodeRow(
                         onClick = onDownloadClick,
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = stringResource(R.string.indir),
-                            tint = KitsugiColors.TextSecondary,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.Download, contentDescription = stringResource(R.string.indir), size = 22.dp)
                     }
                 }
             }
 
-            Icon(
-                imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = stringResource(R.string.oynat),
-                tint = if (download?.status == com.kitsugi.animelist.data.model.AnimeDownload.Status.COMPLETED) KitsugiColors.AccentGreen else accentColor.copy(alpha = 0.7f),
-                modifier = Modifier.size(22.dp)
-            )
+            KitsugiArtIcon(art = KitsugiArt.Play, contentDescription = stringResource(R.string.oynat), size = 22.dp)
         }
     }
 }

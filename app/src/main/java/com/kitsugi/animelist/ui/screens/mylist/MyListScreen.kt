@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.mylist
 
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -723,12 +725,7 @@ fun MyListScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.FormatListBulleted,
-                            contentDescription = "Kategori",
-                            tint = KitsugiColors.background,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        KitsugiArtIcon(art = KitsugiArt.NavList, contentDescription = "Kategori", size = 20.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = activeStatusLabel,
