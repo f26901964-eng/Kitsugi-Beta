@@ -1500,6 +1500,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         .map { it.trim() }
                         .filter { it.isNotEmpty() }
                         .distinct()
+                    // Bangumi sunucu tarafında "hariç tut" süzgeci yok; dışlanan türler
+                    // istemcide süzülür (bkz. `searchMediaAdvanced(excludedTags = …)`).
+                    val excludedBangumiTags = state.excludedGenres
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .distinct()
                     // Bangumi arama uçları sayfa başına EN FAZLA 20 kayıt döndürür (sunucu limiti
                     // sessizce 20'ye kısar). 24 istenirse offset her sayfada 4 kayıt atlar ve
                     // `size >= 24` kontrolü "sonraki sayfa yok" sonucu verir.
@@ -1572,7 +1578,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 includeAdult = f.nsfw || showAdult,
                                 subjectTypes = subjectTypes,
                                 comicsOnly = scopeComicsOnly,
-                                metaTags = scopeMetaTags
+                                metaTags = scopeMetaTags,
+                                excludedTags = excludedBangumiTags
                             )
                             return Pair(res, res.size >= bangumiPageSize)
                         }

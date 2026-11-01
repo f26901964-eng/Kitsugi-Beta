@@ -102,7 +102,14 @@ object KitsugiBangumiClient {
          * (三次元) içinde dizi ile filmi ayırmanın sunucu tarafındaki tek yolu; `type = 1`
          * içinde manga ile romanı ayırır.
          */
-        metaTags: List<String> = emptyList()
+        metaTags: List<String> = emptyList(),
+        /**
+         * Sunucuda **dışlama** süzgeci yok (v0 `filter.tag` yalnız "içerir").
+         * `GenresTagsSheet`'te bir tür "hariç tut" olarak işaretlendiğinde bu liste dolar ve
+         * süzgeç istemcide uygulanır: kaydın `tags`/`meta_tags` alanı hariç tutulan
+         * etiketlerden birini içeriyorsa kayıt atılır.
+         */
+        excludedTags: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         runCatching {
             searchWithFallback(
@@ -324,8 +331,22 @@ object KitsugiBangumiClient {
                     metaTags = effectiveMetaTags
                 )
             }
+            // Hiçbir etiket sunucunun anladığı yazıma çevrilemediyse **filtresiz liste
+            // döndürmek** "süzgeç uygulanmış" izlenimi verir; boş anahtar kelimede boş
+            // liste daha dürüst (ve sayfalama döngüsünü kırar).
+            if (tags.isNotEmpty() && effectiveTags.isEmpty() && effectiveQuery.isBlank()) {
+                Log.w(TAG, "Bangumi etiketleri çevrilemedi, süzgeçsiz liste döndürülmedi: $tags")
+                return@withContext emptyList()
+            }
+            val excludedNative = excludedTags
+                .mapNotNull { com.kitsugi.animelist.utils.BangumiTagDictionary.canonicalTagFor(it) }
             subjects
                 .filter { BangumiIdNamespace.supportsSubjectType(it.type) }
+                .filter { subject ->
+                    excludedNative.isEmpty() || excludedNative.none { banned ->
+                        subject.tags.contains(banned) || subject.metaTags.contains(banned)
+                    }
+                }
                 // Manga aramasında roman/画集/資料集 kayıtları listeyi kirletiyordu
                 // (2026-10-31 canlı API: "one piece" aramasının 2. sonucu `海贼王 小说` —
                 // platform 小说). `searchManga` ile aynı sözleşme burada da uygulanır:
@@ -560,13 +581,18 @@ object KitsugiBangumiClient {
      * "Bu Sezon" — içinde bulunulan ayın动画条目'ları, yayın tarihine göre.
      * Bangumi'de sezon "kış/ilkbahar/yaz/sonbahar" değil **yıl+ay** ile ifade edilir.
      */
-    suspend fun seasonalAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun seasonalAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         return seasonFor(
             year = calendar.get(Calendar.YEAR),
             month = calendar.get(Calendar.MONTH) + 1,
             limit = limit,
-            context = context
+            context = context,
+            offset = offset
         )
     }
 
@@ -582,25 +608,40 @@ object KitsugiBangumiClient {
             .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
     }.getOrElse { logAndEmpty("seasonFor($year-$month)", it) }
 
-    /** "Şu An Yayında" — bu ay + geçen ay birleşimi (Bangumi'de airing durumu yoktur). */
-    suspend fun airingAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    /**
+     * "Şu An Yayında" — bu ay + geçen ay birleşimi (Bangumi'de airing durumu yoktur).
+     *
+     * `offset` sayfalama için: ilk sayfa (offset = 0) iki ayı birleştirir; sonraki sayfalar
+     * geçerli ayın devamını verir. Parametre olmadığında "Tümünü Gör" sayfası her sayfada
+     * **aynı 20 kaydı** istiyor, liste büyümediği için sayfalama kilitleniyordu.
+     */
+    suspend fun airingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val previous = if (month == 1) (year - 1) to 12 else year to (month - 1)
-        val current = seasonFor(year, month, limit, context)
+        val current = seasonFor(year, month, limit, context, offset)
+        if (offset > 0) return current
         if (current.size >= limit) return current.take(limit)
         val older = seasonFor(previous.first, previous.second, limit - current.size, context)
         return (current + older).distinctBy { it.malId }.take(limit)
     }
 
     /** "Yaklaşan" — gelecek ayın条目'ları. */
-    suspend fun upcomingAnime(limit: Int = 20, context: Context? = null): List<JikanSearchResult> {
+    suspend fun upcomingAnime(
+        limit: Int = 20,
+        context: Context? = null,
+        offset: Int = 0
+    ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
         val month = calendar.get(Calendar.MONTH) + 1
         val next = if (month == 12) (year + 1) to 1 else year to (month + 1)
-        return seasonFor(next.first, next.second, limit, context)
+        return seasonFor(next.first, next.second, limit, context, offset)
     }
 
     /** "Anime Filmleri" — `cat=3` (Movie) alt kategorisi. */

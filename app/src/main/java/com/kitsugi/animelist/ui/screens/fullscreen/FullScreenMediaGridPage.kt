@@ -330,8 +330,8 @@ fun FullScreenMediaGridPage(
             ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset)
             ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset)
             ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset)
-            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit)
-            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit)
+            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit, offset = offset)
+            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit, offset = offset)
             ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset)
             ExploreCategoryType.BANGUMI_TV -> bangumi.realTvShows(limit, offset = offset)
             ExploreCategoryType.BANGUMI_MOVIES -> bangumi.realMovies(limit, offset = offset)
@@ -341,7 +341,12 @@ fun FullScreenMediaGridPage(
             ExploreCategoryType.TOP_RATED_MANGA -> bangumi.topRatedManga(limit, offset = offset)
             ExploreCategoryType.PUBLISHING_MANGA -> bangumi.publishingManga(limit, offset = offset)
             ExploreCategoryType.TRENDING_MANGA -> bangumi.trendingManga(limit, offset = offset)
-            ExploreCategoryType.NEWLY_ADDED_MANGA -> bangumi.publishingManga(limit, offset = offset)
+            // "Yeni Eklenen Mangalar" ile "Yayındaki Mangalar" aynı ucu kullanıyordu
+            // (ikisi de `cat=1001&sort=date`); niyet adı doğru fonksiyona bağlandı.
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> bangumi.newlyAddedManga(limit, offset = offset)
+            // "Noveller & Light Novel" şeridi Keşfet'te doluyor ama "Tümünü Gör" sayfası
+            // `else -> emptyList()` dalına düşüyordu: kullanıcı boş bir tam ekran görüyordu.
+            ExploreCategoryType.NOVELS -> bangumi.novels(limit, offset = offset)
             else -> emptyList()
         }.filter { adult || !it.isAdult }
     }
