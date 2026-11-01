@@ -68,6 +68,7 @@ import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.KitsugiStrings
+import com.kitsugi.animelist.utils.StreamLabelSanitizer
 
 private val WHITESPACE_REGEX = Regex("\\s+")
 private val NON_ALPHANUM_REGEX = Regex("[^a-z0-9]")
@@ -1029,10 +1030,14 @@ fun DownloadItemRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (!download.streamName.isNullOrBlank()) {
+                // Eski indirmelerde eklenti metni HTML/CSS artığı içerebiliyor; gösterirken temizle.
+                val cleanStreamName = remember(download.streamName) {
+                    StreamLabelSanitizer.sanitize(download.streamName)
+                }
+                if (cleanStreamName.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = stringResource(R.string.inline_stream_1_s_038cf7a, download.streamName),
+                        text = stringResource(R.string.inline_stream_1_s_038cf7a, cleanStreamName),
                         color = accentColor,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -1040,10 +1045,13 @@ fun DownloadItemRow(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (!download.streamTitle.isNullOrBlank()) {
+                val cleanStreamTitle = remember(download.streamTitle) {
+                    StreamLabelSanitizer.sanitize(download.streamTitle)
+                }
+                if (cleanStreamTitle.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = download.streamTitle,
+                        text = cleanStreamTitle,
                         color = KitsugiColors.TextMuted,
                         fontSize = 11.sp,
                         maxLines = 1,
