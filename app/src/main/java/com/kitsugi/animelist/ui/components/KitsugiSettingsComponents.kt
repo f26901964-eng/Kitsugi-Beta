@@ -38,6 +38,8 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 
 import androidx.compose.foundation.clickable
+import com.kitsugi.animelist.ui.icons.KitsugiArt
+import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -191,7 +193,8 @@ internal fun KitsugiSettingsSegmentedTabs(
     selectedIndex: Int,
     accentColor: Color,
     onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    preferArtIcons: Boolean = false
 ) {
     if (tabs.isEmpty()) return
 
@@ -312,12 +315,22 @@ internal fun KitsugiSettingsSegmentedTabs(
                             modifier = Modifier.alpha(if (selected) 1f else 0.72f)
                         )
                     } else {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = null,
-                            tint = if (selected) accentColor else KitsugiColors.TextMuted,
-                            modifier = Modifier.size(17.dp)
-                        )
+                        val tabArt = if (preferArtIcons) KitsugiArt.fromVector(tab.icon) else null
+                        if (tabArt != null) {
+                            KitsugiArtIcon(
+                                art = tabArt,
+                                size = 21.dp,
+                                alpha = if (selected) 1f else 0.8f,
+                                accentGlow = selected
+                            )
+                        } else {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = null,
+                                tint = if (selected) accentColor else KitsugiColors.TextMuted,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
