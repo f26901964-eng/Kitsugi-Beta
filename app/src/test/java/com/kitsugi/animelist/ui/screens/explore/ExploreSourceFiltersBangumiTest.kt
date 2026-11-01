@@ -54,6 +54,37 @@ class ExploreSourceFiltersBangumiTest {
         )
     }
 
+    /**
+     * Roman rafı artık Bangumi'de **sunucu tarafında** süzülür: `type=1` kataloğunda romanlar
+     * `meta_tags=小说` ile ayrılır (canlı prob Q4/U5: 539 kayıt). Eskiden bu raf
+     * `shelfSpec()` tarafından tamamen dışlanıyordu; "Tümü" modunda roman ızgarasına tür
+     * çipi uygulandığında Bangumi hiç katkı vermiyordu.
+     */
+    @Test
+    fun `bangumi roman rafinda tur ve siralamayi sunucuda uygular`() {
+        val ids = ExploreSourceFilters.serverGenreIds(ExplorePlatform.BANGUMI, ExploreCategoryType.NOVELS)
+        assertEquals("NOVELS — çip sayısı", 19, ids.size)
+        val sorts = ExploreSourceFilters.serverSorts(
+            ExplorePlatform.BANGUMI,
+            ExploreCategoryType.NOVELS,
+            genreId = "ALL"
+        )
+        assertTrue("NOVELS — SCORE_DESC sunucuda yok", KitsugiGridSortOption.SCORE_DESC in sorts)
+        assertTrue("NOVELS — POPULARITY_DESC sunucuda yok", KitsugiGridSortOption.POPULARITY_DESC in sorts)
+    }
+
+    @Test
+    fun `bangumi manhwa rafini desteklemez`() {
+        // Bangumi'de manhwa/manhua ayrı bir platform yok → raf dışlanır, sahte sonuç üretilmez.
+        assertTrue(
+            ExploreSourceFilters.supportsGenre(
+                ExplorePlatform.BANGUMI,
+                ExploreCategoryType.MANHWA_MANHUA,
+                "ROMANCE"
+            ).not()
+        )
+    }
+
     @Test
     fun `bangumi baslik siralmasini sunucuda desteklemez`() {
         // Bangumi v0'da başlık sıralaması yok → sayfa cihazda sıralar.

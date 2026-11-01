@@ -210,6 +210,7 @@ suspend fun fetchFilteredExplorePage(
             // zamanların sonuçları geliyordu (R23).
             ExplorePlatform.BANGUMI -> bangumiPage(
                 spec = spec,
+                categoryType = categoryType,
                 term = term,
                 sort = effectiveSort,
                 page = page,
@@ -403,6 +404,7 @@ private suspend fun simklPage(
 
 private suspend fun bangumiPage(
     spec: ExploreShelfSpec,
+    categoryType: ExploreCategoryType,
     term: String?,
     sort: KitsugiGridSortOption,
     page: Int,
@@ -433,10 +435,14 @@ private suspend fun bangumiPage(
     // 三次元 kayıtları Bangumi'nin kendi `meta_tags` değeriyle ayrılır (probe F1/F2).
     // `type = 1` (书籍) ise manga + roman + 画集 karışık gelir; "Tümünü Gör" manga ızgarası
     // roman listeliyordu, `漫画` meta etiketi bunu sunucuda ayırır (probe Q1–Q3).
-    val metaTags = when (spec.mediaType) {
-        MediaType.TvShow -> listOf("电视剧")
-        MediaType.Movie -> listOf("电影")
-        MediaType.Manga -> listOf("漫画")
+    // Roman rafı ayrı ele alınır: `type = 1` kataloğunda roman `meta_tags=小说` ile ayrılır ve
+    // `comicsOnly` (varsayılan `true`) manga meta etiketini ekleyip listeyi **boşaltır**.
+    val isNovels = categoryType == ExploreCategoryType.NOVELS
+    val metaTags = when {
+        isNovels -> listOf("小说")
+        spec.mediaType == MediaType.TvShow -> listOf("电视剧")
+        spec.mediaType == MediaType.Movie -> listOf("电影")
+        spec.mediaType == MediaType.Manga -> listOf("漫画")
         else -> emptyList()
     }
     return KitsugiBangumiClient.searchMediaAdvanced(
@@ -448,6 +454,7 @@ private suspend fun bangumiPage(
         tags = listOfNotNull(tag),
         includeAdult = showAdultContent,
         subjectTypes = subjectTypes,
+        comicsOnly = !isNovels,
         metaTags = metaTags,
         // Mevsim → `air_date` çeyreği (probe V1–V5). Yıl aralığı yerine çeyrek aralık
         // gönderilir; sunucu ikisini birlikte alsa da çeyrek daha dar olduğu için kazanır.
@@ -718,9 +725,11 @@ private fun shelfSpec(platform: ExplorePlatform, categoryType: ExploreCategoryTy
             }
         )
         ExplorePlatform.BANGUMI -> if (categoryType == ExploreCategoryType.MANHWA_MANHUA ||
-            categoryType == ExploreCategoryType.NOVELS ||
             categoryType == ExploreCategoryType.UPCOMING_MEDIA_TMDB
         ) null else ExploreShelfSpec(
+            // `NOVELS` de desteklenir: romanlar `type=1` + `meta_tags=小说` ile sunucuda
+            // süzülür (prob Q4/U5). Eskiden bu raf tamamen dışlanıyordu; "Tümü" modunda
+            // roman ızgarasına tür çipi uygulandığında Bangumi hiç katkı vermiyordu.
             mediaType = when (categoryType) {
                 ExploreCategoryType.BANGUMI_TV -> MediaType.TvShow
                 ExploreCategoryType.BANGUMI_MOVIES -> MediaType.Movie
