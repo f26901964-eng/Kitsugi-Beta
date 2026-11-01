@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
@@ -162,9 +163,9 @@ internal fun rememberDownloadsOverviewScrollState(
                 return Offset.Zero
             }
 
-            override suspend fun onPreFling(available: Offset): Offset {
+            override suspend fun onPreFling(available: Velocity): Velocity {
                 policy.endGesture()
-                return Offset.Zero
+                return Velocity.Zero
             }
         }
     }

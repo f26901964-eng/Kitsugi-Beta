@@ -1885,23 +1885,17 @@ private fun DownloadsOverviewCard(
     // değeri indirme bitmeden veya resim/altyazı silinince bayatlamaz.
     val completedCount = remember(downloads) { downloads.count { it.status == AnimeDownload.Status.COMPLETED } }
     val hasActiveDownloads = activeDownloads.isNotEmpty()
-    val freeSpaceBytes by produceState(
-        initialValue = 0L,
-        key1 = downloads.size,
-        key2 = completedCount,
-        key3 = subtitleCount,
-        key4 = imageCount,
-        key5 = hasActiveDownloads
-    ) {
+    var freeSpaceBytes by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(downloads.size, completedCount, subtitleCount, imageCount, hasActiveDownloads) {
         suspend fun readFreeSpace(): Long = withContext(Dispatchers.IO) {
             runCatching {
                 android.os.StatFs(Environment.getExternalStorageDirectory().absolutePath).availableBytes
             }.getOrDefault(0L)
         }
-        value = readFreeSpace()
+        freeSpaceBytes = readFreeSpace()
         while (hasActiveDownloads) {
             delay(5_000L)
-            value = readFreeSpace()
+            freeSpaceBytes = readFreeSpace()
         }
     }
     val remainingMs = if (speed > 0L && activeTotalBytes > activeBytes) {
