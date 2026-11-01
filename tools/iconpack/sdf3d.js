@@ -453,4 +453,4 @@ function norm(v) {
   return [v[0] / n, v[1] / n, v[2] / n];
 }
 
-module.exports = { render, signedDistance, ramp, RAMP, MATERIALS, bboxOf };
+module.exports = { render, signedDistance, smooth, sampler, ramp, RAMP, MATERIALS, bboxOf };

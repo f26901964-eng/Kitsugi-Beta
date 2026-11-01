@@ -5,8 +5,23 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require(path.join(__dirname, 'node_modules', 'sharp'));
-const { GLYPHS, LETTERS } = require(path.join(__dirname, 'control_glyphs.js'));
-const { OBJECTS } = require(path.join(__dirname, 'object_glyphs.js'));
+const I3 = require(path.join(__dirname, 'icons3d.js'));
+
+// ikonun baskın malzemesi: aksan (krem/ekran/krom) dışındaki en çok kullanılan
+function dominantMat(scene) {
+  const skip = new Set(['cream', 'ink', 'chrome']);
+  const count = {};
+  for (const p of scene.parts || []) {
+    if (p.sub) continue;
+    const m = p.mat || 'gloss';
+    if (skip.has(m)) continue;
+    count[m] = (count[m] || 0) + 1;
+  }
+  let best = 'gloss', n = -1;
+  for (const [m, c] of Object.entries(count)) if (c > n) { best = m; n = c; }
+  return best;
+}
+const LETTER_MAT = { textBold: 'clay', textItalic: 'gloss', textTitle: 'clay', textStrike: 'gel' };
 
 const ROOT = path.join(__dirname, '..', '..');
 const RES = path.join(ROOT, 'app', 'src', 'main', 'res', 'drawable-nodpi');
@@ -85,20 +100,17 @@ const WHY = {
 
 function rows() {
   const out = [];
-  for (const [name, spec] of Object.entries(GLYPHS)) {
-    if (spec.rot) {
-      for (const dir of Object.keys(spec.rot)) {
-        out.push({ file: `ic_kitsugi_glyph_${name}_${dir}`, key: `${name}_${dir}`, mat: spec.mat, parts: spec.parts });
-      }
-    } else {
-      out.push({ file: `ic_kitsugi_glyph_${name}`, key: name, mat: spec.mat, parts: spec.parts });
-    }
+  for (const name of Object.keys(I3.ICONS)) {
+    const sc = I3.ICONS[name]();
+    const isObj = I3.OBJ_NAMES && I3.OBJ_NAMES.has(name);
+    out.push({
+      file: `ic_kitsugi_${isObj ? 'obj' : 'glyph'}_${name}`,
+      key: isObj ? `obj_${name}` : name,
+      mat: dominantMat(sc), parts: sc.parts,
+    });
   }
-  for (const [name, spec] of Object.entries(LETTERS)) {
-    out.push({ file: `ic_kitsugi_glyph_${name}`, key: name, mat: spec.mat });
-  }
-  for (const [name, spec] of Object.entries(OBJECTS)) {
-    out.push({ file: `ic_kitsugi_obj_${name}`, key: `obj_${name}`, mat: spec.mat || 'gloss', parts: spec.parts });
+  for (const name of Object.keys(I3.LETTERS)) {
+    out.push({ file: `ic_kitsugi_glyph_${name}`, key: name, mat: LETTER_MAT[name] || 'clay' });
   }
   return out;
 }

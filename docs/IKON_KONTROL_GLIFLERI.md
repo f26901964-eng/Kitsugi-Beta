@@ -314,3 +314,53 @@ Son ölçüm (55 glif, medyan): u=0.44, v=0.19, tepe 0.71, gölge (−0.01, 0.01
 kenar 0.92, doygunluk 0.65 → hedefle fark ≤ 0.07.
 Karşılaştırma görseli: `docs/ikon-gramer-karsilastirma.png`.
 Her orijinalin kişisel imzası: `docs/orijinal-3b-analizi.md` § "Her orijinalin kişisel 3B imzası".
+
+## v11 — Siluet ekstrüzyonu bırakıldı: her ikon kendi 3B sahnesi
+
+v10'a kadar 55 glifin hepsi **aynı hattan** geçiyordu: 2B siluet → kalınlık → gradyan.
+Sonuç, ikon bazında ne kadar malzeme değiştirilse de "aynı hamurdan kesilmiş" duruyordu.
+
+v11'de hat tamamen değişti (`tools/iconpack/scene3d.js` + `tools/iconpack/icons3d.js`):
+
+| # | Adım | Ayrıntı |
+|---|------|---------|
+| 1 | Sahne | Her ikon **kendi ilkelleriyle** kuruluyor: yuvarlatılmış kutu, küre/elipsoid, kapsül, silindir, torus, koni, ekstrüde çokgen |
+| 2 | Birleşim | Parçalar gerektiğinde yumuşak kaynaşır (`k`), gerektiğinde keskin ek yeriyle durur; delik/oyuk için `sub` (CSG) |
+| 3 | Render | Ortografik kameranın 17° üstten baktığı SDF ışın yürütme (320 px → 128/192 px) |
+| 4 | Yüzey | Normal farkından türetilen gerçek 3B normal + SDF ortam örtmesi (AO) + 18 adımlı yumuşak gölge |
+| 5 | Malzeme | 11 malzeme ailesi: mat kil, parlak emaye, jöle, kauçuk, kâğıt, obsidyen, cam, fırçalanmış metal, krom, mürekkep (ekran), krem |
+| 6 | Renk | Orijinallerden **örneklenen** rampa (şeftali → macenta → çivit); ekseni ikon başına farklı, sıcak uç daima üstte |
+| 7 | Sabit renk | Ekran/alev/krem aksanlar rampadan bağımsız (`col`) — her ikonun kendi vurgu rengi |
+
+İkon bazında kurgu örnekleri:
+
+| İkon | Kendi 3B kurgusu |
+|------|------------------|
+| ev | gövde kutusu + **beşik çatı** (ekstrüde üçgen, taşan saçak) + obsidyen kapı + pencere + tokmak + baca |
+| kek | krem tabak + sünger silindiri + jöle krema halkası + 3 mum + 3 alev küresi |
+| kamera | gövde + obsidyen namlu + **krem halka** + koyu mercek + iki parlama noktası + deklanşör + flaş + tutamak |
+| göz | badem sklera (elipsoid) + krem halka + obsidyen iris + bombeli bebek + parlama |
+| huni | koni gövde + krem ağız halkası + boyun + krem uç halkası |
+| TV | kauçuk kabin + **mürekkep ekran** (koyu) + krem ayak ve taban |
+| kronometre | krem çerçeve + kadran + 3 krem işaret + obsidyen ibre + tepe + düğme |
+| ızgara | obsidyen tepsi + 4 mat kil karo |
+| B / I / A / S | maskeden kalın, çok yuvarlatılmış ekstrüzyon (yeni ışık modeliyle) |
+
+### v11 ölçümü (55 glif medyanı) — orijinal 95 render ile
+
+| Ölçüm | Orijinal | v10 | **v11** |
+|---|---|---|---|
+| Parlaklık merkezi u | 0.52 | 0.44 | **0.48** |
+| Parlaklık merkezi v | 0.16 | 0.19 | **0.12** |
+| Tepe parlaklık | 0.74 | 0.71 | **0.71** |
+| Gölge dx / dy | 0.00 / 0.00 | −0.01 / 0.01 | **0.00 / 0.03** |
+| Gölge alfası | 0.28 | 0.28 | **0.28** |
+| Kenar / çekirdek | 0.96 | 0.92 | **0.91** |
+| Gradyan açısı | −92° | −107° | **−91°** |
+| Gradyan şiddeti | 0.42 | 0.35 | **0.38** |
+| Doygunluk | 0.64 | 0.68 | **0.65** |
+| Ortalama parlaklık | 0.411 | — | **0.44** |
+| p5 / p95 parlaklık | 0.193 / 0.704 | — | **0.197 / 0.709** |
+
+Görseller: `docs/ikon-seti-onizleme.png`, `docs/ikon-stil-haritasi.png`,
+`docs/ikon-gramer-karsilastirma.png`, `docs/orijinal-3b-analizi.md`.
