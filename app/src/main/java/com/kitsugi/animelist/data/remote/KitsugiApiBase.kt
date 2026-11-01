@@ -2,7 +2,9 @@ package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -364,7 +366,14 @@ object KitsugiApiBase {
             }
 
             val currentToken = if (tokenFailed) null else token
-            val call = performAniListRequest(requestBody, currentToken)
+            // performAniListRequest içindeki OkHttp `execute()` BLOKLAYAN bir çağrıdır.
+            // Bu fonksiyon `suspend` olduğu için çağıran taraf `viewModelScope.launch { }`
+            // (Main dispatcher) gibi bir bağlamda olabilir; o durumda ağ çağrısı ana
+            // iş parçacığında yapılır → NetworkOnMainThreadException ve donma (ANR).
+            // 56 çağrı yerinin tamamını tek seferde güvenceye almak için gövde IO'ya alınır.
+            val call = withContext(Dispatchers.IO) {
+                performAniListRequest(requestBody, currentToken)
+            }
 
             // 2) Taşıma hatası (timeout / DNS / socket)
             if (call.error != null) {

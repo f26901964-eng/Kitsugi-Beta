@@ -150,6 +150,17 @@ object AniListGovernor {
             val plan = synchronized(lock) { planLocked() }
             when (plan) {
                 is Plan.Go -> {
+                    // maxWaitMs SINIRI BURADA DA GEÇERLİ OLMALI.
+                    // Kota tükendiğinde (remaining ≤ 1) plan, sıradaki slotu
+                    // `X-RateLimit-Reset` anına kaydırır — bu 60 sn'ye kadar
+                    // çıkabilir. Eski kod bu beklemeyi SINIRSIZ yapıyordu:
+                    // `maxWaitMs` yalnızca Plan.Stop (429 soğuması) kolunda
+                    // kontrol ediliyordu. Sonuç: arka planda bir liste içe
+                    // aktarımı varken açılan Keşfet/detay/profil sorguları
+                    // onlarca saniye askıda kalıyor, ekran hiç dolmuyordu.
+                    if (plan.waitMs > maxWaitMs) {
+                        return Gate.Blocked(BlockedReason.RATE_LIMITED, plan.waitMs)
+                    }
                     if (plan.waitMs > 0L) sleepQuietly(plan.waitMs)
                     return Gate.Proceed
                 }
@@ -175,6 +186,13 @@ object AniListGovernor {
             val plan = synchronized(lock) { planLocked() }
             when (plan) {
                 is Plan.Go -> {
+                    // Yukarıdaki bloklayan sürümdeki gerekçeyle aynı: kota penceresi
+                    // yenilenene kadar bekleyen slot, çağıranın `maxWaitMs` sabrını
+                    // aşamaz. Aşarsa "şu an meşgul" olarak geri döner; UI yedek
+                    // zincire düşer, askıda kalmaz.
+                    if (plan.waitMs > maxWaitMs) {
+                        return Gate.Blocked(BlockedReason.RATE_LIMITED, plan.waitMs)
+                    }
                     if (plan.waitMs > 0L) delay(plan.waitMs)
                     return Gate.Proceed
                 }

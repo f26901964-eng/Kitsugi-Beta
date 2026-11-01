@@ -174,11 +174,15 @@ object AniListImportManager {
         )
 
         val viewer = JSONObject(response)
-            .getJSONObject("data")
-            .getJSONObject("Viewer")
+            .optJSONObject("data")
+            ?.optJSONObject("Viewer")
+            ?: throw AniListAuthException(
+                "AniList kullanıcı bilgisi alınamadı (oturum geçersiz olabilir)"
+            )
 
         return ViewerInfo(
-            userId = viewer.getInt("id"),
+            userId = viewer.optInt("id", 0).takeIf { it > 0 }
+                ?: throw AniListAuthException("AniList kullanıcı kimliği alınamadı"),
             name = viewer.optNullableString("name") ?: "Bilinmeyen",
             avatarUrl = viewer.optJSONObject("avatar")?.optNullableString("large")
         )
@@ -258,7 +262,18 @@ object AniListImportManager {
             }
         """.trimIndent()
 
-        while (hasNextPage) {
+        // ── Sonsuz döngü koruması ──────────────────────────────────────────────
+        // AniList zaman zaman SON sayfada `pageInfo.hasNextPage = true` gönderip
+        // BOŞ bir `mediaList` döndürür. Eski kod yalnızca `hasNextPage`'e bakıyordu:
+        // boş sayfaları sonsuza kadar istemeye devam ediyor, her turda kotadan
+        // yiyordu. Sonuç: içe aktarım hiç bitmiyor ve kullanıcı ekranda kalıcı
+        // olarak "AniList istek sınırı doldu" görüyordu.
+        //   • sayfa tavanı (200 × 50 = 10.000 kayıt): gerçek bir liste için yeterli
+        //   • üst üste 2 boş sayfa: akış bitti demektir, dur
+        val MAX_PAGES = 200
+        var emptyPageStreak = 0
+
+        while (hasNextPage && page <= MAX_PAGES) {
             val variables = JSONObject()
                 .put("userId", userId)
                 .put("page", page)
@@ -291,6 +306,21 @@ object AniListImportManager {
                 .getBoolean("hasNextPage")
 
             val mediaList = pageObj.getJSONArray("mediaList")
+
+            // Boş sayfa sayacı: AniList "hasNextPage: true" diyorsa ama kayıt
+            // göndermiyorsa akış gerçekte bitmiştir.
+            if (mediaList.length() == 0) {
+                emptyPageStreak++
+                if (emptyPageStreak >= 2) {
+                    android.util.Log.w(
+                        "AniListImport",
+                        "$mediaType: üst üste 2 boş sayfa (sayfa $page) — içe aktarım sonlandırıldı."
+                    )
+                    break
+                }
+            } else {
+                emptyPageStreak = 0
+            }
 
             for (index in 0 until mediaList.length()) {
                 val item = mediaList.getJSONObject(index)
@@ -612,8 +642,11 @@ object AniListImportManager {
             )
 
             val viewer = JSONObject(response)
-                .getJSONObject("data")
-                .getJSONObject("Viewer")
+                .optJSONObject("data")
+                ?.optJSONObject("Viewer")
+                ?: throw AniListAuthException(
+                    "AniList profil bilgisi alınamadı (oturum geçersiz olabilir)"
+                )
 
             AniListUserProfile(
                 name = viewer.optNullableString("name") ?: KitsugiStrings.get(R.string.ui_profile_anilist_fallback),

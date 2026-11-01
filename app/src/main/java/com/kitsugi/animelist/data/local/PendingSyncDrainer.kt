@@ -108,10 +108,22 @@ object PendingSyncDrainer {
 
             result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             val syncResult = result.getOrNull()
-            // Yalnızca gerçek hata yeniden denemeyi haklı çıkarır; "kimlik çözülemedi"
-            // (atlandı) durumları kuyrukta sonsuza kadar dönmez.
-            val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty() &&
-                (syncResult.messages.isNotEmpty() || syncResult.skipped.isNotEmpty())
+
+            // ── Başarı tanımı DÜZELTİLDİ ────────────────────────────────────────
+            // ESKİ koşul: `errors.isEmpty() && (messages VEYA skipped dolu)`.
+            // Yani senkron HİÇBİR ŞEY YAPMADIĞINDA (ör. kullanıcı AniList/MAL
+            // eşitlemesini kapattı → tüm outcomes OUTCOME_DISABLED; ya da kayıt
+            // desteklenmeyen tür olduğu için atlandı) hem `messages` hem `skipped`
+            // BOŞ kalıyor ve iş BAŞARISIZ sayılıyordu. Sonuç: iş 5 deneme hakkını
+            // birkaç saniyede tüketip `retryCount >= MAX_RETRIES` ile kuyrukta
+            // ÖLÜ olarak kalıyor, silinmiyor ama bir daha da denenmiyordu.
+            // Kullanıcının ekranındaki "1 değişiklik gönderilecek" uyarısı bu
+            // yüzden HİÇ KAYBOLMUYORDU.
+            //
+            // Doğru kural: ortada GERÇEK bir hata yoksa iş kuyruktan düşer.
+            // Yapacak bir şey kalmadıysa (kapalı / atlandı) yeniden denemek
+            // anlamsızdır — sonsuz "bekleyen değişiklik" üretmemelidir.
+            val success = result.isSuccess && syncResult != null && syncResult.errors.isEmpty()
 
             if (success) {
                 dao.deleteById(item.id)

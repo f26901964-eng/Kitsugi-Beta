@@ -173,7 +173,11 @@ object ExternalListSyncManager {
                 skipped.add(context.getString(R.string.cross_sync_reason_identity_unverified, realMalId.toString()))
             } else {
                 runSyncCatching {
-                    PlatformRateLimiter.acquire("anilist")
+                    // PlatformRateLimiter.acquire("anilist") KASITLI OLARAK YOK:
+                    // o çağrı zaten AniListGovernor'a devredilmiş durumda ve hemen
+                    // ardından updateAniListEntry → postAniList kendi slotunu alıyor.
+                    // İkisi birlikte her yazmada İKİ slot (≈4,4 sn) harcıyordu;
+                    // 30 istek/dk kotasında bu, yazma hızını yarıya indiriyordu.
                     AniListSyncManager.updateAniListEntry(
                         token = aniListToken,
                         entry = remoteEntry,
@@ -570,7 +574,8 @@ object ExternalListSyncManager {
 
             if (syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga && allowFanOut && !crossWriteBlocked("anilist")) {
                 runSyncCatching {
-                    PlatformRateLimiter.acquire("anilist")
+                    // Aynı gerekçe (çift slot): silme yolunda da yalnızca
+                    // deleteAniListEntry içindeki postAniList slot alır.
                     AniListSyncManager.deleteAniListEntry(
                         token = aniListToken,
                         entry = remoteEntry,

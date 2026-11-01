@@ -453,20 +453,25 @@ object AniListSyncManager {
         }
         val realMalId = MediaIdentity.realMalId(entry)
         val nativeAniListId = MediaIdentity.aniListId(entry)
-        val verifiedTitleAliases = if (nativeAniListId != null) {
-            CrossSyncIdentityGuard.aliasesOf(entry)
-        } else {
-            if (realMalId == null) return null
-            val malVerdict = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                CrossSyncIdentityGuard.verifyMalId(
-                    malId = realMalId,
-                    mediaType = entry.type,
-                    localTitles = CrossSyncIdentityGuard.aliasesOf(entry),
-                    localYear = entry.year
-                )
-            } as? CrossSyncIdentityGuard.Verdict.Verified ?: return null
-            malVerdict.matchedLocalTitles
-        }
+        // ── MAL kapısı KALDIRILDI ────────────────────────────────────────────────
+        // ESKİ KOD: `nativeAniListId == null` ise CrossSyncIdentityGuard.verifyMalId
+        // çağırıyordu. O fonksiyon da MAL'ın RESMÎ API'sine (api.myanimelist.net)
+        // gidip başlık/tür/yıl doğrulaması yapıyor. Yani ANILIST'E YAZMAK, MAL
+        // SERVİSİNİN AYAKTA OLMASINA BAĞIMLIYDI:
+        //   • MAL 429/5xx döndüğünde (ki çok sık),
+        //   • MAL_CLIENT_ID yapılandırılmadığında/boş olduğunda,
+        //   • ya da ağ MAL'a erişemediğinde
+        // `fetchRemoteIdentity` null dönüyor → Verdict.Unverifiable → burası
+        // `return null` ile çıkıyor → AniList'e yazma TAMAMEN atlanıyordu.
+        // Kullanıcının gördüğü: "listeye ekleme/çıkarma/güncelleme çalışmıyor" —
+        // oysa AniList servisi sapasağlamdı, sadece MAL'a sorulamıyordu.
+        //
+        // AniList'e yazarken kimliği ANILIST'İN KENDİ KAYDI doğrulamalıdır; bunu
+        // zaten aşağıdaki verifyAniListMediaIdentityCached yapıyor (idMal + başlık
+        // havuzu + yıl). Ayrıca bu, yazma başına bir de MAL isteği atmayı
+        // kaldırdığı için kotayı da yarıya indirir.
+        if (nativeAniListId == null && realMalId == null) return null
+        val verifiedTitleAliases = CrossSyncIdentityGuard.aliasesOf(entry)
         val rawKitsuId = MediaIdentity.kitsuId(entry)
 
         // A stored AniList media ID is source-native but still checked against type/title/year before add/favorite writes.
