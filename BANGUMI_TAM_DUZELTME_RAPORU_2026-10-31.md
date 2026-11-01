@@ -5,9 +5,9 @@
 **Uygulama sürümü:** `2.4.340-beta.<versionCode>` (`appVersionName = "2.4.340"`)
 **Kapsam:** Bangumi'nin (bgm.tv) beslediği **tüm** yüzeyler — Keşfet şeritleri, "Tümünü Gör"
 ızgaraları, Arama, detay sekmeleri, kütüphane/eşitleme ve hata gösterimi.
-**Son güncelleme:** 1 Kasım 2026 — dördüncü yuvarlak (`S`–`V` blokları) ile **arama sayfası,
-filtre sheet'i ve "Tümünü Gör" filtre bölümü** çip çip denetlendi; 11 yeni sözleşme hatası
-(R17–R27) canlı API ölçümleriyle bulunup düzeltildi. En son doğrulama: `a7b8734` —
+**Son güncelleme:** 1 Kasım 2026 — dördüncü (`S`–`V`) ve beşinci (`W`) yuvarlak: **arama
+sayfası, filtre sheet'i ve "Tümünü Gör" filtre bölümü** çip çip denetlendi; 12 yeni sözleşme
+hatası (R17–R28) canlı API ölçümleriyle bulunup düzeltildi. En son doğrulama: `977d42f` —
 Kotlin derleme + **tam birim test seti (1482 test, filtre yok)** + R8/APK doğrulaması +
 canlı prob **tümü yeşil** (§6).
 
@@ -52,8 +52,8 @@ Bangumi aramasında **"Diziler"/"Filmler" kapsamı hiç yok**, "Tümünü Gör" 
 sıralamaları "yerel" diye işaretliyordu. Hepsi canlı API ölçümleriyle düzeltildi (§4.6).
 
 Dördüncü yuvarlakta kullanıcının üç kez üstünde durduğu bölgeler (arama sayfası, filtre
-sheet'i, "Tümünü Gör" filtre bölümü) tek tek denetlendi ve **on bir yeni hata** bulundu
-(R17–R27): "Tümünü Gör"de kullanıcının seçtiği sıralama tür çipi yoksa `rank`'e zorlanıyordu;
+sheet'i, "Tümünü Gör" filtre bölümü) tek tek denetlendi ve **on iki yeni hata** bulundu
+(R17–R28): "Tümünü Gör"de kullanıcının seçtiği sıralama tür çipi yoksa `rank`'e zorlanıyordu;
 `meta_tags` süzgeci `hasSearchFilters`'a sayılmadığı için istek etiketsiz göz atma ucuna
 gidiyordu (manga ızgarası roman listeliyordu); "📱 yerel" tür süzgeci Bangumi'nin Çince
 etiketleriyle hiç eşleşmediği için **her zaman boş** liste veriyordu; yayındaki/yaklaşan
@@ -63,13 +63,16 @@ tamamen düşüyordu** (Bangumi'de sezon alanı yok → `air_date` çeyreğine �
 mevsimsel ızgarada tür çipi seçilince mevsim kayboluyor, "Bu Sezon" rafı bir mevsimin yalnız
 bir ayını gösteriyor ve mevsimsel sıralama hiç uygulanmıyordu; tür/etiket sheet'i yıl/mevsim/puan
 süzgeçlerini siliyordu; "Noveller & Light Novel" ızgarası filtrelenmiş sayfadan tamamen
-düşüyordu (roman kataloğu artık `meta_tags=["小说"]` ile sunucuda süzülür). Hepsi düzeltildi,
-birim testleriyle sabitlendi (§5, §6).
+düşüyordu (roman katalogu artık `meta_tags=["小说"]` ile sunucuda süzülür); arama sayfasının
+**Karakter/Personel** sekmelerinde Bangumi satırına tıklamak AniList kimliğiyle **başka bir
+karakteri** açıyordu (kaynak uçtan uca taşınır hâle getirildi — persons/characters uçları ve
+`career` değerleri canlı `W` problarıyla doğrulandı). Hepsi düzeltildi, birim testleriyle
+sabitlendi (§5, §6).
 
 Düzeltmeler sonrası `:app:compileFossDebugKotlin` **başarıyla** derleniyor, **tam birim test
 seti** (filtresiz `:app:testFossDebugUnitTest`, 1480 test) `exit=0` ile geçiyor
-(çalışma `41297747164`, commit `a7b8734`), R8/APK doğrulaması (`41297747235`) ve canlı API
-matrisi (`41297747117`) yeşil (bkz. §4, §6).
+(çalışma `41301075659`, commit `977d42f`), R8/APK doğrulaması (`41301075619`) ve canlı API
+matrisi (`41301075542`) yeşil (bkz. §4, §6).
 
 ---
 
@@ -103,6 +106,7 @@ matrisi (`41297747117`) yeşil (bkz. §4, §6).
 | "Bu Sezon" rafı bir mevsimin yalnız **bir ayını** listeliyordu | R24: `seasonalAnime()` → `seasonFor(year, buAy)` | Takvim çeyreği + `heat` sıralaması; boş dönerse ay bazlı göz atmaya düşer |
 | Mevsimsel ızgaranın "Puana / İlgiye göre" sıralaması Bangumi'de hiç uygulanmıyordu | R26: `fetchSeasonalPage` `seasonalSort`'u okumuyordu (hep ay-göz-atma sırası) | `SCORE_DESC → score`, `MEMBERS/POPULARITY_DESC → heat`, diğerleri `rank` |
 | Tür/etiket sheet'inde bir çip daha ekleyince kullanıcının yıl/mevsim/puan süzgeçleri **siliniyordu** | R25: `SearchFilters` yalnız tür/etiket taşıdığı için `updateFilters` diğer alanları `null`'a çekiyordu (TMDB tür diyaloğunda da aynı) | Sheet'ten gelen değerler mevcut durumla birleştirilir (yalnız düzenlenen alanlar yazılır) |
+| Arama → **Karakter**/**Personel** sekmesinde Bangumi sonucuna tıklayınca **başka bir karakter** açılıyor (ya da boş sayfa) | R28: `SearchScreen` tıklama geri çağrıları kaynağı hiç taşımıyordu; navigasyon `source = "anilist"` sabitliydi. Bangumi karakter id'si AniList kimlik uzayında aranıyordu | Satırın kaynağı (`bangumi`/`mal`/`kitsu`/`anilist`) uçtan uca taşınır; detay ekranı doğru istemciyi çağırır |
 | "Noveller & Light Novel" ızgarasına tür çipi uygulandığında Bangumi hiç katkı vermiyordu | R27: `shelfSpec(BANGUMI, NOVELS) = null`, yani bu raf filtrelenmiş sayfada eleniyordu; tür süzgeci cihazda Çince etiketlerle eşleşmiyordu | Roman kataloğu `type=1` + `meta_tags=["小说"]` + `comicsOnly=false` ile **sunucuda** süzülür (prob Q4/U5) |
 
 ---
@@ -357,6 +361,25 @@ gösterir:
 > birleşiminin AND semantiğiyle süzüldüğünü doğruluyor. Mevsim artık hem detay facetinde,
 > hem "Tümünü Gör" mevsimsel ızgarasında, hem "Bu Sezon" rafında aynı çeviriyle uygulanıyor.
 
+**W — arama sayfasının Karakter/Personel sekmeleri (2. yuvarlak):**
+
+`POST /v0/search/characters` ve `POST /v0/search/persons` uçları ile filtre sayfasındaki
+meslek (`career`) çiplerinin sunucudaki karşılıkları **canlı** doğrulandı:
+
+| Sorgu | Sonuç |
+|---|---|
+| `W1` persons `{"keyword":"花泽香菜"}` | 200; 4765 花澤香菜 `career artist,seiyu` |
+| `W2` persons + `career:["seiyu"]` | 200, **175**; yalnız `seiyu` içeren kişiler |
+| `W3` persons + `career:["mangaka"]` `尾田荣一郎` | 200, **1**; 290 尾田栄一郎 `mangaka` |
+| `W4` persons + `career:["illustrator"]` | 200, **43**; illustrator'lar |
+| `W5` persons + `type:[2]` (şirket) `MAPPA` | 200, **5**; 7357 MAPPA |
+| `W6` characters `Saber` | 200, **59**; 179271 セイバー |
+| `W7` characters `鲁路修` | 200, **1000**; 1 ルルーシュ・ランペルージ |
+
+> Yani sekmelerin **veri yolu** sağlam; sorun yalnızca tıklamada kaynağın kaybolmasıydı (R28).
+> `career` değerleri (`seiyu`, `mangaka`, `illustrator`, `producer`…) sunucuda birebir kabul
+> ediliyor — filtre sheet'indeki çipler doğru.
+
 **Q — sunucu tarafı `meta_tags` süzgeci:**
 
 | Sorgu | Sonuç |
@@ -449,6 +472,7 @@ gösterir:
 | "Tümü" rafında dizi/film `meta_tags` ile ayrıştırılır | R15/R21 |
 | `supportsDetailFilter`: dizi/film yıl facetinde Bangumi de destekler | Yıl süzgeci `type=6`'da çalışıyor (probe A6/U4) |
 | Detay facetindeki mevsim `BangumiSpecificFilters.season/seasonYear`'a yazılır | R22 — mevsim tamamen düşüyordu |
+| Karakter/Personel satırları tıklanınca **satırın kaynağı** detay ekranına taşınır | R28 — Bangumi karakteri AniList kimliğiyle açılıyordu |
 | "Tümü" motorunda da mevsim + dışlanan türler Bangumi'ye iletilir | R22/R21 |
 
 ### 5.6 `ui/screens/explore/ExploreViewModel.kt`
@@ -505,6 +529,10 @@ gösterir:
 | Kotlin derleme + Bangumi testleri (roman rafı düzeltmesi sonrası) | **success** (çalışma `41297747164`, commit `a7b8734`) |
 | **TAM birim test seti** (filtresiz, 1482 test) | **BUILD SUCCESSFUL**, 22 dk 11 sn, `exit=0` (commit `a7b8734`) |
 | APK doğrulama + canlı API probu | **success** (`41297747235`, `41297747117`, commit `a7b8734`) |
+| Kotlin derleme + Bangumi testleri (R28 sonrası) | **success** (çalışma `41301075659`, commit `977d42f`) |
+| **TAM birim test seti** (filtresiz, 1482 test) | **BUILD SUCCESSFUL**, 23 dk 54 sn, `exit=0` (commit `977d42f`) |
+| APK doğrulama (debug + R8 release + DEX) | **success** (çalışma `41301075619`, commit `977d42f`) |
+| Canlı API probu (W blokları: persons/characters/career) | **success** (çalışma `41301075542`, commit `977d42f`) |
 
 **Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
 `41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
@@ -637,21 +665,24 @@ indirilemediği için günlük doğrudan depoya işlendi).
 ```
 app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt              +212/-21
 app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt        +403/-62
+app/src/main/java/com/kitsugi/animelist/AppRoot.kt                                  +18/-4
+app/src/main/java/com/kitsugi/animelist/AppRootTabPages.kt                           +5/-4
 app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiRankingBottomSheet.kt  +26/-4
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +120/-37
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +102/-34
 app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt       +15/-1
 app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt +39/-13
 app/src/main/java/com/kitsugi/animelist/ui/screens/search/DetailSearchFilterRequest.kt  +5/-1
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchScreen.kt            +24/-3
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchScreen.kt            +34/-7
 app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt     +16/-2
 app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt        +166/-14
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SourceSearchPage.kt         +2/-2
 app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt               +103/-4
 app/src/test/java/.../data/remote/BangumiSeasonRangeTest.kt                          +60  (yeni)
 app/src/test/java/.../utils/BangumiTagCanonicalizationTest.kt                        +80  (yeni)
-app/src/test/java/.../explore/ExploreSourceFiltersBangumiTest.kt                     +95  (yeni)
+app/src/test/java/.../explore/ExploreSourceFiltersBangumiTest.kt                    +100  (yeni)
 app/src/test/java/.../search/SearchRelevanceTest.kt                                  +12/-2 (güncellendi)
-# toplam: 15 dosya, +1363 / -161   (`git diff --numstat c320ff6 -- app/src`)
-probe/result.txt                            (canlı API kanıtı, A–V blokları)
+# toplam: 18 dosya, +1398 / -175   (`git diff --numstat c320ff6 -- app/src`)
+probe/result.txt                            (canlı API kanıtı, A–W blokları)
 probe/kotlin_log.txt                        (derleme + Bangumi test günlüğü)
 probe/test_log.txt                          (TAM birim test seti, filtre yok)
 ```
