@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5394df75ebf3c7d-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53950070c66aced-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -234,7 +234,7 @@ total: 362 limit: 3 offset: 0
  - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
  - 93739 t2 | 乒乓 | score 8.7 rank 23 votes 17834 | mt TV,日本,运动 | platform TV
  - 67753 t2 | 明日之丈2 | score 8.7 rank 30 votes 940 | mt TV,日本,漫画改 | platform TV
-K 超能力    HTTP 200 total: 252 veri: 1
+K 超能力    HTTP 200 total: 251 veri: 1
 K 心理战    HTTP 200 total: 1 veri: 1
 K 智斗       HTTP 200 total: 149 veri: 1
 K サイコスリラー HTTP 200 total: 0 veri: 0
@@ -259,7 +259,7 @@ O 搞笑       HTTP 200 total: 1000 veri: 3
 total: 1000 limit: 3 offset: 0
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14325 | mt TV,原创,美国 | platform TV
  - 110467 t2 | 白箱 | score 8.7 rank 13 votes 23679 | mt 百合,TV,日本 | platform TV
- - 11834 t2 | 银魂' | score 8.7 rank 19 votes 13871 | mt TV,日本,漫画改 | platform TV
+ - 11834 t2 | 银魂' | score 8.7 rank 19 votes 13872 | mt TV,日本,漫画改 | platform TV
 O 奇幻       HTTP 200 total: 1000 veri: 3
 total: 1000 limit: 3 offset: 0
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14325 | mt TV,原创,美国 | platform TV
@@ -289,7 +289,7 @@ O 冒险       HTTP 200 total: 1000 veri: 3
 total: 1000 limit: 3 offset: 0
  - 311 t2 | 千与千寻 | score 8.6 rank 28 votes 27955 | mt 剧场版,日本,奇幻 | platform 剧场版
  - 518519 t2 | 航海王：粉丝来信 | score 8.6 rank 37 votes 4401 | mt TV,日本,小说改 | platform TV
- - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36801 | mt TV,日本,奇幻 | platform TV
+ - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36802 | mt TV,日本,奇幻 | platform TV
 O 灵异       HTTP 200 total: 48 veri: 3
 total: 48 limit: 3 offset: 0
  - 2896 t2 | ×××HOLiC◆继 | score 7.9 rank 319 votes 3265 | mt TV,日本,奇幻 | platform TV
@@ -299,7 +299,7 @@ O 心理       HTTP 200 total: 25 veri: 3
 total: 25 limit: 3 offset: 0
  - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22295 | mt 科幻,剧场版,机战 | platform 剧场版
  - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
- - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34781 | mt 科幻,机战,TV | platform TV
+ - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34782 | mt 科幻,机战,TV | platform TV
 O 运动       HTTP 200 total: 362 veri: 3
 total: 362 limit: 3 offset: 0
  - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
@@ -314,7 +314,7 @@ O 机战       HTTP 200 total: 644 veri: 3
 total: 644 limit: 3 offset: 0
  - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22295 | mt 科幻,剧场版,机战 | platform 剧场版
  - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4116 | mt 科幻,剧场版,日本 | platform 剧场版
- - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34781 | mt 科幻,机战,TV | platform TV
+ - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34782 | mt 科幻,机战,TV | platform TV
 O 音乐       HTTP 200 total: 468 veri: 3
 total: 468 limit: 3 offset: 0
  - 25961 t2 | 猫和老鼠（1965年电视版） | score 9.1 rank 3 votes 14325 | mt TV,原创,美国 | platform TV
@@ -417,10 +417,10 @@ total: 539 limit: 5 offset: 0
  - 113242 t1 | 魔戒 | score 9 rank 14 votes 375 | mt 小说,原创,系列 | platform 小说
 K 异世界    HTTP 200 total: 809 veri: 1
 K 魔法       HTTP 200 total: 360 veri: 1
-K 超能力    HTTP 200 total: 252 veri: 1
+K 超能力    HTTP 200 total: 251 veri: 1
 K 生存       HTTP 200 total: 19 veri: 1
 K 赛博朋克 HTTP 200 total: 62 veri: 1
-K 武侠       HTTP 200 total: 233 veri: 1
+K 武侠       HTTP 200 total: 232 veri: 1
 K 宇宙       HTTP 200 total: 38 veri: 1
 K 末世       HTTP 200 total: 96 veri: 1
 K 吸血鬼    HTTP 200 total: 103 veri: 1
@@ -552,7 +552,7 @@ total: 360 limit: 3 offset: 0
  - 19525 t2 | 缎带魔法少女 | score 6.8 rank 0 votes 37 | mt TV,日本,漫画改 | platform TV
 ===== S '超能力' =====
 HTTP 200
-total: 252 limit: 3 offset: 0
+total: 251 limit: 3 offset: 0
  - 4210 t2 | 煌罗万象 | score 5.4 rank 0 votes 33 | mt  | platform WEB
  - 19040 t2 | 地球守护者21 | score 6.2 rank 0 votes 43 | mt 日本,OVA,原创 | platform OVA
  - 37255 t2 | 超能机甲高巴里安 | score 5.5 rank 0 votes 19 | mt TV,日本 | platform TV
@@ -570,7 +570,7 @@ total: 62 limit: 3 offset: 0
  - 318867 t2 | 虹棉 | score 4.1 rank 0 votes 7 | mt 短片,中国 | platform 其他
 ===== S '武侠' =====
 HTTP 200
-total: 233 limit: 3 offset: 0
+total: 232 limit: 3 offset: 0
  - 20032 t2 | 兔侠传奇 | score 5.3 rank 0 votes 32 | mt 剧场版 | platform 剧场版
  - 25631 t2 | 神兵小将：电影版 | score 5.9 rank 0 votes 20 | mt 喜剧,剧场版,奇幻 | platform 剧场版
  - 48811 t2 | 狐仙记 | score 5.5 rank 0 votes 26 | mt OVA | platform OVA
