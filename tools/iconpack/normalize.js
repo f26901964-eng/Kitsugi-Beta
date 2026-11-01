@@ -1,4 +1,4 @@
-// Fluent 3D PNG'lerini Android drawable-nodpi'ye normalize eder.
+// 3Dicons (CC0) render'larını Android drawable-nodpi'ye normalize eder.
 // - saydam kenarları kırpar (trim)
 // - her ikonu aynı optik kutuya oturtur (192px tuval, %92 doldurma)
 // sharp, tools/iconpack içinde `npm install sharp` ile kurulur; yoksa geliştirme
@@ -11,12 +11,17 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const SRC = path.join(ROOT, 'raw');
+const SRC = path.join(ROOT, 'raw3d');
 const DST = path.join(ROOT, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
 const CANVAS = 192;
 const FILL = 0.92;
 // Koyu temada kaybolan varlıklar için hafif parlaklık düzeltmesi (optik dengeleme).
-const BRIGHTEN = { nav_profile: 1.06, decoder: 1.10, player: 1.12 };
+const BRIGHTEN = {};
+// Optik dengeleme: oranı uç olan (kart, bavul, monitör gibi) ikonlar aynı kutuda
+// küçük görünür. Alan tabanlı hafif büyütme + tuval sınırı uygulanır.
+const MAX_BOOST = 1.45;
+// Bu alfa değerinin altındaki pikseller tamamen saydam yapılır (gölge kalıntısı temizliği).
+const ALPHA_FLOOR = 26;
 
 (async () => {
   fs.mkdirSync(DST, { recursive: true });
@@ -31,14 +36,23 @@ const BRIGHTEN = { nav_profile: 1.06, decoder: 1.10, player: 1.12 };
     const trimmed = await pipe.trim({ threshold: 1 }).toBuffer();
     const meta = await sharp(trimmed).metadata();
     const box = Math.round(CANVAS * FILL);
-    const scale = box / Math.max(meta.width, meta.height);
+    const maxDim = Math.max(meta.width, meta.height);
+    const areaRatio = (meta.width * meta.height) / (maxDim * maxDim);
+    const boost = Math.min(MAX_BOOST, Math.max(1, 1 / Math.sqrt(areaRatio)));
+    const limit = CANVAS * 0.99;
+    let scale = (box / maxDim) * boost;
+    if (maxDim * scale > limit) scale = limit / maxDim;
     const w = Math.max(1, Math.round(meta.width * scale));
     const h = Math.max(1, Math.round(meta.height * scale));
-    const body = await sharp(trimmed)
-      .resize(w, h, { fit: 'fill' })
+    // Yumuşak gölge/hâle kalıntılarını temizle: çok düşük alfa değerleri sıfırlanır.
+    const resized = await sharp(trimmed).resize(w, h, { fit: 'fill' }).ensureAlpha().raw().toBuffer();
+    for (let i = 3; i < resized.length; i += 4) {
+      if (resized[i] < ALPHA_FLOOR) resized[i] = 0;
+    }
+    const body = await sharp(resized, { raw: { width: w, height: h, channels: 4 } })
       .png({ compressionLevel: 9, palette: true })
       .toBuffer();
-    const out = path.join(DST, 'ic_kitsugi_' + key + '.png');
+    const out = path.join(DST, 'ic_kitsugi_' + key.replace(/-/g, '_') + '.png');
     await sharp({
       create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
     })

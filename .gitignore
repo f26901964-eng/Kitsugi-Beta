@@ -59,5 +59,6 @@ __pycache__/
 
 # İkon seti ara çıktıları (kaynak: tools/iconpack/*.py — drawable-nodpi'deki PNG'ler depoda kalır)
 /tools/iconpack/raw/
+/tools/iconpack/raw3d/
 /tools/iconpack/preview/
 /tools/iconpack/node_modules/

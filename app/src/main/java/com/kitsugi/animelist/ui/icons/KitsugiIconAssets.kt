@@ -23,19 +23,22 @@ import com.kitsugi.animelist.R
  * ----------
  * Ekranlarda tek renkli Material vektör ikonları ("◯", "✓", "•" gibi görünen ince
  * çizgiler) hem küçük boyutlarda okunmuyor hem de "bu satır ne yapıyor?" sorusunu
- * yanıtlamıyordu. Bu set, her satırın **işlevini doğrudan anlatan** renkli, 3B
- * render edilmiş, saydam arka planlı (arka plansız) görseller kullanır.
+ * yanıtlamıyordu. Bu set, her satırın **işlevini doğrudan anlatan** cam/gradyan
+ * görünümlü, 3B render edilmiş, saydam arka planlı (arka plansız) görseller kullanır.
  *
  * Kaynak / lisans
  * ---------------
- * Görseller Microsoft **Fluent Emoji (3D)** setinden alınmıştır:
- * https://github.com/microsoft/fluentui-emoji — MIT License
- * (Copyright (c) Microsoft Corporation). Ayrıntı: docs/IKON_SETI.md
+ * Görseller **3Dicons** setinden (Vijay Verma) alınmıştır:
+ * https://3dicons.co — **CC0 1.0** (atıf gerekmez, ticari kullanım serbest).
+ * Render'lar https://github.com/Vyshnav2255/notion-icons-3d aynasından (Apache-2.0)
+ * indirilir. Ayrıntı: docs/IKON_SETI.md
  *
  * Teknik notlar
  * -------------
  * - Varlıklar `res/drawable-nodpi/ic_kitsugi_*.png` (192×192, saydam) olarak durur;
- *   hepsi aynı optik kutuya normalize edilmiştir (tool/iconpack/normalize.js).
+ *   hepsi aynı optik kutuya normalize edilmiştir (tools/iconpack/normalize.js).
+ * - Bir varlık birden fazla mantıksal anahtar tarafından paylaşılabilir
+ *   (ör. `wifi` hem Ağ hem Eşitleme; `clock` hem Geçmiş hem Zamanlayıcı).
  * - [fromVector] Material ikon adından otomatik eşleme yapar; böylece 150+ çağrı
  *   yerini tek tek değiştirmek gerekmez. Yanlış eşleşme riski olan yerlerde
  *   `art = KitsugiArt.X` ile açıkça belirtilir.
@@ -46,82 +49,100 @@ enum class KitsugiArt(
     internal val vectorNames: List<String> = emptyList()
 ) {
     // ── Hesap ────────────────────────────────────────────────────────────
-    Account(R.drawable.ic_kitsugi_account, listOf("AccountCircle", "AccountBox", "ManageAccounts", "Badge")),
-    Connections(R.drawable.ic_kitsugi_connections, listOf("Link", "LinkOff", "Share", "LinkRounded")),
-
-    // ── Görünüm / oynatıcı ───────────────────────────────────────────────
-    Palette(
-        R.drawable.ic_kitsugi_palette,
-        listOf("Palette", "ColorLens", "Brush", "Gradient", "FormatPaint", "Style", "InvertColors")
+    Account(
+        R.drawable.ic_kitsugi_card,
+        listOf("AccountCircle", "AccountBox", "ManageAccounts", "Badge", "PermIdentity")
     ),
-    Player(R.drawable.ic_kitsugi_player, listOf("PlayCircle", "PlayCircleFilled", "Movie", "Theaters", "Videocam")),
+    Connections(R.drawable.ic_kitsugi_link, listOf("Link", "LinkOff", "Share", "LinkRounded")),
+
+    // ── Görünüm / oynatma ────────────────────────────────────────────────
+    Palette(
+        R.drawable.ic_kitsugi_colour_palette,
+        listOf("Palette", "ColorLens", "Brush", "Gradient", "FormatPaint", "Style", "InvertColors", "Opacity")
+    ),
+    Player(
+        R.drawable.ic_kitsugi_video_camera,
+        listOf("PlayCircle", "PlayCircleFilled", "Movie", "Theaters", "Videocam", "VideoSettings", "SlowMotionVideo")
+    ),
     Play(R.drawable.ic_kitsugi_play, listOf("PlayArrow", "PlayCircleOutline")),
+    Pause(R.drawable.ic_kitsugi_pause, listOf("Pause", "PauseCircle", "StopCircle", "PlayPause")),
+    Next(R.drawable.ic_kitsugi_next, listOf("SkipNext", "FastForward", "Forward10", "Forward30", "Forward5")),
+    Rewind(R.drawable.ic_kitsugi_back, listOf("FastRewind", "Replay10", "Replay30", "Replay5", "Redo")),
 
     // ── Kaynaklar / entegrasyonlar ───────────────────────────────────────
-    Extensions(R.drawable.ic_kitsugi_extensions, listOf("Extension", "Widgets")),
-    Integrations(R.drawable.ic_kitsugi_integrations, listOf("Hub", "DeviceHub", "Api")),
-    Network(
-        R.drawable.ic_kitsugi_network,
-        listOf("NetworkCheck", "Wifi", "WifiOff", "SettingsEthernet", "Dns", "Lan", "Cloud", "CastConnected")
+    Extensions(R.drawable.ic_kitsugi_puzzle, listOf("Extension", "Widgets", "ExtensionOff")),
+    Integrations(
+        R.drawable.ic_kitsugi_sphere,
+        listOf("Hub", "DeviceHub", "Api", "Public", "Language", "TravelExplore", "Cloud")
     ),
-    Sync(R.drawable.ic_kitsugi_sync, listOf("Sync", "SyncAlt", "SyncProblem", "CloudSync", "Cached", "Autorenew", "Refresh", "Repeat", "RepeatOne", "RestartAlt", "UpdateDisabled")),
+    Network(
+        R.drawable.ic_kitsugi_wifi,
+        listOf("NetworkCheck", "Wifi", "WifiOff", "SettingsEthernet", "Dns", "Lan", "CastConnected")
+    ),
+    Sync(
+        R.drawable.ic_kitsugi_wifi,
+        listOf("Sync", "SyncAlt", "SyncProblem", "CloudSync", "Cached", "Autorenew", "Refresh", "Repeat", "RepeatOne", "RestartAlt")
+    ),
 
     // ── Veri / depolama ──────────────────────────────────────────────────
-    Database(R.drawable.ic_kitsugi_database, listOf("Storage", "Backup", "Save", "CloudUpload")),
-    Storage(R.drawable.ic_kitsugi_storage, listOf("CleaningServices", "DeleteSweep", "FolderDelete")),
+    Database(R.drawable.ic_kitsugi_locker, listOf("Storage", "Backup", "Save", "CloudUpload", "Archive")),
+    Storage(
+        R.drawable.ic_kitsugi_trash_can,
+        listOf("CleaningServices", "DeleteSweep", "FolderDelete", "Delete", "DeleteOutline", "DeleteForever", "RemoveCircle")
+    ),
 
     // ── İndirmeler / geçmiş ──────────────────────────────────────────────
-    Tune(R.drawable.ic_kitsugi_tune, listOf("Tune", "SettingsApplications", "Equalizer", "GraphicEq")),
+    Tune(R.drawable.ic_kitsugi_setting, listOf("Tune", "SettingsApplications", "Equalizer", "GraphicEq")),
     Download(
-        R.drawable.ic_kitsugi_download,
+        R.drawable.ic_kitsugi_travel,
         listOf("Download", "DownloadForOffline", "FileDownload", "SaveAlt", "DownloadDone", "CloudDownload", "CloudDownloadOutline")
     ),
-    History(R.drawable.ic_kitsugi_history, listOf("History", "Restore", "Update", "WatchLater", "Replay")),
+    History(R.drawable.ic_kitsugi_clock, listOf("History", "Restore", "Update", "WatchLater", "Replay")),
+    Timer(R.drawable.ic_kitsugi_clock, listOf("Timer", "HourglassEmpty", "HourglassFull", "AccessTime", "Schedule")),
 
     // ── Destek / tanılama ────────────────────────────────────────────────
-    Info(R.drawable.ic_kitsugi_info, listOf("Info", "InfoOutline")),
-    Feedback(R.drawable.ic_kitsugi_feedback, listOf("Feedback", "RateReview", "Campaign", "Announcement")),
-    Warning(R.drawable.ic_kitsugi_warning, listOf("BugReport", "Warning", "WarningAmber", "ErrorOutline", "Report", "Error", "PriorityHigh", "ReportProblem")),
-    Help(R.drawable.ic_kitsugi_help, listOf("Help", "HelpOutline", "QuestionMark")),
-    Memo(R.drawable.ic_kitsugi_memo, listOf("Notes", "Description", "Article", "EditNote", "Edit", "Book", "MenuBook", "Title", "TextFields", "Translate", "DriveFileRenameOutline")),
+    Info(R.drawable.ic_kitsugi_bulb, listOf("Info", "InfoOutline")),
+    Feedback(R.drawable.ic_kitsugi_megaphone, listOf("Feedback", "RateReview", "Campaign", "Announcement")),
+    Warning(
+        R.drawable.ic_kitsugi_sheild,
+        listOf("BugReport", "Warning", "WarningAmber", "ErrorOutline", "Report", "Error", "PriorityHigh", "ReportProblem")
+    ),
+    Help(R.drawable.ic_kitsugi_chat, listOf("Help", "HelpOutline", "QuestionMark")),
+    Memo(
+        R.drawable.ic_kitsugi_pencil,
+        listOf("Notes", "Description", "Article", "EditNote", "Edit", "Book", "MenuBook", "Title", "TextFields", "Translate", "DriveFileRenameOutline")
+    ),
 
     // ── Oynatıcı ayarları sekmeleri ──────────────────────────────────────
     Gestures(
-        R.drawable.ic_kitsugi_gestures,
+        R.drawable.ic_kitsugi_magic_trick,
         listOf("Swipe", "SwipeLeft", "SwipeRight", "SwipeUp", "SwipeDown", "Gesture", "TouchApp", "PanTool")
     ),
-    Decoder(R.drawable.ic_kitsugi_decoder, listOf("Memory", "DeveloperBoard", "Hd", "HighQuality")),
-    Subtitles(R.drawable.ic_kitsugi_subtitles, listOf("Subtitles", "SubtitlesOff", "ClosedCaption", "SubtitlesOutlined", "ChatBubble", "ChatBubbleOutline", "Comment", "Forum")),
+    Decoder(R.drawable.ic_kitsugi_tool, listOf("Memory", "DeveloperBoard", "Hd", "HighQuality", "Handyman", "HomeRepairService")),
+    Subtitles(
+        R.drawable.ic_kitsugi_chat_text,
+        listOf("Subtitles", "SubtitlesOff", "ClosedCaption", "SubtitlesOutlined", "ChatBubble", "ChatBubbleOutline", "Comment", "Forum")
+    ),
     Audio(
-        R.drawable.ic_kitsugi_audio,
+        R.drawable.ic_kitsugi_headphone,
         listOf("VolumeUp", "VolumeDown", "VolumeMute", "VolumeOff", "Audiotrack", "MusicNote", "Hearing")
     ),
-    Buttons(R.drawable.ic_kitsugi_buttons, listOf("SmartButton", "SportsEsports", "Gamepad", "Vibration")),
-    Code(R.drawable.ic_kitsugi_code, listOf("Code", "CodeOff", "Terminal", "DataObject")),
-    Advanced(
-        R.drawable.ic_kitsugi_advanced,
-        listOf("DeveloperMode", "SettingsSuggest", "Construction")
-    ),
+    Buttons(R.drawable.ic_kitsugi_toggle, listOf("SmartButton", "SportsEsports", "Gamepad", "Vibration")),
+    Code(R.drawable.ic_kitsugi_computer, listOf("Code", "CodeOff", "Terminal", "DataObject")),
+    Advanced(R.drawable.ic_kitsugi_lab, listOf("DeveloperMode", "SettingsSuggest", "Construction")),
 
     // ── Yardımcı ─────────────────────────────────────────────────────────
-    Speed(R.drawable.ic_kitsugi_speed, listOf("Speed", "Bolt", "FlashOn", "RocketLaunch", "SlowMotionVideo")),
-    Timer(R.drawable.ic_kitsugi_timer, listOf("Timer", "HourglassEmpty", "HourglassFull", "AccessTime", "Schedule")),
+    Speed(R.drawable.ic_kitsugi_rocket, listOf("Speed", "Bolt", "FlashOn", "RocketLaunch")),
     Sun(R.drawable.ic_kitsugi_sun, listOf("BrightnessMedium", "Brightness7", "BrightnessLow", "WbSunny", "LightMode")),
-    Next(R.drawable.ic_kitsugi_next, listOf("SkipNext", "FastForward", "Forward10", "Forward30", "Forward5", "Redo")),
-    Tv(R.drawable.ic_kitsugi_tv, listOf("Tv", "ConnectedTv", "LiveTv", "SmartDisplay")),
-    Keyboard(R.drawable.ic_kitsugi_keyboard, listOf("Keyboard", "KeyboardAlt")),
-    Wrench(R.drawable.ic_kitsugi_wrench, listOf("Handyman", "HomeRepairService")),
+    Moon(R.drawable.ic_kitsugi_moon, listOf("DarkMode", "NightsStay", "Bedtime", "Nightlight")),
+    Tv(R.drawable.ic_kitsugi_computer, listOf("Tv", "ConnectedTv", "LiveTv", "SmartDisplay")),
     Key(R.drawable.ic_kitsugi_key, listOf("Key", "KeyOff", "VpnKey", "Password")),
     Star(R.drawable.ic_kitsugi_star, listOf("Star", "StarBorder", "StarHalf", "Grade", "Favorite")),
-    Picture(R.drawable.ic_kitsugi_image, listOf("Image", "Photo", "InsertPhoto", "Wallpaper", "ImageSearch")),
-    Delete(R.drawable.ic_kitsugi_delete, listOf("Delete", "DeleteOutline", "RemoveCircle", "DeleteForever")),
-    Eye(R.drawable.ic_kitsugi_eye, listOf("Visibility", "VisibilityOff", "RemoveRedEye")),
-    Public(R.drawable.ic_kitsugi_integrations, listOf("Public", "Language", "TravelExplore")),
-    Heart(R.drawable.ic_kitsugi_heart, listOf("Favorite", "FavoriteBorder", "HeartBroken")),
-    Clipboard(R.drawable.ic_kitsugi_clipboard, listOf("ContentCopy", "ContentPaste", "Assignment", "FileCopy")),
+    Picture(R.drawable.ic_kitsugi_picture, listOf("Image", "Photo", "InsertPhoto", "Wallpaper", "ImageSearch")),
+    Heart(R.drawable.ic_kitsugi_heart, listOf("FavoriteBorder", "HeartBroken")),
+    Clipboard(R.drawable.ic_kitsugi_copy, listOf("ContentCopy", "ContentPaste", "Assignment", "FileCopy")),
     Chart(R.drawable.ic_kitsugi_chart, listOf("BarChart", "DonutLarge", "Insights", "ShowChart", "TrendingUp", "Analytics")),
-    CheckCircle(R.drawable.ic_kitsugi_check_circle, listOf("CheckCircle", "CheckCircleOutline", "DoneAll", "TaskAlt")),
-    Pause(R.drawable.ic_kitsugi_pause, listOf("Pause", "PauseCircle", "StopCircle", "PlayPause")),
+    CheckCircle(R.drawable.ic_kitsugi_tick, listOf("CheckCircle", "CheckCircleOutline", "DoneAll", "TaskAlt")),
     Lock(R.drawable.ic_kitsugi_lock, listOf("Lock", "LockOpen", "Security", "HealthAndSafety", "VerifiedUser", "PrivacyTip")),
     Folder(
         R.drawable.ic_kitsugi_folder,
@@ -129,23 +150,20 @@ enum class KitsugiArt(
     ),
     Bell(R.drawable.ic_kitsugi_bell, listOf("Notifications", "NotificationsNone", "NotificationsActive", "NotificationsOff")),
     Calendar(
-        R.drawable.ic_kitsugi_calendar,
-        listOf("CalendarToday", "DateRange", "Event", "EventAvailable", "CalendarMonth", "Today", "ScheduleSend")
+        R.drawable.ic_kitsugi_calender,
+        listOf("CalendarToday", "DateRange", "Event", "EventAvailable", "CalendarMonth", "Today")
     ),
-    Sparkles(R.drawable.ic_kitsugi_sparkles, listOf("AutoAwesome", "NewReleases", "Stars", "AutoFixHigh")),
-    ThumbUp(R.drawable.ic_kitsugi_thumbup, listOf("ThumbUp", "ThumbUpAlt", "Recommend")),
-    House(R.drawable.ic_kitsugi_house, listOf("Home", "Cottage", "Dashboard")),
+    Sparkles(R.drawable.ic_kitsugi_flash, listOf("AutoAwesome", "NewReleases", "Stars", "AutoFixHigh")),
+    ThumbUp(R.drawable.ic_kitsugi_thumb_up, listOf("ThumbUp", "ThumbUpAlt", "Recommend")),
     Mobile(R.drawable.ic_kitsugi_mobile, listOf("PhoneAndroid", "Tablet", "Devices", "Smartphone", "PhoneIphone")),
     Pin(R.drawable.ic_kitsugi_pin, listOf("LocationOn", "Place", "PinDrop", "MyLocation")),
-    Rewind(R.drawable.ic_kitsugi_rewind, listOf("FastRewind", "Replay10", "Replay30", "Replay5")),
-    Moon(R.drawable.ic_kitsugi_moon, listOf("DarkMode", "NightsStay", "Bedtime", "Nightlight")),
 
     // ── Gezinme çubuğu ───────────────────────────────────────────────────
-    NavExplore(R.drawable.ic_kitsugi_nav_explore, listOf("Explore", "TravelExplore")),
-    NavList(R.drawable.ic_kitsugi_nav_list, listOf("ListAlt", "Bookmark", "BookmarkBorder", "Bookmarks", "CollectionsBookmark", "FormatListBulleted")),
-    NavSearch(R.drawable.ic_kitsugi_nav_search, listOf("Search", "ManageSearch", "SearchOff")),
-    NavProfile(R.drawable.ic_kitsugi_nav_profile, listOf("Person", "Person2", "PersonOutline")),
-    NavSettings(R.drawable.ic_kitsugi_advanced, listOf("Settings", "Build"));
+    NavExplore(R.drawable.ic_kitsugi_explorer, listOf("Explore")),
+    NavList(R.drawable.ic_kitsugi_bookmark, listOf("ListAlt", "Bookmark", "BookmarkBorder", "Bookmarks", "CollectionsBookmark", "FormatListBulleted")),
+    NavSearch(R.drawable.ic_kitsugi_zoom, listOf("Search", "ManageSearch", "SearchOff", "ZoomIn", "ZoomOut")),
+    NavProfile(R.drawable.ic_kitsugi_boy, listOf("Person", "Person2", "PersonOutline", "Group", "Groups", "People")),
+    NavSettings(R.drawable.ic_kitsugi_setting, listOf("Settings", "Build"));
 
     companion object {
         /** Material ikon adı -> 3B ikon. Ad "Rounded.PlayCircle" ise son parça kullanılır. */
@@ -159,7 +177,8 @@ enum class KitsugiArt(
 
         /**
          * Verilen Material [icon] için 3B karşılığını döner; eşleşme yoksa `null`.
-         * `null` dönerse çağıran taraf eski tek renkli glife düşer.
+         * `null` dönerse çağıran taraf tek renkli glife düşer (geri oku, kapat,
+         * onay işareti gibi kontrol mikro-ikonları bilerek burada bırakılır).
          */
         fun fromVector(icon: ImageVector): KitsugiArt? {
             val rawName = icon.name

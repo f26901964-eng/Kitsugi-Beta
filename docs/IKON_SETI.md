@@ -1,158 +1,172 @@
-# Kitsugi İkon Seti (3B, saydam zeminli)
+# Kitsugi İkon Seti (3B · saydam zemin · arka plansız)
 
-Bu belge, uygulamadaki **ayar satırları / sekmeler / gezinme çubuğu** ikonlarının
-nereden geldiğini, lisansını ve nasıl yeniden üretileceğini anlatır.
+Bu belge uygulamadaki **ayar satırı / sekme / gezinme çubuğu** ikonlarının kaynağını,
+lisansını, eşleme tablosunu ve sıfırdan nasıl yeniden üretileceğini anlatır.
 
-## Neden değişti?
+## Neden bu set?
 
 Önceki durumda her satır tek renkli bir Material vektör ikonu kullanıyordu ve ikon,
-satır rengiyle doldurulmuş **42 dp'lik bir daire** içine, 20 dp boyutunda çiziliyordu.
-Sonuç: küçük ekranlarda ikonlar "◯", "•", "✓" gibi anlamsız lekelere dönüşüyor,
-satırın ne yaptığını anlatmıyordu.
+satır rengiyle doldurulmuş **42 dp'lik yuvarlak bir zemin** üzerine 20 dp boyutunda
+çiziliyordu. Küçük ekranlarda bunlar "◯", "•", "✓" gibi anlamsız lekelere dönüşüyor,
+satırın ne yaptığını anlatmıyordu. Ara adımda kullanılan emoji seti de "premium"
+durmayıp uygulamanın koyu arayüzünden kopuyordu.
 
-Yeni yaklaşım:
+Yeni yaklaşımın kuralları:
 
-- **Arka plan yok.** Renkli daire zemin kaldırıldı; ikon doğrudan kart zemini üzerinde.
-- **3B + renkli + saydam.** Her ikon 3B render edilmiş, saydam zeminli bir görsel.
-- **İşlev odaklı.** İkon, satırın işlevini doğrudan anlatır (bağlantı = zincir,
-  eklentiler = yapboz, depolama = süpürge, indirmeler = gelen tepsisi, ...).
-- **Optik normalizasyon.** Tüm görseller saydam kenarlarından kırpılıp aynı kutuya
-  (%92 doldurma, 192×192 tuval) oturtulur; böylece satır satır boyut zıplaması olmaz.
-- **Koyu tema dengesi.** Koyu temada kaybolan birkaç varlık (profil büstü, projektör,
-  film kareleri) hafifçe parlatılarak optik olarak eşitlenir.
+- **Arka plan yok.** Renkli daire / plaka tamamen kaldırıldı; ikon doğrudan kart
+  zemini üzerinde durur, arkası saydamdır.
+- **3B + cam görünüm.** Tüm set tek bir sanat yönetimiyle üretilmiş 3B render'lardır:
+  cam yüzey, mor → pembe → turuncu degrade, yumuşak iç ışık. Kitsugi'nin koyu teması
+  (`#080A10`) ve turuncu vurgusu (`#FB923C`) ile aynı ailedendir.
+- **İşlev odaklı.** İkon satırın işlevini doğrudan anlatır (bağlantı = zincir,
+  eklenti = yapboz, depolama = çöp kutusu, indirme = bavul, geçmiş = saat, ...).
+- **Tek aile, tek ölçek.** Tüm görseller saydam kenarlarından kırpılır, hafif gölge
+  kalıntıları temizlenir, alan tabanlı optik dengeyle aynı kutuya (%92 doldurma,
+  192×192 tuval) oturtulur. Böylece satır satır boyut zıplaması olmaz.
+- **Aynı set her yerde.** Ayarlar satırları, oynatıcı ayarları sekmeleri, alt gezinme
+  çubuğu, liste/detay eylemleri ve diyaloglar aynı varlıkları paylaşır — ekranlar
+  arasında üslup farkı yoktur.
 
 ## Kaynak ve lisans
 
-- Set: **Microsoft Fluent Emoji — 3D** stili
-- Depo: https://github.com/microsoft/fluentui-emoji
-- Lisans: **MIT** — Copyright (c) Microsoft Corporation
-  (metin: `third_party/fluentui-emoji_LICENSE.txt`)
-- Kullanım: ticari + kişisel, atıf zorunlu değil (MIT koşulları geçerli).
-- Yalnızca 3D render PNG'leri alınır; başka hiçbir varlık kopyalanmaz.
-
-> Not: Emoji seti olmasına rağmen bu görseller "emoji" olarak değil, **uygulama ikonu**
-> olarak kullanılıyor. Semantiği net olduğu ve tek bir sanat yönetimiyle üretildiği
-> için (aynı ışık, aynı yumuşak gölge, aynı kalınlık) set içi tutarlılık yüksek.
+- Set: **3Dicons** — https://3dicons.co (Vijay Verma)
+- Lisans: **CC0 1.0 Universal** (kamu malı; atıf gerekmez, ticari kullanım serbest)
+  — tam metin: `third_party/3dicons_LICENSE.txt`
+- Render'ların indirildiği ayna depo: https://github.com/Vyshnav2255/notion-icons-3d
+  (Apache-2.0; atıf notu: `third_party/3dicons_NOTICE.txt`)
+- Stil: `front/gradient` (ön açı, cam degrade). Denenip **reddedilen** stiller:
+  `front/premium` (metallik, renksiz), `front/color` (mat, cansız), `iso/premium`.
+- Yalnızca PNG render'ları alınır; başka hiçbir varlık kopyalanmaz.
 
 ## Dosya yapısı
 
 ```
-app/src/main/res/drawable-nodpi/ic_kitsugi_*.png   -> uygulamaya gömülen 192×192 PNG'ler
+app/src/main/res/drawable-nodpi/ic_kitsugi_*.png   -> uygulamaya gömülen 192×192 PNG'ler (50 adet)
 app/src/main/java/com/kitsugi/animelist/ui/icons/KitsugiIconAssets.kt
-                                                  -> KitsugiArt enum'u, otomatik eşleme, çizim
-tools/iconpack/fetch_fluent3d.py                  -> varlıkları GitHub API'den indirir
-tools/iconpack/normalize.js                       -> kırpar, ölçekler, drawable-nodpi'ye yazar
-tools/iconpack/mock_previews.js                   -> tasarım önizlemesi (PNG) üretir
-third_party/fluentui-emoji_LICENSE.txt            -> MIT lisans metni
+                                                  -> KitsugiArt enum'u, Material adı eşlemesi, çizim
+tools/iconpack/fetch_3dicons.py                   -> varlıkları GitHub Contents API'den indirir
+tools/iconpack/raw3d/                             -> indirilen ham PNG'ler (depoya girmez)
+tools/iconpack/normalize.js                       -> kırpar, dengeler, drawable-nodpi'ye yazar
+tools/iconpack/icons.map.js                       -> mantıksal anahtar -> 3dicons adı + Türkçe etiket
+tools/iconpack/mock_previews.js                   -> ekran önizlemeleri (PNG) üretir
+tools/iconpack/sheet.js                           -> tüm setin etiketli sayfası (docs/ikon-seti-onizleme.png)
+third_party/3dicons_LICENSE.txt                   -> CC0 1.0 lisans metni
+third_party/3dicons_NOTICE.txt                    -> ayna depo / Apache-2.0 atıf notu
 docs/IKON_SETI.md                                 -> bu belge
 ```
 
-`tools/iconpack/raw/` ve `tools/iconpack/preview/` depoya **girmez** (ara çıktı).
+Varlık adı = 3dicons kaynak adı, tireler alt çizgiye çevrilir
+(`video-camera` → `ic_kitsugi_video_camera.png`).
+
+## Üretim
+
+```bash
+cd tools/iconpack
+npm install          # sharp
+npm run fetch        # 50 PNG -> raw3d/
+npm run normalize    # 50 ikon -> app/src/main/res/drawable-nodpi (192×192, saydam)
+npm run preview      # ekran önizleme PNG'leri
+npm run sheet        # docs/ikon-seti-onizleme.png
+```
+
+Yeni bir ikon eklemek için:
+
+1. `fetch_3dicons.py` içindeki `NAMES` listesine 3dicons adını ekleyin. Adlar
+   `https://api.github.com/repos/Vyshnav2255/notion-icons-3d/contents/icons/front/gradient`
+   listesinden alınır; sette `calender`, `sheild`, `zoom`, `picture` gibi yazımlar
+   orijinalindedir.
+2. `icons.map.js` içine `KEYMAP` + `LABELS` satırı ekleyin.
+3. `npm run fetch && npm run normalize`, ardından `KitsugiIconAssets.kt` içine enum
+   girdisi + Material adı eşlemesi ekleyin.
+
+> `raw.githubusercontent.com` bu geliştirme ortamından kapalıdır; indirme, Contents
+> API listesi + `Accept: application/vnd.github.raw` başlığı ile yapılır.
+
+## Eşleme tablosu (satır → 3dicons varlığı)
+
+| Anahtar | Kullanıldığı yer | 3dicons |
+|---|---|---|
+| `account` | Kitsugi Hesabı | `card` |
+| `connections` | Hesap Bağlantıları | `link` |
+| `palette` | Görünüm & Tercihler | `colour-palette` |
+| `player` | Oynatıcı | `video-camera` |
+| `play` | Oynat | `play` |
+| `pause` | Duraklat | `pause` |
+| `next` | Sonraki | `next` |
+| `rewind` | Geri sar | `back` |
+| `extensions` | Eklentiler & Kaynaklar | `puzzle` |
+| `integrations` | Harici Entegrasyonlar | `sphere` |
+| `network` | Ağ / DNS | `wifi` |
+| `sync` | Eşitleme | `wifi` |
+| `database` | Veri ve Yedekleme | `locker` |
+| `storage` | Depolama | `trash-can` |
+| `tune` | İndirme Ayarları | `setting` |
+| `download` | İndirmeler | `travel` |
+| `history` | İzleme Geçmişi | `clock` |
+| `timer` | Zamanlayıcı | `clock` |
+| `info` | Hakkında | `bulb` |
+| `feedback` | Geri Bildirim | `megaphone` |
+| `warning` | Platform Hata Kodları | `sheild` |
+| `help` | Yardım | `chat` |
+| `memo` | Not / Başlık | `pencil` |
+| `gestures` | Hareketler | `magic-trick` |
+| `decoder` | Kod çözücü | `tool` |
+| `subtitles` | Altyazılar | `chat-text` |
+| `audio` | Ses | `headphone` |
+| `buttons` | Özel Butonlar | `toggle` |
+| `code` | Kod Düzenleyici | `computer` |
+| `advanced` | Gelişmiş | `lab` |
+| `speed` | Hız | `rocket` |
+| `sun` | Aydınlık tema | `sun` |
+| `moon` | Karanlık tema | `moon` |
+| `tv` | TV / Yayın | `computer` |
+| `key` | Şifre / Anahtar | `key` |
+| `star` | Puan / Yıldız | `star` |
+| `image` | Görsel | `picture` |
+| `heart` | Favori | `heart` |
+| `clipboard` | Kopyala | `copy` |
+| `chart` | İstatistik | `chart` |
+| `check_circle` | Tamamlandı | `tick` |
+| `lock` | Güvenlik | `lock` |
+| `folder` | Klasör | `folder` |
+| `bell` | Bildirim | `bell` |
+| `calendar` | Takvim | `calender` |
+| `sparkles` | Yenilik | `flash` |
+| `thumbup` | Beğeni | `thumb-up` |
+| `mobile` | Mobil cihaz | `mobile` |
+| `pin` | Konum | `pin` |
+| `nav_explore` | Keşfet (gezinme) | `explorer` |
+| `nav_list` | Listem (gezinme) | `bookmark` |
+| `nav_search` | Arama (gezinme) | `zoom` |
+| `nav_profile` | Profil (gezinme) | `boy` |
+| `nav_settings` | Ayarlar (gezinme) | `setting` |
+
+## Çizim kuralları
+
+| Bağlam | 3B ikon boyutu | Not |
+|---|---|---|
+| Ayar satırı | 30 dp (32 dp slot) | Metin hizası sabit kalsın diye slot hep aynı |
+| Sekme şeridi | 21 dp | Seçili sekmede vurgu rengi + alt etiket |
+| Alt gezinme çubuğu | 21 dp (seçili 24 dp) | Seçili değilken %70 alfa |
+| Liste / detay eylemi | 24–26 dp | Metin düğmelerinde glif boyutu |
+| Satır ayırıcı girintisi | 62 dp | İkon + boşluk hizası |
+
+Eşleşme bulunamazsa `KitsugiRowIcon` **arka plansız**, satır rengiyle boyanmış tek
+renkli glife düşer. Close, ArrowBack, Check, ExpandMore, Chevron*, Add, FilterList,
+OpenInNew gibi kontrol mikro-ikonları bilerek 2B çizgi olarak kalır; onlar "eylem"
+ikonudur, "konu" ikonu değil.
 
 ## Önizleme
 
-Tüm setin etiketli görseli: **`docs/ikon-seti-onizleme.png`**
-(`node tools/iconpack/sheet.js` ile yeniden üretilir).
+- Tüm set (etiketli): **`docs/ikon-seti-onizleme.png`** (`npm run sheet`)
+- Ekran mock'ları: `npm run preview` → `onizleme_ayarlar.png`, `onizleme_oynatici.png`
 
-## Eşleme tablosu (satır → ikon)
+## Teknik notlar
 
-| Satır / sekme | Anahtar | Fluent varlığı |
-|---|---|---|
-| Kitsugi Hesabı | `account` | Identification card |
-| Hesap Bağlantıları | `connections` | Link |
-| Görünüm & Tercihler | `palette` | Artist palette |
-| Oynatıcı | `player` | Film projector |
-| Eklentiler & Akış Kaynakları | `extensions` | Puzzle piece |
-| Harici Entegrasyonlar | `integrations` | Globe with meridians |
-| Veri ve Yedekleme | `database` | Floppy disk |
-| Depolama | `storage` | Broom |
-| İndirme Ayarları | `tune` | Control knobs |
-| İndirmeler | `download` | Inbox tray |
-| İzleme Geçmişi | `history` | Stopwatch |
-| Hakkında | `info` | Information |
-| Geri Bildirim | `feedback` | Megaphone |
-| Platform Hata Kodları | `warning` | Warning |
-| Dahili oynatıcı sekmesi | `play` | Play button |
-| Hareketler | `gestures` | Hand with fingers splayed |
-| Kod çözücü | `decoder` | Film frames |
-| Altyazılar | `subtitles` | Left speech bubble |
-| Ses | `audio` | Speaker high volume |
-| Özel butonlar | `buttons` | Video game |
-| Kod düzenleyici | `code` | Laptop |
-| Gelişmiş | `advanced` | Gear |
-| Keşfet (nav) | `nav_explore` | Compass |
-| Listem (nav) | `nav_list` | Bookmark tabs |
-| Arama (nav) | `nav_search` | Magnifying glass tilted left |
-| Profil (nav) | `nav_profile` | Bust in silhouette |
-| Ayarlar (nav) | `nav_settings` | Gear (`advanced` ile aynı görsel) |
-| Eşitleme satırları | `sync` | Repeat button |
-| Ağ / DNS satırları | `network` | Satellite antenna |
-| Hız / motor satırları | `speed` | Rocket |
-| Zamanlayıcı satırları | `timer` | Hourglass not done |
-| Parlaklık satırları | `sun` | Sun |
-| "Sonraki" satırları | `next` | Next track button |
-| TV / yayın satırları | `tv` | Television |
-| Klavye satırları | `keyboard` | Keyboard |
-| Yardım satırları | `help` | Red question mark |
-| Not / başlık satırları | `memo` | Memo |
-| Araç / onarım satırları | `wrench` | Wrench |
-
-### Ek eşlemeler (liste/detay ekranları)
-
-Bunlar aynı setin parçası; uygulamanın her yerinde aynı görsel dil kalsın diye eklendi:
-
-| Material ikon | 3B karşılığı |
-|---|---|
-| Favorite / FavoriteBorder | kalp |
-| ContentCopy / ContentPaste | pano |
-| BarChart / DonutLarge / Insights | grafik |
-| CheckCircle / DoneAll | onay |
-| Pause / PauseCircle | duraklat |
-| Lock / Security / VerifiedUser | kilit |
-| Folder / FolderOpen / PhotoLibrary | klasör |
-| Notifications* | zil |
-| CalendarToday / DateRange / Event | takvim |
-| AutoAwesome / NewReleases | parıltı |
-| ThumbUp / Recommend | beğeni |
-| Home / Dashboard | ev |
-| PhoneAndroid / Tablet / Devices | mobil cihaz |
-| LocationOn / Place | konum |
-| FastRewind / Replay10 | geri sar |
-| DarkMode / NightsStay | ay |
-| Sync / Refresh / Repeat / RestartAlt | eşitleme |
-| Edit / Notes / Description / Title | not kalemi |
-| ChatBubble / Comment | altyazı balonu |
-| Error / PriorityHigh | uyarı |
-| CloudDownload | indirme |
-
-**Bilinçli istisna:** geri oku, kapat (×), onay işareti, açılır-kapanır oklar (⌄ ^),
-artı (+), filtre, "dışa aç" gibi **kontrol/gezinme mikro-ikonları** 3B sete dahil
-edilmedi. Bunlar içerik logosu değil, arayüz işareti; 3B render burada gürültü
-yaratıyor. İçerik/logolar tarafında eşleşme oranı **~%90**; kalanlar yalnızca
-tek tük kullanılan özel ikonlar.
-
-## Eşleme nasıl çalışır?
-
-`KitsugiArt.fromVector(icon)` Material `ImageVector`'ün adına bakar
-(`"Rounded.PlayCircle"` → `"PlayCircle"`) ve enum'daki `vectorNames` listesinde arar.
-Böylece 150+ çağrı yerini tek tek değiştirmek gerekmez.
-
-- Eşleşme varsa → 3B görsel çizilir (saydam zemin, 30 dp).
-- Eşleşme yoksa → satır rengiyle boyanmış tek renkli glif çizilir (yine **arka plansız**).
-- Belirli bir satırda otomatik eşleme yanlış sonuç veriyorsa çağrı yerinde
-  `art = KitsugiArt.X` parametresi ile açıkça belirtilir
-  (ör. "Hesap Bağlantıları" satırı `Person` ikonunu kullanır → `art = KitsugiArt.Connections`).
-
-## Yeni ikon eklemek
-
-0. (İlk kez) `cd tools/iconpack && npm install sharp`
-1. `tools/iconpack/fetch_fluent3d.py` içindeki `MANIFEST` sözlüğüne
-   `"yeni_anahtar": "Fluent varlık adı"` satırı ekleyin.
-2. `python3 tools/iconpack/fetch_fluent3d.py`
-3. `node tools/iconpack/normalize.js`
-4. `KitsugiIconAssets.kt` içine enum satırını ve gerekiyorsa `vectorNames` listesini ekleyin.
-5. İsterseniz `node tools/iconpack/mock_previews.js` ile önizleme üretin.
-
-> `fetch_fluent3d.py` GitHub Contents API'sini kullanır; `raw.githubusercontent.com`
-> engelli ağlarda da çalışsın diye `Accept: application/vnd.github.raw` başlığıyla
-> `api.github.com` üzerinden indirir.
+- Varlıklar `drawable-nodpi` içinde: DPI ölçeklemesi yok, tek kopya → APK şişmez
+  (50 ikon, toplam ~390 KB).
+- `KitsugiArt.fromVector()` Material ikon adından otomatik eşleme yapar; 150+ çağrı
+  yerini tek tek değiştirmek gerekmez. Yanlış eşleşme riski olan yerlerde
+  `art = KitsugiArt.X` ile açıkça belirtilir.
+- Aynı varlık birden fazla anahtar tarafından paylaşılabilir (ör. `wifi` → Ağ +
+  Eşitleme, `clock` → Geçmiş + Zamanlayıcı, `computer` → Kod + TV).

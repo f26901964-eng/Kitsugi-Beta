@@ -13,7 +13,8 @@ const BG = '#080A10', SURF = '#10131D', BORDER = '#252B3A', CHIP = 'rgba(251,146
   T1 = '#F4F7FB', T2 = '#A9B0C2', T3 = '#727A8F', ACCENT = '#FB923C';
 const ICON_DIR = path.join(__dirname, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const iconPath = (k) => path.join(ICON_DIR, 'ic_kitsugi_' + k + '.png');
+const { KEYMAP } = require('./icons.map.js');
+const iconPath = (k) => path.join(ICON_DIR, 'ic_kitsugi_' + (KEYMAP[k] || k).replace(/-/g, '_') + '.png');
 
 const SETTINGS = [
   ['HESAP', [
