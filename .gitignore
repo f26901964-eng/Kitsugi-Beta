@@ -62,3 +62,6 @@ __pycache__/
 /tools/iconpack/raw3d/
 /tools/iconpack/preview/
 /tools/iconpack/node_modules/
+
+# üretilen paket zip'leri
+KITSUGI_*.zip
