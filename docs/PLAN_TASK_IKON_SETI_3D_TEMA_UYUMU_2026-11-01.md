@@ -242,3 +242,40 @@ sonra kendi setim o ölçülere çekildi:
 (u 0.32→0.44, v 0.30→0.19), gölge merkezlendi ve alfası %13→%28, kenar kararması
 0.26→0.09 (kenar/çekirdek 0.83→0.92), dikey parlaklık gradyanı eklendi
 (gradyan açısı −130°→−107°, hedef −92°), doygunluk 0.54→0.68 (hedef 0.64).
+
+---
+
+## 6. v13 — doğru araç: Blender / Cycles (2026-11-02)
+
+### 6.1 Neden değişti
+
+v9–v12 arası tüm glifler kendi yazdığım SDF/ray-march motorunda üretildi. Şekil
+doğruydu ama orijinallerin **malzeme + ışık dili** yakalanamıyordu: 3dicons render'ları
+Blender/Cycles'tan çıkıyor (kalın hacim, geniş yuvarlatma, nesne-uzayı diagonal renk
+rampası, üç alan ışığı, şeffaf zemin). Bu turda orijinal hattın aynısı kuruldu.
+
+### 6.2 Yapılanlar
+
+| # | İş | Durum |
+|---|---|---|
+| 1 | `bpy==4.2.23` (Blender 4.2) kurulumu + headless için X11 stub'ları (`tools/blender/x11_stubgen.py`) | ✅ |
+| 2 | `tools/blender/kit.py` — çubuk/plaka/silindir/küre/torus yardımcıları, **boolean UNION** ile tek gövde, booleansız malzeme yuvası birleştirme | ✅ |
+| 3 | Renk rampası orijinal PNG'lerden **pikselle ölçüldü**: (66,24,198)→(120,40,196)→(172,54,176)→(206,78,146)→(228,138,106)→(246,182,120), sRGB→linear, 38°, doygunluk 1.10 | ✅ |
+| 4 | Malzeme: Principled BSDF, roughness 0.38, coat 0.05; krem/mürekkep/krom ayrı malzemeler | ✅ |
+| 5 | Işık/kamera: 3 alan ışığı (0.12) + gri dünya (1.5), 135 mm, 6° üstten, Cycles CPU 72 örnek + denoise | ✅ |
+| 6 | `tools/blender/icons_all.py` — 55 ikonun tamamı (46 glif + 9 nesne) | ✅ |
+| 7 | 55 PNG'yi `drawable-nodpi`'ye yazma (384 render → alfa kırp → 128/192) | ✅ |
+| 8 | Kanıt sayfaları: `docs/ikon-v13-orijinal-karsilastirma.png`, `ikon-v13-set.png`, `ikon-v13-detay.png` | ✅ |
+| 9 | **Kalan rötuş (v14):** `backup` (bulut blob), `leaf` (fazla parlak), `snow` (dallar ince), `code` (chevron ince), `cake` (mum silindiri okunmuyor) | ⏳ |
+| 10 | Gradle derlemesi / APK doğrulaması | ⛔ bu ortamda JDK/Android SDK yok |
+
+### 6.3 Değişen dosya grupları (bu dal, `6bbd40e..HEAD`)
+
+| Grup | Dosya | Ne |
+|---|---|---|
+| İkon varlıkları | `app/src/main/res/drawable-nodpi/ic_kitsugi_*.png` | 55 v13 render'ı (46 glif 128 px + 9 nesne 192 px) |
+| İkon kodu | `KitsugiIconAssets.kt`, `KitsugiIcon.kt`, tema/token dosyaları | varlık enum'u, `KitsugiIcon`, vurgu tonu kaydırma (`iconsFollowAccent`) |
+| Ekran kullanımları | `ui/**/*.kt` | `Icon(imageVector=…)` çağrılarının 3B sete bağlanması |
+| Blender hattı | `tools/blender/{kit.py,icons_all.py,x11_stubgen.py,README.md}` | yeniden üretilebilir render hattı |
+| Analiz/ölçüm | `tools/iconpack/*.js`, `orig_stats.json`, `orig_manifest.json` | 95 orijinalin piksel ölçümü, gramer karşılaştırma |
+| Belgeler | `docs/IKON_SETI.md`, `docs/IKON_KONTROL_GLIFLERI.md`, `docs/ikon-*.png` | kurallar, parça tabloları, önizlemeler |
