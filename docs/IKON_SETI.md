@@ -217,29 +217,37 @@ Kural: **3B = "konu" ikonu, 2B = "kontrol" glifi.**
   okunmaz, tıklanabilir alanı kirletir. Ayrıca **20 dp altındaki hiçbir boyutta**
   3B kullanılmaz (kırpılmış 192 px render 16 dp'de lekeye döner).
 
-## Kapsam (tam)
+## Kapsam denetimi (kaynaktan sayıldı)
 
-Tek giriş noktası yaklaşımı: uygulamada `Icon(imageVector = …)` çağrılarının
-**tamamı** 3B seti bilen iki composable'dan geçiyor.
+`node tools/iconpack/coverage_report.js` → **`docs/ikon-kapsam-denetimi.png`**
 
-| Yol | Kapsam | Nasıl |
-|---|---|---|
-| `ui/theme/gradient/Icon` (proje sarmalayıcısı) | **799 `Icon(...)` çağrısı**, 200 dosya | Eşleşme varsa 3B varlık, yoksa mono gradyan glif (davranış aynı) |
-| `KitsugiIcon` (Material3 imzasıyla birebir) | 30 dosya (`… as Icon` importu) | Material3 `Icon` çağrılarını da aynı yola sokar |
-| `KitsugiArtIcon` / `KitsugiRowIcon` | 94 çağrı | Satır, sekme, gezinme, boş durum, kart eylemleri |
-| `KitsugiSettingsItem` | tüm ayar diyalogları | Tek bileşen, tek görsel dil |
+| Ölçüm | Değer |
+|---|---|
+| Kotlin dosyası | 1278 |
+| Toplam ikon çağrısı (`Icons.*`) | **1533** |
+| 3B sete bağlı | **1148 (%74,9)** — 193 farklı ikon adı |
+| Bilinçli mono kontrol glifi | 385 (%25,1) — 75 ad |
+| Tek giriş noktasından geçen dosya | 229 |
+| **3B yolundan geçmeyen dosya** | **0** |
 
-Yani **her tıklanır alan, her satır, her buton, her sekme, her diyalog başlığı, her
-boş durum** aynı 3B setten ikon alıyor. Eşleşmeyen tek şey bilinçli olarak mono
-kalan kontrol glifleri: kapat / geri / onay / chevron / ok / artı / filtre / ⋮
-(bunlar 10–18 dp'lik "eylem" işaretleri, 3B'ye çevrilince okunmuyor).
+Giriş noktaları:
 
-Boyut davranışı: çağıranın `Modifier.size(..)` değeri aynen korunur; boyut
-verilmemişse 24 dp (Material `Icon` ile aynı varsayılan). 14–18 dp'de bile 3B
-varlıklar ayırt edilebilir (bkz. `docs/ikon-boyut-testi.png`).
+| Yol | Kapsam |
+|---|---|
+| `ui/theme/gradient/Icon` (proje sarmalayıcısı) | 200 dosya — çağrı değişmeden 3B |
+| `KitsugiIcon` (Material3 imzasıyla birebir, `… as Icon` alias) | 30 dosya |
+| `KitsugiArtIcon` / `KitsugiRowIcon` | satır, sekme, gezinme, boş durum, kart eylemleri |
+| `KitsugiSettingsItem` | tüm ayar diyalogları |
 
-Dolgulu vurgu yüzeylerinde (vurgu rengiyle dolu buton içi) okunabilirlik için mono
-glif korunur; ikon o zeminde renkli cam olarak kaybolurdu.
+### Mono kalanlar neden 3B değil?
+
+3dicons setinde **kapat / chevron / artı / filtre / sıralama / görünüm değiştirme**
+ikonu yok (set 50 varlık: hepsi "nesne" ikonları). Bu yüzden 385 çağrı mono çizgi
+kalıyor: `Close` (79), `Check` (34), `KeyboardArrowUp` (28), `OpenInNew` (21),
+`Add` (20), `ExpandMore/Less`, `ChevronRight/Left`, `ArrowDropDown`, `GridView`,
+`Visibility`, `FilterList`, `Sort`, `MoreVert`, düzenleme/kamera araçları…
+Bunlar 12–18 dp'lik **eylem işaretleri**; 3B render 14 dp'de okunmuyor ve
+"aynı aile" hissini bozuyor. Tam liste denetim görselinde.
 
 Yeni bir ekranda 3B ikon gerekiyorsa iki yol var:
 

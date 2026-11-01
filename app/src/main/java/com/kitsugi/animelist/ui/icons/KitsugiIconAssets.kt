@@ -232,6 +232,56 @@ enum class KitsugiArt(
     NavSettings(R.drawable.ic_kitsugi_setting, listOf("Settings", "Build"));
 
     companion object {
+        /**
+         * İkinci tur eşlemeler: enum listeleri okunur kalsın diye ayrı tutuldu.
+         * Hepsi mevcut 50 varlıktan birine bağlanır; böylece uygulamada "konu"
+         * anlamı taşıyan hiçbir Material ikonu 2B kalmaz.
+         */
+        private val EXTRA_ALIASES: Map<String, KitsugiArt> by lazy {
+            mapOf(
+                // Liste / yer imi ailesi
+                "LibraryAdd" to KitsugiArt.NavList, "PlaylistAdd" to KitsugiArt.NavList, "PlaylistAddCheck" to KitsugiArt.NavList,
+                "PlaylistPlay" to KitsugiArt.NavList, "QueuePlayNext" to KitsugiArt.NavList, "PlaylistRemove" to KitsugiArt.NavList,
+                "Label" to KitsugiArt.NavList, "Sell" to KitsugiArt.NavList, "Tag" to KitsugiArt.NavList, "BookmarkAdded" to KitsugiArt.NavList,
+                "List" to KitsugiArt.NavList, "QueueMusic" to KitsugiArt.NavList, "FormatListNumbered" to KitsugiArt.NavList,
+                // Görsel / medya
+                "BrokenImage" to KitsugiArt.Picture, "ImageNotSupported" to KitsugiArt.Picture, "Preview" to KitsugiArt.Picture,
+                "Slideshow" to KitsugiArt.Picture, "PictureInPictureAlt" to KitsugiArt.Picture, "PhotoCamera" to KitsugiArt.Picture,
+                // Ağ / bağlantı
+                "CloudOff" to KitsugiArt.Network, "RssFeed" to KitsugiArt.Network, "Web" to KitsugiArt.Network, "AddLink" to KitsugiArt.Network,
+                "SignalCellularAlt" to KitsugiArt.Network, "WifiTethering" to KitsugiArt.Network,
+                // Eşitleme
+                "SwapHoriz" to KitsugiArt.Sync, "CompareArrows" to KitsugiArt.Sync, "SyncDisabled" to KitsugiArt.Sync,
+                // İndirme / depolama
+                "FolderCopy" to KitsugiArt.Download, "SdCard" to KitsugiArt.Download, "SystemUpdate" to KitsugiArt.Download,
+                "SystemUpdateAlt" to KitsugiArt.Download, "Downloading" to KitsugiArt.Download, "Upload" to KitsugiArt.Download,
+                "SaveAlt" to KitsugiArt.Download, "MoveToInbox" to KitsugiArt.Download,
+                // Zaman
+                "MoreTime" to KitsugiArt.Timer, "AvTimer" to KitsugiArt.Timer, "HourglassBottom" to KitsugiArt.Timer,
+                "HourglassTop" to KitsugiArt.Timer, "Upcoming" to KitsugiArt.Timer, "Alarm" to KitsugiArt.Timer, "AlarmOn" to KitsugiArt.Timer,
+                // Tepki / oy
+                "ThumbDown" to KitsugiArt.ThumbUp, "ThumbDownAlt" to KitsugiArt.ThumbUp, "EmojiEvents" to KitsugiArt.Star,
+                "WorkspacePremium" to KitsugiArt.Star, "MilitaryTech" to KitsugiArt.Star, "Stars" to KitsugiArt.Star,
+                // Oynatma
+                "Stop" to KitsugiArt.Pause, "SkipPrevious" to KitsugiArt.Rewind, "Forward" to KitsugiArt.Next, "FastForward" to KitsugiArt.Next,
+                // Tema / ışık
+                "ModeNight" to KitsugiArt.Moon, "BrightnessHigh" to KitsugiArt.Sun, "Brightness6" to KitsugiArt.Sun, "Contrast" to KitsugiArt.Sun,
+                // Kişi / hesap
+                "PersonAdd" to KitsugiArt.NavProfile, "PersonAddAlt" to KitsugiArt.NavProfile, "Login" to KitsugiArt.Key,
+                "Logout" to KitsugiArt.Key, "ManageAccounts" to KitsugiArt.Account, "SwitchAccount" to KitsugiArt.Account,
+                // Diğer konu ikonları
+                "Apps" to KitsugiArt.Extensions, "Widgets" to KitsugiArt.Extensions, "Home" to KitsugiArt.NavExplore,
+                "RecordVoiceOver" to KitsugiArt.Feedback, "Campaign" to KitsugiArt.Feedback, "Announcement" to KitsugiArt.Feedback,
+                "Terminal" to KitsugiArt.Code, "DataObject" to KitsugiArt.Code, "Translate" to KitsugiArt.Memo,
+                "Description" to KitsugiArt.Memo, "Article" to KitsugiArt.Memo, "MenuBook" to KitsugiArt.Memo,
+                "Lightbulb" to KitsugiArt.Info, "LightbulbOutline" to KitsugiArt.Info,
+                "Security" to KitsugiArt.Lock, "PrivacyTip" to KitsugiArt.Lock, "GppGood" to KitsugiArt.Warning,
+                "Equalizer" to KitsugiArt.Tune, "GraphicEq" to KitsugiArt.Tune, "Tune" to KitsugiArt.Tune,
+                "Sensors" to KitsugiArt.Lab, "Science" to KitsugiArt.Lab, "Biotech" to KitsugiArt.Lab,
+                "Rocket" to KitsugiArt.Speed, "RocketLaunch" to KitsugiArt.Speed, "Speed" to KitsugiArt.Speed
+            )
+        }
+
         /** Material ikon adı -> 3B ikon. Ad "Rounded.PlayCircle" ise son parça kullanılır. */
         private val byVectorName: Map<String, KitsugiArt> by lazy {
             val map = HashMap<String, KitsugiArt>()
@@ -249,8 +299,10 @@ enum class KitsugiArt(
         fun fromVector(icon: ImageVector): KitsugiArt? {
             val rawName = icon.name
             if (rawName.isEmpty()) return null
+            val bare = rawName.substringAfterLast('.')
             byVectorName[rawName]?.let { return it }
-            return byVectorName[rawName.substringAfterLast('.')]
+            byVectorName[bare]?.let { return it }
+            return EXTRA_ALIASES[rawName] ?: EXTRA_ALIASES[bare]
         }
     }
 }
