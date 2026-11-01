@@ -1,7 +1,7 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: 3895be9
-date: 2026-11-01T09:08:41Z
-BUILD SUCCESSFUL in 4m 28s
+commit: 1474f77
+date: 2026-11-01T09:47:55Z
+BUILD SUCCESSFUL in 6m 21s
 exit=0
 ----- test özeti -----
 ----- son 600 satır -----
@@ -236,8 +236,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kits
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/DetailedProfileStatsOverview.kt:275:81 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/UserProfileStatsTab.kt:129:32 'val Icons.Rounded.Label: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Label.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchScreen.kt:1124:34 'fun Modifier.focusRestorer(onRestoreFailed: (() -> FocusRequester)?): Modifier' is deprecated. Use focusRestorer(FocusRequester) instead.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1102:13 Duplicate branch condition in 'when'.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1103:13 Duplicate branch condition in 'when'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1108:13 Duplicate branch condition in 'when'.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1109:13 Duplicate branch condition in 'when'.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/AddonExploreDialog.kt:478:32 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/AddonSearchDialog.kt:188:57 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/PluginPickerBottomSheet.kt:214:53 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
@@ -321,8 +321,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kits
 > Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
 > Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
 > Task :app:testFossDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793523855623.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793526098241.json
 
-BUILD SUCCESSFUL in 4m 28s
+BUILD SUCCESSFUL in 6m 21s
 72 actionable tasks: 30 executed, 42 from cache
 exit=0
