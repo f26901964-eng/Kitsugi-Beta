@@ -35,7 +35,8 @@ const fileFor = (key) => path.join(ICON_DIR, 'ic_kitsugi_' + (KEYMAP[key] || key
   const parts = [];
   const comps = [];
   parts.push(`<text x="${PAD}" y="66" fill="${T1}" font-size="40" font-weight="700" font-family="DejaVu Sans, sans-serif">Kitsugi 3B İkon Seti</text>`);
-  parts.push(`<text x="${PAD}" y="106" fill="${T2}" font-size="19" font-family="DejaVu Sans, sans-serif">${ORDER.length} ikon · saydam zemin · arka plansız · 3Dicons (CC0) · cam + gradyan</text>`);
+  const assetCount = new Set(Object.values(KEYMAP).map((v) => v.replace(/-/g, '_'))).size;
+  parts.push(`<text x="${PAD}" y="106" fill="${T2}" font-size="19" font-family="DejaVu Sans, sans-serif">${assetCount} varlık · ${ORDER.length} kullanım · saydam zemin · arka plansız · 3Dicons (CC0) · cam + gradyan</text>`);
 
   ORDER.forEach((key, i) => {
     const x = PAD + (i % COLS) * CELL;
@@ -47,13 +48,18 @@ const fileFor = (key) => path.join(ICON_DIR, 'ic_kitsugi_' + (KEYMAP[key] || key
 
   const fy = GRID_TOP + ROWS * CELL + 20;
   parts.push(`<text x="${PAD}" y="${fy + 26}" fill="${T3}" font-size="17" font-weight="700" letter-spacing="1.2" font-family="DejaVu Sans, sans-serif">SATIR İÇİNDE (30 dp)</text>`);
-  ['account', 'palette', 'extensions', 'storage', 'history'].forEach((key, i) => {
-    const cx = PAD + 116 + i * 246;
+  const cellW = Math.floor((W - PAD * 2) / 5);
+  const STRIP = [
+    ['account', 'Hesap'], ['palette', 'Görünüm'], ['extensions', 'Eklentiler'],
+    ['storage', 'Depolama'], ['history', 'Geçmiş'],
+  ];
+  STRIP.forEach(([key, short], i) => {
+    const x = PAD + i * cellW;
     const cy = fy + 74;
-    parts.push(`<rect x="${cx - 150}" y="${cy - 34}" width="220" height="68" rx="18" fill="${CELL_BG}"/>`);
-    parts.push(`<text x="${cx - 84}" y="${cy - 2}" fill="${T1}" font-size="18" font-weight="600" font-family="DejaVu Sans, sans-serif">${esc(LABELS[key])}</text>`);
-    parts.push(`<text x="${cx - 84}" y="${cy + 20}" fill="${T3}" font-size="13" font-family="DejaVu Sans, sans-serif">örnek ayar satırı</text>`);
-    comps.push({ file: fileFor(key), left: cx - 138, top: Math.round(cy - 27), size: 54 });
+    parts.push(`<rect x="${x}" y="${cy - 34}" width="${cellW - 14}" height="68" rx="18" fill="${CELL_BG}"/>`);
+    parts.push(`<text x="${x + 76}" y="${cy - 3}" fill="${T1}" font-size="17" font-weight="600" font-family="DejaVu Sans, sans-serif">${esc(short)}</text>`);
+    parts.push(`<text x="${x + 76}" y="${cy + 18}" fill="${T3}" font-size="12" font-family="DejaVu Sans, sans-serif">${esc(LABELS[key])}</text>`);
+    comps.push({ file: fileFor(key), left: x + 12, top: Math.round(cy - 27), size: 54 });
   });
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('\n')}</svg>`;
