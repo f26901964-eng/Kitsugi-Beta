@@ -595,9 +595,16 @@ fun FullScreenMediaGridPage(
         } else {
             val genreObj = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
             if (genreObj != null) {
+                // Bangumi kayıtlarının `genres` alanı **Çince/Japonca wiki etiketleridir**
+                // (`恋爱`, `机战`…); Türkçe/İngilizce anahtar kelimelerle karşılaştırma hiç
+                // eşleşmediği için bu kaynakta "📱 yerel" tür süzgeci **boş ızgara**
+                // üretiyordu. Terim sözlükten kanonik Bangumi yazımına da çevrilip aranır.
+                val nativeTerm = com.kitsugi.animelist.utils.BangumiTagDictionary
+                    .canonicalTagFor(genreObj.keywords.firstOrNull().orEmpty())
                 base.filter { item ->
                     val inGenres = item.genres.any { g ->
-                        genreObj.keywords.any { kw -> g.contains(kw, ignoreCase = true) }
+                        genreObj.keywords.any { kw -> g.contains(kw, ignoreCase = true) } ||
+                            (nativeTerm != null && g.contains(nativeTerm, ignoreCase = true))
                     }
                     val inSubtitle = genreObj.keywords.any { kw ->
                         item.subtitle.contains(kw, ignoreCase = true)
