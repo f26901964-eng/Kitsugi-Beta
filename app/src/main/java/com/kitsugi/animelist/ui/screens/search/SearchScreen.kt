@@ -688,8 +688,22 @@ fun SearchScreen(
                 excludedGenres = uiState.excludedGenres,
                 tags = uiState.tags
             ),
-            onApplyFilters = {
-                viewModel.updateFilters(it)
+            onApplyFilters = { applied ->
+                // ⚠️ Bu sheet **yalnız** tür/etiket düzenler; `SearchFilters`'ın diğer
+                // alanları varsayılan (null) gelir. Doğrudan `updateFilters(applied)`
+                // çağrıldığında kullanıcının yıl/mevsim/puan süzgeçleri sessizce
+                // siliniyordu (ör. detay sayfasından "2025 · Kış · Korku" ile gelen
+                // kullanıcı bir etiket daha eklediğinde yıl ve mevsim kayboluyordu).
+                // Mevcut durum değerleri korunarak birleştirilir.
+                viewModel.updateFilters(
+                    applied.copy(
+                        minYear = applied.minYear ?: uiState.startYear,
+                        maxYear = applied.maxYear ?: uiState.endYear,
+                        season = applied.season ?: uiState.season?.apiValue,
+                        minScore = applied.minScore ?: uiState.minScore,
+                        maxScore = applied.maxScore ?: uiState.maxScore
+                    )
+                )
                 viewModel.setFilterSheetOpen(false)
             },
             onDismiss = { viewModel.setFilterSheetOpen(false) }
@@ -747,8 +761,15 @@ fun SearchScreen(
             options = tmdbGenres,
             selectedOption = currentGenre,
             onOptionSelected = { g ->
+                // Yalnız tür değişiyor; yıl/mevsim/puan süzgeçleri korunur (bkz. yukarıdaki
+                // `GenresTagsSheet` notu — aynı sıfırlama hatası burada da vardı).
                 val updated = SearchFilters(
-                    genres = if (g == null || g == "All") emptyList() else listOf(g)
+                    genres = if (g == null || g == "All") emptyList() else listOf(g),
+                    minYear = uiState.startYear,
+                    maxYear = uiState.endYear,
+                    season = uiState.season?.apiValue,
+                    minScore = uiState.minScore,
+                    maxScore = uiState.maxScore
                 )
                 viewModel.updateFilters(updated)
             },
