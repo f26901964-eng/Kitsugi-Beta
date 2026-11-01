@@ -402,8 +402,11 @@ private suspend fun bangumiPage(
     // `bangumi/tags.tsv` sözlüğü kullanılır; böylece "Psikolojik", "Seinen", "Isekai" gibi
     // çipler de gerçekten süzülür (eşlenemeyen terim artık sessizce tüm kataloğa düşmez).
     val tag = term?.let { bangumiTagFor(it) }
-    // Etiketli (boş sorgulu) istekte "match" sıralaması anlamsızdır → rank/heat/score kullanılır.
-    val effectiveSort = if (tag != null) bangumiSort(sort) else bangumiSort(KitsugiGridSortOption.DEFAULT)
+    // Kullanıcının seçtiği sıralama **tür seçilmeden** de sunucuda uygulanır: `sort=heat|score`
+    // boş sorguda çalışır (probe F1/F2/F4), `rank` de resmî sıralamadır. Eskiden tür
+    // seçilmediğinde sıralama zorla `rank`e çevriliyordu; filtre sayfasında "Puan" seçen
+    // kullanıcı puan sırasına göre değil, kategori sırasına göre liste görüyordu.
+    val effectiveSort = bangumiSort(sort)
     // Bangumi REAL rafları ("Bangumi Dizileri/Filmleri") sunucuda `type=6` ile sınırlanır.
     // Aksi hâlde "Tümünü Gör" ızgarasında dizi rafının altında anime, film rafının altında
     // anime filmleri de listeleniyordu (raf başlığı ile içerik uyuşmuyordu).
@@ -415,9 +418,12 @@ private suspend fun bangumiPage(
     }
     // `type = 6` hem dizileri hem filmleri kapsar; raf başlığı ile içeriğin uyuşması için
     // 三次元 kayıtları Bangumi'nin kendi `meta_tags` değeriyle ayrılır (probe F1/F2).
+    // `type = 1` (书籍) ise manga + roman + 画集 karışık gelir; "Tümünü Gör" manga ızgarası
+    // roman listeliyordu, `漫画` meta etiketi bunu sunucuda ayırır (probe Q1–Q3).
     val metaTags = when (spec.mediaType) {
         MediaType.TvShow -> listOf("电视剧")
         MediaType.Movie -> listOf("电影")
+        MediaType.Manga -> listOf("漫画")
         else -> emptyList()
     }
     return KitsugiBangumiClient.searchMediaAdvanced(

@@ -1490,6 +1490,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 SearchSourceEngine.BANGUMI -> {
                     val f = state.bangumiSpecificFilters
+                    // Ana arama filtre sayfası (tür/etiket çipleri) bu kaynağa özel
+                    // `bangumiSpecificFilters.tags` alanına değil, `uiState.genres/tags`
+                    // alanlarına yazıyor. Bu ikisi birleştirilmezse kullanıcı filtre
+                    // sayfasında "Korku" seçip Bangumi'de arattığında **süzgeçsiz** tüm
+                    // katalog geliyordu. `searchMediaAdvanced` etiketleri zaten sözlükten
+                    // geçirdiği için Türkçe/İngilizce terimler güvenle gönderilebilir.
+                    val effectiveBangumiTags = (f.tags + state.tags + state.genres)
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .distinct()
                     // Bangumi arama uçları sayfa başına EN FAZLA 20 kayıt döndürür (sunucu limiti
                     // sessizce 20'ye kısar). 24 istenirse offset her sayfada 4 kayıt atlar ve
                     // `size >= 24` kontrolü "sonraki sayfa yok" sonucu verir.
@@ -1533,19 +1543,36 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 )
                                 else -> null
                             }
+                            // Kapsam → Bangumi kataloğu ayrımı:
+                            //   • TV/MOVIE: `type = 6` içinde `meta_tags` ile dizi/film ayrılır.
+                            //   • LIGHT_NOVEL: `type = 1` içinde `meta_tags=小说`; aksi hâlde
+                            //     `comicsOnly` yüzünden roman sekmesi **manga** listeliyordu.
+                            //   • MANGA/MANHWA/MANHUA: `comicsOnly` → `meta_tags=漫画`.
+                            val scopeMetaTags = when (scope) {
+                                SearchScope.TV -> listOf("电视剧")
+                                SearchScope.MOVIE -> listOf("电影")
+                                SearchScope.LIGHT_NOVEL -> listOf("小说")
+                                else -> emptyList()
+                            }
+                            val scopeComicsOnly = if (scope == SearchScope.LIGHT_NOVEL) {
+                                false
+                            } else {
+                                f.comicsOnly
+                            }
                             val res = KitsugiBangumiClient.searchMediaAdvanced(
                                 mediaType = mediaType,
                                 query = queryText,
                                 page = page,
                                 limit = bangumiPageSize,
                                 sort = f.sort,
-                                tags = f.tags,
+                                tags = effectiveBangumiTags,
                                 yearFrom = f.yearFrom,
                                 yearTo = f.yearTo,
                                 minScore = f.minScore,
                                 includeAdult = f.nsfw || showAdult,
                                 subjectTypes = subjectTypes,
-                                comicsOnly = f.comicsOnly
+                                comicsOnly = scopeComicsOnly,
+                                metaTags = scopeMetaTags
                             )
                             return Pair(res, res.size >= bangumiPageSize)
                         }
@@ -1964,21 +1991,31 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
                 val bangumiDef = async(Dispatchers.IO) {
                     val f = state.bangumiSpecificFilters
+                    // Filtre sayfasındaki tür/etiket çipleri `uiState.genres/tags` alanına
+                    // yazılır; Bangumi rafı bunları görmüyordu (AniList görüyordu). İki
+                    // kaynak birleştirilir, sözlük çevirisi `searchMediaAdvanced` içinde.
+                    val effectiveBangumiTags = (f.tags + state.tags + state.genres)
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .distinct()
                     suspend fun searchBangumi(
                         type: MediaType,
-                        subjectTypes: List<Int>? = null
+                        subjectTypes: List<Int>? = null,
+                        metaTags: List<String> = emptyList()
                     ) = KitsugiBangumiClient.searchMediaAdvanced(
                         mediaType = type,
                         query = queryText,
                         page = 1,
                         limit = BangumiApiClient.SEARCH_PAGE_SIZE,
                         sort = f.sort,
-                        tags = f.tags,
+                        tags = effectiveBangumiTags,
                         yearFrom = f.yearFrom,
                         yearTo = f.yearTo,
                         minScore = f.minScore,
                         includeAdult = f.nsfw || showAdult,
-                        subjectTypes = subjectTypes
+                        subjectTypes = subjectTypes,
+                        comicsOnly = f.comicsOnly,
+                        metaTags = metaTags
                     )
                     val mediaRes = fetchMediaShelf(
                         active = plan.bangumi && (wantAnime || wantManga),
@@ -1995,9 +2032,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 coroutineScope {
                                     val tvPart = async(Dispatchers.IO) {
                                         fetchSource {
+                                            // `type = 6` dizi + film karışık döner; "Diziler"
+                                            // rafı `meta_tags=电视剧` ile ayrıştırılır.
                                             searchBangumi(
                                                 MediaType.TvShow,
-                                                listOf(BangumiApiClient.SubjectType.REAL)
+                                                listOf(BangumiApiClient.SubjectType.REAL),
+                                                metaTags = listOf("电视剧")
                                             )
                                         }
                                     }
@@ -2005,7 +2045,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                         fetchSource {
                                             searchBangumi(
                                                 MediaType.Movie,
-                                                listOf(BangumiApiClient.SubjectType.REAL)
+                                                listOf(BangumiApiClient.SubjectType.REAL),
+                                                metaTags = listOf("电影")
                                             )
                                         }
                                     }

@@ -248,7 +248,22 @@ object KitsugiBangumiClient {
             // Eski kod her boş isteği göz atmaya yolluyor ve `heat`/`score` sıralamalarını
             // sessizce `date`e çeviriyordu: "Popüler" ızgarası popülerliğe göre değil, en
             // yeniye göre sıralanıyordu ve film kategorisinde REAL yapıtlar hiç gelmiyordu.
-            val hasSearchFilters = effectiveTags.isNotEmpty() || airDate.isNotEmpty() || rating.isNotEmpty()
+            // `type = 1` (书籍) kataloğu manga + roman + 画集 karışık döner ve `platform`
+            // sunucuda süzülemez (v0: `platform` yalnız oyun türünde çalışır). Yalnız
+            // istemcide süzmek sayfalamayı bozuyordu: prob P5'te `BOOK + tag 恋爱` ilk
+            // 5 sonucunun **tamamı roman** çıktı, istemci süzgecinden sonra sayfa boş
+            // kalıp "sonraki sayfa yok" kararı veriliyordu. Q1/Q2/Q3 probları `漫画`
+            // meta etiketinin sunucuda doğru çalıştığını gösterdi.
+            val effectiveMetaTags = when {
+                mediaType == MediaType.Manga && comicsOnly -> metaTags + "漫画"
+                else -> metaTags
+            }.distinct()
+            // `meta_tags` de bir süzgeçtir: göz atma ucu (`GET /v0/subjects`) bu alanı
+            // bilmediği için sessizce yok sayardı. "Bangumi Dizileri/Filmleri" ızgarası
+            // `type=6` + `meta_tags` ile ayrıştığından, meta süzgeci varken **arama ucu**
+            // kullanılmak zorunda (probe F1/F2/Q1–Q4).
+            val hasSearchFilters = effectiveTags.isNotEmpty() || airDate.isNotEmpty() ||
+                rating.isNotEmpty() || effectiveMetaTags.isNotEmpty()
             val wantsSearchSort = sort == BangumiApiClient.SearchSort.HEAT ||
                 sort == BangumiApiClient.SearchSort.SCORE
             val canBrowse = effectiveQuery.isBlank() && !hasSearchFilters &&
@@ -293,16 +308,6 @@ object KitsugiBangumiClient {
                 } else {
                     emptyList()
                 }
-                // `type = 1` (书籍) kataloğu manga + roman + 画集 karışık döner ve `platform`
-                // sunucuda süzülemez (v0: `platform` yalnız oyun türünde çalışır). Yalnız
-                // istemcide süzmek sayfalamayı bozuyordu: prob P5'te `BOOK + tag 恋爱` ilk
-                // 5 sonucunun **tamamı roman** çıktı, istemci süzgecinden sonra sayfa boş
-                // kalıp "sonraki sayfa yok" kararı veriliyordu. Q1/Q2/Q3 probları `漫画`
-                // meta etiketinin sunucuda doğru çalıştığını gösterdi.
-                val effectiveMetaTags = when {
-                    mediaType == MediaType.Manga && comicsOnly -> metaTags + "漫画"
-                    else -> metaTags
-                }.distinct()
                 searchWithFallback(
                     keyword = effectiveQuery,
                     token = tokenOrNull(context),

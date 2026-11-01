@@ -227,6 +227,13 @@ jobs:
           get5 "T3 type=6 rank (cat YOK)" 'https://api.bgm.tv/v0/subjects?type=6&sort=rank&limit=5&offset=0'
           get5 "T4 type=6 cat=6001 series YOK" 'https://api.bgm.tv/v0/subjects?type=6&cat=6001&sort=rank&limit=5&offset=0'
           search "T5 REAL + keyword reply 1988" '{"keyword":"reply 1988","sort":"match","filter":{"type":[6],"nsfw":false}}'
+          # U: "Tümünü Gör" ızgaralarının GERÇEK istek gövdeleri (meta_tags + sıralama)
+          search "U1 heat + type1 + meta 漫画" '{"keyword":"","sort":"heat","filter":{"type":[1],"meta_tags":["漫画"],"nsfw":false}}'
+          search "U2 score + type1 + meta 漫画 + votes>=100" '{"keyword":"","sort":"score","filter":{"type":[1],"meta_tags":["漫画"],"rating_count":[">=100"],"nsfw":false}}'
+          search "U3 heat + type6 + meta 电视剧" '{"keyword":"","sort":"heat","filter":{"type":[6],"meta_tags":["电视剧"],"nsfw":false}}'
+          search "U4 score + type6 + meta 电影 + votes>=100" '{"keyword":"","sort":"score","filter":{"type":[6],"meta_tags":["电影"],"rating_count":[">=100"],"nsfw":false}}'
+          search "U5 rank + type1 + meta 小说 + rank>=1" '{"keyword":"","sort":"rank","filter":{"type":[1],"meta_tags":["小说"],"rank":[">=1"],"nsfw":false}}'
+          search "U6 rank + type2 + tag 运动 + rank>=1" '{"keyword":"","sort":"rank","filter":{"type":[2],"tag":["运动"],"rank":[">=1"],"nsfw":false}}'
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log
