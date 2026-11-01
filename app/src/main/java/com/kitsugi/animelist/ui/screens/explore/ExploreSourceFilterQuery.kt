@@ -205,7 +205,18 @@ suspend fun fetchFilteredExplorePage(
             ExplorePlatform.KITSU -> kitsuPage(spec, term, effectiveSort, page)
             ExplorePlatform.SHIKIMORI -> shikimoriPage(spec, term, effectiveSort, page, showAdultContent)
             ExplorePlatform.SIMKL -> simklPage(spec, effectiveSort, page, term, clients)
-            ExplorePlatform.BANGUMI -> bangumiPage(spec, term, effectiveSort, page, showAdultContent)
+            // Mevsimsel ızgarada seçilen mevsim **filtreye de** taşınır: tür çipi seçildiğinde
+            // sunucu yoluna geçildiği için mevsim sessizce düşüyor ve "Kış 2025" yerine tüm
+            // zamanların sonuçları geliyordu (R23).
+            ExplorePlatform.BANGUMI -> bangumiPage(
+                spec = spec,
+                term = term,
+                sort = effectiveSort,
+                page = page,
+                showAdultContent = showAdultContent,
+                seasonalSeason = season.takeIf { isSeasonal },
+                seasonalYear = year.takeIf { isSeasonal }
+            )
             ExplorePlatform.ALL -> emptyList()
         }
     }.getOrElse { error ->
@@ -395,7 +406,9 @@ private suspend fun bangumiPage(
     term: String?,
     sort: KitsugiGridSortOption,
     page: Int,
-    showAdultContent: Boolean
+    showAdultContent: Boolean,
+    seasonalSeason: String? = null,
+    seasonalYear: Int? = null
 ): List<JikanSearchResult> {
     // Bangumi etiketleri topluluk sözlüğüdür ve **Çince/Japonca** tutulur; çip terimleri
     // (Türkçe/İngilizce) sunucunun anladığı yazıma çevrilir. Eski 19 girişlik harita yerine
@@ -435,7 +448,11 @@ private suspend fun bangumiPage(
         tags = listOfNotNull(tag),
         includeAdult = showAdultContent,
         subjectTypes = subjectTypes,
-        metaTags = metaTags
+        metaTags = metaTags,
+        // Mevsim → `air_date` çeyreği (probe V1–V5). Yıl aralığı yerine çeyrek aralık
+        // gönderilir; sunucu ikisini birlikte alsa da çeyrek daha dar olduğu için kazanır.
+        season = seasonalSeason,
+        seasonYear = seasonalYear
     )
 }
 

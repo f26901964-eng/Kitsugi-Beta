@@ -301,16 +301,30 @@ fun FullScreenMediaGridPage(
             censored = !showAdultContent
         )
         ExplorePlatform.BANGUMI -> {
-            // Bangumi'de sezon "yıl+ay" ile ifade edilir; mevsim adını temsil ayına çevir.
-            val bangumiMonth = when (seasonalSeason.uppercase()) {
-                "WINTER" -> 1
-                "SPRING" -> 4
-                "SUMMER" -> 7
-                else -> 10
+            // ⚠️ Eski yol `seasonFor(year, month)` idi: Kış 2025 için **yalnız Ocak** ayında
+            // yayınlananları listeliyordu (mevsimin üçte biri) ve mevsimsel filtrenin
+            // "Puana göre / İlgiye göre" sıralaması hiç uygulanmıyordu.
+            // Artık `air_date` **çeyrek** aralığı + seçilen sıralama kullanılır
+            // (canlı prob V1–V5: `>=2025-01-01` + `<2025-04-01` → 89 kayıt).
+            val bangumiSort = when (seasonalSort?.uppercase()) {
+                "SCORE_DESC" -> com.kitsugi.animelist.data.auth.BangumiApiClient.SearchSort.SCORE
+                "MEMBERS_DESC",
+                "POPULARITY_DESC" -> com.kitsugi.animelist.data.auth.BangumiApiClient.SearchSort.HEAT
+                // `START_DATE_DESC` sunucudaki arama ucunda yok (yayın tarihi sıralaması
+                // yalnız göz atma ucunda `sort=date` olarak var). Çeyrek aralığını korumak
+                // için sıra (`rank`) kullanılır; kullanıcı ayrıca sıralama seçmediyse
+                // varsayılan davranış da budur.
+                else -> com.kitsugi.animelist.data.auth.BangumiApiClient.SearchSort.RANK
             }
-            com.kitsugi.animelist.data.remote.KitsugiBangumiClient.seasonFor(
-                year = seasonalYear, month = bangumiMonth, limit = 20,
-                offset = (page - 1).coerceAtLeast(0) * 20
+            com.kitsugi.animelist.data.remote.KitsugiBangumiClient.searchMediaAdvanced(
+                mediaType = com.kitsugi.animelist.model.MediaType.Anime,
+                query = "",
+                page = page,
+                limit = 20,
+                sort = bangumiSort,
+                includeAdult = showAdultContent,
+                season = seasonalSeason,
+                seasonYear = seasonalYear
             )
         }
         else -> emptyList()
