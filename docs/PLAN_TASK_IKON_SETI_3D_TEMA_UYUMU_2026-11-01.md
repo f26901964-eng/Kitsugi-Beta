@@ -29,12 +29,13 @@
 | 5 | Normalize boru hattı (`normalize.js`): kırp → optik denge → alfa/gölge temizliği → 192×192 | ✅ |
 | 6 | `KitsugiIconAssets.kt`: `KitsugiArt` enum (50 varlık, ~300 Material adı eşlemesi), `KitsugiArtIcon`, `KitsugiRowIcon` | ✅ |
 | 7 | Ayar satırları, oynatıcı sekmeleri, alt gezinme çubuğu → 3B | ✅ |
-| 8 | Ekranlarda doğrudan çizilen 88 "konu" ikonunu 3B'ye taşı | ✅ |
+| 8 | Ekranlarda doğrudan çizilen ikonları 3B'ye taşı (önce 88, sonra kalan **tümü**) | ✅ |
 | 9 | Tema uyumu: koyu/AMOLED olduğu gibi, açık temada yumuşak gölge, seçili durumda vurgu hâlesi | ✅ |
 | 10 | **Otomatik renk uyumu**: vurgu rengine (gradyan dâhil) göre ikon ton kaydırması | ✅ |
 | 11 | Önizleme sayfaları (`sheet.js`, `mock_previews.js`, `theme_matrix.js`) + ekran görüntüleri | ✅ |
 | 12 | Lisans/atıf: CC0 tam metin + ayna depo notu; Fluent MIT dosyasının kaldırılması | ✅ |
 | 13 | `docs/IKON_SETI.md` belgesi (kaynak, eşleme tablosu, kurallar, kapsam) | ✅ |
+| 13b | **Tam kapsam:** 799 `Icon(...)` çağrısının tamamı tek giriş noktasından 3B'ye bağlandı (`gradient/Icon` + `KitsugiIcon` alias) | ✅ |
 | 14 | Gradle derlemesi / APK doğrulaması | ⛔ bu ortamda yapılamadı |
 
 ---
@@ -81,6 +82,8 @@ Tam liste: zip içindeki `DEGISEN_DOSYALAR/` klasörü ve `degisiklikler.patch` 
 | `7d98411` | Önizleme sayfası düzeltmeleri |
 | `5ec2c09` | Ekranlardaki "konu" ikonlarının 3B'ye taşınması + tema/hâle uyumu |
 | `e7d8b31` | Vurgu rengine göre **otomatik ton kaydırması** |
+| `f1777c1` | Plan/task dokümanı |
+| `f0dd916` | Tüm `Icon(...)` çağrılarının tek giriş noktasından 3B'ye bağlanması (799 çağrı, 0 kaçak) |
 
 ---
 
