@@ -21,7 +21,7 @@ HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a53950070c66aced-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5395a42bcbfd69c-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -37,7 +37,7 @@ HTTP 200  bytes=8983
 {"results":9,"list":[{"id":485524,"url":"http:\/\/bgm.tv\/subject\/485524","type":2,"name":"Chainsaw Bunny","name_cn":"","summary":"","eps":1,"eps_count":1,"air_date":"2019-01-01","air_weekday":5,"rating":{"total":2,"count":{"10":0,"9":0,"8":1,"7":0,"6":1,"5":0,"4":0,"3":0,"2":0,"1":0},"score":7},"images":{"large":"http:\/\/lain.bgm.tv\/pic\/cover\
 ===== D1 GET p1 subject (app UA) =====
 HTTP 200  bytes=7133
-{"airtime":{"date":"2004-01-01","month":1,"weekday":4,"year":2004},"collection":{"1":9723,"2":15003,"3":1583,"4":754,"5":185},"eps":26,"id":326,"infobox":[{"key":"中文名","values":[{"v":"攻壳机动队 S.A.C. 2nd GIG"}]},{"key":"别名","values":[{"v":"Koukaku Kidoutai S.A.C. 2nd GIG"},{"v":"Ghost in the Shell: Stand Alone Complex 2nd GIG"}]},{
+{"airtime":{"date":"2004-01-01","month":1,"weekday":4,"year":2004},"collection":{"1":9724,"2":15003,"3":1583,"4":754,"5":184},"eps":26,"id":326,"infobox":[{"key":"中文名","values":[{"v":"攻壳机动队 S.A.C. 2nd GIG"}]},{"key":"别名","values":[{"v":"Koukaku Kidoutai S.A.C. 2nd GIG"},{"v":"Ghost in the Shell: Stand Alone Complex 2nd GIG"}]},{
 ===== E1 rank + rank>=1 + rating_count>=100 =====
 HTTP 200
 total: 1000 limit: 5 offset: 0
@@ -130,7 +130,7 @@ HTTP 200
 total: 1000 limit: 5 offset: 0
  - 10380 t2 | 命运石之门 | score 8.8 rank 8 votes 41074 | mt 科幻,悬疑,TV | platform TV
  - 328609 t2 | 孤独摇滚！ | score 8.4 rank 74 votes 41510 | mt TV,日本,漫画改 | platform TV
- - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36801 | mt TV,日本,奇幻 | platform TV
+ - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36802 | mt TV,日本,奇幻 | platform TV
  - 9717 t2 | 魔法少女小圆 | score 8.6 rank 35 votes 39366 | mt TV,日本,原创 | platform TV
  - 27364 t2 | 冰菓 | score 8.1 rank 152 votes 33748 | mt 校园,TV,日本 | platform TV
 ===== I1 anime movie cat=3 rank =====
@@ -211,7 +211,7 @@ K 校园       HTTP 200 total: 1000 veri: 1
 K 超自然    HTTP 200 total: 7 veri: 1
 K 心理描写 HTTP 200 total: 0 veri: 0
 K 运动       HTTP 200 total: 516 veri: 1
-K 惊悚       HTTP 200 total: 114 veri: 1
+K 惊悚       HTTP 200 total: 115 veri: 1
 K 战争       HTTP 200 total: 444 veri: 1
 K 历史剧    HTTP 200 total: 0 veri: 0
 K 军事冲突 HTTP 200 total: 0 veri: 0
@@ -287,7 +287,7 @@ total: 1000 limit: 3 offset: 0
  - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
 O 冒险       HTTP 200 total: 1000 veri: 3
 total: 1000 limit: 3 offset: 0
- - 311 t2 | 千与千寻 | score 8.6 rank 28 votes 27955 | mt 剧场版,日本,奇幻 | platform 剧场版
+ - 311 t2 | 千与千寻 | score 8.6 rank 28 votes 27956 | mt 剧场版,日本,奇幻 | platform 剧场版
  - 518519 t2 | 航海王：粉丝来信 | score 8.6 rank 37 votes 4401 | mt TV,日本,小说改 | platform TV
  - 400602 t2 | 葬送的芙莉莲 | score 8.5 rank 43 votes 36802 | mt TV,日本,奇幻 | platform TV
 O 灵异       HTTP 200 total: 48 veri: 3
@@ -305,15 +305,15 @@ total: 362 limit: 3 offset: 0
  - 211567 t2 | 3月的狮子 第二季 | score 8.8 rank 10 votes 10840 | mt TV,日本,漫画改 | platform TV
  - 93739 t2 | 乒乓 | score 8.7 rank 23 votes 17834 | mt TV,日本,运动 | platform TV
  - 67753 t2 | 明日之丈2 | score 8.7 rank 30 votes 940 | mt TV,日本,漫画改 | platform TV
-O 惊悚       HTTP 200 total: 73 veri: 3
-total: 73 limit: 3 offset: 0
+O 惊悚       HTTP 200 total: 74 veri: 3
+total: 74 limit: 3 offset: 0
  - 839 t2 | 蓝色恐惧 | score 8.7 rank 14 votes 11680 | mt 剧场版,惊悚,悬疑 | platform 剧场版
  - 288 t2 | 寒蝉鸣泣之时 解 | score 8.1 rank 182 votes 13304 | mt 惊悚,悬疑,TV | platform TV
  - 843 t2 | 妄想代理人 | score 8 rank 222 votes 5003 | mt 科幻,惊悚,悬疑 | platform TV
 O 机战       HTTP 200 total: 644 veri: 3
 total: 644 limit: 3 offset: 0
  - 6049 t2 | 新世纪福音战士剧场版 Air/真心为你 | score 8.9 rank 7 votes 22295 | mt 科幻,剧场版,机战 | platform 剧场版
- - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4116 | mt 科幻,剧场版,日本 | platform 剧场版
+ - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4117 | mt 科幻,剧场版,日本 | platform 剧场版
  - 265 t2 | 新世纪福音战士 | score 8.7 rank 24 votes 34782 | mt 科幻,机战,TV | platform TV
 O 音乐       HTTP 200 total: 468 veri: 3
 total: 468 limit: 3 offset: 0
@@ -328,7 +328,7 @@ total: 274 limit: 3 offset: 0
 O 战争       HTTP 200 total: 361 veri: 3
 total: 361 limit: 3 offset: 0
  - 326 t2 | 攻壳机动队 S.A.C. 2nd GIG | score 9.2 rank 2 votes 10282 | mt 科幻,TV,日本 | platform TV
- - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4116 | mt 科幻,剧场版,日本 | platform 剧场版
+ - 321 t2 | 机动警察剧场版2 和平保卫战 | score 8.8 rank 11 votes 4117 | mt 科幻,剧场版,日本 | platform 剧场版
  - 263750 t2 | 进击的巨人 第三季 Part.2 | score 8.7 rank 15 votes 24020 | mt TV,日本,奇幻 | platform TV
 O 校园       HTTP 200 total: 1000 veri: 3
 total: 1000 limit: 3 offset: 0
@@ -422,7 +422,7 @@ K 生存       HTTP 200 total: 19 veri: 1
 K 赛博朋克 HTTP 200 total: 62 veri: 1
 K 武侠       HTTP 200 total: 232 veri: 1
 K 宇宙       HTTP 200 total: 38 veri: 1
-K 末世       HTTP 200 total: 96 veri: 1
+K 末世       HTTP 200 total: 95 veri: 1
 K 吸血鬼    HTTP 200 total: 103 veri: 1
 ===== S '剧情' =====
 HTTP 200
@@ -504,7 +504,7 @@ total: 516 limit: 3 offset: 0
  - 19712 t2 | 野驁射手 | score 7.2 rank 0 votes 24 | mt TV,日本 | platform TV
 ===== S '惊悚' =====
 HTTP 200
-total: 114 limit: 3 offset: 0
+total: 115 limit: 3 offset: 0
  - 4609 t2 | 怪哉 | score 6.2 rank 0 votes 34 | mt 惊悚,中国,WEB | platform WEB
  - 11949 t2 | 奈德梦游记 | score 8.2 rank 0 votes 18 | mt TV,欧美 | platform TV
  - 18827 t2 | 令人战栗的日本昔话 | score 5.8 rank 0 votes 13 | mt OVA,短片集 | platform OVA
@@ -582,7 +582,7 @@ total: 38 limit: 3 offset: 0
  - 78667 t2 | 超限猎兵凯能 | score 7.2 rank 0 votes 44 | mt TV,中国 | platform TV
 ===== S '末世' =====
 HTTP 200
-total: 96 limit: 3 offset: 0
+total: 95 limit: 3 offset: 0
  - 46137 t2 | 钢铁新世纪 | score 6.3 rank 0 votes 14 | mt TV,日本 | platform TV
  - 47667 t2 | 未来少年柯南 剧场版 | score 5.9 rank 0 votes 18 | mt 剧场版,日本,冒险 | platform 剧场版
  - 77607 t2 | 人偶玛丽斯 | score 5.9 rank 0 votes 27 | mt 日本,OVA | platform OVA
