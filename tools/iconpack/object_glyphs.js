@@ -35,9 +35,9 @@ const OBJECTS = {
             'M7.6 14.8 a1.85 1.85 0 1 1 -0.01 0 Z',
     w: 2.6, depth: 11, mat: 'gloss',
     parts: [
-      { d: 'M6.4 6.4 a1.7 1.7 0 0 1 3.4 0 a1.7 1.7 0 0 1 -3.4 0 Z', fill: true, w: 0.3, mat: 'clay', halfT: 0.85, radius: 0.42, phase: 0.55 },
-      { d: 'M12.2 11 a1.7 1.7 0 0 1 3.4 0 a1.7 1.7 0 0 1 -3.4 0 Z', fill: true, w: 0.3, mat: 'clay', halfT: 0.85, radius: 0.42, phase: 0.55 },
-      { d: 'M4.8 15.6 a1.7 1.7 0 0 1 3.4 0 a1.7 1.7 0 0 1 -3.4 0 Z', fill: true, w: 0.3, mat: 'clay', halfT: 0.85, radius: 0.42, phase: 0.55 },
+      { d: 'M6.4 6.4 a1.7 1.7 0 0 1 3.4 0 a1.7 1.7 0 0 1 -3.4 0 Z', fill: true, w: 0.3, mat: 'chrome', halfT: 0.8, radius: 0.38 },
+      { d: 'M12.2 11 a1.7 1.7 0 0 1 3.4 0 a1.7 1.7 0 0 1 -3.4 0 Z', fill: true, w: 0.3, mat: 'chrome', halfT: 0.8, radius: 0.38 },
+      { d: 'M4.8 15.6 a1.7 1.7 0 0 1 3.4 0 a1.7 1.7 0 0 1 -3.4 0 Z', fill: true, w: 0.3, mat: 'chrome', halfT: 0.8, radius: 0.38 },
     ],
   },
   // tepsiye inen ok
@@ -56,8 +56,8 @@ const OBJECTS = {
     detail: 'M12 13.2 V10.2',
     w: 2.55, mat: 'clay',
     parts: [
-      { d: 'M11.4 4.6 h1.2 v2.2 h-1.2 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.55, radius: 0.25 },
-      { d: 'M10.2 3.1 h3.6 v1.2 h-3.6 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.4, radius: 0.18 },
+      { d: 'M11.4 4.6 h1.2 v2.2 h-1.2 z', fill: true, w: 0.3, mat: 'chrome', halfT: 0.5, radius: 0.22 },
+      { d: 'M10.2 3.1 h3.6 v1.2 h-3.6 z', fill: true, w: 0.3, mat: 'chrome', halfT: 0.38, radius: 0.16 },
     ],
   },
   // kod: açılı parantezler
@@ -67,15 +67,20 @@ const OBJECTS = {
   },
   // TV / yayın: ekran + ayak
   tv: {
-    d: 'M3.9 6.9 H20.2 V16.5 H3.9 Z M9.2 20.2 H14.8',
+    d: 'M3.9 6.9 H20.2 V16.5 H3.9 Z',
     fill: true, w: 0.4, depth: 12, mat: 'rubber',
-    detail: 'M7.4 13.4 L11.6 9.6',
-    parts: [{ d: 'M5.9 8.6 H18.2 V14.4 H5.9 Z', fill: true, w: 0.35, mat: 'obsidian', halfT: 0.55, radius: 0.24, phase: 0.62 }],
+    parts: [
+      { d: 'M5.9 8.6 H18.2 V14.4 H5.9 Z', fill: true, w: 0.35, mat: 'obsidian', halfT: 0.55, radius: 0.24, phase: 0.62 },
+      { d: 'M11.3 16.2 h1.4 v3.2 h-1.4 z', fill: true, w: 0.26, mat: 'chrome', halfT: 0.3, radius: 0.14 },
+      { d: 'M8.7 19.2 h6.6 v1.4 h-6.6 z', fill: true, w: 0.26, mat: 'chrome', halfT: 0.32, radius: 0.15 },
+    ],
   },
   // etiket: delikli etiket gövdesi
   tag: {
     d: 'M4.3 11.3 V4.9 H10.7 L19.2 13.4 L13.4 19.2 Z',
-    detail: 'M7.7 8.2 a1.3 1.3 0 1 1 -0.01 0 Z',
+    parts: [
+      { d: 'M7.7 6.8 a1.4 1.4 0 0 1 0 2.8 a1.4 1.4 0 0 1 0 -2.8 Z M7.7 7.5 a0.7 0.7 0 0 0 0 1.4 a0.7 0.7 0 0 0 0 -1.4 Z', fill: true, w: 0.3, mat: 'chrome', halfT: 0.35, radius: 0.16 },
+    ],
     w: 2.6, depth: 12, mat: 'paper',
   },
   // bulut yedeği: bulut + ok

@@ -18,7 +18,7 @@ malzeme, kalınlık, kenar yuvarlaklığı ve parça kurgusu glif başına deği
 | 10 | `ic_kitsugi_glyph_arrow_left.png` | Sola taşı | ince kâğıt | — | ince kâğıt ok |
 | 11 | `ic_kitsugi_glyph_eye.png` | Göster / önizle | cam | 1 parça | cam gövde + obsidyen bebek — gerçek göz gibi saydam |
 | 12 | `ic_kitsugi_glyph_eyeOff.png` | Gizle | cam | — | cam gövde + üstü çizili |
-| 13 | `ic_kitsugi_glyph_funnel.png` | Filtrele | cam | — | cam huni + ızgara çizgileri — süzme hissi |
+| 13 | `ic_kitsugi_glyph_funnel.png` | Filtrele | cam | 1 parça | cam huni + ızgara çizgileri — süzme hissi |
 | 14 | `ic_kitsugi_glyph_sort.png` | Sırala | parlak emaye | — | parlak emaye çubuklar + ok — aktif eylem |
 | 15 | `ic_kitsugi_glyph_grid.png` | Izgara görünüm | mat seramik (kil) | — | dört kalın kil karo — fiziksel döşeme |
 | 16 | `ic_kitsugi_glyph_list.png` | Liste görünüm | ince kâğıt | — | kâğıt satırlar — ince, düz bilgi şeritleri |
@@ -39,13 +39,13 @@ malzeme, kalınlık, kenar yuvarlaklığı ve parça kurgusu glif başına deği
 | 31 | `ic_kitsugi_glyph_drag.png` | Sürükle | mat kauçuk | — | kauçuk tutamak çubukları |
 | 32 | `ic_kitsugi_glyph_density.png` | Yoğunluk | ince kâğıt | — | ince kâğıt çizgiler |
 | 33 | `ic_kitsugi_glyph_keyboard.png` | Klavye kısayolları | mat kauçuk | 2 parça | kauçuk gövde + emaye tuşlar (gerçek tuş dizilimi) |
-| 34 | `ic_kitsugi_glyph_input.png` | Girdi alanı | parlak emaye | — | emaye yuva + iç oluk |
+| 34 | `ic_kitsugi_glyph_input.png` | Girdi alanı | parlak emaye | 1 parça | emaye yuva + iç oluk |
 | 35 | `ic_kitsugi_glyph_doubleArrow.png` | Yatay boyutlandır | jöle / yarı saydam | — | jöle çift ok |
 | 36 | `ic_kitsugi_glyph_home.png` | Ana sayfa | mat seramik (kil) | — | yumuşak kil ev — sıcak, oturmuş hacim |
 | 37 | `ic_kitsugi_glyph_leaf.png` | İçerik / doğa | jöle / yarı saydam | — | jöle yaprak — yarı saydam |
 | 38 | `ic_kitsugi_glyph_snow.png` | Kış teması | cam | — | cam kar tanesi |
 | 39 | `ic_kitsugi_glyph_cake.png` | Doğum günü | mat seramik (kil) | 3 parça | kil sünger + emaye mumlar (gerçek mum dizilimi) |
-| 40 | `ic_kitsugi_glyph_camera.png` | Kamera / fotoğraf | parlak emaye | 1 parça | emaye gövde + obsidyen mercek + oyuk halka |
+| 40 | `ic_kitsugi_glyph_camera.png` | Kamera / fotoğraf | parlak emaye | 2 parça | emaye gövde + obsidyen mercek + oyuk halka |
 | 41 | `ic_kitsugi_glyph_textQuote.png` | Alıntı | mat seramik (kil) | — | kil tırnak işaretleri |
 | 42 | `ic_kitsugi_glyph_textHash.png` | Etiket / hashtag | obsidyen (koyu cam) | — | obsidyen metal çubuklar |
 | 43 | `ic_kitsugi_glyph_textBold.png` | Kalın | obsidyen (koyu cam) | — | obsidyen B — ağır harf |
@@ -53,13 +53,13 @@ malzeme, kalınlık, kenar yuvarlaklığı ve parça kurgusu glif başına deği
 | 45 | `ic_kitsugi_glyph_textTitle.png` | Başlık | mat seramik (kil) | — | kil A |
 | 46 | `ic_kitsugi_glyph_textStrike.png` | Üstü çizili | jöle / yarı saydam | — | jöle S |
 | 47 | `ic_kitsugi_obj_sync.png` | Eşitle / yenile | parlak emaye | — | parlak emaye dairesel ok |
-| 48 | `ic_kitsugi_obj_sliders.png` | Ayar kaydırıcıları | parlak emaye | 3 parça | emaye ray + kil düğmeler (gerçek slider) |
+| 48 | `ic_kitsugi_obj_sliders.png` | Ayar kaydırıcıları | parlak emaye | 3 parça | emaye ray + krom düğmeler (gerçek slider) |
 | 49 | `ic_kitsugi_obj_download.png` | İndir | jöle / yarı saydam | — | jöle ok + tepsi |
 | 50 | `ic_kitsugi_obj_upload.png` | Yükle | ince kâğıt | — | ince kâğıt ok + tepsi |
 | 51 | `ic_kitsugi_obj_timer.png` | Zamanlayıcı | mat seramik (kil) | 2 parça | kil gövde + emaye tepe düğmesi (kronometre) |
 | 52 | `ic_kitsugi_obj_code.png` | Kod | obsidyen (koyu cam) | — | obsidyen parantezler |
-| 53 | `ic_kitsugi_obj_tv.png` | TV / yayın | mat kauçuk | 1 parça | kauçuk gövde + obsidyen ekran + cam parlaması |
-| 54 | `ic_kitsugi_obj_tag.png` | Etiket | ince kâğıt | — | ince kâğıt etiket + delik |
+| 53 | `ic_kitsugi_obj_tv.png` | TV / yayın | mat kauçuk | 3 parça | kauçuk gövde + obsidyen ekran + krom ayak |
+| 54 | `ic_kitsugi_obj_tag.png` | Etiket | ince kâğıt | 1 parça | ince kâğıt etiket + delik |
 | 55 | `ic_kitsugi_obj_backup.png` | Yedekle | jöle / yarı saydam | — | jöle bulut + ok |
 
 ## Malzeme dağılımı

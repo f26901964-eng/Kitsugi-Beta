@@ -47,7 +47,7 @@ const GLYPHS = {
   // huni: camdan süzgeç
   funnel: {
     d: 'M3.6 5.4 H20.4 L13.9 13.1 V19.6 L10.1 17.4 V13.1 Z', fill: true, mat: 'glass',
-    detail: 'M6.4 8.0 H17.6 M8.9 10.6 H15.1',
+    parts: [{ d: 'M3.9 5.15 h16.2 v0.95 h-16.2 z', fill: true, w: 0.28, mat: 'chrome', halfT: 0.3, radius: 0.14 }],
   },
   // sıralama: fırçalanmış metal çubuklar + ok
   sort: { d: 'M7 19.5 V4.8 M4.1 16.6 L7 19.5 L9.9 16.6 M13 6.5 H20 M13 11.5 H18.4 M13 16.5 H16.8', mat: 'gloss' },
@@ -89,7 +89,10 @@ const GLYPHS = {
       { d: 'M6.6 12.8 h10.8 v1.9 h-10.8 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.5, radius: 0.22, phase: 0.08 },
     ],
   },
-  input: { d: 'M6.4 7.8 h11.2 v4.4 l-3.2 4.4 h-4.8 l-3.2 -4.4 z', fill: true, mat: 'gloss', detail: 'M8.6 10.2 H15.4' },
+  input: {
+    d: 'M6.4 7.8 h11.2 v4.4 l-3.2 4.4 h-4.8 l-3.2 -4.4 z', fill: true, mat: 'gloss',
+    parts: [{ d: 'M8.8 10.0 h6.4 v0.9 h-6.4 z', fill: true, w: 0.26, mat: 'chrome', halfT: 0.28, radius: 0.12 }],
+  },
   doubleArrow: { d: 'M8.4 7.6 L4.2 12 L8.4 16.4 M15.6 7.6 L19.8 12 L15.6 16.4', mat: 'gel' },
   home: { d: 'M3.8 10.8 L12 4.2 L20.2 10.8 V19.8 h-5.6 v-5.2 h-5.2 v5.2 H3.8 z', fill: true, mat: 'clay' },
   leaf: { d: 'M4.8 19.2 C4.8 11 11 4.8 19.2 4.8 C19.2 13 13 19.2 4.8 19.2 Z M4.8 19.2 L13.4 10.6', fill: true, mat: 'gel' },
@@ -106,9 +109,9 @@ const GLYPHS = {
   // kamera: parlak gövde + cam mercek
   camera: {
     d: 'M3.8 8.4 h4.4 l2 -2.4 h3.6 l2 2.4 h4.4 v10 h-16.4 z', fill: true, mat: 'gloss',
-    detail: 'M12 16.8 A3.6 3.6 0 1 1 12 9.6 A3.6 3.6 0 1 1 12 16.8 Z',
     parts: [
-      { d: 'M8.8 13.2 a3.2 3.2 0 0 1 6.4 0 a3.2 3.2 0 0 1 -6.4 0 Z', fill: true, w: 0.35, mat: 'obsidian', halfT: 0.66, radius: 0.32, phase: 0.62 },
+      { d: 'M8.9 13.2 a3.1 3.1 0 0 1 6.2 0 a3.1 3.1 0 0 1 -6.2 0 Z', fill: true, w: 0.35, mat: 'obsidian', halfT: 0.66, radius: 0.32, phase: 0.62 },
+      { d: 'M12 9.6 a3.6 3.6 0 0 1 0 7.2 a3.6 3.6 0 0 1 0 -7.2 Z M12 10.6 a2.6 2.6 0 0 0 0 5.2 a2.6 2.6 0 0 0 0 -5.2 Z', fill: true, w: 0.35, mat: 'chrome', halfT: 0.42, radius: 0.20 },
     ],
   },
   textQuote: { d: 'M8.6 8.1 c-2.2 0.7 -3.7 2.7 -3.7 5 v3.5 h5 v-5 h-2.4 c0 -1.2 0.6 -2.1 1.7 -2.5 z M16.6 8.1 c-2.2 0.7 -3.7 2.7 -3.7 5 v3.5 h5 v-5 h-2.4 c0 -1.2 0.6 -2.1 1.7 -2.5 z', fill: true, mat: 'clay' },

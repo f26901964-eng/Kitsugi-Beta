@@ -194,3 +194,22 @@ zamanlayıcı. Renk yerleşimi de glif başına `phase`/`span` ile kaydırıldı
 Kanıt: `docs/ikon-stil-haritasi.png` (malzemeye göre gruplu 55 glif),
 `docs/ikon-malzeme-haritasi.md` (glif → işlev → malzeme → gerekçe tablosu),
 `docs/ikon-malzeme-karsilastirma.png` (orijinal vs üretilen).
+
+### 5g. Son rötuş — yüzey derinliği + krom aksan (v8)
+
+v7'den sonra kalan fark: orijinal render'larda yüzeyin kendi derinliği ve küçük
+metal parçalar var. Eklenenler:
+
+- `bottomAO` (alt %20 koyulaşma), `crease` (pah dibi ince gölge), `band`
+  (üst yarıda stüdyo ışık bandı), `rimDark` (silüette ince koyu hat; parlak
+  fresnel halkası kaldırıldı).
+- `chrome` malzemesi: çift ölçekli metal yansıması, %10 doygunluk. 7 ikonda
+  aksan olarak kullanılıyor (kamera mercek çerçevesi, zamanlayıcı kasnağı,
+  kaydırıcı düğmeleri, TV ayağı, etiket perçini, huni ağzı, girdi yuvası).
+- Fresnel değerleri 7 malzemede düşürüldü (0.03–0.44), kenar parlaması yerine
+  kenar gölgesi tercih edildi.
+
+Tema uyumu değişmedi: tüm renk tek rampadan gelir, `hueRotationMatrix(accentHue −
+303.7°)` ile döner; gradyan vurguda iki rengin ortalaması alınır; doygunluk
+< 0.12 ise doğal palet; `iconsFollowAccent = false` ile kapatılabilir. Krom ve
+obsidyen parçalar doygunluğu düşük olduğu için her vurgu renginde nötr kalır.

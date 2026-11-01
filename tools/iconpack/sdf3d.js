@@ -154,17 +154,17 @@ function sampler(sdf, size, world) {
 const MATERIALS = {
   // yumuşak mat seramik/kıl — kalp, ev, kek gövdesi
   clay: {
-    halfT: 1.52, radius: 0.98, shin: 22, spec: 0.26, env: 0.10, fres: 0.05,
+    halfT: 1.52, radius: 0.98, shin: 26, spec: 0.30, env: 0.10, fres: 0.04, rimDark: 0.26,
     amb: 0.80, dif: 0.40, bounce: 0.20, sat: 1.26, dark: 1.0, grain: 0.010,
   },
   // parlak emaye/plastik — anahtar, oklar, küçük kontroller
   gloss: {
-    halfT: 1.10, radius: 0.50, shin: 150, spec: 0.95, env: 0.55, fres: 0.20,
+    halfT: 1.10, radius: 0.56, shin: 120, spec: 0.85, env: 0.55, fres: 0.10, rimDark: 0.26,
     amb: 0.54, dif: 0.64, bounce: 0.04, sat: 1.46, dark: 1.0, grain: 0.0,
   },
   // jöle/şeker — içinden ışık geçen parlak yarı saydam
   gel: {
-    halfT: 1.34, radius: 0.88, shin: 90, spec: 0.62, env: 0.34, fres: 0.30,
+    halfT: 1.34, radius: 0.90, shin: 80, spec: 0.55, env: 0.34, fres: 0.16, rimDark: 0.24,
     amb: 0.66, dif: 0.48, bounce: 0.10, sat: 1.56, dark: 1.0, grain: 0.0,
     inner: 0.30,
   },
@@ -176,23 +176,29 @@ const MATERIALS = {
   },
   // cam — mercek, huni, kar tanesi, damla
   glass: {
-    halfT: 1.10, radius: 0.72, shin: 260, spec: 1.00, env: 1.05, fres: 0.55,
+    halfT: 1.10, radius: 0.74, shin: 240, spec: 0.95, env: 1.05, fres: 0.34, rimDark: 0.22,
     amb: 0.62, dif: 0.50, bounce: 0.08, sat: 1.40, dark: 1.06, grain: 0.0,
     glassy: 1.0, inner: 0.18,
   },
   // obsidyen/grafit cam — koyu gövde, keskin spekülar, parlak kenar
   obsidian: {
-    halfT: 1.18, radius: 0.56, shin: 220, spec: 1.25, env: 0.95, fres: 0.72,
+    halfT: 1.18, radius: 0.58, shin: 200, spec: 1.15, env: 0.95, fres: 0.44, rimDark: 0.30,
     amb: 0.56, dif: 0.68, bounce: 0.03, sat: 1.50, dark: 0.68, grain: 0.008,
+  },
+  // krom / gümüş — küçük aksan parçaları (mercek halkası, kadran, çerçeve)
+  chrome: {
+    halfT: 0.46, radius: 0.22, shin: 320, spec: 1.6, env: 1.2, fres: 0.9,
+    amb: 0.55, dif: 0.18, bounce: 0.02, sat: 0.10, dark: 2.05, grain: 0.0,
+    metallic: 1.0,
   },
   // mat kauçuk/koyu gövde — tutamak, ped, tuş takımı gövdesi
   rubber: {
-    halfT: 1.46, radius: 0.74, shin: 9, spec: 0.14, env: 0.05, fres: 0.04,
+    halfT: 1.46, radius: 0.78, shin: 12, spec: 0.18, env: 0.05, fres: 0.03, rimDark: 0.24,
     amb: 0.60, dif: 0.34, bounce: 0.08, sat: 1.10, dark: 0.74, grain: 0.040,
   },
   // ince kâğıt/levha — satırlar, oklar, metin blokları
   paper: {
-    halfT: 0.54, radius: 0.19, shin: 14, spec: 0.20, env: 0.12, fres: 0.10,
+    halfT: 0.56, radius: 0.22, shin: 16, spec: 0.22, env: 0.12, fres: 0.06, rimDark: 0.22,
     amb: 0.84, dif: 0.50, bounce: 0.03, sat: 1.18, dark: 1.0, grain: 0.026,
     sheet: 1.0,
   },
@@ -309,12 +315,19 @@ async function render(alpha, size, opts = {}) {
       const gl = Math.hypot(gx, gy) || 1;
       const n2x = gx / gl, n2y = gy / gl;
       const k = radius > 0 ? a / radius : 0;
-      const N = norm([n2x * k, n2y * k, filletZ / radius]);
-      // yumuşak üst yüzey (fillet dışı): merkez düz, kenara doğru hafif eğim
-      const dome = Math.min(1, Math.max(0, (-s2) / (halfT * 3.0)));
-      const Nf = norm([N[0] * 0.55 + (x / world) * 0.08 * dome * 0,
-                       N[1] * 0.55 + (y / world) * 0.08 * dome * 0,
-                       1]);
+      // ── kubbe (pillow) profili: düz yüz yerine içe doğru yükselen yumuşak
+      //    hacim. 3dicons render'larındaki "gerçek nesne" hissini veren şey bu.
+      const domeAmp = mat.dome || 0;
+      const domeW = mat.domeW || 3.2;
+      const innerW = Math.min(1, Math.max(0, (-s2) / (radius * 3 + 1e-6)));
+      const uDome = Math.min(1, Math.max(0, -s2 / domeW));
+      const dh = domeAmp * (1 - uDome) * (2 / domeW);   // yüzey eğimi
+      const Nf0 = [
+        n2x * k - dh * n2x * innerW,
+        n2y * k - dh * n2y * innerW,
+        filletZ / radius,
+      ];
+      const N = norm([Nf0[0], Nf0[1], Math.max(0.05, Nf0[2])]);
 
       // renk: sol-üst sıcak → sağ-alt mor (glif başına faz/kaydırma)
       const u = (x - bx0) / bbw;
@@ -345,7 +358,8 @@ async function render(alpha, size, opts = {}) {
 
       // geniş yumuşak parlama (stüdyo yansıması)
       const hx = x + 2.6, hy = y - 3.0;
-      const broad = Math.exp(-(hx * hx + hy * hy) / (2 * 3.2 * 3.2)) * (0.10 + 0.20 * (1 - mat.spec)) * ndv;
+      const sheen = mat.sheen ?? 0.26;
+      const broad = Math.exp(-(hx * hx + hy * hy) / (2 * 3.2 * 3.2)) * sheen * ndv;
 
       // ışık geçirgenlik / iç ışıma
       let inner = 0, glassRim = 0;
@@ -369,8 +383,22 @@ async function render(alpha, size, opts = {}) {
                  + Math.pow(1 - ndv, 2.6) * 0.22;
       }
 
-      const ao = Math.min(1, Math.max(0.60, 1 + s2 * 0.42));
+      // ── yüzey derinliği (orijinal render'lardaki "gerçek nesne" hissi) ──
+      // a) alt tarafa doğru koyulaşma (zemine yakınlık)
+      const yN = (y - by0) / bbh;
+      const bottomAO = 0.80 + 0.20 * Math.min(1, Math.max(0, yN));
+      // b) pah dibindeki ince gölge çizgisi — düz yüz ile yuvarlatılmış kenarın
+      //    birleştiği yerde oluşan gerçek temas kırışıklığı
+      const qa = radius > 0 ? a / radius : 0;
+      const crease = Math.exp(-(((qa - 0.62) / 0.24) ** 2)) * 0.16;
+      // c) üst yarıda yumuşak stüdyo ışık bandı (softbox yansıması)
+      const band = Math.exp(-(((yN - 0.74) / 0.26) ** 2)) * 0.10 * ndv;
+
+      // siluetin hemen içinde ince koyu kenar (arka planla temas gölgesi)
+      const rimDark = 1 - (mat.rimDark ?? 0.28) * Math.pow(qa, 3.2);
+      const ao = Math.min(1, Math.max(0.60, 1 + s2 * 0.42)) * bottomAO * (1 - crease) * rimDark;
       const sh = (amb + dif + bounce) * ao;
+      r *= 1 + band; g *= 1 + band; b *= 1 + band;
 
       if (mat.metallic) {
         // METAL: difüz yok — renk tamamen stüdyo yansımasından gelir.

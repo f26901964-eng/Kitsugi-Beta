@@ -213,7 +213,35 @@ olarak kalıyor.
 | `glass` — cam | 1.10 / 0.72 | ince parlak kenar, kalınlaşan koyu duvar | göz, gizle, huni, damla, kar tanesi |
 | `obsidian` — koyu cam | 1.18 / 0.56 | koyu gövde, çok keskin spekülar, parlak kenar | dışa aç, tam ekran, kenarlık, #, B, kod, TV ekranı |
 | `rubber` — mat kauçuk | 1.46 / 0.74 | en koyu ve en mat, ince gren | akış, tutamak, iki yana yasla, tümünü seç, klavye, TV gövdesi |
-| `paper` — ince kâğıt | 0.54 / 0.19 | çok ince levha, geniş temas gölgesi | ok'lar, liste, yoğunluk, sola hizala, etiket, yükle |
+| `paper` — ince kâğıt | 0.56 / 0.22 | çok ince levha, geniş temas gölgesi | ok'lar, liste, yoğunluk, sola hizala, etiket, yükle |
+
+### Yüzey derinliği (v8 — "gerçek nesne" hissi)
+
+Orijinal render'larda eksik olan üç ipucu eklendi:
+
+1. **Alt koyulaşma** — nesne zemine yaklaştıkça %20'ye kadar koyulaşır (`bottomAO`).
+2. **Pah dibi gölgesi** — düz yüz ile yuvarlatılmış kenarın birleştiği yerde ince koyu
+   kırışıklık (`crease`, radius'un %62'sinde).
+3. **Stüdyo ışık bandı** — üst yarıda yumuşak softbox yansıması (`band`).
+4. **Siluet kenarı** — dış kenarda ince koyu hat (`rimDark`), parlak fresnel halkası
+   yerine. "Neon boru" görüntüsü bu şekilde tamamen kalktı.
+
+### Krom aksanlar
+
+Orijinallerdeki gümüş parçalar (mikrofon çemberi, kasa kadranı, para banknotu)
+gibi küçük metal aksanlar 8 ikonda kullanılıyor — `chrome` malzemesi
+(metal yansıma, %10 doygunluk, çift ölçekli stüdyo yansıması):
+
+| Glif | Krom parça |
+|------|-----------|
+| kamera | mercek çerçevesi |
+| zamanlayıcı | tepe düğmesi + kasnak |
+| kaydırıcılar | üç düğme |
+| TV | ayak (sap + taban) |
+| etiket | perçin halkası |
+| huni | üst ağız çemberi |
+| girdi alanı | yuva çerçevesi |
+| klavye | (krom kaldırıldı — fazla ağır duruyordu; boşluk tuşu emaye) |
 
 Glif başına renk yerleşimi de farklı: her ad için `phase` (0–0.34) ve `span`
 (0.78–0.96) hesaplanır, böylece gradyan her ikonda başka yere düşer.

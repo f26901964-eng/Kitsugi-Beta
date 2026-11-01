@@ -12,6 +12,6 @@
     "coverage": "node coverage_report.js"
   },
   "dependencies": {
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.5"
   }
 }

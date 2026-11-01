@@ -21,6 +21,7 @@ const MAT_TR = {
   obsidian: 'obsidyen (koyu cam)',
   rubber: 'mat kauçuk',
   paper: 'ince kâğıt',
+  chrome: 'krom (gümüş aksan)',
 };
 
 // glif → işlev + stil gerekçesi
@@ -72,12 +73,12 @@ const WHY = {
   textTitle: ['Başlık', 'kil A'],
   textStrike: ['Üstü çizili', 'jöle S'],
   obj_sync: ['Eşitle / yenile', 'parlak emaye dairesel ok'],
-  obj_sliders: ['Ayar kaydırıcıları', 'emaye ray + kil düğmeler (gerçek slider)'],
+  obj_sliders: ['Ayar kaydırıcıları', 'emaye ray + krom düğmeler (gerçek slider)'],
   obj_download: ['İndir', 'jöle ok + tepsi'],
   obj_upload: ['Yükle', 'ince kâğıt ok + tepsi'],
   obj_timer: ['Zamanlayıcı', 'kil gövde + emaye tepe düğmesi (kronometre)'],
   obj_code: ['Kod', 'obsidyen parantezler'],
-  obj_tv: ['TV / yayın', 'kauçuk gövde + obsidyen ekran + cam parlaması'],
+  obj_tv: ['TV / yayın', 'kauçuk gövde + obsidyen ekran + krom ayak'],
   obj_tag: ['Etiket', 'ince kâğıt etiket + delik'],
   obj_backup: ['Yedekle', 'jöle bulut + ok'],
 };
