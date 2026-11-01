@@ -173,24 +173,37 @@ ikonudur, "konu" ikonu değil.
 - Aynı varlık birden fazla anahtar tarafından paylaşılabilir (ör. `wifi` → Ağ +
   Eşitleme, `clock` → Geçmiş + Zamanlayıcı, `computer` → Kod + TV).
 
-## Tema ve renk seçimi uyumu
+## Tema ve renk seçimi uyumu (otomatik)
 
-İkon paleti sabittir (cam mor → pembe → turuncu), ama **ekranın rengi kullanıcıya
-göre değişir**. Bu yüzden çizim katmanı üç kurala göre uyarlanır
-(`KitsugiArtIcon`, `ui/icons/KitsugiIconAssets.kt`):
+İkon paleti ile ekranın rengi iki yönlü bağlanır; ikisi de **kullanıcının seçimine
+göre otomatik** çalışır:
+
+1. **Ton kaydırması (otomatik renk uyumu).** Setin doğal ortalama tonu 303,7°
+   (menekşe-mor). Tema kökü, seçili vurgu renginin tonunu hesaplar ve ikonu yalnızca
+   *ton* ekseninde o kadar döndürür (`hueRotationMatrix`). Doygunluk ve parlaklık
+   korunur; cam/3B görünüm bozulmaz, sadece renk ailesi değişir.
+   - Mint → turkuaz, pembe → magenta, mor → mavi-menekşe, mavi → mavi, yeşil → yeşil,
+     turuncu → kırmızı-turuncu ailesi.
+   - Vurgu **iki renkli gradyan** ise iki rengin ortası esas alınır (renk seçicideki
+     `customAccentColor` + `customAccentColor2`).
+   - Gri/beyaz gibi **doygunluğu %12'nin altındaki** vurgularda ton kaydırması
+     yapılmaz; palet doğal kalır (renksiz bir vurguda ikonu rastgele renge çevirmek
+     anlamsız olurdu).
+   - Kapatmak için: `KitsugiAnimeListTheme(iconsFollowAccent = false)` — tek parametre,
+     varsayılan `true`.
+2. **Durum katmanı.** Seçili sekme/gezinme öğesinde vurgu renginden hâle
+   (`accentGlow = true`), seçili olmayanda %80–86 alfa.
+
+Tema moduna göre zemin davranışı:
 
 | Durum | Davranış | Neden |
 |---|---|---|
 | Koyu tema (`#080A10`) | Görsel olduğu gibi, ek katman yok | Cam parlaklıkları koyu zeminde zaten okunuyor |
 | AMOLED (`#000000`) | Görsel olduğu gibi | Saf siyahta degrade kontrastı en yüksek |
 | Açık tema (`#F3F4F6` / `#FFFFFF`) | İkonun arkasına **plaka değil**, yumuşak radyal gölge (`%24 → saydam`) | Beyaz cam parlamaları beyaz zeminde kaybolur; gölge ikonu "havada" tutar |
-| Seçili sekme / gezinme | Kullanıcının vurgu renginden **hâle** (`accentGlow = true`) | Vurgu mint, pembe, mor, mavi, yeşil, turuncu ya da özel renk/gradyan olabilir — ikon hangi renk seçilirse onunla çevrelenir |
-| Seçili değilken | `alpha 0.8–0.86` | Seçili/seçili olmayan farkı renk değiştirmeden korunur |
 
-Renk seçici iki renkli **gradyan vurguyu** da desteklediği için hâle, vurgunun *ilk*
-renginden üretilir; sekme çizgisi/rozetler zaten `LocalKitsugiAccentBrush` ile
-gradyanı çiziyor. Böylece ikon ile gradyan aynı ekranda birbirini ezer değil,
-tamamlar. Görsel kanıt: **`docs/ikon-tema-uyumu.png`** (`npm run theme`).
+Görsel kanıt: **`docs/ikon-tema-uyumu.png`** (`npm run theme`) — doğal palet
+(koyu/AMOLED/açık), 6 vurgu renginde otomatik ton, ve "doğal ↔ otomatik" karşılaştırması.
 
 ## Nerede 3B, nerede 2B?
 

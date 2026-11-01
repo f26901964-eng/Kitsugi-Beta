@@ -7,12 +7,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.toArgb
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -49,6 +57,58 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
  *   yerini tek tek değiştirmek gerekmez. Yanlış eşleşme riski olan yerlerde
  *   `art = KitsugiArt.X` ile açıkça belirtilir.
  */
+/**
+ * 3dicons `front/gradient` setinin **doğal ortalama tonu** (ölçüldü: 303,7°).
+ * Vurgu rengine göre ton kaydırması bu sabite göre hesaplanır.
+ */
+const val KITSUGI_ICON_NATIVE_HUE = 303.7f
+
+/**
+ * İkon tonunun vurgu rengine göre kaydırılacağı açı (derece, -180..180).
+ * `0` = ikonlar doğal paletinde (mor-pembe) kalır.
+ *
+ * Tema kökü (`KitsugiAnimeListTheme`) bu değeri kullanıcının vurgu renginden
+ * hesaplar; böylece renk seçicide mint / pembe / mor / mavi / yeşil / turuncu /
+ * özel renk / iki renkli gradyan seçildiğinde ikonlar **otomatik** olarak o
+ * renk ailesine kayar. Görsel: docs/ikon-tema-uyumu.png
+ */
+val LocalKitsugiIconHueShift = compositionLocalOf { 0f }
+
+/** Verilen renk(ler)in tonu ile ikon doğal tonu arasındaki en kısa fark. */
+fun iconHueShiftFor(accent: Color, accent2: Color? = null): Float {
+    val target = if (accent2 == null) accent else Color(
+        red = (accent.red + accent2.red) / 2f,
+        green = (accent.green + accent2.green) / 2f,
+        blue = (accent.blue + accent2.blue) / 2f,
+        alpha = 1f
+    )
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(target.toArgb(), hsv)
+    // Neredeyse gri/beyaz bir vurgu seçildiyse tonu yok say (palet doğal kalsın).
+    if (hsv[1] < 0.12f) return 0f
+    var delta = hsv[0] - KITSUGI_ICON_NATIVE_HUE
+    delta = ((delta + 540f) % 360f) - 180f
+    return delta
+}
+
+/**
+ * Ton kaydırma matrisi (standart hue-rotation). Doygunluk ve parlaklık korunur;
+ * yalnızca renk ailesi döner — böylece cam/3B görünüm bozulmaz.
+ */
+private fun hueRotationMatrix(degrees: Float): ColorMatrix {
+    val rad = degrees * PI.toFloat() / 180f
+    val c = cos(rad)
+    val s = sin(rad)
+    return ColorMatrix(
+        floatArrayOf(
+            0.213f + c * 0.787f - s * 0.213f, 0.715f - c * 0.715f - s * 0.715f, 0.072f - c * 0.072f + s * 0.928f, 0f, 0f,
+            0.213f - c * 0.213f + s * 0.143f, 0.715f + c * 0.285f + s * 0.140f, 0.072f - c * 0.072f - s * 0.283f, 0f, 0f,
+            0.213f - c * 0.213f - s * 0.787f, 0.715f - c * 0.715f + s * 0.715f, 0.072f + c * 0.928f + s * 0.072f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f
+        )
+    )
+}
+
 enum class KitsugiArt(
     @DrawableRes val resId: Int,
     /** Otomatik eşlemede kullanılan Material ikon adları (ör. "PlayCircle"). */
@@ -209,6 +269,11 @@ enum class KitsugiArt(
  *   hafif bir hâle. Böylece kullanıcı hangi vurguyu (mint, mor, turuncu, özel renk,
  *   hatta iki renkli gradyan) seçerse seçsin ikon o renkle çevrelenmiş görünür —
  *   ikon paleti sabit kalsa da ekranın rengiyle konuşur.
+ * - **Renk seçimi / gradyan (otomatik):** [LocalKitsugiIconHueShift] tema kökünde
+ *   kullanıcının vurgu renginden hesaplanır ve ikon yalnızca **ton** olarak o renge
+ *   kaydırılır (doygunluk/parlaklık korunur). Vurgu iki renkli gradyansa iki rengin
+ *   ortası kullanılır. Gri/beyaz bir vurgu seçilirse (doygunluk < %12) kaydırma
+ *   yapılmaz, palet doğal kalır.
  * - [alpha] seçili/seçili olmayan geçişlerinde yumuşak solma için kullanılır.
  */
 @Composable
@@ -221,6 +286,7 @@ fun KitsugiArtIcon(
     accentGlow: Boolean = false
 ) {
     val accent = LocalKitsugiAccent.current
+    val hueShift = LocalKitsugiIconHueShift.current
     val lightSurface = MaterialTheme.colorScheme.background.luminance() > 0.5f
     // Hâle / gölge fırçaları, vurgu rengi değişmedikçe yeniden üretilmez.
     val glowBrush = remember(accent) {
@@ -251,12 +317,17 @@ fun KitsugiArtIcon(
                     }
             )
         }
+        // Vurgu rengine göre otomatik ton kaydırması (0° → palet doğal kalır).
+        val hueFilter = remember(hueShift) {
+            if (abs(hueShift) < 1f) null else ColorFilter.colorMatrix(hueRotationMatrix(hueShift))
+        }
         Image(
             painter = painterResource(art.resId),
             contentDescription = contentDescription,
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Fit,
-            alpha = alpha
+            alpha = alpha,
+            colorFilter = hueFilter
         )
     }
 }
