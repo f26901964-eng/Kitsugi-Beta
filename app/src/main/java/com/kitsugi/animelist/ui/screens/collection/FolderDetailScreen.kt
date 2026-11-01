@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.collection
+import com.kitsugi.animelist.ui.icons.KitsugiIcon as Icon
 import com.kitsugi.animelist.ui.utils.rememberKitsugiGridColumns
 import com.kitsugi.animelist.ui.components.KitsugiButton
 

@@ -333,6 +333,50 @@ fun KitsugiArtIcon(
 }
 
 /**
+ * Material3 [Icon] ile **birebir aynı imza** taşıyan, ama 3B seti bilen sarmalayıcı.
+ *
+ * Neden var?
+ * ----------
+ * Projedeki ikonların bir kısmı doğrudan `androidx.compose.material3.Icon` ile
+ * çiziliyordu (liste kartları, araç çubukları, FAB'lar, arama alanları...). Bu
+ * sarmalayıcı sayesinde çağrı yerlerini tek tek değiştirmek gerekmez:
+ *
+ * ```kotlin
+ * import com.kitsugi.animelist.ui.icons.KitsugiIcon as Icon   // tek satır
+ * ```
+ *
+ * Eşleşen bir 3B varlık yoksa (kapat, geri, onay, chevron, filtre gibi kontrol
+ * glifleri) mevcut mono Material ikonu aynen çizilir — davranış değişmez.
+ *
+ * Boyut: çağıranın `Modifier.size(..)` değeri korunur; boyut verilmemişse 24 dp
+ * (Material Icon ile aynı varsayılan).
+ */
+@Composable
+fun KitsugiIcon(
+    imageVector: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tint: Color = androidx.compose.material3.LocalContentColor.current
+) {
+    val art = remember(imageVector) { KitsugiArt.fromVector(imageVector) }
+    if (art != null) {
+        KitsugiArtIcon(
+            art = art,
+            modifier = modifier,
+            contentDescription = contentDescription,
+            size = 24.dp
+        )
+    } else {
+        Icon(
+            imageVector = imageVector,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            tint = tint
+        )
+    }
+}
+
+/**
  * Ayar satırı ikonu: 3B görsel varsa onu, yoksa satır rengiyle boyanmış tek renkli
  * glifi (arka plan dairesi OLMADAN) çizer. Slot her iki durumda da aynı genişlikte
  * olduğu için başlık hizası kaymaz.

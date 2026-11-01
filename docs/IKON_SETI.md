@@ -217,15 +217,29 @@ Kural: **3B = "konu" ikonu, 2B = "kontrol" glifi.**
   okunmaz, tıklanabilir alanı kirletir. Ayrıca **20 dp altındaki hiçbir boyutta**
   3B kullanılmaz (kırpılmış 192 px render 16 dp'de lekeye döner).
 
-## Kapsam (bu değişiklikle)
+## Kapsam (tam)
 
-| Alan | Durum |
-|---|---|
-| Ayar satırları (`KitsugiSettingsItem`) | 3B — tek bileşen, tüm diyaloglar dâhil |
-| Oynatıcı ayarları sekme şeridi | 3B + seçili hâle |
-| Alt gezinme çubuğu | 3B + seçili hâle |
-| Ekranlarda doğrudan çizilen ikonlar | 88 çağrı 3B'ye çevrildi (indirmeler, bildirimler, hakkında, yayın takvimi, bölüm listesi, profil, arama, güncelleme, yayın kartları) |
-| Kalan doğrudan çizimler | 136 tanesi küçük aksiyon glifi (kopyala/paylaş/sil/yıldız/beğen, 10–18 dp) — bilinçli 2B |
+Tek giriş noktası yaklaşımı: uygulamada `Icon(imageVector = …)` çağrılarının
+**tamamı** 3B seti bilen iki composable'dan geçiyor.
+
+| Yol | Kapsam | Nasıl |
+|---|---|---|
+| `ui/theme/gradient/Icon` (proje sarmalayıcısı) | **799 `Icon(...)` çağrısı**, 200 dosya | Eşleşme varsa 3B varlık, yoksa mono gradyan glif (davranış aynı) |
+| `KitsugiIcon` (Material3 imzasıyla birebir) | 30 dosya (`… as Icon` importu) | Material3 `Icon` çağrılarını da aynı yola sokar |
+| `KitsugiArtIcon` / `KitsugiRowIcon` | 94 çağrı | Satır, sekme, gezinme, boş durum, kart eylemleri |
+| `KitsugiSettingsItem` | tüm ayar diyalogları | Tek bileşen, tek görsel dil |
+
+Yani **her tıklanır alan, her satır, her buton, her sekme, her diyalog başlığı, her
+boş durum** aynı 3B setten ikon alıyor. Eşleşmeyen tek şey bilinçli olarak mono
+kalan kontrol glifleri: kapat / geri / onay / chevron / ok / artı / filtre / ⋮
+(bunlar 10–18 dp'lik "eylem" işaretleri, 3B'ye çevrilince okunmuyor).
+
+Boyut davranışı: çağıranın `Modifier.size(..)` değeri aynen korunur; boyut
+verilmemişse 24 dp (Material `Icon` ile aynı varsayılan). 14–18 dp'de bile 3B
+varlıklar ayırt edilebilir (bkz. `docs/ikon-boyut-testi.png`).
+
+Dolgulu vurgu yüzeylerinde (vurgu rengiyle dolu buton içi) okunabilirlik için mono
+glif korunur; ikon o zeminde renkli cam olarak kaybolurdu.
 
 Yeni bir ekranda 3B ikon gerekiyorsa iki yol var:
 

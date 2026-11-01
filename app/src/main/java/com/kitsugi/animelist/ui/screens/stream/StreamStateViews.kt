@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.stream
+import com.kitsugi.animelist.ui.icons.KitsugiIcon as Icon
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.*
