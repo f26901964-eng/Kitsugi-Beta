@@ -74,6 +74,11 @@ matrisi beklenen sonuçları veriyor (bkz. §5).
 | Arama → Bangumi'de "Diziler"/"Filmler" sekmesi hiç yok | R14: `availableScopes()` Bangumi için TV/MOVIE içermiyordu; kapsam→tür eşlemesi de yoktu | Sekmeler eklendi; TV/MOVIE → `type=6`, manga kapsamları → `type=1` |
 | "Tümünü Gör" → Bangumi Dizileri/Filmleri ızgarası karışık (dizi rafında film) | R15: sayfalama `meta_tags` göndermiyordu, `type=6` ikisini birlikte döndürüyor | `meta_tags=电视剧 / 电影` |
 | Filtre sayfası Bangumi'de sunucu sıralamalarını "📱 yerel" işaretliyor | R16: `serverSorts()` boş kümeden (`SORT_SUPPORT[BANGUMI] = ∅`) filtreliyordu | `BANGUMI_SEARCH_SORTS` temel alındı |
+| "Tümünü Gör" → sıralama seçilince (tür seçili değilken) sıra değişmiyor | R17: `bangumiPage` tür yoksa sıralamayı zorla `rank`e çeviriyordu | Kullanıcının sıralaması aynen gönderilir (`score` / `heat` / `rank`) |
+| "Tümünü Gör" → **Manga** ızgarasında roman/画集; arama "Manga" kapsamında ilk sayfa boş | R18: `type=1` tüm 书籍 kataloğu, `meta_tags` yok | Manga ızgarası + arama: `meta_tags=["漫画"]` (sunucu tarafı) |
+| "Tümünü Gör" → "📱" işaretli tür süzgeci **her zaman boş** liste | R19: yerel süzgeç Çince Bangumi etiketlerini Türkçe/İngilizce kelimelerle karşılaştırıyordu | Terim sözlükten kanonik yazıma çevrilip etiketlerle de karşılaştırılır |
+| "Tümünü Gör" → **Yayındaki/Yaklaşan** sayfalarında 2. sayfa hep aynı kayıtlar; **Noveller** sayfası boş; "Yeni Eklenen Mangalar" yanlış uç | R20: `airingAnime/upcomingAnime` `offset` almıyordu, NOVELS `else -> emptyList()` dalındaydı, NEWLY_ADDED_MANGA `publishingManga`'ya bağlıydı | `offset` eklendi; NOVELS → `novels()`; NEWLY_ADDED_MANGA → `newlyAddedManga()` |
+| Arama filtre sayfasında tür/etiket seçince Bangumi süzgeci **hiç uygulanmıyor**; "hariç tut" yok sayılıyor; "Light Novel" kapsamı manga listeliyor | R21: `GenresTagsSheet` çipleri `uiState.genres/tags`'e yazıyor, Bangumi yalnız `bangumiSpecificFilters.tags`'i okuyordu; dışlama sunucuda yok | Etiketler birleştirilir (sözlük çevirisiyle), dışlanan türler istemcide süzülür, roman kapsamı `meta_tags=["小说"]` + `comicsOnly=false` |
 
 ---
 
@@ -293,6 +298,21 @@ zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek
 | `T4` `type=6&cat=6001` (eski yol) | yalnız **51** → neden `meta_tags` kullanıldığı doğrulandı |
 | `T5` `type=6` + `keyword="reply 1988"` | 请回答1988 (rank 53) ilk sırada |
 
+**U — ızgara/filtre isteklerinin birebir doğrulanması (1 Kasım 2026, ikinci yuvarlak):**
+
+| Sorgu (uygulamanın gönderdiği gövde) | Sonuç |
+|---|---|
+| `U1` `heat` + `type=1` + `meta_tags=["漫画"]` | 1000; 链锯人 (6935 oy), 再见绘梨, 炎拳 |
+| `U2` `score` + `type=1` + `meta 漫画` + `rating_count>=100` | 725; 灌篮高手 完全版 (9.4), 剑风传奇 (9.3) |
+| `U3` `heat` + `type=6` + `meta 电视剧` | 1000; 半泽直树, 胜者即是正义, 非自然死亡 |
+| `U4` `score` + `type=6` + `meta 电影` + `votes>=100` | 427; 七武士 (8.9), 教父 (8.8), 生之欲 (8.8) |
+| `U5` `rank` + `type=1` + `meta 小说` + `rank>=1` | 539; 卡拉马佐夫兄弟 (6), 罪与罚 (8), 三体Ⅱ (10) |
+| `U6` `rank` + `type=2` + `tag 运动` + `rank>=1` | 362; 3月的狮子 第二季 (10), 乒乓 (23) |
+
+> Bu altı sorgu, "Tümünü Gör" ızgaralarının ve Arama'nın gönderdiği gövdelerin **birebir**
+> kopyasıdır. Hepsi beklenen kaliteyi verdi: doğru katalog (manga ≠ roman, dizi ≠ film),
+> doğru sıralama (`score`/`heat`/`rank`) ve `rank = 0` kirliliği yok.
+
 **Q — sunucu tarafı `meta_tags` süzgeci:**
 
 | Sorgu | Sonuç |
@@ -336,6 +356,9 @@ zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek
 | `topManga`: `cat=1001` + `series=true`; `newlyAddedManga`/`publishingManga`/`novels`: `series=true` | R13 — cilt/baskı kirliliği |
 | `trendingManga`: `platform = 漫画` süzgeci + boşsa `topManga` yedeği | R13 |
 | `searchMediaAdvanced(..., metaTags)`: REAL ızgaralarında `电视剧`/`电影` | R15 |
+| `searchMediaAdvanced(..., excludedTags)`: dışlanan türler istemcide süzülür | R21 (v0'da olumsuz süzgeç yok) |
+| Boş sorguda etiket çevrilemezse **filtresiz liste yerine boş liste** | "Süzgeç uygulanmış" yanılsamasını önler |
+| `seasonalAnime/airingAnime/upcomingAnime(..., offset)` | R20 — 2. sayfa hep aynı kayıtları istiyordu |
 
 ### 5.3 `ui/screens/explore/ExploreSourceFilterQuery.kt`
 
@@ -347,6 +370,8 @@ zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek
 | `bangumiPage` REAL raflarında `metaTags = ["电视剧" / "电影"]` | R15 — dizi rafında film listeleniyordu |
 | 19 girişlik `BANGUMI_TAGS` haritası **kaldırıldı**, tek kaynak sözlük | İki harita ayrışıyordu (`Supernatural` → `超能力` vs `灵异`) |
 | `serverSorts()` Bangumi için `BANGUMI_SEARCH_SORTS` temel alır | R16 — sunucunun uyguladığı sıralamalar "yerel" görünüyordu |
+| `bangumiPage`: kullanıcı sıralaması tür seçili değilken de gönderilir; Manga ızgarasında `meta_tags=["漫画"]` | R17, R18 |
+| `supportsSort(BANGUMI)`: tür seçili olmasa da `score`/`heat` sunucuda | R17 |
 
 ### 5.4 `utils/BangumiTagDictionary.kt`
 
@@ -370,12 +395,26 @@ zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek
 | Tek kaynak aramasında kapsam → tür eşlemesi (`TV/K_DRAMA → REAL`, `MOVIE → REAL`, manga kapsamları → BOOK) | R7 — eskiden her şey `type=2` aranıyordu |
 | Bangumi kapsam listesine **TV** ve **MOVIE** eklendi | R14 — Bangumi'de dizi/film araması hiç yapılamıyordu |
 | `executeSearchForPage` Bangumi dalında `subjectTypes` + `comicsOnly` iletimi | R14/R13 |
+| Bangumi dalında `uiState.genres/tags` ile kaynağa özel etiketler **birleştirilir** | R21 — filtre sayfasındaki tür çipleri Bangumi'ye hiç gitmiyordu |
+| `excludedGenres` → `searchMediaAdvanced(excludedTags)` | R21 |
+| Kapsam → `meta_tags`: TV `电视剧`, MOVIE `电影`, LIGHT_NOVEL `小说` (+`comicsOnly=false`) | R14/R21 — roman sekmesi manga listeliyordu |
+| "Tümü" rafında dizi/film `meta_tags` ile ayrıştırılır | R15/R21 |
+| `supportsDetailFilter`: dizi/film yıl facetinde Bangumi de destekler | Yıl süzgeci `type=6`'da çalışıyor (probe A6/U4) |
 
 ### 5.6 `ui/screens/explore/ExploreViewModel.kt`
 
 - `loadBangumiData()` içine `newlyAddedManga` (R5) ve `novels` (R10) şeritleri eklendi.
   Şeritler `supervisorScope` ve 15 sn'lik şerit tavanı içinde çalışır; bir erişim hatası
   diğer şeritleri etkilemez.
+
+### 5.8 `ui/screens/fullscreen/FullScreenMediaGridPage.kt`
+
+| Değişiklik | Neden |
+|---|---|
+| Bangumi sayfalaması: `AIRING_ANIME`/`UPCOMING_ANIME` artık `offset` alır | R20 — 2. sayfa hep aynı 20 kaydı istiyordu (sonsuz tekrar) |
+| `NEWLY_ADDED_MANGA` → `newlyAddedManga()` | R20 — yanlış uca (`publishingManga`) bağlıydı |
+| `NOVELS` → `novels()` | R20 — "Noveller" tam ekranı boş açılıyordu |
+| "📱 yerel" tür süzgeci kanonik Bangumi etiketini de arar | R19 — süzgeç her zaman boş liste veriyordu |
 
 ### 5.7 `ui/components/KitsugiRankingBottomSheet.kt`
 
@@ -399,6 +438,9 @@ zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek
 | Son `rank>=1` (match) düzeltmesi sonrası derleme + Bangumi testleri | **BUILD SUCCESSFUL**, 6 dk 32 sn, `exit=0` (çalışma `41254666522`, commit `1a1db89`) |
 | Son `rank>=1` düzeltmesi sonrası tam APK doğrulaması | **success** (çalışma `41254666628`, commit `1a1db89`) — debug + R8 release APK + DEX + APK yükleme |
 | Son commit canlı API probu (S/T blokları) | **success** (çalışma `41254666696`, commit `1a1db89`) |
+| **TAM birim test seti** (`:app:testFossDebugUnitTest`, filtre yok) | **BUILD SUCCESSFUL**, 21 dk 19 sn, `exit=0`, **1472 test / 0 başarısız** (commit `3895be9`, günlük: `probe/test_log.txt`) |
+| Arama filtreleri + "Tümünü Gör" düzeltmeleri sonrası tam APK doğrulaması | **success** (çalışma `41291446082`, commit `3895be9`) — debug + R8 release + DEX + APK yükleme |
+| Canlı API probu (U blokları: ızgara istek gövdeleri) | **success** (çalışma `41291446105`, commit `3895be9`) |
 
 **Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
 `41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
@@ -506,7 +548,14 @@ indirilemediği için günlük doğrudan depoya işlendi).
    5 rps + OkHttp ana başına 8 istek). Tavan 15 sn iken kuyruk sonundaki şeritler
    kesiliyordu; 20 sn'ye çıkarıldı. Yavaş cihazlarda ilk yükleme bu süreye kadar
    sürebilir (önbellek sonrası anlık).
-9. **`series=true` sunucu davranışına bağlı:** Bangumi `series` süzgecini kaldırırsa
+9. **"Noveller & Light Novel" tam ekranı yalnız yerel süzgeçle çalışır:** Bangumi'nin
+   `cat=1002` göz atma ucu tür/sıralama parametresi kabul etmez; tür çipi seçildiğinde
+   filtre cihazda uygulanır ("📱" rozeti). "Tümü" (çok kaynak) modunda roman ızgarasına
+   Bangumi katılmaz (diğer kaynaklar doldurur) — bilinçli tercih.
+10. **"Hariç tut" süzgeci Bangumi'de istemci tarafında:** sunucu olumsuz (`!=`) süzgeç
+    desteklemediği için dışlanan tür, dönen sayfa içinde süzülür; sayfa 20 kayıttan
+    kısalabilir (sayfalama `offset` ile devam eder, kayıt atlanmaz).
+11. **`series=true` sunucu davranışına bağlı:** Bangumi `series` süzgecini kaldırırsa
    manga raflarında cilt kayıtları geri döner; istemci tarafında `(n)` / `完全版`
    temizliği yoktur (bilinçli olarak sunucuya güvenildi, P bloğuyla doğrulandı).
 
@@ -515,18 +564,23 @@ indirilemediği için günlük doğrudan depoya işlendi).
 ## 8. Dosya özeti
 
 ```
-app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt          +233
-app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt    +325
+app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt            +233
+app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt      +386
 app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiRankingBottomSheet.kt +30
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +87
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt  +16
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt +10
-app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt   +98
-app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt          +99
-app/src/test/java/com/kitsugi/animelist/utils/BangumiTagCanonicalizationTest.kt +80 (yeni)
-# toplam: 9 dosya, +886 / -122   (`git diff --stat c320ff6 -- app/src`)
-probe/result.txt                                                              (canlı API kanıtı)
-probe/kotlin_log.txt                                                          (derleme + test günlüğü)
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +104
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt     +16
+app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt +20
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/DetailSearchFilterRequest.kt +6
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt  +10
+app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt      +158
+app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt             +107
+app/src/test/java/.../utils/BangumiTagCanonicalizationTest.kt                     +80  (yeni)
+app/src/test/java/.../explore/ExploreSourceFiltersBangumiTest.kt                  +69  (yeni)
+app/src/test/java/.../search/SearchRelevanceTest.kt                               +14/-14 (güncellendi)
+# toplam: 13 dosya, +1099 / -140   (`git diff --stat c320ff6 -- app/src`)
+probe/result.txt                            (canlı API kanıtı, A–U blokları)
+probe/kotlin_log.txt                        (derleme + Bangumi test günlüğü)
+probe/test_log.txt                          (TAM birim test seti: 1472 test)
 ```
 
 ---
