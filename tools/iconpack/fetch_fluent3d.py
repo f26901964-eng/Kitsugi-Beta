@@ -46,7 +46,7 @@ MANIFEST = {
     "nav_explore": "Compass",
     "nav_list": "Bookmark tabs",
     "nav_search": "Magnifying glass tilted left",
-    "nav_profile": "Bust in silhouette",
+    "nav_profile": "Person",
     # ── Yardımcı eşlemeler (satır/seçenek ikonları) ───────────────────────
     "network": "Satellite antenna",
     "sync": "Repeat button",

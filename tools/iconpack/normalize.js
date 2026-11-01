@@ -16,7 +16,7 @@ const DST = path.join(ROOT, '..', '..', 'app', 'src', 'main', 'res', 'drawable-n
 const CANVAS = 192;
 const FILL = 0.92;
 // Koyu temada kaybolan varlıklar için hafif parlaklık düzeltmesi (optik dengeleme).
-const BRIGHTEN = { nav_profile: 1.32, decoder: 1.10, player: 1.12 };
+const BRIGHTEN = { nav_profile: 1.06, decoder: 1.10, player: 1.12 };
 
 (async () => {
   fs.mkdirSync(DST, { recursive: true });
