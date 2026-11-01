@@ -423,3 +423,29 @@ Görseller: `docs/ikon-seti-onizleme.png`, `docs/ikon-stil-haritasi.png`,
 `docs/ikon-gramer-karsilastirma.png`, `docs/ikon-islev-haritasi.png`,
 `docs/ikon-kapsam-denetimi.png`, `docs/ikon-malzeme-karsilastirma.png`,
 `docs/ikon-tema-uyumu.png`.
+
+---
+
+## v13 — doğru araç: Blender / Cycles (3dicons ile aynı hat)
+
+v12'ye kadar ürettiğimiz glifler kendi yazdığım SDF ray-march motorundaydı. O motor
+şekli doğru çizse de orijinallerin **malzeme/ışık dili** yakalanamıyordu: renk
+rampası, geniş yuvarlatma, hacim ve stüdyo ışığı 3dicons'un render hattından geliyor.
+
+Bu turda orijinal setin üretim hattı birebir kuruldu:
+
+| | |
+|---|---|
+| Araç | **Blender 4.2 / Cycles**, `bpy` Python modülü olarak kuruldu ve bu makinede çalıştırıldı |
+| Geometri | curve+kapsül çubuklar, solidify+bevel plakalar, silindir/küre/torus; hepsi **boolean UNION** ile tek gövde |
+| Renk | nesne uzayı diagonal rampası; duraklar orijinal PNG'lerden ölçüldü: (66,24,198) → (120,40,196) → (172,54,176) → (206,78,146) → (228,138,106) → (246,182,120) |
+| Malzeme | Principled BSDF, roughness 0.38, coat 0.05 (+ krem/mürekkep/krom ayrı malzemeler) |
+| Işık | 3 alan ışığı + parlak gri dünya; orijinallerdeki "eşit aydınlık, yumuşak hacim" görünümü |
+| Kamera | 135 mm, 6° üstten |
+| Çıktı | 384 px render → alfa kırpma → 128/192 px PNG |
+
+Kanıt: `docs/ikon-v13-orijinal-karsilastirma.png` (her çiftte soldaki orijinal 3dicons,
+sağdaki yeni üretim) · `docs/ikon-v13-set.png` (55 glifin tamamı).
+
+Boru hattı `tools/blender/` altında: `kit.py` (yardımcılar + stüdyo + kamera),
+`icons_all.py` (55 ikonun geometrisi), `x11_stubgen.py` (headless `bpy` için X11 stub'ları).
