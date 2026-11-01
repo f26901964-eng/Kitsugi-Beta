@@ -425,6 +425,13 @@ data class BangumiSpecificFilters(
     val tags: List<String> = emptyList(),
     val yearFrom: Int? = null,
     val yearTo: Int? = null,
+    /**
+     * Mevsim + yıl (`WINTER`, `SPRING`, `SUMMER`, `FALL`). Bangumi'de sezon alanı yok;
+     * `air_date` çeyrek aralığına çevrilir (canlı prob V1–V5). Detay sayfasındaki
+     * "Kış 2025" facetinden gelen bilgi burada taşınır, aksi hâlde sunucu tüm yılı süzer.
+     */
+    val season: String? = null,
+    val seasonYear: Int? = null,
     val minScore: Int? = null,
     val nsfw: Boolean = false,
     val comicsOnly: Boolean = true,
@@ -435,6 +442,7 @@ data class BangumiSpecificFilters(
         if (sort != "match") count++
         if (tags.isNotEmpty()) count += tags.size
         if (yearFrom != null || yearTo != null) count++
+        if (season != null && seasonYear != null) count++
         if (minScore != null) count++
         if (nsfw) count++
         if (!comicsOnly) count++

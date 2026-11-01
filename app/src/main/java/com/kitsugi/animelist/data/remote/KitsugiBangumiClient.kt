@@ -212,6 +212,18 @@ object KitsugiBangumiClient {
          */
         metaTags: List<String> = emptyList(),
         /**
+         * Mevsim süzgeci (`WINTER`/`SPRING`/`SUMMER`/`FALL`) + yılı.
+         *
+         * Bangumi'de ayrı bir sezon alanı yok; v0 `filter.air_date` **tarih aralığı**
+         * kabul ediyor. Detay sayfasındaki "Kış 2025" gibi bir facet seçildiğinde
+         * yalnız yıl göndermek çeyrek yıl yerine tüm yılı süzüyordu (istenen kayıtlar
+         * listenin içinde kalıyor ama başka mevsimler de geliyordu). Çeyrek aralık
+         * canlı probla doğrulandı: `probe/result.txt` V1–V5 (`>=2025-01-01` +
+         * `<2025-04-01` → 89 kayıt; `<=` ve `<` biçimlerinin ikisi de çalışıyor).
+         */
+        season: String? = null,
+        seasonYear: Int? = null,
+        /**
          * Sunucuda **dışlama** süzgeci yok (v0 `filter.tag` yalnız "içerir").
          * `GenresTagsSheet`'te bir tür "hariç tut" olarak işaretlendiğinde bu liste dolar ve
          * süzgeç istemcide uygulanır: kaydın `tags`/`meta_tags` alanı hariç tutulan
@@ -227,8 +239,16 @@ object KitsugiBangumiClient {
                 MediaType.Anime -> listOf(BangumiApiClient.SubjectType.ANIME)
             }
             val airDate = mutableListOf<String>()
-            yearFrom?.let { airDate += ">=$it-01-01" }
-            yearTo?.let { airDate += "<=${it}-12-31" }
+            // Mevsim + yıl verilmişse çeyrek aralık yıl aralığından **önce** gelir:
+            // ikisi birlikte gönderilirse sunucu kesişimi alır (daha dar olan kazanır).
+            val seasonRange = bangumiSeasonRange(season, seasonYear)
+            if (seasonRange != null) {
+                airDate += ">=${seasonRange.first}"
+                airDate += "<${seasonRange.second}"
+            } else {
+                yearFrom?.let { airDate += ">=$it-01-01" }
+                yearTo?.let { airDate += "<=${it}-12-31" }
+            }
             val rating = minScore?.takeIf { it > 0 }?.let { listOf(">=$it") } ?: emptyList()
 
             val effectiveQuery = query.trim()
@@ -1092,4 +1112,23 @@ object KitsugiBangumiClient {
         val subjectId = BangumiIdNamespace.rawIdFromStable(subjectIdOrStable) ?: subjectIdOrStable
         return "https://bgm.tv/subject/$subjectId"
     }
+}
+
+/**
+ * Mevsim → Bangumi `air_date` çeyrek aralığı. Örn. `("SPRING", 2025)` → `>=2025-04-01` …
+ * `<2025-07-01` (üst sınır dışlayıcı; canlı prob V1/V3/V5 ile doğrulandı).
+ */
+private fun bangumiSeasonRange(season: String?, seasonYear: Int?): Pair<String, String>? {
+    val year = seasonYear?.takeIf { it > 1900 } ?: return null
+    val startMonth = when (season?.trim()?.uppercase(java.util.Locale.ROOT)) {
+        "WINTER" -> 1
+        "SPRING" -> 4
+        "SUMMER" -> 7
+        "FALL", "AUTUMN" -> 10
+        else -> return null
+    }
+    val endYear = if (startMonth == 10) year + 1 else year
+    val endMonth = if (startMonth == 10) 1 else startMonth + 3
+    fun two(v: Int) = v.toString().padStart(2, '0')
+    return "$year-${two(startMonth)}-01" to "$endYear-${two(endMonth)}-01"
 }

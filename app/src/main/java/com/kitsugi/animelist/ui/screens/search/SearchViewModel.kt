@@ -943,7 +943,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             BangumiSpecificFilters(
                 tags = bangumiTags,
                 yearFrom = if (season == null) year else null,
-                yearTo = if (season == null) year else null
+                yearTo = if (season == null) year else null,
+                // Mevsim + yıl Bangumi'de `air_date` çeyreğine çevrilir (`WINTER 2025` →
+                // `>=2025-01-01` … `<2025-04-01`, canlı prob V1–V5). Eskiden burada
+                // `season` tamamen düşüyordu: "Kış 2025" facetli bir aramada Bangumi
+                // hiç tarih süzgeci uygulamıyordu.
+                season = season,
+                seasonYear = if (season != null) year else null
             )
         } else BangumiSpecificFilters()
 
@@ -1506,6 +1512,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         .map { it.trim() }
                         .filter { it.isNotEmpty() }
                         .distinct()
+                    // Mevsim: detay sayfası facetinden (`applyDetailFilterRequest`) ya da
+                    // kaynağa özel filtrelerden gelir; Bangumi'de `air_date` çeyreğine
+                    // çevrilir (`WINTER 2025` → `>=2025-01-01` … `<2025-04-01`, prob V1–V5).
+                    val bangumiSeason = f.season ?: state.season?.apiValue
+                    val bangumiSeasonYear = f.seasonYear ?: state.startYear
                     // Bangumi arama uçları sayfa başına EN FAZLA 20 kayıt döndürür (sunucu limiti
                     // sessizce 20'ye kısar). 24 istenirse offset her sayfada 4 kayıt atlar ve
                     // `size >= 24` kontrolü "sonraki sayfa yok" sonucu verir.
@@ -1579,7 +1590,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 subjectTypes = subjectTypes,
                                 comicsOnly = scopeComicsOnly,
                                 metaTags = scopeMetaTags,
-                                excludedTags = excludedBangumiTags
+                                excludedTags = excludedBangumiTags,
+                                season = bangumiSeason,
+                                seasonYear = bangumiSeasonYear
                             )
                             return Pair(res, res.size >= bangumiPageSize)
                         }
@@ -2022,7 +2035,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         includeAdult = f.nsfw || showAdult,
                         subjectTypes = subjectTypes,
                         comicsOnly = f.comicsOnly,
-                        metaTags = metaTags
+                        metaTags = metaTags,
+                        excludedTags = state.excludedGenres
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .distinct(),
+                        // Tümü modunda da mevsim korunur (detay facetinden gelebilir).
+                        season = f.season ?: state.season?.apiValue,
+                        seasonYear = f.seasonYear ?: state.startYear
                     )
                     val mediaRes = fetchMediaShelf(
                         active = plan.bangumi && (wantAnime || wantManga),
