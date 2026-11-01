@@ -364,3 +364,62 @@ v11'de hat tamamen değişti (`tools/iconpack/scene3d.js` + `tools/iconpack/icon
 
 Görseller: `docs/ikon-seti-onizleme.png`, `docs/ikon-stil-haritasi.png`,
 `docs/ikon-gramer-karsilastirma.png`, `docs/orijinal-3b-analizi.md`.
+
+---
+
+## v12 — ikon ikon elden geçirme (tek tek biçimlendirme)
+
+v11'in ortak grameri yeterli bulunmadı: her ikon tek tek yeniden modellendi, her birine
+kendi işlevine uygun ek parçalar (bilezik, perçin, tıpa, kadran çentiği, tepsi, etiket
+paneli, ip halkası, eksen göbeği…) eklendi. Eklenen her ayrıntı gövdeye **gömülü** —
+havada duran halka/boncuk/çubuk yok.
+
+### Bu turda değişenler
+
+| İkon | Yeni kurgu |
+|------|-----------|
+| kapat / eksi | konik kaburga X + krem göbek perçini; fiziksel tuş gövdesi + oyuk + krem bar |
+| chevron ×4 | uçta incelen kollar, dirsek ek yeri, tepe boncuğu |
+| ok ×4 | konik gövde + krem bilezik + dart ucu — **sol/sağ yön hatası düzeltildi** |
+| chevron sol/sağ | **yön hatası düzeltildi** |
+| göz / göz kapalı | krem yüzük + obsidyen iris + çift parlama; eğik kırpma çubuğu |
+| huni / akış | ağız halkası + boyun + oluk; havada duran ölçü halkaları kaldırıldı |
+| sırala / dışa aç | konik gövde + doğru yönde konik baş |
+| ızgara / sayfa | krem çerçeveli seçili karo; krem sayfa + mürekkep madde işaretleri |
+| karusel / dışa aç / kırp | krem panel; konik gövde + koni baş; köşe perçinleri |
+| hizalama ×3 | `textPage()`: krem sayfa + konik yazı satırları |
+| çerçeve / yoğunluk | 4 köşe perçini; 5 konik satır + krem tutamak |
+| klavye / giriş | mürekkep taban + krem tuş; krem alan + yazı satırları + imleç |
+| ev | krem mahya, krem çerçeveli bölmeli pencere, krem eşik |
+| yaprak | krem ana damar + 6 yan damar, eksen üzerinde sap |
+| kar tanesi | ince konik kollar + krem uç buzları + V dallar |
+| kek / kamera | 4 krem damla + serpme; mürekkep iç mercek halkası |
+| tırnak | iki virgül formu (topuz + ince kuyruk) — trapezi bırakıldı |
+| diyez | 4 kesişimde krem perçin |
+| eşitleme | iki yay + krem ok başları (temiz döngü) |
+| kaydırıcılar | oyuk kanal + krem uç tıkaçları + krem çemberli krom topuz |
+| indir / yükle | konik gövde + krem bilezik + açık tepsi (taban + iki duvar) |
+| kronometre | krem çerçeve + kadran + 4 çentik + 3 nokta + tırtıklı tepe |
+| TV | kauçuk kabin + koyu ekran + tek cam yansıması + 2 krem tuş |
+| etiket | krem kuşgözü + koyu delik + yüzeyde krem etiket paneli |
+| yedekle | jöle bulut + mürekkep flanş + buluttan çıkan krem ok |
+| kod | konik dirsekler + 4 krem uç kapağı |
+| çift ok | konik gövde + krem uç boncukları |
+
+### v12 ölçümü (55 glif) — v11 ile karşılaştırma
+
+| Ölçüm | v11 | **v12** |
+|---|---|---|
+| Parlaklık merkezi u / v | 0.48 / 0.12 | **0.49 / 0.30** |
+| Tepe parlaklık | 0.71 | **0.84** |
+| Gölge dx / dy / alfa | 0.00 / 0.03 / 0.28 | **0.00 / 0.02 / 0.28** |
+| Kenar / çekirdek | 0.91 | **0.93** |
+| Gradyan açısı / şiddeti | −91° / 0.38 | **−87° / 0.36** |
+| Doygunluk | 0.65 | **0.61** |
+| Doluluk | 0.55 | **0.55** |
+
+Kapsam: 1533/1533 3B · mono 0 · kaçak dosya 0 · 143 varlık · 428 eşleme satırı · 0 eşlemesiz.
+Görseller: `docs/ikon-seti-onizleme.png`, `docs/ikon-stil-haritasi.png`,
+`docs/ikon-gramer-karsilastirma.png`, `docs/ikon-islev-haritasi.png`,
+`docs/ikon-kapsam-denetimi.png`, `docs/ikon-malzeme-karsilastirma.png`,
+`docs/ikon-tema-uyumu.png`.
