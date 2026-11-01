@@ -1,8 +1,8 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: 36fbad5
-date: 2026-11-01T08:18:17Z
+commit: 9085566
+date: 2026-11-01T08:37:02Z
 e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-BUILD SUCCESSFUL in 5m 14s
+BUILD SUCCESSFUL in 6m 23s
 exit=0
 ----- test özeti -----
 ----- son 600 satır -----
@@ -324,8 +324,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kits
 > Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
 > Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
 > Task :app:testFossDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793520787167.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793521843069.json
 
-BUILD SUCCESSFUL in 5m 14s
+BUILD SUCCESSFUL in 6m 23s
 72 actionable tasks: 30 executed, 42 from cache
 exit=0

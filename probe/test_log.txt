@@ -1,0 +1,19 @@
+### :app:testFossDebugUnitTest (TAM SET)
+commit: 9085566
+date: 2026-11-01T08:59:29Z
+FAILURE: Build failed with an exception.
+BUILD FAILED in 22m 26s
+exit=1
+----- test özeti -----
+SearchRelevanceTest > liveActionScopesNeverAskAnimeDatabases FAILED
+1472 tests completed, 1 failed
+> Task :app:testFossDebugUnitTest FAILED
+> There were failing tests. See the report at: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/build/reports/tests/testFossDebugUnitTest/index.html
+----- başarısız test dosyaları -----
+app/build/test-results/testFossDebugUnitTest/TEST-com.kitsugi.animelist.ui.screens.search.SearchRelevanceTest.xml
+----- başarısız test adları + mesaj başları -----
+  <testcase name="liveActionScopesNeverAskAnimeDatabases" classname="com.kitsugi.animelist.ui.screens.search.SearchRelevanceTest" time="0.002">
+    <failure message="java.lang.AssertionError: TV Bangumi istememeli" type="java.lang.AssertionError">java.lang.AssertionError: TV Bangumi istememeli
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+--
