@@ -128,6 +128,23 @@ Kullanıcı geri bildirimi: *"alakasız logoları işlevlerine uygun koymamışs
 
 ---
 
+## 5d. Tur 5 — malzeme kalitesi (bulanıklık düzeltmesi)
+
+Kullanıcı geri bildirimi: *"ürettiğin 3B sözde logolar bokum gibi duruyor, bulanık"*.
+
+| Kök neden | Düzeltme |
+|---|---|
+| SVG 24×24 px'e render edilip 176 px'e büyütülüyordu | `g3d.svg(spec, 1024)` — 1024 px render + LANCZOS3 küçültme |
+| 12 yarı saydam ekstrüzyon katmanı kenarları yumuşatıyordu | 2 **opak** kaydırma katmanı → keskin siluet |
+| Geniş beyaz kontur "neon tüp" etkisi veriyordu | spekülar kontur kaldırıldı; yerine şekle kırpılmış radyal ışık |
+| Palet kuantizasyonu gradyanda bant/mush üretiyordu | saydam RGBA PNG (palet yok) |
+| Harf glifleri konturla çiziliyordu (içi boş) | dolgu ile çiziliyor |
+
+Sonuç: 46 glif + 9 nesne glifi 3dicons render'larıyla aynı malzeme dilinde
+(`docs/ikon-malzeme-karsilastirma.png`). Toplam glif boyutu 324 KB.
+
+---
+
 ## 6. Kalan işler / riskler
 
 1. **Derleme doğrulaması yapılmadı** — ortamda JDK/Android SDK yok. Android Studio'da

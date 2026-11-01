@@ -1,28 +1,28 @@
-// 3B glif motoru — kontrol işaretleri, nesne glifleri ve harf glifleri için ortak hat.
+// 3B glif motoru — 3dicons `front/gradient` render'larıyla AYNI malzeme dili.
 //
-// 3dicons `front/gradient` render'ları GERÇEKTEN 3B cam nesnelerdir (hacim,
-// kalınlık, üst parlama, temas gölgesi). Düz konturlu glifler bu ailede "boyanmış"
-// durur. Bu modül aynı görsel kuralları uygular:
+// Önceki sürüm 12 katmanlı yarı saydam ekstrüzyon + geniş parlama maskesi
+// kullanıyordu; sonuç "bulanık/mürekkep" görünüyordu. Bu sürüm 3dicons'un
+// gerçek malzeme kurallarını uygular:
 //
-//   1. TEMAS GÖLGESİ  — altında yumuşak koyu mor elips
-//   2. GÖVDE          — şekil N kez sağ-aşağı kaydırılıp koyu gradyanla doldurulur (hacim)
-//   3. ÖN YÜZ         — dikey cam rampası (#F9D2B4 → #7B48AF), kalın yuvarlak kontur
-//   4. PAH            — sol-üst kenarda ince açık iç çizgi
-//   5. PARLAMA        — üst bantta beyaz gradyan, maskeyle yalnızca gövdeye uygulanır
-//   6. AYNA/İÇ ÇİZGİ — dolgulu şekillerde ayrıntı (tuş takımı, kamera merceği…)
+//   1. TEMAS GÖLGESİ  — nesnenin ALTINDA, siluetten uzakta, yumuşak (tek katman)
+//   2. KALINLIK       — 3 kaydırılmış kopya (0.62/0.34/0.15), hepsi OPAK →
+//                       kenarlar keskin kalır, iç içe geçme bulanıklığı olmaz
+//   3. ÖN YÜZ         — çapraz cam rampası (sol-üst açık → sağ-alt doygun)
+//   4. SPEKÜLAR       — üst-sol kenarda ince, OPAK beyaz çizgi (şekle kırpılmış)
+//   5. PARLAMA        — üst %40'ta düşük alfalı beyaz gradyan (şekle kırpılmış)
 //
-// 24×24 birim ızgarada çizilir; çağıran taraf 384 px'e render edip kırpar.
+// Tümü 24×24 ızgarada çizilir; çağıran taraf 1024 px render edip LANCZOS3 ile
+// 192 px'e indirir. Böylece kenarlar 3dicons render'ları kadar net olur.
 
-const RAMP = ['#FFE3C9', '#F3B094', '#E0859A', '#C25EA2', '#A045B0', '#804CB4'];
-const SIDE_MID = '#7A3A92';
-const SIDE_DARK = '#4B2060';
+const FACE = ['#FFB673', '#FA8A7E', '#F0679B', '#CE4FB4', '#A248C6', '#7B4FCB'];
+const THICK = ['#6E3390', '#4A1D5F', '#361246'];
 const SHADOW = '#2E0B3E';
 
-const PALETTE = { face: RAMP, side: [SIDE_MID, SIDE_DARK], shadow: SHADOW, bevel: '#FFF0E2', gloss: '#FFFFFF' };
+const PALETTE = { face: FACE, thick: THICK, shadow: SHADOW, specular: '#FFF6EC' };
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** Bir şekli (path veya metin) istenen dolgu/konturla çizer. */
+/** Şekli (path veya metin) istenen dolgu/konturla çizer. */
 function shape(spec, { fill, stroke, w, opacity = 1 }) {
   const common = `fill="${fill}" stroke="${stroke}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"` +
     (opacity !== 1 ? ` opacity="${opacity}"` : '');
@@ -35,68 +35,83 @@ function shape(spec, { fill, stroke, w, opacity = 1 }) {
 }
 
 function defs(spec) {
-  const w = spec.w || 3.2;
-  const maskShape = shape(spec, { fill: spec.fill ? '#fff' : 'none', stroke: '#fff', w });
+  const w = spec.w || 3.3;
+  const solidMask = spec.fill || spec.text;
+  const maskShape = shape(spec, { fill: solidMask ? '#fff' : 'none', stroke: solidMask ? 'none' : '#fff', w });
   return `<defs>
-    <linearGradient id="face" x1="0.08" y1="0" x2="0.2" y2="1">
-      ${RAMP.map((c, i) => `<stop offset="${(i / (RAMP.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}
+    <linearGradient id="face" gradientUnits="userSpaceOnUse" x1="5.5" y1="2.5" x2="19.5" y2="21.5">
+      ${FACE.map((c, i) => `<stop offset="${(i / (FACE.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}
     </linearGradient>
-    <linearGradient id="side" x1="0" y1="0" x2="0.35" y2="1">
-      <stop offset="0" stop-color="${SIDE_MID}"/><stop offset="1" stop-color="${SIDE_DARK}"/>
+    <linearGradient id="thick" gradientUnits="userSpaceOnUse" x1="6" y1="6" x2="20" y2="23">
+      <stop offset="0" stop-color="${THICK[0]}"/><stop offset="1" stop-color="${THICK[2]}"/>
     </linearGradient>
-    <linearGradient id="glossFade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+    <linearGradient id="gloss" gradientUnits="userSpaceOnUse" x1="12" y1="2" x2="12" y2="13">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.38"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </linearGradient>
-    <filter id="soft" x="-45%" y="-45%" width="190%" height="190%">
-      <feGaussianBlur stdDeviation="${spec.shadowBlur ?? 1.1}"/>
+    <radialGradient id="hl" gradientUnits="userSpaceOnUse" cx="8.4" cy="6.4" r="9.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ao" gradientUnits="userSpaceOnUse" x1="12" y1="14" x2="12" y2="23">
+      <stop offset="0" stop-color="#3A0F4C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3A0F4C" stop-opacity="0.30"/>
+    </linearGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="${spec.shadowBlur ?? 1.2}"/>
     </filter>
-    <mask id="m" maskUnits="userSpaceOnUse" x="-4" y="-4" width="32" height="32">${maskShape}</mask>
+    <mask id="m" maskUnits="userSpaceOnUse" x="-6" y="-6" width="36" height="36">${maskShape}</mask>
   </defs>`;
 }
 
-/** Gövde (gölge hariç): extrusion + ön yüz + pah + ayrıntı + parlama. */
+/** Gövde: kalınlık + ön yüz + spekülar + parlama. */
 function body(spec) {
-  const w = spec.w || 3.2;
-  const steps = spec.depth ?? 12;
-  const dx = spec.dx ?? 0.26;
-  const dy = spec.dy ?? 0.30;
+  const w = spec.w || 3.3;
+  // Harf glifleri her zaman DOLGU ile çizilir (kontur olsaydı içi boş görünürdü)
+  const solid = spec.fill || spec.text;
+  // 2) kalınlık: 3 opak kopya (kümülatif kaydırma)
+  const steps = [
+    { x: 0.55, y: 0.62 },
+    { x: 0.26, y: 0.30 },
+  ];
+  const thick = steps.map((s, i) =>
+    `<g transform="translate(${s.x} ${s.y})">` +
+    shape(spec, { fill: solid ? THICK[i + 1] : 'none', stroke: solid ? 'none' : THICK[i + 1], w }) +
+    `</g>`).join('');
 
-  const layers = [];
-  for (let i = steps; i >= 1; i--) {
-    layers.push(`<g transform="translate(${(dx * i).toFixed(3)} ${(dy * i).toFixed(3)})">` +
-      shape(spec, { fill: spec.fill ? 'url(#side)' : 'none', stroke: 'url(#side)', w }) + '</g>');
-  }
+  // 3) ön yüz
+  const face = shape(spec, { fill: solid ? 'url(#face)' : 'none', stroke: solid ? 'none' : 'url(#face)', w });
 
-  const face = shape(spec, { fill: spec.fill ? 'url(#face)' : 'none', stroke: 'url(#face)', w });
-  const bevel = `<g transform="translate(-0.36 -0.40)">` +
-    shape(spec, { fill: 'none', stroke: PALETTE.bevel, w: +(w * 0.30).toFixed(2), opacity: 0.55 }) + '</g>';
-  const strike = spec.strike
-    ? `<path d="M7.1 12.9 H16.9" fill="none" stroke="#FFE9D6" stroke-opacity="0.92" ` +
-      `stroke-width="${Math.max(1.3, w * 0.55).toFixed(2)}" stroke-linecap="round"/>`
-    : '';
+  const specular = '';
+
+  // 5) parlama + alt gölgeleme (ambient occlusion), şekle kırpılmış
+  const gloss = `<g mask="url(#m)">` +
+    `<rect x="-6" y="-6" width="36" height="36" fill="url(#hl)"/>` +
+    `<rect x="-6" y="13" width="36" height="11" fill="url(#ao)"/>` +
+    `</g>`;
+
   const detail = spec.detail
-    ? `<path d="${spec.detail}" fill="none" stroke="#FFE6D2" stroke-opacity="0.7" ` +
-      `stroke-width="${Math.max(1.0, w * 0.36).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`
+    ? `<path d="${spec.detail}" fill="none" stroke="#FFF1E3" stroke-opacity="0.62" ` +
+      `stroke-width="${Math.max(0.95, w * 0.34).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`
     : '';
   const inner = spec.inner
-    ? `<path d="${spec.inner}" fill="none" stroke="#FFF6EC" stroke-opacity="0.8" ` +
-      `stroke-width="${Math.max(0.9, w * 0.30).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`
+    ? `<path d="${spec.inner}" fill="none" stroke="#FFF6EC" stroke-opacity="0.85" ` +
+      `stroke-width="${Math.max(0.9, w * 0.28).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`
     : '';
-  const gloss = `<g mask="url(#m)">` +
-    `<rect x="-4" y="0.6" width="32" height="10.2" fill="url(#glossFade)" opacity="0.62"/>` +
-    `<ellipse cx="8.2" cy="4.8" rx="5.6" ry="2.1" fill="#FFFFFF" opacity="0.40"/>` +
-    `<ellipse cx="15.4" cy="8.6" rx="3.2" ry="1.1" fill="#FFFFFF" opacity="0.14"/></g>`;
+  const strike = spec.strike
+    ? `<path d="M7.1 12.9 H16.9" fill="none" stroke="#FFF1E3" stroke-opacity="0.95" ` +
+      `stroke-width="1.7" stroke-linecap="round"/>`
+    : '';
 
-  return `${layers.join('')}${face}${bevel}${detail}${inner}${strike}${gloss}`;
+  return `${thick}${face}${detail}${inner}${specular}${strike}${gloss}`;
 }
 
-/** Tek glif için tam SVG (24×24, saydam). */
-function svg(spec) {
-  const shadow = `<ellipse cx="12.8" cy="21.6" rx="${spec.shadowRx ?? 6.4}" ry="${spec.shadowRy ?? 1.7}" ` +
-    `fill="${SHADOW}" opacity="0.42" filter="url(#soft)"/>`;
+/** Tek glif için tam SVG (24×24 viewBox, istenen piksel boyutunda, saydam). */
+function svg(spec, size = 1024) {
+  const shadow = `<ellipse cx="13.4" cy="21.9" rx="${spec.shadowRx ?? 6.0}" ry="${spec.shadowRy ?? 1.5}" ` +
+    `fill="${SHADOW}" opacity="0.34" filter="url(#soft)"/>`;
   const g = spec.rot ? `<g transform="rotate(${spec.rot} 12 12)">${body(spec)}</g>` : body(spec);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">${defs(spec)}${shadow}${g}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">${defs(spec)}${shadow}${g}</svg>`;
 }
 
-module.exports = { svg, body, defs, shape, PALETTE, RAMP };
+module.exports = { svg, body, defs, shape, PALETTE, FACE, THICK };

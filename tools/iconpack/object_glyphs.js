@@ -13,9 +13,9 @@ const sharp = (() => {
 const g3d = require(path.join(__dirname, 'glyph3d.js'));
 
 const DST = path.join(__dirname, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
-const RENDER = 384;
+const RENDER = 1024;
 const CANVAS = 192;
-const FILL = 0.92;
+const FILL = 0.94;
 const ALPHA_FLOOR = 26;
 
 const OBJECTS = {
@@ -84,7 +84,7 @@ const OBJECTS = {
       depth: spec.depth || 11,
       dx: 0.24,
       dy: 0.30,
-    });
+    }, RENDER);
     const raw = await sharp(Buffer.from(svg)).png().toBuffer();
     const trimmed = await sharp(raw).trim({ threshold: 1 }).toBuffer();
     const meta = await sharp(trimmed).metadata();
@@ -96,13 +96,13 @@ const OBJECTS = {
     if (maxDim * scale > CANVAS * 0.99) scale = (CANVAS * 0.99) / maxDim;
     const w = Math.max(1, Math.round(meta.width * scale));
     const h = Math.max(1, Math.round(meta.height * scale));
-    const resized = await sharp(trimmed).resize(w, h, { fit: 'fill' }).ensureAlpha().raw().toBuffer();
+    const resized = await sharp(trimmed).resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).ensureAlpha().raw().toBuffer();
     for (let i = 3; i < resized.length; i += 4) if (resized[i] < ALPHA_FLOOR) resized[i] = 0;
     const body = await sharp(resized, { raw: { width: w, height: h, channels: 4 } })
-      .png({ compressionLevel: 9, palette: true }).toBuffer();
+      .png({ compressionLevel: 9, effort: 10 }).toBuffer();
     await sharp({ create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
       .composite([{ input: body, left: Math.round((CANVAS - w) / 2), top: Math.round((CANVAS - h) / 2) }])
-      .png({ compressionLevel: 9, palette: true })
+      .png({ compressionLevel: 9, effort: 10 })
       .toFile(path.join(DST, `ic_kitsugi_obj_${name}.png`));
     made += 1;
   }

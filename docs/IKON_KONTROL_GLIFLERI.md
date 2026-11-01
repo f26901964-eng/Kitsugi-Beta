@@ -21,18 +21,27 @@ Artık **her işlev kendi görseline** sahip; tablo tek yerde ve denetlenebilir.
 
 ## Kontrol glifleri (3B)
 
-3dicons paketinde kapat / chevron / filtre / sırala / görünüm modu / metin biçimi yoktu.
-Bu 46 işaret `tools/iconpack/control_glyphs.js` + `glyph3d.js` ile **aynı 3B dilde** üretildi:
+3dicons render'ları **katı (solid) cam nesneler**: keskin siluet, çapraz renk rampası,
+sol-üst ışık, sağ-alt gölge — ince kontur veya parlama halkası yok. Glifler bu malzeme
+kurallarıyla, `tools/iconpack/glyph3d.js` + `control_glyphs.js` ile üretilir:
 
 | Katman | Kural |
 |---|---|
-| Temas gölgesi | `#2E0B3E`, %42, 1.1 blur, şeklin altında |
-| Gövde | şekil 12 kez (0.26 / 0.31 birim) kaydırılıp koyu gradyanla doldurulur → hacim |
-| Ön yüz | dikey cam rampası `#FFE3C9 → #F3B094 → #E0859A → #C25EA2 → #A045B0 → #804CB4` |
-| Pah | sol-üst kenarda `#FFF0E2` %55 ince iç çizgi |
-| Parlama | üst bantta beyaz gradyan + iki spekülar leke, maskeyle gövdeye kırpılır |
-| Ayrıntı | dolgulu şekillerde (klavye, kamera, kek…) açık renk ince çizgi |
-| Çıktı | 24×24 ızgara → 384 px render → kırp → %92 kutu → 128×128 saydam PNG |
+| Temas gölgesi | `#2E0B3E` %34, 1.2 blur, siluetin altında ve dışında |
+| Kalınlık | şeklin 2 opak kopyası (0.55/0.62 ve 0.26/0.30 birim kaydırma), `#6E3390 → #361246` |
+| Ön yüz | çapraz rampa `#FFB673 → #FA8A7E → #F0679B → #CE4FB4 → #A248C6 → #7B4FCB` |
+| Işık | sol-üstte radyal beyaz hâle (%24 → 0), şekle kırpılmış |
+| Gölgeleme | alt %30'da `#3A0F4C` (%0 → %30), şekle kırpılmış |
+| Ayrıntı | dolgulu şekillerde ince açık çizgi (klavye tuşları, kamera merceği, kek mumları) |
+| Render | 24×24 ızgara → **1024 px** → kırp → LANCZOS3 ile 128 px (glif) / 192 px (nesne) |
+| Çıktı | saydam RGBA PNG (palet kuantizasyonu yok — bant oluşmasın) |
+
+> Önceki sürüm 12 yarı saydam ekstrüzyon katmanı + geniş parlama maskesi kullanıyordu;
+> sonuç "bulanık/mürekkep" görünüyordu. Ayrıca SVG 24 px'e render edilip büyütülüyordu.
+> İkisi de düzeltildi: kalınlık 2 opak katman, parlama halkası yok, render 1024 px.
+
+Karşılaştırma: **`docs/ikon-malzeme-karsilastirma.png`** (üst: orijinal 3dicons,
+alt: üretilen glifler — aynı malzeme dili).
 
 ## Nesne glifleri
 

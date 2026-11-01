@@ -16,9 +16,9 @@ const sharp = (() => {
 const g3d = require(path.join(__dirname, 'glyph3d.js'));
 
 const DST = path.join(__dirname, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
-const RENDER = 384;
+const RENDER = 1024;
 const CANVAS = 128;
-const FILL = 0.92;
+const FILL = 0.94;
 const ALPHA_FLOOR = 26;
 
 /** path: 24×24 koordinat uzayında; fill=true ise kapalı şekil dolgulu çizilir. */
@@ -42,7 +42,7 @@ const GLYPHS = {
   list: { d: 'M4.6 7.2 H19.4 M4.6 12 H19.4 M4.6 16.8 H19.4' },
   stream: { d: 'M4.6 8.4 H19.4 M4.6 15.6 H19.4' },
   carousel: { d: 'M8.2 5.8 h7.6 v12.4 h-7.6 z', fill: true, detail: 'M4.8 9.4 V14.6 M19.2 9.4 V14.6' },
-  more: { d: 'M11.35 6.6 a0.65 0.65 0 1 1 1.3 0 a0.65 0.65 0 1 1 -1.3 0 Z M11.35 12 a0.65 0.65 0 1 1 1.3 0 a0.65 0.65 0 1 1 -1.3 0 Z M11.35 17.4 a0.65 0.65 0 1 1 1.3 0 a0.65 0.65 0 1 1 -1.3 0 Z', fill: true, width: 5.4, depth: 6 },
+  more: { d: 'M10.1 6.6 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z M10.1 12 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z M10.1 17.4 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z', fill: true, width: 0.4, depth: 4 },
   external: { d: 'M13.6 4.8 H19.2 V10.4 M19 5 L11.2 12.8 M17.8 13.6 V18.6 a1.2 1.2 0 0 1 -1.2 1.2 H5.8 a1.2 1.2 0 0 1 -1.2 -1.2 V7.8 a1.2 1.2 0 0 1 1.2 -1.2 H11' },
   fullscreen: { d: 'M4 9.2 V4 h5.2 M14.8 4 H20 v5.2 M20 14.8 V20 h-5.2 M9.2 20 H4 v-5.2' },
   crop: { d: 'M7.2 3.4 v12.2 a1.2 1.2 0 0 0 1.2 1.2 h12.2 M3.4 7.2 h12.2 a1.2 1.2 0 0 1 1.2 1.2 v12.2' },
@@ -101,7 +101,7 @@ function specOf(spec, rot) {
   };
 }
 
-const svgFor = (spec, rot) => g3d.svg(specOf(spec, rot));
+const svgFor = (spec, rot) => g3d.svg(specOf(spec, rot), RENDER);
 
 const svgForLetter = (spec) => g3d.svg({
   text: spec.ch,
@@ -116,7 +116,7 @@ const svgForLetter = (spec) => g3d.svg({
   dy: 0.30,
   shadowRx: 5.2,
   shadowRy: 1.4,
-});
+}, RENDER);
 
 (async () => {
   fs.mkdirSync(DST, { recursive: true });
@@ -141,13 +141,13 @@ const svgForLetter = (spec) => g3d.svg({
     if (maxDim * scale > CANVAS * 0.99) scale = (CANVAS * 0.99) / maxDim;
     const w = Math.max(1, Math.round(meta.width * scale));
     const h = Math.max(1, Math.round(meta.height * scale));
-    const resized = await sharp(trimmed).resize(w, h, { fit: 'fill' }).ensureAlpha().raw().toBuffer();
+    const resized = await sharp(trimmed).resize(w, h, { fit: 'fill', kernel: 'lanczos3' }).ensureAlpha().raw().toBuffer();
     for (let i = 3; i < resized.length; i += 4) if (resized[i] < ALPHA_FLOOR) resized[i] = 0;
     const body = await sharp(resized, { raw: { width: w, height: h, channels: 4 } })
-      .png({ compressionLevel: 9, palette: true }).toBuffer();
+      .png({ compressionLevel: 9, effort: 10 }).toBuffer();
     await sharp({ create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
       .composite([{ input: body, left: Math.round((CANVAS - w) / 2), top: Math.round((CANVAS - h) / 2) }])
-      .png({ compressionLevel: 9, palette: true })
+      .png({ compressionLevel: 9, effort: 10 })
       .toFile(path.join(DST, `ic_kitsugi_glyph_${name}.png`));
     made += 1;
   }
