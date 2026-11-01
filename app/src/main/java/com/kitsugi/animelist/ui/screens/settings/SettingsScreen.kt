@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import com.kitsugi.animelist.ui.icons.KitsugiArt
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -658,6 +659,7 @@ private fun SettingsMainPage(
                             description = stringResource(R.string.settings_account_connections_desc),
                             icon = Icons.Rounded.Person,
                             iconColor = KitsugiColors.AccentBlue,
+                            art = KitsugiArt.Connections,
                             onClick = { onNavigate(SettingsRoute.AccountConnections) }
                         )
                     }
