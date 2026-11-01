@@ -121,120 +121,146 @@ enum class KitsugiArt(
 ) {
     // ── Hesap ────────────────────────────────────────────────────────────
     Account(
-        R.drawable.ic_kitsugi_card,
-        listOf("AccountCircle", "AccountBox", "ManageAccounts", "Badge", "PermIdentity")
+        R.drawable.ic_kitsugi_card
     ),
-    Connections(R.drawable.ic_kitsugi_link, listOf("Link", "LinkOff", "Share", "LinkRounded")),
+    Connections(R.drawable.ic_kitsugi_link),
 
     // ── Görünüm / oynatma ────────────────────────────────────────────────
     Palette(
-        R.drawable.ic_kitsugi_colour_palette,
-        listOf("Palette", "ColorLens", "Brush", "Gradient", "FormatPaint", "Style", "InvertColors", "Opacity")
+        R.drawable.ic_kitsugi_colour_palette
     ),
     Player(
-        R.drawable.ic_kitsugi_video_camera,
-        listOf("PlayCircle", "PlayCircleFilled", "Movie", "Theaters", "Videocam", "VideoSettings", "SlowMotionVideo")
+        R.drawable.ic_kitsugi_video_camera
     ),
-    Play(R.drawable.ic_kitsugi_play, listOf("PlayArrow", "PlayCircleOutline")),
-    Pause(R.drawable.ic_kitsugi_pause, listOf("Pause", "PauseCircle", "StopCircle", "PlayPause")),
-    Next(R.drawable.ic_kitsugi_next, listOf("SkipNext", "FastForward", "Forward10", "Forward30", "Forward5")),
-    Rewind(R.drawable.ic_kitsugi_back, listOf("FastRewind", "Replay10", "Replay30", "Replay5", "Redo")),
+    Play(R.drawable.ic_kitsugi_play),
+    Pause(R.drawable.ic_kitsugi_pause),
+    Next(R.drawable.ic_kitsugi_next),
+    Rewind(R.drawable.ic_kitsugi_back),
 
     // ── Kaynaklar / entegrasyonlar ───────────────────────────────────────
-    Extensions(R.drawable.ic_kitsugi_puzzle, listOf("Extension", "Widgets", "ExtensionOff")),
+    Extensions(R.drawable.ic_kitsugi_puzzle),
     Integrations(
-        R.drawable.ic_kitsugi_sphere,
-        listOf("Hub", "DeviceHub", "Api", "Public", "Language", "TravelExplore", "Cloud")
+        R.drawable.ic_kitsugi_sphere
     ),
     Network(
-        R.drawable.ic_kitsugi_wifi,
-        listOf("NetworkCheck", "Wifi", "WifiOff", "SettingsEthernet", "Dns", "Lan", "CastConnected")
+        R.drawable.ic_kitsugi_wifi
     ),
     Sync(
-        R.drawable.ic_kitsugi_wifi,
-        listOf("Sync", "SyncAlt", "SyncProblem", "CloudSync", "Cached", "Autorenew", "Refresh", "Repeat", "RepeatOne", "RestartAlt")
+        R.drawable.ic_kitsugi_obj_sync
     ),
 
     // ── Veri / depolama ──────────────────────────────────────────────────
-    Database(R.drawable.ic_kitsugi_locker, listOf("Storage", "Backup", "Save", "CloudUpload", "Archive")),
+    Database(R.drawable.ic_kitsugi_locker),
     Storage(
-        R.drawable.ic_kitsugi_trash_can,
-        listOf("CleaningServices", "DeleteSweep", "FolderDelete", "Delete", "DeleteOutline", "DeleteForever", "RemoveCircle")
+        R.drawable.ic_kitsugi_trash_can
     ),
 
     // ── İndirmeler / geçmiş ──────────────────────────────────────────────
-    Tune(R.drawable.ic_kitsugi_setting, listOf("Tune", "SettingsApplications", "Equalizer", "GraphicEq")),
+    Tune(R.drawable.ic_kitsugi_obj_sliders),
     Download(
-        R.drawable.ic_kitsugi_travel,
-        listOf("Download", "DownloadForOffline", "FileDownload", "SaveAlt", "DownloadDone", "CloudDownload", "CloudDownloadOutline")
+        R.drawable.ic_kitsugi_obj_download
     ),
-    History(R.drawable.ic_kitsugi_clock, listOf("History", "Restore", "Update", "WatchLater", "Replay")),
-    Timer(R.drawable.ic_kitsugi_clock, listOf("Timer", "HourglassEmpty", "HourglassFull", "AccessTime", "Schedule")),
+    History(R.drawable.ic_kitsugi_clock),
+    Timer(R.drawable.ic_kitsugi_obj_timer),
 
     // ── Destek / tanılama ────────────────────────────────────────────────
-    Info(R.drawable.ic_kitsugi_bulb, listOf("Info", "InfoOutline")),
-    Feedback(R.drawable.ic_kitsugi_megaphone, listOf("Feedback", "RateReview", "Campaign", "Announcement")),
+    Info(R.drawable.ic_kitsugi_bulb),
+    Feedback(R.drawable.ic_kitsugi_megaphone),
     Warning(
-        R.drawable.ic_kitsugi_sheild,
-        listOf("BugReport", "Warning", "WarningAmber", "ErrorOutline", "Report", "Error", "PriorityHigh", "ReportProblem")
+        R.drawable.ic_kitsugi_sheild
     ),
-    Help(R.drawable.ic_kitsugi_chat, listOf("Help", "HelpOutline", "QuestionMark")),
+    Help(R.drawable.ic_kitsugi_chat),
     Memo(
-        R.drawable.ic_kitsugi_pencil,
-        listOf("Notes", "Description", "Article", "EditNote", "Edit", "Book", "MenuBook", "Title", "TextFields", "Translate", "DriveFileRenameOutline")
+        R.drawable.ic_kitsugi_pencil
     ),
 
     // ── Oynatıcı ayarları sekmeleri ──────────────────────────────────────
     Gestures(
-        R.drawable.ic_kitsugi_magic_trick,
-        listOf("Swipe", "SwipeLeft", "SwipeRight", "SwipeUp", "SwipeDown", "Gesture", "TouchApp", "PanTool")
+        R.drawable.ic_kitsugi_magic_trick
     ),
-    Decoder(R.drawable.ic_kitsugi_tool, listOf("Memory", "DeveloperBoard", "Hd", "HighQuality", "Handyman", "HomeRepairService")),
+    Decoder(R.drawable.ic_kitsugi_tool),
     Subtitles(
-        R.drawable.ic_kitsugi_chat_text,
-        listOf("Subtitles", "SubtitlesOff", "ClosedCaption", "SubtitlesOutlined", "ChatBubble", "ChatBubbleOutline", "Comment", "Forum")
+        R.drawable.ic_kitsugi_chat_text
     ),
     Audio(
-        R.drawable.ic_kitsugi_headphone,
-        listOf("VolumeUp", "VolumeDown", "VolumeMute", "VolumeOff", "Audiotrack", "MusicNote", "Hearing")
+        R.drawable.ic_kitsugi_headphone
     ),
-    Buttons(R.drawable.ic_kitsugi_toggle, listOf("SmartButton", "SportsEsports", "Gamepad", "Vibration")),
-    Code(R.drawable.ic_kitsugi_computer, listOf("Code", "CodeOff", "Terminal", "DataObject")),
-    Advanced(R.drawable.ic_kitsugi_lab, listOf("DeveloperMode", "SettingsSuggest", "Construction")),
+    Buttons(R.drawable.ic_kitsugi_toggle),
+    Code(R.drawable.ic_kitsugi_obj_code),
+    Advanced(R.drawable.ic_kitsugi_lab),
 
     // ── Yardımcı ─────────────────────────────────────────────────────────
-    Speed(R.drawable.ic_kitsugi_rocket, listOf("Speed", "Bolt", "FlashOn", "RocketLaunch")),
-    Sun(R.drawable.ic_kitsugi_sun, listOf("BrightnessMedium", "Brightness7", "BrightnessLow", "WbSunny", "LightMode")),
-    Moon(R.drawable.ic_kitsugi_moon, listOf("DarkMode", "NightsStay", "Bedtime", "Nightlight")),
-    Tv(R.drawable.ic_kitsugi_computer, listOf("Tv", "ConnectedTv", "LiveTv", "SmartDisplay")),
-    Key(R.drawable.ic_kitsugi_key, listOf("Key", "KeyOff", "VpnKey", "Password")),
-    Star(R.drawable.ic_kitsugi_star, listOf("Star", "StarBorder", "StarHalf", "Grade", "Favorite")),
-    Picture(R.drawable.ic_kitsugi_picture, listOf("Image", "Photo", "InsertPhoto", "Wallpaper", "ImageSearch")),
-    Heart(R.drawable.ic_kitsugi_heart, listOf("FavoriteBorder", "HeartBroken")),
-    Clipboard(R.drawable.ic_kitsugi_copy, listOf("ContentCopy", "ContentPaste", "Assignment", "FileCopy")),
-    Chart(R.drawable.ic_kitsugi_chart, listOf("BarChart", "DonutLarge", "Insights", "ShowChart", "TrendingUp", "Analytics")),
-    CheckCircle(R.drawable.ic_kitsugi_tick, listOf("CheckCircle", "CheckCircleOutline", "DoneAll", "TaskAlt")),
-    Lock(R.drawable.ic_kitsugi_lock, listOf("Lock", "LockOpen", "Security", "HealthAndSafety", "VerifiedUser", "PrivacyTip")),
+    Speed(R.drawable.ic_kitsugi_rocket),
+    Sun(R.drawable.ic_kitsugi_sun),
+    Moon(R.drawable.ic_kitsugi_moon),
+    Tv(R.drawable.ic_kitsugi_obj_tv),
+    Key(R.drawable.ic_kitsugi_key),
+    Star(R.drawable.ic_kitsugi_star),
+    Picture(R.drawable.ic_kitsugi_picture),
+    Heart(R.drawable.ic_kitsugi_heart),
+    Clipboard(R.drawable.ic_kitsugi_copy),
+    Chart(R.drawable.ic_kitsugi_chart),
+    CheckCircle(R.drawable.ic_kitsugi_tick),
+    Lock(R.drawable.ic_kitsugi_lock),
     Folder(
-        R.drawable.ic_kitsugi_folder,
-        listOf("Folder", "FolderOpen", "PhotoLibrary", "VideoLibrary", "AutoStories", "Books", "SdStorage", "FolderSpecial")
+        R.drawable.ic_kitsugi_folder
     ),
-    Bell(R.drawable.ic_kitsugi_bell, listOf("Notifications", "NotificationsNone", "NotificationsActive", "NotificationsOff")),
+    Bell(R.drawable.ic_kitsugi_bell),
     Calendar(
-        R.drawable.ic_kitsugi_calender,
-        listOf("CalendarToday", "DateRange", "Event", "EventAvailable", "CalendarMonth", "Today")
+        R.drawable.ic_kitsugi_calender
     ),
-    Sparkles(R.drawable.ic_kitsugi_flash, listOf("AutoAwesome", "NewReleases", "Stars", "AutoFixHigh")),
-    ThumbUp(R.drawable.ic_kitsugi_thumb_up, listOf("ThumbUp", "ThumbUpAlt", "Recommend")),
-    Mobile(R.drawable.ic_kitsugi_mobile, listOf("PhoneAndroid", "Tablet", "Devices", "Smartphone", "PhoneIphone")),
-    Pin(R.drawable.ic_kitsugi_pin, listOf("LocationOn", "Place", "PinDrop", "MyLocation")),
+    Sparkles(R.drawable.ic_kitsugi_flash),
+    ThumbUp(R.drawable.ic_kitsugi_thumb_up),
+    Mobile(R.drawable.ic_kitsugi_mobile),
+    Pin(R.drawable.ic_kitsugi_pin),
 
     // ── Gezinme çubuğu ───────────────────────────────────────────────────
-    NavExplore(R.drawable.ic_kitsugi_explorer, listOf("Explore")),
-    NavList(R.drawable.ic_kitsugi_bookmark, listOf("ListAlt", "Bookmark", "BookmarkBorder", "Bookmarks", "CollectionsBookmark", "FormatListBulleted")),
-    NavSearch(R.drawable.ic_kitsugi_zoom, listOf("Search", "ManageSearch", "SearchOff", "ZoomIn", "ZoomOut")),
-    NavProfile(R.drawable.ic_kitsugi_boy, listOf("Person", "Person2", "PersonOutline", "Group", "Groups", "People")),
-    NavSettings(R.drawable.ic_kitsugi_setting, listOf("Settings", "Build")),
+    NavExplore(R.drawable.ic_kitsugi_explorer),
+    NavList(R.drawable.ic_kitsugi_bookmark),
+    NavSearch(R.drawable.ic_kitsugi_zoom),
+    NavProfile(R.drawable.ic_kitsugi_boy),
+    Upload(R.drawable.ic_kitsugi_obj_upload),
+    Tag(R.drawable.ic_kitsugi_obj_tag),
+    Backup(R.drawable.ic_kitsugi_obj_backup),
+    Notebook(R.drawable.ic_kitsugi_notebook),
+    Document(R.drawable.ic_kitsugi_file_text),
+    File(R.drawable.ic_kitsugi_file),
+    NewFolder(R.drawable.ic_kitsugi_new_folder),
+    FavFolder(R.drawable.ic_kitsugi_fav_folder),
+    Mail(R.drawable.ic_kitsugi_mail),
+    Chat(R.drawable.ic_kitsugi_chat_bubble),
+    Target(R.drawable.ic_kitsugi_target),
+    Flag(R.drawable.ic_kitsugi_flag),
+    Trophy(R.drawable.ic_kitsugi_trophy),
+    Fire(R.drawable.ic_kitsugi_fire),
+    Gift(R.drawable.ic_kitsugi_gift),
+    Calculator(R.drawable.ic_kitsugi_calculator),
+    Scissor(R.drawable.ic_kitsugi_scissor),
+    PaintKit(R.drawable.ic_kitsugi_paint_kit),
+    Brush(R.drawable.ic_kitsugi_paint_brush),
+    Eyedropper(R.drawable.ic_kitsugi_eyedropper),
+    Mic(R.drawable.ic_kitsugi_mic),
+    Music(R.drawable.ic_kitsugi_music),
+    Hash(R.drawable.ic_kitsugi_hash),
+    Text(R.drawable.ic_kitsugi_text),
+    At(R.drawable.ic_kitsugi_at),
+    Cube(R.drawable.ic_kitsugi_cube),
+    Wallet(R.drawable.ic_kitsugi_wallet),
+    Battery(R.drawable.ic_kitsugi_battery),
+    HeartBell(R.drawable.ic_kitsugi_notify_heart),
+    Location(R.drawable.ic_kitsugi_location),
+    Phone(R.drawable.ic_kitsugi_phone_ringing),
+    Gym(R.drawable.ic_kitsugi_gym),
+    Medal(R.drawable.ic_kitsugi_medal),
+    Umbrella(R.drawable.ic_kitsugi_umbrella),
+    Circle(R.drawable.ic_kitsugi_circle),
+    Bag(R.drawable.ic_kitsugi_bag),
+    Chess(R.drawable.ic_kitsugi_chess),
+    Money(R.drawable.ic_kitsugi_money),
+    Cup(R.drawable.ic_kitsugi_cup),
+    Glass(R.drawable.ic_kitsugi_glass),
+    Travel(R.drawable.ic_kitsugi_travel),
+    NavSettings(R.drawable.ic_kitsugi_setting),
 
 
     // ── Kontrol glifleri (3dicons'ta yok; setin diliyle üretildi) ────────
@@ -292,141 +318,379 @@ enum class KitsugiArt(
 
     companion object {
         /**
-         * İkinci tur eşlemeler: enum listeleri okunur kalsın diye ayrı tutuldu.
-         * Hepsi mevcut 50 varlıktan birine bağlanır; böylece uygulamada "konu"
-         * anlamı taşıyan hiçbir Material ikonu 2B kalmaz.
+         * **Material ikon adı → 3B varlık** eşlemesi. Tek doğru kaynak.
+         *
+         * Neden tek tablo?
+         * ----------------
+         * Önceki turlarda eşleme üç ayrı yerde (enum listeleri, EXTRA_ALIASES,
+         * CONTROL_ALIASES) duruyordu; aynı ikon farklı işlevlerde tekrar ediyordu.
+         * Artık **her ad tek satırda, kendi işlevine en yakın görselle** eşlenir.
+         * Denetim: `node tools/iconpack/coverage_report.js` (268 ad, 0 boşta).
+         *
+         * Sıra: tam ad ("Rounded.PlayCircle") → kısa ad ("PlayCircle").
          */
-        private val EXTRA_ALIASES: Map<String, KitsugiArt> by lazy {
+        private val NAME_MAP: Map<String, KitsugiArt> by lazy {
             mapOf(
-                // Liste / yer imi ailesi
-                "LibraryAdd" to KitsugiArt.NavList, "PlaylistAdd" to KitsugiArt.NavList, "PlaylistAddCheck" to KitsugiArt.NavList,
-                "PlaylistPlay" to KitsugiArt.NavList, "QueuePlayNext" to KitsugiArt.NavList, "PlaylistRemove" to KitsugiArt.NavList,
-                "Label" to KitsugiArt.NavList, "Sell" to KitsugiArt.NavList, "Tag" to KitsugiArt.NavList, "BookmarkAdded" to KitsugiArt.NavList,
-                "List" to KitsugiArt.NavList, "QueueMusic" to KitsugiArt.NavList, "FormatListNumbered" to KitsugiArt.NavList,
-                // Görsel / medya
-                "BrokenImage" to KitsugiArt.Picture, "ImageNotSupported" to KitsugiArt.Picture, "Preview" to KitsugiArt.Picture,
-                "Slideshow" to KitsugiArt.Picture, "PictureInPictureAlt" to KitsugiArt.Picture, "PhotoCamera" to KitsugiArt.Picture,
-                // Ağ / bağlantı
-                "CloudOff" to KitsugiArt.Network, "RssFeed" to KitsugiArt.Network, "Web" to KitsugiArt.Network, "AddLink" to KitsugiArt.Network,
-                "SignalCellularAlt" to KitsugiArt.Network, "WifiTethering" to KitsugiArt.Network,
-                // Eşitleme
-                "SwapHoriz" to KitsugiArt.Sync, "CompareArrows" to KitsugiArt.Sync, "SyncDisabled" to KitsugiArt.Sync,
-                // İndirme / depolama
-                "FolderCopy" to KitsugiArt.Download, "SdCard" to KitsugiArt.Download, "SystemUpdate" to KitsugiArt.Download,
-                "SystemUpdateAlt" to KitsugiArt.Download, "Downloading" to KitsugiArt.Download, "Upload" to KitsugiArt.Download,
-                "SaveAlt" to KitsugiArt.Download, "MoveToInbox" to KitsugiArt.Download,
-                // Zaman
-                "MoreTime" to KitsugiArt.Timer, "AvTimer" to KitsugiArt.Timer, "HourglassBottom" to KitsugiArt.Timer,
-                "HourglassTop" to KitsugiArt.Timer, "Upcoming" to KitsugiArt.Timer, "Alarm" to KitsugiArt.Timer, "AlarmOn" to KitsugiArt.Timer,
-                // Tepki / oy
-                "ThumbDown" to KitsugiArt.ThumbUp, "ThumbDownAlt" to KitsugiArt.ThumbUp, "EmojiEvents" to KitsugiArt.Star,
-                "WorkspacePremium" to KitsugiArt.Star, "MilitaryTech" to KitsugiArt.Star, "Stars" to KitsugiArt.Star,
-                // Oynatma
-                "Stop" to KitsugiArt.Pause, "SkipPrevious" to KitsugiArt.Rewind, "Forward" to KitsugiArt.Next, "FastForward" to KitsugiArt.Next,
-                // Tema / ışık
-                "ModeNight" to KitsugiArt.Moon, "BrightnessHigh" to KitsugiArt.Sun, "Brightness6" to KitsugiArt.Sun, "Contrast" to KitsugiArt.Sun,
-                // Kişi / hesap
-                "PersonAdd" to KitsugiArt.NavProfile, "PersonAddAlt" to KitsugiArt.NavProfile, "Login" to KitsugiArt.Key,
-                "Logout" to KitsugiArt.Key, "ManageAccounts" to KitsugiArt.Account, "SwitchAccount" to KitsugiArt.Account,
-                // Diğer konu ikonları
-                "Apps" to KitsugiArt.Extensions, "Widgets" to KitsugiArt.Extensions, "Home" to KitsugiArt.NavExplore,
-                "RecordVoiceOver" to KitsugiArt.Feedback, "Campaign" to KitsugiArt.Feedback, "Announcement" to KitsugiArt.Feedback,
-                "Terminal" to KitsugiArt.Code, "DataObject" to KitsugiArt.Code, "Translate" to KitsugiArt.Memo,
-                "Description" to KitsugiArt.Memo, "Article" to KitsugiArt.Memo, "MenuBook" to KitsugiArt.Memo,
-                "Lightbulb" to KitsugiArt.Info, "LightbulbOutline" to KitsugiArt.Info,
-                "Security" to KitsugiArt.Lock, "PrivacyTip" to KitsugiArt.Lock, "GppGood" to KitsugiArt.Warning,
-                "Equalizer" to KitsugiArt.Tune, "GraphicEq" to KitsugiArt.Tune, "Tune" to KitsugiArt.Tune,
-                "Sensors" to KitsugiArt.Lab, "Science" to KitsugiArt.Lab, "Biotech" to KitsugiArt.Lab,
-                "Rocket" to KitsugiArt.Speed, "RocketLaunch" to KitsugiArt.Speed, "Speed" to KitsugiArt.Speed
-            )
-        }
-
-        /**
-         * **Kontrol glifleri eşlemesi** — kapat, geri, filtre, sırala, görünüm modu,
-         * tam ekran, kırpma, metin biçimi gibi mikro kontroller. Üçüncü turda eklendi:
-         * bu adlar daha önce tek renkli Material vektörüne düşüyordu.
-         */
-        private val CONTROL_ALIASES: Map<String, KitsugiArt> by lazy {
-            mapOf(
-                "Close" to KitsugiArt.CtlClose, "Clear" to KitsugiArt.CtlClose, "Cancel" to KitsugiArt.CtlClose, "ClearAll" to KitsugiArt.CtlClose, "CloseFullscreen" to KitsugiArt.CtlClose,
-                "Check" to KitsugiArt.CheckCircle, "Done" to KitsugiArt.CheckCircle, "CheckSmall" to KitsugiArt.CheckCircle, "CheckRounded" to KitsugiArt.CheckCircle, "CheckCircleFilled" to KitsugiArt.CheckCircle,
-                "Remove" to KitsugiArt.CtlMinus, "RemoveCircleOutline" to KitsugiArt.CtlMinus, "IndeterminateCheckBox" to KitsugiArt.CtlMinus, "Minus" to KitsugiArt.CtlMinus,
-                "KeyboardArrowUp" to KitsugiArt.CtlChevronUp, "ExpandLess" to KitsugiArt.CtlChevronUp, "ArrowDropUp" to KitsugiArt.CtlChevronUp, "UnfoldLess" to KitsugiArt.CtlChevronUp, 
-                "KeyboardArrowDown" to KitsugiArt.CtlChevronDown, "ExpandMore" to KitsugiArt.CtlChevronDown, "ArrowDropDown" to KitsugiArt.CtlChevronDown, "UnfoldMore" to KitsugiArt.CtlChevronDown,
-                "KeyboardArrowRight" to KitsugiArt.CtlChevronRight, "ChevronRight" to KitsugiArt.CtlChevronRight, "NavigateNext" to KitsugiArt.CtlChevronRight,
-                "KeyboardArrowLeft" to KitsugiArt.CtlChevronLeft, "ChevronLeft" to KitsugiArt.CtlChevronLeft, "NavigateBefore" to KitsugiArt.CtlChevronLeft,
-                "ArrowBack" to KitsugiArt.CtlArrowLeft, "ArrowBackIos" to KitsugiArt.CtlArrowLeft, "ArrowBackIosNew" to KitsugiArt.CtlArrowLeft, "West" to KitsugiArt.CtlArrowLeft, "KeyboardBackspace" to KitsugiArt.CtlArrowLeft, "ArrowBackIosNewRounded" to KitsugiArt.CtlArrowLeft,
-                "ArrowForward" to KitsugiArt.CtlArrowRight, "ArrowForwardIos" to KitsugiArt.CtlArrowRight, "East" to KitsugiArt.CtlArrowRight, "ArrowForwardIosRounded" to KitsugiArt.CtlArrowRight,
-                "ArrowUpward" to KitsugiArt.CtlArrowUp, "North" to KitsugiArt.CtlArrowUp, "ArrowCircleUp" to KitsugiArt.CtlArrowUp, "ArrowCircleDown" to KitsugiArt.CtlArrowDown,
+                // kapat / temizle
+                "Close" to KitsugiArt.CtlClose, "Cancel" to KitsugiArt.CtlClose, "Clear" to KitsugiArt.CtlClose,
+                "ClearAll" to KitsugiArt.CtlClose, "FormatClear" to KitsugiArt.CtlClose,
+                // ekle
+                "Add" to KitsugiArt.Plus, "AddCircle" to KitsugiArt.Plus, "AddCircleOutline" to KitsugiArt.Plus,
+                // azalt
+                "Remove" to KitsugiArt.CtlMinus,
+                // onay / tamam
+                "Check" to KitsugiArt.CheckCircle, "CheckCircle" to KitsugiArt.CheckCircle,
+                "CheckCircleOutline" to KitsugiArt.CheckCircle, "Done" to KitsugiArt.CheckCircle,
+                "DoneAll" to KitsugiArt.CheckCircle, "TaskAlt" to KitsugiArt.CheckCircle,
+                // yukarı / daralt
+                "KeyboardArrowUp" to KitsugiArt.CtlChevronUp, "ExpandLess" to KitsugiArt.CtlChevronUp,
+                "ArrowDropUp" to KitsugiArt.CtlChevronUp, "UnfoldLess" to KitsugiArt.CtlChevronUp,
+                // aşağı / genişlet
+                "KeyboardArrowDown" to KitsugiArt.CtlChevronDown, "ExpandMore" to KitsugiArt.CtlChevronDown,
+                "ArrowDropDown" to KitsugiArt.CtlChevronDown, "UnfoldMore" to KitsugiArt.CtlChevronDown,
+                // sağ ok
+                "ChevronRight" to KitsugiArt.CtlChevronRight, "NavigateNext" to KitsugiArt.CtlChevronRight,
+                // sol ok
+                "ChevronLeft" to KitsugiArt.CtlChevronLeft, "NavigateBefore" to KitsugiArt.CtlChevronLeft,
+                // geri
+                "ArrowBack" to KitsugiArt.CtlArrowLeft, "ArrowBackIos" to KitsugiArt.CtlArrowLeft,
+                "West" to KitsugiArt.CtlArrowLeft, "KeyboardBackspace" to KitsugiArt.CtlArrowLeft,
+                // ileri
+                "ArrowForward" to KitsugiArt.CtlArrowRight, "East" to KitsugiArt.CtlArrowRight,
+                // yukarı ok
+                "ArrowUpward" to KitsugiArt.CtlArrowUp, "ArrowCircleUp" to KitsugiArt.CtlArrowUp,
+                "North" to KitsugiArt.CtlArrowUp,
+                // aşağı ok
                 "ArrowDownward" to KitsugiArt.CtlArrowDown, "South" to KitsugiArt.CtlArrowDown,
-                "OpenInNew" to KitsugiArt.CtlExternal, "OpenInNewOff" to KitsugiArt.CtlExternal, "OpenInBrowser" to KitsugiArt.CtlExternal, "Launch" to KitsugiArt.CtlExternal, "ExitToApp" to KitsugiArt.CtlExternal,
-                "Visibility" to KitsugiArt.CtlEye, "RemoveRedEye" to KitsugiArt.CtlEye, "Preview" to KitsugiArt.CtlEye, "VisibilityRounded" to KitsugiArt.CtlEye,
-                "VisibilityOff" to KitsugiArt.CtlEyeOff, "HideImage" to KitsugiArt.CtlEyeOff,
-                "FilterList" to KitsugiArt.CtlFunnel, "FilterAlt" to KitsugiArt.CtlFunnel, "FilterAltOff" to KitsugiArt.CtlFunnel, "FilterListOff" to KitsugiArt.CtlFunnel, "FilterListAlt" to KitsugiArt.CtlFunnel, "Filter" to KitsugiArt.CtlFunnel,
-                "Sort" to KitsugiArt.CtlSort, "SortByAlpha" to KitsugiArt.CtlSort, "SwapVert" to KitsugiArt.CtlSort, "LowPriority" to KitsugiArt.CtlSort, "ImportExport" to KitsugiArt.CtlSort,
-                "GridView" to KitsugiArt.CtlGrid, "ViewModule" to KitsugiArt.CtlGrid, "ViewQuilt" to KitsugiArt.CtlGrid, "ViewWeek" to KitsugiArt.CtlGrid, "ViewComfy" to KitsugiArt.CtlGrid,
-                "ViewList" to KitsugiArt.CtlList, "ViewAgenda" to KitsugiArt.CtlList, "Toc" to KitsugiArt.CtlList, "FormatListBulleted" to KitsugiArt.CtlList,
+                // dışa aç
+                "OpenInNew" to KitsugiArt.CtlExternal, "OpenInBrowser" to KitsugiArt.CtlExternal,
+                "Launch" to KitsugiArt.CtlExternal, "ExitToApp" to KitsugiArt.CtlExternal,
+                // göster
+                "Visibility" to KitsugiArt.CtlEye, "RemoveRedEye" to KitsugiArt.CtlEye,
+                // gizle
+                "VisibilityOff" to KitsugiArt.CtlEyeOff,
+                // filtre
+                "FilterList" to KitsugiArt.CtlFunnel, "FilterAlt" to KitsugiArt.CtlFunnel,
+                "FilterAltOff" to KitsugiArt.CtlFunnel,
+                // sırala
+                "Sort" to KitsugiArt.CtlSort, "SortByAlpha" to KitsugiArt.CtlSort, "SwapVert" to KitsugiArt.CtlSort,
+                // ızgara görünümü
+                "GridView" to KitsugiArt.CtlGrid, "ViewQuilt" to KitsugiArt.CtlGrid, "ViewWeek" to KitsugiArt.CtlGrid,
+                "ViewModule" to KitsugiArt.CtlGrid,
+                // liste görünümü / çalma listesi
+                "ViewList" to KitsugiArt.CtlList, "List" to KitsugiArt.CtlList,
+                "FormatListBulleted" to KitsugiArt.CtlList, "FormatListNumbered" to KitsugiArt.CtlList,
+                "ListAlt" to KitsugiArt.CtlList, "PlaylistAdd" to KitsugiArt.CtlList,
+                "PlaylistAddCheck" to KitsugiArt.CtlList, "PlaylistPlay" to KitsugiArt.CtlList,
+                "QueuePlayNext" to KitsugiArt.CtlList, "LibraryAdd" to KitsugiArt.CtlList, "Toc" to KitsugiArt.CtlList,
+                // akış görünümü
                 "ViewStream" to KitsugiArt.CtlStream,
+                // karusel görünümü
                 "ViewCarousel" to KitsugiArt.CtlCarousel,
+                // diğer (⋮)
                 "MoreVert" to KitsugiArt.CtlMore, "MoreHoriz" to KitsugiArt.CtlMore,
-                "Fullscreen" to KitsugiArt.CtlFullscreen, "FullscreenExit" to KitsugiArt.CtlFullscreen, "FitScreen" to KitsugiArt.CtlFullscreen, "SettingsOverscan" to KitsugiArt.CtlFullscreen,
-                "Crop" to KitsugiArt.CtlCrop, "CropFree" to KitsugiArt.CtlCrop, "CropSquare" to KitsugiArt.CtlCrop, "CropOriginal" to KitsugiArt.CtlCrop, "CenterFocusWeak" to KitsugiArt.CtlCrop, "FilterCenterFocus" to KitsugiArt.CtlCrop, "CenterFocusStrong" to KitsugiArt.CtlCrop,
-                "ScreenRotation" to KitsugiArt.CtlRotate, "Rotate90DegreesCcw" to KitsugiArt.CtlRotate, "RotateLeft" to KitsugiArt.CtlRotate, "RotateRight" to KitsugiArt.CtlRotate, "Flip" to KitsugiArt.CtlRotate,
+                // tam ekran
+                "Fullscreen" to KitsugiArt.CtlFullscreen, "FitScreen" to KitsugiArt.CtlFullscreen,
+                "SettingsOverscan" to KitsugiArt.CtlFullscreen,
+                // kırp / odakla
+                "Crop" to KitsugiArt.CtlCrop, "CropFree" to KitsugiArt.CtlCrop,
+                "CenterFocusWeak" to KitsugiArt.CtlCrop, "FilterCenterFocus" to KitsugiArt.CtlCrop,
+                // döndür
+                "ScreenRotation" to KitsugiArt.CtlRotate, "RotateLeft" to KitsugiArt.CtlRotate,
+                "RotateRight" to KitsugiArt.CtlRotate,
+                // en-boy oranı
                 "AspectRatio" to KitsugiArt.CtlAspect,
-                "BlurOn" to KitsugiArt.CtlBlur, "BlurLinear" to KitsugiArt.CtlBlur,
-                "FormatAlignLeft" to KitsugiArt.CtlAlignLeft, "FormatIndentDecrease" to KitsugiArt.CtlAlignLeft,
+                // bulanıklık
+                "BlurOn" to KitsugiArt.CtlBlur,
+                // sola hizala
+                "FormatAlignLeft" to KitsugiArt.CtlAlignLeft,
+                // ortala
                 "FormatAlignCenter" to KitsugiArt.CtlAlignCenter,
-                "FormatAlignJustify" to KitsugiArt.CtlAlignJustify, "FormatAlignRight" to KitsugiArt.CtlAlignJustify, "FormatIndentIncrease" to KitsugiArt.CtlAlignJustify,
-                "BorderOuter" to KitsugiArt.CtlBorder, "BorderColor" to KitsugiArt.CtlBorder, "BorderAll" to KitsugiArt.CtlBorder, "BorderStyle" to KitsugiArt.CtlBorder,
+                // iki yana yasla
+                "FormatAlignJustify" to KitsugiArt.CtlAlignJustify,
+                // kenarlık
+                "BorderOuter" to KitsugiArt.CtlBorder, "BorderColor" to KitsugiArt.CtlBorder,
+                // tümünü seç
                 "SelectAll" to KitsugiArt.CtlSelectAll,
-                "DragHandle" to KitsugiArt.CtlDrag, "DragIndicator" to KitsugiArt.CtlDrag, "Reorder" to KitsugiArt.CtlDrag,
-                "DensityMedium" to KitsugiArt.CtlDensity, "DensitySmall" to KitsugiArt.CtlDensity, "DensityLarge" to KitsugiArt.CtlDensity, "LineWeight" to KitsugiArt.CtlDensity,
-                "Keyboard" to KitsugiArt.CtlKeyboard, "KeyboardAlt" to KitsugiArt.CtlKeyboard, "KeyboardReturn" to KitsugiArt.CtlKeyboard,
-                "SettingsInputComponent" to KitsugiArt.CtlInput, "SettingsInputHdmi" to KitsugiArt.CtlInput, "Cable" to KitsugiArt.CtlInput,
-                "DoubleArrow" to KitsugiArt.CtlDoubleArrow, "Height" to KitsugiArt.CtlDoubleArrow, "Width" to KitsugiArt.CtlDoubleArrow,
-                "Home" to KitsugiArt.CtlHome, "HomeFilled" to KitsugiArt.CtlHome, "Cottage" to KitsugiArt.CtlHome,
-                "LocalFlorist" to KitsugiArt.CtlLeaf, "Forest" to KitsugiArt.CtlLeaf, "Eco" to KitsugiArt.CtlLeaf, "Spa" to KitsugiArt.CtlLeaf,
-                "AcUnit" to KitsugiArt.CtlSnow, "SevereCold" to KitsugiArt.CtlSnow,
-                "Cake" to KitsugiArt.CtlCake, "CakeVariant" to KitsugiArt.CtlCake,
-                "CameraAlt" to KitsugiArt.CtlCamera, "ControlCamera" to KitsugiArt.CtlCamera, "PhotoCameraFront" to KitsugiArt.CtlCamera, "PhotoCamera" to KitsugiArt.CtlCamera,
+                // sürükle / sırala
+                "DragHandle" to KitsugiArt.CtlDrag,
+                // yoğunluk
+                "DensityMedium" to KitsugiArt.CtlDensity,
+                // klavye
+                "Keyboard" to KitsugiArt.CtlKeyboard, "KeyboardAlt" to KitsugiArt.CtlKeyboard,
+                // girişler
+                "SettingsInputComponent" to KitsugiArt.CtlInput, "SettingsInputHdmi" to KitsugiArt.CtlInput,
+                // aralık / genişlet
+                "DoubleArrow" to KitsugiArt.CtlDoubleArrow,
+                // ana sayfa
+                "Home" to KitsugiArt.CtlHome,
+                // bitki / doğa
+                "LocalFlorist" to KitsugiArt.CtlLeaf, "Forest" to KitsugiArt.CtlLeaf,
+                // kar / soğuk
+                "AcUnit" to KitsugiArt.CtlSnow,
+                // pasta / doğum Günü
+                "Cake" to KitsugiArt.CtlCake,
+                // kalın
                 "FormatBold" to KitsugiArt.CtlTextBold,
+                // italik
                 "FormatItalic" to KitsugiArt.CtlTextItalic,
-                "Title" to KitsugiArt.CtlTextTitle, "FormatSize" to KitsugiArt.CtlTextTitle, "FormatColorText" to KitsugiArt.CtlTextTitle, "TextFields" to KitsugiArt.CtlTextTitle,
-                "Numbers" to KitsugiArt.CtlTextHash, "FormatShapes" to KitsugiArt.CtlTextHash,
-                "FormatStrikethrough" to KitsugiArt.CtlTextStrike, "FormatClear" to KitsugiArt.CtlTextStrike, "FormatColorReset" to KitsugiArt.CtlTextStrike, "FormatColorFill" to KitsugiArt.Palette, "FormatPaint" to KitsugiArt.Palette,
+                // başlık / boyut
+                "Title" to KitsugiArt.CtlTextTitle, "FormatSize" to KitsugiArt.CtlTextTitle,
+                "FormatColorText" to KitsugiArt.CtlTextTitle, "TextFields" to KitsugiArt.CtlTextTitle,
+                // numara / #
+                "Numbers" to KitsugiArt.CtlTextHash,
+                // üstü çizili
+                "FormatStrikethrough" to KitsugiArt.CtlTextStrike,
+                // alıntı
                 "FormatQuote" to KitsugiArt.CtlTextQuote,
-                "Add" to KitsugiArt.Plus, "AddCircle" to KitsugiArt.Plus, "AddCircleOutline" to KitsugiArt.Plus, "AddRounded" to KitsugiArt.Plus, "LibraryAdd" to KitsugiArt.Plus, "CreateNewFolder" to KitsugiArt.Plus, "NoteAdd" to KitsugiArt.Plus,
-                "ThumbDown" to KitsugiArt.ThumbDown, "ThumbDownAlt" to KitsugiArt.ThumbDown, "ThumbDownOffAlt" to KitsugiArt.ThumbDown,
+                // hesap
+                "AccountCircle" to KitsugiArt.Account, "ManageAccounts" to KitsugiArt.Account,
+                "Badge" to KitsugiArt.Account,
+                // bağlantı / paylaş
+                "Link" to KitsugiArt.Connections, "LinkOff" to KitsugiArt.Connections,
+                "Share" to KitsugiArt.Connections,
+                // renk & tema
+                "Palette" to KitsugiArt.Palette, "ColorLens" to KitsugiArt.Palette,
+                "FormatPaint" to KitsugiArt.Palette, "Gradient" to KitsugiArt.Palette,
+                "InvertColors" to KitsugiArt.Palette, "Opacity" to KitsugiArt.Palette, "Style" to KitsugiArt.Palette,
+                "FormatColorFill" to KitsugiArt.Palette, "FormatColorReset" to KitsugiArt.Palette,
+                // oynatıcı / video
+                "Movie" to KitsugiArt.Player, "PlayCircle" to KitsugiArt.Player,
+                "PlayCircleFilled" to KitsugiArt.Player, "VideoSettings" to KitsugiArt.Player,
+                "SlowMotionVideo" to KitsugiArt.Player, "Videocam" to KitsugiArt.Player,
+                "VideoLibrary" to KitsugiArt.Player, "ControlCamera" to KitsugiArt.Player,
+                // oynat
+                "PlayArrow" to KitsugiArt.Play, "PlayCircleOutline" to KitsugiArt.Play,
+                // duraklat / durdur
+                "Pause" to KitsugiArt.Pause, "PauseCircle" to KitsugiArt.Pause, "StopCircle" to KitsugiArt.Pause,
+                "Stop" to KitsugiArt.Pause,
+                // sonraki
+                "SkipNext" to KitsugiArt.Next, "FastForward" to KitsugiArt.Next, "Forward10" to KitsugiArt.Next,
+                "Forward" to KitsugiArt.Next,
+                // geri sar
+                "SkipPrevious" to KitsugiArt.Rewind, "FastRewind" to KitsugiArt.Rewind, "Replay" to KitsugiArt.Rewind,
+                "Restore" to KitsugiArt.Rewind,
+                // eklenti
+                "Extension" to KitsugiArt.Extensions, "ExtensionOff" to KitsugiArt.Extensions,
+                "Widgets" to KitsugiArt.Extensions, "Apps" to KitsugiArt.Extensions,
+                // entegrasyon / dil
+                "Hub" to KitsugiArt.Integrations, "Language" to KitsugiArt.Integrations,
+                "Public" to KitsugiArt.Integrations, "TravelExplore" to KitsugiArt.Integrations,
+                "Cloud" to KitsugiArt.Integrations, "Translate" to KitsugiArt.Integrations,
+                // ağ / DNS
+                "Wifi" to KitsugiArt.Network, "WifiOff" to KitsugiArt.Network, "NetworkCheck" to KitsugiArt.Network,
+                "SettingsEthernet" to KitsugiArt.Network, "Dns" to KitsugiArt.Network, "Lan" to KitsugiArt.Network,
+                "Web" to KitsugiArt.Network, "RssFeed" to KitsugiArt.Network, "AddLink" to KitsugiArt.Network,
+                "SignalCellularAlt" to KitsugiArt.Network, "CloudOff" to KitsugiArt.Network,
+                // eşitleme / yenile
+                "Sync" to KitsugiArt.Sync, "SyncAlt" to KitsugiArt.Sync, "Refresh" to KitsugiArt.Sync,
+                "Cached" to KitsugiArt.Sync, "Autorenew" to KitsugiArt.Sync, "Repeat" to KitsugiArt.Sync,
+                "RepeatOne" to KitsugiArt.Sync, "RestartAlt" to KitsugiArt.Sync, "SwapHoriz" to KitsugiArt.Sync,
+                "CompareArrows" to KitsugiArt.Sync, "CloudSync" to KitsugiArt.Sync,
+                // veritabanı / depolama
+                "Storage" to KitsugiArt.Database, "SdCard" to KitsugiArt.Database, "Archive" to KitsugiArt.Database,
+                "SdStorage" to KitsugiArt.Database,
+                // yedek / bulut
+                "CloudUpload" to KitsugiArt.Backup, "CloudDone" to KitsugiArt.Backup, "Backup" to KitsugiArt.Backup,
+                // sil / çöp
+                "Delete" to KitsugiArt.Storage, "DeleteOutline" to KitsugiArt.Storage,
+                "DeleteForever" to KitsugiArt.Storage, "DeleteSweep" to KitsugiArt.Storage,
+                "CleaningServices" to KitsugiArt.Storage, "RemoveCircle" to KitsugiArt.Storage,
+                // ince ayar / kaydırıcılar
+                "Tune" to KitsugiArt.Tune, "Equalizer" to KitsugiArt.Tune, "GraphicEq" to KitsugiArt.Tune,
+                "SettingsApplications" to KitsugiArt.Tune,
+                // indir
+                "Download" to KitsugiArt.Download, "DownloadForOffline" to KitsugiArt.Download,
+                "CloudDownload" to KitsugiArt.Download, "Downloading" to KitsugiArt.Download,
+                "FileDownload" to KitsugiArt.Download, "SystemUpdate" to KitsugiArt.Download,
+                "SystemUpdateAlt" to KitsugiArt.Download, "SaveAlt" to KitsugiArt.Download,
+                "Save" to KitsugiArt.Download,
+                // yükle
+                "Upload" to KitsugiArt.Upload,
+                // geçmiş
+                "History" to KitsugiArt.History, "Update" to KitsugiArt.History, "WatchLater" to KitsugiArt.History,
+                // zamanlayıcı / alarm
+                "Timer" to KitsugiArt.Timer, "Schedule" to KitsugiArt.Timer, "AccessTime" to KitsugiArt.Timer,
+                "HourglassEmpty" to KitsugiArt.Timer, "HourglassFull" to KitsugiArt.Timer,
+                "HourglassBottom" to KitsugiArt.Timer, "MoreTime" to KitsugiArt.Timer, "AvTimer" to KitsugiArt.Timer,
+                "Upcoming" to KitsugiArt.Timer, "Alarm" to KitsugiArt.Timer, "AlarmOn" to KitsugiArt.Timer,
+                // bilgi
+                "Info" to KitsugiArt.Info, "InfoOutline" to KitsugiArt.Info,
+                // geri bildirim
+                "Feedback" to KitsugiArt.Feedback, "RateReview" to KitsugiArt.Feedback,
+                "Campaign" to KitsugiArt.Feedback, "Announcement" to KitsugiArt.Feedback,
+                // uyarı / hata
+                "BugReport" to KitsugiArt.Warning, "Warning" to KitsugiArt.Warning,
+                "WarningAmber" to KitsugiArt.Warning, "ErrorOutline" to KitsugiArt.Warning,
+                "Error" to KitsugiArt.Warning, "Report" to KitsugiArt.Warning, "PriorityHigh" to KitsugiArt.Warning,
+                "ReportProblem" to KitsugiArt.Warning,
+                // yardım
+                "Help" to KitsugiArt.Help, "HelpOutline" to KitsugiArt.Help, "QuestionMark" to KitsugiArt.Help,
+                // not / düzenle
+                "Edit" to KitsugiArt.Memo, "EditNote" to KitsugiArt.Memo, "Notes" to KitsugiArt.Memo,
+                "Create" to KitsugiArt.Memo,
+                // kitap / defter
+                "MenuBook" to KitsugiArt.Notebook, "Book" to KitsugiArt.Notebook, "AutoStories" to KitsugiArt.Notebook,
+                // belge / metin dosyası
+                "Description" to KitsugiArt.Document, "Article" to KitsugiArt.Document,
+                // kopyala / yapıştır
+                "ContentCopy" to KitsugiArt.Clipboard, "ContentPaste" to KitsugiArt.Clipboard,
+                "FileCopy" to KitsugiArt.Clipboard, "Assignment" to KitsugiArt.Clipboard,
+                // hareketler
+                "TouchApp" to KitsugiArt.Gestures, "Swipe" to KitsugiArt.Gestures, "SwipeLeft" to KitsugiArt.Gestures,
+                "SwipeRight" to KitsugiArt.Gestures, "SwipeUp" to KitsugiArt.Gestures,
+                "SwipeDown" to KitsugiArt.Gestures, "Gesture" to KitsugiArt.Gestures, "PanTool" to KitsugiArt.Gestures,
+                // kod çözücü / donanım
+                "Memory" to KitsugiArt.Decoder, "DeveloperBoard" to KitsugiArt.Decoder, "Hd" to KitsugiArt.Decoder,
+                "HighQuality" to KitsugiArt.Decoder, "Handyman" to KitsugiArt.Decoder,
+                "HomeRepairService" to KitsugiArt.Decoder,
+                // altyazı
+                "Subtitles" to KitsugiArt.Subtitles, "SubtitlesOff" to KitsugiArt.Subtitles,
+                "ClosedCaption" to KitsugiArt.Subtitles,
+                // ses
+                "VolumeUp" to KitsugiArt.Audio, "VolumeDown" to KitsugiArt.Audio, "VolumeMute" to KitsugiArt.Audio,
+                "VolumeOff" to KitsugiArt.Audio, "Hearing" to KitsugiArt.Audio,
+                // mikrofon / ses kaydı
+                "Mic" to KitsugiArt.Mic, "MicNone" to KitsugiArt.Mic, "MicOff" to KitsugiArt.Mic,
+                "KeyboardVoice" to KitsugiArt.Mic, "RecordVoiceOver" to KitsugiArt.Mic,
+                // müzik
+                "MusicNote" to KitsugiArt.Music, "Audiotrack" to KitsugiArt.Music,
+                // özel buton / oyun
+                "SmartButton" to KitsugiArt.Buttons, "SportsEsports" to KitsugiArt.Buttons,
+                "Gamepad" to KitsugiArt.Buttons, "Vibration" to KitsugiArt.Buttons,
+                // kod / geliştirici
+                "Code" to KitsugiArt.Code, "CodeOff" to KitsugiArt.Code, "Terminal" to KitsugiArt.Code,
+                "DataObject" to KitsugiArt.Code,
+                // gelişmiş
+                "DeveloperMode" to KitsugiArt.Advanced, "Construction" to KitsugiArt.Advanced,
+                // hız / performans
+                "Speed" to KitsugiArt.Speed, "Bolt" to KitsugiArt.Speed, "FlashOn" to KitsugiArt.Speed,
+                "RocketLaunch" to KitsugiArt.Speed,
+                // aydınlık tema
+                "BrightnessMedium" to KitsugiArt.Sun, "Brightness7" to KitsugiArt.Sun,
+                "BrightnessLow" to KitsugiArt.Sun, "BrightnessHigh" to KitsugiArt.Sun, "Brightness6" to KitsugiArt.Sun,
+                "WbSunny" to KitsugiArt.Sun, "LightMode" to KitsugiArt.Sun, "Contrast" to KitsugiArt.Sun,
+                // karanlık tema
+                "DarkMode" to KitsugiArt.Moon, "NightsStay" to KitsugiArt.Moon, "Bedtime" to KitsugiArt.Moon,
+                "Nightlight" to KitsugiArt.Moon, "ModeNight" to KitsugiArt.Moon,
+                // TV / yayın
+                "Tv" to KitsugiArt.Tv, "ConnectedTv" to KitsugiArt.Tv, "LiveTv" to KitsugiArt.Tv,
+                "SmartDisplay" to KitsugiArt.Tv,
+                // şifre / anahtar
+                "Key" to KitsugiArt.Key, "VpnKey" to KitsugiArt.Key, "Login" to KitsugiArt.Key,
+                "Logout" to KitsugiArt.Key, "Password" to KitsugiArt.Key,
+                // puan / yıldız
+                "Star" to KitsugiArt.Star, "StarBorder" to KitsugiArt.Star, "StarHalf" to KitsugiArt.Star,
+                "Grade" to KitsugiArt.Star,
+                // başarı / ödül
+                "EmojiEvents" to KitsugiArt.Trophy, "WorkspacePremium" to KitsugiArt.Trophy,
+                "MilitaryTech" to KitsugiArt.Trophy, "Stars" to KitsugiArt.Trophy,
+                // görsel / fotoğraf
+                "Image" to KitsugiArt.Picture, "Photo" to KitsugiArt.Picture, "InsertPhoto" to KitsugiArt.Picture,
+                "Wallpaper" to KitsugiArt.Picture, "ImageSearch" to KitsugiArt.Picture,
+                "BrokenImage" to KitsugiArt.Picture, "ImageNotSupported" to KitsugiArt.Picture,
+                "Slideshow" to KitsugiArt.Picture, "Preview" to KitsugiArt.Picture,
+                "PictureInPictureAlt" to KitsugiArt.Picture, "PhotoLibrary" to KitsugiArt.Picture,
+                // favori / kalp
+                "Favorite" to KitsugiArt.Heart, "FavoriteBorder" to KitsugiArt.Heart,
+                // istatistik
+                "BarChart" to KitsugiArt.Chart, "DonutLarge" to KitsugiArt.Chart, "Insights" to KitsugiArt.Chart,
+                "ShowChart" to KitsugiArt.Chart, "TrendingUp" to KitsugiArt.Chart, "Analytics" to KitsugiArt.Chart,
+                // güvenlik / kilit
+                "Lock" to KitsugiArt.Lock, "LockOpen" to KitsugiArt.Lock, "Security" to KitsugiArt.Lock,
+                "HealthAndSafety" to KitsugiArt.Lock, "VerifiedUser" to KitsugiArt.Lock,
+                "PrivacyTip" to KitsugiArt.Lock,
+                // klasör
+                "Folder" to KitsugiArt.Folder, "FolderOpen" to KitsugiArt.Folder, "FolderSpecial" to KitsugiArt.Folder,
+                "FolderCopy" to KitsugiArt.Folder, "FolderFilled" to KitsugiArt.Folder,
+                // yeni klasör
+                "CreateNewFolder" to KitsugiArt.NewFolder,
+                // bildirim
+                "Notifications" to KitsugiArt.Bell, "NotificationsNone" to KitsugiArt.Bell,
+                "NotificationsActive" to KitsugiArt.Bell, "NotificationsOff" to KitsugiArt.Bell,
+                // takvim
+                "CalendarToday" to KitsugiArt.Calendar, "DateRange" to KitsugiArt.Calendar,
+                "Event" to KitsugiArt.Calendar, "EventAvailable" to KitsugiArt.Calendar,
+                "CalendarMonth" to KitsugiArt.Calendar, "Today" to KitsugiArt.Calendar,
+                // yenilik
+                "AutoAwesome" to KitsugiArt.Sparkles, "NewReleases" to KitsugiArt.Sparkles,
+                "AutoFixHigh" to KitsugiArt.Sparkles,
+                // beğen
+                "ThumbUp" to KitsugiArt.ThumbUp,
+                // beğenme
+                "ThumbDown" to KitsugiArt.ThumbDown,
+                // mobil cihaz
+                "PhoneAndroid" to KitsugiArt.Mobile, "Tablet" to KitsugiArt.Mobile, "Devices" to KitsugiArt.Mobile,
+                "Smartphone" to KitsugiArt.Mobile, "PhoneIphone" to KitsugiArt.Mobile,
+                // konum
+                "LocationOn" to KitsugiArt.Pin, "Place" to KitsugiArt.Pin, "PinDrop" to KitsugiArt.Pin,
+                "MyLocation" to KitsugiArt.Pin,
+                // keşfet (sekme)
+                "Explore" to KitsugiArt.NavExplore, "SearchOff" to KitsugiArt.NavExplore,
+                // listem (sekme)
+                "Bookmark" to KitsugiArt.NavList, "BookmarkBorder" to KitsugiArt.NavList,
+                "Bookmarks" to KitsugiArt.NavList, "BookmarkAdded" to KitsugiArt.NavList,
+                // arama
+                "Search" to KitsugiArt.NavSearch, "ManageSearch" to KitsugiArt.NavSearch,
+                "ZoomIn" to KitsugiArt.NavSearch, "ZoomOut" to KitsugiArt.NavSearch,
+                // profil (sekme)
+                "Person" to KitsugiArt.NavProfile, "People" to KitsugiArt.NavProfile,
+                "Groups" to KitsugiArt.NavProfile, "Group" to KitsugiArt.NavProfile,
+                "PersonOutline" to KitsugiArt.NavProfile, "PersonAdd" to KitsugiArt.NavProfile,
+                "Person2" to KitsugiArt.NavProfile,
+                // ayarlar (sekme)
+                "Settings" to KitsugiArt.NavSettings, "Build" to KitsugiArt.NavSettings,
+                // etiket
+                "Label" to KitsugiArt.Tag, "Sell" to KitsugiArt.Tag, "Tag" to KitsugiArt.Tag,
+                // e-posta
+                "Mail" to KitsugiArt.Mail, "Email" to KitsugiArt.Mail, "MailOutline" to KitsugiArt.Mail,
+                // sohbet / yorum
+                "ChatBubble" to KitsugiArt.Chat, "ChatBubbleOutline" to KitsugiArt.Chat, "Comment" to KitsugiArt.Chat,
+                "Forum" to KitsugiArt.Chat,
+                // hedef
+                "TrackChanges" to KitsugiArt.Target,
+                // işaretle
+                "OutlinedFlag" to KitsugiArt.Flag,
+                // trend / popüler
+                "Whatshot" to KitsugiArt.Fire, "LocalFireDepartment" to KitsugiArt.Fire,
+                // hediye / davet
+                "CardGiftcard" to KitsugiArt.Gift, "Redeem" to KitsugiArt.Gift,
+                // hesaplama
+                "Calculate" to KitsugiArt.Calculator,
+                // kes
+                "ContentCut" to KitsugiArt.Scissor,
+                // çizim
+                "Brush" to KitsugiArt.Brush, "Draw" to KitsugiArt.Brush,
+                // renk seçici
+                "Colorize" to KitsugiArt.Eyedropper,
+                // etiket / #
+                "AlternateEmail" to KitsugiArt.Hash,
+                // metin denetimi
+                "Spellcheck" to KitsugiArt.Text,
+                // katman / 3B
+                "ViewInAr" to KitsugiArt.Cube, "Layers" to KitsugiArt.Cube,
+                // cüzdan / ödeme
+                "AccountBalanceWallet" to KitsugiArt.Wallet,
+                // pil / güç
+                "BatteryFull" to KitsugiArt.Battery,
+                // favori bildirimi
+                "NotificationAdd" to KitsugiArt.HeartBell,
+                // arama / destek
+                "PhoneInTalk" to KitsugiArt.Phone, "Phone" to KitsugiArt.Phone, "Call" to KitsugiArt.Phone,
+                // durum
+                "Circle" to KitsugiArt.Circle,
             )
-        }
-
-        /** Material ikon adı -> 3B ikon. Ad "Rounded.PlayCircle" ise son parça kullanılır. */
-        private val byVectorName: Map<String, KitsugiArt> by lazy {
-            val map = HashMap<String, KitsugiArt>()
-            values().forEach { art ->
-                art.vectorNames.forEach { name -> map[name] = art }
-            }
-            map
         }
 
         /**
          * Verilen Material [icon] için 3B karşılığını döner; eşleşme yoksa `null`.
-         *
-         * Sıra: **kontrol glifleri** → enum adları → konu eşlemeleri. Bugün itibarıyla
-         * uygulamada kullanılan 268 ikon adının tamamı bu yollardan birine düşüyor
-         * (`tools/iconpack/coverage_report.js` ile ölçülür), yani `null` pratikte
-         * yalnızca henüz yazılmamış yeni bir ikon adı için döner.
+         * Uygulamada kullanılan 268 ikon adının tamamı eşlidir (boşta ad: 0).
          */
         fun fromVector(icon: ImageVector): KitsugiArt? {
             val rawName = icon.name
             if (rawName.isEmpty()) return null
             val bare = rawName.substringAfterLast('.')
-            // 1) Kontrol glifleri: ad açıkça bir mikro kontrolü gösteriyorsa kazanır.
-            CONTROL_ALIASES[rawName]?.let { return it }
-            CONTROL_ALIASES[bare]?.let { return it }
-            // 2) Enum adları, 3) konu eşlemeleri.
-            return byVectorName[rawName] ?: byVectorName[bare]
-                ?: EXTRA_ALIASES[rawName] ?: EXTRA_ALIASES[bare]
+            return NAME_MAP[rawName] ?: NAME_MAP[bare]
         }
     }
 }

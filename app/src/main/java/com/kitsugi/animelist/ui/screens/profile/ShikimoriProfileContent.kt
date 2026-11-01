@@ -422,7 +422,7 @@ private fun ShikimoriAboutTab(
             ShikimoriStatCard(
                 title = "Anime",
                 value = totalAnime.toString(),
-                icon = Icons.Rounded.Tv,
+                icon = Icons.Rounded.PlayCircle,
                 modifier = Modifier.weight(1f),
                 accentColor = accentColor
             )

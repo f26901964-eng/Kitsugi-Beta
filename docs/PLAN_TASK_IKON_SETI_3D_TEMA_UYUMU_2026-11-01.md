@@ -110,6 +110,24 @@ Yeni dosyalar: `docs/IKON_KONTROL_GLIFLERI.md`, `tools/iconpack/control_glyphs.j
 
 ---
 
+## 5c. Tur 4 — 3B hacim + işlev eşleşmesi
+
+Kullanıcı geri bildirimi: *"alakasız logoları işlevlerine uygun koymamışsın"* +
+*"türettiğin logoların tamamı 3B olmalı, paint'ten hallice"*.
+
+| Adım | Yapılan | Sonuç |
+|---|---|---|
+| 1 | Yeni çizim hattı `tools/iconpack/glyph3d.js` | temas gölgesi + extrude gövde + pah + parlama |
+| 2 | 46 kontrol glifi yeniden render | artık hacimli, 128×128 |
+| 3 | `tools/iconpack/object_glyphs.js` | 9 nesne glifi: sync, sliders, download, upload, timer, code, tv, tag, backup |
+| 4 | 3dicons'tan 38 yeni render | belge, defter, posta, sohbet, hedef, bayrak, kupa, ateş, hediye, hesap makinesi, makas, boya, fırça, damlalık, mikrofon, müzik, #, metin, küp, cüzdan, pil, kalp-bildirim, yeni/favori klasör, konum, telefon, spor, madalya, şemsiye, daire, çanta, satranç, para, bardak… |
+| 5 | Eşleme tek tabloya indirildi (`NAME_MAP`) | 428 satır / 268 ad, çakışma 0 |
+| 6 | Semantik düzeltmeler | Anime kartı → video, Manga → defter, arabellek satırları → kaydırıcı, eşitleme → sync, indirme → indir, TV → TV, kod → kod |
+| 7 | Yeni denetim görseli | `docs/ikon-islev-haritasi.png` (128 varlık ↔ işlev) |
+| 8 | Kapsam yeniden ölçüldü | **1533/1533 = %100, mono 0** |
+
+---
+
 ## 6. Kalan işler / riskler
 
 1. **Derleme doğrulaması yapılmadı** — ortamda JDK/Android SDK yok. Android Studio'da

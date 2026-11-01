@@ -1,111 +1,184 @@
-# Kontrol glifleri (2B → 3B dönüşümü)
+# İkon ↔ işlev eşlemesi
 
-Bu belge, uygulamada **tek renkli Material vektörü** olarak kalan bütün kontrol
-işaretlerinin nasıl 3B sete taşındığını belgeler. Hedef tek cümle: *uygulamada 3B
-ailenin dışında tek bir ikon kalmayacak.*
-
-## Özet
+Uygulamada kullanılan **268 farklı Material ikon adının** her biri, işlevine en yakın
+3B varlığa bağlıdır. Eşleme tek tabloda durur: `KitsugiIconAssets.kt` → `NAME_MAP`.
 
 | Ölçüm | Değer |
 |---|---|
-| Kontrol glifi varlığı | **46** (`app/src/main/res/drawable-nodpi/ic_kitsugi_glyph_*.png`) |
-| 3dicons'tan gelen kontrol varlığı | 2 (`ic_kitsugi_plus.png`, `ic_kitsugi_thumb_down.png`) |
-| Eşlenen Material ikon adı | 164 |
-| Önce mono olan çağrı | 385 |
-| Şimdi mono olan çağrı | **0** |
+| 3B varlık (enum) | **143** |
+| Kontrol glifi | 46 (`ic_kitsugi_glyph_*.png`, 128×128) |
+| Nesne glifi (3dicons'ta olmayan kavramlar) | 9 (`ic_kitsugi_obj_*.png`, 192×192) |
+| 3dicons render'ı | 88 (`ic_kitsugi_*.png`, 192×192) |
+| Eşlenen Material adı | 428 satır / 268 benzersiz ad |
+| Eşlenmemiş (mono kalan) ad | **0** |
 
-## Üretim reçetesi
+## Neden tek tablo?
 
-3dicons paketinde kapat / chevron / filtre / sırala / görünüm modu işaretleri yok.
-Glifler `tools/iconpack/control_glyphs.js` ile **setin kendi paleti** kullanılarak çizilir:
+Önceki turlarda eşleme üç ayrı yerdeydi (enum listeleri, `EXTRA_ALIASES`,
+`CONTROL_ALIASES`). Sonuç: aynı görsel birbirinden alakasız satırlarda tekrar ediyordu
+(kitap/liste satırı yer imi, indirme satırı bavul, eşitleme satırı wifi, TV satırı monitör…).
+Artık **her işlev kendi görseline** sahip; tablo tek yerde ve denetlenebilir.
 
-| Adım | Kural |
+## Kontrol glifleri (3B)
+
+3dicons paketinde kapat / chevron / filtre / sırala / görünüm modu / metin biçimi yoktu.
+Bu 46 işaret `tools/iconpack/control_glyphs.js` + `glyph3d.js` ile **aynı 3B dilde** üretildi:
+
+| Katman | Kural |
 |---|---|
-| Gradyan | `#E9A57E → #CF6A86 → #B04F9B → #8A35AB → #7043B2` (5 örneklemden ölçüldü) |
-| Üst parlama | y < %48 bölgesinde beyaz mask, %26 → %0 |
-| Gölge | `#3A0F4C`, %50 saydam, 0.85 ofset, 0.5 blur |
-| Alt çizgi | `#5C2481`, kontur genişliği + 0.75 |
-| Kontur | 2.75 birim (harflerde 700 ağırlık, 16–17 boyut) |
-| Render | 384 px → kırp → `1/√(alan oranı)` büyüt (üst sınır 1.45) → 192 px kutunun %92'si |
-| Çıktı | 128×128 saydam PNG (palet, sıkıştırma 9) |
-| Alfa tabanı | < 26 → 0 (PNG gürültüsü temizlenir) |
+| Temas gölgesi | `#2E0B3E`, %42, 1.1 blur, şeklin altında |
+| Gövde | şekil 12 kez (0.26 / 0.31 birim) kaydırılıp koyu gradyanla doldurulur → hacim |
+| Ön yüz | dikey cam rampası `#FFE3C9 → #F3B094 → #E0859A → #C25EA2 → #A045B0 → #804CB4` |
+| Pah | sol-üst kenarda `#FFF0E2` %55 ince iç çizgi |
+| Parlama | üst bantta beyaz gradyan + iki spekülar leke, maskeyle gövdeye kırpılır |
+| Ayrıntı | dolgulu şekillerde (klavye, kamera, kek…) açık renk ince çizgi |
+| Çıktı | 24×24 ızgara → 384 px render → kırp → %92 kutu → 128×128 saydam PNG |
 
-Yeniden üretmek için:
+## Nesne glifleri
 
-```bash
-cd tools/iconpack && npm install --no-audit --no-fund
-cd ../.. && node tools/iconpack/control_glyphs.js   # PNG'ler
-node tools/iconpack/control_previews.js             # docs/ikon-kontrol-*.png
-node tools/iconpack/coverage_report.js              # kapsam denetimi
-```
+Pakette karşılığı olmayan ama farklı işlevleri temsil eden kavramlar da aynı hatla üretildi:
+
+`sync` (eşitleme), `sliders` (ince ayar), `download`, `upload`, `timer` (kronometre),
+`code` (açılı parantez), `tv`, `tag` (etiket), `backup` (bulut yedeği) — 192×192.
 
 ## Eşleme tablosu
 
-| Glif | Anlam | Varlık | Bağlanan Material adları |
+| 3B varlık | İşlev | Dosya | Bağlı Material adları |
 |---|---|---|---|
-| `close` | Kapat / temizle / iptal | `ic_kitsugi_glyph_close` | `Cancel`, `Clear`, `ClearAll`, `Close`, `CloseFullscreen` |
-| `minus` | Azalt | `ic_kitsugi_glyph_minus` | `IndeterminateCheckBox`, `Minus`, `Remove`, `RemoveCircleOutline` |
-| `plus` | Ekle | `ic_kitsugi_plus` | `Add`, `AddCircle`, `AddCircleOutline`, `AddRounded`, `CreateNewFolder`, `LibraryAdd`, `NoteAdd` |
-| `thumb_down` | Beğenme | `ic_kitsugi_thumb_down` | `ThumbDown`, `ThumbDownAlt`, `ThumbDownOffAlt` |
-| `chevron_up` | Yukarı / daralt | `ic_kitsugi_glyph_chevron_up` | `ArrowDropUp`, `ExpandLess`, `KeyboardArrowUp`, `UnfoldLess` |
-| `chevron_down` | Aşağı / genişlet | `ic_kitsugi_glyph_chevron_down` | `ArrowDropDown`, `ExpandMore`, `KeyboardArrowDown`, `UnfoldMore` |
-| `chevron_left` | Sol / önceki | `ic_kitsugi_glyph_chevron_left` | `ChevronLeft`, `KeyboardArrowLeft`, `NavigateBefore` |
-| `chevron_right` | Sağ / sonraki | `ic_kitsugi_glyph_chevron_right` | `ChevronRight`, `KeyboardArrowRight`, `NavigateNext` |
-| `arrow_up` | Yukarı ok | `ic_kitsugi_glyph_arrow_up` | `ArrowCircleUp`, `ArrowUpward`, `North` |
-| `arrow_down` | Aşağı ok | `ic_kitsugi_glyph_arrow_down` | `ArrowCircleDown`, `ArrowDownward`, `South` |
-| `arrow_left` | Geri | `ic_kitsugi_glyph_arrow_left` | `ArrowBack`, `ArrowBackIos`, `ArrowBackIosNew`, `ArrowBackIosNewRounded`, `KeyboardBackspace`, `West` |
-| `arrow_right` | İleri | `ic_kitsugi_glyph_arrow_right` | `ArrowForward`, `ArrowForwardIos`, `ArrowForwardIosRounded`, `East` |
-| `eye` | Göster / önizle | `ic_kitsugi_glyph_eye` | `Preview`, `RemoveRedEye`, `Visibility`, `VisibilityRounded` |
-| `eyeOff` | Gizle | `ic_kitsugi_glyph_eyeOff` | `HideImage`, `VisibilityOff` |
-| `funnel` | Filtrele | `ic_kitsugi_glyph_funnel` | `Filter`, `FilterAlt`, `FilterAltOff`, `FilterList`, `FilterListAlt`, `FilterListOff` |
-| `sort` | Sırala | `ic_kitsugi_glyph_sort` | `ImportExport`, `LowPriority`, `Sort`, `SortByAlpha`, `SwapVert` |
-| `grid` | Izgara görünümü | `ic_kitsugi_glyph_grid` | `GridView`, `ViewComfy`, `ViewModule`, `ViewQuilt`, `ViewWeek` |
-| `list` | Liste görünümü | `ic_kitsugi_glyph_list` | `FormatListBulleted`, `Toc`, `ViewAgenda`, `ViewList` |
-| `stream` | Akış görünümü | `ic_kitsugi_glyph_stream` | `ViewStream` |
-| `carousel` | Karusel görünümü | `ic_kitsugi_glyph_carousel` | `ViewCarousel` |
-| `more` | Diğer (⋮) | `ic_kitsugi_glyph_more` | `MoreHoriz`, `MoreVert` |
-| `external` | Dışa aç | `ic_kitsugi_glyph_external` | `ExitToApp`, `Launch`, `OpenInBrowser`, `OpenInNew`, `OpenInNewOff` |
-| `fullscreen` | Tam ekran | `ic_kitsugi_glyph_fullscreen` | `FitScreen`, `Fullscreen`, `FullscreenExit`, `SettingsOverscan` |
-| `crop` | Kırp / odak | `ic_kitsugi_glyph_crop` | `CenterFocusStrong`, `CenterFocusWeak`, `Crop`, `CropFree`, `CropOriginal`, `CropSquare`, `FilterCenterFocus` |
-| `rotate` | Döndür | `ic_kitsugi_glyph_rotate` | `Flip`, `Rotate90DegreesCcw`, `RotateLeft`, `RotateRight`, `ScreenRotation` |
-| `aspect` | Oran | `ic_kitsugi_glyph_aspect` | `AspectRatio` |
-| `blur` | Bulanıklık | `ic_kitsugi_glyph_blur` | `BlurLinear`, `BlurOn` |
-| `alignLeft` | Sola hizala | `ic_kitsugi_glyph_alignLeft` | `FormatAlignLeft`, `FormatIndentDecrease` |
-| `alignCenter` | Ortala | `ic_kitsugi_glyph_alignCenter` | `FormatAlignCenter` |
-| `alignJustify` | İki yana yasla | `ic_kitsugi_glyph_alignJustify` | `FormatAlignJustify`, `FormatAlignRight`, `FormatIndentIncrease` |
-| `border` | Kenarlık | `ic_kitsugi_glyph_border` | `BorderAll`, `BorderColor`, `BorderOuter`, `BorderStyle` |
-| `selectAll` | Tümünü seç | `ic_kitsugi_glyph_selectAll` | `SelectAll` |
-| `drag` | Sürükle / sırala | `ic_kitsugi_glyph_drag` | `DragHandle`, `DragIndicator`, `Reorder` |
-| `density` | Yoğunluk | `ic_kitsugi_glyph_density` | `DensityLarge`, `DensityMedium`, `DensitySmall`, `LineWeight` |
-| `keyboard` | Klavye | `ic_kitsugi_glyph_keyboard` | `Keyboard`, `KeyboardAlt`, `KeyboardReturn` |
-| `input` | Giriş / girişler | `ic_kitsugi_glyph_input` | `Cable`, `SettingsInputComponent`, `SettingsInputHdmi` |
-| `doubleArrow` | Genişlet / aralık | `ic_kitsugi_glyph_doubleArrow` | `DoubleArrow`, `Height`, `Width` |
-| `home` | Ana sayfa | `ic_kitsugi_glyph_home` | `Cottage`, `Home`, `HomeFilled` |
-| `leaf` | Bitki / doğa | `ic_kitsugi_glyph_leaf` | `Eco`, `Forest`, `LocalFlorist`, `Spa` |
-| `snow` | Kar / soğuk | `ic_kitsugi_glyph_snow` | `AcUnit`, `SevereCold` |
-| `cake` | Pasta / doğum günü | `ic_kitsugi_glyph_cake` | `Cake`, `CakeVariant` |
-| `camera` | Kamera | `ic_kitsugi_glyph_camera` | `CameraAlt`, `ControlCamera`, `PhotoCamera`, `PhotoCameraFront` |
-| `textBold` | Kalın | `ic_kitsugi_glyph_textBold` | `FormatBold` |
-| `textItalic` | İtalik | `ic_kitsugi_glyph_textItalic` | `FormatItalic` |
-| `textTitle` | Başlık / boyut | `ic_kitsugi_glyph_textTitle` | `FormatColorText`, `FormatSize`, `TextFields`, `Title` |
-| `textHash` | Numara / etiket | `ic_kitsugi_glyph_textHash` | `FormatShapes`, `Numbers` |
-| `textStrike` | Üstü çizili | `ic_kitsugi_glyph_textStrike` | `FormatClear`, `FormatColorReset`, `FormatStrikethrough` |
-| `textQuote` | Alıntı | `ic_kitsugi_glyph_textQuote` | `FormatQuote` |
-
-## Kodda nerede devreye giriyor?
-
-`KitsugiIconAssets.kt` içindeki `fromVector` sırası:
-
-1. `CONTROL_ALIASES` — ad bir mikro kontrolü gösteriyorsa kazanır (ör. `Close`, `ExpandMore`).
-2. Enum `vectorNames` — konu ikonları (ör. `Download`, `Settings`).
-3. `EXTRA_ALIASES` — ikinci tur konu eşlemeleri.
-
-Bu sıra sayesinde 1200+ çağrı yerini tek tek değiştirmek gerekmez; proje
-`Icon(imageVector = …)` sarmalayıcısı adı çözüp 3B varlığı çizer.
+| `CtlList` | liste görünümü / çalma listesi | `ic_kitsugi_glyph_list` | `ViewList`, `List`, `FormatListBulleted`, `FormatListNumbered`, `ListAlt`, `PlaylistAdd`, `PlaylistAddCheck`, `PlaylistPlay`, `QueuePlayNext`, `LibraryAdd`, `Toc` |
+| `Network` | ağ / DNS | `ic_kitsugi_wifi` | `Wifi`, `WifiOff`, `NetworkCheck`, `SettingsEthernet`, `Dns`, `Lan`, `Web`, `RssFeed`, `AddLink`, `SignalCellularAlt`, `CloudOff` |
+| `Sync` | eşitleme / yenile | `ic_kitsugi_obj_sync` | `Sync`, `SyncAlt`, `Refresh`, `Cached`, `Autorenew`, `Repeat`, `RepeatOne`, `RestartAlt`, `SwapHoriz`, `CompareArrows`, `CloudSync` |
+| `Timer` | zamanlayıcı / alarm | `ic_kitsugi_obj_timer` | `Timer`, `Schedule`, `AccessTime`, `HourglassEmpty`, `HourglassFull`, `HourglassBottom`, `MoreTime`, `AvTimer`, `Upcoming`, `Alarm`, `AlarmOn` |
+| `Picture` | görsel / fotoğraf | `ic_kitsugi_picture` | `Image`, `Photo`, `InsertPhoto`, `Wallpaper`, `ImageSearch`, `BrokenImage`, `ImageNotSupported`, `Slideshow`, `Preview`, `PictureInPictureAlt`, `PhotoLibrary` |
+| `Palette` | renk & tema | `ic_kitsugi_colour_palette` | `Palette`, `ColorLens`, `FormatPaint`, `Gradient`, `InvertColors`, `Opacity`, `Style`, `FormatColorFill`, `FormatColorReset` |
+| `Download` | indir | `ic_kitsugi_obj_download` | `Download`, `DownloadForOffline`, `CloudDownload`, `Downloading`, `FileDownload`, `SystemUpdate`, `SystemUpdateAlt`, `SaveAlt`, `Save` |
+| `Player` | oynatıcı / video | `ic_kitsugi_video_camera` | `Movie`, `PlayCircle`, `PlayCircleFilled`, `VideoSettings`, `SlowMotionVideo`, `Videocam`, `VideoLibrary`, `ControlCamera` |
+| `Warning` | uyarı / hata | `ic_kitsugi_sheild` | `BugReport`, `Warning`, `WarningAmber`, `ErrorOutline`, `Error`, `Report`, `PriorityHigh`, `ReportProblem` |
+| `Gestures` | hareketler | `ic_kitsugi_magic_trick` | `TouchApp`, `Swipe`, `SwipeLeft`, `SwipeRight`, `SwipeUp`, `SwipeDown`, `Gesture`, `PanTool` |
+| `Sun` | aydınlık tema | `ic_kitsugi_sun` | `BrightnessMedium`, `Brightness7`, `BrightnessLow`, `BrightnessHigh`, `Brightness6`, `WbSunny`, `LightMode`, `Contrast` |
+| `NavProfile` | profil (sekme) | `ic_kitsugi_boy` | `Person`, `People`, `Groups`, `Group`, `PersonOutline`, `PersonAdd`, `Person2` |
+| `CheckCircle` | onay / tamam | `ic_kitsugi_tick` | `Check`, `CheckCircle`, `CheckCircleOutline`, `Done`, `DoneAll`, `TaskAlt` |
+| `Integrations` | entegrasyon / dil | `ic_kitsugi_sphere` | `Hub`, `Language`, `Public`, `TravelExplore`, `Cloud`, `Translate` |
+| `Storage` | sil / çöp | `ic_kitsugi_trash_can` | `Delete`, `DeleteOutline`, `DeleteForever`, `DeleteSweep`, `CleaningServices`, `RemoveCircle` |
+| `Decoder` | kod çözücü / donanım | `ic_kitsugi_tool` | `Memory`, `DeveloperBoard`, `Hd`, `HighQuality`, `Handyman`, `HomeRepairService` |
+| `Chart` | istatistik | `ic_kitsugi_chart` | `BarChart`, `DonutLarge`, `Insights`, `ShowChart`, `TrendingUp`, `Analytics` |
+| `Lock` | güvenlik / kilit | `ic_kitsugi_lock` | `Lock`, `LockOpen`, `Security`, `HealthAndSafety`, `VerifiedUser`, `PrivacyTip` |
+| `Calendar` | takvim | `ic_kitsugi_calender` | `CalendarToday`, `DateRange`, `Event`, `EventAvailable`, `CalendarMonth`, `Today` |
+| `CtlClose` | kapat / temizle | `ic_kitsugi_glyph_close` | `Close`, `Cancel`, `Clear`, `ClearAll`, `FormatClear` |
+| `Audio` | ses | `ic_kitsugi_headphone` | `VolumeUp`, `VolumeDown`, `VolumeMute`, `VolumeOff`, `Hearing` |
+| `Mic` | mikrofon / ses kaydı | `ic_kitsugi_mic` | `Mic`, `MicNone`, `MicOff`, `KeyboardVoice`, `RecordVoiceOver` |
+| `Moon` | karanlık tema | `ic_kitsugi_moon` | `DarkMode`, `NightsStay`, `Bedtime`, `Nightlight`, `ModeNight` |
+| `Key` | şifre / anahtar | `ic_kitsugi_key` | `Key`, `VpnKey`, `Login`, `Logout`, `Password` |
+| `Folder` | klasör | `ic_kitsugi_folder` | `Folder`, `FolderOpen`, `FolderSpecial`, `FolderCopy`, `FolderFilled` |
+| `Mobile` | mobil cihaz | `ic_kitsugi_mobile` | `PhoneAndroid`, `Tablet`, `Devices`, `Smartphone`, `PhoneIphone` |
+| `CtlChevronUp` | yukarı / daralt | `ic_kitsugi_glyph_chevron_up` | `KeyboardArrowUp`, `ExpandLess`, `ArrowDropUp`, `UnfoldLess` |
+| `CtlChevronDown` | aşağı / genişlet | `ic_kitsugi_glyph_chevron_down` | `KeyboardArrowDown`, `ExpandMore`, `ArrowDropDown`, `UnfoldMore` |
+| `CtlArrowLeft` | geri | `ic_kitsugi_glyph_arrow_left` | `ArrowBack`, `ArrowBackIos`, `West`, `KeyboardBackspace` |
+| `CtlExternal` | dışa aç | `ic_kitsugi_glyph_external` | `OpenInNew`, `OpenInBrowser`, `Launch`, `ExitToApp` |
+| `CtlGrid` | ızgara görünümü | `ic_kitsugi_glyph_grid` | `GridView`, `ViewQuilt`, `ViewWeek`, `ViewModule` |
+| `CtlCrop` | kırp / odakla | `ic_kitsugi_glyph_crop` | `Crop`, `CropFree`, `CenterFocusWeak`, `FilterCenterFocus` |
+| `CtlTextTitle` | başlık / boyut | `ic_kitsugi_glyph_textTitle` | `Title`, `FormatSize`, `FormatColorText`, `TextFields` |
+| `Pause` | duraklat / durdur | `ic_kitsugi_pause` | `Pause`, `PauseCircle`, `StopCircle`, `Stop` |
+| `Next` | sonraki | `ic_kitsugi_next` | `SkipNext`, `FastForward`, `Forward10`, `Forward` |
+| `Rewind` | geri sar | `ic_kitsugi_back` | `SkipPrevious`, `FastRewind`, `Replay`, `Restore` |
+| `Extensions` | eklenti | `ic_kitsugi_puzzle` | `Extension`, `ExtensionOff`, `Widgets`, `Apps` |
+| `Database` | veritabanı / depolama | `ic_kitsugi_locker` | `Storage`, `SdCard`, `Archive`, `SdStorage` |
+| `Tune` | ince ayar / kaydırıcılar | `ic_kitsugi_obj_sliders` | `Tune`, `Equalizer`, `GraphicEq`, `SettingsApplications` |
+| `Feedback` | geri bildirim | `ic_kitsugi_megaphone` | `Feedback`, `RateReview`, `Campaign`, `Announcement` |
+| `Memo` | not / düzenle | `ic_kitsugi_pencil` | `Edit`, `EditNote`, `Notes`, `Create` |
+| `Clipboard` | kopyala / yapıştır | `ic_kitsugi_copy` | `ContentCopy`, `ContentPaste`, `FileCopy`, `Assignment` |
+| `Buttons` | özel buton / oyun | `ic_kitsugi_toggle` | `SmartButton`, `SportsEsports`, `Gamepad`, `Vibration` |
+| `Code` | kod / geliştirici | `ic_kitsugi_obj_code` | `Code`, `CodeOff`, `Terminal`, `DataObject` |
+| `Speed` | hız / performans | `ic_kitsugi_rocket` | `Speed`, `Bolt`, `FlashOn`, `RocketLaunch` |
+| `Tv` | TV / yayın | `ic_kitsugi_obj_tv` | `Tv`, `ConnectedTv`, `LiveTv`, `SmartDisplay` |
+| `Star` | puan / yıldız | `ic_kitsugi_star` | `Star`, `StarBorder`, `StarHalf`, `Grade` |
+| `Trophy` | başarı / ödül | `ic_kitsugi_trophy` | `EmojiEvents`, `WorkspacePremium`, `MilitaryTech`, `Stars` |
+| `Bell` | bildirim | `ic_kitsugi_bell` | `Notifications`, `NotificationsNone`, `NotificationsActive`, `NotificationsOff` |
+| `Pin` | konum | `ic_kitsugi_pin` | `LocationOn`, `Place`, `PinDrop`, `MyLocation` |
+| `NavList` | listem (sekme) | `ic_kitsugi_bookmark` | `Bookmark`, `BookmarkBorder`, `Bookmarks`, `BookmarkAdded` |
+| `NavSearch` | arama | `ic_kitsugi_zoom` | `Search`, `ManageSearch`, `ZoomIn`, `ZoomOut` |
+| `Chat` | sohbet / yorum | `ic_kitsugi_chat_bubble` | `ChatBubble`, `ChatBubbleOutline`, `Comment`, `Forum` |
+| `Plus` | ekle | `ic_kitsugi_plus` | `Add`, `AddCircle`, `AddCircleOutline` |
+| `CtlArrowUp` | yukarı ok | `ic_kitsugi_glyph_arrow_up` | `ArrowUpward`, `ArrowCircleUp`, `North` |
+| `CtlFunnel` | filtre | `ic_kitsugi_glyph_funnel` | `FilterList`, `FilterAlt`, `FilterAltOff` |
+| `CtlSort` | sırala | `ic_kitsugi_glyph_sort` | `Sort`, `SortByAlpha`, `SwapVert` |
+| `CtlFullscreen` | tam ekran | `ic_kitsugi_glyph_fullscreen` | `Fullscreen`, `FitScreen`, `SettingsOverscan` |
+| `CtlRotate` | döndür | `ic_kitsugi_glyph_rotate` | `ScreenRotation`, `RotateLeft`, `RotateRight` |
+| `Account` | hesap | `ic_kitsugi_card` | `AccountCircle`, `ManageAccounts`, `Badge` |
+| `Connections` | bağlantı / paylaş | `ic_kitsugi_link` | `Link`, `LinkOff`, `Share` |
+| `Backup` | yedek / bulut | `ic_kitsugi_obj_backup` | `CloudUpload`, `CloudDone`, `Backup` |
+| `History` | geçmiş | `ic_kitsugi_clock` | `History`, `Update`, `WatchLater` |
+| `Help` | yardım | `ic_kitsugi_chat` | `Help`, `HelpOutline`, `QuestionMark` |
+| `Notebook` | kitap / defter | `ic_kitsugi_notebook` | `MenuBook`, `Book`, `AutoStories` |
+| `Subtitles` | altyazı | `ic_kitsugi_chat_text` | `Subtitles`, `SubtitlesOff`, `ClosedCaption` |
+| `Sparkles` | yenilik | `ic_kitsugi_flash` | `AutoAwesome`, `NewReleases`, `AutoFixHigh` |
+| `Tag` | etiket | `ic_kitsugi_obj_tag` | `Label`, `Sell`, `Tag` |
+| `Mail` | e-posta | `ic_kitsugi_mail` | `Mail`, `Email`, `MailOutline` |
+| `Phone` | arama / destek | `ic_kitsugi_phone_ringing` | `PhoneInTalk`, `Phone`, `Call` |
+| `CtlChevronRight` | sağ ok | `ic_kitsugi_glyph_chevron_right` | `ChevronRight`, `NavigateNext` |
+| `CtlChevronLeft` | sol ok | `ic_kitsugi_glyph_chevron_left` | `ChevronLeft`, `NavigateBefore` |
+| `CtlArrowRight` | ileri | `ic_kitsugi_glyph_arrow_right` | `ArrowForward`, `East` |
+| `CtlArrowDown` | aşağı ok | `ic_kitsugi_glyph_arrow_down` | `ArrowDownward`, `South` |
+| `CtlEye` | göster | `ic_kitsugi_glyph_eye` | `Visibility`, `RemoveRedEye` |
+| `CtlMore` | diğer (⋮) | `ic_kitsugi_glyph_more` | `MoreVert`, `MoreHoriz` |
+| `CtlBorder` | kenarlık | `ic_kitsugi_glyph_border` | `BorderOuter`, `BorderColor` |
+| `CtlKeyboard` | klavye | `ic_kitsugi_glyph_keyboard` | `Keyboard`, `KeyboardAlt` |
+| `CtlInput` | girişler | `ic_kitsugi_glyph_input` | `SettingsInputComponent`, `SettingsInputHdmi` |
+| `CtlLeaf` | bitki / doğa | `ic_kitsugi_glyph_leaf` | `LocalFlorist`, `Forest` |
+| `Play` | oynat | `ic_kitsugi_play` | `PlayArrow`, `PlayCircleOutline` |
+| `Info` | bilgi | `ic_kitsugi_bulb` | `Info`, `InfoOutline` |
+| `Document` | belge / metin dosyası | `ic_kitsugi_file_text` | `Description`, `Article` |
+| `Music` | müzik | `ic_kitsugi_music` | `MusicNote`, `Audiotrack` |
+| `Advanced` | gelişmiş | `ic_kitsugi_lab` | `DeveloperMode`, `Construction` |
+| `Heart` | favori / kalp | `ic_kitsugi_heart` | `Favorite`, `FavoriteBorder` |
+| `NavExplore` | keşfet (sekme) | `ic_kitsugi_explorer` | `Explore`, `SearchOff` |
+| `NavSettings` | ayarlar (sekme) | `ic_kitsugi_setting` | `Settings`, `Build` |
+| `Fire` | trend / popüler | `ic_kitsugi_fire` | `Whatshot`, `LocalFireDepartment` |
+| `Gift` | hediye / davet | `ic_kitsugi_gift` | `CardGiftcard`, `Redeem` |
+| `Brush` | çizim | `ic_kitsugi_paint_brush` | `Brush`, `Draw` |
+| `Cube` | katman / 3B | `ic_kitsugi_cube` | `ViewInAr`, `Layers` |
+| `CtlMinus` | azalt | `ic_kitsugi_glyph_minus` | `Remove` |
+| `CtlEyeOff` | gizle | `ic_kitsugi_glyph_eyeOff` | `VisibilityOff` |
+| `CtlStream` | akış görünümü | `ic_kitsugi_glyph_stream` | `ViewStream` |
+| `CtlCarousel` | karusel görünümü | `ic_kitsugi_glyph_carousel` | `ViewCarousel` |
+| `CtlAspect` | en-boy oranı | `ic_kitsugi_glyph_aspect` | `AspectRatio` |
+| `CtlBlur` | bulanıklık | `ic_kitsugi_glyph_blur` | `BlurOn` |
+| `CtlAlignLeft` | sola hizala | `ic_kitsugi_glyph_alignLeft` | `FormatAlignLeft` |
+| `CtlAlignCenter` | ortala | `ic_kitsugi_glyph_alignCenter` | `FormatAlignCenter` |
+| `CtlAlignJustify` | iki yana yasla | `ic_kitsugi_glyph_alignJustify` | `FormatAlignJustify` |
+| `CtlSelectAll` | tümünü seç | `ic_kitsugi_glyph_selectAll` | `SelectAll` |
+| `CtlDrag` | sürükle / sırala | `ic_kitsugi_glyph_drag` | `DragHandle` |
+| `CtlDensity` | yoğunluk | `ic_kitsugi_glyph_density` | `DensityMedium` |
+| `CtlDoubleArrow` | aralık / genişlet | `ic_kitsugi_glyph_doubleArrow` | `DoubleArrow` |
+| `CtlHome` | ana sayfa | `ic_kitsugi_glyph_home` | `Home` |
+| `CtlSnow` | kar / soğuk | `ic_kitsugi_glyph_snow` | `AcUnit` |
+| `CtlCake` | pasta / doğum Günü | `ic_kitsugi_glyph_cake` | `Cake` |
+| `CtlTextBold` | kalın | `ic_kitsugi_glyph_textBold` | `FormatBold` |
+| `CtlTextItalic` | italik | `ic_kitsugi_glyph_textItalic` | `FormatItalic` |
+| `CtlTextHash` | numara / # | `ic_kitsugi_glyph_textHash` | `Numbers` |
+| `CtlTextStrike` | üstü çizili | `ic_kitsugi_glyph_textStrike` | `FormatStrikethrough` |
+| `CtlTextQuote` | alıntı | `ic_kitsugi_glyph_textQuote` | `FormatQuote` |
+| `Upload` | yükle | `ic_kitsugi_obj_upload` | `Upload` |
+| `NewFolder` | yeni klasör | `ic_kitsugi_new_folder` | `CreateNewFolder` |
+| `ThumbUp` | beğen | `ic_kitsugi_thumb_up` | `ThumbUp` |
+| `ThumbDown` | beğenme | `ic_kitsugi_thumb_down` | `ThumbDown` |
+| `Target` | hedef | `ic_kitsugi_target` | `TrackChanges` |
+| `Flag` | işaretle | `ic_kitsugi_flag` | `OutlinedFlag` |
+| `Calculator` | hesaplama | `ic_kitsugi_calculator` | `Calculate` |
+| `Scissor` | kes | `ic_kitsugi_scissor` | `ContentCut` |
+| `Eyedropper` | renk seçici | `ic_kitsugi_eyedropper` | `Colorize` |
+| `Hash` | etiket / # | `ic_kitsugi_hash` | `AlternateEmail` |
+| `Text` | metin denetimi | `ic_kitsugi_text` | `Spellcheck` |
+| `Wallet` | cüzdan / ödeme | `ic_kitsugi_wallet` | `AccountBalanceWallet` |
+| `Battery` | pil / güç | `ic_kitsugi_battery` | `BatteryFull` |
+| `HeartBell` | favori bildirimi | `ic_kitsugi_notify_heart` | `NotificationAdd` |
+| `Circle` | durum | `ic_kitsugi_circle` | `Circle` |
 
 ## Görseller
 
-- `docs/ikon-kontrol-sayfasi.png` — 46 glif, adlarıyla
-- `docs/ikon-kontrol-baglam.png` — gerçek ekran bağlamında kullanım
-- `docs/ikon-kontrol-boyut.png` — 12–30 dp okunabilirlik testi
-- `docs/ikon-kapsam-denetimi.png` — 1533/1533, mono 0
+- `docs/ikon-islev-haritasi.png` — 128 varlık, işlev etiketi ve bağlı adlarla
+- `docs/ikon-kontrol-sayfasi.png` — 46 kontrol glifi
+- `docs/ikon-kontrol-baglam.png` — glifler gerçek ekran bağlamında
+- `docs/ikon-kontrol-boyut.png` — 12–30 dp okunabilirlik
+- `docs/ikon-seti-onizleme.png` — 65 anahtar, 3B set
+- `docs/ikon-tema-uyumu.png` — vurgu rengine otomatik ton uyumu

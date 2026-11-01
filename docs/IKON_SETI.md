@@ -212,6 +212,9 @@ bağlı — konu ikonları **ve** kontrol glifleri aynı cam/gradyan ailesinden.
 
 - **Konu ikonları (3dicons `front/gradient`, 50 varlık):** ayar satırları, bölüm
   başlıkları, oynatıcı sekmeleri, gezinme çubuğu, boş durumlar, rozetler.
+- **Nesne glifleri (9 varlık, aynı dilde üretildi):** eşitleme, ince ayar (kaydırıcı),
+  indirme, yükleme, kronometre, kod, TV, etiket, bulut yedeği. 3dicons'ta bu
+  kavramların görseli yoktu; wifi/bavul/monitör gibi alakasız ikonlar kullanılıyordu.
 - **Kontrol glifleri (46 varlık, aynı dilde üretildi):** kapat, geri, onay, chevron,
   ok, artı/eksi, filtre, sırala, görünüm modu (ızgara/liste/akış/karusel), taşma,
   dışa aç, tam ekran, kırpma, döndürme, oran, bulanıklık, hizalama, kenarlık,
@@ -233,7 +236,9 @@ bağlı — konu ikonları **ve** kontrol glifleri aynı cam/gradyan ailesinden.
 | Tek renkli (mono) kalan | **0** — hedef tuttu |
 | Tek giriş noktasından geçen dosya | 229 |
 | **3B yolundan geçmeyen dosya** | **0** |
-| Varlık | 50 konu PNG (192×192) + 46 kontrol glifi PNG (128×128) + `plus`, `thumb_down` (192×192) |
+| 3B varlık (enum) | **143** — 88 3dicons render'ı + 9 nesne glifi + 46 kontrol glifi |
+| Eşlenen Material adı | 428 satır / 268 benzersiz ad — tek tablo: `NAME_MAP` |
+| Eşlenmemiş ad | **0** |
 
 Giriş noktaları:
 
@@ -263,6 +268,7 @@ Görseller:
 - `docs/ikon-kontrol-sayfasi.png` — 46 glifin adlarıyla tam sayfası.
 
 Ayrıntılı eşleme tablosu: **`docs/IKON_KONTROL_GLIFLERI.md`**.
+İşlev haritası görseli: **`docs/ikon-islev-haritasi.png`** (128 varlık + bağlı adlar).
 
 Yeni bir ekranda 3B ikon gerekiyorsa iki yol var:
 
