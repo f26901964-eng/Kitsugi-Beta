@@ -102,14 +102,7 @@ object KitsugiBangumiClient {
          * (三次元) içinde dizi ile filmi ayırmanın sunucu tarafındaki tek yolu; `type = 1`
          * içinde manga ile romanı ayırır.
          */
-        metaTags: List<String> = emptyList(),
-        /**
-         * Sunucuda **dışlama** süzgeci yok (v0 `filter.tag` yalnız "içerir").
-         * `GenresTagsSheet`'te bir tür "hariç tut" olarak işaretlendiğinde bu liste dolar ve
-         * süzgeç istemcide uygulanır: kaydın `tags`/`meta_tags` alanı hariç tutulan
-         * etiketlerden birini içeriyorsa kayıt atılır.
-         */
-        excludedTags: List<String> = emptyList()
+        metaTags: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         runCatching {
             searchWithFallback(
@@ -217,7 +210,14 @@ object KitsugiBangumiClient {
          * (三次元) içinde dizi ile filmi ayırmanın sunucu tarafındaki tek yolu; `type = 1`
          * içinde manga ile romanı ayırır.
          */
-        metaTags: List<String> = emptyList()
+        metaTags: List<String> = emptyList(),
+        /**
+         * Sunucuda **dışlama** süzgeci yok (v0 `filter.tag` yalnız "içerir").
+         * `GenresTagsSheet`'te bir tür "hariç tut" olarak işaretlendiğinde bu liste dolar ve
+         * süzgeç istemcide uygulanır: kaydın `tags`/`meta_tags` alanı hariç tutulan
+         * etiketlerden birini içeriyorsa kayıt atılır.
+         */
+        excludedTags: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         try {
             val types = subjectTypes ?: when (mediaType) {
