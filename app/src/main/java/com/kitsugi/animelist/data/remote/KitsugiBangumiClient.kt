@@ -601,19 +601,43 @@ object KitsugiBangumiClient {
      * "Bu Sezon" — içinde bulunulan ayın动画条目'ları, yayın tarihine göre.
      * Bangumi'de sezon "kış/ilkbahar/yaz/sonbahar" değil **yıl+ay** ile ifade edilir.
      */
+    /**
+     * **Bu sezon** — içinde bulunulan takvim çeyreğinin tamamı.
+     *
+     * Eski davranış `seasonFor(year, currentMonth)` idi: yani "Bu Sezon" rafı aslında yalnız
+     * **bu ay** yayınlananları listeliyordu (bir mevsimin ~⅓'ü) ve "Tümünü Gör" sayfası da
+     * aynı dar listeyi büyütmeye çalışıyordu. Artık `air_date` çeyrek aralığı kullanılır
+     * (canlı prob `probe/result.txt` V1–V5: `>=2025-01-01` + `<2025-04-01` → 89 kayıt);
+     * sıralama `heat` (koleksiyona ekleme) çünkü sezon rafı popülerliği yansıtmalı.
+     *
+     * Arama ucu boş dönerse eski ay bazlı göz atma yoluna düşülür (asla boş raf bırakma).
+     */
     suspend fun seasonalAnime(
         limit: Int = 20,
         context: Context? = null,
         offset: Int = 0
     ): List<JikanSearchResult> {
         val calendar = Calendar.getInstance()
-        return seasonFor(
-            year = calendar.get(Calendar.YEAR),
-            month = calendar.get(Calendar.MONTH) + 1,
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH) + 1
+        val season = when (month) {
+            in 1..3 -> "WINTER"
+            in 4..6 -> "SPRING"
+            in 7..9 -> "SUMMER"
+            else -> "FALL"
+        }
+        val quarter = searchMediaAdvanced(
+            mediaType = MediaType.Anime,
+            query = "",
+            page = (offset / limit.coerceAtLeast(1)) + 1,
             limit = limit,
+            sort = BangumiApiClient.SearchSort.HEAT,
             context = context,
-            offset = offset
+            season = season,
+            seasonYear = year
         )
+        if (quarter.isNotEmpty()) return quarter
+        return seasonFor(year = year, month = month, limit = limit, context = context, offset = offset)
     }
 
     /** Belirli yıl/ay için göz atma (`GET /v0/subjects?type=2&year=..&month=..&sort=date`). */
