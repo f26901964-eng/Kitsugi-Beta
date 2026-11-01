@@ -43,7 +43,7 @@ malzeme, kalınlık, kenar yuvarlaklığı ve parça kurgusu glif başına deği
 | 35 | `ic_kitsugi_glyph_doubleArrow.png` | Yatay boyutlandır | jöle / yarı saydam | 4 parça | jöle çift ok |
 | 36 | `ic_kitsugi_glyph_home.png` | Ana sayfa | obsidyen (koyu cam) | 6 parça | yumuşak kil ev — sıcak, oturmuş hacim |
 | 37 | `ic_kitsugi_glyph_leaf.png` | İçerik / doğa | jöle / yarı saydam | 2 parça | jöle yaprak — yarı saydam |
-| 38 | `ic_kitsugi_glyph_snow.png` | Kış teması | cam | 10 parça | cam kar tanesi |
+| 38 | `ic_kitsugi_glyph_snow.png` | Kış teması | cam | 19 parça | cam kar tanesi |
 | 39 | `ic_kitsugi_glyph_cake.png` | Doğum günü | parlak emaye | 9 parça | kil sünger + emaye mumlar (gerçek mum dizilimi) |
 | 40 | `ic_kitsugi_glyph_camera.png` | Kamera / fotoğraf | obsidyen (koyu cam) | 8 parça | emaye gövde + obsidyen mercek + oyuk halka |
 | 41 | `ic_kitsugi_glyph_textQuote.png` | Alıntı | mat seramik (kil) | 2 parça | kil tırnak işaretleri |

@@ -175,9 +175,9 @@ ICONS.eyeOff = () => ({
 ICONS.funnel = () => ({
   parts: [
     cone(0, 1.0, 0, 1.35, 5.7, 6.4, 0.6, { mat: 'glass' }),
-    tor('y', 0, 7.35, 0, 5.7, 0.42, { mat: 'cream', col: [242, 228, 208] }),
+    tor('y', 0, 7.3, 0, 5.6, 0.34, { mat: 'cream', col: [232, 214, 194] }),
     cyl('y', 0, -0.2, 0, 1.35, 1.35, 0.4, { mat: 'glass', k: 0.8 }),
-    tor('y', 0, -1.75, 0, 1.45, 0.45, { mat: 'cream', col: [250, 238, 220] }),
+    tor('y', 0, -1.6, 0, 1.4, 0.34, { mat: 'cream', col: [236, 220, 200] }),
   ],
   bbox: [-6.6, 6.6, -3.6, 8.2, -3, 3],
 });
@@ -447,15 +447,24 @@ ICONS.leaf = () => ({
   bbox: [-8.4, 8.4, -8.4, 8.4, -3, 3],
 });
 
-// kar tanesi: üç kalın kol + göbek + uç boncukları (sade, okunur)
+// kar tanesi: konik kollar (uçta incelir) + göbek + ince V dalları
 ICONS.snow = () => {
-  const parts = [sph(0, 0, 1.1, 1.9, { mat: 'clay' })];
-  for (let i = 0; i < 3; i++) {
-    const [x, y] = rot2(i * 60, 0, 6.6);
-    const [x2, y2] = rot2(i * 60, 0, -6.6);
-    parts.push(cap(x, y, 0, x2, y2, 0, 1.3, { mat: 'glass' }));
-    parts.push(sph(x, y, 0, 1.3, { mat: 'glass' }));
-    parts.push(sph(x2, y2, 0, 1.3, { mat: 'glass' }));
+  const parts = [sph(0, 0, 1.0, 1.5, { mat: 'clay' })];
+  for (let i = 0; i < 6; i++) {
+    const a = i * 60 * D2R;
+    const dx = Math.cos(a), dy = Math.sin(a);
+    // ana kol: göbekten uca incelen koni
+    parts.push(cone(dx * 0.8, dy * 0.8, 0, 1.15, 0.42, 6.4, 0.4, {
+      rot: [0, 0, Math.atan2(-dx, dy)], mat: 'glass',
+    }));
+    // iki ince dal
+    for (const sgn of [-1, 1]) {
+      const ba = a + sgn * 0.72;
+      const bx = Math.cos(ba), by = Math.sin(ba);
+      parts.push(cone(dx * 4.2, dy * 4.2, 0, 0.42, 0.16, 2.6, 0.16, {
+        rot: [0, 0, Math.atan2(-bx, by)], mat: 'glass', k: 0.35,
+      }));
+    }
   }
   return { parts, bbox: [-8.4, 8.4, -8.4, 8.4, -3, 3] };
 };
