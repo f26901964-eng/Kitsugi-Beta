@@ -171,3 +171,26 @@ Yeni dosya: `tools/iconpack/sdf3d.js` (kesin Öklid mesafe dönüşümü + malze
 3. ~~İstenirse kalan küçük aksiyon glifleri 3B'ye çevrilebilir.~~ **Tamamlandı (tur 3):**
    kopyala/paylaş/sil/beğen dahil hiçbir ad 2B kalmadı; mono = 0.
 4. Açık tema ve AMOLED cihazlarda göz kontrolü önerilir (gölge/hâle katmanı yeni).
+
+### 5f. Malzeme çeşitliliği (v7)
+
+Ölçüm: orijinal 3dicons render'ları tek tip değil — her nesne kendi malzemesiyle
+modellenmiş (mat deri, seramik, emaye, cam, metal). v6'ya kadar 55 kendi
+glifimizin hepsi aynı parlak plastik malzemeyle üretiliyordu; "her logonun kendi
+mantığına uygun 3B stili yok" eleştirisi buradan geliyordu.
+
+v7'de `sdf3d.js` içine 7 malzemeli bir sistem eklendi (`MATERIALS`) ve her glif
+işlevine göre eşlendi:
+
+- `clay` (mat seramik) 9 · `gloss` (parlak emaye) 10 · `gel` (jöle) 10 ·
+  `paper` (ince kâğıt) 9 · `rubber` (mat kauçuk) 6 · `glass` (cam) 5 ·
+  `obsidian` (koyu cam) 6 → toplam 55 glif.
+
+Ayrıca `render_glyph.js` ile çok parçalı gövde desteği geldi: kamera (emaye gövde +
+obsidyen mercek), klavye (kauçuk gövde + emaye tuşlar), kek (kil + mumlar), göz
+(cam + obsidyen bebek), TV (kauçuk + obsidyen ekran), karusel, kaydırıcılar,
+zamanlayıcı. Renk yerleşimi de glif başına `phase`/`span` ile kaydırıldı.
+
+Kanıt: `docs/ikon-stil-haritasi.png` (malzemeye göre gruplu 55 glif),
+`docs/ikon-malzeme-haritasi.md` (glif → işlev → malzeme → gerekçe tablosu),
+`docs/ikon-malzeme-karsilastirma.png` (orijinal vs üretilen).

@@ -195,3 +195,44 @@ Pakette karşılığı olmayan ama farklı işlevleri temsil eden kavramlar da a
 - `docs/ikon-kontrol-boyut.png` — 12–30 dp okunabilirlik
 - `docs/ikon-seti-onizleme.png` — 65 anahtar, 3B set
 - `docs/ikon-tema-uyumu.png` — vurgu rengine otomatik ton uyumu
+
+## Malzeme sistemi (v7 — glif başına 3B stil)
+
+3dicons setindeki her nesne kendi malzemesiyle render edilmiş: kulaklık mat deri +
+koyu ped, kalp yumuşak mat seramik, anahtar parlak emaye, laboratuvar camı + sıvı,
+kasa fırçalanmış metal. Tek malzemeyle üretilen glifler bu yüzden "hepsi aynı
+plastik" görünüyordu. Artık **her glif kendi malzemesini ve gövde kurgusunu**
+seçiyor; ışık yönü, renk rampası ve temas gölgesi ortak olduğu için set tek aile
+olarak kalıyor.
+
+| Malzeme | Kalınlık / kenar | Karakter | Kullanıldığı işlevler |
+|---------|------------------|----------|------------------------|
+| `clay` — mat seramik | 1.52 / 0.98 | geniş yumuşak kenar, düşük spekülar, yüksek ortam | ev, kek, ızgara, eksi, oran, ortala, tırnak, A, zamanlayıcı |
+| `gloss` — parlak emaye | 1.10 / 0.50 | sıkı parlak spekülar, canlı doygunluk | kapat, sırala, kırp, döndür, girdi, karusel, kamera, eşitle |
+| `gel` — jöle | 1.34 / 0.88 | kalın, iç ışımalı, yarı saydam | chevron'lar, daha fazla, çift ok, yaprak, S, indir, bulut |
+| `glass` — cam | 1.10 / 0.72 | ince parlak kenar, kalınlaşan koyu duvar | göz, gizle, huni, damla, kar tanesi |
+| `obsidian` — koyu cam | 1.18 / 0.56 | koyu gövde, çok keskin spekülar, parlak kenar | dışa aç, tam ekran, kenarlık, #, B, kod, TV ekranı |
+| `rubber` — mat kauçuk | 1.46 / 0.74 | en koyu ve en mat, ince gren | akış, tutamak, iki yana yasla, tümünü seç, klavye, TV gövdesi |
+| `paper` — ince kâğıt | 0.54 / 0.19 | çok ince levha, geniş temas gölgesi | ok'lar, liste, yoğunluk, sola hizala, etiket, yükle |
+
+Glif başına renk yerleşimi de farklı: her ad için `phase` (0–0.34) ve `span`
+(0.78–0.96) hesaplanır, böylece gradyan her ikonda başka yere düşer.
+
+### Parçalı gövdeler (çok malzemeli glifler)
+
+| Glif | Gövde | Parçalar |
+|------|-------|----------|
+| kamera | emaye | obsidyen mercek + oyuk halka |
+| göz | cam | obsidyen bebek |
+| klavye | kauçuk | emaye tuş takımı (4 + 1 tuş) |
+| kek | kil | emaye mumlar (3) |
+| karusel | emaye | yan kartlar (2) |
+| kaydırıcılar | emaye ray | kil düğmeler (3) |
+| zamanlayıcı | kil gövde | emaye tepe düğmesi (2) |
+| TV | kauçuk gövde | obsidyen ekran |
+| kilit (3dicons) | — | mevcut orijinal render |
+
+Üretici: `tools/iconpack/render_glyph.js` (gövde + parçalar + oyma katmanı),
+malzemeler: `tools/iconpack/sdf3d.js` (`MATERIALS`), stil tablosu:
+`tools/iconpack/style_report.js` → `docs/ikon-malzeme-haritasi.md`,
+`docs/ikon-stil-haritasi.png`.

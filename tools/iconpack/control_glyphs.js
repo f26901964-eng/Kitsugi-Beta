@@ -15,6 +15,7 @@ const sharp = (() => {
 })();
 const g3d = require(path.join(__dirname, 'glyph3d.js'));
 const sdf3d = require(path.join(__dirname, 'sdf3d.js'));
+const { renderGlyph } = require(path.join(__dirname, 'render_glyph.js'));
 
 const DST = path.join(__dirname, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
 const RENDER = 512;      // 3B render çözünürlüğü
@@ -25,68 +26,108 @@ const ALPHA_FLOOR = 26;
 
 /** path: 24×24 koordinat uzayında; fill=true ise kapalı şekil dolgulu çizilir. */
 const GLYPHS = {
-  close: { d: 'M6.2 6.2 L17.8 17.8 M17.8 6.2 L6.2 17.8' },
-  minus: { d: 'M5.3 10.85 h13.4 a1.15 1.15 0 0 1 0 2.3 h-13.4 a1.15 1.15 0 0 1 0 -2.3 z', fill: true },
-  chevron: { d: 'M6.2 14.8 L12 9.2 L17.8 14.8', rot: { up: 0, down: 180, left: 270, right: 90 } },
-  arrow: { d: 'M12 19 V5.6 M7.2 10.4 L12 5.6 L16.8 10.4', rot: { up: 0, down: 180, right: 90, left: 270 } },
+  // kapat: parlak emaye çarpı
+  close: { d: 'M6.2 6.2 L17.8 17.8 M17.8 6.2 L6.2 17.8', mat: 'gloss' },
+  // eksi: yumuşak mat seramik hap
+  minus: { d: 'M5.3 10.85 h13.4 a1.15 1.15 0 0 1 0 2.3 h-13.4 a1.15 1.15 0 0 1 0 -2.3 z', fill: true, mat: 'clay' },
+  // yön oku: jöle (şeker) ok
+  chevron: { d: 'M6.2 14.8 L12 9.2 L17.8 14.8', mat: 'gel', rot: { up: 0, down: 180, left: 270, right: 90 } },
+  // ince kâğıt ok
+  arrow: { d: 'M12 19 V5.6 M7.2 10.4 L12 5.6 L16.8 10.4', mat: 'paper', rot: { up: 0, down: 180, right: 90, left: 270 } },
+  // göz: cam gövde + parlak emaye bebek
   eye: {
     d: 'M2.9 12 C5.6 7.6 8.8 5.7 12 5.7 C15.2 5.7 18.4 7.6 21.1 12 C18.4 16.4 15.2 18.3 12 18.3 C8.8 18.3 5.6 16.4 2.9 12 Z M12 14.6 A2.6 2.6 0 1 1 12 9.4 A2.6 2.6 0 1 1 12 14.6 Z',
+    mat: 'glass',
+    parts: [{ d: 'M12 9.9 a2.1 2.1 0 0 1 0 4.2 a2.1 2.1 0 0 1 0 -4.2 Z', fill: true, w: 0.4, mat: 'obsidian', halfT: 0.62, radius: 0.30, phase: 0.55 }],
   },
   eyeOff: {
     d: 'M2.9 12 C5.6 7.6 8.8 5.7 12 5.7 C15.2 5.7 18.4 7.6 21.1 12 C18.4 16.4 15.2 18.3 12 18.3 C8.8 18.3 5.6 16.4 2.9 12 Z M4 20 L20 4',
+    mat: 'glass',
   },
-  funnel: { d: 'M3.6 5.4 H20.4 L13.9 13.1 V19.6 L10.1 17.4 V13.1 Z', fill: true },
-  sort: { d: 'M7 19.5 V4.8 M4.1 16.6 L7 19.5 L9.9 16.6 M13 6.5 H20 M13 11.5 H18.4 M13 16.5 H16.8' },
+  // huni: camdan süzgeç
+  funnel: {
+    d: 'M3.6 5.4 H20.4 L13.9 13.1 V19.6 L10.1 17.4 V13.1 Z', fill: true, mat: 'glass',
+    detail: 'M6.4 8.0 H17.6 M8.9 10.6 H15.1',
+  },
+  // sıralama: fırçalanmış metal çubuklar + ok
+  sort: { d: 'M7 19.5 V4.8 M4.1 16.6 L7 19.5 L9.9 16.6 M13 6.5 H20 M13 11.5 H18.4 M13 16.5 H16.8', mat: 'gloss' },
+  // ızgara: kalın mat seramik karolar
   grid: {
     d: 'M4.6 4.6 h5.1 v5.1 h-5.1 z M14.3 4.6 h5.1 v5.1 h-5.1 z M4.6 14.3 h5.1 v5.1 h-5.1 z M14.3 14.3 h5.1 v5.1 h-5.1 z',
     fill: true,
+    mat: 'clay',
   },
-  list: { d: 'M4.6 7.2 H19.4 M4.6 12 H19.4 M4.6 16.8 H19.4' },
-  stream: { d: 'M4.6 8.4 H19.4 M4.6 15.6 H19.4' },
-  carousel: { d: 'M8.2 5.8 h7.6 v12.4 h-7.6 z', fill: true, detail: 'M4.8 9.4 V14.6 M19.2 9.4 V14.6' },
-  more: { d: 'M10.1 6.6 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z M10.1 12 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z M10.1 17.4 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z', fill: true, width: 0.4, depth: 4 },
-  external: { d: 'M13.6 4.8 H19.2 V10.4 M19 5 L11.2 12.8 M17.8 13.6 V18.6 a1.2 1.2 0 0 1 -1.2 1.2 H5.8 a1.2 1.2 0 0 1 -1.2 -1.2 V7.8 a1.2 1.2 0 0 1 1.2 -1.2 H11' },
-  fullscreen: { d: 'M4 9.2 V4 h5.2 M14.8 4 H20 v5.2 M20 14.8 V20 h-5.2 M9.2 20 H4 v-5.2' },
-  crop: { d: 'M7.2 3.4 v12.2 a1.2 1.2 0 0 0 1.2 1.2 h12.2 M3.4 7.2 h12.2 a1.2 1.2 0 0 1 1.2 1.2 v12.2' },
-  rotate: { d: 'M19.6 12 a7.6 7.6 0 1 1 -2.3 -5.4 M19.8 3.6 v4.6 h-4.6' },
-  aspect: { d: 'M3.8 7.8 h16.4 v8.4 h-16.4 z', fill: true, detail: 'M8.4 8.4 V15.6 M15.6 8.4 V15.6' },
-  blur: { d: 'M12 3.6 C15.6 7.4 17.8 10.2 17.8 13 A5.8 5.8 0 0 1 6.2 13 C6.2 10.2 8.4 7.4 12 3.6 Z', fill: true, detail: 'M9.4 13.6 A3.2 3.2 0 0 0 12 16.2' },
-  alignLeft: { d: 'M4 6.8 H20 M4 12 H13.6 M4 17.2 H17.2' },
-  alignCenter: { d: 'M4 6.8 H20 M7.2 12 H16.8 M5.4 17.2 H18.6' },
-  alignJustify: { d: 'M4 6.8 H20 M4 12 H20 M4 17.2 H20' },
-  border: { d: 'M4 4 h16 v16 h-16 z M8.4 8.4 h7.2 v7.2 h-7.2 z' },
-  selectAll: { d: 'M4 4 h16 v16 h-16 z', dash: '2.6 2.2' },
-  drag: { d: 'M8.5 9.4 H15.5 M8.5 14.6 H15.5', width: 3.0 },
-  density: { d: 'M4 9 H20 M4 12 H20 M4 15 H20', width: 2.4 },
+  list: { d: 'M4.6 7.2 H19.4 M4.6 12 H19.4 M4.6 16.8 H19.4', mat: 'paper' },
+  stream: { d: 'M4.6 8.4 H19.4 M4.6 15.6 H19.4', mat: 'rubber' },
+  carousel: {
+    d: 'M8.4 6.2 h7.2 v11.6 h-7.2 z', fill: true, mat: 'gloss',
+    parts: [
+      { d: 'M3.6 8.2 h3.9 v7.6 h-3.9 z', fill: true, w: 0.35, mat: 'gloss', halfT: 0.72, radius: 0.40, phase: 0.34 },
+      { d: 'M16.5 8.2 h3.9 v7.6 h-3.9 z', fill: true, w: 0.35, mat: 'gloss', halfT: 0.72, radius: 0.40, phase: 0.34 },
+    ],
+  },
+  more: { d: 'M10.1 6.6 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z M10.1 12 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z M10.1 17.4 a1.9 1.9 0 1 1 3.8 0 a1.9 1.9 0 1 1 -3.8 0 Z', fill: true, width: 0.4, depth: 4, mat: 'gel' },
+  external: { d: 'M13.6 4.8 H19.2 V10.4 M19 5 L11.2 12.8 M17.8 13.6 V18.6 a1.2 1.2 0 0 1 -1.2 1.2 H5.8 a1.2 1.2 0 0 1 -1.2 -1.2 V7.8 a1.2 1.2 0 0 1 1.2 -1.2 H11', mat: 'obsidian' },
+  fullscreen: { d: 'M4 9.2 V4 h5.2 M14.8 4 H20 v5.2 M20 14.8 V20 h-5.2 M9.2 20 H4 v-5.2', mat: 'obsidian' },
+  crop: { d: 'M7.2 3.4 v12.2 a1.2 1.2 0 0 0 1.2 1.2 h12.2 M3.4 7.2 h12.2 a1.2 1.2 0 0 1 1.2 1.2 v12.2', mat: 'gloss' },
+  rotate: { d: 'M19.6 12 a7.6 7.6 0 1 1 -2.3 -5.4 M19.8 3.6 v4.6 h-4.6', mat: 'gloss' },
+  aspect: { d: 'M3.8 7.8 h16.4 v8.4 h-16.4 z', fill: true, mat: 'clay', detail: 'M8.6 8.2 V15.8 M15.4 8.2 V15.8' },
+  // damla: cam
+  blur: { d: 'M12 3.6 C15.6 7.4 17.8 10.2 17.8 13 A5.8 5.8 0 0 1 6.2 13 C6.2 10.2 8.4 7.4 12 3.6 Z', fill: true, mat: 'glass' },
+  alignLeft: { d: 'M4 6.8 H20 M4 12 H13.6 M4 17.2 H17.2', mat: 'paper' },
+  alignCenter: { d: 'M4 6.8 H20 M7.2 12 H16.8 M5.4 17.2 H18.6', mat: 'clay' },
+  alignJustify: { d: 'M4 6.8 H20 M4 12 H20 M4 17.2 H20', mat: 'rubber' },
+  border: { d: 'M4 4 h16 v16 h-16 z M8.4 8.4 h7.2 v7.2 h-7.2 z', mat: 'obsidian' },
+  selectAll: { d: 'M4.2 4.2 h15.6 v15.6 h-15.6 z', dash: '2.6 3.4', width: 2.6, mat: 'rubber' },
+  drag: { d: 'M8.5 9.4 H15.5 M8.5 14.6 H15.5', width: 3.0, mat: 'rubber' },
+  density: { d: 'M4.2 8 H19.8 M4.2 12 H19.8 M4.2 16 H19.8', width: 2.2, mat: 'paper' },
+  // klavye: kauçuk gövde + parlak tuşlar
   keyboard: {
-    d: 'M3.4 8 h17.2 v8 h-17.2 z', fill: true,
-    detail: 'M7 11 v0.02 M10.2 11 v0.02 M13.4 11 v0.02 M16.6 11 v0.02 M7.8 14 H16.2',
+    d: 'M3.2 7.4 h17.6 v9.2 h-17.6 z', fill: true, mat: 'rubber',
+    parts: [
+      { d: 'M5.6 9.4 h2.6 v2.2 h-2.6 z M9.4 9.4 h2.6 v2.2 h-2.6 z M13.2 9.4 h2.6 v2.2 h-2.6 z M17 9.4 h1.6 v2.2 h-1.6 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.5, radius: 0.22, phase: 0.08 },
+      { d: 'M6.6 12.8 h10.8 v1.9 h-10.8 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.5, radius: 0.22, phase: 0.08 },
+    ],
   },
-  input: { d: 'M6.4 7.8 h11.2 v4.4 l-3.2 4.4 h-4.8 l-3.2 -4.4 z', fill: true, detail: 'M12 4.2 V7.4' },
-  doubleArrow: { d: 'M8.4 7.6 L4.2 12 L8.4 16.4 M15.6 7.6 L19.8 12 L15.6 16.4' },
-  home: { d: 'M3.8 10.8 L12 4.2 L20.2 10.8 V19.8 h-5.6 v-5.2 h-5.2 v5.2 H3.8 z', fill: true },
-  leaf: { d: 'M4.8 19.2 C4.8 11 11 4.8 19.2 4.8 C19.2 13 13 19.2 4.8 19.2 Z M4.8 19.2 L13.4 10.6', fill: true },
-  snow: { d: 'M12 3.4 V20.6 M4.4 7.7 L19.6 16.3 M19.6 7.7 L4.4 16.3' },
-  cake: { d: 'M4.6 20 V12.6 h14.8 V20 z', fill: true, detail: 'M9 12.4 V9.2 M15 12.4 V9.2 M12 12.4 V7.6' },
-  camera: { d: 'M3.8 8.4 h4.4 l2 -2.4 h3.6 l2 2.4 h4.4 v10 h-16.4 z', fill: true, detail: 'M12 16.6 A3.2 3.2 0 1 1 12 10.2 A3.2 3.2 0 1 1 12 16.6 Z' },
-  textQuote: {
-    d: 'M8.6 8.1 c-2.2 0.7 -3.7 2.7 -3.7 5 v3.5 h5 v-5 h-2.4 c0 -1.2 0.6 -2.1 1.7 -2.5 z M16.6 8.1 c-2.2 0.7 -3.7 2.7 -3.7 5 v3.5 h5 v-5 h-2.4 c0 -1.2 0.6 -2.1 1.7 -2.5 z',
-    fill: true,
+  input: { d: 'M6.4 7.8 h11.2 v4.4 l-3.2 4.4 h-4.8 l-3.2 -4.4 z', fill: true, mat: 'gloss', detail: 'M8.6 10.2 H15.4' },
+  doubleArrow: { d: 'M8.4 7.6 L4.2 12 L8.4 16.4 M15.6 7.6 L19.8 12 L15.6 16.4', mat: 'gel' },
+  home: { d: 'M3.8 10.8 L12 4.2 L20.2 10.8 V19.8 h-5.6 v-5.2 h-5.2 v5.2 H3.8 z', fill: true, mat: 'clay' },
+  leaf: { d: 'M4.8 19.2 C4.8 11 11 4.8 19.2 4.8 C19.2 13 13 19.2 4.8 19.2 Z M4.8 19.2 L13.4 10.6', fill: true, mat: 'gel' },
+  snow: { d: 'M12 3.4 V20.6 M4.4 7.7 L19.6 16.3 M19.6 7.7 L4.4 16.3', mat: 'glass' },
+  // kek: mat sünger + parlak mumlar
+  cake: {
+    d: 'M4.4 20.4 V11.4 h15.2 V20.4 z', fill: true, mat: 'clay', detail: 'M4.8 14.6 H19.2',
+    parts: [
+      { d: 'M7.6 11.2 v-3.2 h1.9 v3.2 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.42, radius: 0.20, phase: 0.12 },
+      { d: 'M14.5 11.2 v-3.2 h1.9 v3.2 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.42, radius: 0.20, phase: 0.12 },
+      { d: 'M11.05 11.2 v-5.6 h1.9 v5.6 z', fill: true, w: 0.3, mat: 'gloss', halfT: 0.42, radius: 0.20, phase: 0.12 },
+    ],
   },
-  textHash: {
-    d: 'M9.9 4.4 L7.9 19.6 M16.1 4.4 L14.1 19.6 M5.4 9.1 H20.2 M4.2 15.1 H19',
-    w: 2.7,
+  // kamera: parlak gövde + cam mercek
+  camera: {
+    d: 'M3.8 8.4 h4.4 l2 -2.4 h3.6 l2 2.4 h4.4 v10 h-16.4 z', fill: true, mat: 'gloss',
+    detail: 'M12 16.8 A3.6 3.6 0 1 1 12 9.6 A3.6 3.6 0 1 1 12 16.8 Z',
+    parts: [
+      { d: 'M8.8 13.2 a3.2 3.2 0 0 1 6.4 0 a3.2 3.2 0 0 1 -6.4 0 Z', fill: true, w: 0.35, mat: 'obsidian', halfT: 0.66, radius: 0.32, phase: 0.62 },
+    ],
   },
+  textQuote: { d: 'M8.6 8.1 c-2.2 0.7 -3.7 2.7 -3.7 5 v3.5 h5 v-5 h-2.4 c0 -1.2 0.6 -2.1 1.7 -2.5 z M16.6 8.1 c-2.2 0.7 -3.7 2.7 -3.7 5 v3.5 h5 v-5 h-2.4 c0 -1.2 0.6 -2.1 1.7 -2.5 z', fill: true, mat: 'clay' },
+  textHash: { d: 'M9.9 4.4 L7.9 19.6 M16.1 4.4 L14.1 19.6 M5.4 9.1 H20.2 M4.2 15.1 H19', w: 2.7, mat: 'obsidian' },
 };
-
-/** Harf glifleri (B, I, A, S) — setin rengiyle, extrude edilmiş. */
 
 const LETTERS = {
-  textBold: { ch: 'B', weight: 700, size: 17 },
-  textItalic: { ch: 'I', weight: 700, size: 17, italic: true },
-  textTitle: { ch: 'A', weight: 700, size: 17 },
-  textStrike: { ch: 'S', weight: 700, size: 17, strike: true },
+  textBold: { ch: 'B', weight: 700, size: 17, mat: 'obsidian' },
+  textItalic: { ch: 'I', weight: 700, size: 17, italic: true, mat: 'gloss' },
+  textTitle: { ch: 'A', weight: 700, size: 17, mat: 'clay' },
+  textStrike: { ch: 'S', weight: 700, size: 17, strike: true, mat: 'gel' },
 };
+
+/** Glif adına göre renk yerleşimi — her ikonun gradyanı farklı yere düşsün. */
+function hueJitter(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 1000;
+  return { phase: (h % 34) / 100, span: 0.78 + ((h >> 3) % 18) / 100, bulk: 0.94 + ((h >> 6) % 13) / 100 };
+}
 
 /** GLYPHS girdisini glyph3d spec'ine çevirir. */
 function specOf(spec, rot) {
@@ -120,7 +161,10 @@ const svgForLetter = (spec) => g3d.svg({
   shadowRy: 1.4,
 }, RENDER);
 
+module.exports = { GLYPHS: typeof GLYPHS !== 'undefined' ? GLYPHS : undefined, LETTERS: typeof LETTERS !== 'undefined' ? LETTERS : undefined, OBJECTS: typeof OBJECTS !== 'undefined' ? OBJECTS : undefined };
+
 (async () => {
+  if (require.main !== module) return; // sadece doğrudan çalıştırıldığında üret
   fs.mkdirSync(DST, { recursive: true });
   let made = 0;
   const jobs = [];
@@ -131,23 +175,13 @@ const svgForLetter = (spec) => g3d.svg({
   for (const [name, spec] of Object.entries(LETTERS)) jobs.push([name, spec, true]);
 
   for (const [name, spec, isLetter] of jobs) {
-    // 1) siluet maskesi (SVG) → 2) SDF + analitik 3B render
+    // 1) siluet maskesi + malzeme/renk yerleşimi → 2) SDF + analitik 3B render
+    const jit = hueJitter(name);
     const maskSpec = isLetter
-      ? { text: spec.ch, size: spec.size, weight: spec.weight, italic: !!spec.italic, strike: !!spec.strike, baseline: 18, w: 0.6 }
-      : specOf(spec, spec.rotate || 0);
-    const maskUri = g3d.maskSvg(maskSpec, MASK, isLetter ? 0 : (spec.rotate || 0));
-    const maskRaw = await sharp(Buffer.from(maskUri)).ensureAlpha().raw().toBuffer();
-    const alpha = new Uint8Array(MASK * MASK);
-    for (let i = 0; i < MASK * MASK; i++) alpha[i] = maskRaw[i * 4 + 3];
-    let raw = await sdf3d.render(alpha, MASK, {
-      out: RENDER,
-      halfT: isLetter ? 1.0 : 1.30,
-      radius: isLetter ? 0.42 : 0.62,
-    });
-    const overlay = isLetter ? null : g3d.detailOverlay(specOf(spec, spec.rotate || 0), RENDER);
-    if (overlay) {
-      raw = await sharp(raw).composite([{ input: Buffer.from(overlay), top: 0, left: 0 }]).png().toBuffer();
-    }
+      ? { text: spec.ch, size: spec.size, weight: spec.weight, italic: !!spec.italic, strike: !!spec.strike, mat: spec.mat, phase: 0.30, span: 0.86 }
+      : { ...spec, rot: spec.rotate || 0, phase: jit.phase, span: jit.span };
+    const raw0 = await renderGlyph(maskSpec, { render: RENDER, mask: MASK });
+    let raw = raw0;
     const trimmed = await sharp(raw).trim({ threshold: 1 }).toBuffer();
     const meta = await sharp(trimmed).metadata();
     const box = Math.round(CANVAS * FILL);

@@ -31,7 +31,8 @@ function shape(spec, { fill, stroke, w, opacity = 1 }) {
       (spec.italic ? ' font-style="italic"' : '');
     return `<text x="12" y="${spec.baseline || 18}" text-anchor="middle" ${style} ${common}>${esc(spec.text)}</text>`;
   }
-  return `<path d="${spec.d}" fill-rule="evenodd" ${common}/>`;
+  const dash = spec.dash ? ` stroke-dasharray="${spec.dash}"` : '';
+  return `<path d="${spec.d}" fill-rule="evenodd" ${common}${dash}/>`;
 }
 
 function defs(spec) {
