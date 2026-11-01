@@ -95,6 +95,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         val isMovie: Boolean,
         val mediaType: MediaType?,
         val knownImdbId: String? = null,
+        val cs3Url: String? = null,
+        val cs3ApiName: String? = null,
     )
 
     @Volatile private var lastFetchParams: LastFetchParams? = null
@@ -136,6 +138,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             alternativeTitles = alternativeTitles, startYear = startYear,
             isMovie = isMovie, mediaType = mediaType,
             knownImdbId = knownImdbId,
+            cs3Url = cs3Url, cs3ApiName = cs3ApiName,
         )
 
         // ── Cache hit: same combination, data already present ─────────────────
@@ -179,6 +182,48 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             )
             isFetchInProgress = false
         }
+    }
+
+    /**
+     * TÜM kaynakları baştan arar (kaynak panelindeki "Yeniden ara").
+     *
+     * NEDEN GEREKLİ: [startFetch] aynı anahtar için "cache hit" döndürüp hiçbir şey
+     * yapmıyor; tek eklenti yeniden denemesi ([retryPlugin]) ise yalnızca CloudStream
+     * eklentileri için çalışıyor. Tüm kaynaklar hata verdiğinde ya da boş döndüğünde
+     * kullanıcının ekrandan tam bir yeniden arama tetikleme yolu yoktu.
+     *
+     * Anahtar sıfırlanır, eklenti engel defteri ve "desteklenmeyen metot" önbelleği
+     * temizlenir; böylece önceki animeden kalan negatif izler yeni aramayı zehirlemez.
+     */
+    fun refreshAll() {
+        val params = lastFetchParams ?: run {
+            Log.w(TAG, "refreshAll: Önceki fetch parametresi yok — yeniden arama atlandı")
+            return
+        }
+        if (isFetchInProgress) {
+            Log.d(TAG, "refreshAll: arama sürüyor — yinelenen istek atlandı")
+            return
+        }
+        // Cache anahtarını geçersiz kıl: aşağıdaki startFetch artık "cache hit" saymaz.
+        currentFetchKey = null
+        CsPluginStatusTracker.clear()
+        CsStreamRunner.clearUnsupportedMethodsCache()
+        startFetch(
+            malId = params.malId,
+            aniListId = params.aniListId,
+            tmdbId = params.tmdbId,
+            bangumiId = params.bangumiId,
+            episode = params.episode,
+            season = params.season,
+            title = params.title,
+            alternativeTitles = params.alternativeTitles,
+            startYear = params.startYear,
+            cs3Url = params.cs3Url,
+            cs3ApiName = params.cs3ApiName,
+            isMovie = params.isMovie,
+            mediaType = params.mediaType,
+            knownImdbId = params.knownImdbId,
+        )
     }
 
     /**

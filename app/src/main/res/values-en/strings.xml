@@ -8883,6 +8883,7 @@
     <string name="stream_panel_only_results">Only with results</string>
     <string name="stream_panel_retry_failed">Retry failed</string>
     <string name="stream_panel_addon_settings">Add-on settings</string>
+    <string name="stream_panel_refresh_all">Search again</string>
     <string name="stream_sort_source_order">Source order</string>
     <string name="stream_sort_quality_short">Quality</string>
     <string name="stream_sort_size_short">Size</string>

@@ -8888,6 +8888,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="stream_panel_only_results">Yalnızca sonuç verenler</string>
     <string name="stream_panel_retry_failed">Hatalıları yenile</string>
     <string name="stream_panel_addon_settings">Eklenti ayarları</string>
+    <string name="stream_panel_refresh_all">Yeniden ara</string>
     <string name="stream_sort_source_order">Kaynak sırası</string>
     <string name="stream_sort_quality_short">Kalite</string>
     <string name="stream_sort_size_short">Boyut</string>

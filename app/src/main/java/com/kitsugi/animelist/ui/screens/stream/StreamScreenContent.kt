@@ -133,7 +133,9 @@ fun StreamScreenContent(
     onRetryPlugin: ((addonName: String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
     onOpenDownloads: (() -> Unit)? = null,
-    onManualSearchClick: (() -> Unit)? = null
+    onManualSearchClick: (() -> Unit)? = null,
+    /** Tüm kaynakları baştan arar (kaynak panelindeki "Yeniden ara"). */
+    onRefreshAll: (() -> Unit)? = null
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -267,7 +269,8 @@ fun StreamScreenContent(
                     onRetryPlugin = onRetryPlugin,
                     onOpenHistory = onOpenHistory,
                     onOpenDownloads = onOpenDownloads,
-                    onManualSearchClick = onManualSearchClick
+                    onManualSearchClick = onManualSearchClick,
+                    onRefreshAll = onRefreshAll
                 )
             } else {
                 PortraitLayout(
@@ -286,7 +289,8 @@ fun StreamScreenContent(
                     onRetryPlugin = onRetryPlugin,
                     onOpenHistory = onOpenHistory,
                     onOpenDownloads = onOpenDownloads,
-                    onManualSearchClick = onManualSearchClick
+                    onManualSearchClick = onManualSearchClick,
+                    onRefreshAll = onRefreshAll
                 )
             }
 
@@ -579,7 +583,8 @@ private fun PortraitLayout(
     onRetryPlugin: ((String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)?,
     onOpenDownloads: (() -> Unit)? = null,
-    onManualSearchClick: (() -> Unit)? = null
+    onManualSearchClick: (() -> Unit)? = null,
+    onRefreshAll: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val subtitle = mediaSubtitle(isMovie, isDownloadMode, season, episode)
@@ -685,6 +690,7 @@ private fun PortraitLayout(
             onVerifyPlugin = onVerifyPlugin,
             onRetryPlugin = onRetryPlugin,
             onOpenSettings = onOpenSettings,
+            onRefreshAll = onRefreshAll,
             onDismiss = { showSourceSheet = false }
         )
     }
@@ -709,7 +715,8 @@ private fun LandscapeLayout(
     onRetryPlugin: ((String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
     onOpenDownloads: (() -> Unit)? = null,
-    onManualSearchClick: (() -> Unit)? = null
+    onManualSearchClick: (() -> Unit)? = null,
+    onRefreshAll: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val subtitle = mediaSubtitle(isMovie, isDownloadMode, season, episode)
@@ -822,6 +829,7 @@ private fun LandscapeLayout(
             onVerifyPlugin = onVerifyPlugin,
             onRetryPlugin = onRetryPlugin,
             onOpenSettings = onOpenSettings,
+            onRefreshAll = onRefreshAll,
             onDismiss = { showSourceSheet = false }
         )
     }

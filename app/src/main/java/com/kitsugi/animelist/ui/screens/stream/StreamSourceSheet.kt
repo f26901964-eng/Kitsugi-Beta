@@ -113,18 +113,43 @@ internal fun streamSizeBytes(stream: StreamSource): Long? {
  */
 internal fun List<AddonFetchState>.sortedByStreamMode(mode: StreamSortMode): List<AddonFetchState> {
     if (mode == StreamSortMode.SOURCE_ORDER) return this
+    // Sıralama SADECE grup içinde kalsaydı "Kalite: yüksekten düşüğe" yanıltıcı olurdu:
+    // üstteki eklentinin 720p'si, alttaki eklentinin 4K'sından önce görünürdü.
+    // Bu yüzden gruplar da kendi en iyi akış değerine göre sıralanır.
     return map { state ->
-        val sorted = when (mode) {
+        when (mode) {
             // Kanıt yoksa (height == null) en alta düşer, uydurma değer üretilmez.
-            StreamSortMode.QUALITY -> state.streams.sortedByDescending {
-                resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1
-            }
-            StreamSortMode.SIZE -> state.streams.sortedByDescending { streamSizeBytes(it) ?: -1L }
-            StreamSortMode.SOURCE_ORDER -> state.streams
+            StreamSortMode.QUALITY -> state.copy(
+                streams = state.streams.sortedByDescending {
+                    resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1
+                }
+            )
+            StreamSortMode.SIZE -> state.copy(
+                streams = state.streams.sortedByDescending { streamSizeBytes(it) ?: -1L }
+            )
+            StreamSortMode.SOURCE_ORDER -> state
         }
-        state.copy(streams = sorted)
+    }.sortedByDescending { state ->
+        // Dal tipleri tek türde tutulur (Long): Int/Long karışımı when ifadesinde
+        // ortak Comparable türü çıkarmayı belirsizleştiriyordu.
+        when (mode) {
+            StreamSortMode.QUALITY -> state.streams.maxOfOrNull {
+                resolveStreamQuality(it, StreamProbe.cached(it.url)).height?.toLong() ?: -1L
+            } ?: -1L
+            StreamSortMode.SIZE -> state.streams.maxOfOrNull { streamSizeBytes(it) ?: -1L } ?: -1L
+            StreamSortMode.SOURCE_ORDER -> 0L
+        }
     }
 }
+
+/**
+ * Ad bir CloudStream eklentisine mi ait?
+ *
+ * [StreamViewModel] CS eklentilerini `"⚡ <eklenti adı>"` biçiminde adlandırır; Stremio
+ * eklentileri düz addır. Tek eklenti yenileme/doğrulama yolu yalnızca CS tarafında
+ * olduğundan panel bu ayrımı yapmak zorunda (aksi halde düğme ölü kalır).
+ */
+internal fun String.isCloudstreamAddon(): Boolean = trimStart().startsWith("⚡")
 
 /** Panelin okuduğu / değiştirdiği sıralama durumu (tek kaynak). */
 internal class StreamSortState(
@@ -211,19 +236,25 @@ internal fun StreamSourceSheet(
     onVerifyPlugin: ((addonName: String) -> Unit)?,
     onRetryPlugin: ((addonName: String) -> Unit)?,
     onOpenSettings: (() -> Unit)?,
+    /** Tüm kaynakları baştan arar (yalnızca CloudStream olmayan eklentiler için tek yol). */
+    onRefreshAll: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val sort = LocalStreamSort.current
     // Yerel kopyalar: smart-cast güvenliği ve gereksiz parametre yakalama yok.
     val openSettings = onOpenSettings
+    // Tek eklenti yenileme/doğrulama yalnızca CloudStream eklentilerinde çalışır
+    // (ViewModel eklentiyi "⚡ <ad>" ile eşler). Stremio eklentilerinde bu butonlar
+    // sessizce hiçbir şey yapmıyordu; onlar için paneldeki "Yeniden ara" kullanılır.
     val retryPluginCallback = onRetryPlugin
     val verifyPluginCallback = onVerifyPlugin
+    val refreshAllCallback = onRefreshAll
     var addonQuery by rememberSaveable { mutableStateOf("") }
     var onlyWithResults by rememberSaveable { mutableStateOf(false) }
 
     val readyCount = addonStates.count { it.streams.isNotEmpty() }
     val loadingCount = addonStates.count { it.isLoading }
-    val failedAddons = addonStates.filter { it.error != null }
+    val failedAddons = addonStates.filter { it.error != null && it.addonName.isCloudstreamAddon() }
 
     val visibleAddons = remember(addonStates, addonQuery, onlyWithResults) {
         addonStates.filter { state ->
@@ -272,6 +303,23 @@ internal fun StreamSourceSheet(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+                if (refreshAllCallback != null) {
+                    IconButton(
+                        onClick = { refreshAllCallback(); onDismiss() },
+                        modifier = Modifier.size(36.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = accentColor.copy(alpha = 0.16f),
+                            contentColor = accentColor
+                        )
+                    ) {
+                        Icon(
+                            Icons.Rounded.Refresh,
+                            contentDescription = stringResource(R.string.stream_panel_refresh_all),
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(6.dp))
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Rounded.Close, stringResource(R.string.kapat), tint = KitsugiColors.TextSecondary, modifier = Modifier.size(18.dp))
@@ -442,14 +490,18 @@ internal fun StreamSourceSheet(
                     // Eklenti bazlı işlemler: hata/boş sonuç → yeniden dene,
                     // doğrulama gerekiyorsa → doğrula. Kullanıcı paneli kapatmadan
                     // tek dokunuşla o eklentiyi tekrar çalıştırabilir.
+                    val canRetryThisAddon = retryPluginCallback != null && state.addonName.isCloudstreamAddon()
                     val retryAction: (() -> Unit)? =
-                        if (retryPluginCallback != null &&
+                        if (canRetryThisAddon &&
                             (state.error != null || (!state.isLoading && state.streams.isEmpty()))
                         ) {
                             { retryPluginCallback(state.addonName) }
                         } else null
                     val verifyAction: (() -> Unit)? =
-                        if (verifyPluginCallback != null && state.requiresVerification) {
+                        if (verifyPluginCallback != null &&
+                            state.requiresVerification &&
+                            state.addonName.isCloudstreamAddon()
+                        ) {
                             { verifyPluginCallback(state.addonName) }
                         } else null
                     AddonSheetRow(
