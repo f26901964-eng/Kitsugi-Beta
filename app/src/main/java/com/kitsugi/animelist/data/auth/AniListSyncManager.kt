@@ -29,6 +29,7 @@ object AniListSyncManager {
         cachedAniListToken = null
         identityVerifyCache.clear()
         malIdToAniListCache.clear()
+        favouriteStatusCache.clear()
     }
 
     fun updateAniListEntry(
@@ -48,36 +49,92 @@ object AniListSyncManager {
         }
         val existingEntryId: Int? = entry.aniListEntryId?.takeIf { it > 0 }
 
-        val mediaId: Int? = if (existingEntryId == null) {
-            // Önceden çözülmüş kimlik önce denenir: Bangumi köprüsü bu kimliği AniList'in kendi
-            // kataloğunda başlık+yıl puanlamasıyla bulmuş olabilir; buna rağmen yerel zincir
-            // (MAL doğrulaması, Jikan başlıkları) aynı kaydı Çince görünen başlık yüzünden
-            // reddedebiliyordu ve çözülmüş kimlik çöpe gidiyordu. Doğrulama yine yapılır.
-            val verifiedKnownId = knownAniListMediaId?.takeIf { it > 0 }?.takeIf { candidate ->
-                val mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME"
-                verifyAniListMediaIdentityCached(
-                    token, candidate, mediaTypeGql, entry,
-                    CrossSyncIdentityGuard.aliasesOf(entry), context
+        // ─── MEVCUT KAYIT (aniListEntryId var) ──────────────────────────────────
+        // Eski kod burada `resolveAniListMediaIdForEntry` çağırıp sonucu bir yere
+        // KULLANMIYORDU (mutasyon yalnızca `id` = liste kaydı kimliği ile yapılıyor);
+        // tek etkisi, doğrulama başarısız olduğunda `error(...)` fırlatıp yazmayı
+        // TAMAMEN ENGELLEMEKTİ. Doğrulama zinciri (MAL katalog başlığı + yıl katılığı)
+        // sık sık takıldığı için kullanıcı "listem güncellenmiyor" görüyordu.
+        // Artık: kayıt kimliği zaten AniList'ten geldi ve bize ait; mutasyonu engellemek
+        // yerine sahipliğini ucuz bir sorguyla doğrular, sonuç alınamazsa yazmaya engel
+        // OLMAZ (AniList sunucuda kimliği zaten doğrular).
+        if (existingEntryId != null) {
+            val ownedMediaId = runCatching {
+                resolveAniListMediaIdForEntry(
+                    token = token,
+                    entryId = existingEntryId,
+                    entry = entry,
+                    context = context,
+                    knownAniListMediaId = knownAniListMediaId
+                )
+            }.getOrNull()
+
+            if (ownedMediaId == null) {
+                android.util.Log.w(
+                    "AniListSync",
+                    "AniList liste kaydı #$existingEntryId doğrulanamadı (${entry.title}); " +
+                        "kayıt kimliği bize ait kabul edilip yazma sürdürülüyor."
                 )
             }
-            verifiedKnownId ?: resolveAniListMediaId(token = token, entry = entry, context = context)
-        } else {
-            val verifiedMediaId = resolveAniListMediaIdForEntry(
+
+            return writeAniListEntry(
                 token = token,
-                entryId = existingEntryId,
                 entry = entry,
-                context = context,
-                knownAniListMediaId = knownAniListMediaId
-            ) ?: error(context.getString(R.string.account_sync_anilist_entry_identity_mismatch, entry.title))
-            // Existing list-entry IDs are only mutation handles. Verify the attached media before
-            // updating status, progress, score, or other fields.
-            verifiedMediaId
+                entryId = existingEntryId,
+                advancedScores = advancedScores,
+                context = context
+            )
         }
+
+        // ─── YENİ KAYIT (aniListEntryId yok): hangi medyaya yazılacağı çözülmeli ────
+        // Önceden çözülmüş kimlik önce denenir: Bangumi köprüsü bu kimliği AniList'in kendi
+        // kataloğunda başlık+yıl puanlamasıyla bulmuş olabilir; buna rağmen yerel zincir
+        // (MAL doğrulaması, Jikan başlıkları) aynı kaydı Çince görünen başlık yüzünden
+        // reddedebiliyordu ve çözülmüş kimlik çöpe gidiyordu. Doğrulama yine yapılır.
+        val verifiedKnownId = knownAniListMediaId?.takeIf { it > 0 }?.takeIf { candidate ->
+            val mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME"
+            verifyAniListMediaIdentityCached(
+                token, candidate, mediaTypeGql, entry,
+                CrossSyncIdentityGuard.aliasesOf(entry), context
+            )
+        }
+        val mediaId: Int? = verifiedKnownId
+            ?: resolveAniListMediaId(token = token, entry = entry, context = context)
 
         // Null yalnızca "AniList'te hangi medya olduğu güvenle çözülemedi" anlamına gelir
         // (atlanacak kayıt). Mutasyonun başarısız olması aşağıda istisna ile bildirilir.
-        if (existingEntryId == null && mediaId == null) return null
+        if (mediaId == null) {
+            android.util.Log.w(
+                "AniListSync",
+                "AniList medya kimliği çözülemedi, kayıt atlandı: ${entry.title} " +
+                    "(malId=${entry.malId}, yıl=${entry.year})"
+            )
+            return null
+        }
 
+        return writeAniListEntry(
+            token = token,
+            entry = entry,
+            mediaId = mediaId,
+            advancedScores = advancedScores,
+            context = context
+        )
+    }
+
+    /**
+     * SaveMediaListEntry mutasyonunu gönderir.
+     *
+     * @param entryId  mevcut liste kaydı (verilirse `id` ile güncellenir)
+     * @param mediaId  yeni kayıt için AniList medya kimliği
+     */
+    private fun writeAniListEntry(
+        token: String,
+        entry: MediaEntry,
+        mediaId: Int? = null,
+        entryId: Int? = null,
+        advancedScores: List<Double>? = null,
+        context: Context
+    ): Int? {
         val scoreRaw = SyncScores.tenPoint(entry.score)?.times(10)
         val scoreVariableDefinition = if (scoreRaw != null) "${'$'}scoreRaw: Int," else ""
         val scoreArgument = if (scoreRaw != null) "scoreRaw: ${'$'}scoreRaw," else ""
@@ -121,8 +178,8 @@ object AniListSyncManager {
         """.trimIndent()
 
         val variables = JSONObject()
-        if (existingEntryId != null) {
-            variables.put("id", existingEntryId)
+        if (entryId != null && entryId > 0) {
+            variables.put("id", entryId)
         } else {
             variables.put("mediaId", mediaId)
         }
@@ -195,13 +252,23 @@ object AniListSyncManager {
 
         val variables = JSONObject().put("id", aniListMediaId)
 
-        return runSyncCatching {
+        // Favori durumu her düzenlemede (bölüm +1 dahil) ayrı bir istek olarak
+        // sorgulanıyordu — 30 istek/dk kotasında tamamen gereksiz bir maliyet.
+        // Durum nadiren değişir; 10 dk önbellek yeterli ve kota dostu.
+        favouriteStatusCache.get(aniListMediaId.toString())?.let { return it }
+
+        val remote = runSyncCatching {
             val response = postAniList(token = token, query = query, variables = variables, context = context)
             JSONObject(response)
                 .optJSONObject("data")
                 ?.optJSONObject("Media")
                 ?.optBoolean("isFavourite", false)
         }.getOrNull()
+
+        if (remote != null) {
+            favouriteStatusCache.put(aniListMediaId.toString(), remote, FAVOURITE_CACHE_TTL_MS)
+        }
+        return remote
     }
 
     /**
@@ -239,6 +306,8 @@ object AniListSyncManager {
 
         return runSyncCatching {
             postAniList(token = token, query = query, variables = variables, context = context)
+            // Toggle başarılı: önbellekteki eski favori durumu artık yanlış.
+            favouriteStatusCache.remove(aniListMediaId.toString())
             true
         }.getOrDefault(false)
     }
@@ -250,8 +319,20 @@ object AniListSyncManager {
     ) {
         val existingEntryId = entry.aniListEntryId?.takeIf { it > 0 }
         val entryId: Int? = if (existingEntryId != null) {
-            resolveAniListMediaIdForEntry(token, existingEntryId, entry, context)
-                ?: error(context.getString(R.string.account_sync_anilist_entry_identity_mismatch, entry.title))
+            // Kimlik doğrulaması başarısız olsa bile silmeyi ENGELLEME: AniList
+            // `DeleteMediaListEntry` çağrısında sahipliği SUNUCUDA doğrular, yani
+            // bize ait olmayan bir kayıt zaten silinemez. Eski kod burada `error(...)`
+            // fırlatıyor ve kullanıcı "listedem çıkaramıyorum" yaşıyordu.
+            val ownerVerified = runCatching {
+                resolveAniListMediaIdForEntry(token, existingEntryId, entry, context)
+            }.getOrNull()
+            if (ownerVerified == null) {
+                android.util.Log.w(
+                    "AniListSync",
+                    "AniList liste kaydı #$existingEntryId doğrulanamadı (${entry.title}); " +
+                        "silme kayıt kimliğiyle deneniyor (sunucu sahipliği doğrular)."
+                )
+            }
             existingEntryId
         } else {
             val mediaId = resolveAniListMediaId(token = token, entry = entry, context = context)
@@ -348,12 +429,17 @@ object AniListSyncManager {
         val mediaId = listEntry.optJSONObject("media")?.optInt("id", 0)?.takeIf { it > 0 }
             ?: return@runSyncCatching null
         if (listEntry.optInt("mediaId", 0) != mediaId) return@runSyncCatching null
-        // Liste kaydının bağlı olduğu medya, çapraz katmanın çözdüğü kimlikle de doğrulanabilir;
-        // yerel zincir başlık/yıl katılıkları yüzünden aynı medyayı bulamayabiliyordu.
+
+        // Sahiplik doğrulaması (kayıt var + bizim hesabımıza ait) yazmak için yeterli kanıttır.
+        // ESKİ DAVRANIŞ BURADA HATALIYDI: `knownAniListMediaId` yoksa yerel zincirle
+        // (`resolveAniListMediaId`: MAL katalog başlığı + yıl katılığı) kimliği yeniden
+        // çözmeye çalışıyor, çözemezse null dönüyordu. Yani başlığı MAL/AniList kataloğundan
+        // biraz farklı yazılmış ya da yılı boş olan HER kayıtta güncelleme/ silme
+        // "kimlik doğrulanamadı" diye iptal ediliyordu. Kayıt kimliği zaten AniList'ten
+        // geliyor ve üstte sahibi doğrulandı: fazladan başlık/yıl katılığı uygulanmaz.
         val expectedMediaId = knownAniListMediaId?.takeIf { it > 0 }
-            ?: resolveAniListMediaId(token, entry, context)
-            ?: return@runSyncCatching null
-        mediaId.takeIf { it == expectedMediaId }
+        if (expectedMediaId != null && expectedMediaId != mediaId) return@runSyncCatching null
+        mediaId
     }.getOrNull()
 
     fun resolveAniListMediaId(
@@ -469,14 +555,18 @@ object AniListSyncManager {
             map[key] = (System.currentTimeMillis() + ttlMs) to value
         }
 
+        fun remove(key: String) { map.remove(key) }
+
         fun clear() = map.clear()
     }
 
     private val identityVerifyCache = TtlCache<Boolean>()
     private val malIdToAniListCache = TtlCache<Int>()
+    private val favouriteStatusCache = TtlCache<Boolean>()
 
     private const val IDENTITY_CACHE_TTL_MS = 30 * 60 * 1000L   // doğrulanan kimlik 30 dk
     private const val IDENTITY_NEGATIVE_TTL_MS = 3 * 60 * 1000L // doğrulanamayan 3 dk (anlık tekrar denemeyi önler)
+    private const val FAVOURITE_CACHE_TTL_MS = 10 * 60 * 1000L  // favori durumu 10 dk
 
     /** Kimlik doğrulamasını önbellekli çalıştırır (aynı medya için tekrar ağa çıkmaz). */
     private fun verifyAniListMediaIdentityCached(
@@ -519,6 +609,7 @@ object AniListSyncManager {
                     idMal
                     type
                     title { romaji english native }
+                    synonyms
                     startDate { year }
                 }
             }
@@ -536,11 +627,41 @@ object AniListSyncManager {
         val expectedAniListId = MediaIdentity.aniListId(entry)
         if (expectedAniListId != null && expectedAniListId != mediaId) return@runSyncCatching false
         val title = media.optJSONObject("title")
-        val remoteTitles = listOf("romaji", "english", "native")
-            .mapNotNull { title?.optString(it)?.takeIf(String::isNotBlank) }
+        // `synonyms` havuza eklendi: AniList'in alternatif adları (İngilizce/Türkçe/özgün
+        // adın farklı yazımları) başlık eşleştirmede kullanılsın. ESKİ DAVRANIŞ yalnızca
+        // romaji/english/native üçlüsüne bakıyordu; yerel başlık farklı dildeyse
+        // (ör. Türkçe/İngilizce ad) aynı yapım "akraba değil" sayılıp yazma atlanıyordu.
+        val remoteTitles = (
+            listOf("romaji", "english", "native").mapNotNull { title?.optString(it)?.takeIf(String::isNotBlank) } +
+                (media.optJSONArray("synonyms")?.let { arr ->
+                    (0 until arr.length()).mapNotNull { idx -> arr.optString(idx).takeIf { it.isNotBlank() } }
+                } ?: emptyList())
+            ).distinct()
         val remoteYear = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }
-        CrossSyncIdentityGuard.titlesAreIdentityEquivalent(expectedTitles, remoteTitles) &&
-            CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear)
+
+        // Güçlü kimlik kanıtı: AniList'in kendi kaydındaki `idMal` yerel MAL kimliğiyle
+        // (ya da AniList kimliğinin kendisi) birebir eşleşiyorsa başlık/yıl katılığı
+        // uygulanmaz. ESKİ DAVRANIŞ: bu kanıt var olsa bile başlık farklı dilde yazıldığı
+        // veya yerel yıl boş olduğu için kayıt REDDEDİLİYORDU → AniList'e yazma hiç
+        // gerçekleşmiyordu. Başlık farkı (romaji/İngilizce/Türkçe) kimlik ayrımı değildir.
+        val strongIdMatched =
+            (expectedMalId != null && media.optInt("idMal", 0) == expectedMalId) ||
+                (expectedAniListId != null && expectedAniListId == mediaId)
+
+        return@runSyncCatching if (strongIdMatched) {
+            // Yalnızca İKİ taraf da yıl biliyor ve bariz farklıysa reddet (aynı MAL kimliği
+            // + farklı yıl = remake/farklı sezon olabilir). Bilinmeyen yıl engel değildir.
+            val localYear = entry.year?.takeIf { it > 0 }
+            val remoteKnownYear = remoteYear?.takeIf { it > 0 }
+            when {
+                localYear == null || remoteKnownYear == null -> true
+                kotlin.math.abs(localYear - remoteKnownYear) <= 1 -> true
+                else -> false
+            }
+        } else {
+            CrossSyncIdentityGuard.titlesAreIdentityEquivalent(expectedTitles, remoteTitles) &&
+                CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear)
+        }
     }.getOrDefault(false)
 
     /**
@@ -579,10 +700,21 @@ object AniListSyncManager {
         val remoteTitles = listOf("romaji", "english", "native")
             .mapNotNull { title?.optString(it)?.takeIf(String::isNotBlank) }
         val remoteYear = media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }
-        if (!CrossSyncIdentityGuard.titlesAreIdentityEquivalent(CrossSyncIdentityGuard.aliasesOf(entry), remoteTitles)) return@runSyncCatching null
-        if (!CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear)) return@runSyncCatching null
+        // MAL kimliği AniList'in KENDİ kaydından (`idMal` alanı) geldiği için başlık/yıl
+        // katılığı yalnızca çelişki durumunda uygulanır: yerel başlık farklı dilde ya da
+        // yılı boş olsa bile kimlik doğrudur (aksi hâlde çapraz eşitleme hiç çalışmıyordu).
         val storedMalId = MediaIdentity.realMalId(entry)
-        malId.takeIf { storedMalId == null || storedMalId == it }
+        val idAgrees = storedMalId == null || storedMalId == malId
+        val titlesAgree = CrossSyncIdentityGuard.titlesAreIdentityEquivalent(
+            CrossSyncIdentityGuard.aliasesOf(entry), remoteTitles
+        )
+        val yearAgrees = CrossSyncIdentityGuard.yearsCompatible(entry.year, remoteYear)
+        when {
+            idAgrees && (titlesAgree || yearAgrees) -> malId
+            idAgrees && entry.year == null -> malId
+            idAgrees && remoteYear == null -> malId
+            else -> null
+        }
     }.getOrNull()
 
     /**

@@ -399,7 +399,7 @@ object ExternalAuthManager {
                     .apply()
                 "https://anilist.co/api/v2/oauth/authorize" +
                         "?client_id=$ANILIST_CLIENT_ID" +
-                        "&redirect_uri=$REDIRECT_URI" +
+                        "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, "UTF-8")}" +
                         "&response_type=code" +
                         "&code_challenge=$codeChallenge" +
                         "&code_challenge_method=S256"
@@ -456,7 +456,7 @@ object ExternalAuthManager {
                         .apply()
                     val authUrl = "https://anilist.co/api/v2/oauth/authorize" +
                             "?client_id=$ANILIST_CLIENT_ID" +
-                            "&redirect_uri=$REDIRECT_URI" +
+                            "&redirect_uri=${URLEncoder.encode(REDIRECT_URI, "UTF-8")}" +
                             "&response_type=code" +
                             "&code_challenge=$codeChallenge" +
                             "&code_challenge_method=S256"
@@ -761,16 +761,17 @@ object ExternalAuthManager {
     ) {
         thread {
             try {
-                val jsonPayload = """
-                    {
-                        "grant_type": "authorization_code",
-                        "client_id": "$ANILIST_CLIENT_ID",
-                        "client_secret": "$ANILIST_CLIENT_SECRET",
-                        "redirect_uri": "$REDIRECT_URI",
-                        "code": "$code",
-                        "code_verifier": "$codeVerifier"
-                    }
-                """.trimIndent()
+                // JSON'u elle dizmek yerine JSONObject: kod/secret içinde tırnak veya
+                // kaçış karakteri olursa gövde bozuluyor ve AniList "invalid_request"
+                // döndürüyordu (gerçek neden hiç görünmüyordu).
+                val jsonPayload = JSONObject()
+                    .put("grant_type", "authorization_code")
+                    .put("client_id", ANILIST_CLIENT_ID)
+                    .put("client_secret", ANILIST_CLIENT_SECRET)
+                    .put("redirect_uri", REDIRECT_URI)
+                    .put("code", code)
+                    .put("code_verifier", codeVerifier)
+                    .toString()
 
                 val request = Request.Builder()
                     .url("https://anilist.co/api/v2/oauth/token")
@@ -797,7 +798,10 @@ object ExternalAuthManager {
                             .remove(KEY_ANILIST_CODE_VERIFIER)
                             .apply()
 
-                        onError(authFailureMessage("anilist", "AniList token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - $errorResponse", httpCode = response.code))
+                        val hint = if (response.code == 400 || response.code == 401) {
+                            " (Kod tek kullanÄ±mlÄ±ktÄ±r: baÄŸlantÄ±yÄ± tekrar baÅŸlatÄ±n.)"
+                        } else ""
+                        onError(authFailureMessage("anilist", "AniList token deÄŸiÅŸimi baÅŸarÄ±sÄ±z: ${response.code} - $errorResponse$hint", httpCode = response.code))
                     }
                 }
             } catch (e: Exception) {

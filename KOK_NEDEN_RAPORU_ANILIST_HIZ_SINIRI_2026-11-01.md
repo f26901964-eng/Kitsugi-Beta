@@ -123,6 +123,56 @@ tek bir hız sınırı fırtınası 5 deneme hakkını **saniyeler içinde** bit
 - Aktarım yarım kaldıysa 24 saatlik "son senkron" damgası **yazılmaz**;
   eksik kalan kayıtlar bir sonraki açılışta tamamlanır.
 
+### 3.7 YAZMA KATMANI: listeye ekleme / güncelleme / çıkarma neden hiç çalışmıyordu?
+
+Hız sınırı düzeltildi ama tek başına yetmezdi — **ikinci, bağımsız bir kök neden** daha var:
+kimlik doğrulama kapıları o kadar katıydı ki çoğu kayıtta yazma hiç gerçekleşmiyordu.
+
+**A) Mevcut kayıt güncellemesinde SONUCU KULLANILMAYAN doğrulama yazmayı bloke ediyordu.**
+`updateAniListEntry`, `aniListEntryId` (AniList liste kaydı kimliği) varsa
+`resolveAniListMediaIdForEntry(...)` çağırıyor ve dönen `mediaId` değerini **hiçbir yerde
+kullanmıyordu** (mutasyon yalnızca `id` ile yapılıyor). Çağrının tek etkisi,
+doğrulama başarısız olduğunda `error("…doğrulanamadı")` fırlatıp **yazmayı iptal etmekti**.
+Doğrulama zinciri (MAL katalog başlığı + yıl katılığı) sık sık takıldığı için kullanıcı
+"puan/bölüm/durum güncellenmiyor" yaşıyordu.
+→ **Düzeltme:** kayıt kimliği zaten AniList'ten gelmiş ve bize ait; sahiplik ucuz bir
+sorguyla doğrulanır, doğrulanamazsa yazma **engellenmez** (AniList sunucuda zaten doğrular).
+
+**B) `resolveAniListMediaIdForEntry` kimliği gereksiz yere yeniden çözüyordu.**
+`knownAniListMediaId` yoksa yerel zincirle (`Media(idMal)` + başlık/yıl katılığı) kimliği
+yeniden çözmeye çalışıyor, çözemezse `null` dönüyordu → A'daki iptal.
+→ **Düzeltme:** kayıt var + `userId` bizim + `mediaId` tutarlı = yeterli kanıt.
+
+**C) `verifyAniListMediaIdentity`: başlık dili ve boş yıl yazmayı öldürüyordu.**
+`idMal` ya da AniList kimliği **birebir eşleştiği hâlde** bir de başlık/yıl katılığı
+uygulanıyordu. Yani:
+- yerel başlık farklı dildeyse (romaji ↔ İngilizce/Türkçe),
+- ya da `entry.year` boşsa (`yearsCompatible` iki tarafın da yılı bilmesini ister)
+
+→ kayıt **reddediliyor**, AniList'e yazma hiç gerçekleşmiyordu.
+→ **Düzeltme:** güçlü kimlik kanıtı (idMal/AniList id birebir eşleşmesi) varsa başlık
+farkı engel değildir; yalnızca iki taraf da yılı biliyor **ve** fark ≥2 yıl ise reddedilir.
+Ayrıca AniList'in `synonyms` (alternatif adlar) alanı başlık havuzuna eklendi.
+
+**D) `CrossSyncIdentityGuard.verifyMalId` (çapraz yazım kapısı):**
+`related && yearOk` şartı, yılın iki tarafta da bilinmesini ve **birebir eşit** olmasını
+istiyordu. Yerel yılı boş olan veya AniList sezon yılı ile MAL başlangıç yılı 1 yıl kayan
+kayıtlar `Unverifiable` dönüyordu → **tüm çapraz yazım atlanıyordu** ("Kimlik doğrulanamadı…").
+→ **Düzeltme:** başlık eşleşiyorsa, yıl bilinmiyorsa ya da ±1 yıl kayıyorsa **Verified**.
+
+**E) `deleteAniListEntry`** aynı `error(...)` desenini kullanıyordu → listeden çıkarma da
+çalışmıyordu. Artık doğrulama başarısız olsa bile silme denenir (AniList sahipliği
+sunucuda doğrular; bize ait olmayan kayıt zaten silinemez).
+
+**F) Favori durumu her düzenlemede ayrı bir istekti** → 10 dk önbelleğe alındı.
+
+**G) OAuth (bağlanma) tarafı:**
+- `redirect_uri` AniList yetkilendirme URL'inde **kodlanmamış** gönderiliyordu (MAL/Simkl
+  yollarında kodlanıyordu). Artık `URLEncoder.encode(...)` ile gönderiliyor.
+- Token takas gövdesi **elle string birleştirmeyle** üretiliyordu; kod/secret içinde özel
+  karakter olursa JSON bozuluyor ve gerçek hata görünmüyordu → artık `JSONObject`.
+- 400/401 yanıtında kullanıcıya net ipucu gösteriliyor.
+
 ---
 
 ## 4. Beklenen etki
