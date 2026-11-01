@@ -49,6 +49,11 @@ docs/IKON_SETI.md                                 -> bu belge
 
 `tools/iconpack/raw/` ve `tools/iconpack/preview/` depoya **girmez** (ara çıktı).
 
+## Önizleme
+
+Tüm setin etiketli görseli: **`docs/ikon-seti-onizleme.png`**
+(`node tools/iconpack/sheet.js` ile yeniden üretilir).
+
 ## Eşleme tablosu (satır → ikon)
 
 | Satır / sekme | Anahtar | Fluent varlığı |
@@ -91,6 +96,40 @@ docs/IKON_SETI.md                                 -> bu belge
 | Yardım satırları | `help` | Red question mark |
 | Not / başlık satırları | `memo` | Memo |
 | Araç / onarım satırları | `wrench` | Wrench |
+
+### Ek eşlemeler (liste/detay ekranları)
+
+Bunlar aynı setin parçası; uygulamanın her yerinde aynı görsel dil kalsın diye eklendi:
+
+| Material ikon | 3B karşılığı |
+|---|---|
+| Favorite / FavoriteBorder | kalp |
+| ContentCopy / ContentPaste | pano |
+| BarChart / DonutLarge / Insights | grafik |
+| CheckCircle / DoneAll | onay |
+| Pause / PauseCircle | duraklat |
+| Lock / Security / VerifiedUser | kilit |
+| Folder / FolderOpen / PhotoLibrary | klasör |
+| Notifications* | zil |
+| CalendarToday / DateRange / Event | takvim |
+| AutoAwesome / NewReleases | parıltı |
+| ThumbUp / Recommend | beğeni |
+| Home / Dashboard | ev |
+| PhoneAndroid / Tablet / Devices | mobil cihaz |
+| LocationOn / Place | konum |
+| FastRewind / Replay10 | geri sar |
+| DarkMode / NightsStay | ay |
+| Sync / Refresh / Repeat / RestartAlt | eşitleme |
+| Edit / Notes / Description / Title | not kalemi |
+| ChatBubble / Comment | altyazı balonu |
+| Error / PriorityHigh | uyarı |
+| CloudDownload | indirme |
+
+**Bilinçli istisna:** geri oku, kapat (×), onay işareti, açılır-kapanır oklar (⌄ ^),
+artı (+), filtre, "dışa aç" gibi **kontrol/gezinme mikro-ikonları** 3B sete dahil
+edilmedi. Bunlar içerik logosu değil, arayüz işareti; 3B render burada gürültü
+yaratıyor. İçerik/logolar tarafında eşleşme oranı **~%90**; kalanlar yalnızca
+tek tük kullanılan özel ikonlar.
 
 ## Eşleme nasıl çalışır?
 
