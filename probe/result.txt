@@ -14,14 +14,14 @@ HTTP 200  bytes=16014
 HTTP 200  bytes=21947
 {"data":[{"date":null,"platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/00/48/247349_wV7R0.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/00/48/247349_wV7R0.jpg","large":"https://lain.bgm.tv/pic/cover/l/00/48/247349_wV7R0.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/00/48/247349_wV7R0.jpg","common":"https://lain.b
 ===== A6 POST search air_date + rating (app UA) =====
-HTTP 200  bytes=49189
+HTTP 200  bytes=49186
 {"data":[{"date":"2021-03-08","platform":"剧场版","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/04/dc/29883_jQ4Hz.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/04/dc/29883_jQ4Hz.jpg","large":"https://lain.bgm.tv/pic/cover/l/04/dc/29883_jQ4Hz.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/04/dc/29883_jQ4Hz.jpg","common":"htt
 ===== A7 POST search tag (app UA) =====
 HTTP 200  bytes=23247
 {"data":[{"date":"2000-10-06","platform":"TV","images":{"small":"https://lain.bgm.tv/r/200/pic/cover/l/7f/16/1960_HVH26.jpg","grid":"https://lain.bgm.tv/r/100/pic/cover/l/7f/16/1960_HVH26.jpg","large":"https://lain.bgm.tv/pic/cover/l/7f/16/1960_HVH26.jpg","medium":"https://lain.bgm.tv/r/800/pic/cover/l/7f/16/1960_HVH26.jpg","common":"https://lain.b
 ===== B1 POST search score (okhttp UA) =====
 HTTP 403  bytes=346
-{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5395a42bcbfd69c-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
+{"title":"Forbidden","details":{"path":"/v0/search/subjects","method":"POST","query_string":"limit=5&offset=0"},"request_id":"a5396fa6bd07f26c-LHR","description":"using HTTP request library's default User-Agent is forbidden, please read the document for User-Agent suggestion https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md"}
 
 ===== C1 GET browse rank (app UA) =====
 HTTP 200  bytes=39538
@@ -107,7 +107,7 @@ HTTP 200
 total: 9 limit: 5 offset: 0
  - 321885 t2 | 链锯人 | score 6.9 rank 3288 votes 19438 | mt TV,日本,漫画改 | platform TV
  - 580872 t2 | 链锯人 总集篇 | score 7.3 rank 1365 votes 1207 | mt 日本,漫画改,战斗 | platform WEB
- - 470660 t2 | 剧场版 链锯人 蕾塞篇 | score 8.3 rank 78 votes 14181 | mt 剧场版,日本,漫画改 | platform 剧场版
+ - 470660 t2 | 剧场版 链锯人 蕾塞篇 | score 8.3 rank 78 votes 14182 | mt 剧场版,日本,漫画改 | platform 剧场版
  - 662130 t2 | 动画【电锯人】手机游戏 OP Movie | score 5.9 rank 0 votes 9 | mt 短片,日本 | platform 其他
  - 616930 t2 | 链锯人 刺客篇 | score 8.3 rank 0 votes 3 | mt TV,日本,奇幻 | platform TV
 ===== H2 match one piece (manga) =====
@@ -143,7 +143,7 @@ total: 1735 limit: 5 offset: 0
  - 3375 t2 | 凉宫春日的消失 | score 8.7 rank 16 votes 24971 | mt 剧场版,剧场版,校园 | platform 剧场版
 ===== I2 manga cat=1001 date =====
 HTTP 200
-total: 306002 limit: 5 offset: 0
+total: 306003 limit: 5 offset: 0
  - 707656 t1 | Coral’s Reef Vol. 2 | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 707671 t1 | Dungeon Crawlers Academy Book 2: The | score 0 rank 0 votes 0 | mt  | platform 漫画
  - 656434 t1 | 諸星大二郎短編集成 第1集 生物都市 | score 0 rank 0 votes 0 | mt  | platform 漫画
