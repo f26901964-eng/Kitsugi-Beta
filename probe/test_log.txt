@@ -1,7 +1,8 @@
 ### :app:testFossDebugUnitTest (TAM SET)
-commit: a7b8734
-date: 2026-11-01T10:59:03Z
-BUILD SUCCESSFUL in 22m 11s
+commit: 977d42f
+date: 2026-11-01T11:45:10Z
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
+BUILD SUCCESSFUL in 23m 54s
 exit=0
 ----- test özeti -----
 ----- başarısız test dosyaları -----
