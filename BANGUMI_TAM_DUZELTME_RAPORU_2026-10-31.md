@@ -69,7 +69,7 @@ matrisi beklenen sonuçları veriyor (bkz. §5).
 | Keşfet → "Yeni Eklenen Mangalar" hep boş | R5: Bangumi şeridi hiç yoktu | `newlyAddedManga()` + `ExplorePayload` bağlantısı |
 | Keşfet → "Noveller & Light Novel" hep boş | R10: Bangumi roman kataloğu (cat=1002) hiç sorgulanmıyordu | `novels()` şeridi + `ExplorePayload.novels` |
 | "Tümünü Gör" → **Spor / Gerilim / Askeri / Doğaüstü / Psikolojik** çiplerinde 0–8 sonuç | R11: sözlüğün ilk yazımı sunucuda boş (`运动系` 8, `悬疑惊悚` **0**, `军事` 63, `心理` 34) | `PREFERRED_TAGS`: `运动` (516), `惊悚` (114), `战争` (445), `灵异` (65) |
-| Etiketli ızgaranın tepesinde 1–20 oylu niş yapıtlar | R12: `sort=rank` "sıralamaya girmemiş" kayıtların `rank = 0` değerini **başa** alıyor | Boş sorgu + `sort=rank` → `rank >= 1` süzgeci |
+| Etiketli ızgaranın tepesinde 1–20 oylu niş yapıtlar | R12: `sort=rank`/`match` "sıralamaya girmemiş" kayıtların `rank = 0` değerini **başa** alıyor | Boş sorguda (`rank`/`match`) → `rank >= 1` süzgeci |
 | "En Yüksek Puanlı Mangalar"da roman/画集 ve cilt kayıtları; manga aramasında ilk sayfa tamamen roman | R13: `type=1` tüm书籍 kataloğu; `cat`/`series` süzgeci yok, `platform` sunucuda süzülemiyor | `cat=1001` + `series=true`; arama/puan sıralamasında `meta_tags=["漫画"]` |
 | Arama → Bangumi'de "Diziler"/"Filmler" sekmesi hiç yok | R14: `availableScopes()` Bangumi için TV/MOVIE içermiyordu; kapsam→tür eşlemesi de yoktu | Sekmeler eklendi; TV/MOVIE → `type=6`, manga kapsamları → `type=1` |
 | "Tümünü Gör" → Bangumi Dizileri/Filmleri ızgarası karışık (dizi rafında film) | R15: sayfalama `meta_tags` göndermiyordu, `type=6` ikisini birlikte döndürüyor | `meta_tags=电视剧 / 电影` |
@@ -270,6 +270,28 @@ doğruladı; hepsi 3/3 sonuç verdi ve sıra `rank` artan:
 `series=true + sort=date` yeni serileri getiriyor (beklenen).
 **P5** `type=1&tag=恋爱&sort=match` ilk 5 sonucunun **tamamı `platform=小说`** —
 istemci tarafı süzgeç sayfayı boşaltıp sayfalamayı durduruyordu.
+
+**S/T — son doğrulama yuvarlağı (28 tür çipi + kalan sözleşmeler):**
+Uygulamanın tür çiplerinin **tamamı** (19 tür + 9 popüler etiket) sözlükten geçirilip
+canlı API'de tek tek sorgulandı; hepsi 200 döndü ve **hiçbiri 0 değil**:
+`剧情` 695 · `战斗` 1000 · `恋爱` 1000 · `搞笑` 1000 · `奇幻` 1000 · `科幻` 1000 ·
+`悬疑` 653 · `恐怖` 185 · `日常` 1000 · `冒险` 1000 · `灵异` 65 · `心理` 34 ·
+`运动` 516 · `惊悚` 114 · `机战` 1000 · `音乐` 626 · `历史` 418 · `战争` 445 ·
+`校园` 1000 · `异世界` 805 · `魔法` 360 · `超能力` 250 · `生存` 19 · `赛博朋克` 62 ·
+`武侠` 234 · `宇宙` 38 · `末世` 95 · `吸血鬼` 103.
+
+Aynı blok `rank >= 1` **olmadan** çağrıldığında listenin tepesi her seferinde
+**rank 0 / 3–50 oy** kayıtlarıyla doluyordu (ör. `剧情`: 哥普拉 六人勇士, 45 oy, rank 0).
+Bu, R12'nin (ızgara kirliliği) doğrudan kanıtıdır ve `rank >= 1` süzgecinin neden
+zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek sıralamayı verdi.
+
+| Kalan sözleşme | Sonuç |
+|---|---|
+| `T1` manga puan sıralaması (`type=1`, `rank>=1`, `rating_count>=100`, `meta_tags=漫画`) | 725; 灌篮高手 完全版 (1), 剑风传奇 (3), 火之鸟 (5) |
+| `T2` roman rafı (`type=1&cat=1002&sort=rank`) | **3306**; 卡拉马佐夫兄弟 (6), 罪与罚 (8), 三体Ⅱ (10) |
+| `T3` `type=6` göz atma, `cat` **yok** (`sort=rank`) | **3639**; 是，大臣 (1), 三国演义 (4) |
+| `T4` `type=6&cat=6001` (eski yol) | yalnız **51** → neden `meta_tags` kullanıldığı doğrulandı |
+| `T5` `type=6` + `keyword="reply 1988"` | 请回答1988 (rank 53) ilk sırada |
 
 **Q — sunucu tarafı `meta_tags` süzgeci:**
 
