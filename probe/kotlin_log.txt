@@ -1,7 +1,7 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: 1474f77
-date: 2026-11-01T09:47:55Z
-BUILD SUCCESSFUL in 6m 21s
+commit: 3dd89ae
+date: 2026-11-01T10:02:53Z
+BUILD SUCCESSFUL in 4m 15s
 exit=0
 ----- test özeti -----
 ----- son 600 satır -----
@@ -200,9 +200,9 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kits
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:193:69 'val Icons.Rounded.PlaylistAddCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAddCheck.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:193:105 'val Icons.Rounded.PlaylistPlay: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistPlay.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:212:61 'val Icons.Rounded.ViewList: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewList.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:886:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1090:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1305:43 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:900:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1104:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1319:43 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2358:112 'static field SHOW_FORCED: Int' is deprecated. Deprecated in Java.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2369:44 'fun toggleSoftInput(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2369:104 'static field SHOW_FORCED: Int' is deprecated. Deprecated in Java.
@@ -235,7 +235,7 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kits
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/AniListStatsTab.kt:131:32 'val Icons.Rounded.Label: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Label.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/DetailedProfileStatsOverview.kt:275:81 'val Icons.Rounded.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.MenuBook.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/profile/tabs/UserProfileStatsTab.kt:129:32 'val Icons.Rounded.Label: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Label.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchScreen.kt:1124:34 'fun Modifier.focusRestorer(onRestoreFailed: (() -> FocusRequester)?): Modifier' is deprecated. Use focusRestorer(FocusRequester) instead.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchScreen.kt:1145:34 'fun Modifier.focusRestorer(onRestoreFailed: (() -> FocusRequester)?): Modifier' is deprecated. Use focusRestorer(FocusRequester) instead.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1108:13 Duplicate branch condition in 'when'.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt:1109:13 Duplicate branch condition in 'when'.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/search/components/AddonExploreDialog.kt:478:32 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
@@ -321,8 +321,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kits
 > Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
 > Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
 > Task :app:testFossDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793526098241.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793527121439.json
 
-BUILD SUCCESSFUL in 6m 21s
+BUILD SUCCESSFUL in 4m 15s
 72 actionable tasks: 30 executed, 42 from cache
 exit=0
