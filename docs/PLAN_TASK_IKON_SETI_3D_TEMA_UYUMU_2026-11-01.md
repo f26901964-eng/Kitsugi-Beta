@@ -213,3 +213,14 @@ Tema uyumu değişmedi: tüm renk tek rampadan gelir, `hueRotationMatrix(accentH
 303.7°)` ile döner; gradyan vurguda iki rengin ortalaması alınır; doygunluk
 < 0.12 ise doğal palet; `iconsFollowAccent = false` ile kapatılabilir. Krom ve
 obsidyen parçalar doygunluğu düşük olduğu için her vurgu renginde nötr kalır.
+
+### 5h. İkon ikon parçalı kurulum (v9)
+
+v8'de kalan fark: orijinal render'larda nesne parçalardan oluşuyor (kasa = gövde +
+kapak + kadran; mikrofon = gövde + ızgara + krom çember + ayak). v9'da 20 glif
+parçalara ayrıldı; her parça kendi malzemesi ve kendi gölgesiyle render ediliyor
+(`shadowOffset [-0.16, 0.20]`, alfa 0.34, blur 3.0). Böylece üstteki parça
+alttakine gerçek gölge düşürüyor — katmanlı, gerçek nesne görüntüsü.
+
+Parça tablosu: `docs/IKON_KONTROL_GLIFLERI.md` § Parçalı kurulum.
+Krom aksan 8 ikonda (kameralar, kadran, tepsi, perçin, düğme, kasnak).

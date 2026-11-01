@@ -264,3 +264,32 @@ Glif başına renk yerleşimi de farklı: her ad için `phase` (0–0.34) ve `sp
 malzemeler: `tools/iconpack/sdf3d.js` (`MATERIALS`), stil tablosu:
 `tools/iconpack/style_report.js` → `docs/ikon-malzeme-haritasi.md`,
 `docs/ikon-stil-haritasi.png`.
+
+### Parçalı kurulum (v9 — ikon ikon elden geçirme)
+
+Her glif tek levha değil; işlevine göre gerçek parçalara ayrıldı. Her parça kendi
+malzemesi, kendi kalınlığı ve **altındaki yüzeye düşen kendi gölgesi** ile render
+ediliyor (`render_glyph.js` → `shadowOffset [-0.16, 0.20]`, alfa 0.34).
+
+| Glif | Gövde | Üstüne oturan parçalar |
+|------|-------|------------------------|
+| ev | kil gövde | kaldırılmış çatı mahyası (kil) + obsidyen kapı |
+| kek | kil sünger | krom tabak + jöle krema bandı + 3 emaye mum |
+| kamera | emaye gövde | obsidyen mercek + krom mercek çerçevesi + krom flaş + obsidyen vizör |
+| ızgara | obsidyen taban plakası | 4 kil karo (her biri ayrı renk fazında) |
+| göz | cam gövde | obsidyen bebek + krom iris halkası |
+| huni | cam huni | jöle sıvı + oyma ızgara çizgileri |
+| tutamak | kauçuk çubuklar | 4 krom pim |
+| yaprak | jöle yaprak | kil sap |
+| girdi | emaye gövde | oyma yuva + krom düğme |
+| kar tanesi | cam taneler | krom merkez |
+| karusel | emaye orta kart | 2 yan kart |
+| klavye | kauçuk gövde | 4 + 1 emaye tuş |
+| TV | kauçuk gövde | obsidyen ekran + krom ayak |
+| zamanlayıcı | kil gövde | krom tepe düğmesi + krom kasnak |
+| kaydırıcılar | emaye raylar | 3 krom düğme |
+| indir | jöle ok | krom tepsi |
+| yükle | kâğıt ok | emaye tepsi |
+| etiket | kâğıt etiket | krom perçin |
+| yedek | jöle bulut | emaye ok |
+| dışa aç | obsidyen çerçeve | emaye ok (ayrı katman) |

@@ -24,7 +24,7 @@ const ALPHA_FLOOR = 26;
 const OBJECTS = {
   // iki yay + oklar: eşitleme / yenileme
   sync: {
-    // dairesel ok: açık yay + ok başı (yenile / eşitle) — parlak emaye
+    // dairesel ok: açık yay + ok başı (tek parça emaye)
     d: 'M18.6 12.4 A6.2 6.2 0 1 1 12.4 6.2 M12.4 6.2 L15.9 3.6 M12.4 6.2 L15.6 9.2',
     w: 2.3, mat: 'gloss',
   },
@@ -42,13 +42,15 @@ const OBJECTS = {
   },
   // tepsiye inen ok
   download: {
-    d: 'M12 3.9 V14.3 M7.5 10.2 L12 14.7 L16.5 10.2 M4.4 18.6 H19.6',
+    d: 'M12 3.9 V14.3 M7.5 10.2 L12 14.7 L16.5 10.2',
     w: 2.9, depth: 11, mat: 'gel',
+    parts: [{ d: 'M4.4 18.6 H19.6', w: 2.6, mat: 'chrome', halfT: 0.7, radius: 0.3 }],
   },
   // tepsiye çıkan ok
   upload: {
-    d: 'M12 15.1 V4.6 M7.5 9 L12 4.5 L16.5 9 M4.4 18.6 H19.6',
+    d: 'M12 15.1 V4.6 M7.5 9 L12 4.5 L16.5 9',
     w: 2.9, depth: 11, mat: 'paper',
+    parts: [{ d: 'M4.4 18.6 H19.6', w: 2.6, mat: 'gloss', halfT: 0.8, radius: 0.35 }],
   },
   // kronometre: gövde + tepe düğmesi + ibre
   timer: {
@@ -85,9 +87,9 @@ const OBJECTS = {
   },
   // bulut yedeği: bulut + ok
   backup: {
-    d: 'M7.4 17.6 A3.9 3.9 0 0 1 7.6 9.9 A5.2 5.2 0 0 1 17.4 10.7 A3.6 3.6 0 0 1 17.2 17.6 Z ' +
-       'M12 15.6 V11.2 M9.9 13.3 L12 11.2 L14.1 13.3',
+    d: 'M7.4 17.6 A3.9 3.9 0 0 1 7.6 9.9 A5.2 5.2 0 0 1 17.4 10.7 A3.6 3.6 0 0 1 17.2 17.6 Z',
     w: 2.3, depth: 11, mat: 'gel',
+    parts: [{ d: 'M12 15.4 V11.4 M10.1 13.3 L12 11.4 L13.9 13.3', w: 2.0, mat: 'gloss', halfT: 0.6, radius: 0.28, phase: 0.3 }],
   },
 };
 

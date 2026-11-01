@@ -261,6 +261,12 @@ async function render(alpha, size, opts = {}) {
   const phase = opts.phase ?? 0;
   const span = opts.span ?? 1;
   const withShadow = opts.shadow !== false;
+  // parçalar için kendi (daha dar, daha yumuşak) gölgesi — üstteki parça alttakine
+  // gölge düşürsün, böylece katmanlı gerçek nesne görüntüsü oluşsun
+  const shOffX = opts.shadowOffset ? opts.shadowOffset[0] : 0.34;
+  const shOffY = opts.shadowOffset ? opts.shadowOffset[1] : 0.46;
+  const shAlpha = opts.shadowAlpha ?? 0.30;
+  const shBlur = opts.shadowBlur ?? 2.4;
   let halfT = opts.halfT ?? mat.halfT;
   let radius = opts.radius ?? mat.radius;
   radius = Math.min(radius, halfT * 0.98);
@@ -290,11 +296,10 @@ async function render(alpha, size, opts = {}) {
       const s2 = sampleXY(x, y);
 
       // temas gölgesi (ışık yönünün tersine kaydırılmış silüet)
-      const shOff = mat.sheet ? 0.44 : 0.34;
-      const sShadow = sampleXY(x + shOff, y - (mat.sheet ? 0.58 : 0.46));
+      const sShadow = sampleXY(x + shOffX, y - shOffY);
       const kS = (j * out + i) * 4;
       if (withShadow && sShadow < 0.9) {
-        const aS = Math.min(1, Math.max(0, (0.9 - sShadow) / 1.9)) * (mat.sheet ? 0.24 : 0.30);
+        const aS = Math.min(1, Math.max(0, (0.9 - sShadow) / 1.9)) * shAlpha;
         shadow[kS] = 46; shadow[kS + 1] = 11; shadow[kS + 2] = 62;
         shadow[kS + 3] = Math.round(aS * 255);
       }
@@ -434,7 +439,7 @@ async function render(alpha, size, opts = {}) {
 
   const obj = await sharp(col, { raw: { width: out, height: out, channels: 4 } }).png().toBuffer();
   const shp = await sharp(shadow, { raw: { width: out, height: out, channels: 4 } })
-    .blur(mat.sheet ? 2.0 : 2.4).png().toBuffer();
+    .blur(shBlur).png().toBuffer();
 
   return sharp({ create: { width: out, height: out, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite([{ input: shp, top: 0, left: 0 }, { input: obj, top: 0, left: 0 }])

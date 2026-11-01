@@ -70,7 +70,12 @@ async function renderGlyph(spec, o = {}) {
       phase: part.phase ?? spec.phase,
       span: part.span ?? spec.span,
       bbox,          // renk rampası gövdeyle aynı yerde kalsın
-      shadow: false, // gövdenin gölgesi yeterli
+      // her parça altındaki yüzeye kendi yumuşak gölgesini düşürür →
+      // katmanlı, gerçek nesne görüntüsü
+      shadow: part.shadow !== false,
+      shadowOffset: [-0.16, 0.20],
+      shadowAlpha: part.shadowAlpha ?? 0.34,
+      shadowBlur: 3.0,
     });
     img = await sharp(img).composite([{ input: pImg, top: 0, left: 0 }]).png().toBuffer();
   }
