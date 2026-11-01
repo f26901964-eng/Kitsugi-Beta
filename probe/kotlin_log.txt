@@ -1,8 +1,7 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: 9085566
-date: 2026-11-01T08:37:02Z
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-BUILD SUCCESSFUL in 6m 23s
+commit: 3895be9
+date: 2026-11-01T09:08:41Z
+BUILD SUCCESSFUL in 4m 28s
 exit=0
 ----- test özeti -----
 ----- son 600 satır -----
@@ -87,8 +86,6 @@ Please remove 'kotlin.incremental.useClasspathSnapshot=false' from 'gradle.prope
 > Task :bangumi-vault-resources-3:bundleLibCompileToJarDebug
 
 > Task :app:kspFossDebugKotlin
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-    1. Kotlin compile daemon is ready
 w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
 
 > Task :app:compileFossDebugKotlin
@@ -324,8 +321,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kits
 > Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
 > Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
 > Task :app:testFossDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793521843069.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793523855623.json
 
-BUILD SUCCESSFUL in 6m 23s
+BUILD SUCCESSFUL in 4m 28s
 72 actionable tasks: 30 executed, 42 from cache
 exit=0
