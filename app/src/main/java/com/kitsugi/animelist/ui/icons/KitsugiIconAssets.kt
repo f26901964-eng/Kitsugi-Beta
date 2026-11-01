@@ -53,6 +53,11 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
  *   hepsi aynı optik kutuya normalize edilmiştir (tools/iconpack/normalize.js).
  * - Bir varlık birden fazla mantıksal anahtar tarafından paylaşılabilir
  *   (ör. `wifi` hem Ağ hem Eşitleme; `clock` hem Geçmiş hem Zamanlayıcı).
+ * - **Kontrol glifleri:** 3dicons paketinde kapat / geri / chevron / filtre / sırala /
+ *   görünüm modu / tam ekran / kırpma / metin biçimi işaretleri yoktu. Bunlar aynı
+ *   cam-gradyan diliyle `tools/iconpack/control_glyphs.js` tarafından üretildi
+ *   (`ic_kitsugi_glyph_*.png`, 128×128). Böylece set **tam**: uygulamada tek renkli
+ *   Material vektörüne düşen tek bir ikon çağrısı bile kalmadı (denetim: 1533/1533).
  * - [fromVector] Material ikon adından otomatik eşleme yapar; böylece 150+ çağrı
  *   yerini tek tek değiştirmek gerekmez. Yanlış eşleşme riski olan yerlerde
  *   `art = KitsugiArt.X` ile açıkça belirtilir.
@@ -229,7 +234,61 @@ enum class KitsugiArt(
     NavList(R.drawable.ic_kitsugi_bookmark, listOf("ListAlt", "Bookmark", "BookmarkBorder", "Bookmarks", "CollectionsBookmark", "FormatListBulleted")),
     NavSearch(R.drawable.ic_kitsugi_zoom, listOf("Search", "ManageSearch", "SearchOff", "ZoomIn", "ZoomOut")),
     NavProfile(R.drawable.ic_kitsugi_boy, listOf("Person", "Person2", "PersonOutline", "Group", "Groups", "People")),
-    NavSettings(R.drawable.ic_kitsugi_setting, listOf("Settings", "Build"));
+    NavSettings(R.drawable.ic_kitsugi_setting, listOf("Settings", "Build")),
+
+
+    // ── Kontrol glifleri (3dicons'ta yok; setin diliyle üretildi) ────────
+    // Kaynak şekiller: tools/iconpack/control_glyphs.js — aynı cam/gradyan dili,
+    // aynı ışık ve gölge kuralları. Böylece kapat / geri / filtre / sırala gibi
+    // mikro kontroller de 3B setin parçası olur (tek renkli glif kalmaz).
+    CtlClose(R.drawable.ic_kitsugi_glyph_close),
+    CtlMinus(R.drawable.ic_kitsugi_glyph_minus),
+    CtlChevronUp(R.drawable.ic_kitsugi_glyph_chevron_up),
+    CtlChevronDown(R.drawable.ic_kitsugi_glyph_chevron_down),
+    CtlChevronLeft(R.drawable.ic_kitsugi_glyph_chevron_left),
+    CtlChevronRight(R.drawable.ic_kitsugi_glyph_chevron_right),
+    CtlArrowUp(R.drawable.ic_kitsugi_glyph_arrow_up),
+    CtlArrowDown(R.drawable.ic_kitsugi_glyph_arrow_down),
+    CtlArrowLeft(R.drawable.ic_kitsugi_glyph_arrow_left),
+    CtlArrowRight(R.drawable.ic_kitsugi_glyph_arrow_right),
+    CtlEye(R.drawable.ic_kitsugi_glyph_eye),
+    CtlEyeOff(R.drawable.ic_kitsugi_glyph_eyeOff),
+    CtlFunnel(R.drawable.ic_kitsugi_glyph_funnel),
+    CtlSort(R.drawable.ic_kitsugi_glyph_sort),
+    CtlGrid(R.drawable.ic_kitsugi_glyph_grid),
+    CtlList(R.drawable.ic_kitsugi_glyph_list),
+    CtlStream(R.drawable.ic_kitsugi_glyph_stream),
+    CtlCarousel(R.drawable.ic_kitsugi_glyph_carousel),
+    CtlMore(R.drawable.ic_kitsugi_glyph_more),
+    CtlExternal(R.drawable.ic_kitsugi_glyph_external),
+    CtlFullscreen(R.drawable.ic_kitsugi_glyph_fullscreen),
+    CtlCrop(R.drawable.ic_kitsugi_glyph_crop),
+    CtlRotate(R.drawable.ic_kitsugi_glyph_rotate),
+    CtlAspect(R.drawable.ic_kitsugi_glyph_aspect),
+    CtlBlur(R.drawable.ic_kitsugi_glyph_blur),
+    CtlAlignLeft(R.drawable.ic_kitsugi_glyph_alignLeft),
+    CtlAlignCenter(R.drawable.ic_kitsugi_glyph_alignCenter),
+    CtlAlignJustify(R.drawable.ic_kitsugi_glyph_alignJustify),
+    CtlBorder(R.drawable.ic_kitsugi_glyph_border),
+    CtlSelectAll(R.drawable.ic_kitsugi_glyph_selectAll),
+    CtlDrag(R.drawable.ic_kitsugi_glyph_drag),
+    CtlDensity(R.drawable.ic_kitsugi_glyph_density),
+    CtlKeyboard(R.drawable.ic_kitsugi_glyph_keyboard),
+    CtlInput(R.drawable.ic_kitsugi_glyph_input),
+    CtlDoubleArrow(R.drawable.ic_kitsugi_glyph_doubleArrow),
+    CtlHome(R.drawable.ic_kitsugi_glyph_home),
+    CtlLeaf(R.drawable.ic_kitsugi_glyph_leaf),
+    CtlSnow(R.drawable.ic_kitsugi_glyph_snow),
+    CtlCake(R.drawable.ic_kitsugi_glyph_cake),
+    CtlCamera(R.drawable.ic_kitsugi_glyph_camera),
+    CtlTextBold(R.drawable.ic_kitsugi_glyph_textBold),
+    CtlTextItalic(R.drawable.ic_kitsugi_glyph_textItalic),
+    CtlTextTitle(R.drawable.ic_kitsugi_glyph_textTitle),
+    CtlTextHash(R.drawable.ic_kitsugi_glyph_textHash),
+    CtlTextStrike(R.drawable.ic_kitsugi_glyph_textStrike),
+    CtlTextQuote(R.drawable.ic_kitsugi_glyph_textQuote),
+    Plus(R.drawable.ic_kitsugi_plus),
+    ThumbDown(R.drawable.ic_kitsugi_thumb_down);
 
     companion object {
         /**
@@ -282,6 +341,65 @@ enum class KitsugiArt(
             )
         }
 
+        /**
+         * **Kontrol glifleri eşlemesi** — kapat, geri, filtre, sırala, görünüm modu,
+         * tam ekran, kırpma, metin biçimi gibi mikro kontroller. Üçüncü turda eklendi:
+         * bu adlar daha önce tek renkli Material vektörüne düşüyordu.
+         */
+        private val CONTROL_ALIASES: Map<String, KitsugiArt> by lazy {
+            mapOf(
+                "Close" to KitsugiArt.CtlClose, "Clear" to KitsugiArt.CtlClose, "Cancel" to KitsugiArt.CtlClose, "ClearAll" to KitsugiArt.CtlClose, "CloseFullscreen" to KitsugiArt.CtlClose,
+                "Check" to KitsugiArt.CheckCircle, "Done" to KitsugiArt.CheckCircle, "CheckSmall" to KitsugiArt.CheckCircle, "CheckRounded" to KitsugiArt.CheckCircle, "CheckCircleFilled" to KitsugiArt.CheckCircle,
+                "Remove" to KitsugiArt.CtlMinus, "RemoveCircleOutline" to KitsugiArt.CtlMinus, "IndeterminateCheckBox" to KitsugiArt.CtlMinus, "Minus" to KitsugiArt.CtlMinus,
+                "KeyboardArrowUp" to KitsugiArt.CtlChevronUp, "ExpandLess" to KitsugiArt.CtlChevronUp, "ArrowDropUp" to KitsugiArt.CtlChevronUp, "UnfoldLess" to KitsugiArt.CtlChevronUp, 
+                "KeyboardArrowDown" to KitsugiArt.CtlChevronDown, "ExpandMore" to KitsugiArt.CtlChevronDown, "ArrowDropDown" to KitsugiArt.CtlChevronDown, "UnfoldMore" to KitsugiArt.CtlChevronDown,
+                "KeyboardArrowRight" to KitsugiArt.CtlChevronRight, "ChevronRight" to KitsugiArt.CtlChevronRight, "NavigateNext" to KitsugiArt.CtlChevronRight,
+                "KeyboardArrowLeft" to KitsugiArt.CtlChevronLeft, "ChevronLeft" to KitsugiArt.CtlChevronLeft, "NavigateBefore" to KitsugiArt.CtlChevronLeft,
+                "ArrowBack" to KitsugiArt.CtlArrowLeft, "ArrowBackIos" to KitsugiArt.CtlArrowLeft, "ArrowBackIosNew" to KitsugiArt.CtlArrowLeft, "West" to KitsugiArt.CtlArrowLeft, "KeyboardBackspace" to KitsugiArt.CtlArrowLeft, "ArrowBackIosNewRounded" to KitsugiArt.CtlArrowLeft,
+                "ArrowForward" to KitsugiArt.CtlArrowRight, "ArrowForwardIos" to KitsugiArt.CtlArrowRight, "East" to KitsugiArt.CtlArrowRight, "ArrowForwardIosRounded" to KitsugiArt.CtlArrowRight,
+                "ArrowUpward" to KitsugiArt.CtlArrowUp, "North" to KitsugiArt.CtlArrowUp, "ArrowCircleUp" to KitsugiArt.CtlArrowUp, "ArrowCircleDown" to KitsugiArt.CtlArrowDown,
+                "ArrowDownward" to KitsugiArt.CtlArrowDown, "South" to KitsugiArt.CtlArrowDown,
+                "OpenInNew" to KitsugiArt.CtlExternal, "OpenInNewOff" to KitsugiArt.CtlExternal, "OpenInBrowser" to KitsugiArt.CtlExternal, "Launch" to KitsugiArt.CtlExternal, "ExitToApp" to KitsugiArt.CtlExternal,
+                "Visibility" to KitsugiArt.CtlEye, "RemoveRedEye" to KitsugiArt.CtlEye, "Preview" to KitsugiArt.CtlEye, "VisibilityRounded" to KitsugiArt.CtlEye,
+                "VisibilityOff" to KitsugiArt.CtlEyeOff, "HideImage" to KitsugiArt.CtlEyeOff,
+                "FilterList" to KitsugiArt.CtlFunnel, "FilterAlt" to KitsugiArt.CtlFunnel, "FilterAltOff" to KitsugiArt.CtlFunnel, "FilterListOff" to KitsugiArt.CtlFunnel, "FilterListAlt" to KitsugiArt.CtlFunnel, "Filter" to KitsugiArt.CtlFunnel,
+                "Sort" to KitsugiArt.CtlSort, "SortByAlpha" to KitsugiArt.CtlSort, "SwapVert" to KitsugiArt.CtlSort, "LowPriority" to KitsugiArt.CtlSort, "ImportExport" to KitsugiArt.CtlSort,
+                "GridView" to KitsugiArt.CtlGrid, "ViewModule" to KitsugiArt.CtlGrid, "ViewQuilt" to KitsugiArt.CtlGrid, "ViewWeek" to KitsugiArt.CtlGrid, "ViewComfy" to KitsugiArt.CtlGrid,
+                "ViewList" to KitsugiArt.CtlList, "ViewAgenda" to KitsugiArt.CtlList, "Toc" to KitsugiArt.CtlList, "FormatListBulleted" to KitsugiArt.CtlList,
+                "ViewStream" to KitsugiArt.CtlStream,
+                "ViewCarousel" to KitsugiArt.CtlCarousel,
+                "MoreVert" to KitsugiArt.CtlMore, "MoreHoriz" to KitsugiArt.CtlMore,
+                "Fullscreen" to KitsugiArt.CtlFullscreen, "FullscreenExit" to KitsugiArt.CtlFullscreen, "FitScreen" to KitsugiArt.CtlFullscreen, "SettingsOverscan" to KitsugiArt.CtlFullscreen,
+                "Crop" to KitsugiArt.CtlCrop, "CropFree" to KitsugiArt.CtlCrop, "CropSquare" to KitsugiArt.CtlCrop, "CropOriginal" to KitsugiArt.CtlCrop, "CenterFocusWeak" to KitsugiArt.CtlCrop, "FilterCenterFocus" to KitsugiArt.CtlCrop, "CenterFocusStrong" to KitsugiArt.CtlCrop,
+                "ScreenRotation" to KitsugiArt.CtlRotate, "Rotate90DegreesCcw" to KitsugiArt.CtlRotate, "RotateLeft" to KitsugiArt.CtlRotate, "RotateRight" to KitsugiArt.CtlRotate, "Flip" to KitsugiArt.CtlRotate,
+                "AspectRatio" to KitsugiArt.CtlAspect,
+                "BlurOn" to KitsugiArt.CtlBlur, "BlurLinear" to KitsugiArt.CtlBlur,
+                "FormatAlignLeft" to KitsugiArt.CtlAlignLeft, "FormatIndentDecrease" to KitsugiArt.CtlAlignLeft,
+                "FormatAlignCenter" to KitsugiArt.CtlAlignCenter,
+                "FormatAlignJustify" to KitsugiArt.CtlAlignJustify, "FormatAlignRight" to KitsugiArt.CtlAlignJustify, "FormatIndentIncrease" to KitsugiArt.CtlAlignJustify,
+                "BorderOuter" to KitsugiArt.CtlBorder, "BorderColor" to KitsugiArt.CtlBorder, "BorderAll" to KitsugiArt.CtlBorder, "BorderStyle" to KitsugiArt.CtlBorder,
+                "SelectAll" to KitsugiArt.CtlSelectAll,
+                "DragHandle" to KitsugiArt.CtlDrag, "DragIndicator" to KitsugiArt.CtlDrag, "Reorder" to KitsugiArt.CtlDrag,
+                "DensityMedium" to KitsugiArt.CtlDensity, "DensitySmall" to KitsugiArt.CtlDensity, "DensityLarge" to KitsugiArt.CtlDensity, "LineWeight" to KitsugiArt.CtlDensity,
+                "Keyboard" to KitsugiArt.CtlKeyboard, "KeyboardAlt" to KitsugiArt.CtlKeyboard, "KeyboardReturn" to KitsugiArt.CtlKeyboard,
+                "SettingsInputComponent" to KitsugiArt.CtlInput, "SettingsInputHdmi" to KitsugiArt.CtlInput, "Cable" to KitsugiArt.CtlInput,
+                "DoubleArrow" to KitsugiArt.CtlDoubleArrow, "Height" to KitsugiArt.CtlDoubleArrow, "Width" to KitsugiArt.CtlDoubleArrow,
+                "Home" to KitsugiArt.CtlHome, "HomeFilled" to KitsugiArt.CtlHome, "Cottage" to KitsugiArt.CtlHome,
+                "LocalFlorist" to KitsugiArt.CtlLeaf, "Forest" to KitsugiArt.CtlLeaf, "Eco" to KitsugiArt.CtlLeaf, "Spa" to KitsugiArt.CtlLeaf,
+                "AcUnit" to KitsugiArt.CtlSnow, "SevereCold" to KitsugiArt.CtlSnow,
+                "Cake" to KitsugiArt.CtlCake, "CakeVariant" to KitsugiArt.CtlCake,
+                "CameraAlt" to KitsugiArt.CtlCamera, "ControlCamera" to KitsugiArt.CtlCamera, "PhotoCameraFront" to KitsugiArt.CtlCamera, "PhotoCamera" to KitsugiArt.CtlCamera,
+                "FormatBold" to KitsugiArt.CtlTextBold,
+                "FormatItalic" to KitsugiArt.CtlTextItalic,
+                "Title" to KitsugiArt.CtlTextTitle, "FormatSize" to KitsugiArt.CtlTextTitle, "FormatColorText" to KitsugiArt.CtlTextTitle, "TextFields" to KitsugiArt.CtlTextTitle,
+                "Numbers" to KitsugiArt.CtlTextHash, "FormatShapes" to KitsugiArt.CtlTextHash,
+                "FormatStrikethrough" to KitsugiArt.CtlTextStrike, "FormatClear" to KitsugiArt.CtlTextStrike, "FormatColorReset" to KitsugiArt.CtlTextStrike, "FormatColorFill" to KitsugiArt.Palette, "FormatPaint" to KitsugiArt.Palette,
+                "FormatQuote" to KitsugiArt.CtlTextQuote,
+                "Add" to KitsugiArt.Plus, "AddCircle" to KitsugiArt.Plus, "AddCircleOutline" to KitsugiArt.Plus, "AddRounded" to KitsugiArt.Plus, "LibraryAdd" to KitsugiArt.Plus, "CreateNewFolder" to KitsugiArt.Plus, "NoteAdd" to KitsugiArt.Plus,
+                "ThumbDown" to KitsugiArt.ThumbDown, "ThumbDownAlt" to KitsugiArt.ThumbDown, "ThumbDownOffAlt" to KitsugiArt.ThumbDown,
+            )
+        }
+
         /** Material ikon adı -> 3B ikon. Ad "Rounded.PlayCircle" ise son parça kullanılır. */
         private val byVectorName: Map<String, KitsugiArt> by lazy {
             val map = HashMap<String, KitsugiArt>()
@@ -293,16 +411,22 @@ enum class KitsugiArt(
 
         /**
          * Verilen Material [icon] için 3B karşılığını döner; eşleşme yoksa `null`.
-         * `null` dönerse çağıran taraf tek renkli glife düşer (geri oku, kapat,
-         * onay işareti gibi kontrol mikro-ikonları bilerek burada bırakılır).
+         *
+         * Sıra: **kontrol glifleri** → enum adları → konu eşlemeleri. Bugün itibarıyla
+         * uygulamada kullanılan 268 ikon adının tamamı bu yollardan birine düşüyor
+         * (`tools/iconpack/coverage_report.js` ile ölçülür), yani `null` pratikte
+         * yalnızca henüz yazılmamış yeni bir ikon adı için döner.
          */
         fun fromVector(icon: ImageVector): KitsugiArt? {
             val rawName = icon.name
             if (rawName.isEmpty()) return null
             val bare = rawName.substringAfterLast('.')
-            byVectorName[rawName]?.let { return it }
-            byVectorName[bare]?.let { return it }
-            return EXTRA_ALIASES[rawName] ?: EXTRA_ALIASES[bare]
+            // 1) Kontrol glifleri: ad açıkça bir mikro kontrolü gösteriyorsa kazanır.
+            CONTROL_ALIASES[rawName]?.let { return it }
+            CONTROL_ALIASES[bare]?.let { return it }
+            // 2) Enum adları, 3) konu eşlemeleri.
+            return byVectorName[rawName] ?: byVectorName[bare]
+                ?: EXTRA_ALIASES[rawName] ?: EXTRA_ALIASES[bare]
         }
     }
 }

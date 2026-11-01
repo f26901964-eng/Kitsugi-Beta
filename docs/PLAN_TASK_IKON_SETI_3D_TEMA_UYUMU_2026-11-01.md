@@ -87,11 +87,35 @@ Tam liste: zip içindeki `DEGISEN_DOSYALAR/` klasörü ve `degisiklikler.patch` 
 
 ---
 
+---
+
+## 5b. Tur 3 — kontrol glifleri (mono 385 → 0)
+
+Kullanıcı geri bildirimi: *"birçok alanın logosu eksik"* + *"tek bir ikon bile 3B
+ailenin dışında kalmasın"*. Bu turda mono kalan **385 çağrı / 75 ad** kapatıldı.
+
+| Adım | Yapılan | Sonuç |
+|---|---|---|
+| 1 | 3dicons aynasında kontrol işareti taraması | Yalnız `plus`, `tick`, `back`, `next`, `zoom`, `thumb-up/down` var |
+| 2 | Setin paletini örnekleme (5 render, 6 dikey bant) | `#E9A57E → #CF6A86 → #B04F9B → #8A35AB → #7043B2` |
+| 3 | `tools/iconpack/control_glyphs.js` yazıldı | 36 şekil + 10 yön varyantı + 6 harf |
+| 4 | 46 glif 128×128 saydam PNG olarak üretildi | `ic_kitsugi_glyph_*.png`, 252 KB |
+| 5 | 3dicons'tan `plus` ve `thumb_down` indirilip normalize edildi | `ic_kitsugi_plus.png`, `ic_kitsugi_thumb_down.png` |
+| 6 | `KitsugiIconAssets.kt`: 48 yeni enum girdisi + `CONTROL_ALIASES` (164 ad) | `fromVector` önce kontrol glifine bakıyor |
+| 7 | Kapsam denetimi yeniden koşuldu | **1533/1533 = %100, mono 0, kaçak 0** |
+| 8 | Görseller üretildi | `ikon-kontrol-sayfasi/baglam/boyut.png` + güncel denetim |
+
+Yeni dosyalar: `docs/IKON_KONTROL_GLIFLERI.md`, `tools/iconpack/control_glyphs.js`,
+`tools/iconpack/control_previews.js`, 48 PNG.
+
+---
+
 ## 6. Kalan işler / riskler
 
 1. **Derleme doğrulaması yapılmadı** — ortamda JDK/Android SDK yok. Android Studio'da
    `./gradlew :app:assembleDebug` çalıştırılmalı; çıkan hata bu turda kapatılmalı.
 2. İstenirse Ayarlar → Görünüm altına **"İkon tonu: Vurguya uyarla / Doğal palet"**
    anahtarı eklenebilir (şu an varsayılan açık, tek parametreyle kapatılıyor).
-3. İstenirse kalan küçük aksiyon glifleri (kopyala/paylaş/sil/beğen) da 3B'ye çevrilebilir.
+3. ~~İstenirse kalan küçük aksiyon glifleri 3B'ye çevrilebilir.~~ **Tamamlandı (tur 3):**
+   kopyala/paylaş/sil/beğen dahil hiçbir ad 2B kalmadı; mono = 0.
 4. Açık tema ve AMOLED cihazlarda göz kontrolü önerilir (gölge/hâle katmanı yeni).
