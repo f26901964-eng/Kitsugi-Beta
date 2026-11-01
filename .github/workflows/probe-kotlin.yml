@@ -89,6 +89,28 @@ jobs:
           } > probe/kotlin_log.txt
           tail -n 5 probe/kotlin_log.txt
 
+      - name: 🧪 Tam birim test seti (hangi testin kırıldığını bulmak için)
+        run: |
+          set +e
+          ./gradlew :app:testFossDebugUnitTest --continue --console=plain \
+            > /tmp/fulltests.log 2>&1
+          echo "exit=$?" >> /tmp/fulltests.log
+          {
+            echo "### :app:testFossDebugUnitTest (TAM SET)"
+            echo "commit: $(git rev-parse --short HEAD)"
+            echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            grep -E "^(e: |BUILD |FAILURE|exit=)" /tmp/fulltests.log | tail -n 40
+            echo "----- test özeti -----"
+            grep -E "tests completed|Test .* FAILED|> There were failing|FAILED$" /tmp/fulltests.log | tail -n 60
+            echo "----- başarısız test dosyaları -----"
+            find app/build/test-results -name '*.xml' -newermt '-30 minutes' -print0 2>/dev/null \
+              | xargs -0 grep -l '<failure' 2>/dev/null | head -n 20
+            echo "----- başarısız test adları + mesaj başları -----"
+            grep -h -A 3 '<testcase' app/build/test-results/testFossDebugUnitTest/*.xml 2>/dev/null \
+              | grep -B 1 -A 3 '<failure' | head -n 120
+          } > probe/test_log.txt
+          cat probe/test_log.txt | tail -n 40
+
       - name: 📤 Günlüğü depoya yaz
         if: always()
         run: |
@@ -96,6 +118,7 @@ jobs:
           git config user.email "probe@example.com"
           # `*.log` .gitignore'da olduğu için dosya adı `.txt`; `-f` yine de garanti eder.
           git add -f probe/kotlin_log.txt
+          git add -f probe/test_log.txt || true
           git commit -m "probe: kotlin derleme günlüğü" || true
           for i in 1 2 3; do
             git fetch origin "${GITHUB_REF_NAME}"
