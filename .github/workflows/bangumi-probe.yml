@@ -240,6 +240,36 @@ jobs:
           search "V3 air_date YAZ 2026 (>=2026-07-01, <2026-10-01) type2" '{"keyword":"","sort":"rank","filter":{"type":[2],"air_date":[">=2026-07-01","<2026-10-01"],"rank":[">=1"],"nsfw":false}}'
           search "V4 air_date 2025 tam yil type6 meta 电视剧" '{"keyword":"","sort":"heat","filter":{"type":[6],"air_date":[">=2025-01-01","<=2025-12-31"],"meta_tags":["电视剧"],"nsfw":false}}'
           search "V5 air_date GUEZ 2025 (>=2025-10-01, <2026-01-01) type2" '{"keyword":"","sort":"rank","filter":{"type":[2],"air_date":[">=2025-10-01","<2026-01-01"],"rank":[">=1"],"nsfw":false}}'
+          # W: arama sayfasının **Karakter** ve **Personel** sekmeleri (POST /v0/search/{characters,persons})
+          person() {
+            local label="$1"; shift
+            local code
+            code=$(curl -sS -o /tmp/w.json -w '%{http_code}' -m 25 \
+              -X POST 'https://api.bgm.tv/v0/search/persons?limit=5&offset=0' \
+              -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' --data "$1")
+            echo "===== W $label ====="
+            echo "HTTP $code"
+            python3 probe/summarize.py /tmp/w.json
+          }
+          character() {
+            local label="$1"
+            local code
+            code=$(curl -sS -o /tmp/w2.json -w '%{http_code}' -m 25 \
+              -X POST 'https://api.bgm.tv/v0/search/characters?limit=5&offset=0' \
+              -H "User-Agent: $UA_APP" -H 'Accept: application/json' \
+              -H 'Content-Type: application/json' --data "{\"keyword\":\"$label\"}")
+            echo "===== W char '$label' ====="
+            echo "HTTP $code"
+            python3 probe/summarize.py /tmp/w2.json
+          }
+          person "W1 kisi arama (filtresiz) 花泽香菜" '{"keyword":"花泽香菜"}'
+          person "W2 kisi + career seiyu 花泽香菜" '{"keyword":"花泽香菜","filter":{"career":["seiyu"]}}'
+          person "W3 kisi + career mangaka 尾田荣一郎" '{"keyword":"尾田荣一郎","filter":{"career":["mangaka"]}}'
+          person "W4 kisi + career illustrator (gecersiz olabilir) 花泽香菜" '{"keyword":"花泽香菜","filter":{"career":["illustrator"]}}'
+          person "W5 kisi + type 2 (sirket) MAPPA" '{"keyword":"MAPPA","filter":{"type":[2]}}'
+          character "Saber"
+          character "鲁路修"
           echo "===== done ====="
           } > /tmp/probe.log 2>&1
           cat /tmp/probe.log

@@ -353,21 +353,22 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         onAddonExploreOpenChange = { open -> ctx.navState.addonExploreOpen = open },
         onOpenPluginPicker = { ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.PluginPicker) },
         onOpenAddonExplore = { apiName -> ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.AddonExplore(apiName)) },
-        onOpenCharacterDetail = { characterId, name, imageUrl ->
+        onOpenCharacterDetail = { characterId, name, imageUrl, source ->
             ctx.navState.navigateToDetail(
                 com.kitsugi.animelist.DetailScreen.CharacterDetail(
                     characterId = characterId,
-                    source = "anilist",
+                    // Kaynak satırdan gelir (bangumi/mal/kitsu/anilist); boşsa eski varsayılan.
+                    source = source?.takeIf { it.isNotBlank() } ?: "anilist",
                     name = name,
                     imageUrl = imageUrl
                 )
             )
         },
-        onOpenStaffDetail = { staffId, name, imageUrl ->
+        onOpenStaffDetail = { staffId, name, imageUrl, source ->
             ctx.navState.navigateToDetail(
                 com.kitsugi.animelist.DetailScreen.StaffDetail(
                     staffId = staffId,
-                    source = "anilist",
+                    source = source?.takeIf { it.isNotBlank() } ?: "anilist",
                     name = name,
                     imageUrl = imageUrl
                 )

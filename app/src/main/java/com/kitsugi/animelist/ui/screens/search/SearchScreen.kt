@@ -118,8 +118,12 @@ fun SearchScreen(
     // Eklenti Keşfet tam ekran navigasyonu
     onOpenAddonExplore: (String) -> Unit = {},
     // AniHyou Karakter ve Personel detay yönlendirmeleri
-    onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
-    onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
+    // ⚠️ `source` ZORUNLU olarak taşınır: Bangumi/MAL/Kitsu satırlarındaki `malId` o kaynağın
+    // **kendi** kimlik uzayındadır (Bangumi karakter id'si ≠ AniList karakter id'si).
+    // Kaynak iletilmediğinde detay ekranı "anilist" varsayıp **başka bir karakteri**
+    // gösteriyordu (bkz. R28).
+    onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?, source: String?) -> Unit)? = null,
+    onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?, source: String?) -> Unit)? = null,
     onOpenStudioDetail: ((studioId: Int, source: String, name: String?, imageUrl: String?) -> Unit)? = null,
     isBottomBarVisible: Boolean = true,
     bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState? = null,
@@ -585,10 +589,12 @@ fun SearchScreen(
                         ),
                         isStaff = uiState.currentTab == KitsugiSearchTab.Staff,
                         onClick = {
+                            // Kaynak kimliği birlikte geçilir; aksi hâlde Bangumi karakteri
+                            // AniList kimliği sanılıp yanlış detay açılıyordu (R28).
                             if (uiState.currentTab == KitsugiSearchTab.Staff) {
-                                onOpenStaffDetail?.invoke(result.malId, displayName, result.imageUrl)
+                                onOpenStaffDetail?.invoke(result.malId, displayName, result.imageUrl, result.source)
                             } else {
-                                onOpenCharacterDetail?.invoke(result.malId, displayName, result.imageUrl)
+                                onOpenCharacterDetail?.invoke(result.malId, displayName, result.imageUrl, result.source)
                             }
                         }
                     )

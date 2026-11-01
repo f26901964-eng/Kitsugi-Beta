@@ -41,4 +41,6 @@ for item in items[:5]:
         ",".join((item.get("meta_tags") or [])[:3]),
         "| platform",
         item.get("platform"),
+        ("| career " + ",".join(item.get("career") or [])[:40]) if item.get("career") is not None else "",
+        ("| relation " + str(item.get("relation"))) if item.get("relation") is not None else "",
     )
