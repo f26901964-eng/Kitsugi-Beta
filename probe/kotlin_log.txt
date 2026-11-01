@@ -1,7 +1,7 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: 3dd89ae
-date: 2026-11-01T10:02:53Z
-BUILD SUCCESSFUL in 4m 15s
+commit: a7b8734
+date: 2026-11-01T10:36:51Z
+BUILD SUCCESSFUL in 6m 21s
 exit=0
 ----- test özeti -----
 ----- son 600 satır -----
@@ -321,8 +321,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kits
 > Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
 > Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
 > Task :app:testFossDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793527121439.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793529032977.json
 
-BUILD SUCCESSFUL in 4m 15s
+BUILD SUCCESSFUL in 6m 21s
 72 actionable tasks: 30 executed, 42 from cache
 exit=0
