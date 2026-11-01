@@ -1,7 +1,8 @@
 ### :app:compileFossDebugKotlin + Bangumi testleri
-commit: c4d22d7
-date: 2026-11-01T08:04:59Z
-BUILD SUCCESSFUL in 6m 34s
+commit: 36fbad5
+date: 2026-11-01T08:18:17Z
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
+BUILD SUCCESSFUL in 5m 14s
 exit=0
 ----- test özeti -----
 ----- son 600 satır -----
@@ -86,6 +87,8 @@ Please remove 'kotlin.incremental.useClasspathSnapshot=false' from 'gradle.prope
 > Task :bangumi-vault-resources-3:bundleLibCompileToJarDebug
 
 > Task :app:kspFossDebugKotlin
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
+    1. Kotlin compile daemon is ready
 w: Opt-in requirement marker androidx.compose.material.ExperimentalMaterialApi is unresolved. Please make sure it's present in the module dependencies
 
 > Task :app:compileFossDebugKotlin
@@ -200,9 +203,9 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kits
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:193:69 'val Icons.Rounded.PlaylistAddCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAddCheck.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:193:105 'val Icons.Rounded.PlaylistPlay: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistPlay.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/explore/KitsugiAiringCalendarComponents.kt:212:61 'val Icons.Rounded.ViewList: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ViewList.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:879:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1083:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
-w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1298:43 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:886:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1090:55 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
+w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt:1305:43 'val Icons.Rounded.PlaylistAdd: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.PlaylistAdd.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2358:112 'static field SHOW_FORCED: Int' is deprecated. Deprecated in Java.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2369:44 'fun toggleSoftInput(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
 w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiPlayerViewModel.kt:2369:104 'static field SHOW_FORCED: Int' is deprecated. Deprecated in Java.
@@ -321,8 +324,8 @@ w: file:///home/runner/work/Kitsugi-Beta/Kitsugi-Beta/app/src/test/java/com/kits
 > Task :bangumi-vault-resources-2:processDebugJavaRes NO-SOURCE
 > Task :bangumi-vault-resources-3:processDebugJavaRes NO-SOURCE
 > Task :app:testFossDebugUnitTest
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793519911118.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793520787167.json
 
-BUILD SUCCESSFUL in 6m 34s
+BUILD SUCCESSFUL in 5m 14s
 72 actionable tasks: 30 executed, 42 from cache
 exit=0
