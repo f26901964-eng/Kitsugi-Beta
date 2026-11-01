@@ -31,8 +31,22 @@ object PlatformRateLimiter {
         return mutexMap.computeIfAbsent(platform.lowercase()) { Mutex() }
     }
 
+    /**
+     * AniList kotası artık TEK yerde: [AniListGovernor].
+     *
+     * Eskiden burada 2100 ms'lik ayrı bir sayaç vardı; Keşfet/detay sorguları
+     * (KitsugiApiBase, 350 ms) ve liste içe aktarımı (hiç sınırlama yok) bambaşka
+     * hızlarda çalıştığı için AniList'in 30 istek/dk sınırı üç yerden ayrı ayrı
+     * aşılıyordu. Bu platformu yöneticiye devrediyoruz: tek bütçe, tek soğuma.
+     */
+    private val delegatedPlatforms = setOf("anilist")
+
     suspend fun acquire(platform: String) {
         val key = platform.lowercase()
+        if (key in delegatedPlatforms) {
+            AniListGovernor.acquire()
+            return
+        }
         val mutex = getMutex(key)
         mutex.withLock {
             val minInterval = platformIntervals[key] ?: 300L
@@ -48,6 +62,10 @@ object PlatformRateLimiter {
 
     suspend fun notifyRateLimited(platform: String, retryAfterSeconds: Long? = null) {
         val key = platform.lowercase()
+        if (key in delegatedPlatforms) {
+            AniListGovernor.markRateLimited(retryAfterSeconds)
+            return
+        }
         val waitMs = if (retryAfterSeconds != null && retryAfterSeconds > 0) {
             retryAfterSeconds * 1000L
         } else {

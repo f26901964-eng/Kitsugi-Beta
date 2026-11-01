@@ -3,12 +3,6 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -117,87 +111,26 @@ object KitsugiApiBase {
     // ─── AniList'e özel uyarlanabilir hız sınırlama ve devre kesici ────────────
     // Eskiden tüm uygulama tek bir global Mutex içinde performAniListRequest bitene
     // kadar kilitleniyordu (maxConcurrency = 1 + 700ms + RetryInterceptor çarpanı).
-    // Artık slot rezervasyonu ağ G/Ç dışında <1ms'de yapılır, en fazla 3 eşzamanlı
-    // istek (Semaphore) çalışır ve X-RateLimit-Limit / X-RateLimit-Remaining başlıklarına
-    // göre AniList "degraded mode"a (30 istek/dk) geçtiğinde aralık otomatik büyütülür.
-    private const val ANILIST_MIN_INTERVAL_NORMAL_MS = 350L
-    private const val ANILIST_MIN_INTERVAL_DEGRADED_MS = 1_500L
-    private const val ANILIST_MAX_CONCURRENCY = 3
+    // ─── AniList hız bütçesi artık TEK yerde: AniListGovernor ────────────────────
+    // Eski kod burada 350 ms (≈171 istek/dk) / "degraded" modda 1500 ms (≈40 istek/dk)
+    // aralıkla çalışıyordu. AniList fiilî limiti 30 istek/dk olduğu için her iki değer
+    // de limitin ÜSTÜNDEYDI: uygulama AniList'i sürekli 429'a düşürüyordu. Aralık
+    // artık X-RateLimit-Limit başlığından hesaplanıyor (limit/60 sn) ve import +
+    // mutasyon yolları da aynı bütçeden harcıyor. Ayrıntılar: AniListGovernor.
     private const val ANILIST_MAX_RETRIES = 1
-    // 429 sonrası global bekleme üst sınırı: Retry-After değeri ne olursa olsun
-    // cooldown en fazla bu kadar uzar; süre dolmadan yeni AniList isteği gönderilmez.
-    private const val ANILIST_RATE_LIMIT_COOLDOWN_CAP_MS = 30_000L
-    // AniList sunucu şalteri ("temporarily disabled") indirildiğinde 45 sn boyunca
-    // kapalı sunucuya boşuna istek yağdırılmaz; tüm çağıranlar 0ms'de fail-fast döner.
-    private const val ANILIST_SERVICE_DOWN_COOLDOWN_MS = 45_000L
-    // Art arda 2 ağ/gateway (502/503/504/timeout) hatasında kısa devre kesici (20 sn).
-    private const val ANILIST_GATEWAY_DOWN_COOLDOWN_MS = 20_000L
-    // Bu süreden kısa 429 cooldown'lar fail-fast etmek yerine beklenir.
-    private const val ANILIST_SHORT_COOLDOWN_WAIT_MS = 6_000L
-
-    private val aniListSlotLock = Any()
-    private val aniListSemaphore = Semaphore(ANILIST_MAX_CONCURRENCY)
-    private var nextAniListSlotAtMs: Long = 0L
-
-    @Volatile
-    private var aniListDegradedMode: Boolean = false
-
-    @Volatile
-    private var anilistRateLimitedUntil: Long = 0L
-
-    @Volatile
-    private var anilistServiceDownUntil: Long = 0L
-
-    @Volatile
-    private var anilistServiceDownReason: String =
-        "The AniList API has been temporarily disabled due to severe stability issues."
-
-    @Volatile
-    private var anilistGatewayDownUntil: Long = 0L
-
-    private var consecutiveAniListGatewayFailures: Int = 0
-
-    private fun reserveAniListSlotMs(): Long = synchronized(aniListSlotLock) {
-        val now = System.currentTimeMillis()
-        val intervalMs = if (aniListDegradedMode) {
-            ANILIST_MIN_INTERVAL_DEGRADED_MS
-        } else {
-            ANILIST_MIN_INTERVAL_NORMAL_MS
-        }
-        val slotAt = maxOf(now, nextAniListSlotAtMs)
-        nextAniListSlotAtMs = slotAt + intervalMs
-        slotAt - now
-    }
 
     /** AniList şu anda kapalı, 429 limitinde ya da gateway kesintisinde mi? */
-    fun isAniListUnavailableNow(): Boolean {
-        val now = System.currentTimeMillis()
-        return now < anilistServiceDownUntil ||
-            now < anilistGatewayDownUntil ||
-            (anilistRateLimitedUntil - now) > ANILIST_SHORT_COOLDOWN_WAIT_MS
-    }
+    fun isAniListUnavailableNow(): Boolean =
+        com.kitsugi.animelist.data.auth.AniListGovernor.isRateLimitedNow() ||
+            com.kitsugi.animelist.data.auth.AniListGovernor.isServiceDownNow()
 
     /**
      * Ham JSON veya hata metni içinde AniList'in sunucu şalteri mesajını arar.
      * AniList bu mesajı bazen HTTP 403, bazen HTTP 503/500, bazen de HTTP 200
      * yanıtının `errors` dizisi içinde döndürür.
      */
-    fun extractAniListServiceDownMessage(bodyOrMessage: String?): String? {
-        if (bodyOrMessage.isNullOrBlank()) return null
-        val jsonMsg = runCatching {
-            val errors = Json.parseToJsonElement(bodyOrMessage).jsonObject["errors"]?.jsonArray
-            errors?.firstOrNull()?.jsonObject?.get("message")?.jsonPrimitive?.content
-        }.getOrNull()
-        val candidate = jsonMsg?.takeIf { it.isNotBlank() } ?: bodyOrMessage
-        return if (
-            candidate.contains("temporarily disabled", ignoreCase = true) ||
-            candidate.contains("stability issues", ignoreCase = true)
-        ) {
-            candidate.trim()
-        } else {
-            null
-        }
-    }
+    fun extractAniListServiceDownMessage(bodyOrMessage: String?): String? =
+        com.kitsugi.animelist.data.auth.AniListGovernor.detectServiceDown(bodyOrMessage)
 
     /**
      * AniList servis kesintisini global devre kesiciye ve [com.kitsugi.animelist.data.platform.PlatformFailureRegistry]'ye
@@ -207,26 +140,12 @@ object KitsugiApiBase {
         rawReason: String,
         httpCode: Int? = 403
     ): AniListServiceDownException {
-        val cleanReason = rawReason.trim().ifBlank {
-            "The AniList API has been temporarily disabled due to severe stability issues."
-        }
-        anilistServiceDownReason = cleanReason
-        anilistServiceDownUntil = System.currentTimeMillis() + ANILIST_SERVICE_DOWN_COOLDOWN_MS
-        val fullMessage = "AniList API geçici olarak devre dışı: $cleanReason"
-        com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(
-            platformLabel = "anilist",
-            httpCode = httpCode,
-            rawMessage = fullMessage
+        val cleanReason = com.kitsugi.animelist.data.auth.AniListGovernor.markServiceDown(
+            reason = rawReason,
+            code = httpCode ?: 403
         )
+        val fullMessage = "AniList API geçici olarak devre dışı: $cleanReason"
         return AniListServiceDownException(fullMessage)
-    }
-
-    private fun updateAniListRateHeaders(response: okhttp3.Response) {
-        val limit = response.header("X-RateLimit-Limit")?.toIntOrNull()
-        val remaining = response.header("X-RateLimit-Remaining")?.toIntOrNull()
-        if (limit != null || remaining != null) {
-            aniListDegradedMode = (limit != null && limit <= 45) || (remaining != null && remaining <= 12)
-        }
     }
 
     private data class RawGetResult(
@@ -375,71 +294,27 @@ object KitsugiApiBase {
     }
 
     /**
-     * AniList GraphQL sorgusu çalıştırır.
+     * AniList GraphQL sorgusu çalıştırır (Keşfet / detay / bildirim / takvim / profil).
      *
-     * Hız sınırlama (rate limiting) ve 429 dayanıklılığı BURADA yönetilir:
-     *  - [aniListMutex] ile aynı anda tek istek gider (paralel patlamayı önler).
-     *  - Her istekten önce [waitForAniListWindow] ile ~700ms bekleme uygulanır.
-     *  - 429 (Too Many Requests) veya 5xx gelirse, "Retry-After" başlığına saygı
-     *    göstererek üstel bekleme ile [ANILIST_MAX_RETRIES] kez tekrar denenir.
+     * Hız sınırlama, 429 dayanıklılığı ve kesinti (devre kesici) yönetimi TEK merkezde:
+     * [com.kitsugi.animelist.data.auth.AniListGovernor]. Liste içe aktarımı
+     * ([com.kitsugi.animelist.data.auth.AniListImportManager]) ve yazma/mutasyon yolu
+     * ([com.kitsugi.animelist.data.auth.AniListSyncManager]) de aynı bütçeden harcar;
+     * böylece AniList'in 30 istek/dk sınırı üç yol tarafından ayrı ayrı aşılmaz.
      *
-     * NOT: Fonksiyon artık `suspend`. Tüm çağıranlar zaten suspend/withContext(IO)
-     * bağlamında olduğu için imza değişikliği çağrı yerlerini bozmaz.
+     * @param maxCooldownWaitMs 429 soğuması için en fazla bu kadar beklenir. Sorgular
+     *        (UI yolları) kısa tutar ve hızlıca `null` dönerek yedek zincire düşer;
+     *        liste içe aktarımı gibi arka plan işleri daha uzun bekleyebilir.
+     * @return Başarılı yanıtın gövdesi; kullanılamıyorsa `null`.
      */
     suspend fun executeAniListQuery(
         query: String,
         variables: JSONObject,
         accessToken: String? = null,
-        throwOnServiceDown: Boolean = false
+        throwOnServiceDown: Boolean = false,
+        maxCooldownWaitMs: Long = ANILIST_QUERY_COOLDOWN_WAIT_MS
     ): String? {
-        val now = System.currentTimeMillis()
-
-        // 1) Sunucu şalteri (temporarily disabled) aktifse ağa hiç çıkma — 0ms fail-fast.
-        if (now < anilistServiceDownUntil) {
-            val fullMsg = "AniList API geçici olarak devre dışı: $anilistServiceDownReason"
-            com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(
-                platformLabel = "anilist",
-                httpCode = 403,
-                rawMessage = fullMsg
-            )
-            if (throwOnServiceDown) {
-                throw AniListServiceDownException(fullMsg)
-            }
-            return null
-        }
-
-        // 2) Art arda gateway/timeout kesintisi varsa 0ms fail-fast dön.
-        if (now < anilistGatewayDownUntil) {
-            com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(
-                platformLabel = "anilist",
-                httpCode = 503,
-                rawMessage = "HTTP 503 · graphql.anilist.co gateway unavailable"
-            )
-            return null
-        }
-
-        // 3) 429 cooldown kontrolü
-        val cooldownRemainingMs = anilistRateLimitedUntil - now
-        if (cooldownRemainingMs > 0L) {
-            if (cooldownRemainingMs <= ANILIST_SHORT_COOLDOWN_WAIT_MS) {
-                android.util.Log.w(
-                    "KitsugiApiBase",
-                    "AniList 429 cooldown kısa (${cooldownRemainingMs}ms) — bekleyip istek gönderilecek"
-                )
-                delay(cooldownRemainingMs)
-            } else {
-                android.util.Log.w(
-                    "KitsugiApiBase",
-                    "AniList 429 cooldown aktif (${cooldownRemainingMs}ms kaldı) — istek gönderilmedi"
-                )
-                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(
-                    platformLabel = "anilist",
-                    httpCode = 429,
-                    rawMessage = "HTTP 429 Too Many Requests · graphql.anilist.co"
-                )
-                return null
-            }
-        }
+        val governor = com.kitsugi.animelist.data.auth.AniListGovernor
 
         val requestBody = JSONObject()
             .put("query", query)
@@ -456,82 +331,131 @@ object KitsugiApiBase {
 
         var attempt = 0
         var tokenFailed = false
+
         while (true) {
-            // Beklerken başka bir istek kesintiyi tespit ettiyse boşuna ağa çıkma
-            if (System.currentTimeMillis() < anilistServiceDownUntil) {
-                val fullMsg = "AniList API geçici olarak devre dışı: $anilistServiceDownReason"
-                if (throwOnServiceDown) throw AniListServiceDownException(fullMsg)
-                return null
-            }
-
-            val currentToken = if (tokenFailed) null else token
-            val result = aniListSemaphore.withPermit {
-                val waitMs = reserveAniListSlotMs()
-                if (waitMs > 0L) delay(waitMs)
-                performAniListRequest(requestBody, currentToken)
-            }
-
-            when (result) {
-                is AniListResult.ServiceDown -> {
-                    android.util.Log.e("KitsugiApiBase", "AniList servis kesintisi: ${result.message}")
-                    val downEx = recordAniListServiceDown(result.message, result.httpCode)
-                    if (throwOnServiceDown) {
-                        throw downEx
+            // 1) Tek bütçeden slot al: soğuma / kesinti varsa bloke et, gerekirse bekle.
+            when (val gate = governor.acquire(maxWaitMs = maxCooldownWaitMs)) {
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Gate.Proceed -> Unit
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Gate.Blocked -> {
+                    val isServiceDown =
+                        gate.reason == com.kitsugi.animelist.data.auth.AniListGovernor.BlockedReason.SERVICE_DOWN
+                    com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(
+                        platformLabel = "anilist",
+                        httpCode = when (gate.reason) {
+                            com.kitsugi.animelist.data.auth.AniListGovernor.BlockedReason.RATE_LIMITED -> 429
+                            com.kitsugi.animelist.data.auth.AniListGovernor.BlockedReason.SERVICE_DOWN -> 403
+                            com.kitsugi.animelist.data.auth.AniListGovernor.BlockedReason.GATEWAY_DOWN -> 503
+                        },
+                        rawMessage = if (isServiceDown) {
+                            "AniList API geçici olarak devre dışı: ${governor.serviceDownMessage()}"
+                        } else if (gate.reason == com.kitsugi.animelist.data.auth.AniListGovernor.BlockedReason.GATEWAY_DOWN) {
+                            "HTTP 503 · graphql.anilist.co gateway unavailable"
+                        } else {
+                            "HTTP 429 Too Many Requests · graphql.anilist.co (${gate.retryAfterMs / 1000}s soğuma)"
+                        }
+                    )
+                    if (isServiceDown && throwOnServiceDown) {
+                        throw AniListServiceDownException(
+                            "AniList API geçici olarak devre dışı: ${governor.serviceDownMessage()}"
+                        )
                     }
                     return null
                 }
-                is AniListResult.Success -> {
-                    // JSON içindeki servis kesintisi veya geçersiz token hatalarını kontrol et
-                    extractAniListServiceDownMessage(result.body)?.let { downMsg ->
-                        val downEx = recordAniListServiceDown(downMsg, 503)
-                        if (throwOnServiceDown) throw downEx
-                        return null
-                    }
-                    val hasAuthError = try {
-                        val root = JSONObject(result.body)
-                        val errors = root.optJSONArray("errors")
-                        if (errors != null && errors.length() > 0) {
-                            val msg = errors.optJSONObject(0)?.optString("message").orEmpty().lowercase()
-                            msg.contains("invalid token") || msg.contains("unauthorized") || msg.contains("forbidden") || msg.contains("invalid credentials")
-                        } else {
-                            false
+            }
+
+            val currentToken = if (tokenFailed) null else token
+            val call = performAniListRequest(requestBody, currentToken)
+
+            // 2) Taşıma hatası (timeout / DNS / socket)
+            if (call.error != null) {
+                governor.observeTransportFailure(call.error)
+                com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report("anilist", error = call.error)
+                if (attempt >= ANILIST_MAX_RETRIES) return null
+                delay(1_000L * (1 shl attempt))
+                attempt++
+                continue
+            }
+
+            val response = call.response
+            val body = call.body.orEmpty()
+            if (response == null) {
+                if (attempt >= ANILIST_MAX_RETRIES) return null
+                delay(1_000L * (1 shl attempt))
+                attempt++
+                continue
+            }
+
+            // 3) HTTP katmanı: başlıklardan kotayı öğren, 429/5xx/kesintiyi sınıflandır.
+            when (val outcome = governor.observeResponse(response, body)) {
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.Success -> {
+                    // 4) GraphQL katmanı: AniList 429'u bazen HTTP 200 + errors[status=429]
+                    //    olarak döner — "boş sonuç" sanılmamalı.
+                    val errors = runCatching { org.json.JSONObject(body).optJSONArray("errors") }.getOrNull()
+                    when (val classified = governor.classifyErrors(errors)) {
+                        is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.Success -> return body
+                        is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.AuthFailure -> {
+                            // Token geçersiz: tokensız bir kez daha dene (genel katalog sorgusu olabilir).
+                            if (!currentToken.isNullOrBlank()) {
+                                tokenFailed = true
+                                continue
+                            }
+                            return null
                         }
-                    } catch (e: Exception) {
-                        false
+                        is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.RateLimited -> {
+                            if (attempt >= ANILIST_MAX_RETRIES) return null
+                            // Soğuma zaten kuruldu; acquire() süre bitene kadar bekler.
+                            attempt++
+                            continue
+                        }
+                        else -> return null
                     }
-                    if (hasAuthError && !currentToken.isNullOrBlank()) {
-                        tokenFailed = true
-                        continue
-                    }
-                    return result.body
                 }
-                is AniListResult.Failure -> {
-                    if (!currentToken.isNullOrBlank()) {
-                        // Token geçersiz veya yetkisiz, tokensız tekrar dene
-                        tokenFailed = true
-                        continue
-                    }
-                    return null   // Kalıcı hata (4xx, retry anlamsız)
-                }
-                is AniListResult.Retryable -> {
-                    if (attempt >= ANILIST_MAX_RETRIES || isAniListUnavailableNow()) return null
-                    val backoffMs = (result.retryAfterMs ?: (1_000L * (1 shl attempt))).coerceAtMost(4_000L)
-                    delay(backoffMs)
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.RateLimited -> {
+                    com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report(
+                        platformLabel = "anilist",
+                        httpCode = 429,
+                        rawMessage = "HTTP 429 Too Many Requests · graphql.anilist.co (${outcome.retryAfterMs / 1000}s)"
+                    )
+                    if (attempt >= ANILIST_MAX_RETRIES) return null
                     attempt++
+                    continue
                 }
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.Retryable -> {
+                    if (attempt >= ANILIST_MAX_RETRIES) return null
+                    delay(outcome.retryAfterMs.coerceIn(500L, 4_000L))
+                    attempt++
+                    continue
+                }
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.AuthFailure -> {
+                    if (!currentToken.isNullOrBlank()) {
+                        tokenFailed = true
+                        continue
+                    }
+                    return null
+                }
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.ServiceDown -> {
+                    if (throwOnServiceDown) {
+                        throw AniListServiceDownException(
+                            "AniList API geçici olarak devre dışı: ${outcome.message}"
+                        )
+                    }
+                    return null
+                }
+                is com.kitsugi.animelist.data.auth.AniListGovernor.Outcome.Permanent -> return null
             }
         }
     }
 
-    private sealed class AniListResult {
-        data class Success(val body: String) : AniListResult()
-        data object Failure : AniListResult()
-        data class Retryable(val retryAfterMs: Long?) : AniListResult()
-        /** AniList sunucu tarafında tamamen kapalı — retry anlamsız, fallback gerekli */
-        data class ServiceDown(val message: String, val httpCode: Int = 403) : AniListResult()
-    }
+    /** Sorgu (UI) yollarında 429 soğuması için beklenen üst sınır. */
+    private const val ANILIST_QUERY_COOLDOWN_WAIT_MS = 8_000L
 
-    private fun performAniListRequest(requestBody: String, token: String?): AniListResult {
+    private data class AniListCall(
+        val response: okhttp3.Response?,
+        val body: String?,
+        val error: Throwable?
+    )
+
+    private fun performAniListRequest(requestBody: String, token: String?): AniListCall {
         val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
         val body = requestBody.toRequestBody(mediaType)
         val request = Request.Builder()
@@ -547,60 +471,19 @@ object KitsugiApiBase {
             }
             .build()
 
+        // Not: gövde OkHttp'de tek seferliktir; burada okunup hem çağırana hem de
+        // hız yöneticisine (başlıklar hâlâ erişilebilir) aynı metin verilir.
         return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
-                updateAniListRateHeaders(response)
-                if (response.isSuccessful) {
-                    synchronized(aniListSlotLock) { consecutiveAniListGatewayFailures = 0 }
-                    val responseBody = response.body?.string() ?: ""
-                    AniListResult.Success(responseBody)
-                } else {
-                    val errBody = runCatching { response.body?.string() ?: "" }.getOrDefault("")
-                    // 403, 500, 503 fark etmeksizin sunucu şalteri mesajı varsa anında ServiceDown dön
-                    extractAniListServiceDownMessage(errBody)?.let { serviceDownMsg ->
-                        android.util.Log.w("KitsugiApiBase", "AniList servis kesintisi tespit edildi (${response.code}): $serviceDownMsg")
-                        return@use AniListResult.ServiceDown(serviceDownMsg, response.code)
-                    }
-                    if (response.code == 429 || response.code in 500..599) {
-                        android.util.Log.w("KitsugiApiBase", "AniList query retryable failure with code: ${response.code} ${response.message}")
-                        val retryAfterSec = response.header("Retry-After")?.toLongOrNull()
-                        val resetEpoch = response.header("X-RateLimit-Reset")?.toLongOrNull()
-                        val retryAfterMs = when {
-                            retryAfterSec != null -> retryAfterSec * 1_000L
-                            resetEpoch != null -> (resetEpoch * 1_000L - System.currentTimeMillis()).coerceAtLeast(0L)
-                            else -> null
-                        }
-                        if (response.code == 429) {
-                            aniListDegradedMode = true
-                            val cooldownMs = (retryAfterMs ?: 5_000L).coerceIn(5_000L, ANILIST_RATE_LIMIT_COOLDOWN_CAP_MS)
-                            anilistRateLimitedUntil = System.currentTimeMillis() + cooldownMs
-                        } else {
-                            synchronized(aniListSlotLock) {
-                                consecutiveAniListGatewayFailures++
-                                if (consecutiveAniListGatewayFailures >= 2) {
-                                    anilistGatewayDownUntil = System.currentTimeMillis() + ANILIST_GATEWAY_DOWN_COOLDOWN_MS
-                                }
-                            }
-                        }
-                        AniListResult.Retryable(retryAfterMs)
-                    } else {
-                        android.util.Log.e("KitsugiApiBase", "AniList query permanent failure with code: ${response.code} ${response.message}")
-                        AniListResult.Failure
-                    }
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute()
+                .use { response ->
+                    val responseBody = runCatching { response.body?.string() ?: "" }.getOrDefault("")
+                    AniListCall(response = response, body = responseBody, error = null)
                 }
-            }
         } catch (e: Exception) {
-            android.util.Log.e("KitsugiApiBase", "AniList performRequest Exception: ${e.message}", e)
-            com.kitsugi.animelist.data.platform.PlatformFailureRegistry.report("anilist", error = e)
-            synchronized(aniListSlotLock) {
-                consecutiveAniListGatewayFailures++
-                if (consecutiveAniListGatewayFailures >= 2) {
-                    anilistGatewayDownUntil = System.currentTimeMillis() + ANILIST_GATEWAY_DOWN_COOLDOWN_MS
-                }
-            }
-            AniListResult.Retryable(null)
+            AniListCall(response = null, body = null, error = e)
         }
     }
+
 
     fun classifyNetworkError(error: Throwable): NetworkErrorCategory {
         val message = error.message.orEmpty()

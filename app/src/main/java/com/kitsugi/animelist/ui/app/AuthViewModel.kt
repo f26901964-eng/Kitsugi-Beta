@@ -459,7 +459,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val settings = SettingsDataStore(context)
             when (serviceName) {
-                "anilist" -> settings.clearAniListProfileInfo()
+                "anilist" -> {
+                    settings.clearAniListProfileInfo()
+                    // Kimlik doğrulama / kullanıcı önbellekleri de düşürülür: eski hesabın
+                    // doğrulanmış medya kimlikleri yeni hesaba yazım yapmasın.
+                    com.kitsugi.animelist.data.auth.AniListSyncManager.clearSessionCaches()
+                }
                 "mal" -> {
                     settings.clearMalProfileInfo()
                     // Kaydedilen web kimliği de unutulur: bağlı hesap kalmadığı için ekranlarda
@@ -530,13 +535,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         bannerImageUri = profile.bannerUrl.orEmpty()
                     )
                 }
-                AniListImportManager.fetchAllLists(token)
-            }.onSuccess { importedEntries ->
+                AniListImportManager.fetchAllListsDetailed(token)
+            }.onSuccess { import ->
+                val importedEntries = import.entries
                 val importResult = runCatching {
                     repository.smartImport("anilist", importedEntries, allowDelete = false)
                 }
                 if (importResult.isSuccess) {
-                    onShowMessage?.invoke(context.getString(R.string.account_sync_import_success, importedEntries.size, "AniList"))
+                    // Aktarım hız sınırı yüzünden yarım kaldıysa kullanıcı bilsin:
+                    // kalan kayıtlar bir sonraki yenilemede (veya otomatik senkronla) gelir.
+                    val message = if (import.complete) {
+                        context.getString(R.string.account_sync_import_success, importedEntries.size, "AniList")
+                    } else {
+                        context.getString(R.string.account_sync_import_partial, "AniList", importedEntries.size)
+                    }
+                    onShowMessage?.invoke(message)
                 } else {
                     onShowMessage?.invoke(context.getString(R.string.account_sync_import_save_failed, "AniList", importResult.exceptionOrNull()?.message ?: context.getString(R.string.account_sync_unknown_error)))
                 }

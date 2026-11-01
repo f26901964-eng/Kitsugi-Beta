@@ -11,6 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -18,6 +19,17 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 object AniListSyncManager {
     @Volatile private var cachedAniListUserId: Int? = null
     @Volatile private var cachedAniListToken: String? = null
+
+    /**
+     * Oturum değiştiğinde (çıkış / farklı hesap) kimlik ve kullanıcı önbelleklerini
+     * boşaltır: eski hesabın doğrulanmış kimlikleri yeni hesaba yazım yapmasın.
+     */
+    fun clearSessionCaches() {
+        cachedAniListUserId = null
+        cachedAniListToken = null
+        identityVerifyCache.clear()
+        malIdToAniListCache.clear()
+    }
 
     fun updateAniListEntry(
         token: String,
@@ -43,7 +55,7 @@ object AniListSyncManager {
             // reddedebiliyordu ve çözülmüş kimlik çöpe gidiyordu. Doğrulama yine yapılır.
             val verifiedKnownId = knownAniListMediaId?.takeIf { it > 0 }?.takeIf { candidate ->
                 val mediaTypeGql = if (entry.type == MediaType.Manga) "MANGA" else "ANIME"
-                verifyAniListMediaIdentity(
+                verifyAniListMediaIdentityCached(
                     token, candidate, mediaTypeGql, entry,
                     CrossSyncIdentityGuard.aliasesOf(entry), context
                 )
@@ -374,25 +386,35 @@ object AniListSyncManager {
         // A stored AniList media ID is source-native but still checked against type/title/year before add/favorite writes.
         if (nativeAniListId != null) {
             return nativeAniListId.takeIf {
-                verifyAniListMediaIdentity(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
+                verifyAniListMediaIdentityCached(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
             }
         }
 
         // Resolve by real MAL ID, then verify AniList's returned type/title/year before writing.
+        // NOT: `idMal → AniList id` eşlemesi katalogda sabittir; her düzenlemede yeniden
+        // sorgulamak kotayı boşa harcıyordu. Sonuç 30 dk önbellekte tutulur.
         if (realMalId != null) {
-            val query = """
-                query (${'$'}idMal: Int, ${'$'}type: MediaType) {
-                    Media(idMal: ${'$'}idMal, type: ${'$'}type) { id }
-                }
-            """.trimIndent()
-            val variables = JSONObject().put("idMal", realMalId).put("type", mediaTypeGql)
-            val resolved = runSyncCatching {
-                val response = postAniList(token = token, query = query, variables = variables, context = context)
-                JSONObject(response).optJSONObject("data")?.optJSONObject("Media")?.optInt("id", 0)?.takeIf { it > 0 }
-            }.getOrNull()
+            val malKey = "$mediaTypeGql:$realMalId"
+            val cached = malIdToAniListCache.get(malKey)
+            val resolved = if (cached != null && cached > 0) {
+                cached
+            } else {
+                val query = """
+                    query (${'$'}idMal: Int, ${'$'}type: MediaType) {
+                        Media(idMal: ${'$'}idMal, type: ${'$'}type) { id }
+                    }
+                """.trimIndent()
+                val variables = JSONObject().put("idMal", realMalId).put("type", mediaTypeGql)
+                val fetched = runSyncCatching {
+                    val response = postAniList(token = token, query = query, variables = variables, context = context)
+                    JSONObject(response).optJSONObject("data")?.optJSONObject("Media")?.optInt("id", 0)?.takeIf { it > 0 }
+                }.getOrNull()
+                if (fetched != null) malIdToAniListCache.put(malKey, fetched, IDENTITY_CACHE_TTL_MS)
+                fetched
+            }
             if (resolved != null) {
                 return resolved.takeIf {
-                    verifyAniListMediaIdentity(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
+                    verifyAniListMediaIdentityCached(token, it, mediaTypeGql, entry, verifiedTitleAliases, context)
                 }
             }
         }
@@ -413,13 +435,73 @@ object AniListSyncManager {
         } else null
         if (
             armId != null && armId > 0 &&
-            verifyAniListMediaIdentity(token, armId, mediaTypeGql, entry, verifiedTitleAliases, context)
+            verifyAniListMediaIdentityCached(token, armId, mediaTypeGql, entry, verifiedTitleAliases, context)
         ) {
             return armId
         }
 
         // A search rank is not an identity mapping. Never mutate the first fuzzy result.
         return null
+    }
+
+    // ─── Kimlik doğrulama önbelleği ────────────────────────────────────────────
+    // Her düzenleme (bölüm +1, puan, durum) eskiden AniList'e 4-6 istek atıyordu:
+    // MediaList sorgusu + Viewer + idMal çözümü + kimlik doğrulama + mutasyon
+    // (+ favori durumu sorgusu). 30 istek/dk kotasında bu, dakikada ~6 düzenlemede
+    // hız sınırına takılmak demekti — kullanıcının gördüğü "sürekli AniList sorunu".
+    // Kimlik doğrulama sonuçları (medya kimliği sabit bir gerçek) kısa ömürlü
+    // önbelleğe alınır: aynı kayıt üst üste düzenlendiğinde AĞA ÇIKILMAZ.
+    private class TtlCache<T>(private val maxSize: Int = 500) {
+        private val map = ConcurrentHashMap<String, Pair<Long, T>>()
+
+        fun get(key: String): T? {
+            val hit = map[key] ?: return null
+            return if (System.currentTimeMillis() > hit.first) {
+                map.remove(key)
+                null
+            } else {
+                hit.second
+            }
+        }
+
+        fun put(key: String, value: T, ttlMs: Long) {
+            if (map.size >= maxSize) map.clear()
+            map[key] = (System.currentTimeMillis() + ttlMs) to value
+        }
+
+        fun clear() = map.clear()
+    }
+
+    private val identityVerifyCache = TtlCache<Boolean>()
+    private val malIdToAniListCache = TtlCache<Int>()
+
+    private const val IDENTITY_CACHE_TTL_MS = 30 * 60 * 1000L   // doğrulanan kimlik 30 dk
+    private const val IDENTITY_NEGATIVE_TTL_MS = 3 * 60 * 1000L // doğrulanamayan 3 dk (anlık tekrar denemeyi önler)
+
+    /** Kimlik doğrulamasını önbellekli çalıştırır (aynı medya için tekrar ağa çıkmaz). */
+    private fun verifyAniListMediaIdentityCached(
+        token: String,
+        mediaId: Int,
+        expectedType: String,
+        entry: MediaEntry,
+        expectedTitles: Collection<String>,
+        context: Context
+    ): Boolean {
+        val key = listOf(
+            mediaId,
+            expectedType,
+            MediaIdentity.realMalId(entry) ?: 0,
+            entry.year ?: 0,
+            expectedTitles.map { it.lowercase() }.sorted().joinToString("|")
+        ).joinToString("#")
+        identityVerifyCache.get(key)?.let { return it }
+        val verified = verifyAniListMediaIdentity(token, mediaId, expectedType, entry, expectedTitles, context)
+        identityVerifyCache.put(
+            key,
+            verified,
+            if (verified) IDENTITY_CACHE_TTL_MS else IDENTITY_NEGATIVE_TTL_MS
+        )
+        return verified
     }
 
     private fun verifyAniListMediaIdentity(
@@ -873,67 +955,123 @@ object AniListSyncManager {
 
         val request = requestBuilder.build()
 
-        // AniList'in fiili limiti 30 istek/dk; 429 aldığımızda Retry-After kadar (yoksa 60 sn)
-        // bekleyip aynı isteği en fazla 3 kez tekrarlıyoruz. Böylece toplu eşitlemede tek bir
-        // hız sınırı yanıtı kaydı "hata" olarak işaretlemiyor.
+        // ── Ortak hız bütçesi (AniListGovernor) ─────────────────────────────────
+        // Eski kod 429'da yalnızca `PlatformRateLimiter` içinde bekliyordu; ancak
+        // Keşfet/detay sorguları ve liste içe aktarımı AYRI bir sayaçtan harcıyordu.
+        // Yani bu döngü beklerken diğer yollar AniList'i dövmeye devam ediyor, soğuma
+        // her yeni 429'da baştan başlıyordu → kullanıcı için "sürekli ve çözülmeyen"
+        // hız sınırı. Artık üç yol da tek bütçeden geçiyor; 429 soğuması gerçekten
+        // bekleniyor ve GraphQL katmanındaki 429 (HTTP 200 + errors[status=429]) de
+        // yeniden denenebilir sayılıyor.
         var attempt = 0
-        while (true) {
+        var lastFailure: Throwable? = null
+
+        while (attempt < MAX_ANILIST_ATTEMPTS) {
             attempt++
-            try {
-                com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
-                    if (response.code == 429) {
-                        val retrySec = response.header("Retry-After")?.toLongOrNull()?.coerceIn(1L, 120L) ?: 60L
-                        kotlinx.coroutines.runBlocking {
-                            PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
-                        }
-                        if (attempt >= MAX_ANILIST_ATTEMPTS) {
-                            throw IllegalStateException(
-                                context?.getString(R.string.account_sync_anilist_rate_limit, attempt, retrySec)
-                                    ?: "AniList API hatası: 429 hız sınırı ($attempt deneme, Retry-After=${retrySec}s)"
-                            )
-                        }
-                        return@use
+
+            val gate = AniListGovernor.acquireBlocking()
+            if (gate is AniListGovernor.Gate.Blocked) {
+                val retrySec = (gate.retryAfterMs / 1000L).coerceAtLeast(1L)
+                throw when (gate.reason) {
+                    AniListGovernor.BlockedReason.RATE_LIMITED -> IllegalStateException(
+                        context?.getString(R.string.account_sync_anilist_rate_limit, attempt, retrySec)
+                            ?: "AniList istek sınırı doldu — $retrySec sn sonra kendiliğinden tekrar denenecek"
+                    )
+                    AniListGovernor.BlockedReason.SERVICE_DOWN -> IllegalStateException(
+                        "AniList geçici olarak devre dışı: ${AniListGovernor.serviceDownMessage()}"
+                    )
+                    AniListGovernor.BlockedReason.GATEWAY_DOWN -> IllegalStateException(
+                        "AniList şu anda ulaşılamıyor (ağ/geçit hatası)"
+                    )
+                }
+            }
+
+            val call = try {
+                com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request)
+                    .execute()
+                    .use { response ->
+                        val body = runCatching { response.body?.string() ?: "" }.getOrDefault("")
+                        response to body
                     }
-                    if (!response.isSuccessful) {
-                        val errorText = response.body?.string().orEmpty().take(300)
-                        com.kitsugi.animelist.data.remote.KitsugiApiBase
-                            .extractAniListServiceDownMessage(errorText)
-                            ?.let { downMsg ->
-                                val down = com.kitsugi.animelist.data.remote.KitsugiApiBase
-                                    .recordAniListServiceDown(downMsg, response.code)
-                                throw IllegalStateException(down.message, down)
-                            }
-                        throw IllegalStateException(
-                            context?.getString(R.string.account_sync_api_error, "AniList", response.code, errorText)
-                                ?: "AniList API hatası: ${response.code} $errorText"
+            } catch (e: Exception) {
+                AniListGovernor.observeTransportFailure(e)
+                lastFailure = e
+                if (attempt >= MAX_ANILIST_ATTEMPTS) break
+                Thread.sleep(1_000L * attempt)
+                continue
+            }
+
+            val (response, responseText) = call
+
+            when (val outcome = AniListGovernor.observeResponse(response, responseText)) {
+                is AniListGovernor.Outcome.Success -> {
+                    val errors = runCatching { JSONObject(responseText).optJSONArray("errors") }.getOrDefault(null)
+                    when (val classified = AniListGovernor.classifyErrors(errors)) {
+                        is AniListGovernor.Outcome.Success -> return responseText
+                        is AniListGovernor.Outcome.RateLimited -> {
+                            lastFailure = IllegalStateException(
+                                context?.getString(
+                                    R.string.account_sync_anilist_rate_limit,
+                                    attempt,
+                                    classified.retryAfterMs / 1000L
+                                ) ?: "AniList istek sınırı doldu — ${classified.retryAfterMs / 1000L} sn sonra kendiliğinden tekrar denenecek"
+                            )
+                            if (attempt >= MAX_ANILIST_ATTEMPTS) break
+                            continue // acquireBlocking() soğumayı bekleyecek
+                        }
+                        is AniListGovernor.Outcome.AuthFailure -> throw IllegalStateException(
+                            context?.getString(R.string.account_sync_token_missing, "AniList")
+                                ?: "AniList oturum süresi dolmuş; lütfen hesabı yeniden bağlayın."
+                        )
+                        is AniListGovernor.Outcome.ServiceDown -> throw IllegalStateException(
+                            "AniList geçici olarak devre dışı: ${classified.message}"
+                        )
+                        is AniListGovernor.Outcome.Retryable -> {
+                            lastFailure = IllegalStateException("AniList geçici sunucu hatası")
+                            if (attempt >= MAX_ANILIST_ATTEMPTS) break
+                            Thread.sleep(classified.retryAfterMs.coerceIn(500L, 4_000L))
+                        }
+                        is AniListGovernor.Outcome.Permanent -> throw IllegalStateException(
+                            context?.getString(
+                                R.string.account_sync_api_error,
+                                "AniList",
+                                response.code,
+                                (errors?.toString() ?: responseText).take(300)
+                            ) ?: "AniList API hatası: ${response.code} ${(errors?.toString() ?: responseText).take(300)}"
                         )
                     }
-
-                    val responseText = response.body?.string() ?: ""
-                    com.kitsugi.animelist.data.remote.KitsugiApiBase
-                        .extractAniListServiceDownMessage(responseText)
-                        ?.let { downMsg ->
-                            val down = com.kitsugi.animelist.data.remote.KitsugiApiBase
-                                .recordAniListServiceDown(downMsg, 503)
-                            throw IllegalStateException(down.message, down)
-                        }
-                    val errors = JSONObject(responseText).optJSONArray("errors")
-                    if (errors != null && errors.length() > 0) {
-                        throw IllegalStateException(errors.toString())
-                    }
-
-                    return responseText
                 }
-            } catch (e: Exception) {
-                if (e is IllegalStateException) throw e
-                val reason = e.message ?: context?.getString(R.string.account_sync_unknown_error) ?: "Bilinmeyen hata"
-                throw IllegalStateException(
-                    context?.getString(R.string.account_sync_connection_error, "AniList", reason)
-                        ?: "AniList bağlantı hatası: $reason",
-                    e
+                is AniListGovernor.Outcome.RateLimited -> {
+                    val retrySec = (outcome.retryAfterMs / 1000L).coerceAtLeast(1L)
+                    lastFailure = IllegalStateException(
+                        context?.getString(R.string.account_sync_anilist_rate_limit, attempt, retrySec)
+                            ?: "AniList istek sınırı doldu — $retrySec sn sonra kendiliğinden tekrar denenecek"
+                    )
+                    if (attempt >= MAX_ANILIST_ATTEMPTS) break
+                    continue
+                }
+                is AniListGovernor.Outcome.Retryable -> {
+                    lastFailure = IllegalStateException("AniList geçici sunucu hatası")
+                    if (attempt >= MAX_ANILIST_ATTEMPTS) break
+                    Thread.sleep(outcome.retryAfterMs.coerceIn(500L, 4_000L))
+                }
+                is AniListGovernor.Outcome.AuthFailure -> throw IllegalStateException(
+                    context?.getString(R.string.account_sync_token_missing, "AniList")
+                        ?: "AniList oturum süresi dolmuş; lütfen hesabı yeniden bağlayın."
+                )
+                is AniListGovernor.Outcome.ServiceDown -> throw IllegalStateException(
+                    "AniList geçici olarak devre dışı: ${outcome.message}"
+                )
+                is AniListGovernor.Outcome.Permanent -> throw IllegalStateException(
+                    context?.getString(R.string.account_sync_api_error, "AniList", response.code, responseText.take(300))
+                        ?: "AniList API hatası: ${response.code} ${responseText.take(300)}"
                 )
             }
         }
+
+        throw lastFailure ?: IllegalStateException(
+            context?.getString(R.string.account_sync_unknown_error) ?: "AniList isteği tamamlanamadı"
+        )
     }
 
     private const val MAX_ANILIST_ATTEMPTS = 3

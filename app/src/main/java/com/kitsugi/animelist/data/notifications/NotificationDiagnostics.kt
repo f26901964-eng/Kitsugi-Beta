@@ -132,6 +132,8 @@ object NotificationDiagnostics {
 
         return try {
             val payload = JSONObject().put("query", query).toString()
+            // Teşhis de olsa AniList'e giden her istek ortak bütçeden geçmeli.
+            com.kitsugi.animelist.data.auth.AniListGovernor.acquire()
             val http = httpPostJson("https://graphql.anilist.co", payload, token)
             val status = http.first
             val body = http.second

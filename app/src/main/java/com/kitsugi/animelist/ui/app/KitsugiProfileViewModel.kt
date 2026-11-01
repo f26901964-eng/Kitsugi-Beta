@@ -1248,8 +1248,12 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 .header("Authorization", "Bearer $token")
                 .build()
 
+            // Ortak AniList hız bütçesinden geç (profil sorguları da kotayı harcar).
+            com.kitsugi.animelist.data.auth.AniListGovernor.acquire()
+
             com.kitsugi.animelist.core.network.KitsugiHttpClient.aniListClient.newCall(request).execute().use { response ->
                 val bodyText = runCatching { response.body?.string() ?: "" }.getOrDefault("")
+                com.kitsugi.animelist.data.auth.AniListGovernor.observeResponse(response, bodyText)
                 com.kitsugi.animelist.data.remote.KitsugiApiBase
                     .extractAniListServiceDownMessage(bodyText)
                     ?.let { downMsg ->

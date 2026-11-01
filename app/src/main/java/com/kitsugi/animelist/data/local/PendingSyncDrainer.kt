@@ -71,6 +71,19 @@ object PendingSyncDrainer {
         // Exhausted jobs remain inspectable/recoverable; never silently delete user intent.
         if (!drainMutex.tryLock()) return@withContext 0
         try {
+        // AniList hız sınırı / kesinti aktifse DENEME: gönderilecek her istek anında
+        // başarısız olur ve kayıtların 5 deneme hakkı saniyeler içinde tükenirdi
+        // (kullanıcı niyeti donmadan önce "1 hak" kalıyordu). Soğuma bitince kuyruk
+        // zaten yeniden boşaltılıyor.
+        if (com.kitsugi.animelist.data.auth.AniListGovernor.isRateLimitedNow() ||
+            com.kitsugi.animelist.data.auth.AniListGovernor.isServiceDownNow()
+        ) {
+            android.util.Log.w(
+                "PendingSyncDrainer",
+                "AniList kullanılamıyor, kuyruk boşaltma atlandı (${com.kitsugi.animelist.data.auth.AniListGovernor.debugSnapshot()})"
+            )
+            return@withContext 0
+        }
         if (freshBudget) dao.resetRetries()
         val pending = dao.getAll().filter { it.retryCount < MAX_RETRIES }
         if (pending.isEmpty()) return@withContext 0
@@ -104,9 +117,21 @@ object PendingSyncDrainer {
                 dao.deleteById(item.id)
                 successCount++
             } else {
-                val allErrors = syncResult?.errors.orEmpty().joinToString(" | ")
-                val isAuthError = allErrors.contains("401") || allErrors.contains("token geçersiz") || allErrors.contains("Unauthorized")
-                if (!isAuthError) {
+                val allErrors = (
+                    syncResult?.errors.orEmpty() +
+                        listOfNotNull(result.exceptionOrNull()?.message)
+                    ).joinToString(" | ")
+                val isAuthError = allErrors.contains("401") ||
+                    allErrors.contains("token geçersiz") ||
+                    allErrors.contains("Unauthorized")
+                // Hız sınırı KULLANICI HATASI DEĞİLDİR: deneme hakkını yakmaz.
+                // Eski davranışta tek bir 429 fırtınası 5 hakkı saniyeler içinde
+                // bitiriyor, değişiklikler kuyrukta donuyordu.
+                val isRateLimit = allErrors.contains("429") ||
+                    allErrors.contains("istek sınırı", ignoreCase = true) ||
+                    allErrors.contains("hız sınırı", ignoreCase = true) ||
+                    allErrors.contains("rate limit", ignoreCase = true)
+                if (!isAuthError && !isRateLimit) {
                     dao.incrementRetry(item.id)
                 }
             }

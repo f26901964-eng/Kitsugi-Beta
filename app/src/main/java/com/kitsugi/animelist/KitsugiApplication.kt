@@ -314,17 +314,34 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     val repo = com.kitsugi.animelist.data.local.MediaEntryRepository(dao = dao, context = this@KitsugiApplication)
 
                     var syncCount = 0
+                    // Yarım kalan aktarım "tamamlandı" sayılmasın: 24 saatlik yenileme
+                    // penceresi kapanmadan eksik liste kalıcılaşmasın.
+                    var allSourcesComplete = true
 
                     // AniList
                     val aniListToken = com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(this@KitsugiApplication)
                     if (!aniListToken.isNullOrBlank()) {
                         try {
                             android.util.Log.d("KitsugiAutoSync", "AniList listesi yenileniyor...")
-                            val entries = com.kitsugi.animelist.data.auth.AniListImportManager.fetchAllLists(aniListToken)
-                            // +18 işaretleri sil-yaz döngüsünde kaybolmasın
-                            repo.replaceSourcePreservingAdultFlags("anilist", entries)
-                            syncCount += entries.size
-                            android.util.Log.d("KitsugiAutoSync", "AniList: ${entries.size} kayıt yenilendi.")
+                            val result = com.kitsugi.animelist.data.auth.AniListImportManager
+                                .fetchAllListsDetailed(aniListToken)
+                            if (result.complete && result.entries.isNotEmpty()) {
+                                // Tam aktarım: +18 işaretleri sil-yaz döngüsünde kaybolmasın
+                                repo.replaceSourcePreservingAdultFlags("anilist", result.entries)
+                            } else if (result.entries.isNotEmpty()) {
+                                allSourcesComplete = false
+                                // KISMİ aktarım (hız sınırı / kesinti): var olan satırları
+                                // SİLME — eldeki kayıtlar birleştirilir. Eski davranışta
+                                // yarım kalan aktarım ya hiç yazılmıyor (liste boş kalıyor)
+                                // ya da tüm listeyi siliyordu.
+                                repo.smartImport("anilist", result.entries, allowDelete = false)
+                                android.util.Log.w(
+                                    "KitsugiAutoSync",
+                                    "AniList aktarımı yarım kaldı: ${result.entries.size} kayıt birleştirildi (${result.errorMessage})"
+                                )
+                            }
+                            syncCount += result.entries.size
+                            android.util.Log.d("KitsugiAutoSync", "AniList: ${result.entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {
                             android.util.Log.w("KitsugiAutoSync", "AniList yenileme hatası: ${e.message}")
                         }
@@ -362,7 +379,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                         }
                     }
 
-                    if (syncCount > 0) {
+                    if (syncCount > 0 && allSourcesComplete) {
                         prefs.edit().putLong("last_list_sync_ms", now).apply()
                         android.util.Log.i("KitsugiAutoSync", "Otomatik liste yenileme tamamlandı: toplam $syncCount kayıt.")
                     }
