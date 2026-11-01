@@ -396,6 +396,9 @@ zorunlu olduğunu gösterir. `O` bloğunda `rank >= 1` ile aynı çipler gerçek
 | **Nihai** derleme + Bangumi testleri (tüm düzeltmeler, `ALL_MIXED` tür kapsamı dâhil) | **BUILD SUCCESSFUL**, `exit=0` (çalışma `41251983138`, commit `9136c98`) |
 | **Nihai** `🎌 Bangumi MASTER Doğrulama` (sözlük + `BangumiMasterDictionaryTest`) | **success** (çalışma `41251983148`, commit `9136c98`) |
 | **Nihai** tam APK doğrulaması (MAL testleri + foss debug + R8 release + DEX + APK yükleme) | **success**, 27 dk 44 sn (çalışma `41251983178`, commit `9136c98`) |
+| Son `rank>=1` (match) düzeltmesi sonrası derleme + Bangumi testleri | **BUILD SUCCESSFUL**, 6 dk 32 sn, `exit=0` (çalışma `41254666522`, commit `1a1db89`) |
+| Son `rank>=1` düzeltmesi sonrası tam APK doğrulaması | **success** (çalışma `41254666628`, commit `1a1db89`) — debug + R8 release APK + DEX + APK yükleme |
+| Son commit canlı API probu (S/T blokları) | **success** (çalışma `41254666696`, commit `1a1db89`) |
 
 **Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
 `41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
@@ -521,7 +524,7 @@ app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchSourceFilters.kt
 app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt   +98
 app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt          +99
 app/src/test/java/com/kitsugi/animelist/utils/BangumiTagCanonicalizationTest.kt +80 (yeni)
-# toplam: 9 dosya, +879 / -122   (`git diff --stat c320ff6 -- app/src`)
+# toplam: 9 dosya, +886 / -122   (`git diff --stat c320ff6 -- app/src`)
 probe/result.txt                                                              (canlı API kanıtı)
 probe/kotlin_log.txt                                                          (derleme + test günlüğü)
 ```
