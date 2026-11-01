@@ -1118,7 +1118,7 @@ object KitsugiBangumiClient {
  * Mevsim → Bangumi `air_date` çeyrek aralığı. Örn. `("SPRING", 2025)` → `>=2025-04-01` …
  * `<2025-07-01` (üst sınır dışlayıcı; canlı prob V1/V3/V5 ile doğrulandı).
  */
-private fun bangumiSeasonRange(season: String?, seasonYear: Int?): Pair<String, String>? {
+internal fun bangumiSeasonRange(season: String?, seasonYear: Int?): Pair<String, String>? {
     val year = seasonYear?.takeIf { it > 1900 } ?: return null
     val startMonth = when (season?.trim()?.uppercase(java.util.Locale.ROOT)) {
         "WINTER" -> 1
