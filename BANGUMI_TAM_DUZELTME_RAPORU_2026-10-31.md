@@ -6,10 +6,10 @@
 **Kapsam:** Bangumi'nin (bgm.tv) beslediği **tüm** yüzeyler — Keşfet şeritleri, "Tümünü Gör"
 ızgaraları, Arama, detay sekmeleri, kütüphane/eşitleme ve hata gösterimi.
 **Son güncelleme:** 1 Kasım 2026 — dördüncü yuvarlak (`S`–`V` blokları) ile **arama sayfası,
-filtre sheet'i ve "Tümünü Gör" filtre bölümü** çip çip denetlendi; 10 yeni sözleşme hatası
-(R17–R26) canlı API ölçümleriyle bulunup düzeltildi. En son doğrulama: `3dd89ae` —
-Kotlin derleme + **tam birim test seti (1480 test)** + R8/APK doğrulaması + canlı prob
-**tümü yeşil** (§6).
+filtre sheet'i ve "Tümünü Gör" filtre bölümü** çip çip denetlendi; 11 yeni sözleşme hatası
+(R17–R27) canlı API ölçümleriyle bulunup düzeltildi. En son doğrulama: `a7b8734` —
+Kotlin derleme + **tam birim test seti (1482 test, filtre yok)** + R8/APK doğrulaması +
+canlı prob **tümü yeşil** (§6).
 
 ---
 
@@ -52,8 +52,8 @@ Bangumi aramasında **"Diziler"/"Filmler" kapsamı hiç yok**, "Tümünü Gör" 
 sıralamaları "yerel" diye işaretliyordu. Hepsi canlı API ölçümleriyle düzeltildi (§4.6).
 
 Dördüncü yuvarlakta kullanıcının üç kez üstünde durduğu bölgeler (arama sayfası, filtre
-sheet'i, "Tümünü Gör" filtre bölümü) tek tek denetlendi ve **on yeni hata** bulundu
-(R17–R26): "Tümünü Gör"de kullanıcının seçtiği sıralama tür çipi yoksa `rank`'e zorlanıyordu;
+sheet'i, "Tümünü Gör" filtre bölümü) tek tek denetlendi ve **on bir yeni hata** bulundu
+(R17–R27): "Tümünü Gör"de kullanıcının seçtiği sıralama tür çipi yoksa `rank`'e zorlanıyordu;
 `meta_tags` süzgeci `hasSearchFilters`'a sayılmadığı için istek etiketsiz göz atma ucuna
 gidiyordu (manga ızgarası roman listeliyordu); "📱 yerel" tür süzgeci Bangumi'nin Çince
 etiketleriyle hiç eşleşmediği için **her zaman boş** liste veriyordu; yayındaki/yaklaşan
@@ -62,12 +62,14 @@ arama sayfasının tür/etiket çipleri Bangumi'ye hiç ulaşmıyordu; **detay f
 tamamen düşüyordu** (Bangumi'de sezon alanı yok → `air_date` çeyreğine çevrildi, prob V1–V5);
 mevsimsel ızgarada tür çipi seçilince mevsim kayboluyor, "Bu Sezon" rafı bir mevsimin yalnız
 bir ayını gösteriyor ve mevsimsel sıralama hiç uygulanmıyordu; tür/etiket sheet'i yıl/mevsim/puan
-süzgeçlerini siliyordu. Hepsi düzeltildi, birim testleriyle sabitlendi (§5, §6).
+süzgeçlerini siliyordu; "Noveller & Light Novel" ızgarası filtrelenmiş sayfadan tamamen
+düşüyordu (roman kataloğu artık `meta_tags=["小说"]` ile sunucuda süzülür). Hepsi düzeltildi,
+birim testleriyle sabitlendi (§5, §6).
 
 Düzeltmeler sonrası `:app:compileFossDebugKotlin` **başarıyla** derleniyor, **tam birim test
 seti** (filtresiz `:app:testFossDebugUnitTest`, 1480 test) `exit=0` ile geçiyor
-(çalışma `41295340822`, commit `3dd89ae`), R8/APK doğrulaması ve canlı API matrisi yeşil
-(bkz. §4, §6).
+(çalışma `41297747164`, commit `a7b8734`), R8/APK doğrulaması (`41297747235`) ve canlı API
+matrisi (`41297747117`) yeşil (bkz. §4, §6).
 
 ---
 
@@ -101,6 +103,7 @@ seti** (filtresiz `:app:testFossDebugUnitTest`, 1480 test) `exit=0` ile geçiyor
 | "Bu Sezon" rafı bir mevsimin yalnız **bir ayını** listeliyordu | R24: `seasonalAnime()` → `seasonFor(year, buAy)` | Takvim çeyreği + `heat` sıralaması; boş dönerse ay bazlı göz atmaya düşer |
 | Mevsimsel ızgaranın "Puana / İlgiye göre" sıralaması Bangumi'de hiç uygulanmıyordu | R26: `fetchSeasonalPage` `seasonalSort`'u okumuyordu (hep ay-göz-atma sırası) | `SCORE_DESC → score`, `MEMBERS/POPULARITY_DESC → heat`, diğerleri `rank` |
 | Tür/etiket sheet'inde bir çip daha ekleyince kullanıcının yıl/mevsim/puan süzgeçleri **siliniyordu** | R25: `SearchFilters` yalnız tür/etiket taşıdığı için `updateFilters` diğer alanları `null`'a çekiyordu (TMDB tür diyaloğunda da aynı) | Sheet'ten gelen değerler mevcut durumla birleştirilir (yalnız düzenlenen alanlar yazılır) |
+| "Noveller & Light Novel" ızgarasına tür çipi uygulandığında Bangumi hiç katkı vermiyordu | R27: `shelfSpec(BANGUMI, NOVELS) = null`, yani bu raf filtrelenmiş sayfada eleniyordu; tür süzgeci cihazda Çince etiketlerle eşleşmiyordu | Roman kataloğu `type=1` + `meta_tags=["小说"]` + `comicsOnly=false` ile **sunucuda** süzülür (prob Q4/U5) |
 
 ---
 
@@ -416,6 +419,7 @@ gösterir:
 | `bangumiPage`: kullanıcı sıralaması tür seçili değilken de gönderilir; Manga ızgarasında `meta_tags=["漫画"]` | R17, R18 |
 | `supportsSort(BANGUMI)`: tür seçili olmasa da `score`/`heat` sunucuda | R17 |
 | Mevsimsel sayfada mevsim filtresi `bangumiPage`'e taşınır | R23 — tür çipi seçilince mevsim düşüyordu |
+| `shelfSpec(BANGUMI, NOVELS)` artık tanımlı; `bangumiPage` roman için `meta_tags=["小说"]`, `comicsOnly=false` | R27 — roman ızgarası filtrelenmiş sayfadan tamamen düşüyordu |
 
 ### 5.4 `utils/BangumiTagDictionary.kt`
 
@@ -498,6 +502,9 @@ gösterir:
 | Kotlin derleme + Bangumi testleri (son hâl) | **success** (çalışma `41295340822`, commit `3dd89ae`) |
 | APK doğrulama (debug + R8 release + DEX) | **success** (çalışma `41295340719`, commit `3dd89ae`) |
 | Canlı API probu (V blokları: mevsim çeyrek aralıkları) | **success** (çalışma `41295340729`, commit `3dd89ae`) |
+| Kotlin derleme + Bangumi testleri (roman rafı düzeltmesi sonrası) | **success** (çalışma `41297747164`, commit `a7b8734`) |
+| **TAM birim test seti** (filtresiz, 1482 test) | **BUILD SUCCESSFUL**, 22 dk 11 sn, `exit=0` (commit `a7b8734`) |
+| APK doğrulama + canlı API probu | **success** (`41297747235`, `41297747117`, commit `a7b8734`) |
 
 **Uçtan uca doğrulama (en güçlü kanıt):** `🏗️ Android Derleme Doğrulama` iş akışı
 `41244697911` **başarıyla** tamamlandı (28 dk 39 sn):
@@ -605,10 +612,11 @@ indirilemediği için günlük doğrudan depoya işlendi).
    5 rps + OkHttp ana başına 8 istek). Tavan 15 sn iken kuyruk sonundaki şeritler
    kesiliyordu; 20 sn'ye çıkarıldı. Yavaş cihazlarda ilk yükleme bu süreye kadar
    sürebilir (önbellek sonrası anlık).
-9. **"Noveller & Light Novel" tam ekranı yalnız yerel süzgeçle çalışır:** Bangumi'nin
-   `cat=1002` göz atma ucu tür/sıralama parametresi kabul etmez; tür çipi seçildiğinde
-   filtre cihazda uygulanır ("📱" rozeti). "Tümü" (çok kaynak) modunda roman ızgarasına
-   Bangumi katılmaz (diğer kaynaklar doldurur) — bilinçli tercih.
+9. **"Noveller & Light Novel":** roman kataloğu artık `type=1` + `meta_tags=["小说"]`
+   aramasıyla **sunucuda** süzülür (prob Q4: 539 kayıt, U5: puan sıralaması 卡拉马佐夫兄弟).
+   Tek sınır: Bangumi'nin `cat=1002` göz atma ucu tür/sıralama kabul etmediği için
+   **filtresiz** roman rafı (göz atma) ile filtrelenmiş roman ızgarası (arama) farklı
+   uçlardan beslenir; ikisi de aynı kataloğu gösterir, sıralama farkı olabilir.
 10. **"Hariç tut" süzgeci Bangumi'de istemci tarafında:** sunucu olumsuz (`!=`) süzgeç
     desteklemediği için dışlanan tür, dönen sayfa içinde süzülür; sayfa 20 kayıttan
     kısalabilir (sayfalama `offset` ile devam eder, kayıt atlanmaz).
@@ -630,7 +638,7 @@ indirilemediği için günlük doğrudan depoya işlendi).
 app/src/main/java/com/kitsugi/animelist/data/auth/BangumiApiClient.kt              +212/-21
 app/src/main/java/com/kitsugi/animelist/data/remote/KitsugiBangumiClient.kt        +403/-62
 app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiRankingBottomSheet.kt  +26/-4
-app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +92/-33
+app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreSourceFilterQuery.kt +120/-37
 app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt       +15/-1
 app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt +39/-13
 app/src/main/java/com/kitsugi/animelist/ui/screens/search/DetailSearchFilterRequest.kt  +5/-1
@@ -640,9 +648,9 @@ app/src/main/java/com/kitsugi/animelist/ui/screens/search/SearchViewModel.kt    
 app/src/main/java/com/kitsugi/animelist/utils/BangumiTagDictionary.kt               +103/-4
 app/src/test/java/.../data/remote/BangumiSeasonRangeTest.kt                          +60  (yeni)
 app/src/test/java/.../utils/BangumiTagCanonicalizationTest.kt                        +80  (yeni)
-app/src/test/java/.../explore/ExploreSourceFiltersBangumiTest.kt                     +69  (yeni)
+app/src/test/java/.../explore/ExploreSourceFiltersBangumiTest.kt                     +95  (yeni)
 app/src/test/java/.../search/SearchRelevanceTest.kt                                  +12/-2 (güncellendi)
-# toplam: 15 dosya, +1322 / -160   (`git diff --numstat c320ff6 -- app/src`)
+# toplam: 15 dosya, +1363 / -161   (`git diff --numstat c320ff6 -- app/src`)
 probe/result.txt                            (canlı API kanıtı, A–V blokları)
 probe/kotlin_log.txt                        (derleme + Bangumi test günlüğü)
 probe/test_log.txt                          (TAM birim test seti, filtre yok)
