@@ -293,3 +293,24 @@ ediliyor (`render_glyph.js` → `shadowOffset [-0.16, 0.20]`, alfa 0.34).
 | etiket | kâğıt etiket | krom perçin |
 | yedek | jöle bulut | emaye ok |
 | dışa aç | obsidyen çerçeve | emaye ok (ayrı katman) |
+
+## Ölçülen gramer (v10) — önce tanımla, sonra uygula
+
+95 orijinal 3dicons render'ı piksel bazında ölçüldü
+(`tools/iconpack/original_analysis.js` → `docs/orijinal-3b-analizi.md`).
+Çıkan medyan gramer:
+
+| Öğe | Ölçülen | Uygulanan |
+|-----|---------|-----------|
+| Parlaklık merkezi | u=0.52, v=0.16 (üst-orta) | stüdyo parlaması `(x−3.6, y−7.4)` |
+| Tepe parlaklık | %74 (tam beyaz değil) | spec tavanı 0.76 |
+| Gölge vektörü | dx=0.00, dy=0.00 (merkezde) | ofset `(0.10, −0.06)` |
+| Gölge alfası | %28 | 1.05 (blur sonrası %28) |
+| Kenar / çekirdek parlaklık | 0.96 (kenar hafif koyu) | `rimDark 0.08–0.11` |
+| Dikey parlaklık gradyanı | -92° | `vGrad = 0.80 + 0.28·yN` |
+| Doygunluk | 0.64 | `satK = sat × 1.30` |
+
+Son ölçüm (55 glif, medyan): u=0.44, v=0.19, tepe 0.71, gölge (−0.01, 0.01, 0.28),
+kenar 0.92, doygunluk 0.65 → hedefle fark ≤ 0.07.
+Karşılaştırma görseli: `docs/ikon-gramer-karsilastirma.png`.
+Her orijinalin kişisel imzası: `docs/orijinal-3b-analizi.md` § "Her orijinalin kişisel 3B imzası".

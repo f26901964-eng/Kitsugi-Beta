@@ -224,3 +224,21 @@ alttakine gerçek gölge düşürüyor — katmanlı, gerçek nesne görüntüs�
 
 Parça tablosu: `docs/IKON_KONTROL_GLIFLERI.md` § Parçalı kurulum.
 Krom aksan 8 ikonda (kameralar, kadran, tepsi, perçin, düğme, kasnak).
+
+### 5i. Ölçüm tabanlı gramer (v10)
+
+Şimdiye kadar ayarlar gözle yapılıyordu. Bu adımda önce orijinal set ölçüldü,
+sonra kendi setim o ölçülere çekildi:
+
+1. `tools/iconpack/original_analysis.js` — 95 orijinal render için: parlaklık
+   merkezi (üst %5 piksel), tepe parlaklık, gölge vektörü ve alfası (yarı saydam
+   pikseller), kenar/çekirdek parlaklık oranı, gradyan açısı ve şiddeti,
+   ortalama doygunluk, doluluk. Çıktı: `docs/orijinal-3b-analizi.md`.
+2. `tools/iconpack/grammar_check.js` — aynı metrikleri kendi gliflerimde ölçüp
+   fark tablosu verir (hızlı iterasyon için).
+3. `tools/iconpack/grammar_report.js` → `docs/ikon-gramer-karsilastirma.png`.
+
+Ölçümler sonucu değişen sabitler: ışık/parlama merkezi üst-ortaya alındı
+(u 0.32→0.44, v 0.30→0.19), gölge merkezlendi ve alfası %13→%28, kenar kararması
+0.26→0.09 (kenar/çekirdek 0.83→0.92), dikey parlaklık gradyanı eklendi
+(gradyan açısı −130°→−107°, hedef −92°), doygunluk 0.54→0.68 (hedef 0.64).

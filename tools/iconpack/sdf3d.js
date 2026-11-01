@@ -154,17 +154,17 @@ function sampler(sdf, size, world) {
 const MATERIALS = {
   // yumuşak mat seramik/kıl — kalp, ev, kek gövdesi
   clay: {
-    halfT: 1.52, radius: 0.98, shin: 26, spec: 0.30, env: 0.10, fres: 0.04, rimDark: 0.26,
+    halfT: 1.52, radius: 0.98, shin: 26, spec: 0.30, env: 0.10, fres: 0.04, rimDark: 0.09,
     amb: 0.80, dif: 0.40, bounce: 0.20, sat: 1.26, dark: 1.0, grain: 0.010,
   },
   // parlak emaye/plastik — anahtar, oklar, küçük kontroller
   gloss: {
-    halfT: 1.10, radius: 0.56, shin: 120, spec: 0.85, env: 0.55, fres: 0.10, rimDark: 0.26,
+    halfT: 1.10, radius: 0.56, shin: 120, spec: 0.85, env: 0.55, fres: 0.10, rimDark: 0.09,
     amb: 0.54, dif: 0.64, bounce: 0.04, sat: 1.46, dark: 1.0, grain: 0.0,
   },
   // jöle/şeker — içinden ışık geçen parlak yarı saydam
   gel: {
-    halfT: 1.34, radius: 0.90, shin: 80, spec: 0.55, env: 0.34, fres: 0.16, rimDark: 0.24,
+    halfT: 1.34, radius: 0.90, shin: 80, spec: 0.55, env: 0.34, fres: 0.16, rimDark: 0.09,
     amb: 0.66, dif: 0.48, bounce: 0.10, sat: 1.56, dark: 1.0, grain: 0.0,
     inner: 0.30,
   },
@@ -176,13 +176,13 @@ const MATERIALS = {
   },
   // cam — mercek, huni, kar tanesi, damla
   glass: {
-    halfT: 1.10, radius: 0.74, shin: 240, spec: 0.95, env: 1.05, fres: 0.34, rimDark: 0.22,
+    halfT: 1.10, radius: 0.74, shin: 240, spec: 0.95, env: 1.05, fres: 0.34, rimDark: 0.09,
     amb: 0.62, dif: 0.50, bounce: 0.08, sat: 1.40, dark: 1.06, grain: 0.0,
     glassy: 1.0, inner: 0.18,
   },
   // obsidyen/grafit cam — koyu gövde, keskin spekülar, parlak kenar
   obsidian: {
-    halfT: 1.18, radius: 0.58, shin: 200, spec: 1.15, env: 0.95, fres: 0.44, rimDark: 0.30,
+    halfT: 1.18, radius: 0.58, shin: 200, spec: 1.15, env: 0.95, fres: 0.44, rimDark: 0.11,
     amb: 0.56, dif: 0.68, bounce: 0.03, sat: 1.50, dark: 0.68, grain: 0.008,
   },
   // krom / gümüş — küçük aksan parçaları (mercek halkası, kadran, çerçeve)
@@ -193,12 +193,12 @@ const MATERIALS = {
   },
   // mat kauçuk/koyu gövde — tutamak, ped, tuş takımı gövdesi
   rubber: {
-    halfT: 1.46, radius: 0.78, shin: 12, spec: 0.18, env: 0.05, fres: 0.03, rimDark: 0.24,
+    halfT: 1.46, radius: 0.78, shin: 12, spec: 0.18, env: 0.05, fres: 0.03, rimDark: 0.09,
     amb: 0.60, dif: 0.34, bounce: 0.08, sat: 1.10, dark: 0.74, grain: 0.040,
   },
   // ince kâğıt/levha — satırlar, oklar, metin blokları
   paper: {
-    halfT: 0.56, radius: 0.22, shin: 16, spec: 0.22, env: 0.12, fres: 0.06, rimDark: 0.22,
+    halfT: 0.56, radius: 0.22, shin: 16, spec: 0.22, env: 0.12, fres: 0.06, rimDark: 0.09,
     amb: 0.84, dif: 0.50, bounce: 0.03, sat: 1.18, dark: 1.0, grain: 0.026,
     sheet: 1.0,
   },
@@ -263,9 +263,9 @@ async function render(alpha, size, opts = {}) {
   const withShadow = opts.shadow !== false;
   // parçalar için kendi (daha dar, daha yumuşak) gölgesi — üstteki parça alttakine
   // gölge düşürsün, böylece katmanlı gerçek nesne görüntüsü oluşsun
-  const shOffX = opts.shadowOffset ? opts.shadowOffset[0] : 0.34;
-  const shOffY = opts.shadowOffset ? opts.shadowOffset[1] : 0.46;
-  const shAlpha = opts.shadowAlpha ?? 0.30;
+  const shOffX = opts.shadowOffset ? opts.shadowOffset[0] : 0.10;
+  const shOffY = opts.shadowOffset ? opts.shadowOffset[1] : -0.06;
+  const shAlpha = opts.shadowAlpha ?? 1.05;
   const shBlur = opts.shadowBlur ?? 2.4;
   let halfT = opts.halfT ?? mat.halfT;
   let radius = opts.radius ?? mat.radius;
@@ -362,9 +362,9 @@ async function render(alpha, size, opts = {}) {
       let dif = mat.dif * Math.pow(ndl, 0.9);
 
       // geniş yumuşak parlama (stüdyo yansıması)
-      const hx = x + 2.6, hy = y - 3.0;
+      const hx = x - 3.6, hy = y - 7.4;
       const sheen = mat.sheen ?? 0.26;
-      const broad = Math.exp(-(hx * hx + hy * hy) / (2 * 3.2 * 3.2)) * sheen * ndv;
+      const broad = Math.exp(-(hx * hx + hy * hy) / (2 * 3.4 * 3.4)) * sheen * 0.86 * ndv;
 
       // ışık geçirgenlik / iç ışıma
       let inner = 0, glassRim = 0;
@@ -400,8 +400,9 @@ async function render(alpha, size, opts = {}) {
       const band = Math.exp(-(((yN - 0.74) / 0.26) ** 2)) * 0.10 * ndv;
 
       // siluetin hemen içinde ince koyu kenar (arka planla temas gölgesi)
-      const rimDark = 1 - (mat.rimDark ?? 0.28) * Math.pow(qa, 3.2);
-      const ao = Math.min(1, Math.max(0.60, 1 + s2 * 0.42)) * bottomAO * (1 - crease) * rimDark;
+      const rimDark = 1 - (mat.rimDark ?? 0.12) * Math.pow(qa, 3.2);
+      const vGrad = 0.80 + 0.28 * Math.min(1, Math.max(0, yN)); // tepe parlak, taban koyu
+      const ao = Math.min(1, Math.max(0.60, 1 + s2 * 0.42)) * bottomAO * (1 - crease) * rimDark * vGrad;
       const sh = (amb + dif + bounce) * ao;
       r *= 1 + band; g *= 1 + band; b *= 1 + band;
 
@@ -426,9 +427,10 @@ async function render(alpha, size, opts = {}) {
       }
 
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = lum + (r - lum) * mat.sat;
-      g = lum + (g - lum) * mat.sat;
-      b = lum + (b - lum) * mat.sat;
+      const satK = mat.sat * 1.30;
+      r = lum + (r - lum) * satK;
+      g = lum + (g - lum) * satK;
+      b = lum + (b - lum) * satK;
 
       col[kS] = Math.min(255, Math.max(0, Math.pow(Math.min(255, r) / 255, 0.90) * 255 * exposure));
       col[kS + 1] = Math.min(255, Math.max(0, Math.pow(Math.min(255, g) / 255, 0.90) * 255 * exposure));
