@@ -11,9 +11,11 @@ const sharp = (() => {
   return require(process.env.SHARP_MODULE || path.join(__dirname, 'node_modules', 'sharp'));
 })();
 const g3d = require(path.join(__dirname, 'glyph3d.js'));
+const sdf3d = require(path.join(__dirname, 'sdf3d.js'));
 
 const DST = path.join(__dirname, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
-const RENDER = 1024;
+const RENDER = 512;      // 3B render çözünürlüğü
+const MASK = 768;        // siluet maskesi çözünürlüğü
 const CANVAS = 192;
 const FILL = 0.94;
 const ALPHA_FLOOR = 26;
@@ -21,9 +23,9 @@ const ALPHA_FLOOR = 26;
 const OBJECTS = {
   // iki yay + oklar: eşitleme / yenileme
   sync: {
-    d: 'M5.4 9.6 A6.9 6.9 0 0 1 18.1 8.9 M18.1 8.9 L18.0 5.6 M18.1 8.9 L14.9 8.5 ' +
-       'M18.6 14.4 A6.9 6.9 0 0 1 5.9 15.1 M5.9 15.1 L6.0 18.4 M5.9 15.1 L9.1 15.5',
-    w: 2.9, depth: 11,
+    // dairesel ok: açık yay + ok başı (yenile / eşitle)
+    d: 'M18.6 12.4 A6.2 6.2 0 1 1 12.4 6.2 M12.4 6.2 L15.9 3.6 M12.4 6.2 L15.6 9.2',
+    w: 2.3,
   },
   // üç kaydırıcı: ince ayar / parametreler
   sliders: {
@@ -44,8 +46,9 @@ const OBJECTS = {
   },
   // kronometre: gövde + tepe düğmesi + ibre
   timer: {
-    d: 'M12 6.6 A6.3 6.3 0 1 1 11.99 6.6 Z M12 6.6 V4.2 M9.7 3.1 H14.3 M12 12.4 V9.1',
-    w: 2.7, depth: 12,
+    d: 'M12 8.0 A5.5 5.5 0 1 1 11.99 8.0 Z',
+    detail: 'M12 6.4 V3.8 M10.0 2.9 H14.0 M12 13.2 V10.2',
+    w: 2.55,
   },
   // kod: açılı parantezler
   code: {
@@ -75,17 +78,14 @@ const OBJECTS = {
   fs.mkdirSync(DST, { recursive: true });
   let made = 0;
   for (const [name, spec] of Object.entries(OBJECTS)) {
-    const svg = g3d.svg({
-      d: spec.d,
-      fill: !!spec.fill,
-      detail: spec.detail,
-      inner: spec.inner,
-      w: spec.w || 2.8,
-      depth: spec.depth || 11,
-      dx: 0.24,
-      dy: 0.30,
-    }, RENDER);
-    const raw = await sharp(Buffer.from(svg)).png().toBuffer();
+    const maskSpec = { d: spec.d, fill: !!spec.fill, w: spec.w || 2.8, detail: spec.detail, inner: spec.inner };
+    const maskUri = g3d.maskSvg(maskSpec, MASK, 0);
+    const maskRaw = await sharp(Buffer.from(maskUri)).ensureAlpha().raw().toBuffer();
+    const alpha = new Uint8Array(MASK * MASK);
+    for (let i = 0; i < MASK * MASK; i++) alpha[i] = maskRaw[i * 4 + 3];
+    let raw = await sdf3d.render(alpha, MASK, { out: RENDER, halfT: 1.30, radius: 0.62 });
+    const overlay = g3d.detailOverlay(maskSpec, RENDER);
+    if (overlay) raw = await sharp(raw).composite([{ input: Buffer.from(overlay), top: 0, left: 0 }]).png().toBuffer();
     const trimmed = await sharp(raw).trim({ threshold: 1 }).toBuffer();
     const meta = await sharp(trimmed).metadata();
     const box = Math.round(CANVAS * FILL);

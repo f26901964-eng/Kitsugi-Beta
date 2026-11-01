@@ -31,7 +31,7 @@ function shape(spec, { fill, stroke, w, opacity = 1 }) {
       (spec.italic ? ' font-style="italic"' : '');
     return `<text x="12" y="${spec.baseline || 18}" text-anchor="middle" ${style} ${common}>${esc(spec.text)}</text>`;
   }
-  return `<path d="${spec.d}" ${common}/>`;
+  return `<path d="${spec.d}" fill-rule="evenodd" ${common}/>`;
 }
 
 function defs(spec) {
@@ -114,4 +114,33 @@ function svg(spec, size = 1024) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">${defs(spec)}${shadow}${g}</svg>`;
 }
 
-module.exports = { svg, body, defs, shape, PALETTE, FACE, THICK };
+/** Siluet maskesi (beyaz, saydam zemin) — 3B render hattının girdisi. */
+function maskSvg(spec, size, rot = 0) {
+  const w = spec.w || 3.3;
+  const solid = spec.fill || spec.text;
+  // dolgulu şekillerde kontur çok ince tutulur; yoksa biçim yuvarlanıp kayboluyor
+  const wMask = solid ? 0.45 : w;
+  let el = shape(spec, { fill: solid ? '#fff' : 'none', stroke: '#fff', w: wMask });
+  // ayrıntı çizgileri de maskeye girer → 3B yüzeyde kabartma/oluk olarak görünür
+  if (spec.detail) el += `<path d="${spec.detail}" fill="none" stroke="#fff" stroke-width="${Math.max(0.85, w * 0.34).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if (spec.inner) el += `<path d="${spec.inner}" fill="none" stroke="#fff" stroke-width="${Math.max(0.8, w * 0.30).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const body = rot ? `<g transform="rotate(${rot} 12 12)">${el}</g>` : el;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">${body}</svg>`;
+}
+
+/** Dolgulu şekillerde iç ayrıntıyı (mercek, tuşlar, mum…) oyar: koyu çizgi + alt ışık. */
+function detailOverlay(spec, size) {
+  if (!spec.detail && !spec.inner) return null;
+  const w = spec.w || 3.3;
+  const sw = Math.max(0.85, w * 0.30).toFixed(2);
+  const parts = [];
+  const draw = (d, sw2) => {
+    parts.push(`<path d="${d}" fill="none" stroke="#4A175E" stroke-opacity="0.55" stroke-width="${sw2}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    parts.push(`<g transform="translate(0.10 0.13)"><path d="${d}" fill="none" stroke="#FFF2E4" stroke-opacity="0.45" stroke-width="${(+sw2 * 0.55).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/></g>`);
+  };
+  if (spec.detail) draw(spec.detail, sw);
+  if (spec.inner) draw(spec.inner, Math.max(0.8, w * 0.26).toFixed(2));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">${parts.join('')}</svg>`;
+}
+
+module.exports = { svg, body, defs, shape, maskSvg, detailOverlay, PALETTE, FACE, THICK };

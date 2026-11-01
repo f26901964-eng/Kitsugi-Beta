@@ -14,9 +14,11 @@ const sharp = (() => {
   return require(process.env.SHARP_MODULE || path.join(__dirname, 'node_modules', 'sharp'));
 })();
 const g3d = require(path.join(__dirname, 'glyph3d.js'));
+const sdf3d = require(path.join(__dirname, 'sdf3d.js'));
 
 const DST = path.join(__dirname, '..', '..', 'app', 'src', 'main', 'res', 'drawable-nodpi');
-const RENDER = 1024;
+const RENDER = 512;      // 3B render çözünürlüğü
+const MASK = 768;        // siluet maskesi çözünürlüğü
 const CANVAS = 128;
 const FILL = 0.94;
 const ALPHA_FLOOR = 26;
@@ -129,8 +131,23 @@ const svgForLetter = (spec) => g3d.svg({
   for (const [name, spec] of Object.entries(LETTERS)) jobs.push([name, spec, true]);
 
   for (const [name, spec, isLetter] of jobs) {
-    const svg = isLetter ? svgForLetter(spec) : svgFor(spec, spec.rotate || 0);
-    const raw = await sharp(Buffer.from(svg)).png().toBuffer();
+    // 1) siluet maskesi (SVG) → 2) SDF + analitik 3B render
+    const maskSpec = isLetter
+      ? { text: spec.ch, size: spec.size, weight: spec.weight, italic: !!spec.italic, strike: !!spec.strike, baseline: 18, w: 0.6 }
+      : specOf(spec, spec.rotate || 0);
+    const maskUri = g3d.maskSvg(maskSpec, MASK, isLetter ? 0 : (spec.rotate || 0));
+    const maskRaw = await sharp(Buffer.from(maskUri)).ensureAlpha().raw().toBuffer();
+    const alpha = new Uint8Array(MASK * MASK);
+    for (let i = 0; i < MASK * MASK; i++) alpha[i] = maskRaw[i * 4 + 3];
+    let raw = await sdf3d.render(alpha, MASK, {
+      out: RENDER,
+      halfT: isLetter ? 1.0 : 1.30,
+      radius: isLetter ? 0.42 : 0.62,
+    });
+    const overlay = isLetter ? null : g3d.detailOverlay(specOf(spec, spec.rotate || 0), RENDER);
+    if (overlay) {
+      raw = await sharp(raw).composite([{ input: Buffer.from(overlay), top: 0, left: 0 }]).png().toBuffer();
+    }
     const trimmed = await sharp(raw).trim({ threshold: 1 }).toBuffer();
     const meta = await sharp(trimmed).metadata();
     const box = Math.round(CANVAS * FILL);

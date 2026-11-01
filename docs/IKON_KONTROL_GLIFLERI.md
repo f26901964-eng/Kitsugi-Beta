@@ -19,29 +19,33 @@ Uygulamada kullanılan **268 farklı Material ikon adının** her biri, işlevin
 (kitap/liste satırı yer imi, indirme satırı bavul, eşitleme satırı wifi, TV satırı monitör…).
 Artık **her işlev kendi görseline** sahip; tablo tek yerde ve denetlenebilir.
 
-## Kontrol glifleri (3B)
+## Kontrol glifleri — gerçek 3B render (SDF + ışın yürütme)
 
-3dicons render'ları **katı (solid) cam nesneler**: keskin siluet, çapraz renk rampası,
-sol-üst ışık, sağ-alt gölge — ince kontur veya parlama halkası yok. Glifler bu malzeme
-kurallarıyla, `tools/iconpack/glyph3d.js` + `control_glyphs.js` ile üretilir:
+3dicons render'ları **gerçek 3B nesneler**: yuvarlatılmış kenarlı hacim, normal'e göre
+gölgeleme, geniş spekülar parlama, fresnel kenar ışığı, temas gölgesi. SVG ile
+"gradyan + kaydırılmış kopya" yaklaşımı poster gibi duruyordu; bu yüzden hattı
+değiştirdik.
 
-| Katman | Kural |
-|---|---|
-| Temas gölgesi | `#2E0B3E` %34, 1.2 blur, siluetin altında ve dışında |
-| Kalınlık | şeklin 2 opak kopyası (0.55/0.62 ve 0.26/0.30 birim kaydırma), `#6E3390 → #361246` |
-| Ön yüz | çapraz rampa `#FFB673 → #FA8A7E → #F0679B → #CE4FB4 → #A248C6 → #7B4FCB` |
-| Işık | sol-üstte radyal beyaz hâle (%24 → 0), şekle kırpılmış |
-| Gölgeleme | alt %30'da `#3A0F4C` (%0 → %30), şekle kırpılmış |
-| Ayrıntı | dolgulu şekillerde ince açık çizgi (klavye tuşları, kamera merceği, kek mumları) |
-| Render | 24×24 ızgara → **1024 px** → kırp → LANCZOS3 ile 128 px (glif) / 192 px (nesne) |
-| Çıktı | saydam RGBA PNG (palet kuantizasyonu yok — bant oluşmasın) |
+Akış (`tools/iconpack/sdf3d.js`):
 
-> Önceki sürüm 12 yarı saydam ekstrüzyon katmanı + geniş parlama maskesi kullanıyordu;
-> sonuç "bulanık/mürekkep" görünüyordu. Ayrıca SVG 24 px'e render edilip büyütülüyordu.
-> İkisi de düzeltildi: kalınlık 2 opak katman, parlama halkası yok, render 1024 px.
+| # | Adım | Ayrıntı |
+|---|---|---|
+| 1 | Siluet | SVG path → 768 px maske (`glyph3d.maskSvg`) |
+| 2 | Mesafe alanı | kesin Öklid mesafe dönüşümü (Felzenszwalb), 4 kez yumuşatma |
+| 3 | Hacim | siluet, kalınlığı `2×1.30` birim, kenar yarıçapı `0.62` olan yuvarlatılmış levhaya ekstrüde |
+| 4 | Yüzey | her piksel için yuvarlatılmış kenar **analitik** olarak çözülür (ışın yürütme yok → tırtıl yok) |
+| 5 | Normal | 2B dış normal + fillet açısı → 3B normal |
+| 6 | Malzeme | Lambert gölge + iki loblu Blinn-Phong spekülar + fresnel + gökyüzü ışığı + geniş parlama lekesi |
+| 7 | AO | siluet sınırına yaklaştıkça karartma |
+| 8 | Renk | nesne sınırları içinde sol-üst `#FFC47C` → sağ-alt `#684AD5` rampası |
+| 9 | Gölge | ışığın tersine kaydırılmış, bulanık temas gölgesi (%30) |
+| 10 | Çıktı | 512 px render → kırp → LANCZOS3 ile 128 px (glif) / 192 px (nesne) |
 
-Karşılaştırma: **`docs/ikon-malzeme-karsilastirma.png`** (üst: orijinal 3dicons,
-alt: üretilen glifler — aynı malzeme dili).
+İç ayrıntılar (kamera merceği, klavye tuşları, kek mumları, kaydırıcı düğmeleri)
+render sonrası **oyma** katmanıyla eklenir: koyu çizgi + altında ince ışık.
+
+Kanıt: **`docs/ikon-malzeme-karsilastirma.png`** — üst sıra orijinal 3dicons,
+alt sıra aynı hatla üretilen glifler.
 
 ## Nesne glifleri
 

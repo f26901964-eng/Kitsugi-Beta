@@ -145,6 +145,23 @@ Sonuç: 46 glif + 9 nesne glifi 3dicons render'larıyla aynı malzeme dilinde
 
 ---
 
+## 5e. Tur 6 — gerçek 3B render hattı (SDF)
+
+Kullanıcı geri bildirimi: *"bunlar orijinal 3B logolara benzemiyor"*.
+
+| Önce | Şimdi |
+|---|---|
+| SVG gradyan + 2 kaydırılmış kopya | **SDF + analitik yüzey**: gerçek hacim, normal'e göre gölgeleme |
+| Tek linear gradyan | Lambert + iki loblu spekülar + fresnel + gökyüzü + geniş parlama |
+| Düz siluet | `0.62` yarıçaplı yuvarlatılmış kenar (fillet) |
+| Gölge: bulanık leke | ışığın tersine kaydırılmış temas gölgesi |
+| Ayrıntılar kayboluyordu | render sonrası oyma katmanı (kamera merceği, tuşlar, mumlar…) |
+
+Yeni dosya: `tools/iconpack/sdf3d.js` (kesin Öklid mesafe dönüşümü + malzeme modeli).
+46 kontrol glifi + 9 nesne glifi bu hatla yeniden üretildi.
+
+---
+
 ## 6. Kalan işler / riskler
 
 1. **Derleme doğrulaması yapılmadı** — ortamda JDK/Android SDK yok. Android Studio'da
