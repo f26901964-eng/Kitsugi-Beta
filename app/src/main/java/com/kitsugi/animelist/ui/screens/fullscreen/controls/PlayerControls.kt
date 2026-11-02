@@ -442,8 +442,13 @@ fun PlayerControls(
                             viewModel.showPanel(com.kitsugi.animelist.ui.screens.fullscreen.KitsugiPanels.AudioDelay)
                             resetTimer()
                         },
+                        // Kısa dokunma → KALİTE, uzun dokunma → KAYNAK listesi.
                         onQualityClick       = {
                             viewModel.showSheet(KitsugiSheets.QualityTracks)
+                            resetTimer()
+                        },
+                        onQualityLongClick   = {
+                            viewModel.showSheet(KitsugiSheets.SourceTracks)
                             resetTimer()
                         },
                         isEpisodeOnline      = currentTitle.isNotBlank(),

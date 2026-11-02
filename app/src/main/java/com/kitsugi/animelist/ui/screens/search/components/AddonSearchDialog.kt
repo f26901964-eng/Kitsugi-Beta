@@ -318,24 +318,25 @@ fun AddonSearchDialog(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                         )
 
-                                        val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
-                                        LazyRow(
-                                            state = snapRowState,
-                                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
+                                        // Ana arama sayfasıyla AYNI sonuç düzeni: poster
+                                        // şeridi yerine tek sütun, kompakt yatay satırlar.
+                                        Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            contentPadding = PaddingValues(horizontal = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            items(itemsForApi) { (_, response) ->
-                                                ResultItemCard(
+                                            itemsForApi.forEach { (_, response) ->
+                                                AddonResultRow(
                                                     title = response.name,
+                                                    subtitle = response.type.toAddonTypeLabel(),
                                                     imageUrl = response.posterUrl,
                                                     apiName = api.name,
-                                                    quality = response.quality?.name,
+                                                    qualityLabel = response.quality?.name,
+                                                    year = response.safeYear(),
+                                                    isAdult = isAddonAdultResponse(response),
                                                     onClick = {
                                                         activeDetailItem = api to response
                                                     },
-                                                    isAdult = isAddonAdultResponse(response)
+                                                    modifier = Modifier.padding(horizontal = 8.dp)
                                                 )
                                             }
                                         }

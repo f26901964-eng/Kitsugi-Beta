@@ -222,13 +222,93 @@ fun AddonExplorePage(
             modifier = Modifier.fillMaxSize(),
             color = KitsugiColors.Background
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+
+                // ── Üst bar (ana arama sayfasıyla aynı hiza) ───────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(start = 4.dp, end = 8.dp, top = 4.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.geri),
+                            tint = KitsugiColors.TextPrimary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Extension,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = api.name,
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = if (hasSearched) {
+                            stringResource(R.string.plugin_search_results, visibleSearchResults.size)
+                        } else {
+                            stringResource(R.string.plugin_search_results, homeLists.sumOf { it.list.size })
+                        },
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 13.sp,
+                        maxLines = 1
+                    )
+                    IconButton(onClick = { loadHomeFeed(true) }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.yenile),
+                            tint = KitsugiColors.TextMuted
+                        )
+                    }
+                }
+
+                // ── Arama çubuğu: ana arama sayfasıyla BİREBİR aynı bileşen ─
+                // (KitsugiCosmicSearchBar: 16 dp köşe, aynı yükseklik/hiza,
+                //  aynı yazı tipi ve temizle/ara butonları.)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    com.kitsugi.animelist.ui.components.KitsugiCosmicSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        onSearch = { performSearch() },
+                        onClearQuery = {
+                            searchQuery = ""
+                            searchResults = emptyList()
+                            hasSearched = false
+                            keyboardController?.hide()
+                        },
+                        placeholder = stringResource(R.string.plugin_search_in_addon, api.name),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
 
                 // ── Content area ───────────────────────────────────────────
                 when {
                     isHomeLoading && homeLists.isEmpty() -> {
                         // Initial loading spinner
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 KitsugiPlasmaLoader(size = 48.dp)
                                 Spacer(Modifier.height(16.dp))
@@ -238,56 +318,63 @@ fun AddonExplorePage(
                     }
 
                     hasSearched -> {
-                        // Search results
+                        // Arama sonuçları — ana arama sayfasıyla AYNI satır düzeni.
+                        // (Eskiden 3'lü poster ızgarasıydı; dikey/yatay geçişte
+                        //  kart boyutları bozuluyordu. Artık tek sütun, kompakt,
+                        //  56×80 posterli yatay satırlar.)
                         when {
                             isSearchLoading -> {
                                 Box(
-                                    Modifier.fillMaxSize().padding(top = 88.dp),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
                                     contentAlignment = Alignment.Center
                                 ) { KitsugiPlasmaLoader(size = 48.dp) }
                             }
                             visibleSearchResults.isEmpty() -> {
                                 Box(
-                                    Modifier.fillMaxSize().padding(top = 88.dp),
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(stringResource(R.string.inline_no_results_found_for_1_3ed9f56, searchQuery), color = KitsugiColors.TextMuted)
+                                    Text(
+                                        stringResource(R.string.inline_no_results_found_for_1_3ed9f56, searchQuery),
+                                        color = KitsugiColors.TextMuted,
+                                        modifier = Modifier.padding(horizontal = 32.dp)
+                                    )
                                 }
                             }
                             else -> {
                                 LazyColumn(
-                                    modifier = Modifier.fillMaxSize().padding(top = 88.dp),
-                                    contentPadding = PaddingValues(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    item {
+                                    item(key = "search_summary") {
                                         Text(
                                             stringResource(R.string.inline_1_s_2_s_results_1656e6f, searchQuery, visibleSearchResults.size),
                                             color = KitsugiColors.TextPrimary,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
                                         )
                                     }
-                                    items(visibleSearchResults.chunked(3)) { row ->
-                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                            row.forEach { item ->
-                                                Box(Modifier.weight(1f)) {
-                                                    com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard(
-                                                        result = item.toAddonSearchResult(),
-                                                        onClick = {
-                                                            activeDetailUrl = item.url
-                                                        },
-                                                        titleLanguage = titleLanguage,
-                                                        scoreFormat = scoreFormat,
-                                                        hideScores = hideScores,
-                                                        blurAdultMedia = blurAdultMedia,
-                                                        forceVertical = true
-                                                    )
-                                                }
-                                            }
-                                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                                        }
+                                    items(visibleSearchResults, key = { it.url }) { item ->
+                                        AddonResultRow(
+                                            title = item.name,
+                                            // Ana aramadaki satırla aynı alt bilgi dili:
+                                            // tür etiketi (Film / Dizi / Anime …)
+                                            subtitle = item.type.toAddonTypeLabel(),
+                                            imageUrl = item.posterUrl,
+                                            apiName = api.name,
+                                            qualityLabel = item.quality?.name,
+                                            year = item.safeYear(),
+                                            isAdult = isAddonAdultResponse(item),
+                                            onClick = { activeDetailUrl = item.url },
+                                        )
                                     }
                                 }
                             }
@@ -298,7 +385,9 @@ fun AddonExplorePage(
                         // Home feed — ana sayfa (Keşfet) ile birebir aynı bileşenler:
                         // KitsugiHeroSection vitrini + KitsugiHorizontalMediaSection rafları.
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                             contentPadding = PaddingValues(bottom = 32.dp)
                         ) {
                             // Vitrin (hero carousel) — ana sayfadakiyle aynı sunum
@@ -385,32 +474,6 @@ fun AddonExplorePage(
                     }
                 }
 
-                // ── Floating search bar (always on top) ────────────────────
-                AddonFloatingSearchBar(
-                    apiName = api.name,
-                    searchQuery = searchQuery,
-                    hasSearched = hasSearched,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = { performSearch() },
-                    onClear = {
-                        searchQuery = ""
-                        searchResults = emptyList()
-                        hasSearched = false
-                        keyboardController?.hide()
-                    },
-                    onBack = {
-                        if (hasSearched) {
-                            searchQuery = ""
-                            searchResults = emptyList()
-                            hasSearched = false
-                            keyboardController?.hide()
-                        } else {
-                            onBackClick()
-                        }
-                    },
-                    onRefresh = { loadHomeFeed(true) },
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
             }
         }
 
@@ -438,148 +501,4 @@ fun AddonExploreDialog(
         onBackClick = onDismissRequest,
         onSeeAllClick = onSeeAllClick
     )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Floating Search Bar — üstte sabit, transparan arka plan
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun AddonFloatingSearchBar(
-    apiName: String,
-    searchQuery: String,
-    hasSearched: Boolean,
-    onQueryChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    onClear: () -> Unit,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val accentColor = LocalKitsugiAccent.current
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Geri / Temizle butonu
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(0.45f))
-                .clickable { if (hasSearched) onClear() else onBack() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.ArrowBack, "Geri", tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-
-        // Arama alanı
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(46.dp)
-                .clip(RoundedCornerShape(23.dp))
-                .background(Color.Black.copy(0.55f))
-                .padding(horizontal = 14.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(Icons.Rounded.Search, null, tint = Color.White.copy(0.65f), modifier = Modifier.size(18.dp))
-                BasicTextField(
-                    value = searchQuery,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    cursorBrush = SolidColor(accentColor),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                    decorationBox = { inner ->
-                        if (searchQuery.isEmpty()) Text(stringResource(R.string.ara), color = Color.White.copy(0.45f), style = MaterialTheme.typography.bodyMedium)
-                        inner()
-                    }
-                )
-                if (searchQuery.isNotEmpty()) {
-                    Box(
-                        Modifier.size(26.dp).clip(CircleShape).background(Color.White.copy(0.2f)).clickable { onClear() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                    }
-                }
-            }
-        }
-
-        // Yenile butonu
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(0.45f))
-                .clickable { onRefresh() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Refresh, "Yenile", tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Status Warning Pill — küçük uyarı satırı
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun AddonStatusPill(
-    isBlocked: Boolean,
-    blockReason: String?,
-    errorCode: String?,
-) {
-    val bgColor = if (isBlocked) KitsugiColors.AccentRed.copy(0.14f) else KitsugiColors.AccentOrange.copy(0.14f)
-    val borderColor = if (isBlocked) KitsugiColors.AccentRed else KitsugiColors.AccentOrange
-    val errorTitle = errorCode
-        ?.let { PlatformErrorCode.fromId(it) }
-        ?.let { stringResource(it.titleRes) }
-    val text = when {
-        isBlocked -> stringResource(
-            R.string.platform_error_plugin_blocked,
-            errorTitle ?: stringResource(R.string.platform_error_unknown_reason),
-            blockReason ?: stringResource(R.string.platform_error_unknown_reason),
-        )
-        errorTitle != null -> "⚠️ $errorTitle"
-        else -> stringResource(R.string.platform_error_cloudflare_warning)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-            .padding(10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text,
-                modifier = Modifier.weight(1f),
-                color = borderColor,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            if (errorCode != null) PlatformErrorCodeHint(code = errorCode)
-        }
-    }
 }

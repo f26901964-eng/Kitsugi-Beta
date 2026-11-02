@@ -26,6 +26,12 @@ fun TopRightPlayerControls(
     onAudioClick: () -> Unit,
     onAudioLongClick: () -> Unit,
     onQualityClick: () -> Unit,
+    /**
+     * Kalite butonuna UZUN basma → Kaynak (sunucu) listesi.
+     * v2.4.341: kalite ve kaynak ayrı sheet'ler; kısa dokunma kaliteyi,
+     * uzun dokunma kaynak listesini açar.
+     */
+    onQualityLongClick: () -> Unit = {},
     isEpisodeOnline: Boolean?,
     onMoreClick: () -> Unit,
     onMoreLongClick: () -> Unit,
@@ -60,7 +66,7 @@ fun TopRightPlayerControls(
             ControlsButton(
                 icon = Icons.Default.HighQuality,
                 onClick = onQualityClick,
-                onLongClick = onQualityClick,
+                onLongClick = onQualityLongClick,
                 horizontalSpacing = 8.dp,
             )
         }
