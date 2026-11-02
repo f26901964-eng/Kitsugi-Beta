@@ -1,10 +1,15 @@
-# Kök neden + çözüm — "AniList'ten gelince eklenti veri vermiyor" ve "eklentiye özel arama diğer kaynaklarla karışıyor"
+# Kök neden + çözüm — akış aramasında "kaynağa göre değişen" başlık evreni ve eklentiye özel arama karışması
 
 **Tarih:** 2026-11-02
 **Sürüm:** v2.4.340 tabanı (sonraki derleme)
 **Kapsam:** (1) Akış seçici ekranı (`KitsugiStreamActivity` / `StreamViewModel`), (2) tam ekran oynatıcının
 sonraki bölüm akışı (`KitsugiPlayerViewModel`), (3) eklenti arama boru hattının başlık evreni
-(`CsStreamRunner` + yeni `MalTitleAliasProvider`).
+(`CsStreamRunner` + yeni `MalTitleAliasProvider`), (4) MAL detay istemcisi (`KitsugiMalDetailClient`).
+
+> **DÜZELTME (2026-11-02, kullanıcı geri bildirimi):** Bu raporun ilk sürümü sorunu ters yönde
+> yazmıştı ("AniList'ten gelince bozuk"). Kullanıcının bildirimi **tam tersi**: **MAL kaydından
+> açıldığında** Anizm / TrAnimeIzle / AnimeciX gibi eklentiler veri veremiyor, **AniList
+> kaydından açıldığında** veriyor. Aşağıdaki analiz bu yöne göre düzeltildi.
 
 ---
 
@@ -12,41 +17,55 @@ sonraki bölüm akışı (`KitsugiPlayerViewModel`), (3) eklenti arama boru hatt
 
 | # | Kullanıcı gözlemi | Beklenen davranış |
 |---|---|---|
-| A | Aynı anime **AniList** kaydından açıldığında Anizm / TrAnimeIzle / AnimeciX gibi eklentiler "akış bulunamadı" diyor; **MAL** kaydından açıldığında buluyor. | Kaynak fark etmeksizin aynı eklenti seti aynı sonucu vermeli. |
+| A | **MAL** kaydından İzle / bölüm tıklanınca Anizm / TrAnimeIzle / AnimeciX "akış bulamadı" diyor; **AniList** kaydından aynı eklentiler buluyor. | Kaynak fark etmeksizin aynı eklenti seti aynı sonucu vermeli. |
 | B | Bir eklentinin **kendi keşfet/arama** sayfasından "İzle" ya da bölüm satırına basıldığında sonuç yalnızca o eklentiden gelmeli; ama bazen diğer kaynaklarla karışıyor. | Eklentiye özel akış kapsamlı kalmalı; genişletme kullanıcı tercihi olmalı. |
 
 ---
 
-## 2. Kök neden A — eklentiye giden arama sorgusu kaynağa göre değişiyordu
+## 2. Kök neden A — eklentiye giden arama sorgusu kaynağa göre daralıyordu
 
-`CsStreamRunner.runGetStreams` arama varyantlarını detay sayfasının gönderdiği başlıklardan üretiyordu:
+`CsStreamRunner.runGetStreams` arama varyantlarını **detay sayfasının gönderdiği başlık alanlarından**
+üretiyor. Bu alanların doluluğu kaynağa göre değişiyordu:
 
-- **MAL/Jikan** kaydı → `title` = **Romaji** ("Shingeki no Kyojin")
-- **AniList** kaydı → `title` = **İngilizce / Romaji** karışımı ("Attack on Titan"), yeni/kısa adlı
-  yapılarda çoğu zaman yalnızca İngilizce
-- TMDB zenginleştirmesi yalnızca **tr-TR** başlığını ekliyordu (`TmdbTitleLocalizer`)
+| Alan | AniList detayı | MAL/Jikan detayı (öncesi) |
+|---|---|---|
+| `title` (ana başlık) | Romaji (JP olmayanlarda İngilizce) | Romaji |
+| `titleEnglish` | ✔ `KitsugiAniListDetailClient` doldurur | ✔ doldurur |
+| `titleRomaji` | ✔ **doldurur** | ✘ **boş bırakılıyordu** |
+| `titleNative` | ✔ **doldurur** | ✘ **boş bırakılıyordu** (sadece `titleJapanese` yazılıyordu) |
+| `synonyms` | ✔ | ✔ |
+| TMDB `tmdbSeason` | AniList dış bağlantılarından çıkarılır | ✘ genellikle yok |
 
-Türk eklentileri sitelerinde genelde **Romaji + Türkçe** başlık taşır. AniList'ten gelen İngilizce
-başlıkla yapılan 18 varyantlık arama, site indeksinde karşılık bulamadığı için eklenti "isimle
-bulamıyor" durumuna düşüyordu — kaynak MAL olunca Romaji başlık geldiği için aynı eklenti çalışıyordu.
-**Ortak sorun buydu:** eklentinin başarısı, detay sayfasının hangi kaynaktan açıldığına bağlıydı.
+Yani **aynı anime** MAL kaydından açıldığında eklentiye **daha az sayıda başlık varyantı** gidiyordu
+(Romaji + İngilizce), AniList kaydından açıldığında ise daha geniş bir küme (Romaji + İngilizce +
+Yerel/Japonca + eş anlamlılar). Türk eklentileri sitelerinde çoğu zaman Romaji **veya Türkçe** başlık
+taşıdığı için MAL tarafındaki dar küme "bulunamadı" ile sonuçlanıyordu.
+
+Ayrıca TMDB `tr-TR` başlığı (`TmdbTitleLocalizer`) yalnızca TMDB kimliği çözüldüğünde eklenebiliyor;
+MAL kaydında TMDB kimliği çoğu zaman detay sayfasından gelmiyor — yalnızca ARM üzerinden çözülüyor.
 
 ### Çözüm
 
-`data/cloudstream/MalTitleAliasProvider.kt` (yeni):
+1. **`KitsugiMalDetailClient` (her iki yol: Jikan + resmî MAL v2)** artık `titleRomaji` ve
+   `titleNative` alanlarını da dolduruyor. Böylece MAL kaydından açılan akış ekranı, AniList kaydıyla
+   **aynı genişlikte** alternatif başlık kümesi gönderiyor.
+2. **`MalTitleAliasProvider` (yeni):** MAL kimliği varsa Jikan `anime/{id}` yanıtındaki **tüm** başlık
+   diğer adları (Default / English / Japanese / Synonym / Turkish …) okunup arama varyantlarına eklenir.
+   Bu, kaynaktan bağımsız olarak aynı başlık evrenini garanti eder — MAL tarafındaki eksikliği de,
+   ileride başka bir kaynakta oluşabilecek aynı eksikliği de kapatır.
+   - Oturum-önbellekli (`BoundedCache`, 400 kayıt), eşzamanlı çağrılar `Mutex` ile tek isteğe indirilir
+     (164 eklenti tek Jikan isteğini paylaşır), boş/hatalı sonuç negatif önbelleğe yazılır.
+   - 4 sn tavan: zenginleştirme bir "bonus"; Jikan yavaşsa eklenti araması bekletilmez ve zaman aşımı
+     önbelleğe yazılmaz.
+   - `JikanGateway` üzerinden gidilir (mevcut hız sınırı / devre kesici / yedek host korunur).
+   - En fazla 8 diğer ad, normalize başlığa göre tekilleştirilir.
 
-- MAL kimliği varsa Jikan `anime/{id}` yanıtındaki **tüm** başlık diğer adları (Default / English /
-  Japanese / Synonym / Turkish …) okunur ve arama varyantlarına eklenir.
-- Oturum-önbellekli (`BoundedCache`, 400 kayıt) + eşzamanlı çağrılar `Mutex` ile tek isteğe indirilir;
-  164 eklenti tek Jikan isteğini paylaşır. Boş/hatalı sonuç da negatif önbelleğe yazılır (kota koruması).
-- `JikanGateway` üzerinden gidilir: mevcut hız sınırı, devre kesici ve yedek host mantığı korunur.
-- En fazla 8 diğer ad alınır, normalize başlığa göre tekilleştirilir (sorgu maliyeti sabit kalır).
+### Elenen hipotezler (yanlış çıktı, kayda geçsin)
 
-`CsStreamRunner.runGetStreams` içinde TMDB tr-TR başlığının hemen ardına bağlandı; hata/eksik durumda
-davranış eskisiyle aynı kalır (`getOrDefault(alternativeTitles)`).
-
-**Sonuç:** Aynı anime hangi kaynaktan açılırsa açılsın eklenti aynı başlık evreniyle arar
-(Romaji + İngilizce + Japonca + Türkçe + eş anlamlılar). AniList/MAL farkı ortadan kalkar.
+- **ARM `source` adı:** `KitsugiIdResolver` MAL için `source=myanimelist` kullanıyor. ARM (arm-server)
+  API'sinde MAL kaynağının adı gerçekten `myanimelist` — bu doğru, sorun burada değil.
+- **MAL kimliğinin offset olarak geçmesi:** `StreamMediaIds` MAL/Jikan için `malId` alanına gerçek MAL
+  kimliğini koyuyor; AniList/Kitsu offset'leri ayrı dallarda. Burada da sorun yok.
 
 ---
 
@@ -61,11 +80,11 @@ _addonStates.value = emptyList()   // ← bütün liste silinir
 // ardından Stremio addon'ları + TÜM CloudStream eklentileri aranır
 ```
 
-Yani eklentinin kendi bölüm URL'si (site yapısı değişti, bölüm eşleşmedi, geçici ağ hatası) bir kez
-boş döndüğünde ekran **tüm kaynakların ortak aramasına** düşüyordu. Kullanıcı "sadece bu eklenti"
-beklerken listede başka kaynaklar beliriyor, sonraki denemede bazen çalıştığı için davranış
-"bazen çalışıyor bazen bozuluyor" gibi görünüyordu. Aynı davranış tam ekran oynatıcının sonraki bölüm
-akışında (`KitsugiPlayerViewModel.fetchStreamsForEpisode`) da vardı.
+Eklentinin kendi bölüm URL'si bir kez boş döndüğünde (site yapısı değişti, bölüm eşleşmedi, geçici ağ
+hatası) ekran **tüm kaynakların ortak aramasına** düşüyordu. Kullanıcı "sadece bu eklenti" beklerken
+listeye başka kaynaklar karışıyor, bazen çalışıp bazen çalışmadığı için davranış "bozuk" görünüyordu.
+Aynı davranış tam ekran oynatıcının sonraki bölüm akışında (`KitsugiPlayerViewModel.fetchStreamsForEpisode`)
+da vardı.
 
 ### Çözüm 1 — akış seçicide gerçek "tek eklenti" modu
 
@@ -99,6 +118,7 @@ akışında (`KitsugiPlayerViewModel.fetchStreamsForEpisode`) da vardı.
 |---|---|
 | `data/cloudstream/MalTitleAliasProvider.kt` | **Yeni.** Jikan başlık diğer adları, önbellekli + tek uçuş + saf ayrıştırıcı. |
 | `data/cloudstream/CsStreamRunner.kt` | `effectiveAlts` artık MAL başlık evreniyle zenginleşiyor. |
+| `data/remote/KitsugiMalDetailClient.kt` | MAL detayında `titleRomaji` / `titleNative` dolduruluyor (Jikan + resmî MAL v2). |
 | `ui/screens/stream/StreamViewModel.kt` | `runScopedPluginFetch`, `scopedSourceName`, `searchAllSources`, `startFetch(allSources)`. |
 | `ui/screens/stream/StreamSourceScope.kt` | **Yeni.** "Tek eklenti mi, ortak arama mı?" kuralı — tek yerde, test edilebilir. |
 | `ui/screens/stream/StreamScreenContent.kt` | `ScopedSourceNotice` şeridi (dikey + yatay düzen). |
@@ -111,17 +131,25 @@ akışında (`KitsugiPlayerViewModel.fetchStreamsForEpisode`) da vardı.
 ## 5. Doğrulama
 
 - `python3 scripts/check_localization_resource_parity.py` → **in sync (17.698 string, 4 array)**.
-- `MalTitleAliasProviderTest` (3 test): çoklu tür ayrıştırma, bozuk/boş yük, ad sayısı tavanı.
-- `StreamSourceScopeTest` (3 test): eklenti akışında kapsam, ortak aramada kapsamsızlık, "⚡ " öneki tekilliği.
+- `MalTitleAliasProviderTest` (3 test), `StreamSourceScopeTest` (3 test).
 - Davranış doğrulaması cihazda yapılmalı (bu ortamda Android derleyicisi yok):
-  1. AniList kaydı → İzle → Anizm / TrAnimeIzle / AnimeciX sonuçları MAL kaydıyla aynı olmalı.
+  1. **MAL kaydı** → İzle → Anizm / TrAnimeIzle / AnimeciX sonuçları **AniList kaydıyla aynı** olmalı.
   2. Eklenti keşfet → içerik → bölüm → İzle → listede **yalnızca** o eklenti + bildirim şeridi;
      "Tüm kaynaklarda ara" ile tüm kaynaklar.
   3. Eklenti bölüm URL'si bozuk senaryo (eski/yanlış sezon): liste artık sessizce diğer
      kaynaklarla dolmamalı, aynı eklentinin başlık araması denenmeli.
 
-## 6. Bilinçli olarak yapılmayanlar
+## 6. Açık kalan soru (cihaz verisi gerekiyor)
+
+MAL yolunda hâlâ "veri yok" görülürse hangi aşamada durduğunu kesinleştirmek için gereken bilgi:
+eklenti satırındaki **hata mesajı** (ör. "Arama sonucu yok (18 varyant)", "⏱ zaman aşımı",
+"🔐 Bot/WAF") ve **Eklenti Günlükleri** (CsTrace) çıktısı. Bu ikisi olmadan kalan fark (ör. sezon
+numarası / bölüm eşleştirme) tahminle düzeltilmemeli.
+
+## 7. Bilinçli olarak yapılmayanlar
 
 - TV akış ekranı (`TvStreamScreen`) hâlâ eklenti kapsamı bayraklarını taşımıyor; TV tarafında
   kapsam desteği ayrı bir iş olarak bırakıldı.
 - `CsPluginStatusTracker` oturum bloklama eşiği (3 hata) değiştirilmedi.
+- `determineTargetSeason` (MAL tarafında `tmdbSeason` çoğu zaman yok) değiştirilmedi: sezon
+  çıkarımını değiştirmek yanlış bölüm oynatma riski taşıyor, cihaz doğrulaması gerekiyor.
