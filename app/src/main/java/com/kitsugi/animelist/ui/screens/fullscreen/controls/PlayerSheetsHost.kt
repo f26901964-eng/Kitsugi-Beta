@@ -81,6 +81,15 @@ fun PlayerSheetsHost(
     onSelectSource: (Int) -> Unit = {},
     isQualityLoading: Boolean = false,
 
+    // Kalite (açık akışın gerçek HLS varyantları)
+    /** Master playlist'ten ölçülen video kaliteleri (yüksekten alçağa). */
+    qualityVariants: List<com.kitsugi.animelist.core.player.HlsVariant> = emptyList(),
+    /** Seçili varyantın yüksekliği; `null` = Otomatik. */
+    selectedQualityHeight: Int? = null,
+    isQualityVariantsLoading: Boolean = false,
+    /** `null` → Otomatik, aksi hâlde varyant yüksekliği. */
+    onSelectQuality: (Int?) -> Unit = {},
+
     // Sleep Timer
     sleepTimerSecondsLeft: Int = 0,
     onStartSleepTimer: (Int) -> Unit = {},
@@ -213,6 +222,10 @@ fun PlayerSheetsHost(
                         onSelect = onSelectSource,
                         onDismissRequest = onDismissRequest,
                         dismissSheet = dismissSheet,
+                        variants = qualityVariants,
+                        selectedVariantHeight = selectedQualityHeight,
+                        isLoadingVariants = isQualityVariantsLoading,
+                        onSelectVariant = onSelectQuality,
                     )
                 }
 

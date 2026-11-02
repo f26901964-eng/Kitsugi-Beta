@@ -1,9 +1,12 @@
 package com.kitsugi.animelist.data.repository
 
 import com.kitsugi.animelist.core.memory.BoundedCache
+import com.kitsugi.animelist.core.player.HlsMasterPlaylist
+import com.kitsugi.animelist.core.player.HlsVariant
 
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import com.kitsugi.animelist.data.cloudstream.CsVideoInterceptorFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
@@ -12,6 +15,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
@@ -46,10 +50,30 @@ object StreamProbe {
 
     private val cache = BoundedCache<String, MeasuredStreamInfo>("streamProbe", 200)
 
+    /**
+     * CloudStream kaynakları için **oynatıcıyla aynı** HTTP istemcisi.
+     *
+     * rapidrame / closeload gibi embed'ler Referer, Cloudflare çerezi ve eklentinin
+     * `getVideoInterceptor()` başlıklarını ister. Düz istemciyle ölçüm 403 döner ve
+     * kalite listesi boş kalırdı; oynatıcı ise aynı URL'yi sorunsuz açıyordu.
+     */
+    private val csClient: OkHttpClient? by lazy {
+        runCatching { CsVideoInterceptorFactory.buildClient(headers = emptyMap()) }.getOrNull()
+    }
+
+    private fun clientFor(stream: StreamSource): OkHttpClient =
+        if (stream.isCS) csClient ?: KitsugiHttpClient.client else KitsugiHttpClient.client
+
+    /** Kalite sayfası için varyant listesi önbelleği (URL başına). */
+    private val variantCache = BoundedCache<String, List<HlsVariant>>("streamVariants", 60)
+
     /** Daha önce ölçülmüş sonuç (anında arayüze verilebilir). */
     fun cached(url: String?): MeasuredStreamInfo? = url?.let { cache[it] }
 
-    fun clearCache() = cache.clear()
+    fun clearCache() {
+        cache.clear()
+        variantCache.clear()
+    }
 
     /** Bu akış için ölçüm yapmak anlamlı mı? (torrent / embed sayfaları ölçülmez) */
     fun isProbeable(stream: StreamSource): Boolean {
@@ -101,9 +125,10 @@ object StreamProbe {
             cache[url] ?: withContext(Dispatchers.IO) {
                 withTimeoutOrNull(PROBE_TIMEOUT_MS) {
                     runCatching {
+                        val client = clientFor(stream)
                         when (mediaKind(url)) {
-                            MediaKind.HLS -> probeHls(url, stream.requestHeaders)
-                            MediaKind.PROGRESSIVE -> probeProgressive(url, stream.requestHeaders)
+                            MediaKind.HLS -> probeHls(url, stream.requestHeaders, client)
+                            MediaKind.PROGRESSIVE -> probeProgressive(url, stream.requestHeaders, client)
                             MediaKind.UNSUPPORTED -> null
                         }
                     }.getOrElse { error ->
@@ -119,14 +144,81 @@ object StreamProbe {
         return result
     }
 
+    /**
+     * Açık akış için seçilebilir **video kaliteleri** (HLS master varyantları).
+     *
+     * Oynatıcının "Kalite" sayfası bunu çağırır: eklenti kalite bildirmese bile
+     * (rapidrame / closeload → `Qualities.Unknown`) gerçek varyant listesi buradan gelir.
+     * Ölçüm [probe] ile aynı önbelleği kullanır; sayfa açıldığında ikinci kez ağa çıkılmaz.
+     */
+    suspend fun variants(stream: StreamSource): List<HlsVariant> {
+        val url = stream.url?.trim().orEmpty()
+        if (!url.startsWith("http", ignoreCase = true)) return emptyList()
+
+        variantCache[url]?.let { return it }
+
+        val kind = mediaKind(url)
+        val list: List<HlsVariant> = when {
+            // Standart HLS: ölçüm sonucu zaten varyantları taşır (aynı önbellek).
+            kind == MediaKind.HLS -> {
+                // Liste sayfasındaki rozet ölçümü başlıksız/çerezsiz yapılmış ve
+                // başarısız olmuş olabilir. Oynatıcı bağlamında (Referer + çerez hazır)
+                // bir kez daha denenir; aksi hâlde kalite listesi kalıcı olarak boş kalırdı.
+                if (cache[url]?.failed == true) cache.remove(url)
+                probe(stream)?.variants.orEmpty()
+            }
+
+            // closeload gibi kaynaklar playlist'i `master.txt` olarak sunar; uzantı
+            // m3u8 olmadığı için normal ölçüm atlanır. İçerik `#EXTM3U` ise yine de
+            // gerçek varyantlar çıkarılabilir.
+            kind == MediaKind.UNSUPPORTED && looksLikePlaylist(url) ->
+                fetchVariants(url, stream.requestHeaders, clientFor(stream))
+
+            else -> emptyList()
+        }
+        variantCache[url] = list
+        return list
+    }
+
+    /** Fast-path: uzantısı m3u8 olmayan ama playlist olma ihtimali yüksek URL'ler. */
+    private fun looksLikePlaylist(url: String): Boolean {
+        val lower = url.lowercase(Locale.ROOT)
+        return lower.contains("master") || lower.contains(".m3u8") ||
+            lower.contains("/hls/") || lower.contains("/txt/")
+    }
+
+    private suspend fun fetchVariants(
+        url: String,
+        headers: Map<String, String>?,
+        client: OkHttpClient,
+    ): List<HlsVariant> =
+        gate.withPermit {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(PROBE_TIMEOUT_MS) {
+                    runCatching {
+                        val body = fetchText(url, headers, client) ?: return@runCatching emptyList<HlsVariant>()
+                        HlsMasterPlaylist.parse(url, body)
+                    }.getOrElse { error ->
+                        if (error is kotlinx.coroutines.CancellationException) throw error
+                        Log.w(TAG, "Varyant ayrıştırma hatası (${error.javaClass.simpleName}): ${url.take(80)}")
+                        emptyList()
+                    }
+                } ?: emptyList()
+            }
+        }
+
     // ── HLS ──────────────────────────────────────────────────────────────────
 
     private val RESOLUTION_ATTR = Regex("""RESOLUTION=(\d{2,5})x(\d{2,5})""", RegexOption.IGNORE_CASE)
     private val LANGUAGE_ATTR = Regex("LANGUAGE=\"([^\"]+)\"", RegexOption.IGNORE_CASE)
     private val TYPE_ATTR = Regex("""TYPE=([A-Z\-]+)""", RegexOption.IGNORE_CASE)
 
-    private suspend fun probeHls(url: String, headers: Map<String, String>?): MeasuredStreamInfo {
-        val body = fetchText(url, headers) ?: return MeasuredStreamInfo(failed = true)
+    private suspend fun probeHls(
+        url: String,
+        headers: Map<String, String>?,
+        client: OkHttpClient,
+    ): MeasuredStreamInfo {
+        val body = fetchText(url, headers, client) ?: return MeasuredStreamInfo(failed = true)
         if (!body.contains("#EXTM3U")) return MeasuredStreamInfo(failed = true)
 
         val variantHeights = mutableListOf<Int>()
@@ -155,12 +247,20 @@ object StreamProbe {
         }
 
         val isMaster = body.contains("#EXT-X-STREAM-INF", ignoreCase = true)
-        val distinctHeights = variantHeights.distinct().sorted()
+
+        // Kalite seçimi için GERÇEK oynatılabilir varyantlar (URL + çözünürlük).
+        // rapidrame / closeload master'ları buradan çözülür.
+        val variants = if (isMaster) HlsMasterPlaylist.parse(url, body) else emptyList()
+
+        val distinctHeights = (variantHeights + variants.mapNotNull { it.height })
+            .distinct()
+            .sorted()
 
         return MeasuredStreamInfo(
             height = distinctHeights.maxOrNull().takeIf { distinctHeights.size == 1 },
             isAdaptive = isMaster,
             variantHeights = distinctHeights,
+            variants = variants,
             audioLanguages = audioLanguages.distinct(),
             subtitleLanguages = subtitleLanguages.distinct(),
             sizeBytes = null,
@@ -170,11 +270,15 @@ object StreamProbe {
 
     // ── Progressive dosyalar ─────────────────────────────────────────────────
 
-    private suspend fun probeProgressive(url: String, headers: Map<String, String>?): MeasuredStreamInfo {
+    private suspend fun probeProgressive(
+        url: String,
+        headers: Map<String, String>?,
+        client: OkHttpClient,
+    ): MeasuredStreamInfo {
         val request = buildRequest(url, headers).head().build()
         // İptal edilebilir async çağrı: kart görüş alanından çıkınca istek GERÇEKTEN iptal edilir
         // ve eşzamanlılık kapısı (semaphore) hemen serbest kalır.
-        val response = awaitResponse(KitsugiHttpClient.client.newCall(request))
+        val response = awaitResponse(client.newCall(request))
             ?: return MeasuredStreamInfo(failed = true)
         return response.use { resp ->
             if (!resp.isSuccessful) {
@@ -201,12 +305,16 @@ object StreamProbe {
         return builder
     }
 
-    private suspend fun fetchText(url: String, headers: Map<String, String>?): String? {
+    private suspend fun fetchText(
+        url: String,
+        headers: Map<String, String>?,
+        client: OkHttpClient,
+    ): String? {
         val request = buildRequest(url, headers)
             .header("Range", "bytes=0-${MAX_PLAYLIST_BYTES - 1}")
             .get()
             .build()
-        val response = awaitResponse(KitsugiHttpClient.client.newCall(request)) ?: return null
+        val response = awaitResponse(client.newCall(request)) ?: return null
         return response.use { resp ->
             if (!resp.isSuccessful) null else resp.peekBody(MAX_PLAYLIST_BYTES).string()
         }
