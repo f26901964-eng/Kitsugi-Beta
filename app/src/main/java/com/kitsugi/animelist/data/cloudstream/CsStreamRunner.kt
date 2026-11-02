@@ -2086,6 +2086,12 @@ object CsStreamRunner {
      * (HTML sayfasını medya sanmak) ise oynatıcı hatası üretir — bu yüzden kontrol dardır.
      */
     internal fun isClearlyDirectMediaUrl(url: String): Boolean {
+        // SendVid's `/<id>.mp4` is often an HTML/player route, not a media
+        // response. Route it through the normal embed resolver first so the
+        // page can publish the real URL and required hotlink headers.
+        if (com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(url)) {
+            return false
+        }
         val lower = url.lowercase(Locale.ROOT)
         val path = try {
             java.net.URI(lower).path ?: lower
@@ -2110,6 +2116,11 @@ object CsStreamRunner {
      */
     internal fun isEmbedUrl(url: String): Boolean {
         val clean = resolveHrefLi(url).lowercase(Locale.ROOT)
+        // A SendVid page may be named `<id>.mp4`; the suffix alone must not
+        // make the HTML page look like a progressive media file.
+        if (com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(clean)) {
+            return true
+        }
         val path = try {
             java.net.URI(clean).path?.lowercase(Locale.ROOT) ?: ""
         } catch (_: Exception) {
@@ -2243,6 +2254,13 @@ object CsStreamRunner {
 
     /** Derin tarama için indirilen sayfa: içerik + Content-Type. */
     internal data class EmbedPageFetch(val body: String?, val contentType: String?)
+
+    private data class PendingEmbed(
+        val rawUrl: String,
+        val linkName: String,
+        val headers: Map<String, String>,
+        val referer: String
+    )
 
     /**
      * Embed/oynatıcı sayfasını indirir (derin tarama için).
@@ -2484,6 +2502,22 @@ object CsStreamRunner {
             return emptyList()
         }
         val resolvedUrl = resolveHrefLi(rawUrl)
+        val isSendVid = com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(resolvedUrl)
+        val sendVidPageUrl = if (isSendVid) {
+            com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.pageUrl(resolvedUrl)
+        } else {
+            resolvedUrl
+        }
+        val pageBaseUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
+        // Prefer the link's explicit Referer when one exists. For SendVid the
+        // page URL is authoritative because the provider's direct-looking route
+        // is itself the page that must be opened.
+        val suppliedReferer = rawHeaders.entries
+            .firstOrNull { it.key.equals("referer", ignoreCase = true) }
+            ?.value
+            ?.takeIf { it.isNotBlank() }
+        val extractorReferer = if (isSendVid) sendVidPageUrl else (suppliedReferer ?: referer)
+        val extractorUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
         Log.d(TAG, "[$providerName] Embed URL çözümleniyor (derinlik=$depth): $resolvedUrl")
 
         // ── TurkAnime AES-128 intercept ──────────────────────────────────────
@@ -2533,8 +2567,8 @@ object CsStreamRunner {
             val timedOut = withTimeoutOrNull(20_000L) {
                 try {
                     loadExtractor(
-                        url      = resolvedUrl,
-                        referer  = referer,
+                        url      = extractorUrl,
+                        referer  = extractorReferer,
                         subtitleCallback = { sub ->
                             subtitleCallback(
                                 SubtitleInput(
@@ -2547,18 +2581,25 @@ object CsStreamRunner {
                         callback = { link ->
                             Log.d(TAG, "[$providerName] Extractor çözümlendi → ${link.name}: ${link.url}")
                             val headers = mutableMapOf<String, String>()
-                            if (link.headers.isNotEmpty()) {
-                                headers.putAll(link.headers)
-                            } else if (rawHeaders.isNotEmpty()) {
-                                headers.putAll(rawHeaders)
+                            // Keep headers supplied by the episode link and merge
+                            // extractor headers on top; dropping the former loses
+                            // Origin/cookie data needed by Voe, OK.ru and YourUpload.
+                            headers.putAll(rawHeaders)
+                            headers.putAll(link.headers)
+                            if (isSendVid) {
+                                // The built-in extractor may report only the
+                                // host root; the normal embed page is the
+                                // correct hotlink context for SendVid.
+                                headers["Referer"] = extractorReferer
+                            } else if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
+                                headers["Referer"] = link.referer.takeIf { it.isNotBlank() } ?: extractorReferer
                             }
-                            if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
-                                if (link.referer.isNotBlank()) {
-                                    headers["Referer"] = link.referer
-                                } else {
-                                    val linkHost = runCatching { java.net.URI(link.url).host }.getOrNull()
-                                    headers["Referer"] = if (!linkHost.isNullOrBlank()) "https://$linkHost/" else referer
-                                }
+                            if (!headers.keys.any { it.equals("origin", ignoreCase = true) }) {
+                                val resolvedOrigin = headers.entries
+                                    .firstOrNull { it.key.equals("referer", ignoreCase = true) }
+                                    ?.value
+                                    ?.let(::originOfUrl)
+                                if (!resolvedOrigin.isNullOrBlank()) headers["Origin"] = resolvedOrigin
                             }
                             if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                                 headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
@@ -2624,14 +2665,17 @@ object CsStreamRunner {
                         com.kitsugi.animelist.data.cloudstream.extractors.StreamTapeWrapper.isStreamTapeUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.UpstreamWrapper.isUpstreamUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.VoeWrapper.isVoeUrl(resolvedUrl) ||
+                        com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.XStreamCdnWrapper.isXStreamCdnUrl(resolvedUrl)
 
                 val pageContent = if (needsHtml) {
                     try {
-                        Log.d(TAG, "[$providerName] Fallback için HTML çekiliyor: $resolvedUrl")
+                        val pageRequestUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
+                        val pageRequestReferer = if (isSendVid) "https://sendvid.com/" else referer
+                        Log.d(TAG, "[$providerName] Fallback için HTML çekiliyor: $pageRequestUrl")
                         com.lagradost.cloudstream3.app.get(
-                            url = resolvedUrl,
-                            referer = referer
+                            url = pageRequestUrl,
+                            referer = pageRequestReferer
                         ).text
                     } catch (e: Throwable) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
@@ -2642,6 +2686,21 @@ object CsStreamRunner {
                 if (pageContent.isNotBlank()) embedPageHtml = pageContent
                 
                 val wrapperVideos: List<com.kitsugi.animelist.data.cloudstream.extractors.JWPlayerWrapper.ExtractedVideo> = when {
+                    com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(resolvedUrl) -> {
+                        if (com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isTemporarilyUnavailable(pageContent)) {
+                            errorMsg = "SendVid: sağlayıcı videoyu geçici olarak kullanılamaz bildiriyor"
+                            CsPluginStatusTracker.recordSkip(providerName, errorMsg!!)
+                            Log.w(TAG, "[$providerName] SendVid erişim durumu: This video is temporarily unavailable")
+                        }
+                        Log.d(TAG, "[$providerName] SendVid wrapper fallback deneniyor...")
+                        com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper
+                            .extractFromHtml(pageContent, sendVidPageUrl)
+                            .map {
+                                com.kitsugi.animelist.data.cloudstream.extractors.JWPlayerWrapper.ExtractedVideo(
+                                    it.url, it.label, it.isM3u8, it.headers
+                                )
+                            }
+                    }
                     com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) -> {
                         Log.d(TAG, "[$providerName] Mcloud wrapper fallback deneniyor...")
                         com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper
@@ -2694,23 +2753,34 @@ object CsStreamRunner {
                 }
                 wrapperVideos.forEach { vid ->
                     if (vid.url.isNotBlank() && vid.url.startsWith("http")) {
+                        val displayLabel = if (
+                            rawLinkName.isBlank() || rawLinkName.equals(vid.label, ignoreCase = true)
+                        ) {
+                            vid.label
+                        } else {
+                            "$rawLinkName • ${vid.label}"
+                        }
                         val wHeaders = vid.headers.toMutableMap()
+                        applyEmbedOriginHeaders(
+                            wHeaders,
+                            if (isSendVid) sendVidPageUrl else resolvedUrl
+                        )
                         if (!wHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                             wHeaders["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                         }
                         resolvedStreams.add(
                             StreamSource(
                                 addonName      = providerName,
-                                name           = "$providerName • ${vid.label}",
-                                title          = vid.label,
+                                name           = "$providerName • $displayLabel",
+                                title          = displayLabel,
                                 url            = vid.url,
                                 infoHash       = null,
                                 fileIndex      = null,
                                 requestHeaders = wHeaders,
                                 isCS           = true,
                                 // Kalite yalnızca extractor'ın verdiği etikette AÇIKÇA yazıyorsa kullanılır.
-                                quality        = labelHeight(vid.label)?.let { com.kitsugi.animelist.data.repository.StreamInfoResolver.heightToLabel(it) },
-                                qualityValue   = labelHeight(vid.label),
+                                quality        = labelHeight(displayLabel)?.let { com.kitsugi.animelist.data.repository.StreamInfoResolver.heightToLabel(it) },
+                                qualityValue   = labelHeight(displayLabel),
                                 subtitles      = emptyList(),
                                 thumbnailUrl   = thumbnailUrl,
                                 isAdultContent = ADULT_PLUGINS.contains(providerName)
@@ -2741,7 +2811,11 @@ object CsStreamRunner {
                 val fetched = if (embedPageHtml != null) {
                     EmbedPageFetch(embedPageHtml, null)
                 } else {
-                    fetchEmbedPage(resolvedUrl, referer, providerName)
+                    fetchEmbedPage(
+                        pageBaseUrl,
+                        if (isSendVid) "https://sendvid.com/" else referer,
+                        providerName
+                    )
                 }
                 val html = fetched.body
 
@@ -2750,9 +2824,9 @@ object CsStreamRunner {
                     val selfHeaders = rawHeaders.toMutableMap()
                     // Referer/Origin: sayfanın KENDİ origin'i önceliklidir (CDN bunu doğrular),
                     // provider sitesi değil.
-                    applyEmbedOriginHeaders(selfHeaders, resolvedUrl)
+                    applyEmbedOriginHeaders(selfHeaders, pageBaseUrl)
                     if (!selfHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
-                        selfHeaders["Referer"] = referer.ifBlank { resolvedUrl }
+                        selfHeaders["Referer"] = referer.ifBlank { pageBaseUrl }
                     }
                     if (!selfHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                         selfHeaders["User-Agent"] =
@@ -2763,7 +2837,7 @@ object CsStreamRunner {
                             addonName      = providerName,
                             name           = "$providerName • $rawLinkName",
                             title          = rawLinkName,
-                            url            = resolvedUrl,
+                            url            = pageBaseUrl,
                             infoHash       = null,
                             fileIndex      = null,
                             requestHeaders = selfHeaders,
@@ -2786,7 +2860,7 @@ object CsStreamRunner {
                 if (resolvedStreams.isEmpty() && !html.isNullOrBlank() && looksLikeHtmlDocument(html)) {
                     embedPageHtml = html
                     val scan = com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner
-                        .scan(html, resolvedUrl)
+                        .scan(html, pageBaseUrl)
                     Log.d(
                         TAG,
                         "[$providerName] Derin tarama: ${scan.media.size} aday, " +
@@ -2799,7 +2873,7 @@ object CsStreamRunner {
                     // adaylar aynı anda doğrulanır; kabul sırası skor sırasını korur.
                     val probes = kotlinx.coroutines.coroutineScope {
                         scan.media.take(MAX_PROBE_CANDIDATES)
-                            .map { c -> async { c to verifyMediaCandidate(c.url, resolvedUrl) } }
+                            .map { c -> async { c to verifyMediaCandidate(c.url, pageBaseUrl) } }
                             .awaitAll()
                     }
 
@@ -2816,9 +2890,9 @@ object CsStreamRunner {
                         }
                         val scannedHeaders = rawHeaders.toMutableMap()
                         // Adayın bulunduğu sayfanın origin'i: CDN doğrulaması buna bakıyor.
-                        applyEmbedOriginHeaders(scannedHeaders, resolvedUrl)
+                        applyEmbedOriginHeaders(scannedHeaders, pageBaseUrl)
                         if (!scannedHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
-                            scannedHeaders["Referer"] = resolvedUrl
+                            scannedHeaders["Referer"] = pageBaseUrl
                         }
                         if (!scannedHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                             scannedHeaders["User-Agent"] =
@@ -2855,7 +2929,7 @@ object CsStreamRunner {
                                 rawUrl           = iframe,
                                 rawLinkName      = rawLinkName,
                                 rawHeaders       = rawHeaders,
-                                referer          = resolvedUrl,
+                                referer          = pageBaseUrl,
                                 subtitleCallback = subtitleCallback,
                                 thumbnailUrl     = thumbnailUrl,
                                 depth            = depth + 1
@@ -2871,14 +2945,14 @@ object CsStreamRunner {
                     // Yalnızca sayfa gerçekten bir oynatıcı sayfasıysa ve JS gerektiriyorsa.
                     if (resolvedStreams.isEmpty() && scan.looksLikePlayer && enableWebViewSniffing) {
                         val sniff = com.kitsugi.animelist.data.cloudstream.embed.WebViewMediaSniffer
-                            .sniff(resolvedUrl, referer)
+                            .sniff(pageBaseUrl, if (isSendVid) "https://sendvid.com/" else referer)
                         Log.d(TAG, "[$providerName] WebView sniffer → ${sniff.diagnostic}")
                         val sniffedUrl = sniff.url
                         if (sniffedUrl != null) {
                             val sniffHeaders = sniff.headers.toMutableMap()
-                            applyEmbedOriginHeaders(sniffHeaders, resolvedUrl)
+                            applyEmbedOriginHeaders(sniffHeaders, pageBaseUrl)
                             if (!sniffHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
-                                sniffHeaders["Referer"] = resolvedUrl
+                                sniffHeaders["Referer"] = pageBaseUrl
                             }
                             if (!sniffHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                                 sniffHeaders["User-Agent"] =
@@ -2938,8 +3012,9 @@ object CsStreamRunner {
             //
             // Bu yüzden fallback artık YALNIZCA uzantısı ile medya olduğu açık olan URL'ler için
             // eklenir (ör. eklenti .m3u8 döndürdü ama extractor tanımadı).
-            val rawLooksPlayable = isClearlyDirectMediaUrl(rawUrl) ||
-                com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(rawUrl)
+            val rawLooksPlayable = !com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(rawUrl) &&
+                (isClearlyDirectMediaUrl(rawUrl) ||
+                    com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(rawUrl))
             if (!rawLooksPlayable) {
                 Log.w(
                     TAG,
@@ -2952,9 +3027,9 @@ object CsStreamRunner {
             Log.w(TAG, "[$providerName] Extractor çözemedi ama URL medya gibi görünüyor — ekleniyor: $rawUrl")
             val headers = rawHeaders.toMutableMap()
             if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
-                val rawHost = runCatching { java.net.URI(rawUrl).host }.getOrNull()
-                headers["Referer"] = if (!rawHost.isNullOrBlank()) "https://$rawHost/" else referer
+                headers["Referer"] = referer
             }
+            applyEmbedOriginHeaders(headers, referer)
             if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                 headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
             }
@@ -3027,7 +3102,7 @@ object CsStreamRunner {
         // Embed'ler artık PARALEL çözülüyor; bu yüzden altyazı listesi eşzamanlı yazıma
         // dayanıklı olmalı (aksi hâlde ConcurrentModificationException → çökme riski).
         val subtitleList = java.util.Collections.synchronizedList(mutableListOf<SubtitleInput>())
-        val pendingEmbedUrls = mutableListOf<Triple<String, String, Map<String, String>>>() // (rawUrl, linkName, headers)
+        val pendingEmbedUrls = mutableListOf<PendingEmbed>()
 
         try {
             // Uses LOAD semaphore — completely separate from searchSemaphore, no deadlock risk
@@ -3099,7 +3174,14 @@ object CsStreamRunner {
                                 }
                                 Log.d(TAG, "[${api.name}] Embed URL tespit edildi — extractor kuyruğuna alınıyor: $cleanUrl")
                                 CsTrace.info(api.name, "embed", "Embed kuyruğa alındı: $cleanUrl")
-                                pendingEmbedUrls.add(Triple(link.url, link.name, link.headers))
+                                pendingEmbedUrls.add(
+                                    PendingEmbed(
+                                        rawUrl = link.url,
+                                        linkName = link.name,
+                                        headers = link.headers,
+                                        referer = link.referer
+                                    )
+                                )
                             } else {
                                 val headers = link.headers.toMutableMap()
                                 val providerReferer = try { api.mainUrl } catch (_: Exception) { "https://google.com" }
@@ -3168,26 +3250,26 @@ object CsStreamRunner {
                 "[${api.name}] ${pendingEmbedUrls.size} embed URL'si paralel çözümleniyor " +
                     "(eşzamanlılık=$EMBED_RESOLVE_CONCURRENCY)..."
             )
-            val referer = try { api.mainUrl } catch (_: Exception) { "https://google.com" }
+            val providerReferer = try { api.mainUrl } catch (_: Exception) { "https://google.com" }
 
             // Embed'ler SIRAYLA çözüldüğünde (eski davranış) 20 sn timeout × N embed yüzünden
             // kaynak listesi dakikalarca gelmiyordu. Artık sınırlı eşzamanlılıkla paralel
             // çözülür; sonuç sırası korunur (kaynak kalitesi sunum sırasını etkilemesin).
             val embedResults = kotlinx.coroutines.coroutineScope {
                 val gate = Semaphore(EMBED_RESOLVE_CONCURRENCY)
-                pendingEmbedUrls.map { (rawUrl, linkName, rawHeaders) ->
+                pendingEmbedUrls.map { pending ->
                     async {
                         gate.withPermit {
                             val resolved = resolveEmbedUrl(
                                 providerName     = api.name,
-                                rawUrl           = rawUrl,
-                                rawLinkName      = linkName,
-                                rawHeaders       = rawHeaders,
-                                referer          = referer,
+                                rawUrl           = pending.rawUrl,
+                                rawLinkName      = pending.linkName,
+                                rawHeaders       = pending.headers,
+                                referer          = pending.referer.ifBlank { providerReferer },
                                 subtitleCallback = { sub -> subtitleList.add(sub) },
                                 thumbnailUrl     = posterUrl
                             )
-                            Triple(rawUrl, linkName, resolved)
+                            Triple(pending.rawUrl, pending.linkName, resolved)
                         }
                     }
                 }.awaitAll()
@@ -3208,13 +3290,14 @@ object CsStreamRunner {
                         clean.contains("/player/") ||
                         clean.endsWith(".html") ||
                         clean.contains(".html?")
-                    val looksPlayable = isClearlyDirectMediaUrl(clean) ||
-                        com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(clean)
+                    val looksPlayable = !com.kitsugi.animelist.data.cloudstream.extractors.SendVidWrapper.isSendVidUrl(clean) &&
+                        (isClearlyDirectMediaUrl(clean) ||
+                            com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(clean))
                     if (!obviouslyHtml && looksPlayable) {
                         Log.w(TAG, "[${api.name}] Extractor çözemedi — medya URL'si olduğu için ekleniyor: $clean")
                         // CDN'ler embed origin'i doğrular; fallback'te bile Origin eklenmeli
                         // (closeload/rapidrame/playmix.uno 5004 hatası).
-                        val fallbackOrigin = originOfUrl(referer) ?: originOfUrl(clean) ?: referer
+                        val fallbackOrigin = originOfUrl(providerReferer) ?: originOfUrl(clean) ?: providerReferer
                         val fallbackStream = StreamSource(
                                 addonName      = api.name,
                                 name           = "${api.name} • $linkName",
@@ -3223,7 +3306,7 @@ object CsStreamRunner {
                                 infoHash       = null,
                                 fileIndex      = null,
                                 requestHeaders = mapOf(
-                                    "Referer"    to referer,
+                                    "Referer"    to providerReferer,
                                     "Origin"     to fallbackOrigin,
                                     "User-Agent" to com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                                 ),

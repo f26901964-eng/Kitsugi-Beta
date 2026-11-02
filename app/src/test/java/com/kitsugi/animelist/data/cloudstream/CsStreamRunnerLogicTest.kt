@@ -130,6 +130,19 @@ class CsStreamRunnerLogicTest {
     }
 
     @Test
+    fun testSendVidMp4RouteIsResolvedAsEmbedPage() {
+        val url = "https://sendvid.com/episode123.mp4"
+        assertTrue(CsStreamRunner.isEmbedUrl(url))
+        assertFalse(CsStreamRunner.isClearlyDirectMediaUrl(url))
+    }
+
+    @Test
+    fun testSendVidProviderUnavailableRouteIsNeverPassedAsRawMedia() {
+        assertTrue(CsStreamRunner.isEmbedUrl("https://sendvid.com/embed/episode123"))
+        assertFalse(CsStreamRunner.isClearlyDirectMediaUrl("https://sendvid.com/embed/episode123"))
+    }
+
+    @Test
     fun testIsNotEmbedUrl_Mpd() {
         assertFalse(CsStreamRunner.isEmbedUrl("https://cdn.example.com/stream/manifest.mpd"))
     }

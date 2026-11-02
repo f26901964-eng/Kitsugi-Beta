@@ -20,7 +20,21 @@ object VoeWrapper {
     fun extractFromHtml(pageContent: String, embedUrl: String): List<ExtractedVideo> {
         val videos = mutableListOf<ExtractedVideo>()
         try {
-            val headers = mapOf("Referer" to "https://voe.sx/")
+            // Voe's CDN may bind the signed URL to the exact embed page, not
+            // merely the host root. Preserve that page as Referer and provide
+            // the matching origin for the player and HLS segment requests.
+            val pageReferer = embedUrl.takeIf { it.startsWith("http", ignoreCase = true) }
+                ?: "https://voe.sx/"
+            val pageOrigin = runCatching {
+                val uri = java.net.URI(pageReferer)
+                val scheme = uri.scheme ?: "https"
+                val host = uri.host ?: "voe.sx"
+                "$scheme://$host"
+            }.getOrDefault("https://voe.sx")
+            val headers = mapOf(
+                "Referer" to pageReferer,
+                "Origin" to pageOrigin
+            )
 
             // Yöntem 1: 'hls': '...' veya 'mp4': '...'
             Regex("""['"]hls['"]\s*:\s*['"]([^'"]+)['"]""").find(pageContent)?.groupValues?.get(1)?.let { url ->
