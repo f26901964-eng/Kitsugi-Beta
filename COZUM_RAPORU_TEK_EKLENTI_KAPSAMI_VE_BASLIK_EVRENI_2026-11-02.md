@@ -74,6 +74,45 @@ MAL kaydında TMDB kimliği çoğu zaman detay sayfasından gelmiyor — yalnız
 
 ---
 
+## 2b. Diğer kaynaklar da aynı hatayla mı çalışıyordu? (denetim)
+
+Evet — sorun MAL'a özel değildi; **her kaynak istemcisi başlık alanlarını farklı dolduruyordu**
+ve akış ekranı arama varyantlarını tam bu alanlardan kuruyor. Denetim sonucu:
+
+| Kaynak | `title` | `titleEnglish` | `titleRomaji` | `titleNative` | `titleTurkish` | Durum |
+|---|---|---|---|---|---|---|
+| AniList | Romaji | ✔ | ✔ | ✔ | – | Sağlam (referans) |
+| MAL / Jikan | Romaji | ✔ | ✘ idi → **dolduruldu** | ✘ idi → **dolduruldu** | – | **Düzeltildi** |
+| Simkl | yerelleştirilmiş | ✔ | **`null` sabit kodluydu** → **dolduruldu** | kısmi → tamamlandı | – | **Düzeltildi** |
+| Shikimori | Romaji | ✔ | ✔ | ✔ | – | `synonyms` hiç okunmuyordu → **eklendi** |
+| Kitsu | canonicalTitle | ✔ | ✔ | ✔ | – | Sağlam |
+| Bangumi | asıl | ✔ | ✔ | ✔ | – | Sağlam |
+| TMDB | yerelleştirilmiş | ✔ | alan yok (API'de romaji yok) | ✔ | ✔ | Yapısal sınır — alternatif başlıklar `synonyms` içinde |
+| TVMaze | dizi adı | ✔ | ✔ | – | – | Animede kullanılmıyor |
+
+**Kök sorun ortaktı:** "hangi alan doluysa o kadar varyant" mantığı. Bu yüzden MAL'a özel yama
+yetmezdi — **tek bir normalizasyon noktası** eklendi:
+
+### `MediaDetailTitleHarmonizer` (yeni, `data/remote`)
+
+`KitsugiDetailClient.fetchPrimaryDetail` ve `enrichDetail` fonksiyonlarının **tek çıkış
+noktasına** bağlandı; yani tüm kaynaklar (MAL, AniList, Kitsu, Simkl, TMDB, Bangumi, Shikimori,
+TVMaze) detayı harmonize edilmiş olarak döndürür:
+
+- mevcut tüm başlık varyantları (`title`, `titleEnglish`, `titleRomaji`, `titleNative`,
+  `titleJapanese`, `titleTurkish`, mevcut `synonyms`) tek listede **tekilleştirilir**
+  (büyük/küçük harf ve fazla boşluk yok sayılır, birincil başlık listeye girmez),
+- `titleNative` ↔ `titleJapanese` birbirini tamamlar,
+- sonuç `synonyms` alanına yazılır (akış ekranı bu alanı okuyor) — en fazla 12 varyant.
+
+Böylece **hangi kaynaktan açılırsa açılsın** eklentiye aynı başlık evreni gider; ayrıca yeni bir
+kaynak eklendiğinde aynı hata sessizce tekrar etmez.
+
+Buna ek olarak `CanonicalTitleAliases` (bkz. bölüm 2) arama anında AniList + Jikan birleşimini
+kimliklerden üretir — detay nesnesindeki eksiklik tamamen telafi edilir.
+
+---
+
 ## 3. Kök neden B — doğrudan URL başarısız olunca sessizce TÜM kaynaklara düşülüyordu
 
 Eski `StreamViewModel.fetchStreams`:
@@ -124,6 +163,10 @@ da vardı.
 | `data/cloudstream/CanonicalTitleAliases.kt` | **Yeni.** AniList + Jikan başlık birleşimi; önbellekli, tek uçuşlu, 4 sn tavanlı, saf ayrıştırıcılar. |
 | `data/cloudstream/CsStreamRunner.kt` | `effectiveAlts` kanonik başlık evreniyle zenginleşiyor; varyant logu kimlikleri de yazıyor. |
 | `data/remote/KitsugiMalDetailClient.kt` | MAL detayında `titleRomaji` / `titleNative` dolduruluyor (Jikan + resmî MAL v2). |
+| `data/remote/MediaDetailTitleHarmonizer.kt` | **Yeni.** Tüm kaynaklar için tek başlık normalizasyonu (synonyms birleşimi + native/japanese tamamlama). |
+| `data/remote/KitsugiDetailClient.kt` | `fetchPrimaryDetail` + `enrichDetail` çıkışları harmonize ediliyor. |
+| `data/remote/KitsugiSimklDetailClient.kt` | Sabit `titleRomaji = null` kaldırıldı; Simkl romaji alanı kullanılıyor. |
+| `data/remote/KitsugiShikimoriClient.kt` | Shikimori `synonyms` dizisi artık okunuyor. |
 | `ui/screens/stream/StreamViewModel.kt` | `runScopedPluginFetch`, `scopedSourceName`, `searchAllSources`, `startFetch(allSources)`. |
 | `ui/screens/stream/StreamSourceScope.kt` | **Yeni.** "Tek eklenti mi, ortak arama mı?" kuralı — tek yerde, test edilebilir. |
 | `ui/screens/stream/StreamScreenContent.kt` | `ScopedSourceNotice` şeridi (dikey + yatay düzen). |
@@ -132,11 +175,12 @@ da vardı.
 | `res/values/strings.xml`, `res/values-en/strings.xml` | 2 yeni metin (parite betiği doğrulandı). |
 | `test/.../CanonicalTitleAliasesTest.kt` | AniList + Jikan başlık ayrıştırma, boş/bozuk yanıt testleri. |
 | `test/.../stream/StreamSourceScopeTest.kt` | Kapsam kuralı + görünen ad üretimi testleri. |
+| `test/.../MediaDetailTitleHarmonizerTest.kt` | Kaynak boşlukları, Türkçe başlık, native/japanese tamamlama, tekilleştirme. |
 
 ## 5. Doğrulama
 
 - `python3 scripts/check_localization_resource_parity.py` → **in sync (17.698 string, 4 array)**.
-- `CanonicalTitleAliasesTest` (3 test), `StreamSourceScopeTest` (3 test).
+- `CanonicalTitleAliasesTest` (3 test), `StreamSourceScopeTest` (3 test), `MediaDetailTitleHarmonizerTest` (5 test).
 - Davranış doğrulaması cihazda yapılmalı (bu ortamda Android derleyicisi yok):
   1. **MAL kaydı** → İzle → Anizm / TrAnimeIzle / AnimeciX sonuçları **AniList kaydıyla aynı** olmalı.
   2. Eklenti keşfet → içerik → bölüm → İzle → listede **yalnızca** o eklenti + bildirim şeridi;

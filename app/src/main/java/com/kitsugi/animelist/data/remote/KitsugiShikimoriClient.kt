@@ -437,6 +437,14 @@ object KitsugiShikimoriClient {
                     val romajiTitle = data.optString("name").takeIf { it.isNotBlank() }
                     val engTitle = data.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() }
                     val japTitle = data.optJSONArray("japanese")?.optString(0)?.takeIf { it.isNotBlank() }
+                    // 2026-11-02: Shikimori'nin `synonyms` dizisi hiç okunmuyordu → bu kayıttan
+                    // açılan akışta AniList/MAL kaydına göre daha az arama varyantı oluşuyordu.
+                    val shikiSynonyms = run {
+                        val arr = data.optJSONArray("synonyms") ?: return@run emptyList<String>()
+                        (0 until arr.length()).mapNotNull { idx ->
+                            arr.optString(idx).trim().takeIf { it.isNotBlank() }
+                        }
+                    }
                     val mainTitle = romajiTitle ?: engTitle ?: russianTitle ?: "Bilinmeyen"
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
@@ -629,6 +637,7 @@ object KitsugiShikimoriClient {
                         titleJapanese = japTitle,
                         titleRomaji = romajiTitle,
                         titleNative = japTitle,
+                        synonyms = shikiSynonyms,
                         trailerUrl = trailerUrl,
                         title = mainTitle,
                         imageUrl = imageUrl,
