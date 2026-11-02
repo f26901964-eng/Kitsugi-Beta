@@ -32,6 +32,8 @@ class VoeWrapperTest {
         assertTrue(VoeWrapper.isVoeUrl("https://voe.sx/e/abc"))
         assertTrue(VoeWrapper.isVoeUrl("https://voeload.com/e/abc"))
         assertTrue(VoeWrapper.isVoeUrl("https://tubelessceliolymph.com/e/abc"))
+        assertTrue(VoeWrapper.isVoeUrl("https://crystaltreatmenteast.com/e/abc"))
+        assertTrue(VoeWrapper.isVoeUrl("https://ralphysuccessfull.org/e/abc"))
         assertTrue(VoeWrapper.isVoeUrl("https://cdn.voe.sx/e/abc"))
         assertTrue(!VoeWrapper.isVoeUrl("https://voe.sx.example/e/abc"))
     }

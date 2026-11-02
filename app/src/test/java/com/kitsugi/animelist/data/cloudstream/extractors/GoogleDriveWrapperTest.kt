@@ -12,6 +12,9 @@ class GoogleDriveWrapperTest {
         assertTrue(GoogleDriveWrapper.isDriveUrl("https://drive.google.com/file/d/abcDEF_123456/preview"))
         assertTrue(GoogleDriveWrapper.isDriveUrl("https://docs.google.com/file/d/abcDEF_123456/view"))
         assertTrue(GoogleDriveWrapper.isDriveUrl("https://drive.usercontent.google.com/download?id=abcDEF_123456"))
+        assertTrue(GoogleDriveWrapper.isDriveDownloadUrl("https://drive.usercontent.google.com/download?id=abcDEF_123456&export=download"))
+        assertTrue(GoogleDriveWrapper.isDriveDownloadUrl("https://drive.google.com/uc?id=abcDEF_123456"))
+        assertFalse(GoogleDriveWrapper.isDriveDownloadUrl("https://drive.google.com/file/d/abcDEF_123456/preview"))
         assertFalse(GoogleDriveWrapper.isDriveUrl("https://drive.google.com.example/file/d/abcDEF_123456"))
         assertEquals(
             "abcDEF_123456",

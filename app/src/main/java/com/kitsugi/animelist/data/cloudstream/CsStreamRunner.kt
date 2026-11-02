@@ -2097,6 +2097,12 @@ object CsStreamRunner {
                 !path.contains("/videoembed") && !path.contains("/player")
             host == "mycdn.me" || host.endsWith(".mycdn.me") ->
                 !path.contains("/videoembed") && !path.contains("/player")
+            host == "anizmplayer.com" || host.endsWith(".anizmplayer.com") ->
+                path.contains("/cdn/hls/") || path.contains("/hls/")
+            host == "sistenn.uns.bio" ||
+                host == "anizm.rpmvid.com" ||
+                host == "anizm.strp2p.com" ->
+                path.contains("/hls/") || path.contains("/hlsmod/") || path.contains("/v4/")
             else -> false
         }
     }
@@ -2581,9 +2587,62 @@ object CsStreamRunner {
         if (driveHeaders.keys.none { it.equals("referer", ignoreCase = true) } && referer.isNotBlank()) {
             driveHeaders["Referer"] = referer
         }
+        val driveReferer = driveHeaders.entries
+            .firstOrNull { it.key.equals("referer", ignoreCase = true) }
+            ?.value
+            ?.takeIf { it.isNotBlank() }
+            ?: "https://drive.google.com/"
 
         return withTimeoutOrNull(18_000L) {
             try {
+                fun streamFor(downloadUrl: String): StreamSource = StreamSource(
+                    addonName = providerName,
+                    name = "$providerName • $linkName",
+                    title = linkName,
+                    url = downloadUrl,
+                    infoHash = null,
+                    fileIndex = null,
+                    requestHeaders = driveHeaders,
+                    isCS = true,
+                    quality = null,
+                    qualityValue = null,
+                    subtitles = emptyList(),
+                    thumbnailUrl = thumbnailUrl,
+                    isAdultContent = ADULT_PLUGINS.contains(providerName)
+                )
+
+                // The plugin may already have resolved Drive's warning page to a
+                // real /download or /uc URL. Do not throw that verified candidate
+                // away and restart from only its file id: quotas, cookies and
+                // resource keys are part of the original URL. Probe the candidate
+                // first and only fall back to the playback API when it is HTML.
+                if (com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper
+                        .isDriveDownloadUrl(url)
+                ) {
+                    val direct = fetchEmbedPage(
+                        url = url,
+                        referer = driveReferer,
+                        providerName = providerName,
+                        requestHeaders = driveHeaders
+                    )
+                    if (isMediaContentType(direct.contentType)) {
+                        return@withTimeoutOrNull listOf(streamFor(url))
+                    }
+                    val formUrl = com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper
+                        .downloadUrl(direct.body.orEmpty())
+                    if (!formUrl.isNullOrBlank() && formUrl != url) {
+                        val confirmed = fetchEmbedPage(
+                            url = formUrl,
+                            referer = driveReferer,
+                            providerName = providerName,
+                            requestHeaders = driveHeaders
+                        )
+                        if (isMediaContentType(confirmed.contentType)) {
+                            return@withTimeoutOrNull listOf(streamFor(formUrl))
+                        }
+                    }
+                }
+
                 val preview = runCatching {
                     com.lagradost.cloudstream3.app.get(
                         "https://drive.google.com/file/d/$fileId/preview",
@@ -2917,6 +2976,7 @@ object CsStreamRunner {
         // kendi regex-tabanlı fallback wrapper'larını dener.
         // Aşama 3 (derin tarama) aynı sayfayı yeniden indirmemek için içerik burada saklanır.
         var embedPageHtml: String? = null
+        var embedPageContentType: String? = null
         if (resolvedStreams.isEmpty()) {
             try {
                 // v2.4.239 fix: GdriveplayerWrapper aşağıdaki when'da olmasına rağmen
@@ -2932,29 +2992,17 @@ object CsStreamRunner {
                         com.kitsugi.animelist.data.cloudstream.extractors.XStreamCdnWrapper.isXStreamCdnUrl(resolvedUrl)
 
                 val pageContent = if (needsHtml) {
-                    try {
-                        val pageRequestUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
-                        val defaultPageReferer = if (isSendVid) "https://sendvid.com/" else extractorReferer
-                        val pageHeaders = rawHeaders.toMutableMap()
-                        val pageRequestReferer = pageHeaders.entries
-                            .firstOrNull { it.key.equals("Referer", ignoreCase = true) }
-                            ?.value
-                            ?.takeIf { it.isNotBlank() }
-                            ?: defaultPageReferer
-                        if (pageHeaders.keys.none { it.equals("Referer", ignoreCase = true) }) {
-                            pageHeaders["Referer"] = pageRequestReferer
-                        }
-                        Log.d(TAG, "[$providerName] Fallback için HTML çekiliyor: $pageRequestUrl")
-                        com.lagradost.cloudstream3.app.get(
-                            url = pageRequestUrl,
-                            referer = pageRequestReferer,
-                            headers = pageHeaders
-                        ).text
-                    } catch (e: Throwable) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        Log.e(TAG, "[$providerName] Fallback HTML çekme hatası: ${e.message}")
-                        ""
-                    }
+                    val pageRequestUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
+                    val pageReferer = if (isSendVid) "https://sendvid.com/" else extractorReferer
+                    Log.d(TAG, "[$providerName] Fallback için HTML/medya yanıtı çekiliyor: $pageRequestUrl")
+                    val fetched = fetchEmbedPage(
+                        url = pageRequestUrl,
+                        referer = pageReferer,
+                        providerName = providerName,
+                        requestHeaders = rawHeaders
+                    )
+                    embedPageContentType = fetched.contentType
+                    fetched.body.orEmpty()
                 } else ""
                 if (pageContent.isNotBlank()) embedPageHtml = pageContent
                 
@@ -3088,7 +3136,7 @@ object CsStreamRunner {
         if (resolvedStreams.isEmpty()) {
             try {
                 val fetched = if (embedPageHtml != null) {
-                    EmbedPageFetch(embedPageHtml, null)
+                    EmbedPageFetch(embedPageHtml, embedPageContentType)
                 } else {
                     fetchEmbedPage(
                         pageBaseUrl,

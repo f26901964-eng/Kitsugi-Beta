@@ -40,6 +40,15 @@ object GoogleDriveWrapper {
         return host in driveHosts
     }
 
+    /** A URL that asks Drive for bytes rather than rendering a preview page. */
+    fun isDriveDownloadUrl(url: String): Boolean {
+        val uri = runCatching { URI(url.trim()) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase(Locale.ROOT) ?: return false
+        val path = uri.path.orEmpty()
+        return (host == "drive.usercontent.google.com" && path == "/download") ||
+            ((host == "drive.google.com" || host == "docs.google.com") && path == "/uc")
+    }
+
     fun fileId(url: String): String? {
         if (!isDriveUrl(url)) return null
         val normalized = url.replace("\\/", "/")

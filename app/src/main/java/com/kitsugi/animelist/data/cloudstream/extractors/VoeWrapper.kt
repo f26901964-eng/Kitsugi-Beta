@@ -26,7 +26,12 @@ object VoeWrapper {
         "yip.su",
         "metagnathtuggers.com",
         "donaldlineelse.com",
-        "charlestoughrace.com"
+        "charlestoughrace.com",
+        // Additional Voe subclasses bundled by community plugins.
+        "crystaltreatmenteast.com",
+        "ralphysuccessfull.org",
+        "bryantenunder.com",
+        "pamelachangemission.com"
     )
 
     data class ExtractedVideo(

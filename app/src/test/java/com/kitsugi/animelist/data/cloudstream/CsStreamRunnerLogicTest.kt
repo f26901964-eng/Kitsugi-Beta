@@ -134,6 +134,8 @@ class CsStreamRunnerLogicTest {
     @Test
     fun testExtensionlessSignedMediaHostsAreDirect() {
         assertTrue(CsStreamRunner.isKnownExtensionlessMediaUrl("https://rr1---sn.googlevideo.com/videoplayback?expire=1"))
+        assertTrue(CsStreamRunner.isKnownExtensionlessMediaUrl("https://anizmplayer.com/cdn/hls/abc123?md5=1"))
+        assertTrue(CsStreamRunner.isKnownExtensionlessMediaUrl("https://sistenn.uns.bio/v4/abc123?token=1"))
         assertTrue(CsStreamRunner.isClearlyDirectMediaUrl("https://okcdn.ru/stream/video?sig=1"))
         assertFalse(CsStreamRunner.isKnownExtensionlessMediaUrl("https://content-workspacevideo-pa.googleapis.com/v1/drive/media/id/playback"))
     }
