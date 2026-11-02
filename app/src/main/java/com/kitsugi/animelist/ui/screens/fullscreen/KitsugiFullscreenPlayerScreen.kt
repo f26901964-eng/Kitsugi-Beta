@@ -1490,8 +1490,19 @@ fun KitsugiFullscreenPlayerScreen(
                                 viewModel.showSheet(KitsugiSheets.None)
                                 // HLS varyantı → URL değişir, tavan kaldırılır.
                                 // DASH (tek URL) → URL aynı kalır, tavan uygulanır.
+                                // DASH (tek URL) seçimi motorun çözünürlük tavanıyla uygulanır;
+                                // tavanı yalnızca Media3 destekler. MPV'de seçim sessizce
+                                // yutulmasın diye kullanıcı bilgilendirilir.
+                                val needsCap = option != null && option.switchUrl == null
+                                if (needsCap && activeEngineType != PlayerEngineType.MEDIA3) {
+                                    Toast.makeText(
+                                        context,
+                                        KitsugiStrings.get(R.string.quality_cap_not_supported_engine),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                                 playerEngine.setMaxVideoHeight(
-                                    if (option == null || option.switchUrl != null) null else option.height
+                                    if (needsCap) option?.height else null
                                 )
                                 val target = option?.switchUrl ?: master
                                 if (target != currentVideoUrl) {

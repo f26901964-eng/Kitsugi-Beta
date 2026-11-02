@@ -206,7 +206,7 @@ object HlsMasterPlaylist {
                 else -> "u${variant.url}"
             }
             val existing = byKey[key]
-            if (existing == null || (variant.bandwidth ?: 0L) > (existing.bandwidth ?: 0L)) {
+            if (existing == null || preferNewVariant(existing, variant)) {
                 byKey[key] = variant
             }
         }
@@ -216,6 +216,23 @@ object HlsMasterPlaylist {
                 .thenByDescending { it.bandwidth ?: 0L }
         )
     }
+
+    /**
+     * Aynı çözünürlükte iki varyant varsa (ör. H.264 ve HEVC) hangisi kalır?
+     *
+     * **H.264 (AVC) tercih edilir:** cihazların HEVC/AV1 çözücüsü her zaman yoktur;
+     * en yüksek bit hızlı varyant HEVC ise seçim "ses var görüntü yok" durumuna yol açabilir.
+     * AVC yoksa yüksek bit hızlı varyant kazanır.
+     */
+    private fun preferNewVariant(existing: HlsVariant, candidate: HlsVariant): Boolean {
+        val existingAvc = isAvc(existing.codecs)
+        val candidateAvc = isAvc(candidate.codecs)
+        if (existingAvc != candidateAvc) return candidateAvc
+        return (candidate.bandwidth ?: 0L) > (existing.bandwidth ?: 0L)
+    }
+
+    private fun isAvc(codecs: String?): Boolean =
+        codecs?.lowercase(Locale.ROOT)?.trim()?.startsWith("avc") == true
 
     // ── Yardımcılar ──────────────────────────────────────────────────────────
 

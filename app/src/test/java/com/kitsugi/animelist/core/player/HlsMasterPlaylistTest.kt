@@ -119,6 +119,23 @@ class HlsMasterPlaylistTest {
     }
 
     @Test
+    fun `at the same height AVC wins over HEVC`() {
+        val master = """
+            #EXTM3U
+            #EXT-X-STREAM-INF:BANDWIDTH=6200000,RESOLUTION=1920x1080,CODECS="hvc1.2.4.L120.B0,mp4a.40.2"
+            hevc/1080.m3u8
+            #EXT-X-STREAM-INF:BANDWIDTH=4800000,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"
+            avc/1080.m3u8
+        """.trimIndent()
+
+        val variants = HlsMasterPlaylist.parse(masterUrl, master)
+
+        assertEquals(1, variants.size)
+        // Yüksek bit hızlı HEVC değil, cihazlarda her zaman çözülebilen AVC seçilir.
+        assertTrue(variants.single().url.contains("avc/1080.m3u8"))
+    }
+
+    @Test
     fun `height is recovered from variant name when resolution is missing`() {
         val master = """
             #EXTM3U

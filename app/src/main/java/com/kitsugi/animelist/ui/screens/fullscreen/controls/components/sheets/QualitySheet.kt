@@ -111,12 +111,24 @@ fun QualitySheet(
                             items = options,
                             key = { option -> "quality-${option.key}" },
                         ) { option ->
-                            QualityRow(
-                                label = option.label.ifBlank { autoLabel },
-                                subtitle = option.bandwidthText,
-                                isSelected = selectedOption != null && option == selectedOption,
-                                onClick = { onSelectVariant(option) },
-                            )
+                            if (option.declaredBySource) {
+                                // Eklentinin bildirdiği tek kalite: seçilecek başka bir şey
+                                // olmadığı için işaretli gösterilir, tıklama sunucuda kalite
+                                // değiştirmez.
+                                QualityRow(
+                                    label = option.label,
+                                    subtitle = stringResource(R.string.quality_declared_by_source),
+                                    isSelected = false,
+                                    onClick = {},
+                                )
+                            } else {
+                                QualityRow(
+                                    label = option.label.ifBlank { autoLabel },
+                                    subtitle = option.bandwidthText,
+                                    isSelected = selectedOption != null && option == selectedOption,
+                                    onClick = { onSelectVariant(option) },
+                                )
+                            }
                         }
                     }
                 }
@@ -210,6 +222,16 @@ private fun QualitySourceRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            val declaredQuality = source.quality?.trim()?.takeIf { it.isNotEmpty() }
+                ?: source.qualityValue?.let { "${it}p" }
+            if (!declaredQuality.isNullOrBlank()) {
+                Text(
+                    text = declaredQuality,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (!source.name.isNullOrBlank()) {
                 Text(
                     text = source.name,

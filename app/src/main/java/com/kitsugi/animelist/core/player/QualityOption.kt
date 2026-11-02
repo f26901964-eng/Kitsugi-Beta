@@ -19,10 +19,19 @@ data class QualityOption(
     val bandwidth: Long? = null,
     /** Dolu ise doğrudan oynatılabilir varyant URL'si; boş ise motor tavanı uygulanır. */
     val switchUrl: String? = null,
+    /**
+     * Kalite **kaynaktan** geldi (master/DASH ayrıştırılamadı, eklenti kaliteyi bildirdi).
+     * Arayüzde "tek kalite" olarak gösterilir; seçim yapılamaz.
+     */
+    val declaredBySource: Boolean = false,
 ) {
+    /** Bu seçenek uygulanabilir mi? (URL değişimi veya motor tavanı) */
+    val isSelectable: Boolean
+        get() = !declaredBySource && (switchUrl != null || height != null)
+
     /** Aynı kalite iki kez listelenmesin diye kullanılan anahtar. */
     val key: String
-        get() = "${height ?: -1}|${bandwidth ?: 0L}|${label}"
+        get() = "${height ?: -1}|${bandwidth ?: 0L}|${label}|$declaredBySource"
 
     /** "4,5 Mbps" — yalnızca ölçüm varsa. */
     val bandwidthText: String?

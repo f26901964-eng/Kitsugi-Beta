@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-02
 **Dal:** `arena/ef9363d7-kitsugi-beta`
-**Sürüm:** v2.4.341 + v2.4.342 (DASH)
+**Sürüm:** v2.4.341 + v2.4.342 (DASH) + v2.4.343 (kapsam denetimi)
 **Şikâyet:** Oynatıcıdaki **Kalite** sayfası *"Bu video veya oynatıcı motoru seçebilir kalite sunmuyor."* diyor; HDFilmCehennemi ve FilmMakinesi eklentilerinden gelen **rapidrame** kaynağının kaliteleri (1080p / 720p / 480p) hiç listelenmiyor.
 
 ---
@@ -64,6 +64,16 @@
 `PlayerEngine.setMaxVideoHeight()` (Media3: `maxVideoSize`) + `DashManifest` ayrıştırıcısı +
 `QualityOption` modeli eklendi. Kalite sayfası artık HLS varyantlarını **URL değiştirerek**,
 DASH kalitelerini **çözünürlük tavanıyla** uygular. Kart listesinde DASH manifesti indirilmez.
+
+## 4.2 v2.4.343 — Kapsam denetimi: kalan 4 boşluk
+
+| # | Boşluk | Çözüm |
+|---|--------|-------|
+| 1 | Eklenti kaliteyi bildiriyor ama manifest ayrıştırılamıyor → "kalite yok" | `declaredQualityOption()`: kaynağın bildirdiği kalite tek, seçilemez satır olarak gösterilir (`QualityOption.declaredBySource`) |
+| 2 | Uzantısız linkler (`/play/abc`) hiç denenmiyordu | `sniffManifestOptions()`: `<MPD` → DASH, `#EXTM3U` → HLS içerik koklaması (progressive uzantılarda çalışmaz) |
+| 3 | Eşit yükseklikte HEVC, AVC'yi geçiyordu (çözücü yoksa siyah ekran) | `HlsMasterPlaylist.preferNewVariant()`: AVC önceliklidir |
+| 4 | DASH kalite sabitleme MPV'de sessizce yutuluyordu | Media3 dışı motorlarda bilgilendirme; HLS varyant seçimi MPV'de de çalışır |
+| 5 | Kaynak satırlarında kalite yoktu | Kaynak listesinde eklentinin bildirdiği kalite rozeti gösterilir |
 
 ## 5. Değişen dosyalar
 ```

@@ -209,13 +209,64 @@ object StreamProbe {
 
         optionCache[url]?.let { return it }
 
-        val options: List<QualityOption> = when {
-            mediaKind(url) == MediaKind.DASH -> fetchDashOptions(url, stream)
+        val measured: List<QualityOption> = when (mediaKind(url)) {
+            MediaKind.DASH -> fetchDashOptions(url, stream)
+            // Uzantısız/garip linkler (ör. `/play/abc123`) manifest olabilir:
+            // içerik koklanır (`<MPD` / `#EXTM3U`). Progressive uzantılar koklanmaz.
+            MediaKind.UNSUPPORTED -> sniffManifestOptions(url, stream)
             else -> variants(stream).map { QualityOption.fromHls(it) }
         }
+
+        // Ölçüm hiçbir şey vermediyse ama eklenti kaliteyi ZATEN bildirdiyse
+        // (CS `ExtractorLink.quality`, Stremio başlığı) o bilgi kaybolmaz:
+        // tek, seçilemez ama görünür bir satır olarak gösterilir.
+        val options = if (measured.isEmpty()) declaredQualityOption(stream)?.let { listOf(it) } ?: emptyList()
+        else measured
+
         optionCache[url] = options
         return options
     }
+
+    /** Eklentinin/kaynağın bildirdiği kalite (ölçüm başarısız olduğunda son çare). */
+    private fun declaredQualityOption(stream: StreamSource): QualityOption? {
+        val height = StreamInfoResolver.csQualityHeightOrNull(stream.qualityValue)
+        val label = stream.quality?.trim()?.takeIf { it.isNotEmpty() }
+            ?: height?.let { "${it}p" }
+        if (label.isNullOrEmpty()) return null
+        return QualityOption(
+            label = label,
+            height = height,
+            bandwidth = null,
+            switchUrl = null,
+            declaredBySource = true,
+        )
+    }
+
+    /**
+     * Manifest içeriğini koklar: DASH (`<MPD`) veya HLS master (`#EXTM3U` + `#EXT-X-STREAM-INF`).
+     *
+     * Progressive mp4/mkv uzantılı linklerde çağrılmaz; onlarda seçilebilir kalite zaten yoktur.
+     */
+    private suspend fun sniffManifestOptions(url: String, stream: StreamSource): List<QualityOption> =
+        gate.withPermit {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(PROBE_TIMEOUT_MS) {
+                    runCatching {
+                        val body = fetchText(url, stream.requestHeaders, clientFor(stream))
+                            ?: return@runCatching emptyList<QualityOption>()
+                        when {
+                            body.contains("<MPD", ignoreCase = true) -> DashManifest.parse(body)
+                            body.contains("#EXTM3U", ignoreCase = true) ->
+                                HlsMasterPlaylist.parse(url, body).map { QualityOption.fromHls(it) }
+                            else -> emptyList()
+                        }
+                    }.getOrElse { error ->
+                        if (error is kotlinx.coroutines.CancellationException) throw error
+                        emptyList()
+                    }
+                } ?: emptyList()
+            }
+        }
 
     private suspend fun fetchDashOptions(url: String, stream: StreamSource): List<QualityOption> =
         gate.withPermit {
