@@ -4,7 +4,7 @@
 **Sürüm:** v2.4.340 tabanı (sonraki derleme)
 **Kapsam:** (1) Akış seçici ekranı (`KitsugiStreamActivity` / `StreamViewModel`), (2) tam ekran oynatıcının
 sonraki bölüm akışı (`KitsugiPlayerViewModel`), (3) eklenti arama boru hattının başlık evreni
-(`CsStreamRunner` + yeni `MalTitleAliasProvider`), (4) MAL detay istemcisi (`KitsugiMalDetailClient`).
+(`CsStreamRunner` + yeni `CanonicalTitleAliases`), (4) MAL detay istemcisi (`KitsugiMalDetailClient`).
 
 > **DÜZELTME (2026-11-02, kullanıcı geri bildirimi):** Bu raporun ilk sürümü sorunu ters yönde
 > yazmıştı ("AniList'ten gelince bozuk"). Kullanıcının bildirimi **tam tersi**: **MAL kaydından
@@ -49,10 +49,15 @@ MAL kaydında TMDB kimliği çoğu zaman detay sayfasından gelmiyor — yalnız
 1. **`KitsugiMalDetailClient` (her iki yol: Jikan + resmî MAL v2)** artık `titleRomaji` ve
    `titleNative` alanlarını da dolduruyor. Böylece MAL kaydından açılan akış ekranı, AniList kaydıyla
    **aynı genişlikte** alternatif başlık kümesi gönderiyor.
-2. **`MalTitleAliasProvider` (yeni):** MAL kimliği varsa Jikan `anime/{id}` yanıtındaki **tüm** başlık
-   diğer adları (Default / English / Japanese / Synonym / Turkish …) okunup arama varyantlarına eklenir.
-   Bu, kaynaktan bağımsız olarak aynı başlık evrenini garanti eder — MAL tarafındaki eksikliği de,
-   ileride başka bir kaynakta oluşabilecek aynı eksikliği de kapatır.
+2. **`CanonicalTitleAliases` (yeni):** elimizdeki kimliklerden (MAL ve/veya AniList) **iki kaynağın
+   başlık birleşimi** çıkarılıp arama varyantlarına eklenir:
+   - AniList GraphQL `title { romaji english native }` + `synonyms`
+     (yalnızca MAL kimliği varsa `Media(idMal: …)` ile; ek ARM turu yok),
+   - Jikan v4 `titles[]` (Default / English / Japanese / Synonym / Turkish …).
+
+   Böylece **MAL kaydı AniList kaydıyla aynı (hatta daha geniş) kümeyle arar** — bu, kullanıcının
+   "AniList'ten girince geliyor, MAL'dan girince gelmiyor" farkını doğrudan kapatır. Tek sağlayıcı
+   düşse bile diğeriyle devam edilir (Jikan erişilemezse AniList, AniList kota verirse Jikan).
    - Oturum-önbellekli (`BoundedCache`, 400 kayıt), eşzamanlı çağrılar `Mutex` ile tek isteğe indirilir
      (164 eklenti tek Jikan isteğini paylaşır), boş/hatalı sonuç negatif önbelleğe yazılır.
    - 4 sn tavan: zenginleştirme bir "bonus"; Jikan yavaşsa eklenti araması bekletilmez ve zaman aşımı
@@ -116,8 +121,8 @@ da vardı.
 
 | Dosya | Değişiklik |
 |---|---|
-| `data/cloudstream/MalTitleAliasProvider.kt` | **Yeni.** Jikan başlık diğer adları, önbellekli + tek uçuş + saf ayrıştırıcı. |
-| `data/cloudstream/CsStreamRunner.kt` | `effectiveAlts` artık MAL başlık evreniyle zenginleşiyor. |
+| `data/cloudstream/CanonicalTitleAliases.kt` | **Yeni.** AniList + Jikan başlık birleşimi; önbellekli, tek uçuşlu, 4 sn tavanlı, saf ayrıştırıcılar. |
+| `data/cloudstream/CsStreamRunner.kt` | `effectiveAlts` kanonik başlık evreniyle zenginleşiyor; varyant logu kimlikleri de yazıyor. |
 | `data/remote/KitsugiMalDetailClient.kt` | MAL detayında `titleRomaji` / `titleNative` dolduruluyor (Jikan + resmî MAL v2). |
 | `ui/screens/stream/StreamViewModel.kt` | `runScopedPluginFetch`, `scopedSourceName`, `searchAllSources`, `startFetch(allSources)`. |
 | `ui/screens/stream/StreamSourceScope.kt` | **Yeni.** "Tek eklenti mi, ortak arama mı?" kuralı — tek yerde, test edilebilir. |
@@ -125,13 +130,13 @@ da vardı.
 | `ui/screens/stream/KitsugiStreamScreen.kt` | Yeni durumu toplayıp ekrana bağlar. |
 | `ui/screens/fullscreen/KitsugiPlayerViewModel.kt` | Sonraki bölümde kapsamlı çözüm + `mediaType`. |
 | `res/values/strings.xml`, `res/values-en/strings.xml` | 2 yeni metin (parite betiği doğrulandı). |
-| `test/.../MalTitleAliasProviderTest.kt` | Başlık ayrıştırma, boş/bozuk yanıt, 8 ad sınırı testleri. |
+| `test/.../CanonicalTitleAliasesTest.kt` | AniList + Jikan başlık ayrıştırma, boş/bozuk yanıt testleri. |
 | `test/.../stream/StreamSourceScopeTest.kt` | Kapsam kuralı + görünen ad üretimi testleri. |
 
 ## 5. Doğrulama
 
 - `python3 scripts/check_localization_resource_parity.py` → **in sync (17.698 string, 4 array)**.
-- `MalTitleAliasProviderTest` (3 test), `StreamSourceScopeTest` (3 test).
+- `CanonicalTitleAliasesTest` (3 test), `StreamSourceScopeTest` (3 test).
 - Davranış doğrulaması cihazda yapılmalı (bu ortamda Android derleyicisi yok):
   1. **MAL kaydı** → İzle → Anizm / TrAnimeIzle / AnimeciX sonuçları **AniList kaydıyla aynı** olmalı.
   2. Eklenti keşfet → içerik → bölüm → İzle → listede **yalnızca** o eklenti + bildirim şeridi;
