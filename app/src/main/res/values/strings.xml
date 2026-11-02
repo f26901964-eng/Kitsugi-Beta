@@ -17762,4 +17762,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
     <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
     <string name="inline_open_fullscreen">Tam ekranda aç</string>
+    <!-- Tek eklenti (kapsamlı) arama bildirimi — 2026-11-02 -->
+    <string name="stream_scoped_source_notice">Yalnızca %1$s eklentisinde arandı; diğer kaynaklar listeye karıştırılmadı.</string>
+    <string name="stream_search_all_sources">Tüm kaynaklarda ara</string>
 </resources>

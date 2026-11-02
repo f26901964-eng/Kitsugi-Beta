@@ -130,6 +130,7 @@ fun KitsugiStreamScreen(
     val isResolvingId  by viewModel.isResolvingId.collectAsState()
     val idResolveFailed by viewModel.idResolveFailed.collectAsState()
     val imdbId         by viewModel.imdbId.collectAsState()
+    val scopedSourceName by viewModel.scopedSourceName.collectAsState()
     val webViewState   by viewModel.webViewDialogState.collectAsState()
 
     val addonsList by addonViewModel.addonsList.collectAsState(initial = emptyList())
@@ -538,7 +539,9 @@ fun KitsugiStreamScreen(
         onOpenSettings = { showSettingsDialog = true },
         onOpenHistory = onOpenHistory,
         onOpenDownloads = onOpenDownloads,
-        onManualSearchClick = { showManualSearchDialog = true }
+        onManualSearchClick = { showManualSearchDialog = true },
+        scopedSourceName = scopedSourceName,
+        onSearchAllSources = { viewModel.searchAllSources() }
     )
 
     if (showManualSearchDialog) {

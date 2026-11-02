@@ -17757,4 +17757,7 @@
     <string name="inline_video_unsupported_title">This video could not be played inline</string>
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
+    <!-- Single plugin (scoped) search notice — 2026-11-02 -->
+    <string name="stream_scoped_source_notice">Searched only in the %1$s extension; other sources were not mixed in.</string>
+    <string name="stream_search_all_sources">Search all sources</string>
 </resources>

@@ -152,7 +152,10 @@ fun StreamScreenContent(
     onRetryPlugin: ((addonName: String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
     onOpenDownloads: (() -> Unit)? = null,
-    onManualSearchClick: (() -> Unit)? = null
+    onManualSearchClick: (() -> Unit)? = null,
+    /** Non-null → arama yalnızca bu eklentide yapıldı (eklentinin kendi sayfasından gelindi). */
+    scopedSourceName: String? = null,
+    onSearchAllSources: (() -> Unit)? = null
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -288,7 +291,9 @@ fun StreamScreenContent(
                     onRetryPlugin = onRetryPlugin,
                     onOpenHistory = onOpenHistory,
                     onOpenDownloads = onOpenDownloads,
-                    onManualSearchClick = onManualSearchClick
+                    onManualSearchClick = onManualSearchClick,
+                    scopedSourceName = scopedSourceName,
+                    onSearchAllSources = onSearchAllSources
                 )
             } else {
                 PortraitLayout(
@@ -307,7 +312,9 @@ fun StreamScreenContent(
                     onRetryPlugin = onRetryPlugin,
                     onOpenHistory = onOpenHistory,
                     onOpenDownloads = onOpenDownloads,
-                    onManualSearchClick = onManualSearchClick
+                    onManualSearchClick = onManualSearchClick,
+                    scopedSourceName = scopedSourceName,
+                    onSearchAllSources = onSearchAllSources
                 )
             }
 
@@ -668,7 +675,9 @@ private fun PortraitLayout(
     onRetryPlugin: ((String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)?,
     onOpenDownloads: (() -> Unit)? = null,
-    onManualSearchClick: (() -> Unit)? = null
+    onManualSearchClick: (() -> Unit)? = null,
+    scopedSourceName: String? = null,
+    onSearchAllSources: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val subtitle = mediaSubtitle(isMovie, isDownloadMode, season, episode)
@@ -703,6 +712,16 @@ private fun PortraitLayout(
                         onTagSelect = onTagSelect,
                         accentColor = accentColor
                     )
+                }
+
+                if (scopedSourceName != null) {
+                    item(key = "scoped_source_notice") {
+                        ScopedSourceNotice(
+                            pluginName = scopedSourceName,
+                            accentColor = accentColor,
+                            onSearchAllSources = onSearchAllSources
+                        )
+                    }
                 }
 
                 item(key = "addon_selector") {
@@ -779,7 +798,9 @@ private fun LandscapeLayout(
     onRetryPlugin: ((String) -> Unit)? = null,
     onOpenHistory: (() -> Unit)? = null,
     onOpenDownloads: (() -> Unit)? = null,
-    onManualSearchClick: (() -> Unit)? = null
+    onManualSearchClick: (() -> Unit)? = null,
+    scopedSourceName: String? = null,
+    onSearchAllSources: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val subtitle = mediaSubtitle(isMovie, isDownloadMode, season, episode)
@@ -823,6 +844,13 @@ private fun LandscapeLayout(
                         accentColor = accentColor,
                         chipsHorizontally = false
                     )
+                    if (scopedSourceName != null) {
+                        ScopedSourceNotice(
+                            pluginName = scopedSourceName,
+                            accentColor = accentColor,
+                            onSearchAllSources = onSearchAllSources
+                        )
+                    }
                     AddonChipsRow(
                         addonStates = addonStates,
                         allStreams = allStreams,
@@ -1075,6 +1103,54 @@ private fun StreamSearchBar(
  * kompakt bir kart olarak kalır, detaylı seçim modal bottom sheet'te yapılır.
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+/**
+ * Kullanıcı bir eklentinin KENDİ keşfet/arama akışından "İzle" dediğinde gösterilir:
+ * arama yalnızca o eklentide yapıldı, diğer kaynaklar listeye karışmadı. "Tüm
+ * kaynaklarda ara" düğmesi ortak aramayı AÇIK bir kullanıcı tercihiyle başlatır.
+ */
+@Composable
+private fun ScopedSourceNotice(
+    pluginName: String,
+    accentColor: Color,
+    onSearchAllSources: (() -> Unit)?
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = accentColor.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Rounded.Tune,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.stream_scoped_source_notice, pluginName),
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.weight(1f)
+            )
+            if (onSearchAllSources != null) {
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onSearchAllSources) {
+                    Text(
+                        text = stringResource(R.string.stream_search_all_sources),
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AddonChipsRow(
     addonStates: List<AddonFetchState>,

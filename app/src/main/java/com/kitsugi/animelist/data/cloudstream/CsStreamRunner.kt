@@ -1413,8 +1413,19 @@ object CsStreamRunner {
         // TMDB istegini paylasir; hata/eksik durumda normal listeyle devam edilir.
         val effectiveAlts: List<String> = runCatching {
             val trTitle = TmdbTitleLocalizer.getTurkishTitle(targetTmdb, mediaType, isMovie == true)
-            if (!trTitle.isNullOrBlank() && alternativeTitles.none { it.equals(trTitle, ignoreCase = true) })
+            val withTurkish = if (!trTitle.isNullOrBlank() && alternativeTitles.none { it.equals(trTitle, ignoreCase = true) })
                 alternativeTitles + trTitle else alternativeTitles
+            // 2026-11-02: KAYNAK-BAĞIMSIZ BAŞLIK EVRENİ. Detay sayfası hangi kaynaktan geldiyse
+            // (AniList → İngilizce, MAL → Romaji) eklentiye giden varyantlar o başlıkla sınırlı
+            // kalıyordu; Türk eklentileri site başlığını (çoğu zaman Romaji/Türkçe) bulamıyordu.
+            // MAL kimliği varsa Jikan'dan tüm başlık diğer adları eklenir (oturum-önbellekli:
+            // 164 eklenti tek isteği paylaşır, hata/eksik durumda liste aynen kalır).
+            val malAliases = MalTitleAliasProvider.aliasesFor(targetMal, mediaType)
+            if (malAliases.isEmpty()) {
+                withTurkish
+            } else {
+                (withTurkish + malAliases).distinctBy { CsTitleMatcher.normalizeTitleForMatch(it) }
+            }
         }.getOrDefault(alternativeTitles)
         val isWebViewPlugin = api.usesWebView ||
             api.name in CF_PROTECTED_PLUGINS ||
