@@ -32,7 +32,19 @@ data class HlsVariant(
     val name: String? = null,
     /** Yalnızca ses içeren varyant (video kodeği yok). Kalite listesinde gösterilmez. */
     val audioOnly: Boolean = false,
+    /**
+     * Ses, master'daki **ayrı bir `#EXT-X-MEDIA:TYPE=AUDIO`** rendition'ında duruyor.
+     *
+     * NEDEN ÖNEMLİ: Böyle bir master'da varyant (medya playlist) URL'sine doğrudan geçmek
+     * videoyu getirir ama **sesi kaybeder** — ses ayrı bir playlist'te olduğu için oynatıcı
+     * sessiz video açar. Bu yüzden bu varyantlarda kalite seçimi URL değiştirmek yerine
+     * oynatıcı motorunun çözünürlük tavanıyla uygulanır (master adaptif kalır, ses korunur).
+     */
+    val requiresMasterAudio: Boolean = false,
 ) {
+    /** Bu varyantın URL'sine geçmek güvenli mi? (ayrı ses grubu yoksa evet) */
+    val canSwitchUrl: Boolean get() = !requiresMasterAudio
+
     /**
      * Kullanıcıya gösterilecek kalite etiketi: `1080p`, `720p` …
      *
@@ -104,6 +116,19 @@ object HlsMasterPlaylist {
         val lines = body.lineSequence().map { it.trim() }.toList()
         val measured = ArrayList<HlsVariant>(8)
 
+        // Ayrı ses renditions'ı olan gruplar (URI'si dolu EXT-X-MEDIA:TYPE=AUDIO).
+        // Bu gruplara bağlı varyantlarda URL değiştirmek sesi kaybettirir.
+        val audioGroupsWithUri = HashSet<String>(4)
+        for (line in lines) {
+            if (!line.startsWith("#EXT-X-MEDIA", ignoreCase = true)) continue
+            val attrs = parseAttributes(line.substringAfter(':', ""))
+            val type = attrs["TYPE"]?.uppercase(Locale.ROOT)
+            if (type != "AUDIO") continue
+            if (attrs["URI"].isNullOrBlank()) continue
+            val groupId = attrs["GROUP-ID"]?.let { it } ?: continue
+            audioGroupsWithUri.add(groupId)
+        }
+
         var pendingAttrs: Map<String, String>? = null
 
         for (line in lines) {
@@ -120,7 +145,7 @@ object HlsMasterPlaylist {
 
             val attrs = pendingAttrs ?: continue
             pendingAttrs = null
-            val variant = buildVariant(playlistUrl, attrs, line) ?: continue
+            val variant = buildVariant(playlistUrl, attrs, line, audioGroupsWithUri) ?: continue
             measured.add(variant)
             if (measured.size >= MAX_VARIANTS) break
         }
@@ -134,6 +159,7 @@ object HlsMasterPlaylist {
         playlistUrl: String,
         attrs: Map<String, String>,
         uriLine: String,
+        audioGroupsWithUri: Set<String>,
     ): HlsVariant? {
         val absolute = resolveUri(playlistUrl, uriLine) ?: return null
 
@@ -149,6 +175,9 @@ object HlsMasterPlaylist {
             ?: extractHeight(name)
             ?: extractHeight(uriLine)
 
+        val audioGroup = attrs["AUDIO"]?.unquoteOrNull()
+        val requiresMasterAudio = !audioGroup.isNullOrBlank() && audioGroupsWithUri.contains(audioGroup)
+
         return HlsVariant(
             url = absolute,
             width = width,
@@ -157,6 +186,7 @@ object HlsMasterPlaylist {
             codecs = codecs,
             name = name,
             audioOnly = isAudioOnlyCodecs(codecs),
+            requiresMasterAudio = requiresMasterAudio,
         )
     }
 

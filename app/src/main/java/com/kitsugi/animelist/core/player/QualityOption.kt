@@ -25,9 +25,14 @@ data class QualityOption(
      */
     val declaredBySource: Boolean = false,
 ) {
-    /** Bu seçenek uygulanabilir mi? (URL değişimi veya motor tavanı) */
+    /**
+     * Bu seçenek gerçekten uygulanabilir mi?
+     *
+     * - [declaredBySource] → yalnızca bilgi (kaynak kalite bildirmiş, seçilecek alternatif yok)
+     * - DASH (switchUrl yok) → en az bir yükseklik olmalı ki motor tavanı uygulanabilsin
+     */
     val isSelectable: Boolean
-        get() = !declaredBySource && (switchUrl != null || height != null)
+        get() = !declaredBySource && (switchUrl != null || (height != null && height > 0))
 
     /** Aynı kalite iki kez listelenmesin diye kullanılan anahtar. */
     val key: String
@@ -38,12 +43,17 @@ data class QualityOption(
         get() = bandwidth?.takeIf { it > 0 }?.let { HlsVariant.formatBandwidth(it) }
 
     companion object {
-        /** HLS master varyantından seçenek üretir (URL değiştirme yolu). */
+        /**
+         * HLS master varyantından seçenek üretir.
+         *
+         * Ayrı ses grubu olan varyantlarda ([HlsVariant.requiresMasterAudio]) URL
+         * **değiştirilmez** (ses kaybı olur); seçim motorun çözünürlük tavanıyla uygulanır.
+         */
         fun fromHls(variant: HlsVariant): QualityOption = QualityOption(
             label = variant.label,
             height = variant.height,
             bandwidth = variant.bandwidth,
-            switchUrl = variant.url,
+            switchUrl = variant.url.takeIf { variant.canSwitchUrl },
         )
     }
 }

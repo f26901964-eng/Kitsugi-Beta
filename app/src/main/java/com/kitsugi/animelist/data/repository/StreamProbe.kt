@@ -189,7 +189,8 @@ object StreamProbe {
 
             else -> emptyList()
         }
-        variantCache[url] = list
+        // Boş sonucu önbelleğe YAZMA: geçici ağ hatası/403 kalıcı "kalite yok"a dönüşmesin.
+        if (list.isNotEmpty()) variantCache[url] = list
         return list
     }
 
@@ -212,8 +213,9 @@ object StreamProbe {
         val measured: List<QualityOption> = when (mediaKind(url)) {
             MediaKind.DASH -> fetchDashOptions(url, stream)
             // Uzantısız/garip linkler (ör. `/play/abc123`) manifest olabilir:
-            // içerik koklanır (`<MPD` / `#EXTM3U`). Progressive uzantılar koklanmaz.
-            MediaKind.UNSUPPORTED -> sniffManifestOptions(url, stream)
+            // içerik koklanır (`<MPD` / `#EXTM3U`). Progressive uzantılar, P2P yerel
+            // sunucusu (127.0.0.1/localhost) ve segment adresleri koklanmaz.
+            MediaKind.UNSUPPORTED -> if (shouldSniff(url)) sniffManifestOptions(url, stream) else emptyList()
             else -> variants(stream).map { QualityOption.fromHls(it) }
         }
 
@@ -223,7 +225,7 @@ object StreamProbe {
         val options = if (measured.isEmpty()) declaredQualityOption(stream)?.let { listOf(it) } ?: emptyList()
         else measured
 
-        optionCache[url] = options
+        if (options.isNotEmpty()) optionCache[url] = options
         return options
     }
 
@@ -284,6 +286,27 @@ object StreamProbe {
                 } ?: emptyList()
             }
         }
+
+    /**
+     * Bu URL manifest olabilir mi? (içerik koklamadan önce ucuz ön filtre)
+     *
+     * P2P/yerel akış sunucusuna (`127.0.0.1`, `localhost`) ve bilinen medya/segment
+     * uzantılarına istek atılmaz: boşa ağ trafiği ve gecikme olurdu.
+     */
+    private fun shouldSniff(url: String): Boolean {
+        val lower = url.lowercase(Locale.ROOT)
+        if (lower.contains("127.0.0.1") || lower.contains("localhost") || lower.contains("[::1]")) return false
+        val path = lower.substringBefore('?').substringBefore('#')
+        if (NON_MANIFEST_SUFFIXES.any { path.endsWith(it) }) return false
+        return true
+    }
+
+    /** Manifest olamayacağı kesin uzantılar (segment, ses, görsel, arşiv). */
+    private val NON_MANIFEST_SUFFIXES = listOf(
+        ".ts", ".m4s", ".mp4", ".mkv", ".webm", ".m4v", ".mov", ".avi",
+        ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wav",
+        ".jpg", ".jpeg", ".png", ".webp", ".gif", ".vtt", ".srt", ".ass"
+    )
 
     /** Fast-path: uzantısı m3u8 olmayan ama playlist olma ihtimali yüksek URL'ler. */
     private fun looksLikePlaylist(url: String): Boolean {

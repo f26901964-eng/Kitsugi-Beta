@@ -136,6 +136,45 @@ class HlsMasterPlaylistTest {
     }
 
     @Test
+    fun `variant with separate audio rendition must not switch url`() {
+        // Ayrı ses grubu (URI'li EXT-X-MEDIA) varsa varyant playlist'ine geçmek SESİ kaybeder.
+        val master = """
+            #EXTM3U
+            #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="Türkçe",LANGUAGE="tr",URI="audio/tr.m3u8"
+            #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",LANGUAGE="en",URI="audio/en.m3u8"
+            #EXT-X-STREAM-INF:BANDWIDTH=4800000,RESOLUTION=1920x1080,CODECS="avc1.640028",AUDIO="aud"
+            video/1080.m3u8
+            #EXT-X-STREAM-INF:BANDWIDTH=2600000,RESOLUTION=1280x720,CODECS="avc1.4d401f",AUDIO="aud"
+            video/720.m3u8
+        """.trimIndent()
+
+        val variants = HlsMasterPlaylist.parse(masterUrl, master)
+
+        assertEquals(2, variants.size)
+        assertTrue(variants.all { it.requiresMasterAudio })
+        assertTrue(variants.none { it.canSwitchUrl })
+        // Seçenek URL değiştirmemeli → motor çözünürlük tavanı kullanılır (ses korunur).
+        assertTrue(variants.map { QualityOption.fromHls(it) }.all { it.switchUrl == null })
+    }
+
+    @Test
+    fun `variant without audio group can switch url`() {
+        val master = """
+            #EXTM3U
+            #EXT-X-STREAM-INF:BANDWIDTH=2600000,RESOLUTION=1280x720,CODECS="avc1.4d401f,mp4a.40.2"
+            video/720.m3u8
+        """.trimIndent()
+
+        val variant = HlsMasterPlaylist.parse(masterUrl, master).single()
+
+        assertTrue(variant.canSwitchUrl)
+        assertEquals(
+            "https://s430.rapidrame.com/hls2/01/00037/rsyi6h14btcs/video/720.m3u8?t=token123",
+            QualityOption.fromHls(variant).switchUrl
+        )
+    }
+
+    @Test
     fun `height is recovered from variant name when resolution is missing`() {
         val master = """
             #EXTM3U

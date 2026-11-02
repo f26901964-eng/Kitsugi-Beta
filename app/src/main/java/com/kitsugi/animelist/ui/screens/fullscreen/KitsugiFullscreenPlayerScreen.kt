@@ -292,6 +292,11 @@ fun KitsugiFullscreenPlayerScreen(
     var qualityMasterUrl by remember(currentSourceIndex) { mutableStateOf<String?>(null) }
     var isQualityVariantsLoading by remember(currentSourceIndex) { mutableStateOf(false) }
     var selectedQuality by remember(currentSourceIndex) { mutableStateOf<QualityOption?>(null) }
+    /**
+     * Varyant URL'si oynatılamazsa (imzalı CDN token'ı süresi dolmuş / 403) master'a
+     * **bir kez** geri dönmek için kullanılan işaret. Aynı URL'de döngüye girilmez.
+     */
+    var variantFallbackUrl by remember { mutableStateOf<String?>(null) }
     val currentEpisode by viewModel.currentEpisode.collectAsState()
     val episodesList by viewModel.episodesList.collectAsState()
     val userCancelledBinge by viewModel.userCancelledBingeFlow.collectAsState()
@@ -350,6 +355,21 @@ fun KitsugiFullscreenPlayerScreen(
             measured.any { it.key == selected.key }
         } == true
         if (!selectionStillValid) selectedQuality = null
+        isQualityVariantsLoading = false
+    }
+
+    // Kalite sayfası açıldığında liste boşsa yeniden ölç: geçici ağ hatası / 403
+    // yüzünden boş kalan bir sonuç, kullanıcı sayfayı yeniden açınca tekrar denenir.
+    LaunchedEffect(sheetShown) {
+        if (sheetShown != KitsugiSheets.QualityTracks) return@LaunchedEffect
+        if (qualityOptions.isNotEmpty() || isQualityVariantsLoading) return@LaunchedEffect
+        val url = currentVideoUrl?.trim().orEmpty()
+        val source = currentStreamSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
+        if (url.isEmpty()) return@LaunchedEffect
+        isQualityVariantsLoading = true
+        qualityOptions = runCatching {
+            StreamProbe.qualityOptions(source.copy(url = url))
+        }.getOrDefault(emptyList())
         isQualityVariantsLoading = false
     }
 
@@ -672,6 +692,14 @@ fun KitsugiFullscreenPlayerScreen(
                     (playerEngine as? MpvPlayerEngine)?.updateSettings(safeSettings)
                 }
 
+                // Motor değişirse (Media3 ↔ MPV) çözünürlük tavanı yeni motora yeniden
+                // uygulanır; aksi hâlde seçilen kalite sessizce kaybolurdu.
+                LaunchedEffect(playerEngine, selectedQuality) {
+                    playerEngine.setMaxVideoHeight(
+                        selectedQuality?.takeIf { it.switchUrl == null }?.height
+                    )
+                }
+
                 LaunchedEffect(playerEngine, skipIntervals) { viewModel.updateSkipChapters(skipIntervals) }
 
                 // Seçili motor bir özelliği desteklemiyorsa (altyazı gecikmesi/hızı, renk
@@ -918,6 +946,29 @@ fun KitsugiFullscreenPlayerScreen(
                                 errorMsg  = errorMsg,
                                 cause     = cause
                              )
+                            // Seçilen varyant URL'si oynatılamıyorsa (imzalı CDN token'ı süresi
+                            // dolmuş, 403, süresi geçmiş sorgu) kullanıcıyı kilitli bırakma:
+                            // master'a bir kez dönüp aynı kaliteyi tavan olarak koru.
+                            val failingVariant = selectedQuality
+                            val masterUrl = qualityMasterUrl
+                            val source = currentStreamSources.getOrNull(currentSourceIndex)
+                            if (failingVariant?.switchUrl != null &&
+                                !masterUrl.isNullOrBlank() &&
+                                source != null &&
+                                variantFallbackUrl != failingVariant.switchUrl
+                            ) {
+                                variantFallbackUrl = failingVariant.switchUrl
+                                viewModel.clearPlayerError()
+                                playerEngine.setMaxVideoHeight(failingVariant.height)
+                                selectedQuality = failingVariant.copy(switchUrl = null)
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.quality_variant_failed_back_to_master),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                viewModel.changeStreamSource(currentSourceIndex, source, masterUrl)
+                                return
+                            }
                             // Delegate entirely to the orchestrator's unified error recovery pipeline
                             viewModel.orchestrator.errorRecovery.onPlaybackError(errorCode, errorMsg)
                         }
@@ -1498,25 +1549,26 @@ fun KitsugiFullscreenPlayerScreen(
                         onSelectQuality = { option ->
                             val src = currentStreamSources.getOrNull(currentSourceIndex)
                             val master = qualityMasterUrl ?: currentVideoUrl
-                            if (src != null && !master.isNullOrBlank()) {
+                            // Uygulanamayacak seçim (ör. yalnızca motor tavanıyla
+                            // uygulanabilen DASH kalitesi + MPV) işaretlenmez; kullanıcı
+                            // bilgilendirilir. Aksi hâlde arayüz "seçili" gösterirken
+                            // oynatıcı hiçbir şey yapmamış olurdu.
+                            val needsCap = option != null && option.switchUrl == null
+                            val capUnsupported = needsCap && activeEngineType != PlayerEngineType.MEDIA3
+                            if (capUnsupported) {
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.quality_cap_not_supported_engine),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else if (src != null && !master.isNullOrBlank()) {
                                 selectedQuality = option
+                                variantFallbackUrl = null
                                 viewModel.showSheet(KitsugiSheets.None)
                                 // HLS varyantı → URL değişir, tavan kaldırılır.
-                                // DASH (tek URL) → URL aynı kalır, tavan uygulanır.
-                                // DASH (tek URL) seçimi motorun çözünürlük tavanıyla uygulanır;
-                                // tavanı yalnızca Media3 destekler. MPV'de seçim sessizce
-                                // yutulmasın diye kullanıcı bilgilendirilir.
-                                val needsCap = option != null && option.switchUrl == null
-                                if (needsCap && activeEngineType != PlayerEngineType.MEDIA3) {
-                                    Toast.makeText(
-                                        context,
-                                        KitsugiStrings.get(R.string.quality_cap_not_supported_engine),
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                                playerEngine.setMaxVideoHeight(
-                                    if (needsCap) option?.height else null
-                                )
+                                // DASH / ayrı ses gruplu HLS → URL aynı (veya master) kalır,
+                                // tavan uygulanır. Böylece ses grubu korunur.
+                                playerEngine.setMaxVideoHeight(if (needsCap) option?.height else null)
                                 val target = option?.switchUrl ?: master
                                 if (target != currentVideoUrl) {
                                     // Aynı kaynak, aynı başlıklar ve altyazılar; yalnızca
