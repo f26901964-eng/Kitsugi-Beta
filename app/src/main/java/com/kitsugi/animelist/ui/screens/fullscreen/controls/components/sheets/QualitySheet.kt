@@ -58,6 +58,8 @@ fun QualitySheet(
     isLoadingVariants: Boolean = false,
     /** `null` → Otomatik; aksi hâlde seçilen kalite. */
     onSelectVariant: (QualityOption?) -> Unit = {},
+    /** "Otomatik" satırının altındaki açıklama (ör. "Kalite profili: 720p"). */
+    autoSubtitle: String? = null,
 ) {
     PlayerSheet(onDismissRequest = onDismissRequest, dismissEvent = dismissSheet) {
         Column(modifier = modifier) {
@@ -102,7 +104,7 @@ fun QualitySheet(
                         item(key = "quality-auto") {
                             QualityRow(
                                 label = autoLabel,
-                                subtitle = null,
+                                subtitle = autoSubtitle,
                                 isSelected = selectedOption == null,
                                 onClick = { onSelectVariant(null) },
                             )

@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-02
 **Dal:** `arena/ef9363d7-kitsugi-beta`
-**Sürüm:** v2.4.341 + v2.4.342 (DASH) + v2.4.343 (kapsam denetimi)
+**Sürüm:** v2.4.341 + v2.4.342 (DASH) + v2.4.343 (kapsam denetimi) + v2.4.344 (kalite profili)
 **Şikâyet:** Oynatıcıdaki **Kalite** sayfası *"Bu video veya oynatıcı motoru seçebilir kalite sunmuyor."* diyor; HDFilmCehennemi ve FilmMakinesi eklentilerinden gelen **rapidrame** kaynağının kaliteleri (1080p / 720p / 480p) hiç listelenmiyor.
 
 ---
@@ -75,6 +75,17 @@ DASH kalitelerini **çözünürlük tavanıyla** uygular. Kart listesinde DASH m
 | 4 | DASH kalite sabitleme MPV'de sessizce yutuluyordu | Media3 dışı motorlarda bilgilendirme; HLS varyant seçimi MPV'de de çalışır |
 | 5 | Kaynak satırlarında kalite yoktu | Kaynak listesinde eklentinin bildirdiği kalite rozeti gösterilir |
 
+## 4.3 v2.4.344 — Kalite profili motora bağlandı (denetim bulgusu)
+
+`QualityProfile` yalnızca **kaydediliyor ve gösteriliyordu**; oynatıcı hiç okumuyordu.
+
+- `QualityPreference.maxVideoHeight` (`AUTO/P1080 → null`, `P720 → 720`, `P480 → 480`,
+  `DATA_SAVER → 360`) + `QualityProfile.effectiveMaxVideoHeight/effectiveMaxBitrateKbps`.
+- **Media3:** `maxVideoSize` + `maxVideoBitrate` profile göre; `prepare()` başına tazelenir.
+  Öncelik: elle seçim → profil → sınırsız.
+- **MPV:** `hls-bitrate` = `min` (Veri tasarrufu/480p) / `max` (1080p+) / `auto`.
+- Kalite sayfasında "Kalite profili: 720p" ipucu.
+
 ## 5. Değişen dosyalar
 ```
 app/build.gradle.kts                                              (2.4.341)
@@ -82,6 +93,8 @@ app/src/main/java/com/kitsugi/animelist/core/player/HlsMasterPlaylist.kt        
 app/src/main/java/com/kitsugi/animelist/core/player/DashManifest.kt               (YENİ)
 app/src/main/java/com/kitsugi/animelist/core/player/QualityOption.kt              (YENİ)
 app/src/main/java/com/kitsugi/animelist/core/player/engine/PlayerEngine.kt
+app/src/main/java/com/kitsugi/animelist/core/player/QualityProfile.kt
+app/src/main/java/com/kitsugi/animelist/core/player/engine/MpvPlayerEngine.kt
 app/src/main/java/com/kitsugi/animelist/core/player/engine/Media3PlayerEngine.kt
 app/src/main/java/com/kitsugi/animelist/data/repository/StreamInfoResolver.kt
 app/src/main/java/com/kitsugi/animelist/data/repository/StreamProbe.kt

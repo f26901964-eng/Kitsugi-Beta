@@ -19,14 +19,10 @@ object DashManifest {
 
     private const val MAX_OPTIONS = 40
 
-    private val MIME_AUDIO = Regex(
-        """mimeType\s*=\s*"audio/[^"]*"""",
-        RegexOption.IGNORE_CASE
-    )
-    private val CONTENT_TYPE = Regex(
-        """contentType\s*=\s*"([^"]*)"""",
-        RegexOption.IGNORE_CASE
-    )
+    // Not: `"""...""""` (raw string + kapanış tırnağı) gibi kafa karıştıran kalıplar yerine
+    // normal kaçışlı string kullanılır; hem okunur hem derleyici/araç dostudur.
+    private val MIME_AUDIO = Regex("mimeType\\s*=\\s*\"audio/[^\"]*\"", RegexOption.IGNORE_CASE)
+    private val CONTENT_TYPE = Regex("contentType\\s*=\\s*\"([^\"]*)\"", RegexOption.IGNORE_CASE)
 
     /**
      * Manifest gövdesini ayrıştırır.
@@ -118,7 +114,7 @@ object DashManifest {
     }
 
     private fun attr(line: String, name: String): String? = Regex(
-        """(?:^|\s)$name\s*=\s*"([^"]*)"""",
+        "(?:^|\\s)$name\\s*=\\s*\"([^\"]*)\"",
         RegexOption.IGNORE_CASE
     ).find(line)?.groupValues?.getOrNull(1)
 

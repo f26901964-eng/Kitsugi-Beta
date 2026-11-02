@@ -1480,6 +1480,19 @@ fun KitsugiFullscreenPlayerScreen(
                             else switchToMpvForFeature("Harici ses ekleme")
                         },
                         qualityOptions = qualityOptions,
+                        qualityAutoSubtitle = run {
+                            val profile = com.kitsugi.animelist.core.player.QualityProfile
+                                .deserialize(safeSettings.qualityProfileJson)
+                            if (profile.preference ==
+                                com.kitsugi.animelist.core.player.QualityPreference.AUTO
+                            ) {
+                                null
+                            } else {
+                                val cap = profile.effectiveMaxVideoHeight
+                                val capText = cap?.let { "${it}p" } ?: profile.preference.label
+                                KitsugiStrings.get(R.string.quality_auto_profile_hint, capText)
+                            }
+                        },
                         selectedQuality = selectedQuality,
                         isQualityVariantsLoading = isQualityVariantsLoading,
                         onSelectQuality = { option ->

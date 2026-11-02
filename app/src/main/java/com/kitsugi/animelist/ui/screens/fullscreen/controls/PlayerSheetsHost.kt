@@ -89,6 +89,8 @@ fun PlayerSheetsHost(
     isQualityVariantsLoading: Boolean = false,
     /** `null` → Otomatik, aksi hâlde seçilen kalite. */
     onSelectQuality: (com.kitsugi.animelist.core.player.QualityOption?) -> Unit = {},
+    /** "Otomatik" satırı açıklaması (kalite profili ipucu). */
+    qualityAutoSubtitle: String? = null,
 
     // Sleep Timer
     sleepTimerSecondsLeft: Int = 0,
@@ -226,6 +228,7 @@ fun PlayerSheetsHost(
                         selectedOption = selectedQuality,
                         isLoadingVariants = isQualityVariantsLoading,
                         onSelectVariant = onSelectQuality,
+                        autoSubtitle = qualityAutoSubtitle,
                     )
                 }
 
