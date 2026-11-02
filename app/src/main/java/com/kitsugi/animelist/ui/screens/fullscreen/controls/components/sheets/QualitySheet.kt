@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import com.kitsugi.animelist.core.player.HlsVariant
+import com.kitsugi.animelist.core.player.QualityOption
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,10 +32,10 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
  *
  * İki bölüm vardır:
  *
- *  1. **Kalite** — açık akışın HLS master playlist'inden ölçülen gerçek video
- *     varyantları ([variants]). Eklenti kalite bildirmese bile (rapidrame /
+ *  1. **Kalite** — açık akışın kendi manifestinden okunan gerçek video kaliteleri
+ *     ([options]): HLS master varyantları (URL değiştirilir) ve DASH `Representation`'ları
+ *     (motorun çözünürlük tavanı uygulanır). Eklenti kalite bildirmese bile (rapidrame /
  *     closeload → `Qualities.Unknown`) burada `1080p / 720p / 480p` görünür.
- *     Seçim yapıldığında oynatıcı aynı konumdan o varyantla devam eder.
  *  2. **Kaynak** — diğer eklenti/kaynak linkleri (eski davranış korunur).
  *
  * Ölçülebilir varyant yoksa uydurma bir liste basılmaz; kullanıcıya nedenini
@@ -51,20 +51,20 @@ fun QualitySheet(
     dismissSheet: Boolean = false,
     modifier: Modifier = Modifier,
     /** Açık akışın gerçek video kaliteleri (yüksekten alçağa). */
-    variants: List<HlsVariant> = emptyList(),
-    /** Seçili varyantın yüksekliği; `null` = Otomatik (adaptif) seçim. */
-    selectedVariantHeight: Int? = null,
-    /** Kalite listesi ölçülüyor mu? (master playlist indiriliyor) */
+    options: List<QualityOption> = emptyList(),
+    /** Seçili kalite; `null` = Otomatik (adaptif) seçim. */
+    selectedOption: QualityOption? = null,
+    /** Kalite listesi ölçülüyor mu? (manifest indiriliyor) */
     isLoadingVariants: Boolean = false,
-    /** `null` → Otomatik; aksi hâlde seçilen varyantın yüksekliği. */
-    onSelectVariant: (Int?) -> Unit = {},
+    /** `null` → Otomatik; aksi hâlde seçilen kalite. */
+    onSelectVariant: (QualityOption?) -> Unit = {},
 ) {
     PlayerSheet(onDismissRequest = onDismissRequest, dismissEvent = dismissSheet) {
         Column(modifier = modifier) {
             val autoLabel = stringResource(R.string.quality_auto)
             TrackSheetTitle(title = stringResource(R.string.quality_sheet_title))
 
-            if (isLoading && streamSources.isEmpty() && variants.isEmpty()) {
+            if (isLoading && streamSources.isEmpty() && options.isEmpty()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -90,7 +90,7 @@ fun QualitySheet(
                         }
                     }
 
-                    variants.isEmpty() -> item(key = "quality-empty") {
+                    options.isEmpty() -> item(key = "quality-empty") {
                         Text(
                             text = stringResource(R.string.quality_no_variants_message),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -103,20 +103,19 @@ fun QualitySheet(
                             QualityRow(
                                 label = autoLabel,
                                 subtitle = null,
-                                isSelected = selectedVariantHeight == null,
+                                isSelected = selectedOption == null,
                                 onClick = { onSelectVariant(null) },
                             )
                         }
                         items(
-                            items = variants,
-                            key = { variant -> "quality-${variant.url}" },
-                        ) { variant ->
+                            items = options,
+                            key = { option -> "quality-${option.key}" },
+                        ) { option ->
                             QualityRow(
-                                label = variant.label.ifBlank { autoLabel },
-                                subtitle = variant.bandwidthText,
-                                isSelected = selectedVariantHeight != null &&
-                                    variant.height == selectedVariantHeight,
-                                onClick = { onSelectVariant(variant.height) },
+                                label = option.label.ifBlank { autoLabel },
+                                subtitle = option.bandwidthText,
+                                isSelected = selectedOption != null && option == selectedOption,
+                                onClick = { onSelectVariant(option) },
                             )
                         }
                     }

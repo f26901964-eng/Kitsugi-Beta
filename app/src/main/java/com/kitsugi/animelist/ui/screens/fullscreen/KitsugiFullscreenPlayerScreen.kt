@@ -48,7 +48,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.kitsugi.animelist.data.cloudstream.CsVideoInterceptorFactory
 import com.kitsugi.animelist.core.player.SubtitleInput
-import com.kitsugi.animelist.core.player.HlsVariant
+import com.kitsugi.animelist.core.player.QualityOption
 import com.kitsugi.animelist.data.repository.AddonStreamRepository
 import com.kitsugi.animelist.data.repository.StreamProbe
 import com.kitsugi.animelist.data.repository.StreamSource
@@ -288,10 +288,10 @@ fun KitsugiFullscreenPlayerScreen(
     // rapidrame / closeload kaynakları tek bir master.m3u8 verir ve eklenti kaliteyi
     // bildirmez (Qualities.Unknown). Kalite listesi bu yüzden master playlist'in
     // kendisinden ölçülür; kaynak/parça değişince sıfırlanır.
-    var qualityVariants by remember(currentSourceIndex) { mutableStateOf<List<HlsVariant>>(emptyList()) }
+    var qualityOptions by remember(currentSourceIndex) { mutableStateOf<List<QualityOption>>(emptyList()) }
     var qualityMasterUrl by remember(currentSourceIndex) { mutableStateOf<String?>(null) }
     var isQualityVariantsLoading by remember(currentSourceIndex) { mutableStateOf(false) }
-    var selectedQualityHeight by remember(currentSourceIndex) { mutableStateOf<Int?>(null) }
+    var selectedQuality by remember(currentSourceIndex) { mutableStateOf<QualityOption?>(null) }
     val currentEpisode by viewModel.currentEpisode.collectAsState()
     val episodesList by viewModel.episodesList.collectAsState()
     val userCancelledBinge by viewModel.userCancelledBingeFlow.collectAsState()
@@ -336,21 +336,20 @@ fun KitsugiFullscreenPlayerScreen(
 
         // Kullanıcı listeden bir varyant seçtiyse master'ı yeniden ölçmeyiz:
         // oynatılan URL zaten bilinen bir varyanttır, liste korunur.
-        if (url != qualityMasterUrl && qualityVariants.any { it.url == url }) return@LaunchedEffect
+        if (url != qualityMasterUrl && qualityOptions.any { it.switchUrl == url }) return@LaunchedEffect
 
         val source = currentStreamSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
         qualityMasterUrl = url
         isQualityVariantsLoading = true
         val measured = runCatching {
-            StreamProbe.variants(source.copy(url = url))
+            StreamProbe.qualityOptions(source.copy(url = url))
         }.getOrDefault(emptyList())
-        qualityVariants = measured
-        // Yeni akış/parça yüklendiyse seçim "Otomatik"e döner; aynı varyant
-        // korunuyorsa seçim kaybolmaz.
-        val selectionStillValid = selectedQualityHeight != null && measured.any {
-            it.height == selectedQualityHeight && it.url == url
-        }
-        if (!selectionStillValid) selectedQualityHeight = null
+        qualityOptions = measured
+        // Aynı seçim hâlâ geçerliyse (ör. DASH tavanı) korunur; aksi hâlde "Otomatik".
+        val selectionStillValid = selectedQuality?.let { selected ->
+            measured.any { it.key == selected.key }
+        } == true
+        if (!selectionStillValid) selectedQuality = null
         isQualityVariantsLoading = false
     }
 
@@ -1480,20 +1479,21 @@ fun KitsugiFullscreenPlayerScreen(
                             if (playerEngine.supportsExternalTracks) audioPicker.launch(arrayOf("*/*"))
                             else switchToMpvForFeature("Harici ses ekleme")
                         },
-                        qualityVariants = qualityVariants,
-                        selectedQualityHeight = selectedQualityHeight,
+                        qualityOptions = qualityOptions,
+                        selectedQuality = selectedQuality,
                         isQualityVariantsLoading = isQualityVariantsLoading,
-                        onSelectQuality = { height ->
+                        onSelectQuality = { option ->
                             val src = currentStreamSources.getOrNull(currentSourceIndex)
                             val master = qualityMasterUrl ?: currentVideoUrl
                             if (src != null && !master.isNullOrBlank()) {
-                                val target = if (height == null) {
-                                    master
-                                } else {
-                                    qualityVariants.firstOrNull { it.height == height }?.url ?: master
-                                }
-                                selectedQualityHeight = height
+                                selectedQuality = option
                                 viewModel.showSheet(KitsugiSheets.None)
+                                // HLS varyantı → URL değişir, tavan kaldırılır.
+                                // DASH (tek URL) → URL aynı kalır, tavan uygulanır.
+                                playerEngine.setMaxVideoHeight(
+                                    if (option == null || option.switchUrl != null) null else option.height
+                                )
+                                val target = option?.switchUrl ?: master
                                 if (target != currentVideoUrl) {
                                     // Aynı kaynak, aynı başlıklar ve altyazılar; yalnızca
                                     // çözünürlük değişir. Oynatıcı mevcut saniyeden devam eder.

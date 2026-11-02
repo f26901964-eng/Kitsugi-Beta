@@ -132,6 +132,12 @@ class Media3PlayerEngine(
     }
     private var exoPlayer: ExoPlayer? = null
     private var trackSelector: androidx.media3.exoplayer.trackselection.DefaultTrackSelector? = null
+
+    /**
+     * Kullanıcının seçtiği çözünürlük tavanı (piksel yüksekliği). `null` → sınırsız.
+     * DASH gibi tek URL'li adaptif akışlarda "Kalite" seçimi bu değerle uygulanır.
+     */
+    private var maxVideoHeight: Int? = null
     private var playerView: PlayerView? = null
     private var assSubtitleView: View? = null
     private val listeners = mutableListOf<PlayerEngine.Listener>()
@@ -767,6 +773,12 @@ class Media3PlayerEngine(
                 )
             }
             playerView?.player = exoPlayer
+            // Kalite tavanı yeni oynatıcıya da uygulanır (motor yeniden kurulursa kaybolmaz).
+            maxVideoHeight?.let { height ->
+                localSelector.parameters = localSelector.buildUponParameters()
+                    .setMaxVideoSize(Int.MAX_VALUE, height)
+                    .build()
+            }
         }
     }
 
@@ -1094,6 +1106,18 @@ class Media3PlayerEngine(
     override fun setSubtitleStyle(style: SubtitleStyleSettings) {
         currentSubtitleStyle = style
         runOnMainThread { applySubtitleStylesToView() }
+    }
+
+    override fun setMaxVideoHeight(height: Int?) {
+        val sanitized = height?.takeIf { it in 144..4320 }
+        if (sanitized == maxVideoHeight) return
+        maxVideoHeight = sanitized
+        runOnMainThread {
+            val selector = trackSelector ?: return@runOnMainThread
+            selector.parameters = selector.buildUponParameters()
+                .setMaxVideoSize(Int.MAX_VALUE, sanitized ?: Int.MAX_VALUE)
+                .build()
+        }
     }
 
     override fun setResizeMode(resizeMode: Int) {

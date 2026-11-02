@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-02
 **Dal:** `arena/ef9363d7-kitsugi-beta`
-**Sürüm:** v2.4.341
+**Sürüm:** v2.4.341 + v2.4.342 (DASH)
 **Şikâyet:** Oynatıcıdaki **Kalite** sayfası *"Bu video veya oynatıcı motoru seçebilir kalite sunmuyor."* diyor; HDFilmCehennemi ve FilmMakinesi eklentilerinden gelen **rapidrame** kaynağının kaliteleri (1080p / 720p / 480p) hiç listelenmiyor.
 
 ---
@@ -47,7 +47,8 @@
 
 | Kaynak türü | Durum |
 |-------------|-------|
-| HLS master (`master.m3u8`, çok varyantlı) — rapidrame, closeload, genel HLS | ✅ Varyantlar listelenir |
+| HLS master (`master.m3u8`, çok varyantlı) — rapidrame, closeload, genel HLS | ✅ Varyantlar listelenir (URL değişir) |
+| **DASH (`.mpd`)** — `AdaptationSet` → `Representation` video kaliteleri | ✅ v2.4.342: listelenir, motorun çözünürlük tavanı ile uygulanır |
 | `master.txt` playlist (closeload CDN) | ✅ İçerik `#EXTM3U` ise ayrıştırılır |
 | HLS medya playlist (tek kalite) | ➖ Seçilebilir kalite yok → bilgilendirme |
 | Progressive `mp4/mkv/webm` | ➖ Tek kalite; kaynak eklentinin bildirdiği kalite rozet olarak kalır |
@@ -58,10 +59,20 @@
 - Değişen 7 dosya + 2 yeni dosya için parantez/blok dengesi ve import taraması yapıldı.
 - **Not:** Bu ortamda Android SDK/JDK bulunmadığı için `assembleDebug` çalıştırılamadı; derleme cihazda/tarayıcı ortamında doğrulanmalıdır.
 
+## 4.1 v2.4.342 — DASH desteği (kapsam tamamlandı)
+
+`PlayerEngine.setMaxVideoHeight()` (Media3: `maxVideoSize`) + `DashManifest` ayrıştırıcısı +
+`QualityOption` modeli eklendi. Kalite sayfası artık HLS varyantlarını **URL değiştirerek**,
+DASH kalitelerini **çözünürlük tavanıyla** uygular. Kart listesinde DASH manifesti indirilmez.
+
 ## 5. Değişen dosyalar
 ```
 app/build.gradle.kts                                              (2.4.341)
 app/src/main/java/com/kitsugi/animelist/core/player/HlsMasterPlaylist.kt          (YENİ)
+app/src/main/java/com/kitsugi/animelist/core/player/DashManifest.kt               (YENİ)
+app/src/main/java/com/kitsugi/animelist/core/player/QualityOption.kt              (YENİ)
+app/src/main/java/com/kitsugi/animelist/core/player/engine/PlayerEngine.kt
+app/src/main/java/com/kitsugi/animelist/core/player/engine/Media3PlayerEngine.kt
 app/src/main/java/com/kitsugi/animelist/data/repository/StreamInfoResolver.kt
 app/src/main/java/com/kitsugi/animelist/data/repository/StreamProbe.kt
 app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/KitsugiFullscreenPlayerScreen.kt
@@ -70,5 +81,6 @@ app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/controls/component
 app/src/main/res/values/strings.xml
 app/src/main/res/values-en/strings.xml
 app/src/test/java/com/kitsugi/animelist/core/player/HlsMasterPlaylistTest.kt     (YENİ)
+app/src/test/java/com/kitsugi/animelist/core/player/DashManifestTest.kt           (YENİ)
 release_notes_v2.4.341.md                                                          (YENİ)
 ```

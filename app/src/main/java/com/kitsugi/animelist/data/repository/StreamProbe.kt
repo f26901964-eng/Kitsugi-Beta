@@ -1,8 +1,10 @@
 package com.kitsugi.animelist.data.repository
 
 import com.kitsugi.animelist.core.memory.BoundedCache
+import com.kitsugi.animelist.core.player.DashManifest
 import com.kitsugi.animelist.core.player.HlsMasterPlaylist
 import com.kitsugi.animelist.core.player.HlsVariant
+import com.kitsugi.animelist.core.player.QualityOption
 
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
@@ -67,12 +69,16 @@ object StreamProbe {
     /** Kalite sayfası için varyant listesi önbelleği (URL başına). */
     private val variantCache = BoundedCache<String, List<HlsVariant>>("streamVariants", 60)
 
+    /** Kalite sayfası için (HLS + DASH) seçenek önbelleği. */
+    private val optionCache = BoundedCache<String, List<QualityOption>>("streamQualityOptions", 60)
+
     /** Daha önce ölçülmüş sonuç (anında arayüze verilebilir). */
     fun cached(url: String?): MeasuredStreamInfo? = url?.let { cache[it] }
 
     fun clearCache() {
         cache.clear()
         variantCache.clear()
+        optionCache.clear()
     }
 
     /** Bu akış için ölçüm yapmak anlamlı mı? (torrent / embed sayfaları ölçülmez) */
@@ -80,7 +86,11 @@ object StreamProbe {
         if (stream.isTorrent) return false
         val url = stream.url?.trim().orEmpty()
         if (!url.startsWith("http", ignoreCase = true)) return false
-        return mediaKind(url) != MediaKind.UNSUPPORTED
+        // DASH rozet ölçümü kalite sayfasında yapılır; kart listesinde manifest indirilmez.
+        return when (mediaKind(url)) {
+            MediaKind.HLS, MediaKind.PROGRESSIVE -> true
+            MediaKind.DASH, MediaKind.UNSUPPORTED -> false
+        }
     }
 
     /**
@@ -100,12 +110,13 @@ object StreamProbe {
         return !(qualityKnown && audioKnown && subtitlesKnown)
     }
 
-    private enum class MediaKind { HLS, PROGRESSIVE, UNSUPPORTED }
+    private enum class MediaKind { HLS, DASH, PROGRESSIVE, UNSUPPORTED }
 
     private fun mediaKind(url: String): MediaKind {
         val lower = url.lowercase(Locale.ROOT).substringBefore('#')
         return when {
             lower.contains(".m3u8") -> MediaKind.HLS
+            lower.contains(".mpd") -> MediaKind.DASH
             lower.contains(".mp4") || lower.contains(".mkv") ||
                 lower.contains(".webm") || lower.contains(".m4v") -> MediaKind.PROGRESSIVE
             else -> MediaKind.UNSUPPORTED
@@ -129,7 +140,9 @@ object StreamProbe {
                         when (mediaKind(url)) {
                             MediaKind.HLS -> probeHls(url, stream.requestHeaders, client)
                             MediaKind.PROGRESSIVE -> probeProgressive(url, stream.requestHeaders, client)
-                            MediaKind.UNSUPPORTED -> null
+                            // DASH: rozet ölçümü kalite sayfasında (`qualityOptions`) yapılır;
+                            // burada ikinci bir manifest isteği atılmaz.
+                            MediaKind.DASH, MediaKind.UNSUPPORTED -> null
                         }
                     }.getOrElse { error ->
                         if (error is kotlinx.coroutines.CancellationException) throw error
@@ -179,6 +192,47 @@ object StreamProbe {
         variantCache[url] = list
         return list
     }
+
+    /**
+     * Açık akışın okunabilen **tüm** kalite seçenekleri.
+     *
+     * Desteklenen kaynaklar (tek giriş noktası):
+     *  - **HLS** (`master.m3u8`, `.txt/master.txt`): gerçek varyant URL'leri → seçim URL değiştirir.
+     *  - **DASH** (`.mpd`): manifest içindeki video `Representation`'lar → seçim motorun
+     *    çözünürlük tavanıyla uygulanır ([QualityOption.switchUrl] boş).
+     *
+     * Ölçülemezse **boş liste** döner; arayüz uydurma kalite göstermez.
+     */
+    suspend fun qualityOptions(stream: StreamSource): List<QualityOption> {
+        val url = stream.url?.trim().orEmpty()
+        if (!url.startsWith("http", ignoreCase = true)) return emptyList()
+
+        optionCache[url]?.let { return it }
+
+        val options: List<QualityOption> = when {
+            mediaKind(url) == MediaKind.DASH -> fetchDashOptions(url, stream)
+            else -> variants(stream).map { QualityOption.fromHls(it) }
+        }
+        optionCache[url] = options
+        return options
+    }
+
+    private suspend fun fetchDashOptions(url: String, stream: StreamSource): List<QualityOption> =
+        gate.withPermit {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(PROBE_TIMEOUT_MS) {
+                    runCatching {
+                        val body = fetchText(url, stream.requestHeaders, clientFor(stream))
+                            ?: return@runCatching emptyList<QualityOption>()
+                        DashManifest.parse(body)
+                    }.getOrElse { error ->
+                        if (error is kotlinx.coroutines.CancellationException) throw error
+                        Log.w(TAG, "DASH ayrıştırma hatası (${error.javaClass.simpleName}): ${url.take(80)}")
+                        emptyList()
+                    }
+                } ?: emptyList()
+            }
+        }
 
     /** Fast-path: uzantısı m3u8 olmayan ama playlist olma ihtimali yüksek URL'ler. */
     private fun looksLikePlaylist(url: String): Boolean {
