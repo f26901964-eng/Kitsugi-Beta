@@ -2079,6 +2079,29 @@ object CsStreamRunner {
         return null // Hiçbir sync ID çalışmadı — normal arama akışına dön
     }
     /**
+     * Signed media URLs from Drive/OK.ru often have no `.mp4` suffix. These
+     * hosts are emitted only after the plugin's own metadata/media resolver,
+     * so treating their CDN endpoint as a page would cause a needless HTML
+     * fetch and lose the source's headers.
+     */
+    internal fun isKnownExtensionlessMediaUrl(url: String): Boolean {
+        val uri = runCatching { java.net.URI(url.trim()) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase(Locale.ROOT) ?: return false
+        val path = uri.path.orEmpty().lowercase(Locale.ROOT)
+        return when {
+            host == "googlevideo.com" || host.endsWith(".googlevideo.com") ->
+                path.contains("videoplayback")
+            host == "googleusercontent.com" || host.endsWith(".googleusercontent.com") ->
+                !path.contains("/file/") && !path.contains("/preview")
+            host == "okcdn.ru" || host.endsWith(".okcdn.ru") ->
+                !path.contains("/videoembed") && !path.contains("/player")
+            host == "mycdn.me" || host.endsWith(".mycdn.me") ->
+                !path.contains("/videoembed") && !path.contains("/player")
+            else -> false
+        }
+    }
+
+    /**
      * URL açıkça doğrudan medya mı? (uzantı veya bilinen akış işareti ile)
      *
      * Bu kontrol "kaynağı doğrudan ekle" ile "embed boru hattına gönder" kararını verir.
@@ -2107,7 +2130,8 @@ object CsStreamRunner {
 
         // Uzantı sorgu/path içinde: /x.mp4/index.m3u8, ?file=abc.mp4 gibi
         return lower.contains(".m3u8?") || lower.contains(".mp4?") || lower.contains(".mpd?") ||
-            lower.contains(".m3u8/") || lower.contains(".mp4/")
+            lower.contains(".m3u8/") || lower.contains(".mp4/") ||
+            isKnownExtensionlessMediaUrl(url)
     }
 
     /**
@@ -2158,7 +2182,7 @@ object CsStreamRunner {
                clean.contains("playmogo") ||          // Doodstream redirect
                clean.contains("ds2play") ||
                clean.contains("mixdrop") ||
-               clean.contains("voe.sx") ||
+               com.kitsugi.animelist.data.cloudstream.extractors.VoeWrapper.isVoeUrl(clean) ||
                clean.contains("vidplay") ||
                clean.contains("vidoy") ||             // Vidplay redirect
                clean.contains("uqload") ||            // Uqload redirect
@@ -2212,6 +2236,9 @@ object CsStreamRunner {
                clean.contains("fembed.net") ||        // Fembed alt domain
                clean.contains("streamango.com") ||    // Streamango (eski, hala kullanılan)
                clean.contains("yourupload.com") ||    // YourUpload embed
+               clean.contains("drive.google.com") ||   // Google Drive preview/download
+               clean.contains("docs.google.com") ||    // Google Drive document host
+               clean.contains("drive.usercontent.google.com") ||
                clean.contains("jawcloud.co") ||       // JawCloud embed
                clean.contains("fastplay.to") ||       // FastPlay (Türkiye CDN)
                clean.contains("fastplay.cc") ||       // FastPlay alt domain
@@ -2480,6 +2507,144 @@ object CsStreamRunner {
     }
 
     /**
+     * Fallback resolver for a raw Google Drive URL emitted by a plugin.
+     *
+     * A successful result is always a progressive URL published by Drive's
+     * playback response or a real hidden-form download target. A preview page,
+     * warning page, `confirm=t` guess, or a 404 is never returned as a stream.
+     */
+    private suspend fun resolveGoogleDriveFallback(
+        providerName: String,
+        url: String,
+        linkName: String,
+        rawHeaders: Map<String, String>,
+        referer: String,
+        thumbnailUrl: String?
+    ): List<StreamSource> {
+        val fileId = com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper.fileId(url)
+            ?: return emptyList()
+        val driveHeaders = com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper
+            .mediaHeaders()
+            .toMutableMap()
+        rawHeaders.forEach { (key, value) ->
+            if (value.isNotBlank() && driveHeaders.keys.none { it.equals(key, ignoreCase = true) }) {
+                driveHeaders[key] = value
+            }
+        }
+        if (driveHeaders.keys.none { it.equals("referer", ignoreCase = true) } && referer.isNotBlank()) {
+            driveHeaders["Referer"] = referer
+        }
+
+        return withTimeoutOrNull(18_000L) {
+            try {
+                val preview = runCatching {
+                    com.lagradost.cloudstream3.app.get(
+                        "https://drive.google.com/file/d/$fileId/preview",
+                        headers = driveHeaders
+                    ).text
+                }.getOrDefault("")
+                val keys = com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper
+                    .playbackApiKeys(preview)
+                for (key in keys) {
+                    val body = runCatching {
+                        com.lagradost.cloudstream3.app.get(
+                            "https://content-workspacevideo-pa.googleapis.com/v1/drive/media/$fileId/playback" +
+                                "?key=$key&auditContext=forDisplay",
+                            headers = driveHeaders
+                        ).text
+                    }.getOrNull() ?: continue
+                    val playback = com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper
+                        .playbackStreams(body)
+                    if (playback.isNotEmpty()) {
+                        return@withTimeoutOrNull playback.map { item ->
+                            val quality = item.height.takeIf { it > 0 }
+                            StreamSource(
+                                addonName = providerName,
+                                name = "$providerName • $linkName" + (quality?.let { " ${it}p" } ?: ""),
+                                title = linkName,
+                                url = item.url,
+                                infoHash = null,
+                                fileIndex = null,
+                                requestHeaders = driveHeaders,
+                                isCS = true,
+                                quality = quality?.let { "${it}p" },
+                                qualityValue = quality,
+                                subtitles = emptyList(),
+                                thumbnailUrl = thumbnailUrl,
+                                isAdultContent = ADULT_PLUGINS.contains(providerName)
+                            )
+                        }
+                    }
+                }
+
+                val warning = runCatching {
+                    com.lagradost.cloudstream3.app.get(
+                        "https://drive.usercontent.google.com/download?id=$fileId&export=download",
+                        headers = driveHeaders
+                    ).text
+                }.getOrDefault("")
+                val download = com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper
+                    .downloadUrl(warning)
+                if (download != null) {
+                    return@withTimeoutOrNull listOf(
+                        StreamSource(
+                            addonName = providerName,
+                            name = "$providerName • $linkName",
+                            title = linkName,
+                            url = download,
+                            infoHash = null,
+                            fileIndex = null,
+                            requestHeaders = driveHeaders,
+                            isCS = true,
+                            quality = null,
+                            qualityValue = null,
+                            subtitles = emptyList(),
+                            thumbnailUrl = thumbnailUrl,
+                            isAdultContent = ADULT_PLUGINS.contains(providerName)
+                        )
+                    )
+                }
+
+                // `confirm=t` alone is not trusted: it usually returns another
+                // warning HTML page. It is used only as a bounded probe, and is
+                // published if the response itself is a media Content-Type.
+                val confirmed = "https://drive.usercontent.google.com/download?id=$fileId&export=download&confirm=t"
+                val probe = fetchEmbedPage(
+                    confirmed,
+                    driveHeaders["Referer"] ?: "https://drive.google.com/",
+                    providerName
+                )
+                if (isMediaContentType(probe.contentType)) {
+                    listOf(
+                        StreamSource(
+                            addonName = providerName,
+                            name = "$providerName • $linkName",
+                            title = linkName,
+                            url = confirmed,
+                            infoHash = null,
+                            fileIndex = null,
+                            requestHeaders = driveHeaders,
+                            isCS = true,
+                            quality = null,
+                            qualityValue = null,
+                            subtitles = emptyList(),
+                            thumbnailUrl = thumbnailUrl,
+                            isAdultContent = ADULT_PLUGINS.contains(providerName)
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                throw cancel
+            } catch (e: Throwable) {
+                Log.w(TAG, "[$providerName] Google Drive fallback hatası: ${e.message}")
+                emptyList()
+            }
+        } ?: emptyList()
+    }
+
+    /**
      * Embed URL'yi (VK, Sibnet, Vidmoly, Filemoon, Okru, StreamWish vb.) CS3 loadExtractor sistemiyle çözer.
      * CS3 ExtractorApi'leri gerçek .mp4/.m3u8 URL'lerini ve gerekli HTTP başlıklarını döndürür.
      *
@@ -2519,6 +2684,42 @@ object CsStreamRunner {
         val extractorReferer = if (isSendVid) sendVidPageUrl else (suppliedReferer ?: referer)
         val extractorUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
         Log.d(TAG, "[$providerName] Embed URL çözümleniyor (derinlik=$depth): $resolvedUrl")
+
+        // Google Drive'ın preview/uyarı HTML'ini Media3'e vermek yerine, burada
+        // yalnızca Drive'ın kendi playback API'si veya kendi formunun yayınladığı
+        // gerçek download URL'sini kabul et. Anizm ve TrAnimeIzle bunu eklenti
+        // içinde de yapar; bu uygulama fallback'i eski/başka eklentilerden gelen
+        // çıplak Drive kaynaklarını aynı güvenli zincire alır.
+        if (com.kitsugi.animelist.data.cloudstream.extractors.GoogleDriveWrapper.isDriveUrl(resolvedUrl)) {
+            val driveStreams = resolveGoogleDriveFallback(
+                providerName = providerName,
+                url = resolvedUrl,
+                linkName = rawLinkName,
+                rawHeaders = rawHeaders,
+                referer = extractorReferer,
+                thumbnailUrl = thumbnailUrl
+            )
+            if (driveStreams.isNotEmpty()) {
+                embedResolveListener?.onEmbedAttempt(
+                    providerName = providerName,
+                    rawUrl = rawUrl,
+                    resolved = true,
+                    resolvedUrl = driveStreams.firstOrNull()?.url,
+                    error = null
+                )
+                return driveStreams
+            }
+            val message = "Google Drive: playback/download URL alınamadı (dosya silinmiş, kota veya erişim engeli olabilir)"
+            embedResolveListener?.onEmbedAttempt(
+                providerName = providerName,
+                rawUrl = rawUrl,
+                resolved = false,
+                resolvedUrl = null,
+                error = message
+            )
+            Log.w(TAG, "[$providerName] $message: $resolvedUrl")
+            return emptyList()
+        }
 
         // ── TurkAnime AES-128 intercept ──────────────────────────────────────
         // turkanime.tv/embed/#/url/<BASE64(AES_encrypted_CDN_url)> formatını
@@ -2600,6 +2801,20 @@ object CsStreamRunner {
                                     ?.value
                                     ?.let(::originOfUrl)
                                 if (!resolvedOrigin.isNullOrBlank()) headers["Origin"] = resolvedOrigin
+                            }
+                            // The bundled Voe extractor historically emitted an Origin
+                            // with a trailing slash (its M3u8Helper call uses
+                            // "$mainUrl/"). Origin is an origin, not a URL path; normalize
+                            // it for Voe only while preserving the exact Referer.
+                            if (com.kitsugi.animelist.data.cloudstream.extractors.VoeWrapper.isVoeUrl(resolvedUrl)) {
+                                val voeOrigin = originOfUrl(extractorUrl)
+                                if (voeOrigin != null) {
+                                    headers.keys
+                                        .filter { it.equals("origin", ignoreCase = true) }
+                                        .toList()
+                                        .forEach { headers.remove(it) }
+                                    headers["Origin"] = voeOrigin
+                                }
                             }
                             if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                                 headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
@@ -3156,7 +3371,15 @@ object CsStreamRunner {
                             // orada loadExtractor → wrapper → derin tarama → WebView sniffer zinciri
                             // çalışır (Content-Type kontrolü sayesinde uzantısız gerçek akışlar da
                             // doğru şekilde yakalanır).
-                            val clearlyDirectMedia = isClearlyDirectMediaUrl(cleanUrl)
+                            // The plugin's declared link type is authoritative for
+                            // extensionless HLS/DASH URLs (Drive/Google CDN and a few
+                            // signed masters intentionally have no media suffix).
+                            // Page URLs are still routed through the embed pipeline
+                            // when the type is VIDEO/INFER_TYPE and the URL is not
+                            // explicitly media-like.
+                            val clearlyDirectMedia = link.type == ExtractorLinkType.M3U8 ||
+                                link.type == ExtractorLinkType.DASH ||
+                                isClearlyDirectMediaUrl(cleanUrl)
                             if (isImageUrl) {
                                 Log.w(TAG, "[${api.name}] Görüntü URL'si atlanıyor (video değil): $cleanUrl")
                             } else if (isEmbedUrl(link.url) || !clearlyDirectMedia) {

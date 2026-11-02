@@ -94,6 +94,12 @@ class CsStreamRunnerLogicTest {
     }
 
     @Test
+    fun testIsEmbedUrl_Voe() {
+        assertTrue(CsStreamRunner.isEmbedUrl("https://voe.sx/e/abc"))
+        assertFalse(com.kitsugi.animelist.data.cloudstream.extractors.VoeWrapper.isVoeUrl("https://voe.sx.example/e/abc"))
+    }
+
+    @Test
     fun testIsEmbedUrl_DoodStream() {
         assertTrue(CsStreamRunner.isEmbedUrl("https://doodstream.com/e/abc"))
     }
@@ -117,6 +123,19 @@ class CsStreamRunnerLogicTest {
     fun testIsEmbedUrl_HrefLiWrapped() {
         // href.li wrapped embeds should also be detected
         assertTrue(CsStreamRunner.isEmbedUrl("https://href.li/?https://vk.com/video12345"))
+    }
+
+    @Test
+    fun testIsEmbedUrl_GoogleDrivePreview() {
+        assertTrue(CsStreamRunner.isEmbedUrl("https://drive.google.com/file/d/abcDEF_123456/preview"))
+        assertTrue(CsStreamRunner.isEmbedUrl("https://drive.usercontent.google.com/download?id=abcDEF_123456"))
+    }
+
+    @Test
+    fun testExtensionlessSignedMediaHostsAreDirect() {
+        assertTrue(CsStreamRunner.isKnownExtensionlessMediaUrl("https://rr1---sn.googlevideo.com/videoplayback?expire=1"))
+        assertTrue(CsStreamRunner.isClearlyDirectMediaUrl("https://okcdn.ru/stream/video?sig=1"))
+        assertFalse(CsStreamRunner.isKnownExtensionlessMediaUrl("https://content-workspacevideo-pa.googleapis.com/v1/drive/media/id/playback"))
     }
 
     @Test

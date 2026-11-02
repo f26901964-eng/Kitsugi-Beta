@@ -2,6 +2,9 @@ package com.kitsugi.animelist.data.cloudstream.extractors
 
 import android.util.Base64
 import android.util.Log
+import org.json.JSONObject
+import java.net.URI
+import java.util.Locale
 
 /**
  * FP-34 – Voe (voe.sx) extractor wrapper.
@@ -61,6 +64,29 @@ object VoeWrapper {
                 }
             }
 
+            // Yöntem 3: Voe'nin güncel F7 paketlemesi. CloudStream'in yerel
+            // Voe extractor'ı bunu çözer; wrapper da aynı resmi sayfa verisini
+            // çözebilmeli ki extractor ABI'si değiştiğinde kaynak kaybolmasın.
+            // Bu, sayfanın yayınladığı application/json değerini açar; erişim
+            // kontrolünü atlamaz ve yalnızca source/direct_access_url alanlarını
+            // kabul eder.
+            if (videos.isEmpty()) {
+                val f7Json = extractF7Json(pageContent)
+                if (!f7Json.isNullOrBlank()) {
+                    val json = runCatching { JSONObject(f7Json) }.getOrNull()
+                    val hls = json?.optString("source")
+                        ?.takeIf { it.startsWith("http", ignoreCase = true) }
+                    val mp4 = json?.optString("direct_access_url")
+                        ?.takeIf { it.startsWith("http", ignoreCase = true) }
+                    if (hls != null) {
+                        videos.add(ExtractedVideo(hls, "HLS", true, headers))
+                    }
+                    if (mp4 != null) {
+                        videos.add(ExtractedVideo(mp4, "MP4", false, headers))
+                    }
+                }
+            }
+
             Log.d(TAG, "Voe extraction: ${videos.size} video")
         } catch (e: Exception) {
             Log.e(TAG, "Voe extraction hatası: ${e.message}")
@@ -68,13 +94,55 @@ object VoeWrapper {
         return videos
     }
 
+    /** Extracts and decodes Voe's application/json F7 payload. */
+    private fun extractF7Json(pageContent: String): String? {
+        val script = Regex(
+            """<script\b[^>]*type\s*=\s*["']application/json["'][^>]*>([\s\S]*?)</script>""",
+            RegexOption.IGNORE_CASE
+        ).find(pageContent)?.groupValues?.getOrNull(1)?.trim()
+            ?.replace("&quot;", "\"")
+            ?.replace("&#39;", "'")
+            ?: return null
+
+        val encoded = runCatching {
+            if (script.startsWith("[")) {
+                org.json.JSONArray(script).optString(0).takeIf { it.isNotBlank() }
+            } else {
+                script.trim().trim('"', '\'')
+            }
+        }.getOrNull() ?: script.trim().trim('"', '\'')
+        if (encoded.isBlank()) return null
+
+        return runCatching {
+            var value = rot13(encoded)
+            listOf("@$", "^^", "~@", "%?", "*~", "!!", "#&").forEach { pattern ->
+                value = value.replace(pattern, "_")
+            }
+            value = value.replace("_", "")
+            val first = String(Base64.decode(value, Base64.DEFAULT), Charsets.UTF_8)
+            val shifted = first.map { (it.code - 3).toChar() }.joinToString("")
+            val second = String(Base64.decode(shifted.reversed(), Base64.DEFAULT), Charsets.UTF_8)
+            second.takeIf { it.trimStart().startsWith("{") }
+        }.getOrNull()
+    }
+
+    private fun rot13(input: String): String = input.map { c ->
+        when (c) {
+            in 'A'..'Z' -> ((c - 'A' + 13) % 26 + 'A'.code).toChar()
+            in 'a'..'z' -> ((c - 'a' + 13) % 26 + 'a'.code).toChar()
+            else -> c
+        }
+    }.joinToString("")
+
     private fun tryBase64Decode(s: String): String? = try {
         val d = String(Base64.decode(s, Base64.DEFAULT)).trim()
         if (d.startsWith("http")) d else null
     } catch (_: Exception) { null }
 
     fun isVoeUrl(url: String): Boolean {
-        val lower = url.lowercase()
-        return lower.contains("voe.sx") || lower.contains("voeload.com")
+        val host = runCatching { URI(url.trim()).host?.lowercase(Locale.ROOT) }.getOrNull()
+            ?: return false
+        return host == "voe.sx" || host.endsWith(".voe.sx") ||
+            host == "voeload.com" || host.endsWith(".voeload.com")
     }
 }
