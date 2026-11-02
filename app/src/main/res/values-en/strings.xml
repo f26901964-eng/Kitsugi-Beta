@@ -4761,6 +4761,24 @@
     <string name="detail_tab_images">Images</string>
     <string name="detail_tab_videos">Videos</string>
     <string name="detail_video_empty">No videos are available for this title.</string>
+    <!-- Videos tab: single video download (trailer / teaser / OP-ED) -->
+    <string name="detail_video_download">Download video</string>
+    <string name="detail_video_download_short">Download</string>
+    <string name="detail_video_download_started">Downloading</string>
+    <string name="detail_video_download_running_status">Downloading • %1$s</string>
+    <string name="detail_video_download_preparing">Preparing source…</string>
+    <string name="detail_video_download_preparing_streams">Preparing video and audio streams…</string>
+    <string name="detail_video_download_merging">Merging video and audio…</string>
+    <string name="detail_video_download_progress">%1$d%%</string>
+    <string name="detail_video_download_done">Downloaded</string>
+    <string name="detail_video_download_done_toast">Saved: %1$s</string>
+    <string name="detail_video_downloading_title">📥 %1$s</string>
+    <string name="detail_video_download_done_title">✅ Video downloaded</string>
+    <string name="detail_video_download_failed_title">⚠️ Video download failed</string>
+    <string name="detail_video_download_channel_name">Video downloads</string>
+    <string name="detail_video_download_channel_desc">Trailer and theme videos downloaded from the Videos tab</string>
+    <string name="detail_video_download_error_generic">The download could not be completed.</string>
+    <string name="detail_video_download_error_no_stream">No downloadable stream was found for this video.</string>
     <string name="detail_tab_characters">Characters</string>
     <string name="detail_tab_staff">Staff</string>
     <string name="detail_tab_recommendations">Recommendations</string>

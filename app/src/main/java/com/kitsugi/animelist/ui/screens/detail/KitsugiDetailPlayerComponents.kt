@@ -105,6 +105,10 @@ fun KitsugiYouTubePlayer(
     var isLoading by remember(videoId) { mutableStateOf(true) }
     var hasError by remember(videoId) { mutableStateOf(false) }
     var retryCount by remember(videoId) { mutableIntStateOf(0) }
+    // Son çare: YouTube'un kendi web oynatıcısı (IFrame). İmza çıkarımı veya iki yerel
+    // motor da başarısız olduğunda devreye girer; kullanıcı "video çalışmıyor" ekranı
+    // yerine videoyu izler.
+    var iframeUnplayable by remember(videoId) { mutableStateOf(false) }
 
     LaunchedEffect(videoId, retryCount) {
         isLoading = true
@@ -146,6 +150,16 @@ fun KitsugiYouTubePlayer(
                 )
             }
         }
+    } else if ((hasError || playbackSource == null) && !iframeUnplayable) {
+        // Dürüst son durak: imza çıkarımı başarısız → YouTube'un kendi oynatıcısı.
+        // Bu yol imza/kodek/HLS katmanlarını tamamen atlar; "hiç oynamayan" videolar
+        // burada oynar. Kullanıcı isterse yine tam ekran / tarayıcı seçeneklerini görür.
+        KitsugiIframeYouTubePlayer(
+            videoId = videoId,
+            modifier = modifier,
+            autoPlay = true,
+            onUnplayable = { iframeUnplayable = true }
+        )
     } else if (hasError || playbackSource == null) {
         Box(
             modifier = modifier
@@ -197,6 +211,13 @@ fun KitsugiYouTubePlayer(
             )
         }
         var didTryAlternateEngine by remember(videoId) { mutableStateOf(false) }
+        // Yedek akış sırası: extractor aynı çıkarımdan HLS + adaptive + progressive
+        // adaylarını döndürür. Motor değiştirmeden ÖNCE bu akışlar denenir; asıl neden
+        // çoğu zaman motor değil, süresi dolmuş/403 dönen imzalı adrestir.
+        var sourceIndex by remember(videoId) { mutableStateOf(0) }
+        val activeStream = remember(source, sourceIndex) {
+            source.sourceAt(sourceIndex) ?: (source.videoUrl to source.audioUrl)
+        }
         val playerEngine = remember(context, activeEngineType, videoId) {
             when (activeEngineType) {
                 PlayerEngineType.MPV -> MpvPlayerEngine(context, safeSettings)
@@ -214,14 +235,50 @@ fun KitsugiYouTubePlayer(
         val engineTypeForPlayer = activeEngineType
         val resumedState = rememberInlinePlayerResumed()
 
-        fun switchToAlternateEngine(failedEngine: PlayerEngineType, reason: String) {
+        /**
+         * @param retryStreamFirst hatanın nedeni **akış** ise (403 / zaman aşımı / siyah
+         *   ekranda 00:00) `true`: aynı motorda bir sonraki imzalı adres denenir.
+         *   Hatanın nedeni **kodek** ise (ses var, görüntü yok) `false`: adres değiştirmek
+         *   çözücü eksiğini gidermez, doğrudan diğer motora geçilir. Bu ayrım, her iki
+         *   motor × her akış kombinasyonunu arka arkaya denemekten doğan uzun beklemeyi
+         *   de önler.
+         */
+        fun switchToAlternateEngine(
+            failedEngine: PlayerEngineType,
+            reason: String,
+            retryStreamFirst: Boolean = true
+        ) {
             if (failedEngine != activeEngineType) return
+            // 1) Önce aynı motorda bir sonraki akışı dene (imza süresi dolmuş olabilir).
+            if (retryStreamFirst && sourceIndex < source.totalSources - 1) {
+                sourceIndex += 1
+                Log.w(
+                    "KitsugiYouTubePlayer",
+                    "$failedEngine did not start ($reason); trying stream ${sourceIndex + 1}/${source.totalSources}"
+                )
+                return
+            }
+            // 2) Akışlar bittiyse diğer motoru dene. Deneme sırası: birincil akış →
+            //    yedek akışlar → yedek motor → yedek motorda yedek akışlar → IFrame.
+            //    (Motor × akış matrisinin tamamı kısa bir klip için dakikalarca siyah
+            //    ekran demekti.)
+            val nextEngine = failedEngine.alternateInlineEngine()
             if (!didTryAlternateEngine) {
                 didTryAlternateEngine = true
-                val alternate = failedEngine.alternateInlineEngine()
-                Log.w("KitsugiYouTubePlayer", "$failedEngine did not start ($reason); trying $alternate")
-                activeEngineType = alternate
+                Log.w("KitsugiYouTubePlayer", "$failedEngine did not start ($reason); trying $nextEngine")
+                activeEngineType = nextEngine
             } else {
+                if (sourceIndex < source.totalSources - 1) {
+                    sourceIndex += 1
+                    Log.w(
+                        "KitsugiYouTubePlayer",
+                        "$nextEngine did not start ($reason); trying stream ${sourceIndex + 1}/${source.totalSources}"
+                    )
+                    return
+                }
+                // 3) İki motor da tüm akışlarda başarısız → YouTube'un kendi oynatıcısı
+                //    (yukarıdaki hasError dalı IFrame'i açar). Kullanıcı artık boş ekran
+                //    yerine videoyu izler.
                 Log.e("KitsugiYouTubePlayer", "Both inline engines failed for $videoId ($reason)")
                 hasError = true
             }
@@ -272,15 +329,19 @@ fun KitsugiYouTubePlayer(
             }
         }
 
-        LaunchedEffect(source, activeEngineType) {
+        LaunchedEffect(activeStream, activeEngineType, retryCount) {
             val attemptedEngine = engineTypeForPlayer
+            val (streamUrl, streamAudioUrl) = activeStream
             playerState = PlayerEngine.State.BUFFERING
             try {
+                // Akış değişiminde konum sıfırlanır: yeni imzalı adreste eski byte
+                // konumu geçerli olmayabilir.
+                if (sourceIndex > 0) currentPosition = 0L
                 val reachedReady = withTimeoutOrNull(INLINE_PLAYER_START_TIMEOUT_MS) {
                     playerEngine.prepare(
-                        videoUrl = source.videoUrl,
-                        audioUrl = source.audioUrl,
-                        headers = YouTubeRequestPolicy.headersForInlineUrl(source.videoUrl),
+                        videoUrl = streamUrl,
+                        audioUrl = streamAudioUrl,
+                        headers = YouTubeRequestPolicy.headersForInlineUrl(streamUrl),
                         startPositionMs = currentPosition
                     )
                     if (!resumedState.value) {
@@ -313,7 +374,11 @@ fun KitsugiYouTubePlayer(
                     isResumed = { resumedState.value }
                 )
                 if (audioOnly && attemptedEngine == activeEngineType) {
-                    switchToAlternateEngine(attemptedEngine, "audio-only playback (no video track selected)")
+                    switchToAlternateEngine(
+                        attemptedEngine,
+                        "audio-only playback (no video track selected)",
+                        retryStreamFirst = false
+                    )
                 }
             } catch (e: CancellationException) {
                 // The player can be disposed while prepare or network IO is in flight.

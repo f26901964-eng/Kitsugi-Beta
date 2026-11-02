@@ -4763,6 +4763,24 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="detail_tab_images">Resimler</string>
     <string name="detail_tab_videos">Videolar</string>
     <string name="detail_video_empty">Bu içerik için video bulunamadı.</string>
+    <!-- Videolar sekmesi: tek video indirme (fragman / teaser / OP-ED) -->
+    <string name="detail_video_download">Videoyu indir</string>
+    <string name="detail_video_download_short">İndir</string>
+    <string name="detail_video_download_started">İndiriliyor</string>
+    <string name="detail_video_download_running_status">İndiriliyor • %1$s</string>
+    <string name="detail_video_download_preparing">Kaynak hazırlanıyor…</string>
+    <string name="detail_video_download_preparing_streams">Video ve ses akışları hazırlanıyor…</string>
+    <string name="detail_video_download_merging">Video ve ses birleştiriliyor…</string>
+    <string name="detail_video_download_progress">%1$d%%</string>
+    <string name="detail_video_download_done">İndirildi</string>
+    <string name="detail_video_download_done_toast">İndirildi: %1$s</string>
+    <string name="detail_video_downloading_title">📥 %1$s</string>
+    <string name="detail_video_download_done_title">✅ Video indirildi</string>
+    <string name="detail_video_download_failed_title">⚠️ Video indirilemedi</string>
+    <string name="detail_video_download_channel_name">Video indirmeleri</string>
+    <string name="detail_video_download_channel_desc">Videolar sekmesinden indirilen fragman ve tema videoları</string>
+    <string name="detail_video_download_error_generic">İndirme tamamlanamadı.</string>
+    <string name="detail_video_download_error_no_stream">Bu video için indirilebilir akış bulunamadı.</string>
     <string name="detail_tab_characters">Karakterler</string>
     <string name="detail_tab_staff">Ekip</string>
     <string name="detail_tab_recommendations">Öneriler</string>
