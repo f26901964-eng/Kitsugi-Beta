@@ -13,6 +13,22 @@ import java.util.Locale
 object VoeWrapper {
     private const val TAG = "VoeWrapper"
 
+    // The bundled CloudStream Voe extractor exposes these rotating aliases as
+    // subclasses of the same F7 resolver. Keep the application fallback in
+    // sync with that list, but match hosts exactly (no lookalike domains).
+    private val voeHosts = setOf(
+        "voe.sx",
+        "voeload.com",
+        "tubelessceliolymph.com",
+        "simpulumlamerop.com",
+        "urochsunloath.com",
+        "nathanfromsubject.com",
+        "yip.su",
+        "metagnathtuggers.com",
+        "donaldlineelse.com",
+        "charlestoughrace.com"
+    )
+
     data class ExtractedVideo(
         val url: String,
         val label: String,
@@ -142,7 +158,6 @@ object VoeWrapper {
     fun isVoeUrl(url: String): Boolean {
         val host = runCatching { URI(url.trim()).host?.lowercase(Locale.ROOT) }.getOrNull()
             ?: return false
-        return host == "voe.sx" || host.endsWith(".voe.sx") ||
-            host == "voeload.com" || host.endsWith(".voeload.com")
+        return voeHosts.any { host == it || host.endsWith(".$it") }
     }
 }

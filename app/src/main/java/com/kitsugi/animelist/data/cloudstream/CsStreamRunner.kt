@@ -2296,16 +2296,32 @@ object CsStreamRunner {
     private suspend fun fetchEmbedPage(
         url: String,
         referer: String,
-        providerName: String
+        providerName: String,
+        requestHeaders: Map<String, String> = emptyMap()
     ): EmbedPageFetch = try {
+        val pageHeaders = requestHeaders.toMutableMap()
+        val pageReferer = pageHeaders.entries
+            .firstOrNull { it.key.equals("Referer", ignoreCase = true) }
+            ?.value
+            ?.takeIf { it.isNotBlank() }
+            ?: referer
+        if (pageHeaders.keys.none { it.equals("Referer", ignoreCase = true) }) {
+            pageHeaders["Referer"] = pageReferer
+        }
+        if (pageHeaders.keys.none { it.equals("Range", ignoreCase = true) }) {
+            pageHeaders["Range"] = "bytes=0-1048575"
+        }
+        if (pageHeaders.keys.none { it.equals("Accept", ignoreCase = true) }) {
+            pageHeaders["Accept"] = "*/*"
+        }
         val response = withTimeoutOrNull(EMBED_HTML_TIMEOUT_MS) {
             com.lagradost.cloudstream3.app.get(
                 url = url,
-                referer = referer,
+                referer = pageReferer,
                 // Gövdeyi sınırla: MP4 dönen uzantısız bir CDN'de 1 MiB'den fazlasını
                 // indirmek anlamsızdır (bellek/veri tasarrufu). Sunucu Range'i yok sayarsa
                 // yine de MAX_EMBED_HTML_CHARS sınırı uygulanır.
-                headers = mapOf("Range" to "bytes=0-1048575", "Accept" to "*/*")
+                headers = pageHeaders
             )
         }
         if (response == null) {
@@ -2404,24 +2420,55 @@ object CsStreamRunner {
      * kaynağıdır; bu yüzden aday önce doğrulanır. Kararsız durumlar (ağ hatası, 405/403)
      * "canlı" kabul edilir — yanlış negatif, yanlış pozitiften daha maliyetlidir.
      */
-    private suspend fun verifyMediaCandidate(url: String, pageUrl: String): Boolean {
+    private suspend fun verifyMediaCandidate(
+        url: String,
+        pageUrl: String,
+        baseHeaders: Map<String, String> = emptyMap()
+    ): Boolean {
         mediaProbeCache[url]?.let { return it }
 
         val alive = withTimeoutOrNull(MEDIA_PROBE_TIMEOUT_MS) {
             try {
-                val request = okhttp3.Request.Builder()
+                val requestReferer = baseHeaders.entries
+                    .firstOrNull { it.key.equals("Referer", ignoreCase = true) }
+                    ?.value
+                    ?.takeIf { it.isNotBlank() }
+                    ?: pageUrl
+                val requestOrigin = baseHeaders.entries
+                    .firstOrNull { it.key.equals("Origin", ignoreCase = true) }
+                    ?.value
+                    ?.takeIf { it.isNotBlank() }
+                    ?: originOfUrl(requestReferer)
+                val requestUserAgent = baseHeaders.entries
+                    .firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }
+                    ?.value
+                    ?.takeIf { it.isNotBlank() }
+                    ?: com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                val requestAccept = baseHeaders.entries
+                    .firstOrNull { it.key.equals("Accept", ignoreCase = true) }
+                    ?.value
+                    ?.takeIf { it.isNotBlank() }
+                    ?: "*/*"
+                val requestBuilder = okhttp3.Request.Builder()
                     .url(url)
                     .method("HEAD", null)
-                    .addHeader(
-                        "User-Agent",
-                        com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
-                    )
-                    .addHeader("Referer", pageUrl)
+                    .addHeader("User-Agent", requestUserAgent)
+                    .addHeader("Referer", requestReferer)
                     // CDN'ler embed origin'ini de doğruluyor; eksikse 5004/403 dönüyor ve
                     // çalışan aday "ölü" sayılıp kaynak listesi boş kalıyordu.
-                    .apply { originOfUrl(pageUrl)?.let { addHeader("Origin", it) } }
-                    .addHeader("Accept", "*/*")
-                    .build()
+                    .apply { requestOrigin?.let { addHeader("Origin", it) } }
+                    .addHeader("Accept", requestAccept)
+                baseHeaders.forEach { (key, value) ->
+                    if (value.isNotBlank() &&
+                        !key.equals("User-Agent", ignoreCase = true) &&
+                        !key.equals("Referer", ignoreCase = true) &&
+                        !key.equals("Origin", ignoreCase = true) &&
+                        !key.equals("Accept", ignoreCase = true)
+                    ) {
+                        requestBuilder.addHeader(key, value)
+                    }
+                }
+                val request = requestBuilder.build()
 
                 val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
                     .newCall(request).execute()
@@ -2612,7 +2659,8 @@ object CsStreamRunner {
                 val probe = fetchEmbedPage(
                     confirmed,
                     driveHeaders["Referer"] ?: "https://drive.google.com/",
-                    providerName
+                    providerName,
+                    requestHeaders = driveHeaders
                 )
                 if (isMediaContentType(probe.contentType)) {
                     listOf(
@@ -2886,11 +2934,21 @@ object CsStreamRunner {
                 val pageContent = if (needsHtml) {
                     try {
                         val pageRequestUrl = if (isSendVid) sendVidPageUrl else resolvedUrl
-                        val pageRequestReferer = if (isSendVid) "https://sendvid.com/" else referer
+                        val defaultPageReferer = if (isSendVid) "https://sendvid.com/" else extractorReferer
+                        val pageHeaders = rawHeaders.toMutableMap()
+                        val pageRequestReferer = pageHeaders.entries
+                            .firstOrNull { it.key.equals("Referer", ignoreCase = true) }
+                            ?.value
+                            ?.takeIf { it.isNotBlank() }
+                            ?: defaultPageReferer
+                        if (pageHeaders.keys.none { it.equals("Referer", ignoreCase = true) }) {
+                            pageHeaders["Referer"] = pageRequestReferer
+                        }
                         Log.d(TAG, "[$providerName] Fallback için HTML çekiliyor: $pageRequestUrl")
                         com.lagradost.cloudstream3.app.get(
                             url = pageRequestUrl,
-                            referer = pageRequestReferer
+                            referer = pageRequestReferer,
+                            headers = pageHeaders
                         ).text
                     } catch (e: Throwable) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
@@ -2975,7 +3033,13 @@ object CsStreamRunner {
                         } else {
                             "$rawLinkName • ${vid.label}"
                         }
-                        val wHeaders = vid.headers.toMutableMap()
+                        // Wrapper-provided hotlink headers win, but keep the
+                        // episode link's cookie/provider headers as well. The
+                        // same headers were used for the HTML request above;
+                        // dropping them here makes a stream fail only after a
+                        // seemingly successful extraction.
+                        val wHeaders = rawHeaders.toMutableMap()
+                        wHeaders.putAll(vid.headers)
                         applyEmbedOriginHeaders(
                             wHeaders,
                             if (isSendVid) sendVidPageUrl else resolvedUrl
@@ -3028,8 +3092,9 @@ object CsStreamRunner {
                 } else {
                     fetchEmbedPage(
                         pageBaseUrl,
-                        if (isSendVid) "https://sendvid.com/" else referer,
-                        providerName
+                        if (isSendVid) "https://sendvid.com/" else extractorReferer,
+                        providerName,
+                        requestHeaders = rawHeaders
                     )
                 }
                 val html = fetched.body
@@ -3088,7 +3153,7 @@ object CsStreamRunner {
                     // adaylar aynı anda doğrulanır; kabul sırası skor sırasını korur.
                     val probes = kotlinx.coroutines.coroutineScope {
                         scan.media.take(MAX_PROBE_CANDIDATES)
-                            .map { c -> async { c to verifyMediaCandidate(c.url, pageBaseUrl) } }
+                            .map { c -> async { c to verifyMediaCandidate(c.url, pageBaseUrl, rawHeaders) } }
                             .awaitAll()
                     }
 
