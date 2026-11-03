@@ -20,14 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.VerifiedUser
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -623,7 +616,7 @@ private fun AddonSheetRow(
                 modifier = Modifier.size(36.dp),
                 colors = IconButtonDefaults.iconButtonColors(contentColor = accentColor)
             ) {
-                Icon(Icons.Rounded.VerifiedUser, contentDescription = stringResource(R.string.stream_source_verify), modifier = Modifier.size(17.dp))
+                Icon(Icons.ShieldCheck, contentDescription = stringResource(R.string.stream_source_verify), modifier = Modifier.size(17.dp))
             }
         }
         if (onRetry != null) {

@@ -1,8 +1,6 @@
 package com.kitsugi.animelist.ui.screens.search
 
 
-import com.kitsugi.animelist.ui.components.KitsugiEmojiLabel
-import com.kitsugi.animelist.ui.icons.KitsugiEmojiIcons
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
