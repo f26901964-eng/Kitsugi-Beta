@@ -17762,4 +17762,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
     <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
     <string name="inline_open_fullscreen">Tam ekranda aç</string>
+    <string name="manga_source_disabled">Devre dışı</string>
+    <string name="manga_source_verify_in_browser">Tarayıcıda doğrula</string>
+    <string name="manga_source_verify_hint">Bu kaynak üye girişi veya bot koruması istiyor. Aynı oturumda doğrulayıp tekrar deneyin.</string>
 </resources>

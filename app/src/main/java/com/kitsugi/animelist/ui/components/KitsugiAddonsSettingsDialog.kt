@@ -101,6 +101,8 @@ fun KitsugiAddonsSettingsDialog(
     /** Görüntü amacıyla versionName metni */
     onGetInstalledMangaVersion: (String) -> String? = { null },
     onGetMangaSourceHealthStatus: (MangaSource) -> com.kitsugi.animelist.data.manga.model.SourceHealthStatus = { com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Unknown },
+    onGetMangaSourceEnabled: (MangaSource) -> Boolean = { true },
+    onToggleMangaSource: (MangaSource, Boolean) -> Unit = { _, _ -> },
     onGetMangaSourceRuntimeStats: (MangaSource) -> com.kitsugi.animelist.data.manga.model.SourceRuntimeStats = { com.kitsugi.animelist.data.manga.model.SourceRuntimeStats() },
     onGetMangaConfiguredDomain: (MangaSource) -> String? = { null },
     onGetMangaConfiguredBaseUrl: (MangaSource) -> String = { it.baseUrl },
@@ -356,6 +358,8 @@ fun KitsugiAddonsSettingsDialog(
                             onGetInstalledVersion = onGetInstalledMangaVersion,
                             sourceStateReport = mangaSourceStateReport,
                             onGetSourceHealthStatus = onGetMangaSourceHealthStatus,
+                            onGetSourceEnabled = onGetMangaSourceEnabled,
+                            onToggleSource = onToggleMangaSource,
                             onGetSourceRuntimeStats = onGetMangaSourceRuntimeStats,
                             onGetConfiguredDomain = onGetMangaConfiguredDomain,
                             onGetConfiguredBaseUrl = onGetMangaConfiguredBaseUrl,

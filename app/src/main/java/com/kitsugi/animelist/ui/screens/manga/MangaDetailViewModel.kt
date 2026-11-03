@@ -62,45 +62,48 @@ class MangaDetailViewModel(
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     init {
-        refreshDetails()
-        loadChapters()
+        // Manga-TR detay sayfası hem kapak/aciklama hem de imzalı `listKey` içerir.
+        // Eskiden refreshDetails() ve loadChapters() AYNI ANDA iki ayrı istek atıyordu;
+        // DDoS-Guard oturumu/rate-limit yüzünden bölüm listesi sık sık boş düşüyordu.
+        viewModelScope.launch {
+            refreshDetails()
+            loadChapters()
+        }
     }
 
     /** Kapak/açıklama gibi alanları tazelemek için detayları yeniden çeker (best-effort). */
-    private fun refreshDetails() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingDetails = true) }
-            val initial = _uiState.value.details
-            try {
-                val fresh = withContext(Dispatchers.IO) {
-                    kotlinx.coroutines.withTimeout(15_000L) {
-                        source.fetchMangaDetails(initial.url)
-                    }
+    private suspend fun refreshDetails() {
+        _uiState.update { it.copy(isLoadingDetails = true) }
+        val initial = _uiState.value.details
+        try {
+            val fresh = withContext(Dispatchers.IO) {
+                kotlinx.coroutines.withTimeout(15_000L) {
+                    source.fetchMangaDetails(initial.url)
                 }
-
-                // Bazı kaynaklar fetchMangaDetails başarısız olunca title = url döndürür.
-                // URL'e benzeyen (/ ile başlayan veya :// içeren) bir title anlamlı değil
-                // demektir — bu durumda mevcut (browse sayfasından gelen) title'ı koru.
-                fun String?.isUrlLike() = this != null && (startsWith("/") || contains("://"))
-                fun String?.isMeaningful() = !isNullOrBlank() && !isUrlLike()
-
-                val merged = initial.copy(
-                    title        = fresh.title.takeIf { it.isMeaningful() } ?: initial.title,
-                    thumbnailUrl = fresh.thumbnailUrl.takeIf { it.isMeaningful() }
-                                       ?: initial.thumbnailUrl,
-                    description  = fresh.description?.takeIf { it.isNotBlank() }
-                                       ?: initial.description,
-                    author       = fresh.author?.takeIf { it.isNotBlank() } ?: initial.author,
-                    artist       = fresh.artist?.takeIf { it.isNotBlank() } ?: initial.artist,
-                    genre        = fresh.genre.takeIf { it.isNotEmpty() } ?: initial.genre,
-                    status       = if (fresh.status != MangaStatus.Unknown) fresh.status else initial.status,
-                    source       = initial.source.takeIf { it.isNotBlank() } ?: fresh.source
-                )
-                _uiState.update { it.copy(details = merged, isLoadingDetails = false) }
-            } catch (_: Exception) {
-                // Detay tazeleme başarısız olsa bile elimizdeki initialDetails ile devam ederiz.
-                _uiState.update { it.copy(isLoadingDetails = false) }
             }
+
+            // Bazı kaynaklar fetchMangaDetails başarısız olunca title = url döndürür.
+            // URL'e benzeyen (/ ile başlayan veya :// içeren) bir title anlamlı değil
+            // demektir — bu durumda mevcut (browse sayfasından gelen) title'ı koru.
+            fun String?.isUrlLike() = this != null && (startsWith("/") || contains("://"))
+            fun String?.isMeaningful() = !isNullOrBlank() && !isUrlLike()
+
+            val merged = initial.copy(
+                title        = fresh.title.takeIf { it.isMeaningful() } ?: initial.title,
+                thumbnailUrl = fresh.thumbnailUrl.takeIf { it.isMeaningful() }
+                                   ?: initial.thumbnailUrl,
+                description  = fresh.description?.takeIf { it.isNotBlank() }
+                                   ?: initial.description,
+                author       = fresh.author?.takeIf { it.isNotBlank() } ?: initial.author,
+                artist       = fresh.artist?.takeIf { it.isNotBlank() } ?: initial.artist,
+                genre        = fresh.genre.takeIf { it.isNotEmpty() } ?: initial.genre,
+                status       = if (fresh.status != MangaStatus.Unknown) fresh.status else initial.status,
+                source       = initial.source.takeIf { it.isNotBlank() } ?: fresh.source
+            )
+            _uiState.update { it.copy(details = merged, isLoadingDetails = false) }
+        } catch (_: Exception) {
+            // Detay tazeleme başarısız olsa bile elimizdeki initialDetails ile devam ederiz.
+            _uiState.update { it.copy(isLoadingDetails = false) }
         }
     }
 

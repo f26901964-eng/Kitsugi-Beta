@@ -11,6 +11,9 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
 import uy.kohesive.injekt.Injekt
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -45,6 +48,15 @@ object MangaExtensionLoader {
 
     /** Yüklü kaynak örneklerini tutar: filePath -> List<MangaSource> (birden fazla source içerebilir) */
     private val loadedSources = ConcurrentHashMap<String, List<MangaSource>>()
+
+    /** Kurulum / kaldırma / güncelleme sonrası tüm ViewModel'lerin listeyi tazelemesi için. */
+    private val _sourceChanges = MutableStateFlow(0L)
+    val sourceChanges: StateFlow<Long> = _sourceChanges.asStateFlow()
+
+    /** Kurulum / silme / güncelleme / aktif-pasif değişimini dinleyenlere bildirir. */
+    fun notifySourceChanged() {
+        _sourceChanges.value = System.currentTimeMillis()
+    }
 
     // ─── Yüklü Kaynakları Sorgulama ─────────────────────────────────────────
 
@@ -97,50 +109,58 @@ object MangaExtensionLoader {
         return try {
             if (temp.exists()) temp.delete()
 
-            val mirroredUrl = com.kitsugi.animelist.data.remote.MangaRepoClient.applyMirror(urlString)
-            Log.d(TAG, "İndiriliyor [$targetExt]: $extensionId <- $mirroredUrl (original: $urlString)")
-            
+            // Önce ISP yansısını, başarısız olursa ORİJİNAL URL'i dene.
+            // Özel Kitsugi-Manga-Plugins katalogları mutlak raw.githubusercontent.com
+            // adresi verir; sadece yansıya güvenmek indirmeyi sessizce düşürüyordu.
+            val candidates = linkedSetOf(
+                com.kitsugi.animelist.data.remote.MangaRepoClient.applyMirror(urlString),
+                urlString,
+            )
             val networkHelper = Injekt.get(NetworkHelper::class.java)
             val client = networkHelper.client
 
             var success = false
-            var attempt = 1
-            val maxAttempts = 4
-            var delayMs = 1500L
+            for (candidate in candidates) {
+                if (success) break
+                Log.d(TAG, "İndiriliyor [$targetExt]: $extensionId <- $candidate")
+                if (temp.exists()) temp.delete()
+                var attempt = 1
+                val maxAttempts = 3
+                var delayMs = 1500L
 
-            while (attempt <= maxAttempts && !success) {
-                try {
-                    val request = okhttp3.Request.Builder()
-                        .url(mirroredUrl)
-                        .header("User-Agent", networkHelper.defaultUserAgentProvider())
-                        .build()
+                while (attempt <= maxAttempts && !success) {
+                    try {
+                        val request = okhttp3.Request.Builder()
+                            .url(candidate)
+                            .header("User-Agent", networkHelper.defaultUserAgentProvider())
+                            .build()
 
-                    client.newCall(request).execute().use { response ->
-                        if (response.code == 429) {
-                            val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: (delayMs / 1000L)
-                            val sleepTime = (retryAfter * 1000L) + (Math.random() * 500).toLong()
-                            Log.w(TAG, "$extensionId: HTTP 429 (Too Many Requests). $sleepTime ms bekleniyor... (Deneme $attempt/$maxAttempts)")
-                            Thread.sleep(sleepTime)
-                            attempt++
-                            delayMs *= 2
-                        } else if (!response.isSuccessful) {
-                            Log.e(TAG, "$extensionId indirme hatası: HTTP ${response.code} (Deneme $attempt/$maxAttempts)")
-                            Thread.sleep(delayMs)
-                            attempt++
-                            delayMs *= 2
-                        } else {
-                            response.body?.byteStream()?.use { inp ->
-                                FileOutputStream(temp).use { out -> inp.copyTo(out) }
+                        client.newCall(request).execute().use { response ->
+                            if (response.code == 429) {
+                                val retryAfter = response.header("Retry-After")?.toLongOrNull() ?: (delayMs / 1000L)
+                                val sleepTime = (retryAfter * 1000L) + (Math.random() * 500).toLong()
+                                Log.w(TAG, "$extensionId: HTTP 429. $sleepTime ms bekleniyor... (Deneme $attempt/$maxAttempts)")
+                                Thread.sleep(sleepTime)
+                                attempt++
+                                delayMs *= 2
+                            } else if (!response.isSuccessful) {
+                                Log.e(TAG, "$extensionId indirme hatası: HTTP ${response.code} (Deneme $attempt/$maxAttempts)")
+                                Thread.sleep(delayMs)
+                                attempt++
+                                delayMs *= 2
+                            } else {
+                                response.body?.byteStream()?.use { inp ->
+                                    FileOutputStream(temp).use { out -> inp.copyTo(out) }
+                                }
+                                success = true
                             }
-                            success = true
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "$extensionId bağlantı hatası (Deneme $attempt/$maxAttempts): ${e.message}")
+                        Thread.sleep(delayMs)
+                        attempt++
+                        delayMs *= 2
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "$extensionId bağlantı hatası (Deneme $attempt/$maxAttempts): ${e.message}")
-                    if (attempt == maxAttempts) throw e
-                    Thread.sleep(delayMs)
-                    attempt++
-                    delayMs *= 2
                 }
             }
 
@@ -179,12 +199,17 @@ object MangaExtensionLoader {
      * İndirilen eklentiyi belleğe yükler.
      * Önce .apk uzantılı Mihon formatını dener, bulamazsa .mex formatını dener.
      */
-    fun loadExtension(context: Context, extensionId: String): MangaSource? {
+    fun loadExtension(
+        context: Context,
+        extensionId: String,
+        /** Kullanıcı tarafından açıkça eklenen repo / elle seçilen dosya için imzaya güven. */
+        trustSignature: Boolean = false,
+    ): MangaSource? {
         val apk = apkFile(context, extensionId)
         val mex = mexFile(context, extensionId)
 
         return when {
-            apk.exists() -> loadMihonApk(context, extensionId, apk)
+            apk.exists() -> loadMihonApk(context, extensionId, apk, trustSignature)
             mex.exists() -> loadNativeMex(context, extensionId, mex)
             else -> {
                 Log.e(TAG, "$extensionId: ne .apk ne de .mex dosyası bulunamadı")
@@ -203,7 +228,12 @@ object MangaExtensionLoader {
      * 3) NetworkHelper'ı Injekt'e kaydeder (HttpSource bu bağımlılığa ihtiyaç duyar).
      * 4) Source örneğini MihonSourceWrapper ile sarar ve döndürür.
      */
-    private fun loadMihonApk(context: Context, extensionId: String, file: File): MangaSource? {
+    private fun loadMihonApk(
+        context: Context,
+        extensionId: String,
+        file: File,
+        trustSignature: Boolean,
+    ): MangaSource? {
         // Önbellekten döndür (ilk source'u ver)
         loadedSources[file.absolutePath]?.let { return it.firstOrNull() }
 
@@ -218,8 +248,16 @@ object MangaExtensionLoader {
             val signatureHash = TrustManager.getApkSignatureHash(context, file)
             if (signatureHash != null) {
                 if (!TrustManager.isSignatureTrusted(context, signatureHash)) {
-                    Log.e(TAG, "SecurityException: extension signature is not trusted: $signatureHash")
-                    throw SecurityException("Signature untrusted for package $packageName: $signatureHash")
+                    if (trustSignature) {
+                        // Kullanıcı repo'yu kendisi ekledi veya APK dosyasını kendisi seçti.
+                        // Keiyoushi resmî anahtarıyla imzalanmayan özel derlemelerin
+                        // (ör. Kitsugi-Manga-Plugins Manga-TR) kurulabilmesi gerekir.
+                        Log.i(TAG, "$extensionId: kullanıcı onaylı repo imzası güvenildi: $signatureHash")
+                        TrustManager.trustSignature(context, signatureHash)
+                    } else {
+                        Log.e(TAG, "SecurityException: extension signature is not trusted: $signatureHash")
+                        throw SecurityException("Signature untrusted for package $packageName: $signatureHash")
+                    }
                 }
             } else {
                 Log.w(TAG, "Could not extract signature for file: ${file.absolutePath}")
@@ -285,13 +323,18 @@ object MangaExtensionLoader {
 
             loadedSources[file.absolutePath] = wrappers
             Log.i(TAG, "$extensionId [APK] yüklendi: ${wrappers.size} kaynak (pkg=$packageName): ${wrappers.joinToString { "${it.name}[${it.lang}]" }}")
+            notifySourceChanged()
 
-            // YENİ YÜKLENEN KAYNAKLARIN ESKİ COOLDOWN/BROKEN STATE'İNİ TEMİZLE
-            // Önceki broken build'den kalan "Broken" durumu yeni kaynakları arama dışı bırakır.
-            // Her fresh load'da state sıfırlanır — bir sonraki başarılı aramada Healthy'ye döner.
+            // Fresh load: yeni kurulan / güncellenen kaynak ASLA devre dışı kalmamalı.
+            // Eski "Disabled" sağlık bayrağı kullanıcı tercihi sanılıyordu; temizliyoruz.
+            // Ayrıca önceki bozuk derlemeden kalan Broken/Degraded/cooldown'u sıfırla.
             try {
                 val stateStore = MangaSourceStateStore(context)
+                val enabledStore = MangaSourceEnabledStore(context)
                 wrappers.forEach { wrapper ->
+                    if (enabledStore.ensureExplicitDefault(wrapper)) {
+                        stateStore.clearLegacyDisabledStatus(wrapper)
+                    }
                     val health = stateStore.getHealthStatus(wrapper)
                     if (health == com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Broken ||
                         health == com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Degraded ||
@@ -348,6 +391,7 @@ object MangaExtensionLoader {
     fun unloadExtension(context: Context, extensionId: String) {
         loadedSources.remove(apkFile(context, extensionId).absolutePath)
         loadedSources.remove(mexFile(context, extensionId).absolutePath)
+        notifySourceChanged()
         Log.i(TAG, "$extensionId bellekten kaldırıldı")
     }
 
@@ -359,7 +403,27 @@ object MangaExtensionLoader {
                 Log.i(TAG, "${file.name} silindi: $it")
             }
         }
+        notifySourceChanged()
         return deleted
+    }
+
+    /** APK içindeki gerçek paket adını okur; dosya adından türetmek güvenilmezdir. */
+    fun readPackageName(context: Context, file: File): String? {
+        if (!file.exists()) return null
+        return try {
+            val pm = context.packageManager
+            val flags = 0
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageArchiveInfo(file.absolutePath, PackageManager.PackageInfoFlags.of(flags.toLong()))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageArchiveInfo(file.absolutePath, flags)
+            }
+            info?.packageName?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            Log.w(TAG, "readPackageName hata (${file.name}): ${e.message}")
+            null
+        }
     }
 
     /** Yüklü source sayısını döndürür (debug amaçlı) */
@@ -391,6 +455,7 @@ object MangaExtensionLoader {
             try { loadExtension(context, extensionId) }
             catch (e: Exception) { Log.e(TAG, "Eklenti yükleme hatası ($extensionId): ${e.message}", e) }
         }
+        notifySourceChanged()
         Log.i(TAG, "Toplam yüklü kaynak: ${getLoadedSourceCount()}")
     }
 
@@ -469,15 +534,37 @@ object MangaExtensionLoader {
             }
         }
 
+        // Özel Manga-TR derlemesi KeiSource 1.6'dır. multi-dex APK'larda kaynak
+        // kodu classes10.dex içinde olduğu için sadece classes.dex'e bakmak yanlış
+        // motor tespiti veriyordu; aşağıda tüm dex'ler taranır.
+        if (MangaTrCompat.isMangaTrExtensionId(extensionId)) {
+            prefs.edit()
+                .putString(cacheKey, ExtensionEngine.KEI_SOURCE.name)
+                .putLong(timeKey, lastModified)
+                .apply()
+            return ExtensionEngine.KEI_SOURCE
+        }
+
         val engine = try {
             ZipFile(apkFile).use { zip ->
-                // classes.dex yoksa UNKNOWN
-                val dexEntry = zip.getEntry("classes.dex") ?: return ExtensionEngine.UNKNOWN
-                val bytes = zip.getInputStream(dexEntry).use { it.readBytes() }
+                // TÜM classes*.dex dosyalarını tara (modern Keiyoushi APK'ları multi-dex).
+                val dexEntries = mutableListOf<java.util.zip.ZipEntry>()
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (!entry.isDirectory && entry.name.matches(Regex("classes\\d*\\.dex"))) {
+                        dexEntries += entry
+                    }
+                }
+                if (dexEntries.isEmpty()) return ExtensionEngine.UNKNOWN
 
                 // ISO-8859-1 is a 1-to-1 byte-to-char mapping. This performs direct conversion in native C++
                 // and avoids multi-MB StringBuilder loops in Kotlin, using native String.contains (Boyer-Moore/SIMD).
-                val dexStr = String(bytes, Charsets.ISO_8859_1)
+                val dexStr = buildString {
+                    dexEntries.forEach { entry ->
+                        append(String(zip.getInputStream(entry).use { it.readBytes() }, Charsets.ISO_8859_1))
+                    }
+                }
 
                 when {
                     // Inertia.js — en spesifik, önce kontrol et
@@ -539,9 +626,15 @@ object MangaExtensionLoader {
      * @param pkg APK paket adı (noktalı). Örn: "eu.kanade.tachiyomi.extension.tr.mangatr"
      * @return Kurulu versionCode, dosya yoksa veya okunamazsa -1L
      */
-    fun getInstalledVersionCode(context: Context, pkg: String): Long {
-        val extensionId = pkg.replace(".", "_")
-        val file = apkFile(context, extensionId)
+    fun getInstalledVersionCode(context: Context, pkg: String): Long =
+        getInstalledVersionCode(context, apkFile(context, pkg.replace(".", "_")))
+
+    /**
+     * Dosya adından bağımsız olarak verilen APK'nın versionCode'unu okur.
+     * Elle kurulan / katalogdan gelen APK'lar `tachiyomi-tr.mangatr-v1.6.24.apk`
+     * gibi isimler taşıyabilir; paket adından dosya yolu türetmek bu durumda -1 dönerdi.
+     */
+    fun getInstalledVersionCode(context: Context, file: File): Long {
         if (!file.exists()) return -1L
         return try {
             val pm = context.packageManager
@@ -560,7 +653,7 @@ object MangaExtensionLoader {
                 packageInfo.versionCode.toLong()
             }
         } catch (e: Exception) {
-            Log.w(TAG, "getInstalledVersionCode hata ($pkg): ${e.message}")
+            Log.w(TAG, "getInstalledVersionCode hata (${file.name}): ${e.message}")
             -1L
         }
     }

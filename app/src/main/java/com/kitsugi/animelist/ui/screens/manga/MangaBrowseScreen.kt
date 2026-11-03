@@ -99,6 +99,20 @@ fun MangaBrowseScreen(
         }
     }
 
+    // Kurulu kaynak seti değiştiğinde (eklenti kurulumu / silme / aktif-pasif)
+    // browse ViewModel'indeki kaynak listesini tazele. Önceden hiç çağrılmıyordu:
+    // ayarlar penceresinden eklenti kurup kapatınca "kaynak yok" ekranı kalıyordu.
+    // Anahtara aktif/pasif durumunu DA katıyoruz: getInstalledSources() kapalı
+    // kaynakları da döndürdüğü için sadece key listesi değişmez ve toggle sonrası
+    // browse tarafındaki getAvailableSources() listesi eski kalırdı.
+    val installedSourceKeys = mangaViewModel.mangaSources
+        .map { "${it.stableSourceKey()}:${mangaViewModel.isMangaSourceEnabled(it)}" }
+        .sorted()
+        .joinToString("|")
+    LaunchedEffect(installedSourceKeys) {
+        vm.refreshSources()
+    }
+
     LaunchedEffect(initialQuery) {
         if (vm.lastInitialQuery != initialQuery) {
             vm.lastInitialQuery = initialQuery
@@ -111,6 +125,7 @@ fun MangaBrowseScreen(
     }
     val accentColor = LocalKitsugiAccent.current
     val cols = rememberKitsugiGridColumns()
+    val gridState = rememberLazyGridState()
 
     // Snapshot delegated props → allow smart cast
     val query          = ui.searchQuery
@@ -319,10 +334,31 @@ fun MangaBrowseScreen(
                 // ── Grid ──
                 Box(Modifier.weight(1f)) {
                     val loading = if (query.isNotBlank()) states.any { it.isLoading } else ui.isLoadingPopular
+                    val hasNextPageToShow = if (query.isBlank()) hasNext
+                        else (selFilter != null && (states.firstOrNull { it.source.stableSourceKey() == selFilter?.stableSourceKey() }?.hasNextPage == true))
+                    // Eskiden `LaunchedEffect(mergedMangas.size)` vardı: her yeni sonuç
+                    // geldiğinde tekrar çalışıp bütün sayfaları arka arkaya (sonsuz)
+                    // indiriyordu. Artık yalnızca kullanıcı listenin sonuna yaklaşınca
+                    // ve gerçekten yüklenecek sayfa varsa tetikleniyor.
+                    val shouldAutoLoad by remember(visibleMangas.size, hasNextPageToShow, loading) {
+                        derivedStateOf {
+                            if (!hasNextPageToShow || loading || visibleMangas.isEmpty()) {
+                                false
+                            } else {
+                                val lastVisible = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                                    ?: Int.MAX_VALUE
+                                lastVisible >= visibleMangas.size - 2
+                            }
+                        }
+                    }
+                    LaunchedEffect(shouldAutoLoad) {
+                        if (shouldAutoLoad) vm.loadNextPage()
+                    }
                     when {
                         loading && mergedMangas.isEmpty() -> {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(cols),
+                                state   = gridState,
                                 verticalArrangement   = Arrangement.spacedBy(12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxSize()
@@ -340,11 +376,19 @@ fun MangaBrowseScreen(
                                 ) {
                                     Icon(Icons.Rounded.SearchOff, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
-                                    Text(stringResource(R.string.sonuc_bulunamadi), color = KitsugiColors.TextSecondary)
+                                    Text(
+                                        ui.popularError?.takeIf { query.isBlank() } ?: stringResource(R.string.sonuc_bulunamadi),
+                                        color = KitsugiColors.TextSecondary
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    KitsugiButton(onClick = { vm.refreshSources() }) {
+                                        Text("Tekrar Dene", color = Color.White)
+                                    }
                                 }
                             }
                         else -> LazyVerticalGrid(
                             columns = GridCells.Fixed(cols),
+                            state   = gridState,
                             verticalArrangement   = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -360,12 +404,8 @@ fun MangaBrowseScreen(
                                     SkeletonCard(it.source.name, accentColor)
                                 }
                             }
-                            val hasNextPageToShow = if (query.isBlank()) hasNext
-                                else (selFilter != null && (states.firstOrNull { it.source.stableSourceKey() == selFilter.stableSourceKey() }?.hasNextPage == true))
-
                             if (query.isBlank() || selFilter != null) {
                                 item(span = { GridItemSpan(cols) }) {
-                                    LaunchedEffect(mergedMangas.size) { vm.loadNextPage() }
                                     androidx.compose.animation.AnimatedVisibility(visible = hasNextPageToShow) {
                                         Box(Modifier.fillMaxWidth().height(64.dp), Alignment.Center) {
                                             KitsugiPlasmaLoader(size = 32.dp)
@@ -438,6 +478,8 @@ fun MangaBrowseScreen(
             onGetInstalledMangaVersion = { mangaViewModel.getInstalledMangaExtensionVersion(it) },
             mangaSourceStateReport = mangaViewModel.mangaSourceStateReport,
             onGetMangaSourceHealthStatus = { mangaViewModel.getSourceHealthStatus(it) },
+            onGetMangaSourceEnabled = { mangaViewModel.isMangaSourceEnabled(it) },
+            onToggleMangaSource = { source, enabled -> mangaViewModel.toggleMangaSource(source, enabled) },
             onGetMangaSourceRuntimeStats = { mangaViewModel.getSourceRuntimeStats(it) },
             onGetMangaConfiguredDomain = { mangaViewModel.getConfiguredSourceDomain(it) },
             onGetMangaConfiguredBaseUrl = { mangaViewModel.getConfiguredSourceBaseUrl(it) },

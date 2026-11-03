@@ -1244,6 +1244,8 @@ private fun SettingsAddonsContent(
         onGetInstalledMangaVersion = manga.onGetInstalledMangaVersion,
         mangaSourceStateReport = manga.mangaSourceStateReport,
         onGetMangaSourceHealthStatus = manga.onGetMangaSourceHealthStatus,
+        onGetMangaSourceEnabled = manga.onGetMangaSourceEnabled,
+        onToggleMangaSource = manga.onToggleMangaSource,
         onGetMangaSourceRuntimeStats = manga.onGetMangaSourceRuntimeStats,
         onGetMangaConfiguredDomain = manga.onGetMangaConfiguredDomain,
         onGetMangaConfiguredBaseUrl = manga.onGetMangaConfiguredBaseUrl,

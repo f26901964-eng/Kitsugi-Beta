@@ -374,6 +374,8 @@ data class MangaSettings(
     val onGetInstalledMangaVersionCode: (String) -> Long = { -1L },
     val onGetInstalledMangaVersion: (String) -> String? = { null },
     val onGetMangaSourceHealthStatus: (com.kitsugi.animelist.data.manga.MangaSource) -> com.kitsugi.animelist.data.manga.model.SourceHealthStatus = { com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Unknown },
+    val onGetMangaSourceEnabled: (com.kitsugi.animelist.data.manga.MangaSource) -> Boolean = { true },
+    val onToggleMangaSource: (com.kitsugi.animelist.data.manga.MangaSource, Boolean) -> Unit = { _, _ -> },
     val onGetMangaSourceRuntimeStats: (com.kitsugi.animelist.data.manga.MangaSource) -> com.kitsugi.animelist.data.manga.model.SourceRuntimeStats = { com.kitsugi.animelist.data.manga.model.SourceRuntimeStats() },
     val onGetMangaConfiguredDomain: (com.kitsugi.animelist.data.manga.MangaSource) -> String? = { null },
     val onGetMangaConfiguredBaseUrl: (com.kitsugi.animelist.data.manga.MangaSource) -> String = { it.baseUrl },

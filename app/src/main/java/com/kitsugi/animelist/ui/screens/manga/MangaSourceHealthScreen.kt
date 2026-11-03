@@ -50,6 +50,8 @@ fun MangaSourceHealthScreen(
     onBack: () -> Unit,
     onExportReportFile: (String) -> Unit = {},
     onQuickCheckSource: (MangaSource) -> Unit = {},
+    onGetSourceEnabled: (MangaSource) -> Boolean = { true },
+    onToggleSource: (MangaSource, Boolean) -> Unit = { _, _ -> },
     onRefreshSourceMirror: (MangaSource) -> Unit = {},
     onResetSourceDiagnostics: (MangaSource) -> Unit = {},
     onClearSourceMirror: (MangaSource) -> Unit = {},
@@ -203,6 +205,8 @@ fun MangaSourceHealthScreen(
                     onGetSourceFailureStreak = onGetSourceFailureStreak,
                     onGetSourceCooldownUntil = onGetSourceCooldownUntil,
                     onQuickCheckSource = onQuickCheckSource,
+                    onGetSourceEnabled = onGetSourceEnabled,
+                    onToggleSource = onToggleSource,
                     onRefreshSourceMirror = onRefreshSourceMirror,
                     onClearSourceMirror = onClearSourceMirror,
                     onResetSourceDiagnostics = onResetSourceDiagnostics,
@@ -482,6 +486,8 @@ private fun HealthReportTab(
     onGetSourceFailureStreak: (MangaSource) -> Int,
     onGetSourceCooldownUntil: (MangaSource) -> Long,
     onQuickCheckSource: (MangaSource) -> Unit,
+    onGetSourceEnabled: (MangaSource) -> Boolean,
+    onToggleSource: (MangaSource, Boolean) -> Unit,
     onRefreshSourceMirror: (MangaSource) -> Unit,
     onClearSourceMirror: (MangaSource) -> Unit,
     onResetSourceDiagnostics: (MangaSource) -> Unit,
@@ -542,6 +548,13 @@ private fun HealthReportTab(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(item.sourceName, color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             StatusChip(item.healthStatus, trendTint(successRate(item)))
+                            if (source != null) {
+                                Switch(
+                                    checked = onGetSourceEnabled(source),
+                                    onCheckedChange = { enabled -> onToggleSource(source, enabled) },
+                                    modifier = Modifier.size(width = 40.dp, height = 26.dp)
+                                )
+                            }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             SmallChip(item.lang.uppercase(), accent)

@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,16 +39,17 @@ class MangaSourceRepository(private val context: Context) {
     val dao           = db.mangaChapterProgressDao()
     val cache         = MangaCache(context)
     private val sourceStateStore = MangaSourceStateStore(context)
+    private val sourceEnabledStore = MangaSourceEnabledStore(context)
     private val sourceConfigStore = SourceConfigStore(context)
     private val mirrorResolver = SourceMirrorResolver(context, sourceConfigStore)
     private val sourceHealthService = SourceHealthService(context, sourceStateStore, mirrorResolver)
-    private val searchCoordinator = MangaSearchCoordinator(sourceStateStore)
+    private val searchCoordinator = MangaSearchCoordinator(sourceStateStore, sourceEnabledStore)
 
-    init {
+    /** Startup'taki tek eklenti yükleme işi. VM bunu join() ile bekler. */
+    private val extensionsLoaded: Job =
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             MangaExtensionLoader.loadAllExtensions(context)
         }
-    }
 
     // ─── Kaynak Yönetimi ─────────────────────────────────────────────────────
 
@@ -60,6 +62,55 @@ class MangaSourceRepository(private val context: Context) {
      */
     fun getAvailableSources(): List<MangaSource> =
         searchCoordinator.getAvailableSources(MangaExtensionLoader.getLoadedSources())
+
+    /**
+     * Ayarlar ekranı için TÜM kurulu kaynaklar — kapalı olanlar DAHİL.
+     * Kapalı kaynağı listeden gizlemek, kullanıcının onu tekrar açmasını imkânsız
+     * hale getiriyordu (ekran görüntüsündeki "Disabled + kapalı switch" sorunu).
+     */
+    fun getInstalledSources(): List<MangaSource> =
+        MangaExtensionLoader.getLoadedSources()
+            .distinctBy { it.stableSourceKey() }
+            .sortedWith(
+                compareByDescending<MangaSource> { if (isSourceEnabled(it)) 1 else 0 }
+                    .thenByDescending { searchCoordinator.getSourcePriority(it) }
+                    .thenBy { it.name.lowercase() }
+            )
+
+    fun isSourceEnabled(source: MangaSource): Boolean = sourceEnabledStore.isEnabled(source)
+
+    fun setSourceEnabled(source: MangaSource, enabled: Boolean) {
+        sourceEnabledStore.setEnabled(source, enabled)
+        // Diğer ViewModel/ekran örnekleri de aynı tercihi görsin.
+        MangaExtensionLoader.notifySourceChanged()
+        // Sağlık alanına ASLA Disabled yazmıyoruz. Yeniden açarken eski soğuma/hata
+        // bayraklarını temizle ki kaynak hemen aramaya katılabilsin.
+        if (enabled) {
+            sourceStateStore.clearLegacyDisabledStatus(source)
+            if (sourceStateStore.isCoolingDown(source)) {
+                sourceStateStore.setHealthStatus(source, com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Unknown)
+            }
+        }
+    }
+
+    /**
+     * Eski sürümlerden kalan `Disabled` sağlık kayıtlarını bir kez temizler ve her
+     * kurulu kaynak için açık bir "aktif" tercihi oluşturur (varsayılan = açık).
+     */
+    fun migrateLegacyDisabledStates() {
+        MangaExtensionLoader.getLoadedSources().forEach { source ->
+            if (sourceEnabledStore.ensureExplicitDefault(source)) {
+                sourceStateStore.clearLegacyDisabledStatus(source)
+            }
+        }
+    }
+
+    /**
+     * Eklentiler IO thread'de yüklenene kadar bekler; VM startup yarışını önler.
+     * Yeniden `loadAllExtensions()` çağırmıyoruz — aynı APK'nın iki kez
+     * classloader'a yüklenmesini engeller.
+     */
+    suspend fun awaitExtensionsLoaded() = extensionsLoaded.join()
 
     fun getSourceByName(name: String): MangaSource? =
         MangaExtensionLoader.getLoadedSources().firstOrNull { it.name == name }
@@ -194,23 +245,53 @@ class MangaSourceRepository(private val context: Context) {
             }
 
             val dir = File(context.filesDir, "manga_extensions").also { if (!it.exists()) it.mkdirs() }
-            val targetFile = File(dir, "$fileName.$extension")
-            if (targetFile.exists()) targetFile.delete()
+            val tempFile = File(dir, "$fileName.$extension")
+            if (tempFile.exists()) tempFile.delete()
 
             contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(targetFile).use { output ->
+                FileOutputStream(tempFile).use { output ->
                     input.copyTo(output)
                 }
             }
             // NOT: setReadOnly() KALDIRILDI — Android 10+ PathClassLoader read-only dosyayı yükleyemiyor
 
-            val loaded = MangaExtensionLoader.loadExtension(context, fileName)
+            // Dosya adını paket adına normalize et. Aksi halde elle kurulan bir APK
+            // (`tachiyomi-tr.mangatr-v1.6.24.apk`) repo kurulumuyla aynı kimliği
+            // paylaşmaz; getInstalledVersionCode()/güncelleme kontrolü onu bulamaz ve
+            // aynı eklenti ikinci kez "kurulmuş" gibi görünür.
+            val extensionId = if (extension == "apk") {
+                MangaExtensionLoader.readPackageName(context, tempFile)
+                    ?.takeIf { it.isNotBlank() }
+                    ?.replace(".", "_")
+                    ?: fileName
+            } else fileName
+
+            val targetFile = File(dir, "$extensionId.$extension")
+            if (targetFile.absolutePath != tempFile.absolutePath) {
+                if (targetFile.exists()) targetFile.delete()
+                if (!tempFile.renameTo(targetFile)) {
+                    tempFile.copyTo(targetFile, overwrite = true)
+                    tempFile.delete()
+                }
+            }
+
+            // Kullanıcı dosyayı elle seçti → imzaya açık onay vermiş sayılır.
+            // (Özel Kitsugi-Manga-Plugins APK'ları debug anahtarıyla imzalıdır ve
+            // Keiyoushi resmî parmak izleriyle eşleşmez.)
+            val loaded = MangaExtensionLoader.loadExtension(
+                context,
+                extensionId,
+                trustSignature = extension == "apk",
+            )
             if (loaded != null) {
+                sourceEnabledStore.ensureExplicitDefault(loaded)
+                sourceStateStore.clearLegacyDisabledStatus(loaded)
                 Result.success(loaded)
             } else {
-                targetFile.delete()
-                Result.failure(Exception("Uyumsuz eklenti formatı veya manifest.json eksik."))
+                Result.failure(Exception("Uyumsuz eklenti formatı veya kaynak sınıfı yüklenemedi."))
             }
+        } catch (e: SecurityException) {
+            Result.failure(Exception("Eklenti imzası doğrulanamadı: ${e.message}"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -296,7 +377,13 @@ class MangaSourceRepository(private val context: Context) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 recordPopularFailure(source, e, elapsedMs = elapsed)
                 Log.e(TAG, "[${source.name}] popüler liste hatası: ${e.message}")
-                MangaSourceResult(emptyList(), hasNextPage = false)
+                // Hatayı YUTMA: eskiden boş liste dönüyordu ve kullanıcı
+                // "sonuç bulunamadı" sanıp kaynağı bozuk sanıyordu.
+                MangaSourceResult(
+                    mangas = emptyList(),
+                    hasNextPage = false,
+                    error = e.localizedMessage ?: e.message ?: "Popüler liste alınamadı."
+                )
             }
         }
 

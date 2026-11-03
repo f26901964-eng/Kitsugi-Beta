@@ -78,6 +78,8 @@ internal fun MangaExtensionsTab(
     onGetInstalledVersion: (String) -> String? = { null },
     sourceStateReport: List<com.kitsugi.animelist.data.local.MangaSourceStateEntity> = emptyList(),
     onGetSourceHealthStatus: (MangaSource) -> com.kitsugi.animelist.data.manga.model.SourceHealthStatus = { com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Unknown },
+    onGetSourceEnabled: (MangaSource) -> Boolean = { true },
+    onToggleSource: (MangaSource, Boolean) -> Unit = { _, _ -> },
     onGetSourceRuntimeStats: (MangaSource) -> com.kitsugi.animelist.data.manga.model.SourceRuntimeStats = { com.kitsugi.animelist.data.manga.model.SourceRuntimeStats() },
     onGetConfiguredDomain: (MangaSource) -> String? = { null },
     onGetConfiguredBaseUrl: (MangaSource) -> String = { it.baseUrl },
@@ -836,6 +838,7 @@ internal fun MangaExtensionsTab(
             }
             itemsIndexed(sources, key = { _, src -> "${src.name}_${src.lang}" }) { _, source ->
                 val health = onGetSourceHealthStatus(source)
+                val isEnabled = onGetSourceEnabled(source)
                 val isBusy = onIsSourceBusy(source)
                 val domain = onGetConfiguredDomain(source)
                 val sourceState = sourceStateByKey[source.stableSourceKey()]
@@ -860,6 +863,9 @@ internal fun MangaExtensionsTab(
                         Text(onGetConfiguredBaseUrl(source).ifBlank { "Mihon APK" }, color = KitsugiColors.TextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             HealthBadge(health = health, accentColor = accentColor)
+                            if (!isEnabled) {
+                                TinyInfoChip(text = KitsugiStrings.get(R.string.manga_source_disabled), tint = KitsugiColors.AccentRed)
+                            }
                             if (!domain.isNullOrBlank()) {
                                 TinyInfoChip(text = domain, tint = accentColor)
                             }
@@ -871,6 +877,14 @@ internal fun MangaExtensionsTab(
                     if (isBusy) {
                         KitsugiPlasmaLoader(size = 18.dp)
                     }
+                    // AKTİF/PASİF ANAHTARI: eskiden sadece TV companion'da vardı;
+                    // telefonda kaynak bir kez kapatıldı mı listeden kayboluyor ve
+                    // tekrar açılamıyordu. Kapalı kaynak satırı artık görünür kalır.
+                    Switch(
+                        checked = isEnabled,
+                        onCheckedChange = { enabled -> onToggleSource(source, enabled) },
+                        modifier = Modifier.size(width = 40.dp, height = 26.dp)
+                    )
                     Box(
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 6.dp, vertical = 3.dp)
                     ) { Text(source.lang, color = KitsugiColors.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
@@ -973,7 +987,23 @@ internal fun MangaExtensionsTab(
                                         .padding(12.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Text(item.sourceName, color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            item.sourceName,
+                                            color = KitsugiColors.TextPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        // Sağlık raporu satırında da aktif/pasif anahtarı:
+                                        // ekran görüntüsündeki "Disabled + kapalı switch" tam olarak burasıydı.
+                                        installedSourceByKey[item.sourceKey]?.let { src ->
+                                            Switch(
+                                                checked = onGetSourceEnabled(src),
+                                                onCheckedChange = { enabled -> onToggleSource(src, enabled) },
+                                                modifier = Modifier.size(width = 40.dp, height = 26.dp)
+                                            )
+                                        }
+                                    }
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                         TinyInfoChip(text = item.lang.uppercase(), tint = accentColor)
                                         TinyInfoChip(text = item.healthStatus, tint = accentColor)
