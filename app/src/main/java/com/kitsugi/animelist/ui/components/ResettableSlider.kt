@@ -1,8 +1,5 @@
 package com.kitsugi.animelist.ui.components
 
-import com.kitsugi.animelist.ui.icons.KitsugiArt
-import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
-
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -48,7 +45,12 @@ fun ResettableSlider(
             enabled = enabled,
             modifier = Modifier.size(48.dp),
         ) {
-            KitsugiArtIcon(art = KitsugiArt.Sync, contentDescription = stringResource(R.string.slider_reset_to_default), size = 20.dp)
+            Icon(
+                imageVector = Icons.RestartAlt,
+                contentDescription = stringResource(R.string.slider_reset_to_default),
+                tint = accentColor,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }

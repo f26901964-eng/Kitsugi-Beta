@@ -1,8 +1,5 @@
 package com.kitsugi.animelist.ui.screens.history
 
-import com.kitsugi.animelist.ui.icons.KitsugiArt
-import com.kitsugi.animelist.ui.icons.KitsugiArtIcon
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -1536,7 +1533,12 @@ private fun EmptyHistoryState() {
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(24.dp)
         ) {
-            KitsugiArtIcon(art = KitsugiArt.History, size = 64.dp)
+            Icon(
+                imageVector = Icons.Rounded.History,
+                contentDescription = null,
+                tint = KitsugiColors.TextMuted,
+                modifier = Modifier.size(64.dp)
+            )
             Text(
                 text = stringResource(R.string.inline_you_have_no_watch_history_28cb4be),
                 color = KitsugiColors.TextMuted,
