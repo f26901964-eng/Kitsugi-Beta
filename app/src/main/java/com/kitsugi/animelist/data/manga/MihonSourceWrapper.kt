@@ -12,6 +12,7 @@ import android.util.Log
 import tachiyomi.core.common.util.lang.awaitSingle
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * MihonSourceWrapper
@@ -360,6 +361,11 @@ class MihonSourceWrapper(
             applyRuntimeSourceConfig()
             maybeSlowdown()
             val source = httpSource ?: return super<MangaSource>.getImage(page)
+            if (pkgName.endsWith(".mangatr", ignoreCase = true) &&
+                isInvalidMangaTrImageOrder(page.imageUrl?.toHttpUrlOrNull()?.fragment)
+            ) {
+                throw java.io.IOException("Eklenti geçersiz görsel parça sırası döndürdü; sayfa işlenemiyor")
+            }
             // Do not rebuild the request/client: imageRequest overrides can carry chapter
             // referers, signed URLs, decryption interceptors and the source cookie jar.
             val response = source.getImage(eu.kanade.tachiyomi.source.model.Page(

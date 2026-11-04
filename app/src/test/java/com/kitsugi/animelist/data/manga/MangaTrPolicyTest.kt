@@ -23,6 +23,18 @@ class MangaTrPolicyTest {
         assertFalse(isMangaTrHost("notmngtr.site"))
     }
 
+    @Test fun invalidStripOrdersAreRejectedWithoutChangingOtherAnchors() {
+        assertFalse(isInvalidMangaTrImageOrder(null))
+        assertFalse(isInvalidMangaTrImageOrder("unrelated-anchor"))
+        assertFalse(isInvalidMangaTrImageOrder("1,0"))
+        assertFalse(isInvalidMangaTrImageOrder("100,201"))
+        assertTrue(isInvalidMangaTrImageOrder("100,200")) // duplicate destination
+        assertTrue(isInvalidMangaTrImageOrder("0,2")) // destination out of range
+        assertTrue(isInvalidMangaTrImageOrder("400,1")) // unsupported flip
+        assertTrue(isInvalidMangaTrImageOrder("0,"))
+        assertTrue(isInvalidMangaTrImageOrder("999999999999999999999"))
+    }
+
     @Test fun transformedCachePreservesOrderFragmentAndInvalidatesLegacy() {
         val a = "https://image.mngtr.site/a.webp#100,200"
         val b = "https://image.mngtr.site/a.webp#200,100"

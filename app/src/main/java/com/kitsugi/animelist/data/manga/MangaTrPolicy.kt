@@ -18,6 +18,18 @@ fun isMangaTrHost(host: String): Boolean =
 fun mangaImageCacheKey(packageName: String, imageUrl: String): String =
     if (packageName.endsWith(".mangatr", ignoreCase = true)) "mangatr-descrambled-v1:$imageUrl" else imageUrl
 
+/**
+ * Numeric fragments are the extension's strip permutation. Reject only a
+ * provably invalid permutation; other anchors belong to the extension unchanged.
+ */
+internal fun isInvalidMangaTrImageOrder(fragment: String?): Boolean {
+    if (fragment.isNullOrEmpty() || fragment.any { !it.isDigit() && it != ',' }) return false
+    val pieces = fragment.split(',')
+    val codes = pieces.map { it.toIntOrNull() ?: return true }
+    return codes.any { it / 100 !in 0..3 || it % 100 !in codes.indices } ||
+        codes.map { it % 100 }.distinct().size != codes.size
+}
+
 /** Repository metadata must describe the APK itself, not merely its filename. */
 fun matchesMangaApkMetadata(expectedPackage: String, expectedVersion: Long?, actualPackage: String?, actualVersion: Long?): Boolean =
     actualPackage == expectedPackage && actualVersion != null &&

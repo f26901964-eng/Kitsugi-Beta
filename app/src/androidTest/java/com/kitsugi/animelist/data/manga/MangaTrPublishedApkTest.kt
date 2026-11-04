@@ -2,6 +2,8 @@ package com.kitsugi.animelist.data.manga
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kitsugi.animelist.data.manga.loader.ChildFirstPathClassLoader
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -42,7 +44,12 @@ class MangaTrPublishedApkTest {
         val plugin = loader.loadClass("keiyoushi.source.Generated").getDeclaredConstructor().newInstance() as HttpSource
         // Trigger the real KeiSource client setup and its interceptor-name checks first.
         val originalClient = plugin.client
-        val bitmap = Bitmap.createBitmap(2, 4, Bitmap.Config.ARGB_8888)
+        // Two colored strips let us verify the real plugin's fragment-based
+        // interceptor rearranges pixels, rather than merely fetching a URL.
+        val bitmap = Bitmap.createBitmap(16, 32, Bitmap.Config.ARGB_8888)
+        for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+            bitmap.setPixel(x, y, if (y < 16) Color.RED else Color.BLUE)
+        }
         val png = ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
         bitmap.recycle()
         val seen = mutableListOf<String>()
@@ -92,6 +99,15 @@ class MangaTrPublishedApkTest {
         val pages = source.fetchPageList(chapters.first())
         assertEquals("https://image.mngtr.site/page.png", pages.single().imageUrl)
         assertArrayEquals(png, source.getImage(pages.single()).use { it.readBytes() })
+        val scrambled = MangaPage(1, "", "https://image.mngtr.site/page.png#1,0")
+        val processedBytes = source.getImage(scrambled).use { it.readBytes() }
+        val processed = requireNotNull(BitmapFactory.decodeByteArray(processedBytes, 0, processedBytes.size))
+        try {
+            val top = processed.getPixel(8, 4)
+            val bottom = processed.getPixel(8, 27)
+            assertTrue("First decoded strip should be blue", Color.blue(top) > Color.red(top) + 80)
+            assertTrue("Second decoded strip should be red", Color.red(bottom) > Color.blue(bottom) + 80)
+        } finally { processed.recycle() }
         assertTrue(seen.contains("/arama.html"))
         assertTrue(seen.contains("/cek/fetch_pages_manga.php"))
         assertTrue(seen.contains("/page.png"))

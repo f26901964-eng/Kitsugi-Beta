@@ -79,7 +79,7 @@ class MihonMangaIntegrationTest {
         }
         override suspend fun getPageList(chapter: SChapter): List<Page> {
             chapterUrl = chapter.url
-            return listOf(Page(0, imageUrl = "https://image.mngtr.site/${System.nanoTime()}.png#100,200"))
+            return listOf(Page(0, imageUrl = "https://image.mngtr.site/${System.nanoTime()}.png#100,201"))
         }
     }
 
@@ -178,6 +178,18 @@ class MihonMangaIntegrationTest {
         Unit
     }
 
+    @Test fun invalidMangaTrImagePermutationFailsBeforePluginRequest() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        Injekt.addSingleton(NetworkHelper::class.java, NetworkHelper(context))
+        val fake = FakeSource(byteArrayOf())
+        val wrapper = MihonSourceWrapper(fake, context, "eu.kanade.tachiyomi.extension.tr.mangatr")
+        val error = runCatching { wrapper.getImage(MangaPage(0, "", "https://image.mngtr.site/a.png#100,200")) }.exceptionOrNull()
+        assertTrue(error is java.io.IOException)
+        assertTrue(error?.message?.contains("geçersiz") == true)
+        assertNull(fake.requestedFragment)
+        Unit
+    }
+
     @Test fun bridgePreservesUrlsGroupsFilterPositionsAndSourceProcessedImage() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         Injekt.addSingleton(NetworkHelper::class.java, NetworkHelper(context))
@@ -211,7 +223,7 @@ class MihonMangaIntegrationTest {
                 while (page.status != MangaPageStatus.Ready && page.status != MangaPageStatus.Error) delay(20)
             }
             assertEquals(MangaPageStatus.Ready, page.status)
-            assertEquals("100,200", fake.requestedFragment)
+            assertEquals("100,201", fake.requestedFragment)
             assertEquals("https://manga-tr.com", fake.requestedReferer)
             assertArrayEquals(png, page.localFile!!.readBytes())
             assertEquals(0.5f, page.aspectRatio!!, 0.001f)
