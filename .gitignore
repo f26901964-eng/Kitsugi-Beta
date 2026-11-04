@@ -58,3 +58,6 @@ __pycache__/
 # Isolated PostgreSQL account regression tests
 /scripts/account-tests/node_modules/
 /Kitsugi-Manga-Plugins/
+
+# Yerel teslim paketleri (Drive'a yüklenen ZIP'ler)
+KITSUGI_KURUMLAR_FIX_*.zip
