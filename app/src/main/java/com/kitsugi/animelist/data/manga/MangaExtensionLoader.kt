@@ -282,6 +282,11 @@ object MangaExtensionLoader {
                             listOf(instance)
                         }
                     }
+                } catch (e: LinkageError) {
+                    // A missing or incompatible plugin ABI is an Error, not an Exception.
+                    // Isolate the broken entry so it cannot crash loading other sources.
+                    Log.e(TAG, "Eklenti ABI uyumsuzluğu ($name): ${e.message}", e)
+                    emptyList()
                 } catch (e: Exception) {
                     Log.e(TAG, "Sınıf yükleme hatası ($name): ${e.message}", e)
                     emptyList()
@@ -332,6 +337,9 @@ object MangaExtensionLoader {
         } catch (e: SecurityException) {
             Log.e(TAG, "$extensionId [APK] signature verification failed: ${e.message}", e)
             throw e
+        } catch (e: LinkageError) {
+            Log.e(TAG, "$extensionId [APK] çalışma zamanı uyumsuzluğu: ${e.message}", e)
+            null
         } catch (e: Exception) {
             Log.e(TAG, "$extensionId [APK] yükleme hatası: ${e.message}", e)
             null
