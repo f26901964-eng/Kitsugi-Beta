@@ -115,6 +115,29 @@ class MihonMangaIntegrationTest {
         }
     }
 
+    @Test fun webViewSyncDoesNotBroadenUnknownCookieDomains() {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val isolatedCache = java.io.File(base.cacheDir, "webview-cookie-test-${System.nanoTime()}").apply { mkdirs() }
+        val context = object : android.content.ContextWrapper(base) {
+            override fun getCacheDir(): java.io.File = isolatedCache
+        }
+        val manager = android.webkit.CookieManager.getInstance()
+        try {
+            val host = "https://example.test/"
+            manager.setCookie(host, "manga_test_only=secret; Path=/; Secure")
+            manager.flush()
+            val jar = eu.kanade.tachiyomi.network.WebViewCookieJar(context)
+            jar.syncFromWebView(host)
+            val main = okhttp3.HttpUrl.Builder().scheme("https").host("example.test").build()
+            val sub = okhttp3.HttpUrl.Builder().scheme("https").host("forum.example.test").build()
+            assertTrue(jar.loadForRequest(main).any { it.name == "manga_test_only" })
+            assertFalse(jar.loadForRequest(sub).any { it.name == "manga_test_only" })
+        } finally {
+            manager.setCookie("https://example.test/", "manga_test_only=; Path=/; Max-Age=0")
+            isolatedCache.deleteRecursively()
+        }
+    }
+
     @Test fun hostInterceptorNamesMatchKeiSourceRuntimeChecks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val names = NetworkHelper(context).client.interceptors.map { it.javaClass.simpleName }

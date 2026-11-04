@@ -44,7 +44,9 @@ class WebViewCookieJar(private val context: Context) : CookieJar {
                     val cookie = Cookie.Builder()
                         .name(name)
                         .value(value)
-                        .domain(httpUrl.host)
+                        // getCookie() exposes only name/value, not original Domain.
+                        // Never broaden an unknown host-only cookie to subdomains.
+                        .hostOnlyDomain(httpUrl.host)
                         .path("/")
                         .expiresAt(now + 24L * 60 * 60 * 1000) // 24 saat
                         .build()
