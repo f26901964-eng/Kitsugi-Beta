@@ -102,7 +102,9 @@ internal object DashAudioExport {
             named.size > 1 || needsName -> error("DASH ses adı tek bir parça ile eşleşmiyor")
             matching.size == 1 -> matching.single()
             matching.size > 1 -> error("Aynı dilde birden çok DASH sesi var")
-            sets.size == 1 && sameFileRows.size == 1 -> sets.single()
+            sets.size == 1 && sameFileRows.size == 1 &&
+                (wanted.isEmpty() || lang(sets.single()).isBlank() ||
+                    AudioExportSpec.language(lang(sets.single())) == wanted) -> sets.single()
             else -> error("Seçilen ses DASH manifestiyle eşleşmiyor")
         }
         val representations = children(set, "Representation").filter { item ->

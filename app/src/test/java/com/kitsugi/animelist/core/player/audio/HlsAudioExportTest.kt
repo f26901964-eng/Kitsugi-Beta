@@ -45,6 +45,14 @@ class HlsAudioExportTest {
         assertEquals("https://media.example/path/tr.m3u8", picked.url)
     }
 
+    @Test fun `sole HLS rendition with conflicting declared language is not relabeled`() {
+        val master = "#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"a\",NAME=\"English\",LANGUAGE=\"en\",URI=\"en.m3u8\"\n#EXT-X-STREAM-INF:BANDWIDTH=1000,AUDIO=\"a\"\nvideo.m3u8"
+        val tr = AudioTrackIdentity("tr", "Turkish")
+        assertThrows(RuntimeException::class.java) {
+            HlsAudioExport.selectMaster(master, base, tr, listOf(tr))
+        }
+    }
+
     @Test fun `same language renditions without a unique name are not guessed`() {
         val content = """
             #EXTM3U

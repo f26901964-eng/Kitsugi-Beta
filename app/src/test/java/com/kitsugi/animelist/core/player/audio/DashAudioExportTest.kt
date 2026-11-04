@@ -62,6 +62,15 @@ class DashAudioExportTest {
         assertEquals(AudioExportHttp.Range(200, 299), parts[2].range)
     }
 
+    @Test fun `sole DASH set with conflicting declared language is not relabeled`() {
+        val xml = """<MPD type="static"><Period><AdaptationSet contentType="audio" lang="en">
+            <Representation id="voice"><BaseURL>en.m4a</BaseURL></Representation>
+            </AdaptationSet></Period></MPD>"""
+        assertThrows(RuntimeException::class.java) {
+            DashAudioExport.plan(xml, base, tr, listOf(tr))
+        }
+    }
+
     @Test fun `DASH ABR fallback refuses multiple player rows of the same language`() {
         val selected = AudioTrackIdentity("tr", "Turkish")
         val xml = """

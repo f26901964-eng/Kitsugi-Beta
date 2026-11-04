@@ -77,7 +77,9 @@ internal object HlsAudioExport {
             named.size > 1 || needsName -> error("HLS ses adı tek bir rendition ile eşleşmiyor")
             languageMatched.size == 1 -> languageMatched.single()
             languageMatched.size > 1 -> error("Aynı dilde birden çok HLS sesi var")
-            renditions.size == 1 && sameFileRows == 1 -> renditions.single()
+            renditions.size == 1 && sameFileRows == 1 &&
+                (wanted.isEmpty() || renditions.single()["LANGUAGE"].isNullOrBlank() ||
+                    AudioExportSpec.language(renditions.single()["LANGUAGE"]) == wanted) -> renditions.single()
             renditions.isNotEmpty() -> error("Seçilen ses HLS manifestiyle eşleşmiyor")
             else -> null
         }

@@ -27,9 +27,9 @@ internal object AudioExportTransport {
         key.lowercase(Locale.ROOT) !in setOf("user-agent", "accept", "accept-language", "referer", "origin")
     }
 
-    /** Never pre-consume an otherwise valid, possibly one-shot, direct media URL. */
+    /** Inspect ambiguous URLs in ONE response, even if CloudStream's default type was VIDEO. */
     fun needsSniff(url: String, declared: String?): Boolean {
-        if (known(url, declared) != null || declared == "progressive" ||
+        if (known(url, declared) != null ||
             !url.startsWith("http://", true) && !url.startsWith("https://", true)) {
             return false
         }
