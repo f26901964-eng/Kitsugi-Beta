@@ -19,17 +19,20 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import uy.kohesive.injekt.Injekt
 
-/** Published v1.6.24 DEX with deterministic responses, not a live site test. */
+/** Published DEX fixtures with deterministic responses, not a live site test. */
 class MangaTrPublishedApkTest {
-    @Test fun publishedApkRunsThroughHostSearchDetailChapterPageAndImage() = runBlocking {
+    @Test fun publishedV24RunsThroughHostBridge() = runBlocking { verifyPublishedApk("mangatr-v24.apk") }
+    @Test fun publishedV26RunsThroughHostBridge() = runBlocking { verifyPublishedApk("mangatr-v26.apk") }
+
+    private suspend fun verifyPublishedApk(fixtureName: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val assets = instrumentation.context.assets
-        assumeTrue("The CI-downloaded, checksum-pinned APK fixture is absent", assets.list("")!!.contains("mangatr-fixture.apk"))
+        assumeTrue("The CI-downloaded, checksum-pinned APK fixture is absent", assets.list("")!!.contains(fixtureName))
         val context = instrumentation.targetContext
-        val apk = File(context.codeCacheDir, "mangatr-fixture.apk")
+        val apk = File(context.codeCacheDir, fixtureName)
         // Delete a previous read-only file before writing again.
         apk.delete()
-        assets.open("mangatr-fixture.apk").use { input -> apk.outputStream().use { input.copyTo(it) } }
+        assets.open(fixtureName).use { input -> apk.outputStream().use { input.copyTo(it) } }
         assertTrue(apk.setReadOnly()) // Android 14 disallows writable dynamically loaded DEX.
 
         Injekt.addSingleton(Application::class.java, context.applicationContext as Application)
@@ -49,6 +52,7 @@ class MangaTrPublishedApkTest {
             val path = request.url.encodedPath
             val body = when {
                 path == "/arama.html" -> """<div class="arama-card"><a class="arama-card__title" href="/manga-chainsaw-man.html">Chainsaw Man</a></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
+                path == "/manga-list-sayfala.html" -> """<div class="media-card"><a class="media-card__title" href="/manga-chainsaw-man.html">Chainsaw Man</a></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
                 path == "/manga-chainsaw-man.html" -> """<h1 class="bento-hero-title">Chainsaw Man</h1><div id="results" data-manga="chainsaw-man"></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
                 path == "/cek/fetch_pages_manga.php" -> """<article class="bento-ep-card"><a class="bento-ep-title-link" href="/id-1">1. Bölüm</a><a class="fansub-group-item" href="/id-2">Diğer Fansub</a></article>""".toResponseBody("text/html; charset=utf-8".toMediaType())
                 path == "/id-1" || path == "/id-2" -> """<div class="reader"><img src="https://image.mngtr.site/page.png"></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
@@ -59,12 +63,25 @@ class MangaTrPublishedApkTest {
         }.build()
         // Inject only a test transport at the end of the plugin's real interceptor chain.
         // No production code or plugin implementation is replaced.
+        // Release extensions can obfuscate both KeiSource and its delegate field.
+        // Locate the initialized Lazy holding the exact client, not its name.
         var type: Class<*>? = plugin.javaClass
-        while (type != null && type.name != "keiyoushi.source.KeiSource") type = type.superclass
-        val clientDelegate = requireNotNull(type).getDeclaredField("client\$delegate")
-        clientDelegate.isAccessible = true
-        clientDelegate.set(plugin, lazyOf(fixtureClient))
+        var clientDelegate: java.lang.reflect.Field? = null
+        while (type != null && type != HttpSource::class.java && clientDelegate == null) {
+            clientDelegate = type.declaredFields.firstOrNull { field ->
+                if (!Lazy::class.java.isAssignableFrom(field.type)) return@firstOrNull false
+                field.isAccessible = true
+                val value = field.get(plugin) as? Lazy<*>
+                value != null && value.isInitialized() && value.value === originalClient
+            }
+            type = type.superclass
+        }
+        requireNotNull(clientDelegate).set(plugin, lazyOf(fixtureClient))
         val source = MihonSourceWrapper(plugin, context, "eu.kanade.tachiyomi.extension.tr.mangatr")
+        val filters = source.selectFilters()
+        assertTrue(filters.isNotEmpty())
+        val first = filters.first { it.values.size > 1 }
+        assertEquals("Chainsaw Man", source.fetchFilteredManga(2, mapOf(first.index to 1)).mangas.single().title)
         val search = source.fetchSearchManga(1, "Chainsaw Man")
         assertEquals("Chainsaw Man", search.mangas.single().title)
         val details = source.fetchMangaDetails("/manga-chainsaw-man.html")
