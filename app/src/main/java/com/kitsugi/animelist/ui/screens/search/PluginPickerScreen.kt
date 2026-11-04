@@ -440,10 +440,16 @@ fun PluginPickerScreen(
                                 ),
                                 cursorBrush = SolidColor(accentColor),
                                 lineLimits = TextFieldLineLimits.SingleLine,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = if (mediaMode == PortalMedia.MANGA) ImeAction.Search else ImeAction.Done
+                                ),
                                 onKeyboardAction = {
                                     keyboardController?.hide()
                                     focusManager.clearFocus()
+                                    val trimmedQuery = queryText.trim()
+                                    if (mediaMode == PortalMedia.MANGA && trimmedQuery.isNotEmpty() && mangaSources.isNotEmpty()) {
+                                        navState.openMangaBrowse(query = trimmedQuery)
+                                    }
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -615,6 +621,7 @@ fun PluginPickerScreen(
                     // ── Manga Kaynakları Listesi + Keşfet ────────────────────────────
                     MangaPortalList(
                         filteredSources = filteredMangaSources,
+                        hasAnyMangaSource = mangaSources.isNotEmpty(),
                         queryText = queryText,
                         selectedLang = selectedMangaLang,
                         accentColor = accentColor,
@@ -623,6 +630,11 @@ fun PluginPickerScreen(
                         letterIndexMap = mangaLetterIndexMap,
                         onOpenAll = { navState.openMangaBrowse() },
                         onOpenSource = { src -> navState.openMangaBrowse(sourceKey = src.stableSourceKey()) },
+                        onSearchQuery = { q ->
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                            navState.openMangaBrowse(query = q)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
@@ -783,6 +795,7 @@ private fun AlphabetRailWithOverlay(
 @Composable
 private fun MangaPortalList(
     filteredSources: List<MangaSource>,
+    hasAnyMangaSource: Boolean,
     queryText: String,
     selectedLang: String?,
     accentColor: Color,
@@ -791,25 +804,59 @@ private fun MangaPortalList(
     letterIndexMap: Map<String, Int>,
     onOpenAll: () -> Unit,
     onOpenSource: (MangaSource) -> Unit,
+    onSearchQuery: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val trimmedQuery = queryText.trim()
     if (filteredSources.isEmpty()) {
         Box(
             modifier = modifier,
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = if (queryText.isNotEmpty())
-                    KitsugiStrings.get(R.string.ui2_plugin_query_no_match, queryText)
-                else if (selectedLang != null)
-                    stringResource(R.string.bu_dilde_manga_kaynagi_yok)
-                else
-                    stringResource(R.string.aktif_manga_kaynagi_yok),
-                color = KitsugiColors.TextMuted,
-                fontSize = 14.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.padding(horizontal = 32.dp)
-            )
+            ) {
+                Text(
+                    text = if (queryText.isNotEmpty())
+                        KitsugiStrings.get(R.string.ui2_plugin_query_no_match, queryText)
+                    else if (selectedLang != null)
+                        stringResource(R.string.bu_dilde_manga_kaynagi_yok)
+                    else
+                        stringResource(R.string.aktif_manga_kaynagi_yok),
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 14.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                if (trimmedQuery.isNotEmpty() && hasAnyMangaSource) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(accentColor.copy(alpha = 0.14f))
+                            .border(1.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                            .clickable { onSearchQuery(trimmedQuery) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "${stringResource(R.string.manga_ara)}: \"$trimmedQuery\"",
+                            color = accentColor,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
     } else {
         Box(modifier = modifier) {
@@ -825,6 +872,35 @@ private fun MangaPortalList(
                             accentColor = accentColor,
                             onClick = onOpenAll
                         )
+                    }
+                } else if (trimmedQuery.isNotEmpty() && hasAnyMangaSource) {
+                    item(key = "search_manga_query_header") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(accentColor.copy(alpha = 0.12f))
+                                .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                                .clickable { onSearchQuery(trimmedQuery) }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "${stringResource(R.string.manga_ara)}: \"$trimmedQuery\"",
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 

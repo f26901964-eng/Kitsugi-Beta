@@ -162,14 +162,22 @@
 -dontwarn org.jsoup.helper.Re2jRegex
 # RxJava (manga extension compat)
 -keep class io.reactivex.** { *; }
+-keep interface io.reactivex.** { *; }
 -keepclassmembers class io.reactivex.** { *; }
 -keep class rx.** { *; }
+-keep interface rx.** { *; }
 -keepclassmembers class rx.** { *; }
 # Mihon / Tachiyomi / Keiyoushi extension host ABI & WebView boundary bridges
 -keep class eu.kanade.tachiyomi.** { *; }
+-keep interface eu.kanade.tachiyomi.** { *; }
 -keepclassmembers class eu.kanade.tachiyomi.** { *; }
+-keep class tachiyomi.core.** { *; }
+-keep interface tachiyomi.core.** { *; }
+-keepclassmembers class tachiyomi.core.** { *; }
 -keep class uy.kohesive.injekt.** { *; }
+-keep interface uy.kohesive.injekt.** { *; }
 -keepclassmembers class uy.kohesive.injekt.** { *; }
+-keep class org.brotli.dec.** { *; }
 -keep class androidx.webkit.** { *; }
 -keep interface org.chromium.support_lib_boundary.** { *; }
 -keep class org.chromium.support_lib_boundary.** { *; }
