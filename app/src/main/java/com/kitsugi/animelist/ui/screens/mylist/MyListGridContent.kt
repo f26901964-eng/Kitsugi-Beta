@@ -4,8 +4,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,15 +64,23 @@ internal fun LazyListScope.MyListGroupedContent(
                 items = rows,
                 key = { row -> "grid_row_${status.name}_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
             ) { row ->
+                // NOT: burada eskiden `height(IntrinsicSize.Min)` + kartlarda
+                // `weight(1f).fillMaxHeight()` kullanılıyordu. Ağırlıklı çocukların
+                // iç (intrinsic) yükseklik ölçümünde genişliği 0 geldiğinden posterin
+                // `aspectRatio`'su 0 yükseklik hesaplıyor, TÜM satır 0 piksele çöküyordu
+                // ("844 sonuç" yazıyor ama hiçbir kart görünmüyordu). Satır artık kendi
+                // içeriğiyle ölçülüyor; posterler üstten hizalı (uygulamadaki diğer tüm
+                // poster ızgaralarıyla aynı davranış).
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     row.forEach { entry ->
                         KitsugiMediaEntryCard(
                             entry = entry,
                             layoutId = selectedListLayoutId,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            modifier = Modifier.weight(1f),
                             onClick = { onEntryClick(entry) },
                             titleLanguage = titleLanguage,
                             scoreFormat = scoreFormat,
@@ -141,15 +148,19 @@ internal fun LazyListScope.MyListFlatContent(
             items = rows,
             key = { row -> "flat_grid_row_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
         ) { row ->
+            // Bkz. MyListGroupedContent: `IntrinsicSize.Min` + `fillMaxHeight()` +
+            // `weight` birleşimi aspectRatio posterlerde satırı 0 yüksekliğe çökertip
+            // listeyi boş gösteriyordu. İçerikle ölçülen satır + üstten hizalama kullanılır.
             Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 row.forEach { entry ->
                     KitsugiMediaEntryCard(
                         entry = entry,
                         layoutId = selectedListLayoutId,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier.weight(1f),
                         onClick = { onEntryClick(entry) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
