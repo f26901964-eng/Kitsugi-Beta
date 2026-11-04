@@ -49,7 +49,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/126804801054/logs" > /tmp/previous-sdk-job.log 2>&1 || true
+          gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/126804801054/logs" > /tmp/previous-sdk-job.log 2>&1 || true
           SUMMARY=$(tail -c 16000 /tmp/previous-sdk-job.log | cut -c1-500 | tr '\n' '|' || true)
           if [ -z "$SUMMARY" ]; then SUMMARY="Previous job log was empty"; fi
           jq -n --arg sha "$GITHUB_SHA" --arg summary "$SUMMARY" '{name:"mangatr-sdk-setup-detail",head_sha:$sha,status:"completed",conclusion:"neutral",output:{title:"Earlier emulator SDK setup failure",summary:$summary}}' > /tmp/sdk-detail.json
