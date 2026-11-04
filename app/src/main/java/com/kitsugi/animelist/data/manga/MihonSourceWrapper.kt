@@ -201,7 +201,9 @@ class MihonSourceWrapper(
                         )
                     }
                 }
-                val details = update.manga.toMangaDetails()
+                // Manga-TR's update parser creates a fresh SManga without assigning
+                // its lateinit url. Preserve the URL used for this exact request.
+                val details = update.manga.toMangaDetails(fallbackUrl = mangaUrl)
                 MangaLogger.logMangaDetails(context, mihonSource.name, mangaUrl, success = true)
                 details
             }
@@ -380,8 +382,12 @@ class MihonSourceWrapper(
 
     // ── Dönüşüm Yardımcıları ──────────────────────────────────────────────────
 
-    private fun SManga.toMangaDetails(): MangaDetails = MangaDetails(
-        url = url,
+    private fun SManga.toMangaDetails(fallbackUrl: String? = null): MangaDetails = MangaDetails(
+        url = try {
+            url.takeIf { it.isNotBlank() } ?: fallbackUrl.orEmpty()
+        } catch (e: UninitializedPropertyAccessException) {
+            fallbackUrl ?: throw e
+        },
         title = title,
         author = author,
         artist = artist,

@@ -42,6 +42,7 @@ class MihonMangaIntegrationTest {
         var requestedPage: Int? = null
         var failSearchWithLinkageError = false
         var failImageWithLinkageError = false
+        var returnDetailsWithoutUrl = false
         var chapterUrl: String? = null
         var updateCalls = 0
         private val updateActive = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -72,7 +73,8 @@ class MihonMangaIntegrationTest {
                 fun chapter(url: String, group: String) = SChapter.create().apply {
                     this.url = url; name = "1. Bölüm"; chapter_number = 1f; scanlator = group
                 }
-                return SMangaUpdate(manga, listOf(chapter("/id-1", "Bağımsız"), chapter("/id-2", "Diğer"), chapter("/id-1", "Tekrar")))
+                val details = if (returnDetailsWithoutUrl) SManga.create().apply { title = "Chainsaw Man" } else manga
+                return SMangaUpdate(details, listOf(chapter("/id-1", "Bağımsız"), chapter("/id-2", "Diğer"), chapter("/id-1", "Tekrar")))
             } finally { updateActive.set(false) }
         }
         override suspend fun getPageList(chapter: SChapter): List<Page> {
@@ -98,6 +100,16 @@ class MihonMangaIntegrationTest {
         assertTrue(error is java.io.IOException)
         assertTrue(error?.cause is NoSuchMethodError)
         Unit
+    }
+
+    @Test fun detailsKeepTheRequestedUrlWhenPluginDoesNotSetIt() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        Injekt.addSingleton(NetworkHelper::class.java, NetworkHelper(context))
+        val fake = FakeSource(byteArrayOf()).apply { returnDetailsWithoutUrl = true }
+        val wrapper = MihonSourceWrapper(fake, context, "eu.kanade.tachiyomi.extension.tr.mangatr")
+        val details = wrapper.fetchMangaDetails("/manga-chainsaw-man.html")
+        assertEquals("/manga-chainsaw-man.html", details.url)
+        assertEquals("Chainsaw Man", details.title)
     }
 
     @Test fun pluginImageLinkageFailureIsReportedAsSourceError() = runBlocking {
