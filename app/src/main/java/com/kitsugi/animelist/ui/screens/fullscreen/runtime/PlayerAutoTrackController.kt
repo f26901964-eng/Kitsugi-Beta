@@ -215,13 +215,10 @@ class PlayerAutoTrackController(
         if (decision.action == AutoTrackPolicy.Action.START_WATCHING && startHandled) return
         lastWriteAtMs = now
         if (decision.action == AutoTrackPolicy.Action.START_WATCHING) startHandled = true
-        // Sıra önemli: `applyEpisodeProgress` karar uygulanırken başarısız olursa sayaç
-        // ilerletilmemelidir, aksi hâlde bölüm bir daha asla listede ilerlemezdi.
-        if (isCompletion) {
-            if (!applyEpisodeProgress(positionMs, durationMs)) return
-            completionHandled = true
-        }
-
+        // Bölüm ilerlemesi + karar tek bir IO işinde, kilit altında yazılır. Sıra önemli:
+        // ilerleme yazılamazsa `completionHandled` ilerletilmemeli, aksi hâlde bölüm bir
+        // daha asla listede ilerlemezdi.
+        if (isCompletion) completionHandled = true
         applyDecision(decision, settings, positionMs, durationMs)
     }
 
@@ -312,6 +309,15 @@ class PlayerAutoTrackController(
         val currentIdentity = identity ?: return
         scope.launch(Dispatchers.IO) {
             writeMutex.withLock {
+                // 1) Bölüm ilerlemesi: geçmiş tablosu + liste satırı (durum yazımından bağımsız).
+                if (decision.action == AutoTrackPolicy.Action.ADVANCE_EPISODE ||
+                    decision.action == AutoTrackPolicy.Action.COMPLETE
+                ) {
+                    if (!applyEpisodeProgress(positionMs, durationMs)) {
+                        // Yazma başarısız: tekrar denenebilsin diye tamamlanma kilidi açılır.
+                        completionHandled = false
+                    }
+                }
                 val existing = entry
                 if (existing == null) {
                     if (!settings.addNewEntries) {
