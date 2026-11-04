@@ -5688,6 +5688,9 @@
     <string name="aktiviteyi_sil">Delete Activity</string>
     <string name="okunuyor">Reading</string>
     <string name="eklentilerde_ara_x_eklenti">Search extensions... (%1$s extensions)</string>
+    <string name="manga_kaynaklarinda_ara_x_kaynak">Search manga sources... (%1$s sources)</string>
+    <string name="tum_manga_kaynaklari">All Manga Sources</string>
+    <string name="aktif_tum_manga_kaynaklarinda_ara">Search across all active manga sources</string>
     <string name="hepsi">All</string>
     <string name="anime_dizi_veya_film_ara">Search anime, series or movies...</string>
     <string name="listeye_ekle_b366ba1">Add to list</string>

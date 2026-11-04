@@ -5690,6 +5690,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="aktiviteyi_sil">Aktiviteyi Sil</string>
     <string name="okunuyor">Okunuyor</string>
     <string name="eklentilerde_ara_x_eklenti">Eklentilerde ara... (%1$s eklenti)</string>
+    <string name="manga_kaynaklarinda_ara_x_kaynak">Manga kaynaklarında ara... (%1$s kaynak)</string>
+    <string name="tum_manga_kaynaklari">Tüm Manga Kaynakları</string>
+    <string name="aktif_tum_manga_kaynaklarinda_ara">Aktif tüm manga kaynaklarında ara</string>
     <string name="hepsi">Hepsi</string>
     <string name="anime_dizi_veya_film_ara">Anime, dizi veya film ara...</string>
     <string name="listeye_ekle_b366ba1">Listeye ekle</string>
