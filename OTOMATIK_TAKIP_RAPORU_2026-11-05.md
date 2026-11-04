@@ -56,6 +56,17 @@
 - **Ayar arayüzü:** Player → Gelişmiş → "Otomatik takip" bloğu (TR + EN, 7 ayar, canlı önizleme).
 - **Kaynak rozeti:** puan çubuğunda yazının hangi platforma işlendiği görünür (TMDB/AniList/… ).
 
+## 3b. Kaynak köprüsünün eksik halkaları (2. tur)
+
+| Sorun | Sonuç | Düzeltme |
+|-------|-------|----------|
+| Bangumi kimliği oynatıcıya hiç ulaşmıyordu | Bangumi'den açılan bölüm liste satırı bulunamıyor, yanlış kaynağa yazılabiliyordu | `bangumiId` → Stream/Player Activity → Screen → ViewModel → `PlaybackIdentity`; yeni satır **500M+id** kararlı kimliğiyle Bangumi uzayında |
+| Fragmanlar `videoUrl` ile açıldığında `videoId` boş kalıyordu | Tanıtım/jenerik oynatması "bölüm izlendi" sayılabiliyordu | `treatAsTrailer` bayrağı + tema/fragman çağrılarında `true` |
+| İndirilen bölüm oynatılırken kimlik aktarılmıyordu | Çevrimdışı izleme listeye hiç işlenmiyordu | `DownloadedPlayer`/`DownloadsScreen` yollarına `malId/aniListId/tmdbId/season/episode` |
+| Geçmiş ekranından devam ederken Bangumi kimliği yoktu | Aynı bölüm ikinci bir anahtarla yazılabiliyordu | `WatchHistoryEntry.bangumiId` + kayıt/oynatma yolları |
+| Ekran ile ViewModel geçmiş anahtarı farklıydı (bangumi eksik) | Aynı bölüm için ikinci geçmiş satırı | Ortak anahtar: `malId ?: aniListId ?: bangumiId ?: title.hashCode()` |
+| TMDB film/dizi satırı `simklId` ile eşleşmiyordu | Simkl'de tutulan film tekrar eklenebiliyordu | `PlaybackIdentity.simklId` + ayrı probe, TMDB satırı `tmdb` uzayında |
+
 ## 4. Dosya haritası
 
 ```

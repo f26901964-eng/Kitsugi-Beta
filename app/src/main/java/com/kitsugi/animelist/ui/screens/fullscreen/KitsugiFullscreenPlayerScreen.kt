@@ -120,6 +120,8 @@ fun KitsugiFullscreenPlayerScreen(
     malId: Int? = null,
     aniListId: Int? = null,
     tmdbId: Int? = null,
+    bangumiId: Int? = null,
+    treatAsTrailer: Boolean = false,
     season: Int = 1,
     episode: Int = 1,
     animeTitle: String = "",
@@ -259,6 +261,8 @@ fun KitsugiFullscreenPlayerScreen(
             malId = malId,
             aniListId = aniListId,
             tmdbId = tmdbId,
+            bangumiId = bangumiId,
+            treatAsTrailer = treatAsTrailer,
             season = season,
             episode = episode,
             animeTitle = animeTitle,
@@ -435,8 +439,10 @@ fun KitsugiFullscreenPlayerScreen(
     // Stream diagnostics
     var streamInfoData by remember { mutableStateOf(StreamInfoData(playerEngine = "ExoPlayer")) }
 
-    val mediaIdForHistory = remember(malId, aniListId, cs3Url, animeTitle) {
-        malId ?: aniListId
+    // Geçmiş anahtarı `KitsugiPlayerViewModel.getResolveMediaId()` ile AYNI olmalı, yoksa
+    // aynı bölüm için ikinci satır açılır ("devam et" yanlış yeri gösterir).
+    val mediaIdForHistory = remember(malId, aniListId, bangumiId, cs3Url, animeTitle) {
+        malId ?: aniListId ?: bangumiId
             ?: if (!cs3Url.isNullOrBlank()) cs3Url.hashCode()
                else animeTitle.hashCode()
     }

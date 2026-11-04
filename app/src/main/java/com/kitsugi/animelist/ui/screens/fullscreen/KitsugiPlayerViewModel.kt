@@ -742,6 +742,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private var malId: Int? = null
     private var aniListId: Int? = null
     private var tmdbId: Int? = null
+    /** Bangumi subject kimliği (Bangumi detayından açılan oynatmalar). */
+    private var bangumiId: Int? = null
+    /** Fragman/jenerik oynatması — otomatik liste takibi tamamen kapanır. */
+    private var treatAsTrailer: Boolean = false
     private var seasonNum: Int = 1
     private var animeTitle: String = ""
     private var titleEnglish: String? = null
@@ -774,6 +778,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         malId: Int?,
         aniListId: Int?,
         tmdbId: Int? = null,
+        bangumiId: Int? = null,
+        treatAsTrailer: Boolean = false,
         season: Int,
         episode: Int,
         animeTitle: String,
@@ -796,6 +802,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         this.malId = malId
         this.aniListId = aniListId
         this.tmdbId = tmdbId
+        this.bangumiId = bangumiId
+        this.treatAsTrailer = treatAsTrailer
         this.videoIdValue = videoId
         this.posterUrlValue = posterUrl
         this.seasonNum = season
@@ -1530,7 +1538,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             typeOf = { it.type },
             startOf = { it.startTime }
         )?.toLong()
-        val isTrailer = videoIdValue != null
+        val isTrailer = videoIdValue != null || treatAsTrailer
         val identity = com.kitsugi.animelist.data.repository.PlaybackListWriter.PlaybackIdentity(
             title = animeTitle.ifBlank { titleEnglish ?: titleRomaji ?: titleNative ?: _currentTitle.value },
             titleEnglish = titleEnglish,
@@ -1540,6 +1548,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             malId = malId,
             aniListId = aniListId,
             tmdbId = tmdbId,
+            bangumiId = bangumiId,
             year = startYear,
             posterUrl = posterUrlValue,
             // Tür tahmini: kaynak hangi katalogda tutuyorsa oraya yazılır. Anime kimliği
@@ -2071,8 +2080,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         orchestrator.stillWatching.applySettings(settings)
     }
 
+    /** `watch_history.mediaId` — ekran tarafındaki anahtarla birebir aynı olmalı. */
     private fun getResolveMediaId(): Int {
-        return malId ?: aniListId ?: animeTitle.hashCode()
+        return malId ?: aniListId ?: bangumiId ?: animeTitle.hashCode()
     }
 
     suspend fun getSavedPosition(mediaId: Int, episode: Int, addonName: String? = null): Long {

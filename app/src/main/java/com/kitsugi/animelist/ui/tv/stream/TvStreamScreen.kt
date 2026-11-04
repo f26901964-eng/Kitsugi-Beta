@@ -204,6 +204,7 @@ fun TvStreamScreen(
                     malId = args.malId,
                     aniListId = args.aniListId,
                     tmdbId = args.tmdbId,
+                    bangumiId = args.bangumiId,
                     season = args.season,
                     episode = args.episode,
                     animeTitle = args.title,

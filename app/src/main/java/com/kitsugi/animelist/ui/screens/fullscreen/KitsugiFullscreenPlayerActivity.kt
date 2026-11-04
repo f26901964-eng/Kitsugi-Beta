@@ -228,6 +228,17 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         const val EXTRA_MAL_ID = "extra_mal_id"
         const val EXTRA_ANILIST_ID = "extra_anilist_id"
         const val EXTRA_TMDB_ID = "extra_tmdb_id"
+        const val EXTRA_BANGUMI_ID = "extra_bangumi_id"
+
+        /**
+         * Bu oynatma bir TANITIM/JENERİK'tir (YouTube teması, fragman, önizleme).
+         *
+         * Otomatik liste takibi bu bayrakta **tamamen** kapanır: fragmanın sonuna gelmek
+         * "bölüm izlendi" demek değildir. `videoId` alanı bu yolu zaten işaretliyor; ancak
+         * fragman oynatmaları çoğu zaman yalnızca `videoUrl` ile açılıyordu ve oynatıcı
+         * bunu normal bölüm sanıyordu.
+         */
+        const val EXTRA_TREAT_AS_TRAILER = "extra_treat_as_trailer"
         const val EXTRA_EPISODE = "extra_episode"
         const val EXTRA_SEASON = "extra_season"
         const val EXTRA_ANIME_TITLE = "extra_anime_title"
@@ -282,6 +293,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             malId: Int? = null,
             aniListId: Int? = null,
             tmdbId: Int? = null,
+            bangumiId: Int? = null,
+            treatAsTrailer: Boolean = false,
             season: Int = 1,
             episode: Int = 1,
             animeTitle: String = "",
@@ -319,6 +332,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                         malId?.let { putExtra(EXTRA_MAL_ID, it) }
                         aniListId?.let { putExtra(EXTRA_ANILIST_ID, it) }
                         tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
+                        bangumiId?.let { putExtra(EXTRA_BANGUMI_ID, it) }
+                        if (treatAsTrailer) putExtra(EXTRA_TREAT_AS_TRAILER, true)
                         putExtra(EXTRA_SEASON, season)
                         putExtra(EXTRA_EPISODE, episode)
                         putExtra(EXTRA_ANIME_TITLE, animeTitle)
@@ -578,6 +593,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         val malId = intent.getIntExtra(EXTRA_MAL_ID, -1).takeIf { it != -1 }
         val aniListId = intent.getIntExtra(EXTRA_ANILIST_ID, -1).takeIf { it != -1 }
         val tmdbId = intent.getIntExtra(EXTRA_TMDB_ID, -1).takeIf { it != -1 }
+        val bangumiId = intent.getIntExtra(EXTRA_BANGUMI_ID, -1).takeIf { it != -1 }
+        val treatAsTrailer = intent.getBooleanExtra(EXTRA_TREAT_AS_TRAILER, false)
         val season = intent.getIntExtra(EXTRA_SEASON, 1)
         val episode = intent.getIntExtra(EXTRA_EPISODE, 1)
         val animeTitle = intent.getStringExtra(EXTRA_ANIME_TITLE) ?: ""
@@ -718,6 +735,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                     malId            = malId,
                     aniListId        = aniListId,
                     tmdbId           = tmdbId,
+                    bangumiId        = bangumiId,
+                    treatAsTrailer   = treatAsTrailer,
                     season           = season,
                     episode          = episode,
                     animeTitle       = animeTitle,

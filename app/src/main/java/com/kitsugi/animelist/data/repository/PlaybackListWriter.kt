@@ -68,6 +68,12 @@ object PlaybackListWriter {
         val tmdbId: Int? = null,
         /** Simkl kimliği (varsa satır doğrudan Simkl uzayında açılır). */
         val simklId: Int? = null,
+        /**
+         * Bangumi subject kimliği. Oynatıcı Bangumi detayından açıldığında taşınır;
+         * `malId` alanına **kararlı** (500M + id) biçimde yazılır ki satır kendi
+         * listesinde doğru kimlikle dursun.
+         */
+        val bangumiId: Int? = null,
         val year: Int? = null,
         val posterUrl: String? = null,
         val mediaType: MediaType? = null,
@@ -189,6 +195,12 @@ object PlaybackListWriter {
         )
         val probes = mutableListOf<MediaEntry>()
         resolved.malId?.let { probes.add(probe("mal", it)) }
+        // Bangumi subject kimliği: `MediaIdentity` ham (1..99M) değeri bangumi uzayında okur.
+        identity.bangumiId?.takeIf { it > 0 }?.let { id ->
+            if (probes.none { it.source == "bangumi" && it.malId == id }) {
+                probes.add(probe("bangumi", id))
+            }
+        }
         // Simkl kimliği `malId` alanında değil kendi kolonunda yaşar; ayrı satır olarak denenir.
         identity.simklId?.takeIf { it > 0 }?.let { id ->
             probes.add(
@@ -273,6 +285,9 @@ object PlaybackListWriter {
         val source = when {
             // Anime/manga uzayı: bağlı ilk anime-manga servisi
             type == MediaType.Anime || type == MediaType.Manga -> when {
+                // Oynatma Bangumi'den açıldıysa satır Bangumi uzayında açılır (kullanıcı
+                // orada tutuyorsa oraya yazılmalı); diğer kaynaklar çapraz eşitlemeyle alır.
+                identity.bangumiId != null && connected.bangumi -> "bangumi"
                 resolved.malId != null && connected.mal -> "mal"
                 resolved.aniListId != null && connected.aniList -> "anilist"
                 connected.aniList -> "anilist"
@@ -298,9 +313,12 @@ object PlaybackListWriter {
         }
         val stableMalId = when (source) {
             "anilist" -> resolved.aniListId?.let { 100_000_000 + it } ?: resolved.malId
+            // Bangumi satırı KENDİ subject kimliğini kararlı biçimde taşır; MAL kimliği
+            // yazılsaydı satır Bangumi listesinde yanlış yapımı gösterirdi.
+            "bangumi" -> identity.bangumiId?.let { 500_000_000 + it }
+                ?: resolved.malId
             "kitsu" -> resolved.malId
             "shikimori" -> resolved.malId
-            "bangumi" -> resolved.malId
             else -> resolved.malId
         }
         val auto = EntryAutoRules.resolveOnStatusChange(

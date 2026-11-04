@@ -25,6 +25,7 @@ class TvPlayerActivity : ComponentActivity() {
         const val EXTRA_MAL_ID = "extra_mal_id"
         const val EXTRA_ANILIST_ID = "extra_anilist_id"
         const val EXTRA_TMDB_ID = "extra_tmdb_id"
+        const val EXTRA_BANGUMI_ID = "extra_bangumi_id"
         const val EXTRA_SEASON = "extra_season"
         const val EXTRA_EPISODE = "extra_episode"
         const val EXTRA_ANIME_TITLE = "extra_anime_title"
@@ -52,6 +53,7 @@ class TvPlayerActivity : ComponentActivity() {
             malId: Int? = null,
             aniListId: Int? = null,
             tmdbId: Int? = null,
+            bangumiId: Int? = null,
             season: Int = 1,
             episode: Int = 1,
             animeTitle: String = "",
@@ -79,6 +81,7 @@ class TvPlayerActivity : ComponentActivity() {
                     malId?.let { putExtra(EXTRA_MAL_ID, it) }
                     aniListId?.let { putExtra(EXTRA_ANILIST_ID, it) }
                     tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
+                    bangumiId?.let { putExtra(EXTRA_BANGUMI_ID, it) }
                     putExtra(EXTRA_SEASON, season)
                     putExtra(EXTRA_EPISODE, episode)
                     putExtra(EXTRA_ANIME_TITLE, animeTitle)
@@ -129,6 +132,7 @@ class TvPlayerActivity : ComponentActivity() {
         val malId = intent.getIntExtra(EXTRA_MAL_ID, -1).takeIf { it != -1 }
         val aniListId = intent.getIntExtra(EXTRA_ANILIST_ID, -1).takeIf { it != -1 }
         val tmdbId = intent.getIntExtra(EXTRA_TMDB_ID, -1).takeIf { it != -1 }
+        val bangumiId = intent.getIntExtra(EXTRA_BANGUMI_ID, -1).takeIf { it != -1 }
         val season = intent.getIntExtra(EXTRA_SEASON, 1)
         val episode = intent.getIntExtra(EXTRA_EPISODE, 1)
         val animeTitle = intent.getStringExtra(EXTRA_ANIME_TITLE) ?: ""
@@ -159,6 +163,7 @@ class TvPlayerActivity : ComponentActivity() {
                     malId = malId,
                     aniListId = aniListId,
                     tmdbId = tmdbId,
+                    bangumiId = bangumiId,
                     season = season,
                     episode = episode,
                     animeTitle = animeTitle,

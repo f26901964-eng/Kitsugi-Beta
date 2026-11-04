@@ -142,6 +142,7 @@ fun WatchHistoryScreen(
                                     malId = entry.malId,
                                     aniListId = entry.aniListId,
                                     tmdbId = entry.tmdbId,
+                                    bangumiId = entry.bangumiId,
                                     season = entry.season,
                                     episode = entry.episode,
                                     animeTitle = entry.animeTitle,

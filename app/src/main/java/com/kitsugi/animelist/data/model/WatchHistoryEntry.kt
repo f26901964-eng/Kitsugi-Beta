@@ -15,6 +15,8 @@ data class WatchHistoryEntry(
     val malId: Int? = null,
     val aniListId: Int? = null,
     val tmdbId: Int? = null,
+    /** Bangumi subject kimliği (Bangumi kaynaklı oynatmalar). */
+    val bangumiId: Int? = null,
     // Direkt oynatma için saklanan son stream URL'si ve başlıkları.
     // Boş değilse geçmişten devam ederken KitsugiStreamActivity'yi atlar.
     val streamUrl: String? = null,

@@ -587,7 +587,7 @@ class PlayerAutoTrackController(
      * bulamazdı.
      */
     private fun mediaIdForHistory(identity: PlaybackListWriter.PlaybackIdentity): Int =
-        identity.malId ?: identity.aniListId ?: identity.title.hashCode()
+        identity.malId ?: identity.aniListId ?: identity.bangumiId ?: identity.title.hashCode()
 
     private fun WatchStatus.toTrackStatus(): AutoTrackPolicy.Status = when (this) {
         WatchStatus.Watching -> AutoTrackPolicy.Status.WATCHING

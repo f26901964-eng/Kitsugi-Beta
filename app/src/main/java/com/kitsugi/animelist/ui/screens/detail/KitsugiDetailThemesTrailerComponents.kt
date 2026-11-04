@@ -433,7 +433,10 @@ fun ThemePlayerContainer(
                                     KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                                         context = context,
                                         videoUrl = url,
-                                        headers = YouTubeRequestPolicy.headersForInlineUrl(url)
+                                        headers = YouTubeRequestPolicy.headersForInlineUrl(url),
+                                        // Tema/fragman: oynatıcı listedeki yapımı
+                                        // "izleniyor" yapmamalı.
+                                        treatAsTrailer = true
                                     )
                                 }
                             },
@@ -475,7 +478,8 @@ fun ThemePlayerContainer(
                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                             context = context,
                             videoUrl = url,
-                            headers = YouTubeRequestPolicy.headersForInlineUrl(url)
+                            headers = YouTubeRequestPolicy.headersForInlineUrl(url),
+                            treatAsTrailer = true
                         )
                     }
                 ) {

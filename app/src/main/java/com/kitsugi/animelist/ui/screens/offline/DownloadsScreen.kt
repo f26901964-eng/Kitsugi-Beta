@@ -436,12 +436,22 @@ fun DownloadsScreen(
                                         localMedia?.let { OfflinePlaybackHelper.buildPlayerParams(it) }
                                     }
                                     if (params != null) {
+                                        // İndirilen bölüm de aynı otomatik takip hattından geçer:
+                                        // kimlik aktarılmazsa oynatıcı hangi yapım olduğunu
+                                        // bilemez ve liste hiç güncellenmez.
                                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                                             context = context,
                                             videoUrl = params.videoUri,
                                             title = params.title,
                                             headers = params.headers,
-                                            subtitles = params.subtitles
+                                            subtitles = params.subtitles,
+                                            malId = download.malId,
+                                            aniListId = download.aniListId,
+                                            tmdbId = download.tmdbId,
+                                            season = download.season,
+                                            episode = download.episode,
+                                            animeTitle = download.animeTitle,
+                                            posterUrl = download.posterUrl
                                         )
                                     } else {
                                         download.localPath?.let { path ->
@@ -468,7 +478,14 @@ fun DownloadsScreen(
                                                 videoUrl = "file://$path",
                                                 title = KitsugiStrings.get(R.string.title_bolum_episode, download.animeTitle, download.episode),
                                                 headers = emptyMap(),
-                                                subtitles = companionSubs
+                                                subtitles = companionSubs,
+                                                malId = download.malId,
+                                                aniListId = download.aniListId,
+                                                tmdbId = download.tmdbId,
+                                                season = download.season,
+                                                episode = download.episode,
+                                                animeTitle = download.animeTitle,
+                                                posterUrl = download.posterUrl
                                             )
                                         }
                                     }
