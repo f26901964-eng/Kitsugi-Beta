@@ -17757,4 +17757,10 @@
     <string name="inline_video_unsupported_title">This video could not be played inline</string>
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
+    <!-- Player episode list (the drawer never opens empty) -->
+    <string name="bolum_listesi_yukleniyor">Preparing episode list…</string>
+    <string name="bolum_listesi_guncelleniyor">Updating episode list…</string>
+    <string name="bolum_listesi_bos">Episode list unavailable</string>
+    <string name="bolum_listesi_bos_ipucu">The detail page, MAL/AniList/TMDB and the active addon were tried. You can retry.</string>
+    <string name="bolum_listesi_film">Movies do not have an episode list.</string>
 </resources>

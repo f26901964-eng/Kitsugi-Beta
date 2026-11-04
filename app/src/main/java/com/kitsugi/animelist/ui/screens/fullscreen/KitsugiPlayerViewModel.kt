@@ -183,6 +183,22 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private val _episodesList = MutableStateFlow<List<KitsugiStreamingEpisode>>(emptyList())
     val episodesList: StateFlow<List<KitsugiStreamingEpisode>> = _episodesList.asStateFlow()
 
+    /**
+     * Bölüm listesi (çekmece) arka planda çözülüyor mu?
+     * Çekmece boşken kullanıcıya "yükleniyor" göstergesi göstermek için kullanılır.
+     */
+    private val _episodesLoading = MutableStateFlow(false)
+    val episodesLoading: StateFlow<Boolean> = _episodesLoading.asStateFlow()
+
+    /** Çoklu kaynaklı bölüm çözücü (detay önbelleği → MAL/AniList/TMDB → eklenti → sentez). */
+    private val episodesResolver by lazy {
+        com.kitsugi.animelist.data.repository.PlayerEpisodeListResolver.create(context)
+    }
+
+    /** Hangi içerik için çözümleme yapıldı? (aynı içerikte tekrar tekrar ağa çıkılmaz) */
+    private var episodesResolvedForKey: String? = null
+    private var episodesLoadJob: Job? = null
+
     private val _userCancelledBinge = MutableStateFlow(false)
     var userCancelledBinge: Boolean
         get() = _userCancelledBinge.value
@@ -375,6 +391,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             hideSeekBar()
             _sheetShown.value = KitsugiSheets.None
             _panelShown.value = KitsugiPanels.None
+            // Bölüm listesi çekmecesi boş açılmasın: liste eksikse arka planda tamamla.
+            if (dialog == KitsugiDialogs.EpisodeList) {
+                ensureEpisodesLoaded()
+            }
         }
     }
 
@@ -1021,26 +1041,116 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private suspend fun loadEpisodes() {
-        if (malId != null || aniListId != null) {
-            val client = KitsugiMediaTabsClient()
-            val source = if (malId != null) "mal" else "anilist"
-            val id = malId ?: aniListId
-            try {
-                val list = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    client.fetchEpisodes(
-                        source = source,
-                        externalId = id,
-                        mediaType = com.kitsugi.animelist.model.MediaType.Anime,
-                        realMalId = malId,
-                        context = context
-                    )
-                }
-                _episodesList.value = list
-            } catch (e: Exception) {
-                Log.e("KitsugiPlayerViewModel", "Error fetching episodes", e)
-            }
+    /**
+     * Bölüm listesini çözer. Eskiden yalnızca MAL/AniList kimliği olan içeriklerde
+     * çalışıyordu; TMDB, Simkl ya da yalnızca eklenti (CS3) üzerinden açılan içeriklerde
+     * liste boş kalıyor ve "Bölüm Listesi" çekmecesi bomboş açılıyordu.
+     *
+     * Artık sıra: detay sayfası önbelleği → MAL/AniList/TMDB → açık eklenti → sentez.
+     * Sonuç hiçbir zaman boş kalmaz ([PlayerEpisodeListResolver]).
+     */
+    private suspend fun loadEpisodes(force: Boolean = false) {
+        if (_isMovie.value) {
+            _episodesList.value = emptyList()
+            return
         }
+        val key = episodeResolutionKey()
+        val current = _currentEpisode.value
+        // Bu içerik için liste zaten çözüldüyse ağa tekrar çıkılmaz; yalnızca oynatılan
+        // bölüm listede yoksa yerel olarak eklenir (bölüm geçişlerinde liste hep dolu kalır).
+        if (!force && key == episodesResolvedForKey) {
+            appendEpisodeIfMissing(current)
+            return
+        }
+        if (_episodesLoading.value && !force) return
+
+        _episodesLoading.value = true
+        try {
+            val request = com.kitsugi.animelist.data.repository.PlayerEpisodeListResolver.Request(
+                malId = malId,
+                aniListId = aniListId,
+                tmdbId = tmdbId,
+                season = seasonNum,
+                currentEpisode = current,
+                isMovie = _isMovie.value,
+                totalEpisodes = knownTotalEpisodeCount(),
+                title = animeTitle,
+                alternativeTitles = (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .distinct(),
+                startYear = startYear,
+                cs3Url = cs3Url,
+                cs3ApiName = cs3ApiName
+            )
+            val resolved = episodesResolver.resolve(request)
+            if (resolved.isNotEmpty()) {
+                _episodesList.value = resolved
+                episodesResolvedForKey = key
+            } else if (_episodesList.value.isEmpty()) {
+                Log.w("KitsugiPlayerViewModel", "Bölüm listesi boş döndü ($key)")
+            }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (e: Exception) {
+            Log.e("KitsugiPlayerViewModel", "Error fetching episodes", e)
+        } finally {
+            _episodesLoading.value = false
+        }
+    }
+
+    /**
+     * Bölüm listesi çekmecesi açıldığında çağrılır: liste eksikse arka planda tamamlar.
+     * Çekmece bu sayede hiçbir zaman boş açılmaz.
+     */
+    fun ensureEpisodesLoaded(force: Boolean = false) {
+        if (_episodesLoading.value && !force) return
+        episodesLoadJob?.takeIf { it.isActive && !force }?.let { return }
+        episodesLoadJob = viewModelScope.launch { loadEpisodes(force = force) }
+    }
+
+    /** Kullanıcı "Yeniden Dene"ye bastığında tüm kaynaklar sıfırdan denenir. */
+    fun refreshEpisodes() {
+        episodesResolvedForKey = null
+        ensureEpisodesLoaded(force = true)
+    }
+
+    /**
+     * Çözülmüş listede oynatılan bölüm yoksa (ör. sentetik liste kısa kaldıysa)
+     * numaralı satırları yerelde tamamlar. Böylece "sıradaki/önceki bölüm" her
+     * zaman listede görünür.
+     */
+    private fun appendEpisodeIfMissing(episode: Int) {
+        if (episode <= 0) return
+        val existing = _episodesList.value
+        if (existing.any { it.episodeNumber == episode }) return
+        val highest = existing.mapNotNull { it.episodeNumber }.maxOrNull() ?: 0
+        val missing = (highest + 1..episode).map { number ->
+            KitsugiStreamingEpisode(
+                title = KitsugiStrings.get(R.string.inline_episode_1_s_dc662be, number),
+                thumbnail = null,
+                url = null,
+                site = "Kitsugi",
+                seasonNumber = seasonNum.takeIf { it > 0 } ?: 1,
+                episodeNumber = number
+            )
+        }
+        if (missing.isEmpty()) return
+        _episodesList.value = (existing + missing).sortedBy { it.episodeNumber }
+    }
+
+    private fun episodeResolutionKey(): String = "$malId|$aniListId|$tmdbId|$seasonNum"
+
+    /** Yerel veritabanından bilinen toplam bölüm sayısı (varsa). */
+    private suspend fun knownTotalEpisodeCount(): Int? {
+        val candidates = listOfNotNull(malId, aniListId)
+        if (candidates.isEmpty()) return null
+        return runCatching {
+            val dao = KitsugiDatabase.getDatabase(context).mediaEntryDao()
+            candidates.firstNotNullOfOrNull { id ->
+                dao.getByMalId(id)?.total?.takeIf { it > 0 }
+            }
+        }.getOrNull()
     }
 
     suspend fun fetchStreamsForEpisode(nextEp: Int): List<StreamSource> = withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -1184,6 +1294,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     _currentTitle.value = KitsugiStrings.get(R.string.title_bolum_episode, animeTitle, targetEp)
                     _currentSourceIndex.value = streams.indexOf(targetStream)
                     _currentAddonName.value = targetStream.addonName
+                    // Yeni bölüm listede yoksa çekmeceyi tamamla (liste hep dolu kalsın).
+                    if (_episodesList.value.none { it.episodeNumber == targetEp }) {
+                        ensureEpisodesLoaded()
+                    }
                     // AniSkip: yeni bölüm için zaman damgalarını yeniden yükle
                     val skipMalId = malId
                     if (skipMalId != null) {

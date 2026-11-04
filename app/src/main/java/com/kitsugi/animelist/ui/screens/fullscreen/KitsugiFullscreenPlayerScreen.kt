@@ -283,6 +283,7 @@ fun KitsugiFullscreenPlayerScreen(
     val currentAddonName by viewModel.currentAddonName.collectAsState()
     val currentEpisode by viewModel.currentEpisode.collectAsState()
     val episodesList by viewModel.episodesList.collectAsState()
+    val episodesLoading by viewModel.episodesLoading.collectAsState()
     val userCancelledBinge by viewModel.userCancelledBingeFlow.collectAsState()
     val isResolvingStream by viewModel.isResolvingStreamFlow.collectAsState()
     val nextEpisodeLoading by viewModel.nextEpisodeLoading.collectAsState()
@@ -1599,7 +1600,10 @@ fun KitsugiFullscreenPlayerScreen(
                             playEpisode(ep)
                         },
                         onDismissRequest = { viewModel.showDialog(KitsugiDialogs.None) },
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
+                        episodesLoading = episodesLoading,
+                        isMovie = isMovie,
+                        onRetryEpisodes = { viewModel.refreshEpisodes() }
                     )
 
                     if (showResumeDialog) {

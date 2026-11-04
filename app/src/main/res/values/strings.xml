@@ -17762,4 +17762,10 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
     <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
     <string name="inline_open_fullscreen">Tam ekranda aç</string>
+    <!-- Oynatıcı bölüm listesi (çekmece hiçbir zaman boş kalmaz) -->
+    <string name="bolum_listesi_yukleniyor">Bölüm listesi hazırlanıyor…</string>
+    <string name="bolum_listesi_guncelleniyor">Bölüm listesi güncelleniyor…</string>
+    <string name="bolum_listesi_bos">Bölüm listesi alınamadı</string>
+    <string name="bolum_listesi_bos_ipucu">Detay sayfası, MAL/AniList/TMDB ve açık eklenti denendi. Yeniden deneyebilirsin.</string>
+    <string name="bolum_listesi_film">Film içeriklerinde bölüm listesi bulunmaz.</string>
 </resources>
