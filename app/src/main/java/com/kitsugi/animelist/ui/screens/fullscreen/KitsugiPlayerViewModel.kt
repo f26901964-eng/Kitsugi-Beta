@@ -2080,7 +2080,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         orchestrator.stillWatching.applySettings(settings)
     }
 
-    /** `watch_history.mediaId` — ekran tarafındaki anahtarla birebir aynı olmalı. */
+    /**
+     * `watch_history.mediaId` — **tek anahtar**.
+     *
+     * Aynı bölüm için birden fazla geçmiş satırı açılmaması için oynatıcı ekranı, harici
+     * oynatıcı dönüşü ve akış ekranı AYNI anahtarı kullanmak zorundadır. Sıra:
+     * `malId → aniListId → bangumiId → başlık özeti`.
+     */
     private fun getResolveMediaId(): Int {
         return malId ?: aniListId ?: bangumiId ?: animeTitle.hashCode()
     }
