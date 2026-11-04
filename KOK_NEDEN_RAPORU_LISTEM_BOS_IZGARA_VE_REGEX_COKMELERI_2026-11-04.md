@@ -12,6 +12,11 @@ görüntüleme hatası tespit edildi; üçü de düzeltildi.
 Listem sayfasında sonuç sayacı dolu (ör. 844) fakat altındaki alan tamamen boş.
 Özellikle **poster ızgarası** düzeninde (`grid_2col`) ve/veya yatay tablette.
 
+**Ekran görüntüsü teyidi:** Sağ üstteki düzen ikonu `GridView` (dört kare). Kodda
+`"grid_2col" -> Icons.Rounded.GridView` eşlemesi olduğundan aktif düzen **grid_2col**.
+Ayrıca hiçbir durum başlığı ("İzleniyor" vb.) görünmüyor → düz akış + ızgara satırları
+0 yüksekliğe çökmüş. Bulgular kök nedenle birebir örtüşüyor.
+
 ### Kök neden
 `MyListGridContent.kt` içindeki ızgara satırları şu kalıpla çiziliyordu:
 
