@@ -10,6 +10,9 @@ class AudioExportSpecTest {
     @Test fun `language normalization and filenames`() {
         assertEquals("tr", AudioExportSpec.language("tur-TR"))
         assertEquals("ja", AudioExportSpec.language("JPN_jp"))
+        assertEquals("tr", AudioExportSpec.language("Türkçe"))
+        assertEquals("tr", AudioExportSpec.language("Turkish"))
+        assertEquals("en", AudioExportSpec.language("English"))
         assertEquals("", AudioExportSpec.language("und"))
         assertEquals("Hello_World", AudioExportSpec.filenamePart("  Hello/World  ", "untitled"))
     }

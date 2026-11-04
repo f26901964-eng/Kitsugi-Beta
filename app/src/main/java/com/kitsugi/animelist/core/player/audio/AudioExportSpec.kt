@@ -17,7 +17,10 @@ internal object AudioExportSpec {
         val code = raw?.trim()?.lowercase(Locale.ROOT)?.replace('_', '-')?.substringBefore('-').orEmpty()
         return when (code) {
             "und", "unknown", "", "mul", "zxx" -> ""
-            "tur" -> "tr"; "eng" -> "en"; "jpn" -> "ja"; "kor" -> "ko"
+            "tur", "turkish", "türkçe", "turkce" -> "tr"
+            "eng", "english", "ingilizce" -> "en"
+            "jpn", "japanese", "japonca" -> "ja"
+            "kor", "korean", "korece" -> "ko"
             "deu", "ger" -> "de"; "fra", "fre" -> "fr"; "spa" -> "es"
             "ita" -> "it"; "rus" -> "ru"; "zho", "chi" -> "zh"
             "ara" -> "ar"; "por" -> "pt"; "hin" -> "hi"
