@@ -3,6 +3,8 @@ package com.kitsugi.animelist.core.player.engine
 import android.content.Context
 import android.util.Log
 import android.view.View
+import com.kitsugi.animelist.core.player.DolbyVisionHint
+import com.kitsugi.animelist.core.player.DolbyVisionStreamHints
 import com.kitsugi.animelist.core.player.SubtitleInput
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
 import com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption
@@ -52,6 +54,23 @@ class MpvPlayerEngine(
     private var lastPositionNotifyAtMs = -1L
     /** Görüntü çıkışını (vo) kuran ağır init seçenekleri yalnızca bir kez uygulanır. */
     private var initOptionsApplied = false
+
+    // ── Dolby Vision otomatik düzeltmesi ─────────────────────────────────────
+    // Varsayılan çıkış `vo=gpu` DV RPU'sunu uygulamaz; P5 içerik yeşil/mor çıkar.
+    // Akış "DV" olarak etiketliyse gpu-next + (P5/bilinmez profilde) yazılım
+    // çözme uygularız. Bkz. [MpvDolbyVisionPolicy].
+    /** Bu akışın başlık/ad/URL'den çıkarılan DV ipucu. */
+    private var dvHint: DolbyVisionHint? = null
+    /** applyInitOptions'un uygulayacağı vo (DV planı dahil). */
+    private var resolvedVoOption: String? = null
+    /** applyInitOptions'un uygulayacağı hwdec (DV planı dahil). */
+    private var resolvedHwdecOption: String? = null
+    /** En son uygulanan DV planı; gereksiz vo yeniden kurulumunu önler. */
+    private var appliedDvPlanKey: String = ""
+    /** `gpu-next` bu libmpv derlemesinde gerçekten var mı (bir kez ölçülür). */
+    private var gpuNextSupported: Boolean? = null
+    /** DV var ama gpu-next yok uyarısı bu akış için gösterildi mi? */
+    private var dvWarningShownForLoad: Boolean = false
     private var focusController: com.kitsugi.animelist.core.player.MpvAudioFocusController? = null
     private fun audioFocus(): com.kitsugi.animelist.core.player.MpvAudioFocusController =
         focusController ?: com.kitsugi.animelist.core.player.MpvAudioFocusController(
@@ -144,7 +163,13 @@ class MpvPlayerEngine(
             if (released) return false
             val view = mpvView ?: return false
             return runCatching {
-                view.isVideoOutputActiveNow() && view.hasVisibleVideoSurface()
+                // A valid Surface + `vo-configured` can still describe a black screen:
+                // no decoded frame may have reached the VO yet. Require video-out
+                // dimensions as well, and re-check the currently attached Surface so
+                // PiP/fullscreen recreation cannot reuse a stale healthy state.
+                view.isVideoOutputActiveNow() &&
+                    view.hasVisibleVideoSurface() &&
+                    view.hasVideoOutputFrameNow()
             }.getOrDefault(false)
         }
     override var currentState: PlayerEngine.State = PlayerEngine.State.IDLE
@@ -207,7 +232,7 @@ class MpvPlayerEngine(
     private var pendingHeaders: Map<String, String> = emptyMap()
     private var pendingSubtitles: List<SubtitleInput> = emptyList()
     private var pendingStartPositionMs: Long = 0L
-    private var pendingAudioUrl: String? = null
+    private var pendingAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> = emptyList()
 
     /** Hazırlık sırasında motorun aldığı SubtitleInput listesi (dahili/harici bayrağını taşır). */
     private var preparedSubtitles: List<SubtitleInput> = emptyList()
@@ -228,6 +253,12 @@ class MpvPlayerEngine(
     private var hasExternalAudio: Boolean = false
     /** Harici altyazılar beklenmeden de ilk seçim yapılsın diye zorlanmış değerlendirme. */
     private var selectionForced: Boolean = false
+    /**
+     * Kullanıcı bu medya için ses/altyazı parçasını ELLE değiştirdi mi? Oynatma sırasında
+     * sonradan gelen altyazılar eklendiğinde tercih politikası yalnızca kullanıcı seçim
+     * yapmadıysa yeniden uygulanır (kullanıcının seçimi asla ezilmez).
+     */
+    private var userChangedTracks: Boolean = false
 
     // ──── Observed properties (Aniyomi modeli) ───────────────────────────────
     // Bu liste, MPV başlatılırken tek seferlik kayıt yapılır.
@@ -284,17 +315,26 @@ class MpvPlayerEngine(
     override suspend fun prepare(
         videoUrl: String,
         audioUrl: String?,
+        externalAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>,
+        streamTypeHint: String?,
         headers: Map<String, String>,
         subtitles: List<SubtitleInput>,
         startPositionMs: Long,
         addonName: String?,
         isCS: Boolean,
         streamTitle: String?,
-        qualityValue: Int?
+        qualityValue: Int?,
+        mediaType: com.kitsugi.animelist.core.player.StreamMediaType?
     ) {
         this.videoUrl = videoUrl
         this.currentAddonName = addonName
         this.streamTitle = streamTitle
+        // Dolby Vision ipucu (başlık / eklenti adı / dosya adı) — vo/hwdec planı için.
+        dvHint = DolbyVisionStreamHints.detect(streamTitle, addonName, videoUrl)
+        dvWarningShownForLoad = false
+        dvHint?.let {
+            Log.i(TAG, "DV_HINT: profile=${it.profile ?: "unknown"} match=\"${it.matched}\" host=${videoUrl.safeHost()}")
+        }
         // Yeni ortam için otomatik parça seçimini sıfırla
         this.preparedSubtitles = subtitles
         this.initialSelectionDone = false
@@ -306,11 +346,12 @@ class MpvPlayerEngine(
         this.pendingSubtitles = subtitles
         this.pendingStartPositionMs = startPositionMs
 
-        this.pendingAudioUrl = audioUrl
+        this.pendingAudioTracks = mergeAudioTracks(audioUrl, externalAudioTracks)
         val view = mpvView
         if (view != null) {
+            syncDolbyVisionOptions(view)
             applyInitOptions(view)
-            beginLoad(videoUrl, audioUrl, headers, startPositionMs)
+            beginLoad(videoUrl, pendingAudioTracks, headers, startPositionMs)
             view.setMedia(videoUrl, headers, startPositionMs, forceReload = true)
             setupCustomButtons()
         }
@@ -402,6 +443,7 @@ class MpvPlayerEngine(
         if (trackId >= 0 && mpvView?.mpv?.getPropertyString("sid")?.toIntOrNull() == trackId) return
         initialSelectionDone = true
         selectionForced = true
+        userChangedTracks = true
         secondarySubtitleTrackId = trackId
         if (trackId >= 0) {
             mpvView?.mpv?.setPropertyBoolean("sub-visibility", true)
@@ -446,7 +488,7 @@ class MpvPlayerEngine(
         val view = mpvView ?: return
         // Aniyomi paritesi: tüm tipografi/renk/diğer ayarlar doğrudan SubtitleStyleSettings'ten gelir.
         val effectiveFont = style.font.takeIf { it.isNotBlank() } ?: settings.subtitleFont.ifBlank { "Sans Serif" }
-        val effectiveFontSize = style.fontSize.takeIf { it in 1..200 } ?: 55
+        val effectiveFontSize = style.fontSize.takeIf { it in 1..200 } ?: 45
         val effectiveScale = style.fontScale.takeIf { it in 0.1f..10f } ?: ((style.size / 20.0f) * settings.subtitleFontScale).coerceIn(0.1f, 10f)
         val effectiveBorderSize = style.borderSize.takeIf { it in 0..100 } ?: settings.subtitleBorderSize.toInt()
         val effectiveBorderStyle = style.borderStyle.takeIf { it.isNotBlank() } ?: settings.subtitleBorderStyle
@@ -571,6 +613,7 @@ class MpvPlayerEngine(
         // "3 ses seçeneği hiçbir şey değiştirmiyor" gözleminin olası nedenlerinden biri.
         initialSelectionDone = true
         selectionForced = true
+        userChangedTracks = true
         if (trackOption.groupIndex == 0) {
             applied = mpvView?.selectAudioTrackById(trackOption.trackIndex) ?: false
         } else if (trackOption.groupIndex == 1) {
@@ -598,6 +641,7 @@ class MpvPlayerEngine(
     override fun disableSubtitles() {
         initialSelectionDone = true
         selectionForced = true
+        userChangedTracks = true
         selectSecondarySubtitleTrack(-1)
         mpvView?.disableSubtitles()
         _isSubtitleDisabled = true
@@ -621,7 +665,7 @@ class MpvPlayerEngine(
 
                 val pendingUrl = videoUrl
                 if (!pendingUrl.isNullOrBlank()) {
-                    beginLoad(pendingUrl, pendingAudioUrl, pendingHeaders, pendingStartPositionMs)
+                    beginLoad(pendingUrl, pendingAudioTracks, pendingHeaders, pendingStartPositionMs)
                     setMedia(pendingUrl, pendingHeaders, pendingStartPositionMs)
                     engineScope.launch {
                         setupCustomButtons()
@@ -787,26 +831,19 @@ class MpvPlayerEngine(
                         view.mpv.setPropertyString("force-media-title", it)
                         view.mpv.setPropertyString("user-data/current-anime/episode-title", it)
                     }
-                    applyExternalAudio(view, pendingAudioUrl)
+                    applyExternalAudio(view, pendingAudioTracks)
                     view.applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
-                    pendingSubtitles.forEach { sub ->
-                        view.addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
-                    }
                     applySecondarySubtitle(view)
                 }
                 setSubtitleStyle(activeSubtitleStyle)
                 setStatisticsPage(settings.playerStatisticsPage)
                 checkBufferingState()
                 scheduleUpdateTracks()
-                // Harici altyazılar bazen geç eklenir; kısa bir gecikmeden sonra seçimi zorla.
-                val generation = loadGeneration
-                engineScope.launch {
-                    kotlinx.coroutines.delay(1500L)
-                    if (!released && generation == loadGeneration && !initialSelectionDone) {
-                        selectionForced = true
-                        scheduleUpdateTracks()
-                    }
-                }
+                // v2.4.369 HANG düzeltmesi: harici altyazılar eskiden burada, ANA iş parçacığında
+                // uzak URL ile `sub-add` yapılarak (her biri ağdan senkron indirilerek) ekleniyordu
+                // → 2,5–5 sn donma. Artık önce IO'da önbelleğe indirilip yerel dosya olarak eklenir;
+                // zorunlu seçim zamanlayıcısı yükleme bittikten sonra başlar.
+                loadExternalSubtitlesAsync(pendingSubtitles, loadGeneration, select = true)
             }
             MPV.mpvEvent.MPV_EVENT_END_FILE -> {
                 Log.d(TAG, "MPV_EVENT_END_FILE")
@@ -817,11 +854,112 @@ class MpvPlayerEngine(
 
     // ──── Internal helpers ────────────────────────────────────────────────────
 
+    // ── Dolby Vision: vo / hwdec planı ────────────────────────────────────────
+
+    /** Aktif akış + ayarlar için DV planını hesaplar (gpu-next desteği bir kez ölçülür). */
+    private fun currentDvPlan(view: KitsugiMpvSurfaceView): MpvDolbyVisionOptions {
+        val hint = dvHint
+        val autoFix = settings.mpvDolbyVisionAutoFix
+        // DV değilse veya düzeltme kapalıysa pahalı `vo` yoklaması hiç yapılmaz:
+        // her açılışta video çıkışını yeniden kurmak istemiyoruz.
+        if (hint == null || !autoFix) {
+            return MpvDolbyVisionPolicy.resolve(
+                hint = hint,
+                autoFixEnabled = autoFix,
+                configuredVo = settings.mpvGpuRenderer.ifBlank { "gpu" },
+                configuredHwdec = settings.mpvHwdecMode.ifBlank { "auto-safe" },
+                gpuNextAvailable = false
+            )
+        }
+        val available = gpuNextSupported
+            ?: probeGpuNextSupport(view).also { gpuNextSupported = it }
+        return MpvDolbyVisionPolicy.resolve(
+            hint = hint,
+            autoFixEnabled = true,
+            configuredVo = settings.mpvGpuRenderer.ifBlank { "gpu" },
+            configuredHwdec = settings.mpvHwdecMode.ifBlank { "auto-safe" },
+            gpuNextAvailable = available
+        )
+    }
+
+    /**
+     * `vo=gpu-next` bu libmpv derlemesinde gerçekten kullanılabilir mi?
+     *
+     * Seçenek yazılabiliyor ve geri okunabiliyorsa var kabul ederiz; hemen
+     * ardından kullanıcının önceki seçimini geri yazarız (henüz dosya
+     * yüklenmediği için VO'nun yeniden kurulması zararsızdır).
+     */
+    private fun probeGpuNextSupport(view: KitsugiMpvSurfaceView): Boolean =
+        runCatching {
+            val previous = view.mpv.getPropertyString("vo")
+            try {
+                view.mpv.setPropertyString("vo", MpvDolbyVisionPolicy.VO_GPU_NEXT)
+                val applied = view.mpv.getPropertyString("vo")
+                previous?.takeIf { it.isNotBlank() }?.let { view.mpv.setPropertyString("vo", it) }
+                applied?.contains(MpvDolbyVisionPolicy.VO_GPU_NEXT, ignoreCase = true) == true
+            } catch (t: Throwable) {
+                runCatching {
+                    previous?.takeIf { it.isNotBlank() }?.let { view.mpv.setPropertyString("vo", it) }
+                }
+                Log.w(TAG, "gpu-next probe failed: ${t.message}")
+                false
+            }
+        }.getOrDefault(false)
+
+    /**
+     * DV planını vo/hwdec seçeneklerine uygular.
+     *
+     * İlk kurulumdan önce yalnızca çözülen değerleri hazırlar (yazmayı
+     * [applyInitOptions] yapar); sonrasında plan değiştiyse anında yazar.
+     * Böylece DV içerikten normal içeriğe geçerken kullanıcının kendi vo/hwdec
+     * seçimlerine dönülür.
+     */
+    private fun syncDolbyVisionOptions(view: KitsugiMpvSurfaceView) {
+        val plan = currentDvPlan(view)
+        resolvedVoOption = plan.vo ?: settings.mpvGpuRenderer.ifBlank { "gpu" }
+        resolvedHwdecOption = plan.hwdec ?: settings.mpvHwdecMode.ifBlank { "auto-safe" }
+
+        Log.i(
+            TAG,
+            "DV_PLAN: ${plan.reason} vo=${plan.vo ?: "keep"} hwdec=${plan.hwdec ?: "keep"} " +
+                "gpuNext=${gpuNextSupported}"
+        )
+
+        if (!initOptionsApplied) return
+        if (plan.key == appliedDvPlanKey) return
+        appliedDvPlanKey = plan.key
+
+        val vo = resolvedVoOption ?: settings.mpvGpuRenderer.ifBlank { "gpu" }
+        runCatching { view.mpv.setPropertyString("vo", vo) }
+            .onFailure { Log.w(TAG, "DV vo uygulanamadı: ${it.message}") }
+        resolvedHwdecOption?.let { hwdec ->
+            runCatching { view.mpv.setPropertyString("hwdec", hwdec) }
+                .onFailure { Log.w(TAG, "DV hwdec uygulanamadı: ${it.message}") }
+        }
+
+        // DV var ama bu derlemede gpu-next yok → kullanıcıya tek seferlik bilgi.
+        if (plan.reason == "gpu-next-unavailable" && !dvWarningShownForLoad) {
+            dvWarningShownForLoad = true
+            runCatching {
+                view.mpv.command(
+                    "show-text",
+                    "Dolby Vision: bu oynatıcı derlemesinde gpu-next yok - renkler bozuk görünebilir.",
+                    "6000"
+                )
+            }
+        }
+    }
+
+    private fun String.safeHost(): String =
+        runCatching { android.net.Uri.parse(this).host ?: "unknown" }.getOrDefault("unknown")
+
     /**
      * Aniyomi'den uyarlama: Tüm MPV başlatma seçeneklerini ayarla.
      * GPU renderer, hwdec, debanding, demuxer cache, volume-max gibi gelişmiş ayarlar.
      */
     private fun applyInitOptions(view: KitsugiMpvSurfaceView) {
+        // DV planı vo/hwdec'i belirleyebilir; tek seferlik bloktan ÖNCE hesapla.
+        syncDolbyVisionOptions(view)
         // Isolate writes: an unavailable option in a libmpv build must not prevent
         // speed, decoder, cache and volume settings from being applied.
         fun option(name: String, value: String) {
@@ -837,6 +975,17 @@ class MpvPlayerEngine(
         option("volume-max", settings.volumeBoostCap.coerceIn(100, 200).toString())
         option("alang", settings.preferredAudioLanguages)
         option("audio-pitch-correction", if (settings.audioPitchCorrection) "yes" else "no")
+        // Kalite profili → HLS bit hızı seçimi. Aksi hâlde ayarlardaki "720p / Veri tasarrufu"
+        // tercihi MPV'de hiçbir şey yapmıyordu.
+        val qualityProfile = com.kitsugi.animelist.core.player.QualityProfile
+            .deserialize(settings.qualityProfileJson)
+        val hlsBitrate = when (qualityProfile.preference) {
+            com.kitsugi.animelist.core.player.QualityPreference.DATA_SAVER,
+            com.kitsugi.animelist.core.player.QualityPreference.P480 -> "min"
+            com.kitsugi.animelist.core.player.QualityPreference.P1080 -> "max"
+            else -> "auto"
+        }
+        option("hls-bitrate", hlsBitrate)
         val channels = settings.audioChannels
         option("audio-channels", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) "stereo" else channels.value)
         option("af", if (channels == com.kitsugi.animelist.ui.screens.fullscreen.AudioChannels.ReverseStereo) channels.value else "")
@@ -856,8 +1005,9 @@ class MpvPlayerEngine(
         // donma olarak görünüyordu. Motor ömrü boyunca bir kez uygulanır.
         if (initOptionsApplied) return
         initOptionsApplied = true
-        option("vo", settings.mpvGpuRenderer.ifBlank { "gpu" })
-        option("hwdec", settings.mpvHwdecMode.ifBlank { "auto-safe" })
+        option("vo", resolvedVoOption ?: settings.mpvGpuRenderer.ifBlank { "gpu" })
+        option("hwdec", resolvedHwdecOption ?: settings.mpvHwdecMode.ifBlank { "auto-safe" })
+        appliedDvPlanKey = currentDvPlan(view).key
         if (settings.mpvDemuxerCacheMb > 0) {
             option("demuxer-max-bytes", "${settings.mpvDemuxerCacheMb}MiB")
             option("demuxer-max-back-bytes", "${(settings.mpvDemuxerCacheMb / 4).coerceAtLeast(8)}MiB")
@@ -953,7 +1103,12 @@ class MpvPlayerEngine(
     }
 
     /** Yeni bir medya yüklenmeden önce yükleme durumunu hazırlar. */
-    private fun beginLoad(url: String, audioUrl: String?, headers: Map<String, String>, startPositionMs: Long) {
+    private fun beginLoad(
+        url: String,
+        audioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>,
+        headers: Map<String, String>,
+        startPositionMs: Long
+    ) {
         // Every explicit prepare is a real load, including retry of the exact same URL.
         loadGeneration++
         awaitingStartFile = true
@@ -961,6 +1116,7 @@ class MpvPlayerEngine(
         errorReportedForLoad = false
         selectionForced = false
         initialSelectionDone = false
+        userChangedTracks = false
         currentPosition = startPositionMs.coerceAtLeast(0L)
         duration = 0L
         bufferedPosition = 0L
@@ -973,18 +1129,44 @@ class MpvPlayerEngine(
             it.onBufferedPositionChanged(0)
             it.onSecondarySubtitleChanged(-1)
         }
-        hasExternalAudio = !audioUrl.isNullOrBlank()
+        hasExternalAudio = audioTracks.isNotEmpty()
         lastPositionNotifyAtMs = -1L
         notifyPositionChanged(force = true)
     }
 
-    /** Ayrı ses akışını (audioUrl) MPV'ye ses parçası olarak ekler ve seçer. */
-    private fun applyExternalAudio(view: KitsugiMpvSurfaceView, audioUrl: String?) {
-        if (audioUrl.isNullOrBlank()) return
-        runCatching {
-            view.mpv.command("audio-add", audioUrl, "select")
-        }.onFailure {
-            Log.w(TAG, "audio-add başarısız: ${it.message}")
+    /** Preserve the legacy URL and every CloudStream rendition as selectable MPV tracks. */
+    private fun mergeAudioTracks(
+        audioUrl: String?,
+        tracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>
+    ): List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> {
+        val cleanTracks = tracks.filter { it.url.isNotBlank() }.distinctBy { it.url }
+        val legacy = audioUrl?.takeIf { it.isNotBlank() && cleanTracks.none { track -> track.url == it } }
+            ?.let { com.kitsugi.animelist.core.player.ExternalAudioTrackInput(url = it, name = "Harici ses") }
+        return listOfNotNull(legacy) + cleanTracks
+    }
+
+    /** Add all renditions; select the provider's first track and keep the rest user-selectable. */
+    private fun applyExternalAudio(
+        view: KitsugiMpvSurfaceView,
+        tracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput>
+    ) {
+        if (tracks.isEmpty()) return
+        tracks.forEachIndexed { index, track ->
+            val flags = if (index == 0) "select" else "no"
+            val label = track.name?.takeIf { it.isNotBlank() } ?: "Harici ses ${index + 1}"
+            if (track.headers.any { (key, value) ->
+                    pendingHeaders.entries.none { (videoKey, videoValue) ->
+                        videoKey.equals(key, ignoreCase = true) && videoValue == value
+                    }
+                }
+            ) {
+                Log.w(TAG, "MPV audio-add cannot apply headers unique to external audio track '${label}'; Media3 supports per-track headers")
+            }
+            runCatching {
+                view.mpv.command("audio-add", track.url, flags, label, track.lang.orEmpty())
+            }.onFailure {
+                Log.w(TAG, "audio-add başarısız ($label): ${it.message}")
+            }
         }
     }
 
@@ -1235,6 +1417,83 @@ class MpvPlayerEngine(
                 Log.w(TAG, "setupCustomButtons error: ${it.message}")
             }
         }
+    }
+
+    /**
+     * Harici altyazıları ana iş parçacığını kilitlemeden yükler: uzak dosyalar
+     * [MpvSubtitlePrefetcher] ile IO'da önbelleğe indirilir, mpv'ye yerel yol verilir.
+     *
+     * @param select true → ilk yükleme (`cached`: seç); false → oynatma sırasında sonradan
+     *               gelen altyazılar (`auto`: mevcut seçimi değiştirmeden ekle).
+     */
+    private fun loadExternalSubtitlesAsync(subtitles: List<SubtitleInput>, generation: Long, select: Boolean) {
+        if (subtitles.isEmpty()) {
+            scheduleForcedTrackSelection(generation)
+            return
+        }
+        val headers = pendingHeaders
+        engineScope.launch {
+            val resolved = try {
+                MpvSubtitlePrefetcher.materialize(context, subtitles, headers)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "Harici altyazılar hazırlanamadı: ${error.javaClass.simpleName}: ${error.message}")
+                emptyList()
+            }
+            if (released || generation != loadGeneration) return@launch
+            val view = mpvView ?: return@launch
+            resolved.forEach { (sub, localPath) ->
+                view.addAndSelectExternalSubtitle(localPath, sub.name, sub.lang, select)
+            }
+            if (resolved.size < subtitles.size) {
+                Log.w(TAG, "Harici altyazı: ${subtitles.size - resolved.size}/${subtitles.size} dosya indirilemedi, atlandı")
+            }
+            scheduleUpdateTracks()
+            scheduleForcedTrackSelection(generation)
+        }
+    }
+
+    /** Harici altyazılar beklenenden az yüklendiyse kısa bir gecikmeden sonra ilk seçimi zorlar. */
+    private fun scheduleForcedTrackSelection(generation: Long) {
+        engineScope.launch {
+            kotlinx.coroutines.delay(1500L)
+            if (!released && generation == loadGeneration && !initialSelectionDone) {
+                selectionForced = true
+                scheduleUpdateTracks()
+            }
+        }
+    }
+
+    /**
+     * Aynı medya oynarken sonradan gelen (eklenti) altyazıları akışı YENİDEN HAZIRLAMADAN ekler.
+     *
+     * Eskiden altyazı listesi her değiştiğinde oynatıcı tamamen yeniden hazırlanıyordu: aynı
+     * CDN adresine ikinci istek (HTTP 429 riski), yeniden tamponlama, günlükte çift
+     * "[OYNAT] Başladı" ve ikinci bir `sub-add` fırtınası. Liste daraldıysa / değiştiyse
+     * (kaynak değişimi) false döner ve çağıran güvenli yola, tam hazırlığa düşer.
+     */
+    override fun addExternalSubtitles(subtitles: List<SubtitleInput>): Boolean {
+        if (released || mpvView == null) return false
+        val previous = preparedSubtitles
+        val incomingUrls = subtitles.mapTo(HashSet()) { it.url }
+        if (!previous.all { it.url in incomingUrls }) return false
+        val known = previous.mapTo(HashSet()) { it.url }
+        val fresh = subtitles.filter { it.url.isNotBlank() && known.add(it.url) }
+        if (fresh.isEmpty()) return true
+        preparedSubtitles = previous + fresh
+        pendingSubtitles = pendingSubtitles + fresh
+        if (fileLoaded) {
+            if (!userChangedTracks) {
+                // Kullanıcı elle seçim yapmadıysa tercih politikası (Türkçe öncelikli) yeni
+                // altyazılarla yeniden uygulanır — eski tam yeniden hazırlamayla aynı sonuç.
+                initialSelectionDone = false
+                selectionForced = false
+            }
+            loadExternalSubtitlesAsync(fresh, loadGeneration, select = false)
+        }
+        // fileLoaded=false ise yeni altyazılar pendingSubtitles içinde; FILE_LOADED'da eklenir.
+        return true
     }
 
     override fun executeCommand(command: Array<String>) {

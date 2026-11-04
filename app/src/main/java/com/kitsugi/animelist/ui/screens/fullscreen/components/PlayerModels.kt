@@ -16,7 +16,7 @@ data class SubtitleStyleSettings(
     val showOnlyPreferredLanguages: Boolean = false,
     // ── Aniyomi paritesi: Tipografi ──────────────────────────────────────────
     val font: String = "Sans Serif",
-    val fontSize: Int = 55,
+    val fontSize: Int = 45,
     val borderSize: Int = 3,
     val borderStyle: String = "outline-and-shadow",
     val shadowOffset: Int = 0,

@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.manga.components
 
 import androidx.compose.foundation.layout.fillMaxSize
+import com.kitsugi.animelist.ui.utils.uniqueLazyKeys
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
@@ -44,10 +46,13 @@ fun MangaPagerReader(
     val direction   = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
+        // Bazı kaynaklar her sayfaya aynı `index` değerini veriyor → Pager anahtarı çakışıp
+        // okuyucu çöküyordu. Anahtarlar liste içinde benzersizleştirilir.
+        val pageKeys = remember(pages) { pages.uniqueLazyKeys { it.index } }
         HorizontalPager(
             state    = pagerState,
             modifier = modifier.fillMaxSize(),
-            key      = { index -> pages.getOrNull(index)?.index ?: index },
+            key      = { index -> pageKeys.getOrNull(index) ?: "page_$index" },
             beyondViewportPageCount = 2   // Yan sayfaları belleğe al
         ) { pageIndex ->
             val page = pages.getOrNull(pageIndex) ?: return@HorizontalPager

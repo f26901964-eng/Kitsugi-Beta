@@ -22,10 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.SkipNext
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
@@ -234,9 +231,12 @@ fun PlayerControls(
 
     // ── Hide-controls timer (Aniyomi LaunchedEffect pattern) ─────────────────
     var resetTimerTrigger by remember { mutableStateOf(0) }
+    var isScrubbing by remember { mutableStateOf(false) }
     val hideDelayMs = com.kitsugi.animelist.core.player.PlayerUiPolicy.clampOsdHideDelayMs(settings.playerTimeToDisappearMs)
-    LaunchedEffect(controlsShown, paused, resetTimerTrigger, controlsResetTrigger, hideDelayMs) {
-        if (controlsShown && !paused) {
+    LaunchedEffect(controlsShown, paused, isScrubbing, resetTimerTrigger, controlsResetTrigger, hideDelayMs) {
+        // A drag is an active user interaction: never remove the seekbar from under
+        // the pointer. Start a fresh hide interval only after scrubbing ends.
+        if (controlsShown && !paused && !isScrubbing) {
             delay(hideDelayMs)
             viewModel.hideControls()
         }
@@ -390,7 +390,7 @@ fun PlayerControls(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector        = Icons.Default.Lock,
+                        imageVector        = Icons.Lock,
                         contentDescription = KitsugiStrings.get(R.string.kilidi_ac),
                         tint               = Color.White,
                         modifier           = Modifier.size(36.dp)
@@ -442,8 +442,17 @@ fun PlayerControls(
                             viewModel.showPanel(com.kitsugi.animelist.ui.screens.fullscreen.KitsugiPanels.AudioDelay)
                             resetTimer()
                         },
+                        // Kısa dokunma → KALİTE, uzun dokunma → KAYNAK listesi.
                         onQualityClick       = {
                             viewModel.showSheet(KitsugiSheets.QualityTracks)
+                            resetTimer()
+                        },
+                        onQualityLongClick   = {
+                            viewModel.showSheet(KitsugiSheets.SourceTracks)
+                            resetTimer()
+                        },
+                        onSourcesClick       = {
+                            viewModel.showSheet(KitsugiSheets.SourceTracks)
                             resetTimer()
                         },
                         isEpisodeOnline      = currentTitle.isNotBlank(),
@@ -511,11 +520,20 @@ fun PlayerControls(
                         position             = previewPosition ?: (posMs / 1000f),
                         duration             = (durationMs / 1000f).coerceAtLeast(0f),
                         readAheadValue       = viewModel.readAhead.collectAsState().value,
-                        onValueChange        = { previewPosition = it },
+                        onValueChange        = {
+                            isScrubbing = true
+                            previewPosition = it
+                            viewModel.onUserInteraction()
+                            resetTimer()
+                        },
                         onValueChangeFinished = {
-                            previewPosition?.let { viewModel.seekTo((it * 1000f).toLong()) }
+                            previewPosition?.let {
+                                viewModel.seekTo((it * 1000f).toLong())
+                                viewModel.onUserInteraction()
+                            }
                             previewPosition = null
                             previewImage = null
+                            isScrubbing = false
                             resetTimer()
                         },
                         previewImage = previewImage,
@@ -673,7 +691,7 @@ fun PlayerControls(
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
-                                imageVector        = Icons.Default.Close,
+                                imageVector        = Icons.Close,
                                 contentDescription = stringResource(R.string.iptal),
                                 modifier           = Modifier.size(16.dp)
                             )
@@ -703,7 +721,7 @@ fun PlayerControls(
                             )
                         }) {
                             Icon(
-                                imageVector        = Icons.Default.SkipNext,
+                                imageVector        = Icons.SkipNext,
                                 contentDescription = null,
                                 modifier           = Modifier.size(16.dp)
                             )

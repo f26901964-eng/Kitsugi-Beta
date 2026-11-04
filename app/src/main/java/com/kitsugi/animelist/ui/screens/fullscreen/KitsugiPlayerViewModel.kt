@@ -610,8 +610,27 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun changeMPVVolumeTo(volume: Int) {
-        currentMPVVolume.value = volume
-        activeEngine?.setVolume(volume / 100f)
+        currentMPVVolume.value = volume.coerceIn(0, appSettings.value.volumeBoostCap)
+        activeEngine?.setVolume(currentMPVVolume.value / 100f)
+    }
+
+    private var volumeBeforeMute: Int? = null
+    private var mpvVolumeBeforeMute: Int? = null
+
+    fun toggleMute() {
+        val muted = currentVolume.value == 0 && currentMPVVolume.value == 0
+        if (muted) {
+            changeVolumeTo(volumeBeforeMute?.takeIf { it > 0 } ?: maxOf(1, maxVolume / 3))
+            changeMPVVolumeTo(mpvVolumeBeforeMute?.takeIf { it > 0 } ?: 100)
+            volumeBeforeMute = null
+            mpvVolumeBeforeMute = null
+        } else {
+            volumeBeforeMute = currentVolume.value.takeIf { it > 0 }
+            mpvVolumeBeforeMute = currentMPVVolume.value.takeIf { it > 0 }
+            changeVolumeTo(0)
+            changeMPVVolumeTo(0)
+        }
+        displayVolumeSlider()
     }
 
     fun changeBrightnessTo(brightness: Float) {
@@ -689,6 +708,19 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 "PlayerError code=" + errorCode.toString() + " msg=" + errorMsg.take(200) + " url=" + (_currentVideoUrl.value?.take(100) ?: "-"), null
             )
         } catch (_: Exception) {}
+    }
+
+    /**
+     * Oynatma hatası durumunu temizler.
+     *
+     * Kullanım: hata sonrası **otomatik** olarak başka bir akışa geçildiğinde (ör. süresi
+     * dolmuş kalite varyantından kaynağın master akışına dönüş) hata ekranı ekranda
+     * kalmasın diye. Kaynak değişimini kullanıcı elle yaptığında da çağrılabilir.
+     */
+    fun clearPlayerError() {
+        _hasError.value = false
+        _errorDetails.value = null
+        _playerState.value = PlaybackState.Idle
     }
 
     private data class EnrichedError(val display: String, val details: String)
@@ -875,7 +907,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                                 resolutionMatchingEnabled = settings.resolutionMatchingEnabled
                             )
                         }
-                        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedVideoUrl, audioUrl = _currentAudioUrl.value)
+                        val selectedStream = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
+                        _playbackSource.value = TrailerPlaybackSource(
+                            videoUrl = resolvedVideoUrl,
+                            audioUrl = _currentAudioUrl.value,
+                            externalAudioTracks = selectedStream?.externalAudioTracks.orEmpty(),
+                            streamTypeHint = selectedStream?.streamTypeHint
+                        )
                     }
                     _isLoading.value = false
                 }
@@ -1021,7 +1059,88 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    private val episodeStreamCacheLock = Any()
+    private val episodeStreamCache = LinkedHashMap<String, List<StreamSource>>()
+    private val episodeStreamFetches = mutableMapOf<String, kotlinx.coroutines.Deferred<List<StreamSource>>>()
+
+    private fun episodeStreamCacheKey(targetEpisode: Int, addonName: String?): String =
+        "$seasonNum:$targetEpisode:${addonName.orEmpty().trim().lowercase()}"
+
+    private suspend fun fetchPreferredEpisodeStreams(targetEpisode: Int, addonName: String?): List<StreamSource> {
+        val preferred = fetchStreamsForEpisode(targetEpisode, preferredAddonName = addonName)
+        return if (preferred.isNotEmpty() || addonName.isNullOrBlank()) {
+            preferred
+        } else {
+            // Provider-specific lookup failed (provider removed or episode unavailable there):
+            // only then broaden the search to every installed source.
+            fetchStreamsForEpisode(targetEpisode)
+        }
+    }
+
+    /**
+     * Warm the next episode while the current one is playing. The provider name is part
+     * of the cache key, so a result fetched for one extension is never treated as a
+     * provider-specific result for another extension.
+     */
+    fun prefetchNextEpisode() {
+        if (_isMovie.value) return
+        val targetEpisode = _currentEpisode.value + 1
+        val addonName = _currentAddonName.value?.takeIf { it.isNotBlank() } ?: return
+        val key = episodeStreamCacheKey(targetEpisode, addonName)
+        synchronized(episodeStreamCacheLock) {
+            if (episodeStreamCache.containsKey(key) || episodeStreamFetches.containsKey(key)) return
+            val deferred = viewModelScope.async(kotlinx.coroutines.Dispatchers.IO) {
+                fetchPreferredEpisodeStreams(targetEpisode, addonName)
+            }
+            episodeStreamFetches[key] = deferred
+            deferred.invokeOnCompletion { cause ->
+                if (cause != null) {
+                    synchronized(episodeStreamCacheLock) {
+                        if (episodeStreamFetches[key] === deferred) episodeStreamFetches.remove(key)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun getStreamsForEpisode(targetEpisode: Int): List<StreamSource> {
+        val addonName = _currentAddonName.value
+        val key = episodeStreamCacheKey(targetEpisode, addonName)
+        val deferred = synchronized(episodeStreamCacheLock) {
+            episodeStreamCache[key]?.let { return it }
+            episodeStreamFetches[key] ?: viewModelScope.async(kotlinx.coroutines.Dispatchers.IO) {
+                fetchPreferredEpisodeStreams(targetEpisode, addonName)
+            }.also { episodeStreamFetches[key] = it }
+        }
+        return try {
+            deferred.await().also { streams ->
+                synchronized(episodeStreamCacheLock) {
+                    episodeStreamFetches.remove(key, deferred)
+                    if (streams.isNotEmpty()) {
+                        episodeStreamCache[key] = streams
+                        while (episodeStreamCache.size > 8) {
+                            episodeStreamCache.remove(episodeStreamCache.keys.first())
+                        }
+                    }
+                }
+            }
+        } catch (cancel: CancellationException) {
+            synchronized(episodeStreamCacheLock) { episodeStreamFetches.remove(key, deferred) }
+            throw cancel
+        } catch (error: Exception) {
+            synchronized(episodeStreamCacheLock) { episodeStreamFetches.remove(key, deferred) }
+            throw error
+        }
+    }
+
     private suspend fun loadEpisodes() {
+        // Filmler ve tek bölümlük içerikler için bölüm listesi çekilmez:
+        // MediaType.Anime ile çekilecek olsaydı padding mantığı hayali bölümler
+        // (12/24/100) yaratır ve film içerikleri dizi içerikleriyle karışırdı.
+        if (_isMovie.value) {
+            _episodesList.value = emptyList()
+            return
+        }
         if (malId != null || aniListId != null) {
             val client = KitsugiMediaTabsClient()
             val source = if (malId != null) "mal" else "anilist"
@@ -1043,37 +1162,110 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    suspend fun fetchStreamsForEpisode(nextEp: Int): List<StreamSource> = withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun fetchStreamsForEpisode(
+        nextEp: Int,
+        preferredAddonName: String? = null
+    ): List<StreamSource> = withContext(kotlinx.coroutines.Dispatchers.IO) {
         val repository = AddonStreamRepository(context)
 
         // ── CS3 direkt URL modu: cs3Url varsa tüm eklentileri aramak yerine
         // doğrudan o URL üzerinden ilgili bölümü çözümle. ─────────────────────────
+        //
+        // 2026-11-02: Kullanıcı içeriği belirli bir eklentinin içinden açtıysa sonraki
+        // bölüm de ÖNCE aynı eklentide aranır (doğrudan URL → aynı eklentinin kendi
+        // başlık araması). Diğer eklentiler/Stremio addon'ları ancak bu eklenti bölümü
+        // veremezse devreye girer; aksi hâlde kaynak listesi sessizce karışıyordu.
         val localCs3Url = cs3Url
         val localCs3ApiName = cs3ApiName
-        if (!localCs3Url.isNullOrBlank() && !localCs3ApiName.isNullOrBlank()) {
+        if (!localCs3ApiName.isNullOrBlank() &&
+            (preferredAddonName == null || preferredAddonName.equals(localCs3ApiName, ignoreCase = true))) {
+            val pluginMediaType = if (_isMovie.value) com.kitsugi.animelist.model.MediaType.Movie
+                else com.kitsugi.animelist.model.MediaType.Anime
             val db = KitsugiDatabase.getDatabase(context)
             val csPlugin = db.csPluginDao().getEnabledPlugins()
-                .firstOrNull { it.name.equals(localCs3ApiName, ignoreCase = true) }
-            if (csPlugin != null) {
-                CsPluginLoader.loadExtension(context, csPlugin.id)
+                .firstOrNull {
+                    it.id.equals(localCs3ApiName, ignoreCase = true) ||
+                        it.name.equals(localCs3ApiName, ignoreCase = true)
+                }
+            val apis: List<com.lagradost.cloudstream3.MainAPI> = try {
+                if (csPlugin != null) CsPluginLoader.loadExtension(context, csPlugin.id) else emptyList()
+            } catch (e: Exception) {
+                Log.e("KitsugiPlayerViewModel", "fetchStreamsForEpisode: eklenti yüklenemedi (${localCs3ApiName})", e)
+                emptyList()
             }
-            val activeApi = com.lagradost.cloudstream3.APIHolder.allProviders
-                .firstOrNull { it.name.equals(localCs3ApiName, ignoreCase = true) }
-            if (activeApi != null) {
-                val resolved = CsStreamRunner.getStreamsForUrl(
-                    api = activeApi,
-                    url = localCs3Url,
-                    season = seasonNum,
-                    episode = nextEp,
-                    isMovie = _isMovie.value
+            val scopedApis = apis.ifEmpty {
+                com.lagradost.cloudstream3.APIHolder.allProviders
+                    .filter { it.name.equals(localCs3ApiName, ignoreCase = true) }
+            }
+
+            // 1) Doğrudan sağlayıcı URL'si
+            if (!localCs3Url.isNullOrBlank()) {
+                for (api in scopedApis) {
+                    val resolved = CsStreamRunner.getStreamsForUrl(
+                        api = api,
+                        url = localCs3Url,
+                        season = seasonNum,
+                        episode = nextEp,
+                        isMovie = _isMovie.value,
+                        mediaType = pluginMediaType
+                    )
+                    if (resolved.isNotEmpty()) {
+                        Log.d(
+                            "KitsugiPlayerViewModel",
+                            "fetchStreamsForEpisode: CS3 direkt URL modu — ${resolved.size} kaynak (${api.name})"
+                        )
+                        return@withContext StreamSorter.sort(resolved)
+                    }
+                }
+                Log.w(
+                    "KitsugiPlayerViewModel",
+                    "fetchStreamsForEpisode: doğrudan URL 0 kaynak — aynı eklentinin kendi aramasına geçiliyor"
                 )
-                if (resolved.isNotEmpty()) {
-                    Log.d("KitsugiPlayerViewModel", "fetchStreamsForEpisode: CS3 direkt URL modu — ${resolved.size} kaynak")
-                    return@withContext StreamSorter.sort(resolved)
+            }
+
+            // 2) Aynı eklentinin kendi başlık araması (sadece bu eklenti)
+            if (scopedApis.isNotEmpty()) {
+                val scopedTitles = (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() && it != animeTitle }
+                    .distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
+                val scopedStreams = mutableListOf<StreamSource>()
+                for (api in scopedApis) {
+                    try {
+                        scopedStreams.addAll(
+                            CsStreamRunner.getStreams(
+                                api = api,
+                                title = animeTitle,
+                                alternativeTitles = scopedTitles,
+                                year = startYear,
+                                season = seasonNum,
+                                episode = nextEp,
+                                malId = malId,
+                                aniListId = aniListId,
+                                tmdbId = tmdbId,
+                                isMovie = _isMovie.value,
+                                mediaType = pluginMediaType
+                            )
+                        )
+                    } catch (cancel: kotlinx.coroutines.CancellationException) {
+                        throw cancel
+                    } catch (e: Exception) {
+                        Log.e("KitsugiPlayerViewModel", "fetchStreamsForEpisode: tek eklenti aramasi hata (${api.name})", e)
+                    }
+                }
+                if (scopedStreams.isNotEmpty()) {
+                    Log.d(
+                        "KitsugiPlayerViewModel",
+                        "fetchStreamsForEpisode: tek eklenti aramasi — ${scopedStreams.size} kaynak (diğer kaynaklar aranmadı)"
+                    )
+                    return@withContext StreamSorter.sort(scopedStreams)
                 }
             }
-            // Eklenti yüklenemedi veya 0 kaynak — devam ederek normal aramaya düş
-            Log.w("KitsugiPlayerViewModel", "fetchStreamsForEpisode: CS3 URL modu 0 kaynak döndürdü, başlık bazlı aramaya düşülüyor")
+            // Bu eklenti bölümü veremedi → oynatma tamamen durmasın diye ortak aramaya düşülür.
+            Log.w(
+                "KitsugiPlayerViewModel",
+                "fetchStreamsForEpisode: ${localCs3ApiName} bölümü veremedi, ortak (tüm kaynaklar) aramaya düşülüyor"
+            )
         }
 
         // 1. Stremio stream sources
@@ -1085,7 +1277,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     season = seasonNum,
                     episode = nextEp,
                     tmdbId = tmdbId,
-                    isMovie = _isMovie.value
+                    isMovie = _isMovie.value,
+                    preferredAddonName = preferredAddonName
                 )
             } catch (e: Exception) {
                 Log.e("KitsugiPlayerViewModel", "Error fetching Stremio streams", e)
@@ -1101,16 +1294,25 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             emptyList()
         }
 
+        // CloudStream's displayed addonName is the provider/API name (not necessarily the
+        // containing extension package name), so load extensions but invoke only the exact
+        // active provider during the fast-path lookup.
+        val pluginsToQuery = enabledCsPlugins
         val alternativeTitles = (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
             .map { it.trim() }
             .filter { it.isNotBlank() && it != animeTitle }
             .distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
-        val csJobs = enabledCsPlugins.map { plugin ->
+        val csJobs = pluginsToQuery.map { plugin ->
             async {
                 val csStreams = mutableListOf<StreamSource>()
                 try {
                     val apis = CsPluginLoader.loadExtension(context, plugin.id)
-                    for (api in apis) {
+                    val providersToQuery = if (preferredAddonName.isNullOrBlank()) {
+                        apis
+                    } else {
+                        apis.filter { it.name.equals(preferredAddonName, ignoreCase = true) }
+                    }
+                    for (api in providersToQuery) {
                         val streams = CsStreamRunner.getStreams(
                             api = api,
                             title = animeTitle,
@@ -1141,7 +1343,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         StreamSorter.sort(combined)
     }
 
+    private var episodeRequestGeneration = 0L
+
     fun playEpisode(targetEp: Int, activity: android.app.Activity?, onAlternativeRequired: () -> Unit, onResolutionFailed: () -> Unit) {
+        val requestGeneration = ++episodeRequestGeneration
         userCancelledBinge = false
         _showBingeCardState.value = false
         // DEEP-015 fix: Önceki bölümden kalan countdown coroutine'ini öldür ve session sayacını temizle
@@ -1150,10 +1355,16 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _isLoading.value = true
         viewModelScope.launch {
             Log.d("KitsugiPlayerViewModel", "Fetching streams for episode: S${seasonNum}E${targetEp}")
-            val streams = fetchStreamsForEpisode(targetEp)
+            val streams = try {
+                getStreamsForEpisode(targetEp)
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                Log.e("KitsugiPlayerViewModel", "playEpisode: stream fetch failed", error)
+                emptyList()
+            }
+            if (requestGeneration != episodeRequestGeneration) return@launch
             if (streams.isNotEmpty()) {
-                _currentStreamSources.value = streams
-                orchestrator.errorRecovery.hasFallback = streams.size > 1
                 val sameProviderStream = streams.firstOrNull {
                     it.addonName.equals(_currentAddonName.value, ignoreCase = true)
                 }
@@ -1176,6 +1387,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }
 
                 if (resolvedUrl != null) {
+                    if (requestGeneration != episodeRequestGeneration) return@launch
+                    _currentStreamSources.value = streams
+                    orchestrator.errorRecovery.hasFallback = streams.size > 1
                     _currentEpisode.value = targetEp
                     _currentVideoUrl.value = resolvedUrl
                     _currentAudioUrl.value = targetStream.externalAudioUrl
@@ -1208,7 +1422,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
 
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = targetStream.externalAudioUrl)
+                    _playbackSource.value = TrailerPlaybackSource(
+                        videoUrl = resolvedUrl,
+                        audioUrl = targetStream.externalAudioUrl,
+                        externalAudioTracks = targetStream.externalAudioTracks,
+                        streamTypeHint = targetStream.streamTypeHint
+                    )
+                    // Start warming the following episode from this newly selected provider.
+                    prefetchNextEpisode()
 
                     if (sameProviderStream == null) {
                         onAlternativeRequired()
@@ -1257,7 +1478,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _currentSubtitles.value = stream.subtitles ?: emptyList()
         _currentSourceIndex.value = index
         _currentAddonName.value = stream.addonName
-        _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = stream.externalAudioUrl)
+        _playbackSource.value = TrailerPlaybackSource(
+            videoUrl = resolvedUrl,
+            audioUrl = stream.externalAudioUrl,
+            externalAudioTracks = stream.externalAudioTracks,
+            streamTypeHint = stream.streamTypeHint
+        )
         // Kaynak değişti: motor fallback zinciri ve retry sayacı yeni kaynak için sıfırlanır.
         // (Eskiden bu sıfırlama yapılmıyor, ilk kaynakta tükenen zincir yüzünden yeni kaynakta
         // MPV'ye geçiş hiç denenmiyordu.)
@@ -1309,13 +1535,20 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 orchestrator.errorRecovery.hasFallback = _currentStreamSources.value.size > 1
                 orchestrator.errorRecovery.reset()
                 if (resolved != _currentVideoUrl.value) {
-                    _currentAudioUrl.value = null
+                    _currentAudioUrl.value = source.externalAudioUrl
                     _currentVideoUrl.value = resolved
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolved, audioUrl = null)
+                    _playbackSource.value = TrailerPlaybackSource(
+                        videoUrl = resolved,
+                        audioUrl = source.externalAudioUrl,
+                        externalAudioTracks = source.externalAudioTracks,
+                        streamTypeHint = source.streamTypeHint
+                    )
                 } else {
                     activeEngine?.prepare(
                         videoUrl = resolved,
-                        audioUrl = _currentAudioUrl.value,
+                        audioUrl = source.externalAudioUrl,
+                        externalAudioTracks = source.externalAudioTracks,
+                        streamTypeHint = source.streamTypeHint,
                         headers = headers,
                         subtitles = _currentSubtitles.value,
                         startPositionMs = activeEngine?.currentPosition ?: 0L,
@@ -1386,8 +1619,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     null
                 }
                 if (resolvedUrl != null) {
+                    pendingSourceSwitchResumeMs = activeEngine?.currentPosition?.takeIf { it > 0L }
                     _currentVideoUrl.value = resolvedUrl
-                    _currentAudioUrl.value = null
+                    _currentAudioUrl.value = target.externalAudioUrl
                     _currentHeaders.value = target.requestHeaders ?: emptyMap()
                     _currentSubtitles.value = target.subtitles ?: emptyList()
                     _currentSourceIndex.value = nextIndex
@@ -1409,7 +1643,12 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         )
                     }
 
-                    _playbackSource.value = TrailerPlaybackSource(videoUrl = resolvedUrl, audioUrl = null)
+                    _playbackSource.value = TrailerPlaybackSource(
+                        videoUrl = resolvedUrl,
+                        audioUrl = target.externalAudioUrl,
+                        externalAudioTracks = target.externalAudioTracks,
+                        streamTypeHint = target.streamTypeHint
+                    )
                     // Yeni kaynak = yeni fallback oturumu.
                     orchestrator.errorRecovery.reset()
                     onSwitched(resolvedUrl, target)
@@ -1502,13 +1741,20 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 activeEngine?.let { engine ->
                     _currentVideoUrl.value?.let { url ->
                         runCatching {
+                            val currentSource = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
                             engine.prepare(
                                 videoUrl = url,
                                 audioUrl = _currentAudioUrl.value,
+                                externalAudioTracks = currentSource?.externalAudioTracks.orEmpty(),
+                                streamTypeHint = currentSource?.streamTypeHint,
                                 headers = _currentHeaders.value,
                                 subtitles = _currentSubtitles.value,
                                 startPositionMs = engine.currentPosition,
-                                addonName = _currentAddonName.value
+                                addonName = _currentAddonName.value,
+                                isCS = currentSource?.isCS == true,
+                                streamTitle = currentSource?.title ?: currentSource?.name,
+                                qualityValue = currentSource?.qualityValue,
+                                mediaType = currentSource?.mediaType
                             )
                         }.onFailure {
                             Log.e("KitsugiPlayerViewModel", "onRetry prepare hatası (deneme $attempt)", it)
@@ -1641,7 +1887,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val hasNextEpisode: StateFlow<Boolean> = combine(_episodesList, _currentEpisode, _isMovie) { episodes, current, isMovie ->
-        !isMovie && (
+        !isMovie && episodes.isNotEmpty() && (
             episodes.any { it.episodeNumber == current + 1 } ||
                 current < (episodes.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
             )
@@ -1656,7 +1902,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             }
 
             val settings = SettingsDataStore(context).settingsFlow.first()
-            val hasNext = !_isMovie.value && (
+            val hasNext = !_isMovie.value && _episodesList.value.isNotEmpty() && (
                 _episodesList.value.any { it.episodeNumber == _currentEpisode.value + 1 } ||
                     _currentEpisode.value < (_episodesList.value.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
                 )

@@ -68,6 +68,9 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     /** PiP penceresinde miyiz? (onPictureInPictureModeChanged ile güncellenir) */
     private var isInPipNow = false
 
+    /** Whether playback was active before the Activity was temporarily backgrounded. */
+    private var resumePlaybackAfterStop = false
+
     /**
      * Harici (3. parti) oynatıcıya devredildi mi? true ise Activity'nin görünmez olması
      * "mini pencere kapatıldı" anlamına gelmez; bu yüzden onStop'te kapanış tetiklenmez.
@@ -213,6 +216,10 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         applyImmersiveMode()
+        if (resumePlaybackAfterStop && !handedOffToExternalPlayer && !isInPipNow) {
+            resumePlaybackAfterStop = false
+            invokePipAction { it.onPipPlay() }
+        }
     }
 
     companion object {
@@ -779,24 +786,18 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     }
 
     /**
-     * Activity görünmez olduğunda (PiP penceresi kapatıldı, uygulama arka plana alındı,
-     * ekran kilitlendi vb.) oynatmayı durdurur. Aksi halde video yüzeyi kaybolsa bile ses
-     * arka planda çalmaya devam ediyordu.
+     * Pause while hidden, but retain the player and its playback position. When the app
+     * returns, resume only if it had been playing before the background transition. This
+     * avoids keeping audio alive in the background and avoids tearing down HDR/Dolby decoder
+     * state (which can leave a blank or corrupted frame after returning to the Activity).
      */
     override fun onStop() {
         super.onStop()
         if (!isInPipNow && !isInPictureInPictureMode && !isChangingConfigurations) {
+            resumePlaybackAfterStop = lastKnownIsPlaying && !handedOffToExternalPlayer
             stopPlaybackEverywhere()
-            // PiP'te değilken görünmez olduysak (mini pencere kapatıldı) uygulama "arka plan
-            // oynatıcısı" gibi davranmamalı: keep-alive servisi de kapatılır, böylece medya
-            // bildirimi üzerinden sesin devam etmesi mümkün olmaz.
             runCatching {
                 com.kitsugi.animelist.core.player.KeepAliveService.stop(this)
-            }
-            // Mini pencere kapatıldıktan sonra Activity arka planda hayalet olarak kalmasın.
-            // Harici oynatıcıya devredildiysek veya üzerimizde başka bir görev varsa dokunmayız.
-            if (!handedOffToExternalPlayer && !isFinishing && isTaskRoot) {
-                finish()
             }
         }
     }

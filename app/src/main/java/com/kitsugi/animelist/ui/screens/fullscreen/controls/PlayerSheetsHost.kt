@@ -30,6 +30,10 @@ import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.Su
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.AudioTracksSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.AudioTrackInfo
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.QualitySheet
+import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.SourceSheet
+import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.SourcesSheet
+import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.VideoQualitySheet
+import com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.MoreSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets.ScreenshotSheet
 import com.kitsugi.animelist.ui.screens.fullscreen.ArtType
@@ -46,6 +50,8 @@ fun PlayerSheetsHost(
     dismissSheet: Boolean,
     onDismissRequest: () -> Unit,
     onOpenPanel: (KitsugiPanels) -> Unit,
+    /** Sheet'ler arası geçiş (Kalite ↔ Kaynak). */
+    onShowSheet: (KitsugiSheets) -> Unit = {},
 
     // Playback Speed
     currentSpeed: Float = 1f,
@@ -75,11 +81,27 @@ fun PlayerSheetsHost(
     onSelectAudio: (Int) -> Unit = {},
     onAddAudioFile: () -> Unit = {},
 
-    // Quality / Stream Sources
+    // Only tracks belonging to the currently prepared video, never provider links.
+    videoQualityTracks: List<TrackOption> = emptyList(),
+    isVideoQualityAuto: Boolean = true,
+    onSelectVideoQuality: (TrackOption?) -> Unit = {},
+
+    // Stream Sources
     streamSources: List<StreamSource> = emptyList(),
     selectedSourceIndex: Int = -1,
     onSelectSource: (Int) -> Unit = {},
     isQualityLoading: Boolean = false,
+
+    // Kalite (açık akışın kendi manifestinden okunan gerçek kaliteler)
+    /** HLS varyantları / DASH Representation'ları (yüksekten alçağa). */
+    qualityOptions: List<com.kitsugi.animelist.core.player.QualityOption> = emptyList(),
+    /** Seçili kalite; `null` = Otomatik. */
+    selectedQuality: com.kitsugi.animelist.core.player.QualityOption? = null,
+    isQualityVariantsLoading: Boolean = false,
+    /** `null` → Otomatik, aksi hâlde seçilen kalite. */
+    onSelectQuality: (com.kitsugi.animelist.core.player.QualityOption?) -> Unit = {},
+    /** "Otomatik" satırı açıklaması (kalite profili ipucu). */
+    qualityAutoSubtitle: String? = null,
 
     // Sleep Timer
     sleepTimerSecondsLeft: Int = 0,
@@ -205,12 +227,44 @@ fun PlayerSheetsHost(
                     )
                 }
 
+                // ── KALİTE: yalnızca kalite seçenekleri ──────────────────────
+                // v2.4.341: Bu sheet eskiden kaynak listesini de içeriyordu
+                // ("Kalite / Kaynak"). Artık kalite ve kaynak AYRI sheet'ler.
                 KitsugiSheets.QualityTracks -> {
                     QualitySheet(
                         streamSources = streamSources,
                         selectedIndex = selectedSourceIndex,
                         isLoading = isQualityLoading,
-                        onSelect = onSelectSource,
+                        // Zaten oynayan kaynak seçildiyse videoyu yeniden yükleme.
+                        onSelectQuality = { index ->
+                            if (index != selectedSourceIndex) onSelectSource(index) else onDismissRequest()
+                        },
+                        onOpenSourceSheet = {
+                            onShowSheet(KitsugiSheets.SourceTracks)
+                        },
+                        onDismissRequest = onDismissRequest,
+                        dismissSheet = dismissSheet,
+                        options = qualityOptions,
+                        selectedOption = selectedQuality,
+                        isLoadingVariants = isQualityVariantsLoading,
+                        onSelectVariant = onSelectQuality,
+                        autoSubtitle = qualityAutoSubtitle,
+                    )
+                }
+
+                // ── KAYNAK: yalnızca sunucu (eklenti akışı) listesi ──────────
+                KitsugiSheets.SourceTracks,
+                KitsugiSheets.Sources -> {
+                    SourceSheet(
+                        streamSources = streamSources,
+                        selectedIndex = selectedSourceIndex,
+                        isLoading = isQualityLoading,
+                        onSelect = { index ->
+                            if (index != selectedSourceIndex) onSelectSource(index) else onDismissRequest()
+                        },
+                        onOpenQualitySheet = {
+                            onShowSheet(KitsugiSheets.QualityTracks)
+                        },
                         onDismissRequest = onDismissRequest,
                         dismissSheet = dismissSheet,
                     )

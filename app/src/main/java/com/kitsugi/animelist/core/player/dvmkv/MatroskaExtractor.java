@@ -2881,6 +2881,20 @@ public class MatroskaExtractor implements Extractor {
         DolbyVisionConfig dolbyVisionConfig =
             DolbyVisionConfig.parse(new ParsableByteArray(this.dolbyVisionConfigBytes));
         if (dolbyVisionConfig != null) {
+          if (DolbyVisionCompatibility.isStaleContainerDolbyVisionConfig(
+              hasColorInfo, colorTransfer)) {
+            // Konteyner "DV" diyor ama izin renk metadatası SDR: bayat BlockAdditionMapping.
+            // DV saymaya devam edersek renkler bozulur / hiç oynamaz.
+            Log.i(
+                TAG,
+                "Ignoring stale Matroska Dolby Vision config: track color metadata indicates SDR");
+            this.dolbyVisionConfigBytes = null;
+            dolbyVisionConfig = null;
+          }
+        }
+        if (dolbyVisionConfig != null) {
+          // Orijinal (dönüştürücü öncesi) codec dizesi: profil 5 koruması buna bakar.
+          final String containerDvCodecs = dolbyVisionConfig.codecs;
           codecs = dolbyVisionConfig.codecs;
           mimeType = MimeTypes.VIDEO_DOLBY_VISION;
           if (dolbyVisionSampleTransformer != null) {
@@ -2898,7 +2912,11 @@ public class MatroskaExtractor implements Extractor {
               }
             }
             if (MimeTypes.VIDEO_DOLBY_VISION.equals(mimeType) && hevcCodecsString != null) {
-              if (DolbyVisionCompatibility.isHdr10BaseLayerModeActive()) {
+              // Profil 5'in görüntülenebilir HDR10 taban katmanı YOKTUR: mime'ı
+              // HEVC'ye düşürmek IPTPQc2 piksellerini YCbCr gibi göstertip
+              // yeşil/mor bir görüntü üretir. P5 DV olarak kalır.
+              if (DolbyVisionCompatibility.isHdr10BaseLayerModeActive()
+                  && !DolbyVisionCompatibility.isDolbyVisionProfile5(containerDvCodecs)) {
                 mimeType = MimeTypes.VIDEO_H265;
                 codecs = hevcCodecsString;
               }

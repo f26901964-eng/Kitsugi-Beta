@@ -167,9 +167,22 @@ class MangaPageLoaderV2(
             val archiveLoader = ArchivePageLoader(context, archiveFile)
             val stream = archiveLoader.loadPage(page.archivePath!!)
             if (stream != null) {
-                page.stream = { stream }
-                page.status = MangaPageStatus.Ready
-                Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
+                // Arşiv sayfasını da aynı disk cache'e yaz. Eskiden sadece
+                // page.stream set ediliyordu ama MangaPageItem bunu okumuyordu;
+                // ZIP/CBZ okuyucu boş/bozuk görsel gösteriyordu.
+                val cacheKey = "archive://${archiveFile.absolutePath}/${page.archivePath}"
+                try {
+                    stream.use { cache.putImageToCache(cacheKey, it) }
+                    val file = cache.getImageFile(cacheKey)
+                    page.imageUrl = cacheKey
+                    page.cachedFile = file
+                    page.stream = { file.inputStream() }
+                    page.status = MangaPageStatus.Ready
+                    Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
+                } catch (e: Exception) {
+                    page.status = MangaPageStatus.Error
+                    Log.e(TAG, "Archive page decode error [${page.index}]: ${e.message}")
+                }
                 return
             }
             page.status = MangaPageStatus.Error
@@ -179,8 +192,9 @@ class MangaPageLoaderV2(
 
         semaphore.withPermit {
             val t0 = System.currentTimeMillis()
+            val timeoutMs = source.imageFetchTimeoutMs.coerceAtLeast(IMAGE_TIMEOUT_MS)
             try {
-                kotlinx.coroutines.withTimeout(IMAGE_TIMEOUT_MS) {
+                kotlinx.coroutines.withTimeout(timeoutMs) {
                     // 1. Sayfa URL'ini çöz (gerekiyorsa)
                     if (page.imageUrl.isNullOrEmpty()) {
                         page.status = MangaPageStatus.LoadPage
@@ -192,7 +206,9 @@ class MangaPageLoaderV2(
 
                     // 2. Disk cache'te var mı kontrol et
                     if (cache.isImageInCache(imageUrl)) {
-                        page.stream = { cache.getImageFile(imageUrl).inputStream() }
+                        val cached = cache.getImageFile(imageUrl)
+                        page.cachedFile = cached
+                        page.stream = { cached.inputStream() }
                         page.status = MangaPageStatus.Ready
                         Log.v(TAG, "Cache hit [${page.index}]: $imageUrl")
                         return@withTimeout
@@ -210,6 +226,7 @@ class MangaPageLoaderV2(
 
                     val file = cache.getImageFile(imageUrl)
                     if (file.exists() && file.length() > 0L) {
+                        page.cachedFile = file
                         page.stream = { file.inputStream() }
                         page.status = MangaPageStatus.Ready
 
@@ -223,8 +240,8 @@ class MangaPageLoaderV2(
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 page.status = MangaPageStatus.Error
                 MangaLogger.logImageFetch(context, source.name, page.index,
-                    page.imageUrl, success = false, elapsedMs = IMAGE_TIMEOUT_MS, isTimeout = true)
-                Log.e(TAG, "Timeout [${page.index}] — ${IMAGE_TIMEOUT_MS}ms aşıldı")
+                    page.imageUrl, success = false, elapsedMs = timeoutMs, isTimeout = true)
+                Log.e(TAG, "Timeout [${page.index}] — ${timeoutMs}ms aşıldı")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 if (prefetchJobs[page.index] === kotlinx.coroutines.currentCoroutineContext()[Job]) {
                     page.status = MangaPageStatus.Queue

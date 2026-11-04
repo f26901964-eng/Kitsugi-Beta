@@ -45,7 +45,8 @@ class AddonStreamRepository(private val context: Context) {
         season: Int,
         episode: Int,
         tmdbId: Int? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        preferredAddonName: String? = null
     ): List<StreamSource> = coroutineScope {
         // Step 1: Resolve IMDb + Kitsu IDs in one ARM API call
         val resolvedIds = KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId, wikidataImdbFallback = true)
@@ -73,7 +74,13 @@ class AddonStreamRepository(private val context: Context) {
         // Step 2: Her (addon, video ID) çifti için istek görevleri. Addon hangi kimlik ailesini
         // (kitsu / tt) kabul ediyorsa o ID ile sorgulanır ve istek yolunda addon'un KENDİ ilan ettiği
         // tür kullanılır (ör. yalnızca "anime" ilan eden addon /stream/anime/... ile sorgulanır).
-        val allAddons = addonDao.getEnabledAddons()
+        val enabledAddons = addonDao.getEnabledAddons()
+        val preferredAddons = preferredAddonName?.takeIf { it.isNotBlank() }?.let { preferred ->
+            enabledAddons.filter { it.name.equals(preferred, ignoreCase = true) }
+        }.orEmpty()
+        // When a provider is specified, keep this lookup scoped to its manifest. An empty
+        // result is handled by the caller's explicit broad-search fallback.
+        val allAddons = if (preferredAddonName.isNullOrBlank()) enabledAddons else preferredAddons
         val tasks = buildStremioStreamTasks(
             routes = allAddons.map { it.toStreamRoute() },
             contentType = contentType,
@@ -107,6 +114,9 @@ class AddonStreamRepository(private val context: Context) {
                         fileIndex = responseItem.fileIdx ?: responseItem.fileIndex,
                         trackers  = responseItem.trackers,
                         requestHeaders = responseItem.behaviorHints?.proxyHeaders?.request,
+                        subtitleFilename = responseItem.behaviorHints?.filename,
+                        subtitleVideoHash = responseItem.behaviorHints?.videoHash,
+                        subtitleVideoSize = responseItem.behaviorHints?.videoSize,
                         quality   = parsedQuality,
                         qualityValue = parsedQualityValue,
                         thumbnailUrl = responseItem.thumbnail
@@ -220,7 +230,13 @@ data class StreamSource(
     val trackers: List<String> = emptyList(),
     /** HTTP request headers to attach when playing the stream (from behaviorHints.proxyHeaders.request). */
     val requestHeaders: Map<String, String>? = null,
+    /** Exact Stremio behaviorHints used by subtitle services; kept separate from display title. */
+    val subtitleFilename: String? = null,
+    val subtitleVideoHash: String? = null,
+    val subtitleVideoSize: Long? = null,
     val isCS: Boolean = false,
+    /** Provider transport hint (e.g. CloudStream ExtractorLinkType M3U8/DASH/VIDEO). */
+    val streamTypeHint: String? = null,
     /**
      * Kaynağın bildirdiği çözünürlük etiketi (ör. "1080p").
      * Kaynak bilmiyorsa **null** olmalıdır — tahmini bir değer yazılmaz.
@@ -249,13 +265,23 @@ data class StreamSource(
      */
     val isAdultContent: Boolean = false,
     /**
-     * CS eklentisinin bildirdiği AYRI ses akışı (ExtractorLink.audioTracks). Video ile birlikte
-     * oynatıcıda ses parçası olarak eklenir (dublaj / orijinal ses ayrı akışsa). Yoksa null.
+     * Ayrı CloudStream ses akışlarının eski tek-URL alanı (geriye dönük uyumluluk).
+     * Yeni kod [externalAudioTracks] listesini kullanmalıdır.
      */
-    val externalAudioUrl: String? = null
+    val externalAudioUrl: String? = null,
+    /** Tüm provider audio renditions; URL başına header'lar korunur. */
+    val externalAudioTracks: List<com.kitsugi.animelist.core.player.ExternalAudioTrackInput> = emptyList(),
+    /** Yalnızca kaynak/probe açık bitrate bildirdiyse kbps; çözünürlükten türetilmez. */
+    val bitrateKbps: Int? = null,
+    /** Kaynağın açıkça bildirdiği dosya boyutu (bytes); bitrate/çözünürlük değildir. */
+    val videoSizeBytes: Long? = null,
+    /** Extractor/HTTP media type, retained even when the URL has no useful extension. */
+    val mediaType: com.kitsugi.animelist.core.player.StreamMediaType? = null
 ) : java.io.Serializable {
     val isTorrent: Boolean
-        get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl()
+        get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl() ||
+            streamTypeHint.equals("TORRENT", ignoreCase = true) ||
+            streamTypeHint.equals("MAGNET", ignoreCase = true)
 
     val p2pHash: String?
         get() = com.kitsugi.animelist.core.p2p.normalizeInfoHashToHex(

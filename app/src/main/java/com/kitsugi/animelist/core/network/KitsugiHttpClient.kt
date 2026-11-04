@@ -57,24 +57,41 @@ object KitsugiHttpClient {
     }
 
     /**
-     * Bangumi (`api.bgm.tv` + `next.bgm.tv/p1`) istemcisi.
+     * MDBList istemcisi: 429'da **yeniden deneme yok**.
      *
-     * Neden ayrı: ana [client] içindeki [RetryInterceptor] her denemeyi 3'e katlıyordu.
-     * `next.bgm.tv` yavaşladığında tek bir p1 isteği 20 sn × 3 = 60 sn'ye çıkıyor, detay
-     * sekmeleri bu yüzden dakikalarca skeleton'da kalıyordu ("Bangumi verisi 5 dakika
-     * gelmiyor" raporu). Bangumi istekleri idempotent GET'lerdir; kullanıcıya dönük
-     * ekranlarda hızlı başarısız olup v0 yedeğine geçmek, dakikalarca beklemekten iyidir.
-     * Yeniden deneme gerektiğinde çağıran katman (tek-uçuş + kısa devre) karar verir.
+     * Neden: MDBList'te her istek hesabın günlük kotasından (Free: 1.000/gün) düşer ve
+     * ana [client] içindeki [RetryInterceptor] 429 aldığında aynı isteği 2 kez daha
+     * gönderiyordu. Bu hem kotayı boşa tüketiyor hem de `X-RateLimit-Remaining`
+     * değerinin uygulamada görünen değerden hızlı düşmesine yol açıyordu. Kota zaten
+     * 429 ile kesinleştiği için yeniden denemek yalnızca zarar verir.
+     */
+    val mdbListClient: OkHttpClient by lazy {
+        metadataClient.newBuilder()
+            .callTimeout(15, TimeUnit.SECONDS)
+            .apply { interceptors().removeAll { it is RetryInterceptor } }
+            .build()
+    }
+
+    /**
+     * Bangumi istemcisi: [RetryInterceptor] YOK ve 14 sn toplam çağrı tavanı uygulanır.
      */
     val bangumiClient: OkHttpClient by lazy {
         client.newBuilder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(12, TimeUnit.SECONDS)
-            .writeTimeout(12, TimeUnit.SECONDS)
             .callTimeout(14, TimeUnit.SECONDS)
             .apply { interceptors().removeAll { it is RetryInterceptor } }
             .build()
     }
+
+    /**
+     * Çapraz liste eşitleme yazımları için istemci (MAL, Kitsu, Shikimori, Simkl).
+     * 25 sn toplam çağrı tavanı ile asılı kalan istekleri keser.
+     */
+    val syncClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(25, TimeUnit.SECONDS)
+            .build()
+    }
+
 
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -98,6 +115,9 @@ object KitsugiHttpClient {
             .retryOnConnectionFailure(true)
             .followRedirects(true)
             .followSslRedirects(true)
+            // PlatformFailureInterceptor wraps retries so a transient 429 that succeeds on retry
+            // is not surfaced as a failed source in the current screen.
+            .addInterceptor(PlatformFailureInterceptor())
             .addInterceptor(RetryInterceptor(maxRetries = 2))
             .addInterceptor(
                 Interceptor { chain ->
@@ -124,8 +144,13 @@ object KitsugiHttpClient {
                     chain.proceed(reqBuilder.build())
                 }
             )
+            // This is inside RetryInterceptor, so every actual retry is paced as well.
+            .addInterceptor(SimklRateLimitInterceptor())
             // En içte: her deneme (RetryInterceptor dahil) için gerçek HTTP kodunu görür.
             .addInterceptor(PlatformFailureInterceptor())
+            // v2.4.342: her deneme kalıcı günlüğe yazılır (host, yol, kod, süre, kota başlıkları).
+            // Kullanıcı "hangi kaynak ne zaman ne döndü" sorusunu sonradan cevaplayabilsin.
+            .addInterceptor(KitsugiNetworkLogInterceptor())
             .build()
     }
 }

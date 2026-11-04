@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.fullscreen
 
+import com.kitsugi.animelist.ui.components.KitsugiEmojiLabel
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -20,8 +21,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +48,9 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.kitsugi.animelist.data.cloudstream.CsVideoInterceptorFactory
 import com.kitsugi.animelist.core.player.SubtitleInput
+import com.kitsugi.animelist.core.player.QualityOption
 import com.kitsugi.animelist.data.repository.AddonStreamRepository
+import com.kitsugi.animelist.data.repository.StreamProbe
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PauseOverlay
@@ -281,6 +283,20 @@ fun KitsugiFullscreenPlayerScreen(
     val currentSourceIndex by viewModel.currentSourceIndex.collectAsState()
     val currentStreamSources by viewModel.currentStreamSources.collectAsState()
     val currentAddonName by viewModel.currentAddonName.collectAsState()
+
+    // ── Kalite (açık akışın GERÇEK video varyantları) ────────────────────────
+    // rapidrame / closeload kaynakları tek bir master.m3u8 verir ve eklenti kaliteyi
+    // bildirmez (Qualities.Unknown). Kalite listesi bu yüzden master playlist'in
+    // kendisinden ölçülür; kaynak/parça değişince sıfırlanır.
+    var qualityOptions by remember(currentSourceIndex) { mutableStateOf<List<QualityOption>>(emptyList()) }
+    var qualityMasterUrl by remember(currentSourceIndex) { mutableStateOf<String?>(null) }
+    var isQualityVariantsLoading by remember(currentSourceIndex) { mutableStateOf(false) }
+    var selectedQuality by remember(currentSourceIndex) { mutableStateOf<QualityOption?>(null) }
+    /**
+     * Varyant URL'si oynatılamazsa (imzalı CDN token'ı süresi dolmuş / 403) master'a
+     * **bir kez** geri dönmek için kullanılan işaret. Aynı URL'de döngüye girilmez.
+     */
+    var variantFallbackUrl by remember { mutableStateOf<String?>(null) }
     val currentEpisode by viewModel.currentEpisode.collectAsState()
     val episodesList by viewModel.episodesList.collectAsState()
     val userCancelledBinge by viewModel.userCancelledBingeFlow.collectAsState()
@@ -319,6 +335,44 @@ fun KitsugiFullscreenPlayerScreen(
     val currentChapter by viewModel.currentChapter.collectAsState()
     val areControlsLocked by viewModel.areControlsLocked.collectAsState()
 
+    LaunchedEffect(currentSourceIndex, currentVideoUrl) {
+        val url = currentVideoUrl?.trim().orEmpty()
+        if (url.isEmpty()) return@LaunchedEffect
+
+        // Kullanıcı listeden bir varyant seçtiyse master'ı yeniden ölçmeyiz:
+        // oynatılan URL zaten bilinen bir varyanttır, liste korunur.
+        if (url != qualityMasterUrl && qualityOptions.any { it.switchUrl == url }) return@LaunchedEffect
+
+        val source = currentStreamSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
+        qualityMasterUrl = url
+        isQualityVariantsLoading = true
+        val measured = runCatching {
+            StreamProbe.qualityOptions(source.copy(url = url))
+        }.getOrDefault(emptyList())
+        qualityOptions = measured
+        // Aynı seçim hâlâ geçerliyse (ör. DASH tavanı) korunur; aksi hâlde "Otomatik".
+        val selectionStillValid = selectedQuality?.let { selected ->
+            measured.any { it.key == selected.key }
+        } == true
+        if (!selectionStillValid) selectedQuality = null
+        isQualityVariantsLoading = false
+    }
+
+    // Kalite sayfası açıldığında liste boşsa yeniden ölç: geçici ağ hatası / 403
+    // yüzünden boş kalan bir sonuç, kullanıcı sayfayı yeniden açınca tekrar denenir.
+    LaunchedEffect(sheetShown) {
+        if (sheetShown != KitsugiSheets.QualityTracks) return@LaunchedEffect
+        if (qualityOptions.isNotEmpty() || isQualityVariantsLoading) return@LaunchedEffect
+        val url = currentVideoUrl?.trim().orEmpty()
+        val source = currentStreamSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
+        if (url.isEmpty()) return@LaunchedEffect
+        isQualityVariantsLoading = true
+        qualityOptions = runCatching {
+            StreamProbe.qualityOptions(source.copy(url = url))
+        }.getOrDefault(emptyList())
+        isQualityVariantsLoading = false
+    }
+
     LaunchedEffect(panelShown, sheetShown, isFocusTargetAttached) {
         if (panelShown == KitsugiPanels.None && sheetShown == KitsugiSheets.None && isFocusTargetAttached) {
             try {
@@ -341,6 +395,8 @@ fun KitsugiFullscreenPlayerScreen(
     // Track selections
     var textTrackOptions by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
     var audioTrackOptions by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
+    var videoQualityTracks by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
+    var isVideoQualityAuto by remember { mutableStateOf(true) }
     var isSubtitleDisabled by remember { mutableStateOf(false) }
 
     // Subtitle style, delay, hız ve video filtreleri
@@ -437,13 +493,39 @@ fun KitsugiFullscreenPlayerScreen(
             ?: if (!cs3Url.isNullOrBlank()) cs3Url.hashCode()
                else animeTitle.hashCode()
     }
-    var savedPos by remember(mediaIdForHistory, currentEpisode, currentAddonName) { mutableStateOf<Long?>(null) }
-    var showResumeDialog by remember(mediaIdForHistory, currentEpisode, currentAddonName) { mutableStateOf(false) }
-    var pendingResumePos by remember { mutableStateOf(0L) }
-    var hasCheckedResume by remember(mediaIdForHistory, currentEpisode, currentAddonName) { mutableStateOf(false) }
+    val resumeStore = remember(context) { com.kitsugi.animelist.core.player.PlayerResumeStore(context) }
+    val activeResumeSource = currentStreamSources.getOrNull(currentSourceIndex)
+    val resumeIdentity = remember(
+        mediaIdForHistory, season, currentEpisode, currentAddonName,
+        activeResumeSource?.name, activeResumeSource?.title, activeResumeSource?.url,
+        activeResumeSource?.infoHash, activeResumeSource?.fileIndex, currentVideoUrl
+    ) {
+        com.kitsugi.animelist.core.player.PlayerResumeIdentity(
+            mediaId = mediaIdForHistory,
+            season = season,
+            episode = currentEpisode,
+            addonName = activeResumeSource?.addonName ?: currentAddonName,
+            sourceName = activeResumeSource?.title?.takeIf { it.isNotBlank() }
+                ?: activeResumeSource?.name?.takeIf { it.isNotBlank() }
+                ?: currentTitle,
+            sourceUrl = activeResumeSource?.infoHash?.let { "torrent:$it:${activeResumeSource.fileIndex ?: -1}" }
+                ?: activeResumeSource?.url
+                ?: currentVideoUrl
+                ?: videoUrl
+        )
+    }
+    val latestResumeIdentity by rememberUpdatedState(resumeIdentity)
+    var savedPos by remember(resumeIdentity) { mutableStateOf<Long?>(null) }
+    var showResumeDialog by remember(resumeIdentity) { mutableStateOf(false) }
+    var pendingResumePos by remember(resumeIdentity) { mutableStateOf(0L) }
+    var hasCheckedResume by remember(resumeIdentity) { mutableStateOf(false) }
 
-    LaunchedEffect(mediaIdForHistory, currentEpisode, currentAddonName) {
-        savedPos = if (resumePosition > 0L) resumePosition else viewModel.getSavedPosition(mediaIdForHistory, currentEpisode, currentAddonName)
+    LaunchedEffect(resumeIdentity) {
+        val exactStreamPosition = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            resumeStore.get(resumeIdentity)
+        }
+        savedPos = exactStreamPosition.takeIf { it > 0L }
+            ?: resumePosition.takeIf { it > 0L && currentEpisode == episode && currentSourceIndex == initialIndex }
     }
 
     fun playEpisode(targetEp: Int) {
@@ -452,11 +534,11 @@ fun KitsugiFullscreenPlayerScreen(
             targetEp = targetEp,
             activity = activity,
             onAlternativeRequired = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.SourceTracks)
                 Toast.makeText(context, KitsugiStrings.get(R.string.ayni_kaynak_bulunamadi_diger_kaynaklar_listeleniyor), Toast.LENGTH_LONG).show()
             },
             onResolutionFailed = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.SourceTracks)
                 Toast.makeText(context, KitsugiStrings.get(R.string.secilen_kaynak_cozumlenemedi_lutfen_listeden_baska_bir_kaynak_se), Toast.LENGTH_LONG).show()
             }
         )
@@ -466,11 +548,11 @@ fun KitsugiFullscreenPlayerScreen(
         viewModel.playNextEpisode(
             activity = activity,
             onAlternativeRequired = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.SourceTracks)
                 Toast.makeText(context, KitsugiStrings.get(R.string.ayni_kaynak_bulunamadi_diger_kaynaklar_listeleniyor), Toast.LENGTH_LONG).show()
             },
             onResolutionFailed = {
-                viewModel.showSheet(KitsugiSheets.QualityTracks)
+                viewModel.showSheet(KitsugiSheets.SourceTracks)
                 Toast.makeText(context, KitsugiStrings.get(R.string.secilen_kaynak_cozumlenemedi_lutfen_listeden_baska_bir_kaynak_se), Toast.LENGTH_LONG).show()
             }
         )
@@ -490,7 +572,13 @@ fun KitsugiFullscreenPlayerScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     CircularProgressIndicator(color = Color.White)
-                    Text("⚡ Yedek kaynak deneniyor...", color = Color.White.copy(alpha = 0.85f))
+                    KitsugiEmojiLabel(
+                        label = "Yedek kaynak deneniyor...",
+                        color = Color.White.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        iconSize = 14.dp,
+                        icon = Icons.Zap
+                    )
                     Text(
                         text = "Kaynak: ${currentAddonName.orEmpty()} → sonraki",
                         color = Color.White.copy(alpha = 0.5f),
@@ -542,7 +630,7 @@ fun KitsugiFullscreenPlayerScreen(
                     onRetry = { viewModel.retryCurrentSource() },
                     onSwitchSource = {
                         if (currentStreamSources.isNotEmpty()) {
-                            viewModel.showSheet(KitsugiSheets.QualityTracks)
+                            viewModel.showSheet(KitsugiSheets.SourceTracks)
                         } else {
                             KitsugiStreamActivity.start(
                                 context = context,
@@ -638,6 +726,14 @@ fun KitsugiFullscreenPlayerScreen(
                     (playerEngine as? MpvPlayerEngine)?.updateSettings(safeSettings)
                 }
 
+                // Motor değişirse (Media3 ↔ MPV) çözünürlük tavanı yeni motora yeniden
+                // uygulanır; aksi hâlde seçilen kalite sessizce kaybolurdu.
+                LaunchedEffect(playerEngine, selectedQuality) {
+                    playerEngine.setMaxVideoHeight(
+                        selectedQuality?.takeIf { it.switchUrl == null }?.height
+                    )
+                }
+
                 LaunchedEffect(playerEngine, skipIntervals) { viewModel.updateSkipChapters(skipIntervals) }
 
                 // Seçili motor bir özelliği desteklemiyorsa (altyazı gecikmesi/hızı, renk
@@ -724,7 +820,10 @@ fun KitsugiFullscreenPlayerScreen(
                         engine = playerEngine
                     )
                 }
-                var isEngineReady by remember(mediaIdForHistory, currentEpisode, currentAddonName) { mutableStateOf(false) }
+                var isEngineReady by remember(resumeIdentity) { mutableStateOf(false) }
+                var resumeReadyIdentity by remember { mutableStateOf<com.kitsugi.animelist.core.player.PlayerResumeIdentity?>(null) }
+                var lastPreparedResumeIdentity by remember { mutableStateOf<com.kitsugi.animelist.core.player.PlayerResumeIdentity?>(null) }
+                val latestPreparedResumeIdentity by rememberUpdatedState(lastPreparedResumeIdentity)
                 
                 var aspectFeedback by remember { mutableStateOf<String?>(null) }
 
@@ -756,15 +855,25 @@ fun KitsugiFullscreenPlayerScreen(
                     }
                 }
 
+                LaunchedEffect(playerEngine, currentVideoUrl) {
+                    videoQualityTracks = emptyList()
+                    isVideoQualityAuto = true
+                }
+
                 // Poll metadata/cache even while paused; save history only during playback.
-                LaunchedEffect(playerEngine, mediaIdForHistory, currentEpisode, currentAddonName) {
+                LaunchedEffect(playerEngine, mediaIdForHistory, currentEpisode, currentAddonName, resumeIdentity) {
                     run {
                         while (true) {
                             currentPosition = playerEngine.currentPosition
                             duration = playerEngine.duration.coerceAtLeast(0L)
                             isPlayingState = playerEngine.isPlaying
                             viewModel.updateReadAhead(playerEngine.bufferedPosition / 1000)
-                            if (currentPosition > 0L && playerEngine.isPlaying) {
+                            videoQualityTracks = playerEngine.videoQualityTracks
+                            isVideoQualityAuto = playerEngine.isVideoQualityAuto
+                            if (currentPosition > 0L && duration > 0L && playerEngine.isPlaying) {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    resumeStore.save(resumeIdentity, currentPosition, duration)
+                                }
                                 viewModel.saveProgress(
                                     mediaId = mediaIdForHistory,
                                     episode = currentEpisode,
@@ -861,13 +970,16 @@ fun KitsugiFullscreenPlayerScreen(
                                 duration = playerEngine.duration.coerceAtLeast(0L)
                                 Log.d("KitsugiPlayerDebug", "Player READY: duration=$duration, savedPos=$savedPos")
                                 isEngineReady = true
+                                resumeReadyIdentity = latestResumeIdentity
                                 playerEngine.setPlaybackSpeed(playbackSpeed)
                                 val mpvEngine = playerEngine as? com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
                                 mpvEngine?.mpvView?.mpv?.setPropertyInt("user-data/current-anime/intro-length", viewModel.getAnimeSkipIntroLength())
                                 viewModel.orchestrator.errorRecovery.onPlaybackReady()
+                                viewModel.prefetchNextEpisode()
                             } else if (state == PlayerEngine.State.ENDED) {
                                 Log.d("KitsugiPlayerDebug", "Player ENDED: calling onEpisodeEnded")
                                 isPlaybackEnded = true
+                                resumeStore.clear(latestResumeIdentity)
                                 viewModel.onEpisodeEnded(duration, currentPosition)
                             }
                         }
@@ -884,6 +996,29 @@ fun KitsugiFullscreenPlayerScreen(
                                 errorMsg  = errorMsg,
                                 cause     = cause
                              )
+                            // Seçilen varyant URL'si oynatılamıyorsa (imzalı CDN token'ı süresi
+                            // dolmuş, 403, süresi geçmiş sorgu) kullanıcıyı kilitli bırakma:
+                            // master'a bir kez dönüp aynı kaliteyi tavan olarak koru.
+                            val failingVariant = selectedQuality
+                            val masterUrl = qualityMasterUrl
+                            val source = currentStreamSources.getOrNull(currentSourceIndex)
+                            if (failingVariant?.switchUrl != null &&
+                                !masterUrl.isNullOrBlank() &&
+                                source != null &&
+                                variantFallbackUrl != failingVariant.switchUrl
+                            ) {
+                                variantFallbackUrl = failingVariant.switchUrl
+                                viewModel.clearPlayerError()
+                                playerEngine.setMaxVideoHeight(failingVariant.height)
+                                selectedQuality = failingVariant.copy(switchUrl = null)
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.quality_variant_failed_back_to_master),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                viewModel.changeStreamSource(currentSourceIndex, source, masterUrl)
+                                return
+                            }
                             // Delegate entirely to the orchestrator's unified error recovery pipeline
                             viewModel.orchestrator.errorRecovery.onPlaybackError(errorCode, errorMsg)
                         }
@@ -895,6 +1030,8 @@ fun KitsugiFullscreenPlayerScreen(
                             Log.d("KitsugiPlayerDebug", "onTracksChanged: audioTracks=${audioTracks.size}, subTracks=${subtitleTracks.size}")
                             audioTrackOptions = audioTracks
                             textTrackOptions = subtitleTracks
+                            videoQualityTracks = playerEngine.videoQualityTracks
+                            isVideoQualityAuto = playerEngine.isVideoQualityAuto
                             isSubtitleDisabled = playerEngine.isSubtitleDisabled
                             streamInfoData = playerEngine.activeStreamInfo
                         }
@@ -912,7 +1049,8 @@ fun KitsugiFullscreenPlayerScreen(
                         Log.d("KitsugiPlayerDebug", "playerEngine DisposableEffect onDispose called")
                         viewModel.setActiveEngine(null)
                         val finalPos = playerEngine.currentPosition
-                        if (finalPos > 0L) {
+                        if (finalPos > 0L && duration > 0L) {
+                            resumeStore.save(latestPreparedResumeIdentity ?: latestResumeIdentity, finalPos, duration)
                             viewModel.saveProgress(
                                 mediaId = mediaIdForHistory,
                                 episode = currentEpisode,
@@ -942,6 +1080,11 @@ fun KitsugiFullscreenPlayerScreen(
                 // even when the URL hasn't changed. Using the object reference as key caused
                 // unnecessary player restarts every ~10s, resetting position to 0 each time.
                 var lastPreparedUrl by remember { mutableStateOf<String?>(null) }
+                // Son hazırlanan akışın kimliği (URL + başlıklar + ayrı ses + motor). Yalnızca
+                // altyazı listesi değiştiyse akış yeniden hazırlanmaz (bkz. addExternalSubtitles).
+                val lastPreparedStream = remember {
+                    java.util.concurrent.atomic.AtomicReference<PreparedStreamIdentity?>(null)
+                }
                 val prepareKey = remember(source?.videoUrl, currentHeaders, currentSubtitles) {
                     Triple(source?.videoUrl, currentHeaders.hashCode(), currentSubtitles.map { it.url }.hashCode())
                 }
@@ -950,8 +1093,25 @@ fun KitsugiFullscreenPlayerScreen(
                     // çalışmak kısa süreliğine ikinci bir oynatma başlatabiliyordu.
                     if (activeEngineType == PlayerEngineType.EXTERNAL) return@LaunchedEffect
                     val safeVideoUrl = source?.videoUrl ?: return@LaunchedEffect
+                    val streamIdentity = PreparedStreamIdentity(
+                        videoUrl = safeVideoUrl,
+                        headersHash = currentHeaders.hashCode(),
+                        audioUrl = source?.audioUrl,
+                        engine = playerEngine
+                    )
+                    // Eklenti altyazıları video başladıktan 1–9 sn sonra gelince eskiden TÜM oynatıcı
+                    // yeniden hazırlanıyordu (v2.4.369 günlüğündeki çift "[OYNAT] Başladı", aynı CDN
+                    // adresine ikinci istek → HTTP 429 riski, yeniden tamponlama). Destekleyen motor
+                    // (mpv) yeni altyazıları akışı kesmeden ekler; desteklemeyen motor tam hazırlığa düşer.
+                    if (streamIdentity == lastPreparedStream.get() &&
+                        playerEngine.addExternalSubtitles(currentSubtitles)
+                    ) {
+                        Log.d("KitsugiPlayer", "Yalnızca altyazı listesi değişti (${currentSubtitles.size}) → akış yeniden hazırlanmadı")
+                        return@LaunchedEffect
+                    }
                     isPlaybackEnded = false
                     isEngineReady = false
+                    resumeReadyIdentity = null
                     Log.d("KitsugiPlayerDebug", "LaunchedEffect(source) prepare() starting. url=$safeVideoUrl")
                     PlayerLogger.logPlaybackStart(
                         context   = context,
@@ -971,25 +1131,42 @@ fun KitsugiFullscreenPlayerScreen(
                     } else {
                         0L
                     }
+                    if (lastPreparedResumeIdentity != null && resumeIdentity != lastPreparedResumeIdentity) {
+                        lastPreparedResumeIdentity?.let { previousIdentity ->
+                            resumeStore.save(previousIdentity, playerEngine.currentPosition, playerEngine.duration)
+                        }
+                    }
                     lastPreparedUrl = safeVideoUrl
+                    lastPreparedResumeIdentity = resumeIdentity
+                    lastPreparedStream.set(streamIdentity)
 
                     playerEngine.prepare(
                         videoUrl = safeVideoUrl,
                         audioUrl = source?.audioUrl,
+                        externalAudioTracks = source?.externalAudioTracks.orEmpty(),
+                        streamTypeHint = source?.streamTypeHint,
                         headers = currentHeaders,
                         subtitles = currentSubtitles,
                         startPositionMs = startPos,
                         addonName = currentAddonName,
-                        isCS = activeSource?.isCS == true,
-                        streamTitle = activeSource?.title ?: activeSource?.name,
+                        // Eklenti başlığı HTML/CSS artığı içerebiliyor; ses/altyazı
+                        // parçası adına temizlenmiş metin verilir (2026-11-01).
+                        streamTitle = com.kitsugi.animelist.utils.StreamLabelSanitizer
+                            .sanitize(activeSource?.title)
+                            .ifBlank {
+                                com.kitsugi.animelist.utils.StreamLabelSanitizer
+                                    .sanitize(activeSource?.name)
+                            }
+                            .takeIf { it.isNotBlank() },
                         qualityValue = activeSource?.qualityValue
                     )
                     Log.d("KitsugiPlayer", "prepare() ÇAĞRILDI: url=$safeVideoUrl addon=${currentAddonName} startPos=$startPos")
                 }
 
-                LaunchedEffect(savedPos, isEngineReady) {
+                LaunchedEffect(savedPos, isEngineReady, resumeReadyIdentity, resumeIdentity, isLoading, nextEpisodeLoading) {
                     val pos = savedPos
-                    if (pos != null && isEngineReady && !hasCheckedResume) {
+                    if (pos != null && isEngineReady && resumeReadyIdentity == resumeIdentity &&
+                        !isLoading && !nextEpisodeLoading && !hasCheckedResume) {
                         hasCheckedResume = true
                         if (pos >= 10_000L && pos < duration - 10_000L) {
                             playerEngine.pause()
@@ -1002,6 +1179,7 @@ fun KitsugiFullscreenPlayerScreen(
                 var seekFeedback  by remember { mutableStateOf<String?>(null) }
                 // true = kullanıcı sağ tarafa tıkladı → gösterge sola (TopStart) gider
                 var seekFeedbackOnRightSide by remember { mutableStateOf(true) }
+                var keyboardFeedback by remember { mutableStateOf<Pair<String, ImageVector>?>(null) }
                 var playPauseIcon by remember { mutableStateOf<ImageVector?>(null) }
 
                 val controlsShown by viewModel.controlsShown.collectAsState()
@@ -1026,6 +1204,9 @@ fun KitsugiFullscreenPlayerScreen(
                 LaunchedEffect(seekFeedback) {
                     if (seekFeedback != null) { delay(650); seekFeedback = null }
                 }
+                LaunchedEffect(keyboardFeedback) {
+                    if (keyboardFeedback != null) { delay(900); keyboardFeedback = null }
+                }
                 LaunchedEffect(playPauseIcon) {
                     if (playPauseIcon != null) { delay(500); playPauseIcon = null }
                 }
@@ -1036,10 +1217,15 @@ fun KitsugiFullscreenPlayerScreen(
                         .focusRequester(mainFocusRequester)
                         .focusable()
                         .onPreviewKeyEvent { event ->
+                            val native = event.nativeKeyEvent
+                            val keyCode = native.keyCode
+                            val isPhysicalKeyboard = native.device?.keyboardType == android.view.InputDevice.KEYBOARD_TYPE_ALPHABETIC
+                            val menuOpen = panelShown != KitsugiPanels.None ||
+                                sheetShown != KitsugiSheets.None || dialogShown != KitsugiDialogs.None
                             if (event.key == Key.Back || event.key == Key.Escape) {
                                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent true
                                 return@onPreviewKeyEvent when {
-                                    panelShown != KitsugiPanels.None || sheetShown != KitsugiSheets.None || dialogShown != KitsugiDialogs.None -> {
+                                    menuOpen -> {
                                         viewModel.showPanel(KitsugiPanels.None)
                                         viewModel.showSheet(KitsugiSheets.None)
                                         viewModel.showDialog(KitsugiDialogs.None)
@@ -1057,53 +1243,318 @@ fun KitsugiFullscreenPlayerScreen(
                                     }
                                 }
                             }
-                            
-                            if (panelShown != KitsugiPanels.None || sheetShown != KitsugiSheets.None || dialogShown != KitsugiDialogs.None) return@onPreviewKeyEvent false
-                            
-                            if (controlsShown) {
-                                if (event.type == KeyEventType.KeyDown) viewModel.showControls() // Reset timer
-                                return@onPreviewKeyEvent false
-                            }
 
-                            val isNavOrSelectKey = event.key == Key.DirectionCenter ||
-                                event.key == Key.Enter ||
-                                event.key == Key.DirectionLeft ||
-                                event.key == Key.DirectionRight ||
-                                event.key == Key.DirectionUp ||
-                                event.key == Key.DirectionDown
+                            // Let dialogs, sheets and panels keep their own focus/navigation.
+                            if (menuOpen) return@onPreviewKeyEvent false
 
+                            val isMediaKey = keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PLAY ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PAUSE ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_STOP ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_NEXT ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_REWIND
+                            val isShortcutKey = keyCode == android.view.KeyEvent.KEYCODE_SPACE ||
+                                keyCode == android.view.KeyEvent.KEYCODE_K ||
+                                keyCode == android.view.KeyEvent.KEYCODE_J ||
+                                keyCode == android.view.KeyEvent.KEYCODE_L ||
+                                keyCode == android.view.KeyEvent.KEYCODE_N ||
+                                keyCode == android.view.KeyEvent.KEYCODE_P ||
+                                keyCode == android.view.KeyEvent.KEYCODE_F ||
+                                keyCode == android.view.KeyEvent.KEYCODE_R ||
+                                keyCode == android.view.KeyEvent.KEYCODE_M ||
+                                keyCode == android.view.KeyEvent.KEYCODE_A ||
+                                keyCode == android.view.KeyEvent.KEYCODE_C ||
+                                keyCode == android.view.KeyEvent.KEYCODE_T ||
+                                keyCode == android.view.KeyEvent.KEYCODE_V ||
+                                keyCode == android.view.KeyEvent.KEYCODE_O ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MOVE_HOME ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MOVE_END ||
+                                keyCode == android.view.KeyEvent.KEYCODE_LEFT_BRACKET ||
+                                keyCode == android.view.KeyEvent.KEYCODE_RIGHT_BRACKET ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MINUS ||
+                                keyCode == android.view.KeyEvent.KEYCODE_EQUALS ||
+                                keyCode == android.view.KeyEvent.KEYCODE_PLUS ||
+                                keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ADD ||
+                                keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_SUBTRACT ||
+                                keyCode == android.view.KeyEvent.KEYCODE_COMMA ||
+                                keyCode == android.view.KeyEvent.KEYCODE_PERIOD ||
+                                keyCode in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_9 || isMediaKey
+                            val keyboardArrow = isPhysicalKeyboard &&
+                                (keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT ||
+                                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ||
+                                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP ||
+                                    keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                            val navigationKey = keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT ||
+                                keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ||
+                                keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP ||
+                                keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
                             if (event.type != KeyEventType.KeyDown) {
-                                return@onPreviewKeyEvent if (isNavOrSelectKey) true else playerEngine.handleKey(event.nativeKeyEvent)
+                                return@onPreviewKeyEvent if (isShortcutKey || keyboardArrow || navigationKey) true
+                                else playerEngine.handleKey(native)
                             }
-                            
-                            when (event.key) {
-                                Key.DirectionCenter, Key.Enter -> {
-                                    viewModel.togglePlay()
-                                    viewModel.showControls()
-                                    true
+                            val ignoreKeyRepeat = keyCode == android.view.KeyEvent.KEYCODE_SPACE ||
+                                keyCode == android.view.KeyEvent.KEYCODE_K ||
+                                keyCode == android.view.KeyEvent.KEYCODE_M ||
+                                keyCode == android.view.KeyEvent.KEYCODE_A ||
+                                keyCode == android.view.KeyEvent.KEYCODE_C ||
+                                keyCode == android.view.KeyEvent.KEYCODE_T ||
+                                keyCode == android.view.KeyEvent.KEYCODE_V ||
+                                keyCode == android.view.KeyEvent.KEYCODE_R ||
+                                keyCode == android.view.KeyEvent.KEYCODE_O ||
+                                keyCode == android.view.KeyEvent.KEYCODE_N ||
+                                keyCode == android.view.KeyEvent.KEYCODE_P ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PLAY ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PAUSE ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_NEXT ||
+                                keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                            if (native.repeatCount > 0 && ignoreKeyRepeat) return@onPreviewKeyEvent true
+
+                            fun seekByKeyboard(deltaMs: Long) {
+                                val target = (playerEngine.currentPosition + deltaMs)
+                                    .coerceIn(0L, playerEngine.duration.coerceAtLeast(0L))
+                                playerEngine.seekTo(target)
+                                viewModel.onUserInteraction()
+                                seekFeedback = if (deltaMs < 0L) "-${kotlin.math.abs(deltaMs) / 1000}s" else "+${deltaMs / 1000}s"
+                                seekFeedbackOnRightSide = deltaMs > 0L
+                                viewModel.showControls()
+                            }
+
+                            fun showKeyboardFeedback(text: String, icon: ImageVector) {
+                                keyboardFeedback = text to icon
+                                viewModel.showControls()
+                            }
+
+                            fun adjustVolume(delta: Int) {
+                                val step = maxOf(1, (viewModel.maxVolume * 0.05f).toInt())
+                                viewModel.changeVolumeTo(viewModel.currentVolume.value + delta * step)
+                                viewModel.displayVolumeSlider()
+                                showKeyboardFeedback("Ses %${(viewModel.currentVolume.value * 100 / viewModel.maxVolume.coerceAtLeast(1))}", Icons.Rounded.VolumeUp)
+                            }
+
+                            fun adjustBrightness(delta: Float) {
+                                val windowBrightness = activity?.window?.attributes?.screenBrightness
+                                val base = viewModel.currentBrightness.value.takeIf { it >= -0.75f }
+                                    ?: windowBrightness?.takeIf { it in 0f..1f }
+                                    ?: viewModel.getSystemBrightness()
+                                val next = (base + delta).coerceIn(0f, 1f)
+                                viewModel.changeBrightnessTo(next)
+                                viewModel.displayBrightnessSlider()
+                                showKeyboardFeedback("Parlaklık %${(next * 100).toInt()}", Icons.Rounded.BrightnessMedium)
+                            }
+
+                            fun changePlaybackSpeed(delta: Float) {
+                                val speed = (viewModel.playbackSpeed.value + delta).coerceIn(0.1f, 6f)
+                                viewModel.setPlaybackSpeed(speed, persist = false)
+                                showKeyboardFeedback(
+                                    "Hız ${String.format(java.util.Locale.US, "%.2f×", speed)}",
+                                    Icons.Rounded.Speed
+                                )
+                            }
+
+                            fun cycleTrack(tracks: List<TrackOption>, label: String, icon: ImageVector) {
+                                if (tracks.isEmpty()) {
+                                    showKeyboardFeedback("$label parçası bulunamadı", icon)
+                                    return
                                 }
-                                Key.DirectionLeft -> {
-                                    val pos = playerEngine.currentPosition
-                                    playerEngine.seekTo((pos - 10000).coerceAtLeast(0))
-                                    seekFeedback = "-10s"
-                                    seekFeedbackOnRightSide = false
-                                    viewModel.showControls()
-                                    true
+                                val selected = tracks.indexOfFirst { it.isSelected }
+                                val next = tracks[(selected + 1) % tracks.size]
+                                playerEngine.selectTrack(next)
+                                showKeyboardFeedback("$label: ${next.label}", icon)
+                            }
+
+                            fun toggleSubtitles() {
+                                if (playerEngine.isSubtitleDisabled) {
+                                    cycleTrack(textTrackOptions, "Altyazı", Icons.Rounded.Subtitles)
+                                } else {
+                                    playerEngine.disableSubtitles()
+                                    showKeyboardFeedback("Altyazı kapalı", Icons.Rounded.Subtitles)
                                 }
-                                Key.DirectionRight -> {
-                                    val pos = playerEngine.currentPosition
-                                    val dur = playerEngine.duration
-                                    playerEngine.seekTo((pos + 10000).coerceAtMost(dur))
-                                    seekFeedback = "+10s"
-                                    seekFeedbackOnRightSide = true
-                                    viewModel.showControls()
-                                    true
+                            }
+
+                            fun adjustSubtitleDelay(deltaMs: Long) {
+                                subtitleDelayMs = (subtitleDelayMs + deltaMs).coerceIn(-10_000L, 10_000L)
+                                if (!playerEngine.supportsSubtitleDelay) {
+                                    viewModel.switchEngineForFeature(PlayerEngineType.MPV)
                                 }
-                                Key.DirectionUp, Key.DirectionDown -> {
-                                    viewModel.showControls()
-                                    true
+                                playerEngine.setSubtitleDelay(subtitleDelayMs)
+                                val signedDelay = if (subtitleDelayMs < 0L) "−" else "+"
+                                showKeyboardFeedback("Altyazı $signedDelay${kotlin.math.abs(subtitleDelayMs) / 1000.0}s", Icons.Rounded.Subtitles)
+                            }
+
+                            fun adjustAudioDelay(deltaMs: Long) {
+                                audioDelayMs = (audioDelayMs + deltaMs).coerceIn(-10_000L, 10_000L)
+                                playerEngine.setAudioDelay(audioDelayMs)
+                                val signedDelay = if (audioDelayMs < 0L) "−" else "+"
+                                showKeyboardFeedback("Ses gecikmesi $signedDelay${kotlin.math.abs(audioDelayMs) / 1000.0}s", Icons.Rounded.VolumeUp)
+                            }
+
+                            if (isPhysicalKeyboard && keyCode in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_9) {
+                                val fractionTenths = keyCode - android.view.KeyEvent.KEYCODE_0
+                                val durationMs = playerEngine.duration
+                                if (durationMs > 0L) {
+                                    playerEngine.seekTo(durationMs * fractionTenths / 10L)
+                                    viewModel.onUserInteraction()
+                                    seekFeedback = "${fractionTenths * 10}%"
+                                    seekFeedbackOnRightSide = fractionTenths >= 5
                                 }
-                                else -> playerEngine.handleKey(event.nativeKeyEvent)
+                                viewModel.showControls()
+                                return@onPreviewKeyEvent true
+                            }
+
+                            if (isMediaKey) {
+                                when (keyCode) {
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> viewModel.togglePlay()
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> viewModel.play()
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PAUSE,
+                                    android.view.KeyEvent.KEYCODE_MEDIA_STOP -> viewModel.pause()
+                                    android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> if (viewModel.hasNextEpisode.value) playNextEpisode()
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> if (viewModel.currentEpisode.value > 1) viewModel.changeEpisode(previous = true)
+                                    android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> seekByKeyboard(30_000L)
+                                    android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> seekByKeyboard(-30_000L)
+                                }
+                                viewModel.showControls()
+                                return@onPreviewKeyEvent true
+                            }
+
+                            if (isPhysicalKeyboard) {
+                                when (keyCode) {
+                                    android.view.KeyEvent.KEYCODE_SPACE,
+                                    android.view.KeyEvent.KEYCODE_K -> {
+                                        viewModel.togglePlay()
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                                        viewModel.togglePlay()
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                                        viewModel.play()
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                                        viewModel.pause()
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_J -> { seekByKeyboard(-10_000L); true }
+                                    android.view.KeyEvent.KEYCODE_L -> { seekByKeyboard(10_000L); true }
+                                    android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+                                    android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                        val direction = if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) -1L else 1L
+                                        when {
+                                            native.isCtrlPressed && native.isAltPressed -> adjustAudioDelay(direction * 50L)
+                                            native.isAltPressed -> adjustSubtitleDelay(direction * 100L)
+                                            else -> {
+                                                val multiplier = when {
+                                                    native.isCtrlPressed -> 12L
+                                                    native.isShiftPressed -> 6L
+                                                    else -> 1L
+                                                }
+                                                seekByKeyboard(direction * 5_000L * multiplier)
+                                            }
+                                        }
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_DPAD_UP,
+                                    android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                        val direction = if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP) 1 else -1
+                                        if (native.isShiftPressed || native.isAltPressed) {
+                                            adjustBrightness(direction * 0.05f)
+                                        } else {
+                                            adjustVolume(direction)
+                                        }
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_PLUS,
+                                    android.view.KeyEvent.KEYCODE_EQUALS,
+                                    android.view.KeyEvent.KEYCODE_NUMPAD_ADD -> { adjustVolume(1); true }
+                                    android.view.KeyEvent.KEYCODE_MINUS,
+                                    android.view.KeyEvent.KEYCODE_NUMPAD_SUBTRACT -> { adjustVolume(-1); true }
+                                    android.view.KeyEvent.KEYCODE_LEFT_BRACKET -> { adjustBrightness(-0.05f); true }
+                                    android.view.KeyEvent.KEYCODE_RIGHT_BRACKET -> { adjustBrightness(0.05f); true }
+                                    android.view.KeyEvent.KEYCODE_COMMA -> { changePlaybackSpeed(-0.1f); true }
+                                    android.view.KeyEvent.KEYCODE_PERIOD -> { changePlaybackSpeed(0.1f); true }
+                                    android.view.KeyEvent.KEYCODE_M -> { viewModel.toggleMute(); showKeyboardFeedback("Sessiz ${if (viewModel.currentVolume.value == 0) "açık" else "kapalı"}", Icons.Rounded.VolumeUp); true }
+                                    android.view.KeyEvent.KEYCODE_A -> { cycleTrack(audioTrackOptions, "Ses", Icons.Rounded.VolumeUp); true }
+                                    android.view.KeyEvent.KEYCODE_C -> { cycleTrack(textTrackOptions, "Altyazı", Icons.Rounded.Subtitles); true }
+                                    android.view.KeyEvent.KEYCODE_T -> { toggleSubtitles(); true }
+                                    android.view.KeyEvent.KEYCODE_V -> {
+                                        val modes = com.kitsugi.animelist.core.player.PlayerAspectMode.entries
+                                        val index = modes.indexOf(currentAspectMode).coerceAtLeast(0)
+                                        currentAspectMode = modes[(index + 1) % modes.size]
+                                        showKeyboardFeedback("Görüntü: ${currentAspectMode.name}", Icons.Rounded.AspectRatio)
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_R -> {
+                                        val nextOrientation = when (screenOrientationState) {
+                                            ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                                            else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                                        }
+                                        screenOrientationState = nextOrientation
+                                        activity?.requestedOrientation = nextOrientation
+                                        showKeyboardFeedback("Yön: ${if (nextOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) "Yatay" else if (nextOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT) "Dikey" else "Otomatik"}", Icons.Rounded.AspectRatio)
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_O -> {
+                                        if (viewModel.areControlsLocked.value) viewModel.unlockControls() else viewModel.lockControls()
+                                        showKeyboardFeedback(if (viewModel.areControlsLocked.value) "Kontroller kilitli" else "Kontroller açık", if (viewModel.areControlsLocked.value) Icons.Rounded.Lock else Icons.Rounded.LockOpen)
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_MOVE_HOME -> {
+                                        playerEngine.seekTo(0L)
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_MOVE_END -> {
+                                        val durationMs = playerEngine.duration
+                                        if (durationMs > 0L) playerEngine.seekTo((durationMs - 1_000L).coerceAtLeast(0L))
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_N -> {
+                                        if (viewModel.hasNextEpisode.value) playNextEpisode()
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_P -> {
+                                        if (viewModel.currentEpisode.value > 1) viewModel.changeEpisode(previous = true)
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_F -> {
+                                        viewModel.toggleControls()
+                                        true
+                                    }
+                                    else -> playerEngine.handleKey(native)
+                                }
+                            } else if (!controlsShown) {
+                                when (keyCode) {
+                                    android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                                    android.view.KeyEvent.KEYCODE_ENTER -> {
+                                        viewModel.togglePlay()
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { seekByKeyboard(-10_000L); true }
+                                    android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { seekByKeyboard(10_000L); true }
+                                    android.view.KeyEvent.KEYCODE_DPAD_UP,
+                                    android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                        viewModel.showControls()
+                                        true
+                                    }
+                                    else -> playerEngine.handleKey(native)
+                                }
+                            } else {
+                                false
                             }
                         }
                         .pointerInput(playerEngine, safeSettings, isInPipMode) {
@@ -1264,7 +1715,7 @@ fun KitsugiFullscreenPlayerScreen(
                     // Double Tap Seek feedback
                     FeedbackBubble(
                         text = seekFeedback,
-                        icon = if (seekFeedback?.startsWith("+") == true) Icons.Rounded.FastForward else Icons.Rounded.FastRewind,
+                        icon = if (seekFeedback?.startsWith("+") == true) Icons.FastForward else Icons.FastRewind,
                         modifier = Modifier
                             .align(
                                 if (seekFeedbackOnRightSide) Alignment.TopStart
@@ -1277,16 +1728,24 @@ fun KitsugiFullscreenPlayerScreen(
                             )
                     )
 
+                    FeedbackBubble(
+                        text = keyboardFeedback?.first,
+                        icon = keyboardFeedback?.second ?: Icons.Rounded.VolumeUp,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 150.dp)
+                    )
+
                     // Aspect ratio feedback overlay
                     FeedbackBubble(
                         text = aspectFeedback,
-                        icon = Icons.Rounded.AspectRatio,
+                        icon = Icons.AspectRatio,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = 80.dp)
                     )
 
-                    val hasNextEpisode = episodesList.any { it.episodeNumber == nextEpNum } || currentEpisode < (episodesList.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+                    val hasNextEpisode = episodesList.isNotEmpty() && (episodesList.any { it.episodeNumber == nextEpNum } || currentEpisode < (episodesList.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE))
                     PlaybackEndedOverlay(
                         visible = isPlaybackEnded && !isAutoplayEnabled && !isInPipMode,
                         hasNextEpisode = hasNextEpisode,
@@ -1382,6 +1841,7 @@ fun KitsugiFullscreenPlayerScreen(
                         onClickCustomButton = viewModel::executeCustomButton,
                         onLongClickCustomButton = viewModel::executeCustomButtonLongPress,
                         onOpenPanel = { panel -> viewModel.showPanel(panel) },
+                        onShowSheet = { sheet -> viewModel.showSheet(sheet) },
                         currentSpeed = playbackSpeed,
                         onSpeedChange = { speed ->
                             viewModel.setPlaybackSpeed(speed, persist = false)
@@ -1444,6 +1904,60 @@ fun KitsugiFullscreenPlayerScreen(
                         onAddAudioFile = {
                             if (playerEngine.supportsExternalTracks) audioPicker.launch(arrayOf("*/*"))
                             else switchToMpvForFeature("Harici ses ekleme")
+                        },
+                        videoQualityTracks = videoQualityTracks,
+                        isVideoQualityAuto = isVideoQualityAuto,
+                        onSelectVideoQuality = { track ->
+                            playerEngine.selectVideoQuality(track)
+                            isVideoQualityAuto = playerEngine.isVideoQualityAuto
+                            viewModel.showSheet(KitsugiSheets.None)
+                        },
+                        qualityOptions = qualityOptions,
+                        qualityAutoSubtitle = run {
+                            val profile = com.kitsugi.animelist.core.player.QualityProfile
+                                .deserialize(safeSettings.qualityProfileJson)
+                            if (profile.preference ==
+                                com.kitsugi.animelist.core.player.QualityPreference.AUTO
+                            ) {
+                                null
+                            } else {
+                                val cap = profile.effectiveMaxVideoHeight
+                                val capText = cap?.let { "${it}p" } ?: profile.preference.label
+                                KitsugiStrings.get(R.string.quality_auto_profile_hint, capText)
+                            }
+                        },
+                        selectedQuality = selectedQuality,
+                        isQualityVariantsLoading = isQualityVariantsLoading,
+                        onSelectQuality = { option ->
+                            val src = currentStreamSources.getOrNull(currentSourceIndex)
+                            val master = qualityMasterUrl ?: currentVideoUrl
+                            // Uygulanamayacak seçim (ör. yalnızca motor tavanıyla
+                            // uygulanabilen DASH kalitesi + MPV) işaretlenmez; kullanıcı
+                            // bilgilendirilir. Aksi hâlde arayüz "seçili" gösterirken
+                            // oynatıcı hiçbir şey yapmamış olurdu.
+                            val needsCap = option != null && option.switchUrl == null
+                            val capUnsupported = needsCap && activeEngineType != PlayerEngineType.MEDIA3
+                            if (capUnsupported) {
+                                Toast.makeText(
+                                    context,
+                                    KitsugiStrings.get(R.string.quality_cap_not_supported_engine),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else if (src != null && !master.isNullOrBlank()) {
+                                selectedQuality = option
+                                variantFallbackUrl = null
+                                viewModel.showSheet(KitsugiSheets.None)
+                                // HLS varyantı → URL değişir, tavan kaldırılır.
+                                // DASH / ayrı ses gruplu HLS → URL aynı (veya master) kalır,
+                                // tavan uygulanır. Böylece ses grubu korunur.
+                                playerEngine.setMaxVideoHeight(if (needsCap) option?.height else null)
+                                val target = option?.switchUrl ?: master
+                                if (target != currentVideoUrl) {
+                                    // Aynı kaynak, aynı başlıklar ve altyazılar; yalnızca
+                                    // çözünürlük değişir. Oynatıcı mevcut saniyeden devam eder.
+                                    viewModel.changeStreamSource(currentSourceIndex, src, target)
+                                }
+                            }
                         },
                         streamSources = currentStreamSources,
                         selectedSourceIndex = currentSourceIndex,
@@ -1574,6 +2088,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 dataStore.setSubtitleBold(style.bold)
                                 dataStore.setSubtitleOutlineEnabled(style.outlineEnabled)
                                 dataStore.setSubtitleItalic(style.italic)
+                                dataStore.setSubtitleFontSize(style.fontSize)
                                 dataStore.setSubtitleFont(style.font)
                                 dataStore.setSubtitleBorderStyle(style.borderStyle)
                                 dataStore.setSubtitleBorderSize(style.borderSize.toFloat())
@@ -1698,7 +2213,7 @@ fun PlaybackEndedOverlay(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Replay,
+                        imageVector = Icons.Replay,
                         contentDescription = stringResource(R.string.yeniden_oynat),
                         modifier = Modifier.size(20.dp)
                     )
@@ -1717,7 +2232,7 @@ fun PlaybackEndedOverlay(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.SkipNext,
+                            imageVector = Icons.SkipNext,
                             contentDescription = stringResource(R.string.sonraki_bolum),
                             modifier = Modifier.size(20.dp)
                         )
@@ -1771,7 +2286,7 @@ private fun P2pTorrentStatsOverlayHost(
         uploadSpeedBytes = p2pStreamingState.uploadSpeed,
         seeders = p2pStreamingState.seeds,
         peers = p2pStreamingState.peers,
-        bufferPercent = (p2pStreamingState.bufferProgress * 100).toInt().coerceIn(0, 100),
+        bufferPercent = com.kitsugi.animelist.core.p2p.bufferPercent(p2pStreamingState.bufferProgress),
         onDismiss = {
             isSessionDismissed = true
         },
@@ -1781,3 +2296,15 @@ private fun P2pTorrentStatsOverlayHost(
         modifier = modifier
     )
 }
+
+/**
+ * Oynatıcıya en son verilen akışın kimliği. Aynı kimlikle yalnızca altyazı listesi değiştiğinde
+ * akış yeniden hazırlanmaz. [engine] referans eşitliğiyle karşılaştırılır (motor değişince —
+ * ör. yedek motora geçiş — tam hazırlık yapılır).
+ */
+private data class PreparedStreamIdentity(
+    val videoUrl: String,
+    val headersHash: Int,
+    val audioUrl: String?,
+    val engine: com.kitsugi.animelist.core.player.engine.PlayerEngine
+)

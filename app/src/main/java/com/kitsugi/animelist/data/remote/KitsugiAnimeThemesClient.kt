@@ -1,15 +1,23 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
 import org.json.JSONObject
 import java.net.URL
+import java.util.Locale
 
 /**
  * AnimeThemes.moe API'sinden açılış/kapanış müziklerini çeker.
- * [KitsugiMalDetailClient] ve [KitsugiAniListDetailClient] tarafından paylaşılır.
+ * [KitsugiMalDetailClient], [KitsugiAniListDetailClient] ve [KitsugiMediaVideoAggregator] tarafından paylaşılır.
  */
 internal object KitsugiAnimeThemesClient {
 
+    private val themesCache = BoundedCache<String, Pair<List<KitsugiTheme>, List<KitsugiTheme>>>("animethemes.bySiteId", 200)
+
     suspend fun fetchAnimeThemes(externalId: Int, site: String): Pair<List<KitsugiTheme>, List<KitsugiTheme>> {
+        if (externalId <= 0 || site.isBlank()) return Pair(emptyList(), emptyList())
+        val cacheKey = "${site.trim().lowercase(Locale.ROOT)}:$externalId"
+        themesCache[cacheKey]?.let { return it }
+
         val urlString = "https://api.animethemes.moe/anime?" +
             "filter[has]=resources&filter[site]=$site&filter[external_id]=$externalId" +
             "&include=animethemes.song.artists,animethemes.animethemeentries.videos"
@@ -17,7 +25,7 @@ internal object KitsugiAnimeThemesClient {
 
         val response = KitsugiApiBase.executeGetRequest(url) ?: return Pair(emptyList(), emptyList())
 
-        return try {
+        val parsed: Pair<List<KitsugiTheme>, List<KitsugiTheme>> = try {
             val root = JSONObject(response)
             val animeArr = root.optJSONArray("anime") ?: return Pair(emptyList(), emptyList())
             if (animeArr.length() == 0) return Pair(emptyList(), emptyList())
@@ -66,7 +74,8 @@ internal object KitsugiAnimeThemesClient {
                                     resolution = vid.optInt("resolution", 0),
                                     isSubbed = vid.optBoolean("subbed", false),
                                     isNc = vid.optBoolean("nc", false),
-                                    source = vid.optString("source")
+                                    source = vid.optString("source"),
+                                    sizeBytes = vid.optLong("size", 0L)
                                 )
                             )
                         }
@@ -83,7 +92,7 @@ internal object KitsugiAnimeThemesClient {
                     if (slug.isNotBlank()) append(" ($slug)")
                 }
 
-                val theme = KitsugiTheme(label = label, videoUrl = videoUrl)
+                val theme = KitsugiTheme(label = label, videoUrl = videoUrl, source = "animethemes")
                 if (type == "OP") openings.add(theme)
                 else if (type == "ED") endings.add(theme)
             }
@@ -92,6 +101,10 @@ internal object KitsugiAnimeThemesClient {
         } catch (e: Exception) {
             Pair(emptyList(), emptyList())
         }
+        if (parsed.first.isNotEmpty() || parsed.second.isNotEmpty()) {
+            themesCache[cacheKey] = parsed
+        }
+        return parsed
     }
 
     /**
@@ -117,8 +130,19 @@ internal object KitsugiAnimeThemesClient {
                     { if (it.link.isMp4Link()) 0 else 1 },              // MP4/H.264 önce
                     { if (it.isNc) 0 else 1 },                          // creditsiz önce
                     { if (it.source.equals("WEB", ignoreCase = true)) 0 else 1 },
-                    { if (it.resolution in 1..1080) 0 else 1 },          // 2K/4K dosyaları sona at
-                    { -it.resolution.coerceAtMost(1080) }               // en yüksek çözünürlük
+                    { if (it.resolution in 1..1080) 0 else 1 }, // 2K/4K dosyaları sona at
+                    {
+                        // Kompakt oynatıcı için 720p'ye yakın ve akıcı boyutları tercih et
+                        when (it.resolution) {
+                            720 -> 0
+                            in 480..719 -> 1
+                            in 721..1080 -> 2
+                            in 1..479 -> 3
+                            else -> 4
+                        }
+                    },
+                    { if (it.sizeBytes > 0L) it.sizeBytes else Long.MAX_VALUE },
+                    { -it.resolution.coerceAtMost(720) }
                 )
             )
             ?.link
@@ -150,7 +174,8 @@ internal data class ThemeVideoCandidate(
     val resolution: Int,
     val isSubbed: Boolean,
     val isNc: Boolean,
-    val source: String
+    val source: String,
+    val sizeBytes: Long = 0L
 )
 
 /** URL uzantısına bakmadan sorgu parametrelerini de tolere eden MP4/H.264 kontrolü. */

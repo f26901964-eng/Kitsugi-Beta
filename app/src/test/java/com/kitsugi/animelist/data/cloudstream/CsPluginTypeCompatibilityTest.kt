@@ -54,6 +54,14 @@ class CsPluginTypeCompatibilityTest {
     }
 
     @Test
+    fun moviePipelinePreservesAnimeMovieFlagAndMovieCategory() {
+        assertTrue(CsPluginTypeCompatibility.resolveIsMovie(MediaType.Anime, isMovie = true))
+        assertFalse(CsPluginTypeCompatibility.resolveIsMovie(MediaType.Anime, isMovie = false))
+        assertTrue(CsPluginTypeCompatibility.resolveIsMovie(MediaType.Movie, isMovie = false))
+        assertFalse(CsPluginTypeCompatibility.resolveIsMovie(MediaType.TvShow, isMovie = null))
+    }
+
+    @Test
     fun missingTypeDeclarationsRemainEligible() {
         assertTrue(CsPluginTypeCompatibility.supports(MediaType.TvShow, emptyList()))
         assertTrue(CsPluginTypeCompatibility.infer(null, isMovie = false, supportedTypes = emptyList()) == null)

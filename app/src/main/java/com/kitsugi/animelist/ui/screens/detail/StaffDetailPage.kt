@@ -59,14 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Translate
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.platform.LocalContext
@@ -82,7 +75,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.GalleryItem
@@ -134,7 +126,7 @@ fun StaffDetailPage(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     name: String? = null,
     imageUrl: String? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     preferredTranslator: String = "DEFAULT"
 ) {
@@ -193,7 +185,7 @@ fun StaffDetailPage(
                             .padding(start = 12.dp, top = 24.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            imageVector = Icons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                             tint = KitsugiColors.TextPrimary
                         )
@@ -274,7 +266,7 @@ fun StaffDetailPage(
                 val listState = rememberLazyListState()
                 val showFloatingHeader = rememberDetailStickyHeaderVisible(
                     listState = listState,
-                    showAtIndex = 2,
+                    showAtIndex = 1,
                     hideAtIndex = 0
                 )
                 // Wiki çözümlemesi ham detayla yapılır (ad gösterim tercihinden bağımsız).
@@ -430,6 +422,7 @@ fun StaffDetailPage(
                                             }
                                             1 -> {
                                                 StaffCharacterRolesTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onCharacterClick = onCharacterClick,
@@ -438,6 +431,7 @@ fun StaffDetailPage(
                                             }
                                             2 -> {
                                                 StaffMediaWorksTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onMediaClick = onMediaClick
@@ -520,25 +514,6 @@ fun StaffDetailPage(
                             // Tab content rendering
                             item(key = "content") {
                                 val pageHeights = remember { androidx.compose.runtime.mutableStateMapOf<Int, Int>() }
-                                val density = androidx.compose.ui.platform.LocalDensity.current
-                                val currentPage = pagerState.currentPage
-                                val currentPageOffset = pagerState.currentPageOffsetFraction
-                                val targetPage = if (currentPageOffset > 0f) currentPage + 1 else if (currentPageOffset < 0f) currentPage - 1 else currentPage
-
-                                val currentHeightPx = pageHeights[currentPage] ?: 0
-                                val targetHeightPx = pageHeights[targetPage] ?: currentHeightPx
-
-                                val interpolatedHeightDp = remember(currentHeightPx, targetHeightPx, currentPageOffset) {
-                                    val heightPx = if (currentHeightPx > 0 && targetHeightPx > 0) {
-                                        currentHeightPx + (targetHeightPx - currentHeightPx) * kotlin.math.abs(currentPageOffset)
-                                    } else if (currentHeightPx > 0) {
-                                        currentHeightPx.toFloat()
-                                    } else {
-                                        0f
-                                    }
-                                    if (heightPx > 0f) with(density) { heightPx.toDp() } else null
-                                }
-
                                 val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
 
                                 @OptIn(ExperimentalFoundationApi::class)
@@ -551,14 +526,29 @@ fun StaffDetailPage(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .layout { measurable, constraints ->
-                                            val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
+                                            val minPagerHeightPx = (screenHeightDp - 64).dp.roundToPx().coerceAtLeast(0)
                                             val placeable = measurable.measure(
                                                 constraints.copy(
                                                     minHeight = minPagerHeightPx,
                                                     maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                                                 )
                                             )
-                                            val height = (interpolatedHeightDp?.roundToPx()?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                                            val cp = pagerState.currentPage
+                                            val offset = pagerState.currentPageOffsetFraction
+                                            val tp = when {
+                                                offset > 0f -> cp + 1
+                                                offset < 0f -> cp - 1
+                                                else -> cp
+                                            }
+                                            val curH = pageHeights[cp] ?: 0
+                                            val tgtH = pageHeights[tp] ?: curH
+                                            val interpPx = when {
+                                                curH > 0 && tgtH > 0 ->
+                                                    (curH + (tgtH - curH) * kotlin.math.abs(offset)).toInt()
+                                                curH > 0 -> curH
+                                                else -> 0
+                                            }
+                                            val height = (if (interpPx > 0) interpPx.coerceAtLeast(minPagerHeightPx) else placeable.height)
                                                 .coerceIn(minPagerHeightPx, 16_000_000)
                                             layout(placeable.width, height) {
                                                 placeable.placeRelative(0, 0)
@@ -595,6 +585,7 @@ fun StaffDetailPage(
                                                 }
                                                 1 -> {
                                                     StaffCharacterRolesTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onCharacterClick = onCharacterClick,
@@ -603,6 +594,7 @@ fun StaffDetailPage(
                                                 }
                                                 2 -> {
                                                     StaffMediaWorksTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onMediaClick = onMediaClick

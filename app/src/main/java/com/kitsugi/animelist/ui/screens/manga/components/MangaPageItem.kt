@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.HourglassBottom
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -111,7 +109,11 @@ fun MangaPageItem(
         when (page.status) {
             MangaPageStatus.Ready -> {
                 val imageUrl = page.imageUrl ?: page.url
-                val cacheFile = loader.cache.getImageFile(imageUrl)
+                // Loader Ready'e geçerken gerçek dosyayı page.cachedFile'a yazar.
+                // URL'den yeniden türetmek arşiv (ZIP/CBZ) sayfalarında yanlış yola
+                // düşüyordu; ayrıca özel kaynakların fragment/query içeren URL'leri
+                // için de tek doğru kaynak bu dosyadır.
+                val cacheFile = page.cachedFile ?: loader.cache.getImageFile(imageUrl)
                 val modelToLoad: Any = if (cacheFile.exists()) cacheFile else imageUrl
 
                 val context = LocalContext.current
@@ -220,7 +222,7 @@ private fun LoadingPageContent(page: MangaPage) {
             }
             MangaPageStatus.Queue -> {
                 Icon(
-                    imageVector         = Icons.Default.HourglassBottom,
+                    imageVector         = Icons.HourglassBottom,
                     contentDescription  = null,
                     tint                = Color.White.copy(alpha = 0.3f),
                     modifier            = Modifier.size(40.dp)
@@ -244,7 +246,7 @@ private fun ErrorPageContent(pageIndex: Int, onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector        = Icons.Default.BrokenImage,
+                imageVector        = Icons.BrokenImage,
                 contentDescription = null,
                 tint               = Color(0xFFEF5350),
                 modifier           = Modifier.size(52.dp)

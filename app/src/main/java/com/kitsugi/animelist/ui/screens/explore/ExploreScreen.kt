@@ -24,11 +24,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Login
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.kitsugi.animelist.ui.components.KitsugiPullToRefreshIndicator
@@ -56,6 +52,8 @@ import com.kitsugi.animelist.ui.components.KitsugiErrorState
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
 import com.kitsugi.animelist.ui.components.kitsugiCardFrame
+import com.kitsugi.animelist.ui.components.KitsugiTopAction
+import com.kitsugi.animelist.ui.components.KitsugiTopActionRow
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -71,6 +69,7 @@ fun ExploreScreen(
     onAddSelectionToList: (ApiSearchSelection) -> Unit,
     onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>, platform: ExplorePlatform) -> Unit,
     onNavigateToWatchHistory: () -> Unit = {},
+    onNavigateToDownloads: (() -> Unit)? = null,
     onOpenApiDetail: (JikanSearchResult) -> Unit,
     onEditEntry: (MediaEntry) -> Unit,
     onOpenMangaReader: () -> Unit = {},
@@ -79,7 +78,7 @@ fun ExploreScreen(
     initialScrollOffset: Int = 0,
     onScrollPositionChange: (index: Int, offset: Int) -> Unit = { _, _ -> },
     viewModel: ExploreViewModel = viewModel(),
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     showAnimeLogos: Boolean = false,
@@ -89,6 +88,7 @@ fun ExploreScreen(
     separateNovelsManga: Boolean = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.separateNovelsManga,
     onOpenNotifications: () -> Unit = {},
     isNotificationsVisible: Boolean = false,
+    onOpenDownloads: () -> Unit = {},
     /** Alt navigasyon barı görünüyor mu? — "Yukarı Çık" FAB'ı alt barın üstünde hizalanır. */
     isBottomBarVisible: Boolean = true,
     bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState? = null,
@@ -124,6 +124,10 @@ fun ExploreScreen(
     val filteredNewlyAddedManga = remember(viewModel.newlyAddedManga, showAdultContent) { viewModel.newlyAddedManga.filter { showAdultContent || !it.isAdult } }
     val filteredAiringSoonAnime = remember(viewModel.airingSoonAnime, showAdultContent) { viewModel.airingSoonAnime.filter { showAdultContent || !it.isAdult } }
     val filteredUpcomingMediaTmdb = remember(viewModel.upcomingMediaTmdb, showAdultContent) { viewModel.upcomingMediaTmdb.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklContinueMovies = remember(viewModel.simklContinueMovies, showAdultContent) { viewModel.simklContinueMovies.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklPlannedMovies = remember(viewModel.simklPlannedMovies, showAdultContent) { viewModel.simklPlannedMovies.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklContinueSeries = remember(viewModel.simklContinueSeries, showAdultContent) { viewModel.simklContinueSeries.filter { showAdultContent || !it.isAdult } }
+    val filteredSimklPlannedSeries = remember(viewModel.simklPlannedSeries, showAdultContent) { viewModel.simklPlannedSeries.filter { showAdultContent || !it.isAdult } }
 
     // AniHyou paritesi: ayrım kapalıysa romanlar manga rafına karışır; açıksa ayrı "Noveller" rafı.
     val effectiveNovels = if (separateNovelsManga) filteredNovels else emptyList()
@@ -135,8 +139,8 @@ fun ExploreScreen(
         filteredTopAnime, filteredAiringAnime, filteredUpcomingAnime,
         effectiveTopManga, filteredPublishingManga, filteredTrendingAnime,
         filteredMovieAnime, filteredSeasonalAnime,
-        viewModel.simklContinueMovies, viewModel.simklPlannedMovies,
-        viewModel.simklContinueSeries, viewModel.simklPlannedSeries,
+        filteredSimklContinueMovies, filteredSimklPlannedMovies,
+        filteredSimklContinueSeries, filteredSimklPlannedSeries,
         filteredAiringSoonAnime, filteredTrendingManga,
         filteredNewlyAddedAnime, filteredNewlyAddedManga, filteredUpcomingMediaTmdb,
         filteredTopRatedAnime, filteredTopRatedManga,
@@ -152,10 +156,10 @@ fun ExploreScreen(
             trendingAnime = filteredTrendingAnime,
             movieAnime = filteredMovieAnime,
             seasonalAnime = filteredSeasonalAnime,
-            simklContinueMovies = viewModel.simklContinueMovies,
-            simklPlannedMovies = viewModel.simklPlannedMovies,
-            simklContinueSeries = viewModel.simklContinueSeries,
-            simklPlannedSeries = viewModel.simklPlannedSeries,
+            simklContinueMovies = filteredSimklContinueMovies,
+            simklPlannedMovies = filteredSimklPlannedMovies,
+            simklContinueSeries = filteredSimklContinueSeries,
+            simklPlannedSeries = filteredSimklPlannedSeries,
             airingSoonAnime = filteredAiringSoonAnime,
             trendingManga = filteredTrendingManga,
             newlyAddedAnime = filteredNewlyAddedAnime,
@@ -172,6 +176,15 @@ fun ExploreScreen(
     val selectedSourceSections = remember(viewModel.selectedPlatform, filteredSourcePayload) {
         if (viewModel.selectedPlatform == ExplorePlatform.ALL) emptyList()
         else sourceSections(viewModel.selectedPlatform, filteredSourcePayload)
+    }
+    val visibleSelectedSourceSections = remember(selectedSourceSections, separateNovelsManga) {
+        selectedSourceSections.filter { separateNovelsManga || it.category != ExploreCategoryType.NOVELS }
+    }
+    // Single-source shortcuts are derived from the same rows below. Providers with eager
+    // catalogs omit empty categories; AniList retains supported-but-not-yet-loaded shelves.
+    val selectedCategorySections = remember(visibleSelectedSourceSections, viewModel.selectedPlatform) {
+        if (viewModel.selectedPlatform == ExplorePlatform.AniList) visibleSelectedSourceSections
+        else visibleSelectedSourceSections.filter { it.results.isNotEmpty() }
     }
 
     // "Tümü" modu bölümleri: yalnızca kaynak durumları/ayar değişince hesaplanır.
@@ -218,7 +231,7 @@ fun ExploreScreen(
 
     // The video-only hero uses one item per source/shelf in ALL, two in a selected
     // source, plus the countdown rail. Artwork is verified before it can be displayed.
-    val heroSourceSections = if (viewModel.selectedPlatform == ExplorePlatform.ALL) allSectionsList else selectedSourceSections
+    val heroSourceSections = if (viewModel.selectedPlatform == ExplorePlatform.ALL) allSectionsList else visibleSelectedSourceSections
     val heroSections = remember(heroSourceSections) {
         heroSourceSections.map { section ->
             section.copy(results = section.results.filter(::isHomeHeroMedia))
@@ -264,8 +277,7 @@ fun ExploreScreen(
             allSectionsList.isNotEmpty() || sharedAiringSoon.isNotEmpty()
         } else {
             selectedSourceSections.any { it.results.isNotEmpty() } || filteredAiringSoonAnime.isNotEmpty()
-        }) || viewModel.simklContinueMovies.isNotEmpty() || viewModel.simklPlannedMovies.isNotEmpty() ||
-        viewModel.simklContinueSeries.isNotEmpty() || viewModel.simklPlannedSeries.isNotEmpty()
+        })
     val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
         contentReady = hasCatalogContent,
         initialIndex = initialScrollIndex,
@@ -315,9 +327,7 @@ fun ExploreScreen(
 
     val isCatalogEmpty = viewModel.selectedPlatform != ExplorePlatform.ALL &&
         !viewModel.isLoading && viewModel.errorMessage == null &&
-        selectedSourceSections.none { it.results.isNotEmpty() } &&
-        viewModel.simklContinueSeries.isEmpty() && viewModel.simklContinueMovies.isEmpty() &&
-        viewModel.simklPlannedSeries.isEmpty() && viewModel.simklPlannedMovies.isEmpty() &&
+        visibleSelectedSourceSections.none { it.results.isNotEmpty() } &&
         filteredAiringSoonAnime.isEmpty()
 
     Row(
@@ -425,65 +435,43 @@ fun ExploreScreen(
                                                     modifier = Modifier.weight(1f)
                                                 )
 
-                                                // 🎲 Rastgele keşfet butonu (bildirim açıkken de görünür)
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(38.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
-                                                        .background(KitsugiColors.SurfaceElevated)
-                                                        .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-                                                        .tvClickable(shape = RoundedCornerShape(12.dp)) {
-                                                            val randomPool = mutableListOf<JikanSearchResult>()
-                                                            randomPool.addAll(filteredTopAnime)
-                                                            randomPool.addAll(filteredAiringAnime)
-                                                            randomPool.addAll(filteredUpcomingAnime)
-                                                            randomPool.addAll(filteredTopManga)
-                                                            randomPool.addAll(filteredPublishingManga)
-                                                            randomPool.addAll(filteredTrendingAnime)
-                                                            randomPool.addAll(filteredMovieAnime)
-                                                            randomPool.addAll(filteredBangumiTvShows)
-                                                            randomPool.addAll(filteredBangumiMovies)
-                                                            randomPool.addAll(filteredSeasonalAnime)
-                                                            randomPool.addAll(viewModel.simklContinueMovies)
-                                                            randomPool.addAll(viewModel.simklPlannedMovies)
-                                                            randomPool.addAll(viewModel.simklContinueSeries)
-                                                            randomPool.addAll(viewModel.simklPlannedSeries)
-                                                            if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
-                                                                randomPool.addAll(allSectionsList
-                                                                    .flatMap { it.results }.distinctBy { it.exploreIdentity() })
+                                                // 🎲 Rastgele + 🔔 Bildirim → ortak üst çubuk aksiyon satırı.
+                                                // Sıra ve görünüm uygulamanın her yerinde aynıdır; bildirim
+                                                // her zaman en sağdaki buton olarak kalır.
+                                                KitsugiTopActionRow(
+                                                    actions = buildList {
+                                                        add(KitsugiTopAction.HISTORY)
+                                                        if (onNavigateToDownloads != null) add(KitsugiTopAction.DOWNLOADS)
+                                                        add(KitsugiTopAction.RANDOM)
+                                                        if (isNotificationsVisible) add(KitsugiTopAction.NOTIFICATIONS)
+                                                    },
+                                                    onActionClick = { action ->
+                                                        when (action) {
+                                                            KitsugiTopAction.RANDOM -> {
+                                                                val randomPool = mutableListOf<JikanSearchResult>()
+                                                                if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
+                                                                    randomPool.addAll(
+                                                                        allSectionsList
+                                                                            .flatMap { it.results }
+                                                                            .distinctBy { it.exploreIdentity() }
+                                                                    )
+                                                                } else {
+                                                                    randomPool.addAll(
+                                                                        visibleSelectedSourceSections
+                                                                            .flatMap { it.results }
+                                                                            .distinctBy { it.exploreIdentity() }
+                                                                    )
+                                                                }
+                                                                randomPool.filter { showAdultContent || !it.isAdult }
+                                                                    .randomOrNull()?.let(onOpenApiDetail)
                                                             }
-                                                            randomPool.filter { showAdultContent || !it.isAdult }
-                                                                .randomOrNull()?.let(onOpenApiDetail)
-                                                        },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = "🎲",
-                                                        style = MaterialTheme.typography.bodyMedium
-                                                    )
-                                                }
-
-                                                if (isNotificationsVisible) {
-                                                    // 🔔 Bildirim butonu
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(38.dp)
-                                                            .clip(RoundedCornerShape(12.dp))
-                                                            .background(KitsugiColors.SurfaceElevated)
-                                                            .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-                                                            .tvClickable(shape = RoundedCornerShape(12.dp)) {
-                                                                onOpenNotifications()
-                                                            },
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Rounded.Notifications,
-                                                            contentDescription = stringResource(R.string.notif_title),
-                                                            tint = KitsugiColors.TextPrimary,
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
+                                                            KitsugiTopAction.HISTORY -> onNavigateToWatchHistory()
+                                                            KitsugiTopAction.DOWNLOADS -> (onNavigateToDownloads ?: onOpenDownloads).invoke()
+                                                            KitsugiTopAction.NOTIFICATIONS -> onOpenNotifications()
+                                                            else -> Unit
+                                                        }
                                                     }
-                                                }
+                                                )
                                             }
                                         }
                                     }
@@ -506,9 +494,11 @@ fun ExploreScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            Text(
-                                                text = "📡",
-                                                style = MaterialTheme.typography.bodyLarge
+                                            com.kitsugi.animelist.ui.theme.gradient.Icon(
+                                                imageVector = Icons.Satellite,
+                                                contentDescription = null,
+                                                tint = accentColor,
+                                                modifier = Modifier.size(20.dp)
                                             )
                                             Column {
                                                 Text(
@@ -550,7 +540,7 @@ fun ExploreScreen(
                                                         border = ButtonDefaults.outlinedButtonBorder
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Rounded.Key,
+                                                            imageVector = Icons.Key,
                                                             contentDescription = null,
                                                             modifier = Modifier.size(16.dp)
                                                         )
@@ -570,7 +560,7 @@ fun ExploreScreen(
                                                         border = ButtonDefaults.outlinedButtonBorder
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Rounded.Login,
+                                                            imageVector = Icons.Login,
                                                             contentDescription = null,
                                                             modifier = Modifier.size(16.dp)
                                                         )
@@ -612,6 +602,11 @@ fun ExploreScreen(
                                         lazyListState.animateScrollToItem(index, stickyToggleHeight)
                                     } },
                                     onRetrySource = viewModel::retrySource,
+                                    loadedCategories = viewModel.aniListLoadedCategories,
+                                    loadingCategories = viewModel.aniListLoadingCategories,
+                                    failedCategories = viewModel.aniListFailedCategories,
+                                    onLoadCategory = viewModel::loadExploreSection,
+                                    onRetryCategory = viewModel::retryExploreSection,
                                     alreadyInList = isAlreadyInList,
                                     getMediaEntry = getMediaEntry,
                                     onItemClick = onOpenApiDetail,
@@ -635,49 +630,14 @@ fun ExploreScreen(
                             } else {
                                 val isTmdbFamilySource = viewModel.selectedPlatform == ExplorePlatform.TMDB ||
                                     viewModel.selectedPlatform == ExplorePlatform.SIMKL
-                                item {
-                                    if (isTmdbFamilySource) {
-                                        TmdbCategoriesSection(
-                                            isExpanded = isCategoriesExpanded,
-                                            onExpandedChange = { isCategoriesExpanded = it },
-                                            accentColor = accentColor,
-                                            filteredTopAnime = filteredTopAnime,
-                                            filteredAiringAnime = filteredAiringAnime,
-                                            filteredMovieAnime = filteredMovieAnime,
-                                            filteredTopManga = filteredTopManga,
-                                            filteredUpcomingAnime = filteredUpcomingAnime,
-                                            filteredSeasonalAnime = filteredSeasonalAnime,
-                                            filteredPublishingManga = filteredPublishingManga,
-                                            filteredTrendingAnime = filteredTrendingAnime,
-                                            filteredNewlyAddedAnime = filteredNewlyAddedAnime,
-                                            filteredTrendingManga = filteredTrendingManga,
-                                            filteredUpcomingMediaTmdb = filteredUpcomingMediaTmdb,
-                                            onSeeAllSection = onSeeAllForSelected,
-                                            onOpenAiringCalendar = onOpenAiringCalendar
-                                        )
-                                    } else {
-                                        DefaultCategoriesSection(
-                                            isExpanded = isCategoriesExpanded,
-                                            onExpandedChange = { isCategoriesExpanded = it },
-                                            accentColor = accentColor,
-                                            filteredSeasonalAnime = filteredSeasonalAnime,
-                                            filteredTopAnime = filteredTopAnime,
-                                            filteredTrendingAnime = filteredTrendingAnime,
-                                            filteredMovieAnime = filteredMovieAnime,
-                                            filteredNewlyAddedAnime = filteredNewlyAddedAnime,
-                                            filteredTopRatedAnime = filteredTopRatedAnime,
-                                            filteredTopManga = filteredTopManga,
-                                            filteredPublishingManga = filteredPublishingManga,
-                                            filteredTrendingManga = filteredTrendingManga,
-                                            filteredTopRatedManga = filteredTopRatedManga,
-                                            filteredNewlyAddedManga = filteredNewlyAddedManga,
-                                            filteredAiringAnime = filteredAiringAnime,
-                                            filteredUpcomingAnime = filteredUpcomingAnime,
-                                            onSeeAllSection = onSeeAllForSelected,
-                                            onOpenAiringCalendar = onOpenAiringCalendar,
-                                            onOpenMangaReader = onOpenMangaReader
-                                        )
-                                    }
+                                item(key = "selected_explore_categories") {
+                                    ExploreCategoriesSection(
+                                        isExpanded = isCategoriesExpanded,
+                                        onExpandedChange = { isCategoriesExpanded = it },
+                                        accentColor = accentColor,
+                                        sections = selectedCategorySections,
+                                        onSeeAllSection = onSeeAllForSelected
+                                    )
                                     Spacer(modifier = Modifier.height(26.dp))
                                 }
 
@@ -703,8 +663,14 @@ fun ExploreScreen(
 
                                 if (!isTmdbFamilySource || viewModel.tmdbModernHomeEnabled) {
                                     sourceExploreSections(
-                                        sections = selectedSourceSections,
+                                        sections = visibleSelectedSourceSections,
+                                        platform = viewModel.selectedPlatform,
                                         isLoading = viewModel.isLoading,
+                                        loadedCategories = viewModel.aniListLoadedCategories,
+                                        loadingCategories = viewModel.aniListLoadingCategories,
+                                        failedCategories = viewModel.aniListFailedCategories,
+                                        onLoadCategory = viewModel::loadExploreSection,
+                                        onRetryCategory = viewModel::retryExploreSection,
                                         isAlreadyInList = isAlreadyInList,
                                         getMediaEntry = getMediaEntry,
                                         onItemClick = onOpenApiDetail,
