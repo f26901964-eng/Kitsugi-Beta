@@ -113,6 +113,15 @@ data class TrackOption(
     val groupIndex: Int,
     val trackIndex: Int,
     val label: String,
-    val isSelected: Boolean
+    val isSelected: Boolean,
+    /** The UI index and mpv aid are NOT MediaExtractor stream indices. */
+    val audioLanguage: String? = null,
+    val audioName: String? = null,
+    val audioCodec: String? = null,
+    val audioBitrate: Int? = null,
+    val audioSource: String? = null,
+    val audioIsExternal: Boolean = false,
+    /** Media URL active when this row was emitted; prevents stale rows during source switches. */
+    val audioMediaUrl: String? = null
 )
 

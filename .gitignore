@@ -26,6 +26,9 @@ api_keys.txt
 *.jks
 keystores*
 
+# GitHub eklenti kaynak envanteri için geçici klon (repo değişikliği değildir)
+/.cache/
+
 # Kök dizinde birikmiş geçici dosyalar
 /*.py
 /*.class

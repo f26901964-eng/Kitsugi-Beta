@@ -1066,7 +1066,14 @@ class MpvPlayerEngine(
                 groupIndex = 0,
                 trackIndex = track.id,
                 label = track.name,
-                isSelected = track.isSelected
+                isSelected = track.isSelected,
+                audioLanguage = track.language,
+                audioName = track.title,
+                audioCodec = track.codec,
+                audioBitrate = track.bitrate,
+                audioSource = track.externalFilename,
+                audioIsExternal = track.isExternal,
+                audioMediaUrl = videoUrl
             )
         }
 

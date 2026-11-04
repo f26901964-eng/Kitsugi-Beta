@@ -105,6 +105,16 @@ import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
+private data class PendingAudioExport(
+    val track: TrackOption? = null,
+    val tracks: List<TrackOption> = emptyList(),
+    val providerAudioIndex: Int? = null,
+    val providerAudioUrl: String? = null,
+    val videoUrl: String?,
+    val audioUrl: String?,
+    val sourceIndex: Int
+)
+
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun KitsugiFullscreenPlayerScreen(
@@ -213,6 +223,26 @@ fun KitsugiFullscreenPlayerScreen(
             }
             viewModel.addAudio(uri)
         }
+    }
+
+    // On Android 8–9 the public Downloads directory needs a runtime write grant.
+    var pendingAudioExport by remember { mutableStateOf<PendingAudioExport?>(null) }
+    val audioStoragePermission = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        pendingAudioExport?.let { pending ->
+            when {
+                !granted -> Toast.makeText(context, "Ses indirmek için depolama izni gerekli", Toast.LENGTH_LONG).show()
+                viewModel.currentVideoUrl.value != pending.videoUrl ||
+                    viewModel.currentAudioUrl.value != pending.audioUrl ||
+                    viewModel.currentSourceIndex.value != pending.sourceIndex ->
+                    Toast.makeText(context, "Kaynak değişti; sesi tekrar seçin", Toast.LENGTH_LONG).show()
+                else -> pending.providerAudioIndex?.let { index ->
+                    viewModel.downloadProviderAudioToStorage(index, pending.providerAudioUrl)
+                } ?: pending.track?.let { viewModel.downloadAudioToStorage(it, pending.tracks) }
+            }
+        }
+        pendingAudioExport = null
     }
     
     // ── İzleme geçmişi için animeId türet ────────────────────────────────────
@@ -1441,6 +1471,45 @@ fun KitsugiFullscreenPlayerScreen(
                                 }
                             }
                         },
+                        onDownloadAudio = { idx ->
+                            audioTrackOptions.getOrNull(idx)?.let { track ->
+                                val needsGrant = android.os.Build.VERSION.SDK_INT < 29 &&
+                                    androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (needsGrant) {
+                                    pendingAudioExport = PendingAudioExport(
+                                        track = track, tracks = audioTrackOptions.toList(),
+                                        videoUrl = viewModel.currentVideoUrl.value,
+                                        audioUrl = viewModel.currentAudioUrl.value,
+                                        sourceIndex = viewModel.currentSourceIndex.value
+                                    )
+                                    audioStoragePermission.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                } else viewModel.downloadAudioToStorage(track, audioTrackOptions)
+                            }
+                        },
+                        onDownloadProviderAudio = { providerIndex ->
+                            val url = currentStreamSources.getOrNull(currentSourceIndex)
+                                ?.externalAudioSources?.getOrNull(providerIndex)?.url
+                            if (!url.isNullOrBlank()) {
+                                val needsGrant = android.os.Build.VERSION.SDK_INT < 29 &&
+                                    androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (needsGrant) {
+                                    pendingAudioExport = PendingAudioExport(
+                                        providerAudioIndex = providerIndex, providerAudioUrl = url,
+                                        videoUrl = viewModel.currentVideoUrl.value,
+                                        audioUrl = viewModel.currentAudioUrl.value,
+                                        sourceIndex = viewModel.currentSourceIndex.value
+                                    )
+                                    audioStoragePermission.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                } else viewModel.downloadProviderAudioToStorage(providerIndex, url)
+                            }
+                        },
+                        externalAudioUrlsInPlayer = audioTrackOptions.mapNotNull {
+                            it.audioSource?.takeIf { url -> it.audioIsExternal && url.isNotBlank() }
+                        }.toSet(),
                         onAddAudioFile = {
                             if (playerEngine.supportsExternalTracks) audioPicker.launch(arrayOf("*/*"))
                             else switchToMpvForFeature("Harici ses ekleme")

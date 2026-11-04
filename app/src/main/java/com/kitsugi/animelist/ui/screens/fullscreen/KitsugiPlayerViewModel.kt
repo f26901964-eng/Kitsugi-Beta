@@ -2435,6 +2435,104 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Capture the selected track's provenance BEFORE enqueueing: mpv aid/Media3 group index
+     * cannot be used as a MediaExtractor stream index. The job survives leaving the player.
+     */
+    fun downloadAudioToStorage(
+        track: com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption,
+        tracks: List<com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption>
+    ) {
+        try {
+            val video = _playbackSource.value?.videoUrl ?: _currentVideoUrl.value
+            require(!video.isNullOrBlank() && track.audioMediaUrl == video &&
+                tracks.all { it.audioMediaUrl == video }) { "Ses listesi eski kaynağa ait; yeniden açın" }
+            val separate = _playbackSource.value?.audioUrl ?: _currentAudioUrl.value
+            val identities = tracks.map { option ->
+                com.kitsugi.animelist.core.player.audio.AudioTrackIdentity(
+                    option.audioLanguage, option.audioName,
+                    option.audioSource?.takeIf { option.audioIsExternal && it.isNotBlank() }
+                )
+            }
+            val selected = com.kitsugi.animelist.core.player.audio.AudioTrackIdentity(
+                track.audioLanguage, track.audioName,
+                track.audioSource?.takeIf { track.audioIsExternal && it.isNotBlank() }
+            )
+            val source = com.kitsugi.animelist.core.player.audio.AudioExportSpec.source(video, separate, selected, identities)
+            val allowed = source.startsWith("https://", true) || source.startsWith("http://", true) ||
+                source.startsWith("content://", true) || source.startsWith("file://", true) || source.startsWith('/')
+            require(allowed) { "Bu kaynak türü ses dosyasına dönüştürülemiyor" }
+            val active = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
+            val headers = audioRequestHeaders(video, source, active)
+            val rawTitle = animeTitle.ifBlank { _animeTitleFlow.value.ifBlank { _currentTitle.value } }
+            com.kitsugi.animelist.core.player.audio.AudioExportWorker.enqueue(
+                context, source, headers, selected, identities,
+                independent = selected.externalUrl != null || (!separate.isNullOrBlank() && source == separate),
+                title = rawTitle.ifBlank { "Video" }, episode = _currentEpisode.value,
+                movie = _isMovie.value || _currentEpisode.value <= 0, bitrate = track.audioBitrate,
+                transport = if (source == video) active?.mediaTransport else null
+            )
+            Toast.makeText(context, "Ses indirmesi kuyruğa alındı; ilerleme bildirimlerde.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Ses indirilemedi: ${e.message ?: "kaynak belirlenemedi"}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** CloudStream AudioFile contains URL + headers but no language/name: never invent either. */
+    fun downloadProviderAudioToStorage(index: Int, expectedUrl: String?) {
+        try {
+            val video = _playbackSource.value?.videoUrl ?: _currentVideoUrl.value
+            require(!video.isNullOrBlank()) { "Oynatılan video kaynağı bulunamadı" }
+            val active = _currentStreamSources.value.getOrNull(_currentSourceIndex.value)
+            require(active?.isCS == true && expectedUrl != null) { "Eklenti ses listesi artık geçerli değil" }
+            val audio = active.externalAudioSources.getOrNull(index)
+                ?: throw IllegalArgumentException("Eklenti ses kaynağı bulunamadı")
+            require(audio.url == expectedUrl && audio.url.isNotBlank()) { "Eklenti ses kaynağı değişti" }
+            val allowed = audio.url.startsWith("https://", true) || audio.url.startsWith("http://", true)
+            require(allowed) { "Eklenti ses adresi desteklenmiyor" }
+            val identity = com.kitsugi.animelist.core.player.audio.AudioTrackIdentity(
+                language = null, name = "Eklenti sesi ${index + 1}", externalUrl = audio.url
+            )
+            val title = animeTitle.ifBlank { _animeTitleFlow.value.ifBlank { _currentTitle.value } }
+            com.kitsugi.animelist.core.player.audio.AudioExportWorker.enqueue(
+                context, audio.url, audioRequestHeaders(video, audio.url, active, index),
+                identity, listOf(identity), independent = true,
+                title = title.ifBlank { "Video" }, episode = _currentEpisode.value,
+                movie = _isMovie.value || _currentEpisode.value <= 0, bitrate = null
+            )
+            Toast.makeText(context, "Eklenti sesi indirmesi kuyruğa alındı.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Ses indirilemedi: ${e.message ?: "kaynak belirlenemedi"}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun audioRequestHeaders(video: String, source: String, active: StreamSource?,
+                                    providerIndex: Int? = null): Map<String, String> {
+        val base = _currentHeaders.value
+        val headers = if (source == video) base.toMutableMap() else
+            com.kitsugi.animelist.core.player.audio.AudioExportHttp.headersFor(video, source, base).toMutableMap()
+        // Two AudioFile entries may share a URL but require DIFFERENT credentials.
+        // The provider-only row carries its exact index; a player row without an index
+        // must not guess which credential set to send.
+        val sources = active?.externalAudioSources.orEmpty()
+        val own = if (providerIndex != null) {
+            val entry = sources.getOrNull(providerIndex)
+            require(entry?.url == source) { "Eklenti ses başlıkları değişti" }
+            entry.requestHeaders
+        } else {
+            val matches = sources.filter { it.url == source }
+            require(matches.map { it.requestHeaders }.distinct().size <= 1) {
+                "Aynı ses URL'si için farklı başlıklar var; eklentinin ayrı ses satırını kullanın"
+            }
+            matches.firstOrNull()?.requestHeaders
+        }
+        own?.forEach { (key, value) ->
+            headers.keys.removeAll { it.equals(key, ignoreCase = true) }
+            headers[key] = value
+        }
+        return headers
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Altyazı İndirme — Downloads/Kitsugi/Subtitles/
     // ─────────────────────────────────────────────────────────────────────────

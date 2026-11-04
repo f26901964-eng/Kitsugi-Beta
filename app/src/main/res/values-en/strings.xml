@@ -5430,6 +5430,8 @@
     <string name="kilidi_ac">Unlock</string>
     <string name="ses_parcalari">Audio Tracks</string>
     <string name="harici_ses_dosyasi_ekle">Add External Audio File</string>
+    <string name="ses_parcasini_indir">Download audio track</string>
+    <string name="eklentinin_ayri_sesi">Plugin audio source %1$d · Download</string>
     <string name="altyaziyi_kapat">Turn Off Subtitles</string>
     <string name="altyazilar">Subtitles</string>
     <string name="harici_altyazi_ekle">Add External Subtitle</string>

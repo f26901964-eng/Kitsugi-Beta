@@ -2578,7 +2578,18 @@ object CsStreamRunner {
                                     subtitles      = emptyList(),
                                     thumbnailUrl   = thumbnailUrl,
                                     isAdultContent = ADULT_PLUGINS.contains(providerName),
-                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
+                                    mediaTransport = when (link.type) {
+                                        ExtractorLinkType.M3U8 -> "hls"
+                                        ExtractorLinkType.DASH -> "dash"
+                                        ExtractorLinkType.VIDEO -> "progressive"
+                                        else -> null
+                                    },
+                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() },
+                                    externalAudioSources = link.audioTracks.mapNotNull { audio ->
+                                        audio.url.takeIf { it.isNotBlank() }?.let { url ->
+                                            com.kitsugi.animelist.data.repository.ExternalAudioSource(url, audio.headers.orEmpty().toMap())
+                                        }
+                                    }
                                 )
                             )
                         }
@@ -2713,7 +2724,8 @@ object CsStreamRunner {
                                 qualityValue   = labelHeight(vid.label),
                                 subtitles      = emptyList(),
                                 thumbnailUrl   = thumbnailUrl,
-                                isAdultContent = ADULT_PLUGINS.contains(providerName)
+                                isAdultContent = ADULT_PLUGINS.contains(providerName),
+                                mediaTransport = if (vid.isM3u8) "hls" else "progressive"
                             )
                         )
                         Log.i(TAG, "[$providerName] ✅ Custom wrapper fallback başarılı: ${vid.url.take(80)}")
@@ -3139,7 +3151,18 @@ object CsStreamRunner {
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
                                         isAdultContent = ADULT_PLUGINS.contains(api.name),
-                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
+                                        mediaTransport = when (link.type) {
+                                            ExtractorLinkType.M3U8 -> "hls"
+                                            ExtractorLinkType.DASH -> "dash"
+                                            ExtractorLinkType.VIDEO -> "progressive"
+                                            else -> null
+                                        },
+                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() },
+                                        externalAudioSources = link.audioTracks.mapNotNull { audio ->
+                                            audio.url.takeIf { it.isNotBlank() }?.let { url ->
+                                                com.kitsugi.animelist.data.repository.ExternalAudioSource(url, audio.headers.orEmpty().toMap())
+                                            }
+                                        }
                                 )
                                 streams.add(newStream)
                                 partialSink?.add(newStream)

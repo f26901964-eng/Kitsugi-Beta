@@ -73,6 +73,9 @@ fun PlayerSheetsHost(
     audioTrackLabels: List<String> = emptyList(),
     selectedAudioIndex: Int = -1,
     onSelectAudio: (Int) -> Unit = {},
+    onDownloadAudio: (Int) -> Unit = {},
+    onDownloadProviderAudio: (Int) -> Unit = {},
+    externalAudioUrlsInPlayer: Set<String> = emptySet(),
     onAddAudioFile: () -> Unit = {},
 
     // Quality / Stream Sources
@@ -189,6 +192,7 @@ fun PlayerSheetsHost(
                 }
 
                 KitsugiSheets.AudioTracks -> {
+                    val providerAudios = streamSources.getOrNull(selectedSourceIndex)?.externalAudioSources.orEmpty()
                     val audioTrackInfos = audioTrackLabels.mapIndexed { index, label ->
                         AudioTrackInfo(
                             id = index,
@@ -199,6 +203,14 @@ fun PlayerSheetsHost(
                         tracks = audioTrackInfos,
                         selectedId = selectedAudioIndex,
                         onSelect = onSelectAudio,
+                        onDownload = onDownloadAudio,
+                        providerAudioIndices = providerAudios.mapIndexedNotNull { index, source ->
+                            val distinctHeaders = providerAudios.filter { it.url == source.url }
+                                .map { it.requestHeaders }.distinct().size
+                            index.takeIf { source.url.isNotBlank() &&
+                                (source.url !in externalAudioUrlsInPlayer || distinctHeaders > 1) }
+                        },
+                        onDownloadProvider = onDownloadProviderAudio,
                         onAddAudioFile = onAddAudioFile,
                         onOpenDelayPanel = { onOpenPanel(KitsugiPanels.AudioDelay) },
                         onDismissRequest = onDismissRequest,

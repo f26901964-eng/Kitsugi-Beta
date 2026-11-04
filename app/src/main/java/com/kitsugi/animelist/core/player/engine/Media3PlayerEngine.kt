@@ -450,7 +450,12 @@ class Media3PlayerEngine(
                             groupIndex = groupIndex,
                             trackIndex = trackIndex,
                             label = trackLabel,
-                            isSelected = group.isTrackSelected(trackIndex)
+                            isSelected = group.isTrackSelected(trackIndex),
+                            audioLanguage = format.language,
+                            audioName = format.label,
+                            audioCodec = format.sampleMimeType,
+                            audioBitrate = format.bitrate.takeIf { it > 0 },
+                            audioMediaUrl = videoUrl
                         )
                     )
                 }

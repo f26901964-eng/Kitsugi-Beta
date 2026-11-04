@@ -209,6 +209,12 @@ class AddonStreamRepository(private val context: Context) {
     }
 }
 
+/** Separate audio URLs supplied by a CloudStream ExtractorLink, with their *own* HTTP headers. */
+data class ExternalAudioSource(
+    val url: String,
+    val requestHeaders: Map<String, String> = emptyMap()
+) : java.io.Serializable
+
 data class StreamSource(
     val addonName: String,
     val name: String,
@@ -252,7 +258,11 @@ data class StreamSource(
      * CS eklentisinin bildirdiği AYRI ses akışı (ExtractorLink.audioTracks). Video ile birlikte
      * oynatıcıda ses parçası olarak eklenir (dublaj / orijinal ses ayrı akışsa). Yoksa null.
      */
-    val externalAudioUrl: String? = null
+    val externalAudioUrl: String? = null,
+    /** All separately hosted audio tracks; never assume their cookies match the video host. */
+    val externalAudioSources: List<ExternalAudioSource> = emptyList(),
+    /** Plugin-declared ExtractorLink type, retained for extensionless HLS/DASH endpoints. */
+    val mediaTransport: String? = null
 ) : java.io.Serializable {
     val isTorrent: Boolean
         get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl()

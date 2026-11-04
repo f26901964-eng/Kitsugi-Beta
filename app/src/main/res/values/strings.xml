@@ -5432,6 +5432,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="kilidi_ac">Kilidi Aç</string>
     <string name="ses_parcalari">Ses Parçaları</string>
     <string name="harici_ses_dosyasi_ekle">Harici Ses Dosyası Ekle</string>
+    <string name="ses_parcasini_indir">Ses parçasını indir</string>
+    <string name="eklentinin_ayri_sesi">Eklentinin ayrı ses kaynağı %1$d · İndir</string>
     <string name="altyaziyi_kapat">Altyazıyı Kapat</string>
     <string name="altyazilar">Altyazılar</string>
     <string name="harici_altyazi_ekle">Harici Altyazı Ekle</string>

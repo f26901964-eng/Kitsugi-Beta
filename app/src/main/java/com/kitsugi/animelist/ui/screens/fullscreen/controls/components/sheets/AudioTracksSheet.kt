@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreTime
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.size
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.RadioButton
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -32,6 +35,9 @@ fun AudioTracksSheet(
     tracks: List<AudioTrackInfo>,
     selectedId: Int,
     onSelect: (Int) -> Unit,
+    onDownload: (Int) -> Unit,
+    providerAudioIndices: List<Int> = emptyList(),
+    onDownloadProvider: (Int) -> Unit = {},
     onAddAudioFile: () -> Unit,
     onOpenDelayPanel: () -> Unit,
     onDismissRequest: () -> Unit,
@@ -62,7 +68,31 @@ fun AudioTracksSheet(
                 title = buildAudioTitle(track),
                 isSelected = selectedId == track.id,
                 onClick = { onSelect(track.id) },
+                onDownload = { onDownload(track.id) },
             )
+        },
+        footer = {
+            // CloudStream AudioFile can provide several distinct URLs. Media3/mpv may only
+            // expose the first one in the player's row list; the others remain downloadable.
+            providerAudioIndices.forEach { index ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.eklentinin_ayri_sesi, index + 1),
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { onDownloadProvider(index) }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = stringResource(R.string.ses_parcasini_indir),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
         },
         modifier = modifier,
     )
@@ -73,6 +103,7 @@ fun AudioTrackRow(
     title: String,
     isSelected: Boolean,
     onClick: () -> Unit,
+    onDownload: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -88,7 +119,15 @@ fun AudioTrackRow(
             text = title,
             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
             fontStyle = if (isSelected) FontStyle.Italic else FontStyle.Normal,
+            modifier = Modifier.weight(1f),
         )
+        IconButton(onClick = onDownload, modifier = Modifier.size(40.dp)) {
+            Icon(
+                imageVector = Icons.Rounded.Download,
+                contentDescription = stringResource(R.string.ses_parcasini_indir),
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
