@@ -16,6 +16,10 @@ concurrency:
   group: manga-tr-emulator-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   integration:
     runs-on: ubuntu-latest
@@ -43,11 +47,13 @@ jobs:
       - name: Install Android build components
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0"
+          set -o pipefail
+          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0" 2>&1 | tee /tmp/mangatr-sdk.log || echo "sdkmanager failed; trying preinstalled SDK packages"
       - name: Compile app and instrumentation APK before starting emulator
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleFossDebug :app:assembleFossDebugAndroidTest --stacktrace --console=plain --no-daemon -PmangaEmulatorX86_64=true
+          set -o pipefail
+          ./gradlew :app:assembleFossDebug :app:assembleFossDebugAndroidTest --stacktrace --console=plain --no-daemon -PmangaEmulatorX86_64=true 2>&1 | tee /tmp/mangatr-build.log
           ./gradlew --stop
       - name: Enable emulator acceleration
         run: |
@@ -62,7 +68,17 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            ./gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -PmangaEmulatorX86_64=true -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest
+            set -o pipefail
+            ./gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -PmangaEmulatorX86_64=true -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest 2>&1 | tee /tmp/mangatr-instrumentation.log
+      - name: Publish failure summary
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SUMMARY=$(cat /tmp/mangatr-sdk.log /tmp/mangatr-build.log /tmp/mangatr-instrumentation.log 2>/dev/null | grep -E '(^e: |FAILURE:|FAILED|Execution failed|Caused by|error:|Warning:|Exception|not found)' | tail -n 40 | cut -c1-400 | tr '\n' '|' || true)
+          if [ -z "$SUMMARY" ]; then SUMMARY="No SDK, Gradle or instrumentation log available"; fi
+          jq -n --arg sha "$GITHUB_SHA" --arg summary "$SUMMARY" '{name:"mangatr-integration-diagnostic",head_sha:$sha,status:"completed",conclusion:"neutral",output:{title:"Manga-TR integration diagnostic",summary:$summary}}' > /tmp/mangatr-check.json
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/check-runs" --input /tmp/mangatr-check.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
