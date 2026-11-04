@@ -45,8 +45,16 @@ jobs:
 
       - name: 📦 Eksik SDK paketlerini yükle
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0" 2>&1 | tail -n 5 || true
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          if [ -d "$sdk_root/cmake/3.22.1" ] && [ -d "$sdk_root/platforms/android-36" ] && [ -d "$sdk_root/build-tools/36.0.0" ]; then
+            echo "Android 36 / build-tools 36 / CMake 3.22.1 already present"
+          else
+            # sdkmanager may block forever while refreshing Google's remote index.
+            # Keep setup bounded so Gradle can attempt its own package resolution
+            # and the build reports a real error instead of occupying a runner for 90 min.
+            timeout --signal=TERM --kill-after=15s 90s bash -c 'yes | sdkmanager --licenses > /dev/null 2>&1' || true
+            timeout --signal=TERM --kill-after=15s 180s sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0" 2>&1 | tail -n 5 || true
+          fi
 
       - name: ⚙️ CI bellek ayarları
         run: |
