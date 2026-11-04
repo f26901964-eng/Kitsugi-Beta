@@ -111,7 +111,14 @@ object MangaExtensionLoader {
     }
 
     fun getExtensionIdForSource(source: MangaSource): String? {
-        val entry = loadedSources.entries.find { list -> list.value.any { it === source } } ?: return null
+        val targetKey = source.stableSourceKey()
+        val entry = loadedSources.entries.find { (_, list) ->
+            list.any {
+                it === source ||
+                    it.stableSourceKey() == targetKey ||
+                    (source.pkgName.isNotBlank() && it.pkgName.equals(source.pkgName, ignoreCase = true))
+            }
+        } ?: return source.pkgName.takeIf { it.isNotBlank() }?.replace(".", "_")
         return File(entry.key).nameWithoutExtension
     }
 
@@ -548,10 +555,21 @@ object MangaExtensionLoader {
 
     fun deleteExtension(context: Context, extensionId: String): Boolean {
         unloadExtension(context, extensionId)
+        lastInstallErrors.remove(extensionId)
+        runCatching {
+            context.getSharedPreferences("manga_extension_engines", Context.MODE_PRIVATE)
+                .edit()
+                .remove("engine_$extensionId")
+                .remove("engine_time_$extensionId")
+                .apply()
+        }
         var deleted = false
         listOf(apkFile(context, extensionId), mexFile(context, extensionId)).forEach { file ->
-            if (file.exists()) deleted = file.delete().also {
-                Log.i(TAG, "${file.name} silindi: $it")
+            if (file.exists()) {
+                file.setWritable(true)
+                deleted = (file.delete() || deleted).also {
+                    Log.i(TAG, "${file.name} silindi: $it")
+                }
             }
         }
         notifySourceChanged()
