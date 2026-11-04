@@ -11,6 +11,7 @@ import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +52,7 @@ class MangaDetailViewModel(
         val isLoadingDetails: Boolean = false,
         val isLoadingChapters: Boolean = true,
         val chapters: List<ChapterRow> = emptyList(),
+        val chapterQuery: String = "",
         val error: String? = null,
         /** Hatanın manga kaynak kodu (KTS-SRC-...). */
         val errorCode: String? = null,
@@ -58,22 +60,31 @@ class MangaDetailViewModel(
         val resumeChapter: MangaChapter? = null
     )
 
+    fun setChapterQuery(query: String) {
+        _uiState.update { it.copy(chapterQuery = query) }
+    }
+
     private val _uiState = MutableStateFlow(UiState(details = initialDetails))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     init {
-        refreshDetails()
-        loadChapters()
+        // Manga-TR detay sayfası hem kapak/aciklama hem de imzalı `listKey` içerir.
+        // Eskiden refreshDetails() ve loadChapters() AYNI ANDA iki ayrı istek atıyordu;
+        // DDoS-Guard oturumu/rate-limit yüzünden bölüm listesi sık sık boş düşüyordu.
+        viewModelScope.launch {
+            refreshDetails()
+            loadChapters()
+        }
     }
 
     /** Kapak/açıklama gibi alanları tazelemek için detayları yeniden çeker (best-effort). */
-    private fun refreshDetails() {
-        viewModelScope.launch {
+    private suspend fun refreshDetails() {
             _uiState.update { it.copy(isLoadingDetails = true) }
             val initial = _uiState.value.details
             try {
                 val fresh = withContext(Dispatchers.IO) {
-                    kotlinx.coroutines.withTimeout(15_000L) {
+                    val timeout = if (source.pkgName.endsWith(".mangatr", ignoreCase = true)) 200_000L else 15_000L
+                    kotlinx.coroutines.withTimeout(timeout) {
                         source.fetchMangaDetails(initial.url)
                     }
                 }
@@ -101,7 +112,6 @@ class MangaDetailViewModel(
                 // Detay tazeleme başarısız olsa bile elimizdeki initialDetails ile devam ederiz.
                 _uiState.update { it.copy(isLoadingDetails = false) }
             }
-        }
     }
 
     fun loadChapters() {
@@ -113,8 +123,8 @@ class MangaDetailViewModel(
                 try {
                     val mangaUrl = _uiState.value.details.url
                     val chapters = withContext(Dispatchers.IO) {
-                        kotlinx.coroutines.withTimeout(45_000L) {
-                            source.fetchChapterList(mangaUrl)
+                        kotlinx.coroutines.withTimeout(180_000L) {
+                            source.fetchChapterList(mangaUrl).distinctBy { it.url }
                         }
                     }
                     val progressList = withContext(Dispatchers.IO) {
@@ -150,6 +160,7 @@ class MangaDetailViewModel(
                     }
                     return@launch  // Başarılı — döngüden çık
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     lastError = e
                     if (attempt == 0) {
                         kotlinx.coroutines.delay(1_500L)  // Kısa bekleme sonrası tekrar dene

@@ -163,6 +163,16 @@
 # RxJava (manga extension compat)
 -keep class io.reactivex.** { *; }
 -keepclassmembers class io.reactivex.** { *; }
+-keep class rx.** { *; }
+-keepclassmembers class rx.** { *; }
+# Mihon / Tachiyomi / Keiyoushi extension host ABI & WebView boundary bridges
+-keep class eu.kanade.tachiyomi.** { *; }
+-keepclassmembers class eu.kanade.tachiyomi.** { *; }
+-keep class uy.kohesive.injekt.** { *; }
+-keepclassmembers class uy.kohesive.injekt.** { *; }
+-keep class androidx.webkit.** { *; }
+-keep interface org.chromium.support_lib_boundary.** { *; }
+-keep class org.chromium.support_lib_boundary.** { *; }
 # Kotlin reflect (extension loading)
 -keep class kotlin.reflect.** { *; }
 -keepclassmembers class kotlin.reflect.** { *; }
@@ -224,3 +234,7 @@
 -keep class com.lagradost.cloudstream3.R$* { *; }
 -keep class org.schabi.newpipe.extractor.** { *; }
 -keep class androidx.appcompat.** { *; }
+
+# KeiSource checks this interceptor's *simple class name* at runtime in external DEX.
+# R8 cannot see that string comparison, so release builds must keep the name and class.
+-keep class com.kitsugi.animelist.core.network.CloudflareInterceptor { *; }

@@ -62,7 +62,7 @@ class KitsugiAnimeThemesClientTest {
     }
 
     @Test
-    fun highestPlayableResolutionWinsWithinTheSameSource() {
+    fun compactPreviewPrefers720pOverHeavier1080pWithinTheSameSource() {
         val link = KitsugiAnimeThemesClient.pickBestThemeVideoLink(
             listOf(
                 candidate(link = "https://a.animethemes.moe/op1-480.webm", isNc = true, resolution = 480),
@@ -70,7 +70,37 @@ class KitsugiAnimeThemesClientTest {
                 candidate(link = "https://a.animethemes.moe/op1-720.webm", isNc = true, resolution = 720)
             )
         )
-        assertEquals("https://a.animethemes.moe/op1-1080.webm", link)
+        assertEquals("https://a.animethemes.moe/op1-720.webm", link)
+    }
+
+    @Test
+    fun anySupportedResolutionBeatsAnUnsupported4kRendition() {
+        val link = KitsugiAnimeThemesClient.pickBestThemeVideoLink(
+            listOf(
+                candidate(link = "https://a.animethemes.moe/op1-4k.webm", resolution = 2160),
+                candidate(link = "https://a.animethemes.moe/op1-360.webm", resolution = 360)
+            )
+        )
+        assertEquals("https://a.animethemes.moe/op1-360.webm", link)
+    }
+
+    @Test
+    fun smallerFileWinsWhenResolutionAndOtherPropertiesMatch() {
+        val link = KitsugiAnimeThemesClient.pickBestThemeVideoLink(
+            listOf(
+                candidate(link = "https://a.animethemes.moe/op1-large.webm", sizeBytes = 60_000_000),
+                candidate(link = "https://a.animethemes.moe/op1-small.webm", sizeBytes = 20_000_000)
+            )
+        )
+        assertEquals("https://a.animethemes.moe/op1-small.webm", link)
+    }
+
+    @Test
+    fun single1080pThemeRemainsPlayableWhenNoLighterRenditionExists() {
+        val link = KitsugiAnimeThemesClient.pickBestThemeVideoLink(
+            listOf(candidate(link = "https://a.animethemes.moe/op1.webm", resolution = 1080, sizeBytes = 62_128_452))
+        )
+        assertEquals("https://a.animethemes.moe/op1.webm", link)
     }
 
     @Test
@@ -85,12 +115,14 @@ class KitsugiAnimeThemesClientTest {
         resolution: Int = 720,
         isSubbed: Boolean = false,
         isNc: Boolean = true,
-        source: String = "WEB"
+        source: String = "WEB",
+        sizeBytes: Long = 0L
     ) = ThemeVideoCandidate(
         link = link,
         resolution = resolution,
         isSubbed = isSubbed,
         isNc = isNc,
-        source = source
+        source = source,
+        sizeBytes = sizeBytes
     )
 }

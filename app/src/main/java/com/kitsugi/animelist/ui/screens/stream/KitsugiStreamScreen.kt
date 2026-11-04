@@ -56,10 +56,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -130,6 +127,7 @@ fun KitsugiStreamScreen(
     val isResolvingId  by viewModel.isResolvingId.collectAsState()
     val idResolveFailed by viewModel.idResolveFailed.collectAsState()
     val imdbId         by viewModel.imdbId.collectAsState()
+    val scopedSourceName by viewModel.scopedSourceName.collectAsState()
     val webViewState   by viewModel.webViewDialogState.collectAsState()
 
     val addonsList by addonViewModel.addonsList.collectAsState(initial = emptyList())
@@ -253,8 +251,11 @@ fun KitsugiStreamScreen(
                         tmdbId = tmdbId,
                         streamUrl = resolvedUrl,
                         streamHeaders = source.requestHeaders,
-                        streamTitle = source.title,
-                        streamName = source.name,
+                        // Eklenti metinleri HTML/CSS artığı içerebiliyor ("… .fa-secondary{opacity:.4} DUAL").
+                        // Geçmişe temiz hâli yazılır; aksi hâlde oynatıcı ve izleme geçmişi
+                        // bozuk metin gösteriyordu (2026-11-01).
+                        streamTitle = com.kitsugi.animelist.utils.StreamLabelSanitizer.sanitize(source.title),
+                        streamName = com.kitsugi.animelist.utils.StreamLabelSanitizer.sanitize(source.name),
                         cs3Url = cs3Url,
                         cs3ApiName = cs3ApiName
                     )
@@ -412,8 +413,10 @@ fun KitsugiStreamScreen(
                         aniListId = aniListId,
                         tmdbId = tmdbId,
                         source = source.addonName,
-                        streamTitle = source.title,
-                        streamName = source.name
+                        // İndirilenler ekranı da bu metinleri gösteriyor; geçmişle aynı
+                        // şekilde temizlenmiş hâli kaydedilir.
+                        streamTitle = com.kitsugi.animelist.utils.StreamLabelSanitizer.sanitize(source.title),
+                        streamName = com.kitsugi.animelist.utils.StreamLabelSanitizer.sanitize(source.name)
                     )
                     android.widget.Toast.makeText(context, KitsugiStrings.get(R.string.indirme_kuyruga_eklendi), android.widget.Toast.LENGTH_SHORT).show()
                     context.startActivity(
@@ -538,7 +541,10 @@ fun KitsugiStreamScreen(
         onOpenSettings = { showSettingsDialog = true },
         onOpenHistory = onOpenHistory,
         onOpenDownloads = onOpenDownloads,
-        onManualSearchClick = { showManualSearchDialog = true }
+        onManualSearchClick = { showManualSearchDialog = true },
+        onRefreshAll = { viewModel.refreshAll() },
+        scopedSourceName = scopedSourceName,
+        onSearchAllSources = { viewModel.searchAllSources() }
     )
 
     if (showManualSearchDialog) {
@@ -590,7 +596,7 @@ fun KitsugiStreamScreen(
                                     }
                                 }
                             ) {
-                                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.ara), tint = accentColor)
+                                Icon(Icons.Search, contentDescription = stringResource(R.string.ara), tint = accentColor)
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -664,7 +670,7 @@ fun KitsugiStreamScreen(
                                         Text(res.title, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         Text(res.subtitle ?: "", color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                                     }
-                                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = KitsugiColors.TextMuted)
+                                    Icon(Icons.KeyboardArrowRight, contentDescription = null, tint = KitsugiColors.TextMuted)
                                 }
                             }
                         }
@@ -817,7 +823,7 @@ private fun TvStreamSettingsDialog(
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        imageVector = Icons.Rounded.Close,
+                        imageVector = Icons.Close,
                         contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextSecondary
                     )
@@ -852,7 +858,7 @@ private fun TvStreamSettingsDialog(
                     // GitHub Vekil Sunucu (jsDelivr) — telefonda diyalog içinde, TV'de bu satırda
                     item {
                         TvSettingsActionRow(
-                            title = "🌐 GitHub Vekil Sunucu (jsDelivr)",
+                            title = "GitHub Vekil Sunucu (jsDelivr)",
                             description = if (useGithubProxy) {
                                 "Etkin: raw.githubusercontent.com istekleri jsDelivr CDN üzerinden gider."
                             } else {

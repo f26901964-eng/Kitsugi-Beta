@@ -1,5 +1,8 @@
-﻿package com.kitsugi.animelist.ui.screens.manga
+package com.kitsugi.animelist.ui.screens.manga
+
+
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -22,21 +25,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.automirrored.filled.NavigateBefore
-import androidx.compose.material.icons.automirrored.filled.NavigateNext
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.ViewStream
-import androidx.compose.material.icons.filled.BrightnessLow
-import androidx.compose.material.icons.filled.BrightnessHigh
-import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material.icons.filled.CropFree
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
@@ -51,11 +41,11 @@ import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import com.kitsugi.animelist.ui.theme.gradient.Button
 import androidx.compose.material3.ButtonDefaults
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -109,7 +99,21 @@ fun MangaReaderScreen(
         )
     )
 
+    var showMangaTrLogin by remember { mutableStateOf(false) }
+    if (showMangaTrLogin) {
+        com.kitsugi.animelist.ui.screens.manga.MangaTrLoginDialog(onDismiss = {
+            showMangaTrLogin = false
+            viewModel.retryLoadPages()
+        })
+    }
     val uiState by viewModel.uiState.collectAsState()
+    var promptedLoginForChapter by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(uiState.loginRequired, uiState.currentChapter.url) {
+        if (uiState.loginRequired && promptedLoginForChapter != uiState.currentChapter.url) {
+            promptedLoginForChapter = uiState.currentChapter.url
+            showMangaTrLogin = true
+        }
+    }
     val pages by viewModel.pages.collectAsState()
 
     val currentChapter = uiState.currentChapter
@@ -121,18 +125,24 @@ fun MangaReaderScreen(
     var menuVisible     by remember { mutableStateOf(true) }
     var showSettings    by remember { mutableStateOf(false) }
 
-    val pagerState    = rememberPagerState(initialPage = currentPage) { pages.size }
-    val listState     = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
-
-    var hasRestoredProgress by remember(currentChapter.url) { mutableStateOf(false) }
-
-    LaunchedEffect(currentChapter.url) {
-        hasRestoredProgress = false
+    // Bölüm değişince pager/list state'i YENİDEN oluştur. Aksi halde yeni bölümün
+    // sayfaları eski bölümün konumunda açılıyor, "Tekrar Dene" sonrası scroll
+    // bir daha çalışmıyordu.
+    val pagerState = key(currentChapter.url) {
+        rememberPagerState(initialPage = 0) { pages.size }
+    }
+    val listState = key(currentChapter.url) {
+        rememberLazyListState()
     }
 
-    LaunchedEffect(pages, currentPage) {
-        if (pages.isNotEmpty() && !hasRestoredProgress) {
-            hasRestoredProgress = true
+    // Tek seferlik restore artık bölüm URL'i + gerçekten yüklenmiş sayfa listesi
+    // ile anahtarlanıyor. Eski kod currentPage değişince tekrar tetikleniyor ve
+    // bölüm geçişinde eski sayfa listesiyle yanlış konuma kaydırıyordu.
+    var restoredChapterUrl by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(currentChapter.url, pages, uiState.isLoadingPages) {
+        if (!uiState.isLoadingPages && pages.isNotEmpty() && restoredChapterUrl != currentChapter.url) {
+            restoredChapterUrl = currentChapter.url
             val targetPage = currentPage.coerceIn(0, pages.size - 1)
             if (readingMode == ReadingMode.Webtoon) {
                 listState.scrollToItem(targetPage)
@@ -143,12 +153,32 @@ fun MangaReaderScreen(
     }
 
     // Pager'daki sayfa değişimini takip et — V2 prefetch tetikle
+    // Webtoon modunda pagerState DİKKATE ALINMAZ: pagerState.currentPage her zaman
+    // 0 kalır ve listState'in bildirdiği gerçek ilerlemeyi 0 ile ezerdi!
     LaunchedEffect(pagerState.currentPage) {
-        if (hasRestoredProgress && pages.isNotEmpty()) {
+        if (restoredChapterUrl == currentChapter.url &&
+            pages.isNotEmpty() &&
+            readingMode != ReadingMode.Webtoon
+        ) {
             viewModel.onPageChanged(currentChapter.url, pagerState.currentPage, pages.size)
             // R2: Sayfa değiştikçe V2 loader'da 3 ileri prefetch'i başlat
             loader.onPageChanged(pagerState.currentPage)
         }
+    }
+
+    // Manga-TR / DDoS-Guard bot koruması: aynı WebView cookie oturumunda doğrula,
+    // kapatınca sayfaları yeniden çek (kapı token'ı tek kullanımlık olduğu için
+    // körü körüne retry değil, taze sayfa listesi gerekir).
+    var verificationUrl by remember { mutableStateOf<String?>(null) }
+    if (verificationUrl != null) {
+        KitsugiWebViewDialog(
+            title = stringResource(R.string.manga_source_verify_in_browser),
+            url = verificationUrl!!,
+            onDismiss = {
+                verificationUrl = null
+                viewModel.retryLoadPages()
+            }
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -172,7 +202,7 @@ fun MangaReaderScreen(
                     modifier = Modifier.padding(horizontal = 32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.ErrorOutline,
+                        imageVector = Icons.ErrorOutline,
                         contentDescription = null,
                         tint = Color.White.copy(0.5f),
                         modifier = Modifier.size(48.dp)
@@ -187,6 +217,28 @@ fun MangaReaderScreen(
                     uiState.pagesErrorCode?.let { code ->
                         Spacer(Modifier.height(10.dp))
                         com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code)
+                    }
+                    if (uiState.loginRequired) {
+                        Spacer(Modifier.height(16.dp))
+                        KitsugiButton(onClick = { showMangaTrLogin = true }) {
+                            Text("Üye girişi yap", color = Color.White)
+                        }
+                    }
+                    uiState.verificationUrl?.let { verifyUrl ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.manga_source_verify_hint),
+                            color = Color.White.copy(0.5f),
+                            fontSize = 12.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        KitsugiButton(
+                            onClick = { verificationUrl = verifyUrl },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
+                        ) {
+                            Text(stringResource(R.string.manga_source_verify_in_browser), color = Color.White)
+                        }
                     }
                     Spacer(Modifier.height(24.dp))
                     KitsugiButton(
@@ -214,7 +266,7 @@ fun MangaReaderScreen(
                     onGoToNextChapter = { viewModel.goToNextChapter() },
                     onCenterTap  = { menuVisible = !menuVisible },
                     onPageChanged = { idx ->
-                        if (hasRestoredProgress) {
+                        if (restoredChapterUrl == currentChapter.url) {
                             viewModel.onPageChanged(currentChapter.url, idx, pages.size)
                             // R2: Webtoon scroll'da V2 prefetch tetikle
                             loader.onPageChanged(idx)
@@ -299,7 +351,7 @@ fun MangaReaderScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            Icons.ArrowBack,
                             contentDescription = stringResource(R.string.geri),
                             tint = Color.White
                         )
@@ -323,7 +375,7 @@ fun MangaReaderScreen(
                     }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
-                            Icons.AutoMirrored.Filled.MenuBook,
+                            Icons.MenuBook,
                             contentDescription = stringResource(R.string.okuyucu_ayarlari),
                             tint = Color.White
                         )
@@ -359,7 +411,7 @@ fun MangaReaderScreen(
                         enabled = viewModel.hasPreviousChapter
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.ArrowBack,
                             contentDescription = stringResource(R.string.onceki_bolum),
                             tint = if (viewModel.hasPreviousChapter) Color.White else Color.White.copy(0.3f)
                         )
@@ -423,7 +475,7 @@ fun MangaReaderScreen(
                         enabled = viewModel.hasNextChapter
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            imageVector = Icons.ArrowForward,
                             contentDescription = stringResource(R.string.sonraki_bolum),
                             tint = if (viewModel.hasNextChapter) Color.White else Color.White.copy(0.3f)
                         )
@@ -438,10 +490,10 @@ fun MangaReaderScreen(
                 ) {
                     // Quick Reading Mode cycle
                     val readingModeIcon = when (readingMode) {
-                        ReadingMode.RightToLeft -> Icons.AutoMirrored.Filled.MenuBook
-                        ReadingMode.LeftToRight -> Icons.Default.SwapHoriz
-                        ReadingMode.Vertical    -> Icons.Default.ViewStream
-                        ReadingMode.Webtoon     -> Icons.Default.ViewStream
+                        ReadingMode.RightToLeft -> Icons.MenuBook
+                        ReadingMode.LeftToRight -> Icons.SwapHoriz
+                        ReadingMode.Vertical    -> Icons.ViewStream
+                        ReadingMode.Webtoon     -> Icons.ViewStream
                     }
                     IconButton(onClick = {
                         val nextMode = when (readingMode) {
@@ -472,7 +524,7 @@ fun MangaReaderScreen(
                         }
                     }) {
                         Icon(
-                            imageVector = Icons.Default.ScreenRotation,
+                            imageVector = Icons.ScreenRotation,
                             contentDescription = stringResource(R.string.ekran_dondurme),
                             tint = Color.White
                         )
@@ -488,7 +540,7 @@ fun MangaReaderScreen(
                         viewModel.setFitMode(nextFit)
                     }) {
                         Icon(
-                            imageVector = Icons.Default.CropFree,
+                            imageVector = Icons.CropFree,
                             contentDescription = stringResource(R.string.sigdirma_modu),
                             tint = Color.White
                         )
@@ -497,7 +549,7 @@ fun MangaReaderScreen(
                     // Settings Dialog Trigger
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
-                            imageVector = Icons.Default.Settings,
+                            imageVector = Icons.Settings,
                             contentDescription = stringResource(R.string.ayarlar),
                             tint = Color.White
                         )
@@ -639,7 +691,7 @@ fun MangaReaderScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.BrightnessLow,
+                        imageVector = Icons.BrightnessLow,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
@@ -660,14 +712,14 @@ fun MangaReaderScreen(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.RestartAlt,
+                            imageVector = Icons.RestartAlt,
                             contentDescription = stringResource(R.string.slider_reset_to_default),
                             tint = Color.White.copy(alpha = 0.8f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     Icon(
-                        imageVector = Icons.Default.BrightnessHigh,
+                        imageVector = Icons.BrightnessHigh,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)

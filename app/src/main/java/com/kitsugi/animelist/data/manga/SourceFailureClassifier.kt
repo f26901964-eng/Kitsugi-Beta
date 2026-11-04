@@ -14,6 +14,10 @@ object SourceFailureClassifier {
 
         // Protection pages often return HTTP 403; identify the explicit platform signature first.
         return when {
+            // KeiSource checks host interceptors by class name. This is a host ABI
+            // failure, not a website CAPTCHA, even though the name says Cloudflare.
+            message.contains("cloudflareinterceptor must be present") -> SourceErrorCategory.Unknown
+
             containsAny(
                 message,
                 "cloudflare", "captcha", "turnstile", "cf-ray", "just a moment", "ddos-guard", "ddos guard",
@@ -44,6 +48,11 @@ object SourceFailureClassifier {
                 message,
                 "401", "403", "unauthorized", "forbidden", "authentication required", "login required",
                 "giriş gerekli", "giris gerekli", "oturum aç", "oturum ac", "kimlik doğrulama gerekli",
+                // Manga-TR 1.6.24 üye/bot kapısı: eklenti bu metinlerle IOException atar.
+                // Genel "Broken/Unknown" yerine Auth olarak sınıflansın ki kullanıcıya
+                // WebView doğrulaması önerilebilsin.
+                "üye girişi", "uye girisi", "üye ol", "uye ol", "bot korumasını", "bot korumasini",
+                "bot koruması", "bot korumasi", "verify.php", "oturum açmanız", "oturum acmaniz",
             ) ->
                 SourceErrorCategory.Auth
 

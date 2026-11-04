@@ -20,7 +20,17 @@ class SourceMirrorResolver(
     private val tag = "SourceMirrorResolver"
 
     suspend fun tryResolveAndActivateMirror(source: MangaSource, cause: Throwable? = null): Boolean = kotlinx.coroutines.supervisorScope {
+        // Do not redirect Manga-TR traffic (including reader credentials/cookies) to
+        // merely reachable guessed domains. Keep any explicitly configured domain.
+        if (!allowsAutomaticMangaMirror(source.pkgName)) return@supervisorScope false
         if (!shouldAttemptRecovery(cause)) return@supervisorScope false
+
+        // Manga-TR: DDoS-Guard + tek kullanımlık okuyucu/gate token'ı. Bir hata
+        // sonrası domain değiştirip isteği TEKRAR çalıştırmak oturumu geçersiz
+        // kılar. Ayrıca isReachable() 403/503'ü "erişilebilir" saydığı için koruma
+        // sayfasını gerçek mirror sanabilir. Kullanıcı domain'i elle değiştirebilir;
+        // otomatik kurtarma bu kaynakta kapalıdır.
+        if (MangaTrCompat.isMangaTr(source)) return@supervisorScope false
 
         val currentBaseUrl = configStore.getPreferredBaseUrl(source, source.baseUrl) ?: source.baseUrl
         if (currentBaseUrl.isBlank()) return@supervisorScope false
@@ -102,6 +112,16 @@ class SourceMirrorResolver(
 
     private fun deriveHostCandidates(host: String): List<String> {
         val asciiHost = runCatching { IDN.toASCII(host) }.getOrDefault(host)
+
+        // Manga-TR için rastgele TLD üretmek ZARARLI: DDoS-Guard korumalı siteye
+        // `manga-tr.xyz`, `manga-tr-com.com` gibi uydurma adreslere HEAD atmak hem
+        // yanlış mirror'u "erişilebilir" (403/503) sanıp etkinleştirir hem de tek
+        // kullanımlık okuyucu/geçit oturumunu bozar. Sadece bilinen alan adlarını dene.
+        if (MangaTrCompat.isMangaTrBaseUrl("https://$asciiHost")) {
+            return MangaTrCompat.KNOWN_DOMAINS
+                .filter { !it.equals(asciiHost, ignoreCase = true) }
+        }
+
         val out = linkedSetOf<String>()
 
         // 1. strip www. and find baseName and current TLD
@@ -129,7 +149,6 @@ class SourceMirrorResolver(
 
         if (asciiHost.contains("manga-tr")) {
             out += asciiHost.replace("manga-tr", "mangatr")
-            out += asciiHost.replace("manga-tr", "manga-tr-com")
         }
         if (asciiHost.contains("mangatr")) {
             out += asciiHost.replace("mangatr", "manga-tr")

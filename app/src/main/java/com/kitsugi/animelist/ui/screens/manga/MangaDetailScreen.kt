@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.utils.uniqueItems
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -20,12 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Refresh
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
@@ -49,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.matchesChapterQuery
+import androidx.compose.material3.OutlinedTextField
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
@@ -120,7 +118,7 @@ fun MangaDetailScreen(
                         resume != null -> stringResource(R.string.devam_et_x, resume.name)
                         else -> "Baştan Oku"
                     },
-                    icon = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
+                    icon = if (resume != null) Icons.PlayArrow else Icons.MenuBook,
                     onClick = {
                         viewModel.chapterToOpen()?.let(onOpenChapter)
                     },
@@ -171,12 +169,24 @@ fun MangaDetailScreen(
                     )
                     IconButton(onClick = { viewModel.loadChapters() }) {
                         Icon(
-                            Icons.Rounded.Refresh,
+                            Icons.Refresh,
                             contentDescription = stringResource(R.string.yenile),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                }
+            }
+
+            if (uiState.chapters.isNotEmpty()) {
+                item(key = "chapter_search") {
+                    OutlinedTextField(
+                        value = uiState.chapterQuery,
+                        onValueChange = viewModel::setChapterQuery,
+                        label = { Text("Bölüm ara") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
                 }
             }
 
@@ -215,8 +225,9 @@ fun MangaDetailScreen(
                     }
                 }
 
-                else -> items(
-                    items = uiState.chapters,
+                // Bazı kaynaklar aynı bölüm URL'sini (farklı çeviri grupları) tekrar listeler.
+                else -> uniqueItems(
+                    items = uiState.chapters.filter { it.chapter.matchesChapterQuery(uiState.chapterQuery) },
                     key = { it.chapter.url }
                 ) { row ->
                     ChapterListItem(
@@ -238,7 +249,7 @@ fun MangaDetailScreen(
                 .background(Color.Black.copy(0.35f))
         ) {
             Icon(
-                Icons.AutoMirrored.Rounded.ArrowBack,
+                Icons.ArrowBack,
                 contentDescription = stringResource(R.string.geri),
                 tint = Color.White
             )
@@ -405,7 +416,7 @@ private fun ChapterListItem(
         }
         if (row.isCompleted) {
             Icon(
-                Icons.Rounded.CheckCircle,
+                Icons.CheckCircle,
                 contentDescription = stringResource(R.string.okundu),
                 tint = KitsugiColors.AccentGreen.copy(0.8f),
                 modifier = Modifier.size(18.dp)

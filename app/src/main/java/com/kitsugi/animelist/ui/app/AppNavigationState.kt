@@ -35,10 +35,14 @@ class AppNavigationState(
         private set
     var mangaBrowseMediaId by mutableStateOf<Int?>(null)
         private set
+    /** Eklenti Portalı'ndan tek kaynakla açılış: seçili kaynağın stableSourceKey'i. */
+    var mangaBrowseSourceKey by mutableStateOf<String?>(null)
+        private set
 
-    fun openMangaBrowse(query: String? = null, mediaId: Int? = null) {
+    fun openMangaBrowse(query: String? = null, mediaId: Int? = null, sourceKey: String? = null) {
         mangaBrowseQuery = query
         mangaBrowseMediaId = mediaId
+        mangaBrowseSourceKey = sourceKey
         mangaBrowseOpen = true
     }
 
@@ -46,6 +50,7 @@ class AppNavigationState(
         mangaBrowseOpen = false
         mangaBrowseQuery = null
         mangaBrowseMediaId = null
+        mangaBrowseSourceKey = null
     }
 
     var mangaSourceHealthOpen by mutableStateOf(false)
@@ -104,7 +109,7 @@ class AppNavigationState(
                 DetailScreen.About -> "about_${depth}"
                 is DetailScreen.UserProfile -> "user_profile_${depth}_${screen.source}_${screen.userId}_${screen.username.orEmpty()}"
                 is DetailScreen.UserMediaList -> "user_media_list_${depth}_${screen.userId}_${screen.initialMediaType.name}"
-                DetailScreen.Notifications -> "notifications_${depth}"
+                is DetailScreen.Notifications -> "notifications_${depth}_${screen.preferredSource}"
                 DetailScreen.Downloads -> "downloads_${depth}"
                 DetailScreen.WatchHistory -> "watch_history_${depth}"
                 DetailScreen.PluginPicker -> "plugin_picker_${depth}"
@@ -127,7 +132,7 @@ class AppNavigationState(
                     DetailScreen.About -> "about_${plainDepth}"
                     is DetailScreen.UserProfile -> "user_profile_${plainDepth}_${screen.source}_${screen.userId}_${screen.username.orEmpty()}"
                     is DetailScreen.UserMediaList -> "user_media_list_${plainDepth}_${screen.userId}_${screen.initialMediaType.name}"
-                    DetailScreen.Notifications -> "notifications_${plainDepth}"
+                    is DetailScreen.Notifications -> "notifications_${plainDepth}_${screen.preferredSource}"
                     DetailScreen.Downloads -> "downloads_${plainDepth}"
                     DetailScreen.WatchHistory -> "watch_history_${plainDepth}"
                     DetailScreen.PluginPicker -> "plugin_picker_${plainDepth}"

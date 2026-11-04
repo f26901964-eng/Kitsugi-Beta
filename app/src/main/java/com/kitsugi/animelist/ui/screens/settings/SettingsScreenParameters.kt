@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.settings
 
 import com.kitsugi.animelist.ui.components.BackupImportMode
+import com.kitsugi.animelist.ui.components.addons.MangaBulkDeleteState
 import com.kitsugi.animelist.data.local.CloudstreamRepoEntity
 import com.kitsugi.animelist.data.local.CsPluginEntity
 import com.kitsugi.animelist.data.local.ManagedAddonEntity
@@ -37,7 +38,7 @@ data class GeneralSettings(
     val hideScores: Boolean,
     val showAnimeLogos: Boolean,
     // ─── AniHyou paritesi: eksik içerik/liste ayarları ─────────────────────
-    val staffNameLanguage: String = "ROMAJI",
+    val staffNameLanguage: String = "ENGLISH",
     val onStaffNameLanguageSelected: (String) -> Unit = {},
     val scoreStep: String = "1",
     val onScoreStepSelected: (String) -> Unit = {},
@@ -100,12 +101,17 @@ data class GeneralSettings(
     val onKitsuNotificationsChanged: (Boolean) -> Unit = {},
     val shikimoriNotificationsEnabled: Boolean = false,
     val onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
+    val tmdbNotificationsEnabled: Boolean = false,
+    val onTmdbNotificationsChanged: (Boolean) -> Unit = {},
+    val bangumiNotificationsEnabled: Boolean = false,
+    val onBangumiNotificationsChanged: (Boolean) -> Unit = {},
     val isAniListConnected: Boolean = false,
     val isMalConnected: Boolean = false,
     val isSimklConnected: Boolean = false,
     val isKitsuConnected: Boolean = false,
     val isShikimoriConnected: Boolean = false,
     val isBangumiConnected: Boolean = false,
+    val isTmdbConnected: Boolean = false,
     val notificationInterval: Int = 180,
     val onNotificationIntervalChanged: (Int) -> Unit = {},
     val splashAnimationEnabled: Boolean = true,
@@ -155,6 +161,12 @@ data class ProfileSettings(
     val simklUsername: String = "",
     val isSimklImportRunning: Boolean = false,
     val isSimklSessionExpired: Boolean = false,
+    /** `E95`: oturumu sunucu tarafında düşmüş diğer hesaplar (Ayarlar kartı "Oturum süresi doldu" gösterir). */
+    val isAniListSessionExpired: Boolean = false,
+    val isMalSessionExpired: Boolean = false,
+    val isKitsuSessionExpired: Boolean = false,
+    val isShikimoriSessionExpired: Boolean = false,
+    val isBangumiSessionExpired: Boolean = false,
     val onProfileInfoSave: (profileName: String, listTitle: String) -> Unit,
     val onPickProfileImageClick: () -> Unit,
     val onPickBannerImageClick: () -> Unit,
@@ -222,7 +234,15 @@ data class ProfileSettings(
     val onBangumiImportClick: () -> Unit = {},
     val syncEnabledBangumi: Boolean = false,
     val onSyncEnabledBangumiChanged: (Boolean) -> Unit = {},
-    val onLoginBangumi: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> }
+    val onLoginBangumi: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
+    // TMDB user watchlist import is deliberately separate from catalog metadata.
+    val isTmdbConnected: Boolean = false,
+    val tmdbUsername: String = "",
+    val isTmdbImportRunning: Boolean = false,
+    val onTmdbAuthClick: () -> Unit = {},
+    val onTmdbImportClick: () -> Unit = {},
+    val syncEnabledTmdb: Boolean = false,
+    val onSyncEnabledTmdbChanged: (Boolean) -> Unit = {}
 )
 
 data class PlayerSettings(
@@ -358,6 +378,11 @@ data class MangaSettings(
     val mangaSources: List<com.kitsugi.animelist.data.manga.MangaSource> = emptyList(),
     val onInstallMangaExtension: (android.net.Uri) -> Unit = {},
     val onDeleteMangaExtension: (com.kitsugi.animelist.data.manga.MangaSource) -> Unit = {},
+    val onDeleteMangaExtensions: (List<com.kitsugi.animelist.data.manga.MangaSource>, (Int) -> Unit) -> Unit = { sources, done -> done(sources.size) },
+    val onGetMangaSourceEnabled: (com.kitsugi.animelist.data.manga.MangaSource) -> Boolean = { true },
+    val onToggleMangaSource: (com.kitsugi.animelist.data.manga.MangaSource, Boolean) -> Unit = { _, _ -> },
+    /** Manga > Kurulu "Toplu Sil" durumu. Null ise buton gösterilmez. */
+    val mangaBulkDelete: MangaBulkDeleteState? = null,
     val mangaRepos: List<String> = emptyList(),
     val mangaRepoExtensions: Map<String, List<com.kitsugi.animelist.data.remote.MangaExtensionInfo>?> = emptyMap(),
     val mangaRepoLoadingState: Map<String, Boolean> = emptyMap(),

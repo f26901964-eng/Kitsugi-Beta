@@ -15,13 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import com.kitsugi.animelist.ui.app.MangaViewModel
 import com.kitsugi.animelist.data.manga.stableSourceKey
 import com.kitsugi.animelist.ui.tv.manga.TvMangaBrowseScreen
@@ -115,12 +109,12 @@ import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
 private val navItems = listOf(
-    TvNavItem(TvDestination.HOME,     Icons.Filled.Home,          "Ana Sayfa"),
-    TvNavItem(TvDestination.SEARCH,   Icons.Filled.Search,        "Ara"),
-    TvNavItem(TvDestination.LIBRARY,  Icons.Filled.Bookmarks,     "Kütüphane"),
-    TvNavItem(TvDestination.MANGA,    Icons.Filled.MenuBook,      "Manga"),
-    TvNavItem(TvDestination.SETTINGS, Icons.Filled.Settings,      "Ayarlar"),
-    TvNavItem(TvDestination.ACCOUNT,  Icons.Filled.AccountCircle, "Hesap / QR"),
+    TvNavItem(TvDestination.HOME,     Icons.Home,          "Ana Sayfa"),
+    TvNavItem(TvDestination.SEARCH,   Icons.Search,        "Ara"),
+    TvNavItem(TvDestination.LIBRARY,  Icons.Bookmarks,     "Kütüphane"),
+    TvNavItem(TvDestination.MANGA,    Icons.MenuBook,      "Manga"),
+    TvNavItem(TvDestination.SETTINGS, Icons.Settings,      "Ayarlar"),
+    TvNavItem(TvDestination.ACCOUNT,  Icons.AccountCircle, "Hesap / QR"),
 )
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -203,14 +197,14 @@ fun TvRootScreen(
             },
             mangaSourcesProvider = {
                 com.kitsugi.animelist.data.manga.MangaExtensionLoader.getLoadedSources().map { source ->
-                    val health = mangaViewModel.getSourceHealthStatus(source)
                     mapOf(
                         "id"        to source.stableSourceKey(),
                         "name"      to source.name,
                         "pkgName"   to source.pkgName,
                         "baseUrl"   to source.baseUrl,
                         "lang"      to source.lang,
-                        "isEnabled" to (health != com.kitsugi.animelist.data.manga.model.SourceHealthStatus.Disabled)
+                        // Aktiflik artık sağlık durumu değil, ayrı kullanıcı tercihidir.
+                        "isEnabled" to mangaViewModel.isMangaSourceEnabled(source)
                     )
                 }
             },
@@ -516,6 +510,7 @@ fun TvRootScreen(
                                     isAniListConnected = authViewModel.isAniListConnected,
                                     isMalConnected = authViewModel.isMalConnected,
                                     isSimklConnected = authViewModel.isSimklConnected,
+                                    isTmdbConnected = authViewModel.isTmdbConnected,
                                     isBangumiConnected = authViewModel.isBangumiConnected
                                 )
                             },
@@ -796,7 +791,11 @@ fun TvRootScreen(
                 onDeleteRepo = { mangaViewModel.deleteMangaRepo(it) },
                 onFetchRepo = { mangaViewModel.fetchMangaRepo(it) },
                 onInstallApk = { ext, cb -> mangaViewModel.installMangaApk(ext, cb) },
+                onInstallAllMangaExtensions = { repoUrl, extensions ->
+                    mangaViewModel.installAllMangaExtensions(repoUrl, extensions)
+                },
                 onDeleteExtension = { mangaViewModel.deleteMangaExtension(it) },
+                onToggleSource = { source, enabled -> mangaViewModel.toggleMangaSource(source, enabled) },
                 onGetSourceHealth = { mangaViewModel.getSourceHealthStatus(it) },
                 onGetRuntimeStats = { mangaViewModel.getSourceRuntimeStats(it) },
                 onGetLastErrorCode = { mangaViewModel.getSourceLastErrorCode(it) },
@@ -880,7 +879,7 @@ fun TvRootScreen(
         onDeleteEditingEntry = { entry ->
             deletingEntry = entry
         },
-        onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
+        onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores, tmdbWatchlist, tmdbRating ->
             val entry = editingEntry ?: return@AppDialogHost
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             val resolvedStartDate = if (startDate.isNullOrBlank() &&
@@ -909,7 +908,9 @@ fun TvRootScreen(
                 repeatValue = repeatValue,
                 volumeProgress = volumeProgress,
                 isPrivate = isPrivate,
-                isHiddenFromStatusLists = isHiddenFromStatusLists
+                isHiddenFromStatusLists = isHiddenFromStatusLists,
+                tmdbWatchlist = tmdbWatchlist,
+                tmdbRating = tmdbRating
             )
             coroutineScope.launch { mediaRepository.update(updatedEntry, advancedScores = advancedScores) }
             editingEntry = null

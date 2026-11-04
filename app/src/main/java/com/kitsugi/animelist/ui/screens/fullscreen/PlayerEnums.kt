@@ -23,6 +23,7 @@ enum class VideoAspect(val label: String) {
 }
 
 enum class Decoder(val title: String, val value: String) {
+    AutoSafe("Auto", "auto-safe"),
     AutoCopy("Auto", "auto-copy"),
     Auto("Auto", "auto"),
     SW("SW", "no"),
@@ -46,7 +47,11 @@ enum class KitsugiSheets {
     PlaybackSpeed,
     SubtitleTracks,
     AudioTracks,
+    /** Yalnızca kalite seçenekleri (Otomatik + bildirilen çözünürlükler). */
     QualityTracks,
+    /** Yalnızca kaynak (sunucu) listesi. */
+    SourceTracks,
+    Sources,
     Chapters,
     More,
     Screenshot,
