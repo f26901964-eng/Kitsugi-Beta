@@ -38,6 +38,12 @@ android {
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
     val appVersionName = "2.4.340"
+    // Normal releases remain ARM-only. The isolated Android emulator CI opts in to x86_64.
+    val mangaTestAbis = if (providers.gradleProperty("mangaEmulatorX86_64").orNull == "true") {
+        listOf("x86_64")
+    } else {
+        listOf("arm64-v8a", "armeabi-v7a")
+    }
 
     compileSdk = 36
 
@@ -77,13 +83,12 @@ android {
                 // Stub mode: no libdovi static lib required.
                 // To enable real libdovi, add: arguments("-DDOVI_ENABLE_LIBDOVI=ON")
                 arguments("-DDOVI_ENABLE_LIBDOVI=OFF")
-                abiFilters("arm64-v8a", "armeabi-v7a")
+                abiFilters(*mangaTestAbis.toTypedArray())
             }
         }
 
         ndk {
-            abiFilters.add("arm64-v8a")
-            abiFilters.add("armeabi-v7a")
+            abiFilters.addAll(mangaTestAbis)
         }
     }
 

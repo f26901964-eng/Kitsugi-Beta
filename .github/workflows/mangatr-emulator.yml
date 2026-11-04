@@ -35,6 +35,15 @@ jobs:
             'https://api.github.com/repos/f26901964-eng/Kitsugi-Manga-Plugins/contents/apk/tachiyomi-tr.mangatr-v1.6.26.apk?ref=245c305f' \
             -o app/src/androidTest/assets/mangatr-fixture.apk
           echo '1392f9f4e9cc52b23bf018a394ae94a0f0fe19249bd65ac69f2266b3b81687a8  app/src/androidTest/assets/mangatr-fixture.apk' | sha256sum -c -
+      - name: Install Android build components
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0"
+      - name: Compile app and instrumentation APK before starting emulator
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleFossDebug :app:assembleFossDebugAndroidTest --stacktrace --console=plain --no-daemon -PmangaEmulatorX86_64=true
+          ./gradlew --stop
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -48,8 +57,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            chmod +x gradlew
-            ./gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest
+            ./gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -PmangaEmulatorX86_64=true -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest
       - uses: actions/upload-artifact@v4
         if: always()
         with:
