@@ -5,6 +5,10 @@ internal fun isMangaTrLoginRequired(packageName: String, message: String?): Bool
     packageName.endsWith(".mangatr", ignoreCase = true) &&
         message?.contains("üye girişi", ignoreCase = true) == true
 
+/** A guessed mirror may belong to someone else; Manga-TR owns its domain selection. */
+internal fun allowsAutomaticMangaMirror(packageName: String): Boolean =
+    !packageName.endsWith(".mangatr", ignoreCase = true)
+
 /** Manga-TR's extension handles its own challenge and image transformation. */
 fun isMangaTrHost(host: String): Boolean =
     host.equals("manga-tr.com", true) || host.endsWith(".manga-tr.com", true) ||

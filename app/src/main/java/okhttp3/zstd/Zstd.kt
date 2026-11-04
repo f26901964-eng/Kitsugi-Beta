@@ -12,7 +12,8 @@ import okio.Source
  * bagimliligi olmadigi icin sinif yok -> NoClassDefFoundError.
  *
  * Zstd cozuco (zstd-jni) APK'ya eklenmedigi icin decompress() firlatir;
- * CompressionInterceptor stub'i "zstd" reklam etmedigi icin bu yol normalde calismaz.
+ * Manga-TR hostlarinda NetworkHelper varsayilan olarak identity ister. Diger
+ * sunucular zstd gonderirse hata exception olarak yuzeye cikar.
  */
 object Zstd : CompressionInterceptor.DecompressionAlgorithm {
 

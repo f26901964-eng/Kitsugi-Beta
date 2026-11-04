@@ -12,9 +12,8 @@ import okio.Source
  * bagimliligi olmadigi icin sinif yok -> NoClassDefFoundError.
  *
  * Brotli cozuco (org.brotli.dec) APK'ya eklenmedigi icin decompress() bilincli olarak
- * firlatir; CompressionInterceptor stub'i "br" reklam etmedigi icin bu yol normalde
- * hic calismaz. Bir sunucu yine de br gonderirse hata, sessiz bozuk veri yerine
- * loglanabilir bir exception olarak yuzeye cikar.
+ * firlatir; Manga-TR hostlarinda NetworkHelper varsayilan olarak identity ister. Farkli
+ * sunucular br gonderirse hata sessiz veri bozulmasi yerine exception olur.
  */
 object Brotli : CompressionInterceptor.DecompressionAlgorithm {
 

@@ -10,6 +10,12 @@ class MangaTrPolicyTest {
         assertFalse(isMangaTrLoginRequired("eu.kanade.tachiyomi.extension.tr.mangatr", "captcha"))
     }
 
+    @Test fun automaticGuessedMirrorsAreDisabledOnlyForMangaTr() {
+        assertFalse(allowsAutomaticMangaMirror("eu.kanade.tachiyomi.extension.tr.mangatr"))
+        assertFalse(allowsAutomaticMangaMirror("EU.KANADE.TACHIYOMI.EXTENSION.TR.MANGATR"))
+        assertTrue(allowsAutomaticMangaMirror("eu.kanade.tachiyomi.extension.tr.other"))
+    }
+
     @Test fun hostMatchingIsBoundedToRealDomains() {
         assertTrue(isMangaTrHost("forum.manga-tr.com"))
         assertTrue(isMangaTrHost("image.mngtr.site"))

@@ -41,6 +41,7 @@ class MihonMangaIntegrationTest {
         var selected: Int? = null
         var requestedPage: Int? = null
         var failSearchWithLinkageError = false
+        var failImageWithLinkageError = false
         var chapterUrl: String? = null
         var updateCalls = 0
         private val updateActive = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -52,6 +53,10 @@ class MihonMangaIntegrationTest {
             Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200)
                 .message("OK").body(png.toResponseBody()).build()
         }.build()
+        override fun imageRequest(page: Page): okhttp3.Request {
+            if (failImageWithLinkageError) throw NoSuchMethodError("fixtureMissingImageMethod")
+            return super.imageRequest(page)
+        }
         override fun getFilterList() = FilterList(Translation())
         override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage {
             if (failSearchWithLinkageError) throw NoSuchMethodError("fixtureMissingMethod")
@@ -90,6 +95,17 @@ class MihonMangaIntegrationTest {
         val fake = FakeSource(byteArrayOf()).apply { failSearchWithLinkageError = true }
         val wrapper = MihonSourceWrapper(fake, context, "eu.kanade.tachiyomi.extension.tr.mangatr")
         val error = runCatching { wrapper.fetchSearchManga(1, "Chainsaw Man") }.exceptionOrNull()
+        assertTrue(error is java.io.IOException)
+        assertTrue(error?.cause is NoSuchMethodError)
+        Unit
+    }
+
+    @Test fun pluginImageLinkageFailureIsReportedAsSourceError() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        Injekt.addSingleton(NetworkHelper::class.java, NetworkHelper(context))
+        val fake = FakeSource(byteArrayOf()).apply { failImageWithLinkageError = true }
+        val wrapper = MihonSourceWrapper(fake, context, "eu.kanade.tachiyomi.extension.tr.mangatr")
+        val error = runCatching { wrapper.getImage(MangaPage(0, "", "https://image.mngtr.site/a.png")) }.exceptionOrNull()
         assertTrue(error is java.io.IOException)
         assertTrue(error?.cause is NoSuchMethodError)
         Unit

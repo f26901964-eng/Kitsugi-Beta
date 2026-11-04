@@ -354,23 +354,27 @@ class MihonSourceWrapper(
     }
 
     override suspend fun getImage(page: MangaPage): java.io.InputStream {
-        applyRuntimeSourceConfig()
-        maybeSlowdown()
-        val source = httpSource ?: return super<MangaSource>.getImage(page)
-        // Do not rebuild the request/client: imageRequest overrides can carry chapter
-        // referers, signed URLs, decryption interceptors and the source cookie jar.
-        val response = source.getImage(eu.kanade.tachiyomi.source.model.Page(
-            index = page.index, url = page.url, imageUrl = page.imageUrl
-        ))
-        val body = response.body
-        if (!response.isSuccessful || body == null) {
-            response.close()
-            throw java.io.IOException("Görsel isteği başarısız: HTTP ${response.code}")
-        }
-        return object : java.io.FilterInputStream(body.byteStream()) {
-            override fun close() {
-                try { super.close() } finally { response.close() }
+        try {
+            applyRuntimeSourceConfig()
+            maybeSlowdown()
+            val source = httpSource ?: return super<MangaSource>.getImage(page)
+            // Do not rebuild the request/client: imageRequest overrides can carry chapter
+            // referers, signed URLs, decryption interceptors and the source cookie jar.
+            val response = source.getImage(eu.kanade.tachiyomi.source.model.Page(
+                index = page.index, url = page.url, imageUrl = page.imageUrl
+            ))
+            val body = response.body
+            if (!response.isSuccessful || body == null) {
+                response.close()
+                throw java.io.IOException("Görsel isteği başarısız: HTTP ${response.code}")
             }
+            return object : java.io.FilterInputStream(body.byteStream()) {
+                override fun close() {
+                    try { super.close() } finally { response.close() }
+                }
+            }
+        } catch (e: LinkageError) {
+            throw java.io.IOException("Eklenti çalışma zamanı uyumsuzluğu: ${e.javaClass.simpleName}: ${e.message.orEmpty()}", e)
         }
     }
 
