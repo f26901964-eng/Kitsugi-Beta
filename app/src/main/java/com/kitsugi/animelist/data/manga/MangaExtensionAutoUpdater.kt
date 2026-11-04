@@ -156,13 +156,13 @@ object MangaExtensionAutoUpdater {
     private fun tryUpdateExtension(context: Context, info: MangaExtensionInfo): Boolean {
         return try {
             val extensionId = info.pkg.replace(".", "_")
-            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, info.apkUrl, expectedPackage = info.pkg, expectedVersionCode = info.versionCode.toLong())
-            if (!downloaded) return false
+            MangaExtensionLoader.installWithRollback(context, extensionId) {
+                val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, info.apkUrl, expectedPackage = info.pkg, expectedVersionCode = info.versionCode.toLong())
+                if (!downloaded) return@installWithRollback false
 
-            // Bellekten kaldır ve yeniden yükle
-            MangaExtensionLoader.unloadExtension(context, extensionId)
-            val loaded = MangaExtensionLoader.loadExtension(context, extensionId)
-            loaded != null
+                MangaExtensionLoader.unloadExtension(context, extensionId)
+                MangaExtensionLoader.loadExtension(context, extensionId) != null
+            }
         } catch (e: Exception) {
             Log.e(TAG, "tryUpdateExtension hata (${info.name}): ${e.message}", e)
             false

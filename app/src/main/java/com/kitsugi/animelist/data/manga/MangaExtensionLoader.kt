@@ -75,6 +75,31 @@ object MangaExtensionLoader {
         return File(entry.key).nameWithoutExtension
     }
 
+    // Serialize attempts for the same APK; different extensions may still download in parallel.
+    private val installLocks = Array(32) { Any() }
+
+    fun installWithRollback(context: Context, extensionId: String, install: () -> Boolean): Boolean {
+        val target = apkFile(context, extensionId)
+        val lock = installLocks[(extensionId.hashCode() and Int.MAX_VALUE) % installLocks.size]
+        return synchronized(lock) {
+            val previous = loadedSources[target.absolutePath]
+            var committed = false
+            try {
+                committed = withMangaApkRollback(target, install)
+                committed
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.e(TAG, "$extensionId: kurulum veya geri yükleme başarısız: ${e.message}", e)
+                false
+            } finally {
+                if (!committed) {
+                    if (previous == null) loadedSources.remove(target.absolutePath)
+                    else loadedSources[target.absolutePath] = previous
+                }
+            }
+        }
+    }
+
     // ─── İndirme ─────────────────────────────────────────────────────────────
 
     /**
