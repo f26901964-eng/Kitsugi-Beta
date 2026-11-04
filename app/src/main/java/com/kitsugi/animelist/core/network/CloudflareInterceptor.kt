@@ -70,7 +70,7 @@ class CloudflareInterceptor(private val context: Context) : Interceptor {
         // so subsequent pagination, detail, chapter, and image requests reuse the session.
         runCatching {
             val helper = uy.kohesive.injekt.Injekt.get(eu.kanade.tachiyomi.network.NetworkHelper::class.java)
-            helper.cookieJar.syncFromWebView(request.url)
+            helper.cookieJar.syncFromWebView(request.url.toString())
         }
 
         if (resolvedCookieHeader.isNullOrBlank()) {

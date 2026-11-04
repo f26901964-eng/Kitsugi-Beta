@@ -192,12 +192,13 @@ object MangaExtensionLoader {
                 Log.d(TAG, "İndiriliyor [$targetExt]: $extensionId <- $candidate")
                 cleanTemp()
                 var downloadedBytes = false
+                var abortCandidate = false
                 var attempt = 1
                 // Çoklu aday olduğunda her adayda hızlı geçiş yap (toplam bekleme şişmesin).
                 val maxAttempts = if (candidates.size > 2) 2 else 3
                 var delayMs = 1000L
 
-                while (attempt <= maxAttempts && !downloadedBytes) {
+                while (attempt <= maxAttempts && !downloadedBytes && !abortCandidate) {
                     try {
                         val request = okhttp3.Request.Builder()
                             .url(candidate)
@@ -217,7 +218,7 @@ object MangaExtensionLoader {
                                 // Bu dalda/adreste dosya yok -> beklemeden sonraki adaya geç.
                                 lastHttpFailure = "HTTP 404"
                                 Log.w(TAG, "$extensionId: $candidate üzerinde HTTP 404, sonraki aday denenecek")
-                                break
+                                abortCandidate = true
                             } else if (!response.isSuccessful) {
                                 lastHttpFailure = "HTTP ${response.code}"
                                 Log.e(TAG, "$extensionId indirme hatası: HTTP ${response.code} (Deneme $attempt/$maxAttempts)")
