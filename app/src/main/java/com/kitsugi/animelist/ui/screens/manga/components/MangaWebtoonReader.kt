@@ -1,7 +1,8 @@
-﻿package com.kitsugi.animelist.ui.screens.manga.components
+package com.kitsugi.animelist.ui.screens.manga.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,8 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,11 +63,12 @@ fun MangaWebtoonReader(
     onGoToNextChapter: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Görünen ilk öğeyi takip et ve üst katmana bildir
+    // Keep the current chapter/progress callback when the list survives recomposition.
+    val currentOnPageChanged by rememberUpdatedState(onPageChanged)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
-            .collect { index -> onPageChanged(index) }
+            .collect { index -> currentOnPageChanged(index) }
     }
 
     LazyColumn(
@@ -92,7 +96,7 @@ fun MangaWebtoonReader(
                 onCenterTap = onCenterTap,
                 onNextPage   = onNextPage,
                 onPrevPage   = onPrevPage,
-                modifier    = Modifier.fillMaxWidth()
+                modifier    = Modifier.fillMaxWidth().aspectRatio(page.aspectRatio ?: 0.7f)
             )
 
             // Sayfalar arası ince ayırıcı

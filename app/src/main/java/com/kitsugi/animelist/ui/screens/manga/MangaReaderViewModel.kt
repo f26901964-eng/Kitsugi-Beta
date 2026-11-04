@@ -70,7 +70,8 @@ class MangaReaderViewModel(
         val isLoadingPages: Boolean = false,
         val pagesError: String? = null,
         /** Sayfa yükleme hatasının manga kaynak kodu (KTS-SRC-...). */
-        val pagesErrorCode: String? = null
+        val pagesErrorCode: String? = null,
+        val loginRequired: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -128,7 +129,7 @@ class MangaReaderViewModel(
             val startedAt = System.currentTimeMillis()
             try {
                 val chapters = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    source.fetchChapterList(mangaDetails.url)
+                    source.fetchChapterList(mangaDetails.url).distinctBy { it.url }
                 }
                 sourceStateStore.recordOperationSuccess(
                     source = source,
@@ -160,6 +161,7 @@ class MangaReaderViewModel(
     fun onPageChanged(chapterUrl: String, pageIndex: Int, totalPages: Int) {
         _uiState.update { it.copy(currentPageIndex = pageIndex) }
         progressSaveJob?.cancel()
+        val chapterName = _uiState.value.currentChapter.name
         progressSaveJob = viewModelScope.launch {
             kotlinx.coroutines.delay(500L)
             val isCompleted = totalPages > 0 && pageIndex >= totalPages - 1
@@ -167,7 +169,7 @@ class MangaReaderViewModel(
                 MangaChapterProgressEntity(
                     chapterUrl    = chapterUrl,
                     mangaUrl      = mangaDetails.url,
-                    chapterName   = _uiState.value.currentChapter.name,
+                    chapterName   = chapterName,
                     lastPageIndex = pageIndex,
                     totalPages    = totalPages,
                     isCompleted   = isCompleted,
@@ -208,7 +210,7 @@ class MangaReaderViewModel(
     // F6: Bölüm değişiminde eski queue'yu temizle — yanlış sayfa yükleme önler
     fun goToChapter(chapter: MangaChapter) {
         loader.resetQueue()
-        _uiState.update { it.copy(currentChapter = chapter, currentPageIndex = 0) }
+        _uiState.update { it.copy(currentChapter = chapter, currentPageIndex = 0, isLoadingPages = true, pagesError = null, loginRequired = false) }
         restoreProgress(chapter)
     }
 
@@ -253,7 +255,7 @@ class MangaReaderViewModel(
     private fun restoreProgress(chapter: MangaChapter) {
         pageListJob?.cancel()
         pageListJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingPages = true, pagesError = null, pagesErrorCode = null) }
+            _uiState.update { it.copy(isLoadingPages = true, pagesError = null, pagesErrorCode = null, loginRequired = false) }
             val saved = dao.getProgress(chapter.url)
             val pageIndex = if (saved != null && !saved.isCompleted) saved.lastPageIndex else 0
             _uiState.update { it.copy(currentPageIndex = pageIndex) }
@@ -278,7 +280,7 @@ class MangaReaderViewModel(
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: "Sayfalar yüklenirken bir hata oluştu.", pagesErrorCode = SourceFailureClassifier.classifyCode(e)) }
+                _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: "Sayfalar yüklenirken bir hata oluştu.", pagesErrorCode = SourceFailureClassifier.classifyCode(e), loginRequired = com.kitsugi.animelist.data.manga.isMangaTrLoginRequired(source.pkgName, e.message)) }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.screens.manga.components
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -44,26 +45,32 @@ fun MangaPagerReader(
     val direction   = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
-        HorizontalPager(
-            state    = pagerState,
-            modifier = modifier.fillMaxSize(),
-            key      = { index -> pages.getOrNull(index)?.index ?: index },
-            beyondViewportPageCount = 2   // Yan sayfaları belleğe al
-        ) { pageIndex ->
-            val page = pages.getOrNull(pageIndex) ?: return@HorizontalPager
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                MangaPageItem(
-                    page        = page,
-                    loader      = loader,
-                    readingMode = readingMode,
-                    colorFilterType = colorFilterType,
-                    fitMode     = fitMode,
-                    onCenterTap = onCenterTap,
-                    onNextPage   = onNextPage,
-                    onPrevPage   = onPrevPage,
-                    modifier    = Modifier.fillMaxSize()
-                )
+        val pageContent: @Composable (Int) -> Unit = { pageIndex ->
+            pages.getOrNull(pageIndex)?.let { page ->
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    MangaPageItem(
+                        page = page, loader = loader, readingMode = readingMode,
+                        colorFilterType = colorFilterType, fitMode = fitMode,
+                        onCenterTap = onCenterTap, onNextPage = onNextPage, onPrevPage = onPrevPage,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
+        }
+        if (readingMode == ReadingMode.Vertical) {
+            VerticalPager(
+                state = pagerState,
+                modifier = modifier.fillMaxSize(),
+                key = { index -> pages.getOrNull(index)?.index ?: index },
+                beyondViewportPageCount = 2,
+            ) { pageContent(it) }
+        } else {
+            HorizontalPager(
+                state = pagerState,
+                modifier = modifier.fillMaxSize(),
+                key = { index -> pages.getOrNull(index)?.index ?: index },
+                beyondViewportPageCount = 2,
+            ) { pageContent(it) }
         }
     }
 }

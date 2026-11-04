@@ -71,23 +71,37 @@ object MangaExtensionAutoUpdater {
 
         Log.i(TAG, "${installedPackages.size} yüklü APK paketi bulundu.")
 
-        // Keiyoushi V2 index.json'u cek (index.min.json artik decoy -- MangaRepoClient bunu otomatik atlayarak V2'ye gecer)
+        // Check configured repositories first: a third-party source such as Manga-TR
+        // is not necessarily published in the official Keiyoushi index.
+        val savedRepos = context.getSharedPreferences("manga_repos", Context.MODE_PRIVATE)
+            .getString("repo_urls", null)
+        val configured = runCatching {
+            val json = org.json.JSONArray(savedRepos ?: "[]")
+            (0 until json.length()).map { json.getString(it) }.filter { it.isNotBlank() }
+        }.getOrDefault(emptyList())
+        val urls = (configured + MangaRepoClient.KEIYOUSHI_INDEX_URL).distinct()
         val client = MangaRepoClient(context)
-        val repoExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KEIYOUSHI_INDEX_URL)
-
-        if (repoExtensions == null) {
-            Log.e(TAG, "Keiyoushi repo çekilemedi.")
+        val repoByPkg = linkedMapOf<String, MangaExtensionInfo>()
+        var successfulRepos = 0
+        var failedRepos = 0
+        for (url in urls) {
+            val entries = client.fetchExtensionsAutoDetect(url)
+            if (entries == null) {
+                failedRepos++
+                continue
+            }
+            successfulRepos++
+            entries.forEach { repoByPkg.putIfAbsent(it.pkg, it) }
+        }
+        if (successfulRepos == 0) {
             prefs.edit().putString(KEY_LAST_CHECK_RESULT, "REPO_FETCH_FAILED").apply()
             return@withContext UpdateResult.Failed(reasonCode = "REPO_FETCH_FAILED")
         }
-
-        Log.i(TAG, "Repo'da ${repoExtensions.size} eklenti var.")
-
-        // Paket adına göre hızlı lookup için map oluştur
-        val repoByPkg = repoExtensions.associateBy { it.pkg }
+        Log.i(TAG, "${repoByPkg.size} eklenti ${successfulRepos} depodan okundu.")
 
         var updatedCount = 0
         var checkedCount = 0
+        var failedCount = 0
         val updatedNames = mutableListOf<String>()
 
         for ((pkg, installedVersionCode) in installedPackages) {
@@ -103,6 +117,7 @@ object MangaExtensionAutoUpdater {
                     updatedNames.add(repoEntry.name)
                     Log.i(TAG, "${repoEntry.name}: güncellendi ✅")
                 } else {
+                    failedCount++
                     Log.w(TAG, "${repoEntry.name}: güncelleme başarısız ❌")
                 }
             } else {
@@ -110,7 +125,13 @@ object MangaExtensionAutoUpdater {
             }
         }
 
-        val summary = if (updatedCount > 0) {
+        val summary = if (failedCount > 0 || failedRepos > 0) {
+            buildList {
+                if (updatedCount > 0) add("$updatedCount eklenti güncellendi")
+                if (failedCount > 0) add("$failedCount eklenti güncellenemedi; APK veya katalog bilgilerini kontrol edin")
+                if (failedRepos > 0) add("$failedRepos depo kontrol edilemedi")
+            }.joinToString("; ") + "."
+        } else if (updatedCount > 0) {
             KitsugiStrings.get(R.string.manga_auto_update_success, updatedCount, updatedNames.joinToString(", "))
         } else if (checkedCount > 0) {
             KitsugiStrings.get(R.string.manga_auto_update_all_current, checkedCount)
@@ -124,7 +145,8 @@ object MangaExtensionAutoUpdater {
             .putString(KEY_LAST_CHECK_RESULT, summary)
             .apply()
 
-        UpdateResult.Success(updated = updatedCount, checked = checkedCount, updatedNames = updatedNames)
+        if (failedCount > 0 || failedRepos > 0) UpdateResult.Failed(reasonCode = summary)
+        else UpdateResult.Success(updated = updatedCount, checked = checkedCount, updatedNames = updatedNames)
     }
 
     /**
@@ -134,7 +156,7 @@ object MangaExtensionAutoUpdater {
     private fun tryUpdateExtension(context: Context, info: MangaExtensionInfo): Boolean {
         return try {
             val extensionId = info.pkg.replace(".", "_")
-            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, info.apkUrl)
+            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, info.apkUrl, expectedPackage = info.pkg, expectedVersionCode = info.versionCode.toLong())
             if (!downloaded) return false
 
             // Bellekten kaldır ve yeniden yükle

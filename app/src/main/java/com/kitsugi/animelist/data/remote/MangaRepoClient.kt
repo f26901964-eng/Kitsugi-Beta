@@ -74,15 +74,6 @@ class MangaRepoClient(context: android.content.Context) {
         const val KOTATSU_RELEASES_URL =
             "https://github.com/Kotatsu-Redo/kotatsu-parsers-redo/releases"
 
-        // Decoy tespiti icin minimum icerik boyutu (765 bayt < THRESHOLD < gercek index)
-        private const val DECOY_THRESHOLD_BYTES = 5_000
-
-        private val DECOY_MARKERS = listOf(
-            "Outdated App",
-            "Update to Mihon",
-            "Update to Tachiyomi",
-        )
-
         /**
          * raw.githubusercontent.com adresini raw.github.com ile degistirir.
          * Turkiye'deki ISP engellerini (Turk Telekom vb.) asmak icin kullanilir.
@@ -190,7 +181,11 @@ class MangaRepoClient(context: android.content.Context) {
                 if (name.isBlank() || pkg.isBlank()) continue
 
                 val apkFileName = obj.optString("apk", "").trim().ifBlank { "$pkg.apk" }
-                val apkUrl = if (apkFileName.startsWith("http")) {
+                // Some repositories publish an explicit URL on a separate builds branch.
+                val explicitUrl = obj.optString("url", "").trim()
+                val apkUrl = if (explicitUrl.startsWith("https://") || explicitUrl.startsWith("http://")) {
+                    explicitUrl
+                } else if (apkFileName.startsWith("http")) {
                     apkFileName
                 } else {
                     "${apkBaseUrl.trimEnd('/')}/$apkFileName"
@@ -255,10 +250,9 @@ class MangaRepoClient(context: android.content.Context) {
      * Verilen response body'nin Keiyoushi decoy (sahte) olup olmadigini kontrol eder.
      * index.min.json artik 765 baytlik decoy -- gercek veri index.json'da.
      */
-    private fun isDecoyResponse(body: String): Boolean {
-        if (body.length < DECOY_THRESHOLD_BYTES) return true
-        return DECOY_MARKERS.any { marker -> body.contains(marker, ignoreCase = true) }
-    }
+    private fun isDecoyResponse(body: String, repoUrl: String): Boolean =
+        isMangaRepoDecoy(body, repoUrl)
+
 
     /**
      * Belirli bir URL'den akillica format tespiti yaparak eklenti listesi ceker.
@@ -297,7 +291,7 @@ class MangaRepoClient(context: android.content.Context) {
                 }
 
                 // Decoy tespiti: kucuk/sahte yanit varsa V2 index.json'u cek
-                if (isDecoyResponse(trimmed)) {
+                if (isDecoyResponse(trimmed, repoUrl)) {
                     Log.w(TAG, "DECOY TESPIT EDILDI: $mirroredUrl -- Keiyoushi V2 index.json'a geciliyor")
                     val v2Url = applyMirror(KEIYOUSHI_INDEX_URL)
                     val v2Request = Request.Builder().url(v2Url).build()
@@ -382,7 +376,7 @@ class MangaRepoClient(context: android.content.Context) {
             val trimmed = responseBody.trim()
             when {
                 trimmed.startsWith("{") -> parseKeiyoushiV2Index(trimmed)
-                isDecoyResponse(trimmed) -> {
+                isDecoyResponse(trimmed, indexUrl) -> {
                     Log.w(TAG, "fetchExtensions: decoy tespit edildi, V2 index.json'a geciliyor")
                     fetchExtensionsAutoDetect(KEIYOUSHI_INDEX_URL)
                 }

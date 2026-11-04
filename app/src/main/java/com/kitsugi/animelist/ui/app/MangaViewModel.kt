@@ -273,7 +273,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             var signatureHashToPrompt: String? = null
             
             val success = withContext(Dispatchers.IO) {
-                val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl)
+                val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl, expectedPackage = ext.pkg, expectedVersionCode = ext.versionCode.toLong())
                 if (downloaded) {
                     val apkFile = MangaExtensionLoader.apkFile(context, extensionId)
                     val sigHash = TrustManager.getApkSignatureHash(context, apkFile)
@@ -286,6 +286,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     try {
+                        MangaExtensionLoader.unloadExtension(context, extensionId)
                         MangaExtensionLoader.loadExtension(context, extensionId) != null
                     } catch (e: SecurityException) {
                         val hash = e.message?.substringAfterLast(": ")?.trim() ?: ""
@@ -303,7 +304,8 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                 mangaSources = mangaRepository.getAvailableSources()
                 onResult?.invoke(success)
                 onShowMessage?.invoke(
-                    if (success) KitsugiStrings.get(R.string.yuklendi_x, ext.name) else KitsugiStrings.get(R.string.indirilemedi_x, ext.name)
+                    if (success) KitsugiStrings.get(R.string.yuklendi_x, ext.name)
+                    else "${ext.name}: İndirme başarısız veya APK paket/sürüm bilgisi katalogla uyuşmuyor."
                 )
                 if (success) checkAllUpdates()
             }
@@ -336,8 +338,9 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     try {
                         val extensionId = ext.pkg.replace(".", "_")
                         val success = withContext(Dispatchers.IO) {
-                            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl)
+                            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl, expectedPackage = ext.pkg, expectedVersionCode = ext.versionCode.toLong())
                             if (downloaded) {
+                                MangaExtensionLoader.unloadExtension(context, extensionId)
                                 MangaExtensionLoader.loadExtension(context, extensionId) != null
                             } else false
                         }
@@ -394,8 +397,9 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                     try {
                         val extensionId = ext.pkg.replace(".", "_")
                         val success = withContext(Dispatchers.IO) {
-                            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl)
+                            val downloaded = MangaExtensionLoader.downloadExtension(context, extensionId, ext.apkUrl, expectedPackage = ext.pkg, expectedVersionCode = ext.versionCode.toLong())
                             if (downloaded) {
+                                MangaExtensionLoader.unloadExtension(context, extensionId)
                                 MangaExtensionLoader.loadExtension(context, extensionId) != null
                             } else false
                         }

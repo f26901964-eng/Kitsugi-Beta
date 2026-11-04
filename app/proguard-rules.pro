@@ -224,3 +224,12 @@
 -keep class com.lagradost.cloudstream3.R$* { *; }
 -keep class org.schabi.newpipe.extractor.** { *; }
 -keep class androidx.appcompat.** { *; }
+# Manga APKs link these host contracts by their original names. KeiSource also
+# reflectively accesses HttpSource's headers$delegate field.
+-keep class eu.kanade.tachiyomi.** { *; }
+-keep interface eu.kanade.tachiyomi.** { *; }
+-keep class uy.kohesive.injekt.** { *; }
+-keep interface uy.kohesive.injekt.** { *; }
+# KeiSource checks this interceptor's *simple class name* at runtime in external DEX.
+# R8 cannot see that string comparison, so release builds must keep the name and class.
+-keep class com.kitsugi.animelist.core.network.CloudflareInterceptor { *; }

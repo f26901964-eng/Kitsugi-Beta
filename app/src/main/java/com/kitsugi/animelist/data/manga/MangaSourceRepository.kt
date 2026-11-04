@@ -199,10 +199,10 @@ class MangaSourceRepository(private val context: Context) {
 
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(targetFile).use { output ->
+                    if (!targetFile.setReadOnly()) throw java.io.IOException("Eklenti dosyası salt okunur yapılamadı")
                     input.copyTo(output)
                 }
             }
-            // NOT: setReadOnly() KALDIRILDI — Android 10+ PathClassLoader read-only dosyayı yükleyemiyor
 
             val loaded = MangaExtensionLoader.loadExtension(context, fileName)
             if (loaded != null) {
@@ -297,6 +297,22 @@ class MangaSourceRepository(private val context: Context) {
                 recordPopularFailure(source, e, elapsedMs = elapsed)
                 Log.e(TAG, "[${source.name}] popüler liste hatası: ${e.message}")
                 MangaSourceResult(emptyList(), hasNextPage = false)
+            }
+        }
+
+    /** Unlike the legacy best-effort helper, browsing must expose failures for retry. */
+    suspend fun fetchBrowsePage(source: MangaSource, page: Int, selections: Map<Int, Int>?): MangaSourceResult =
+        withContext(Dispatchers.IO) {
+            val startedAt = System.currentTimeMillis()
+            try {
+                val result = if (selections == null) source.fetchPopularManga(page)
+                    else source.fetchFilteredManga(page, selections)
+                recordPopularSuccess(source, System.currentTimeMillis() - startedAt)
+                result.copy(mangas = result.mangas.map { it.copy(source = source.name) })
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                recordPopularFailure(source, e, System.currentTimeMillis() - startedAt)
+                throw e
             }
         }
 

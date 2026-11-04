@@ -110,10 +110,12 @@ fun MangaPageItem(
     ) {
         when (page.status) {
             MangaPageStatus.Ready -> {
-                val imageUrl = page.imageUrl ?: page.url
-                val cacheFile = loader.cache.getImageFile(imageUrl)
-                val modelToLoad: Any = if (cacheFile.exists()) cacheFile else imageUrl
-
+                // Only render the bytes downloaded by the source's own client. Fetching
+                // the URL again via Coil would bypass source headers/interceptors.
+                val modelToLoad = page.localFile?.takeIf { it.isFile }
+                if (modelToLoad == null) {
+                    ErrorPageContent(pageIndex = page.index, onRetry = { loader.retryPage(page) })
+                } else {
                 val context = LocalContext.current
                 val imageRequest = remember(modelToLoad) {
                     ImageRequest.Builder(context)
@@ -178,6 +180,7 @@ fun MangaPageItem(
                     colorFilter = composeColorFilter,
                     modifier    = Modifier.fillMaxSize()
                 )
+                }
             }
 
             MangaPageStatus.Error -> {

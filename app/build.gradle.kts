@@ -347,8 +347,9 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.3")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.3")
     implementation("com.github.Blatzar:NiceHttp:0.4.4")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
+    // Manga extensionLib 1.6 is compiled against this OkHttp API (including Duration maxAge and CompressionInterceptor).
+    implementation("com.squareup.okhttp3:okhttp:5.4.0")
+    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:5.4.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
 
     // RxJava for dynamic Manga extension loading compatibility

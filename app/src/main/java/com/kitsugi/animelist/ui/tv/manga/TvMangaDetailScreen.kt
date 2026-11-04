@@ -60,6 +60,8 @@ import androidx.tv.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.matchesChapterQuery
+import androidx.compose.material3.OutlinedTextField
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
@@ -371,6 +373,17 @@ fun TvMangaDetailScreen(
                     }
                 }
 
+                if (uiState.chapters.isNotEmpty()) {
+                    item(key = "chapter_search") {
+                        OutlinedTextField(
+                            value = uiState.chapterQuery,
+                            onValueChange = viewModel::setChapterQuery,
+                            label = { Text("Bölüm ara") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
                 when {
                     uiState.isLoadingChapters -> item(key = "chapters_loading") {
                         Box(
@@ -401,7 +414,7 @@ fun TvMangaDetailScreen(
                         }
                     }
                     else -> itemsIndexed(
-                        items = uiState.chapters,
+                        items = uiState.chapters.filter { it.chapter.matchesChapterQuery(uiState.chapterQuery) },
                         key = { _, ch -> ch.chapter.url }
                     ) { _, row ->
                         TvChapterListItem(
@@ -448,23 +461,20 @@ private fun TvChapterListItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            val subtitle = remember(row) {
-                buildString {
-                    if (row.isInProgress && row.totalPages > 0) {
-                        append("Sayfa ${row.lastPageIndex + 1}/${row.totalPages}")
-                    } else if (!row.chapter.scanlator.isNullOrBlank()) {
-                        append(row.chapter.scanlator)
-                    }
-                }
-            }
-            if (subtitle.isNotBlank()) {
+            if (row.isInProgress && row.totalPages > 0) {
                 Spacer(Modifier.height(2.dp))
+                Text("Sayfa ${row.lastPageIndex + 1}/${row.totalPages}", color = KitsugiColors.AccentBlue, style = MaterialTheme.typography.bodySmall)
+            }
+            row.chapter.scanlator?.takeIf { it.isNotBlank() }?.let { scanlator ->
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    text = subtitle,
-                    color = if (row.isInProgress) KitsugiColors.AccentBlue else KitsugiColors.TextMuted,
+                    text = scanlator,
+                    color = KitsugiColors.AccentBlue,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.background(KitsugiColors.AccentBlue.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 )
             }
         }

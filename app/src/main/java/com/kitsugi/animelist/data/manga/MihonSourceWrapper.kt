@@ -10,6 +10,8 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import android.util.Log
 import tachiyomi.core.common.util.lang.awaitSingle
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * MihonSourceWrapper
@@ -35,6 +37,10 @@ class MihonSourceWrapper(
     private val httpSource: HttpSource? get() = mihonSource as? HttpSource
     private val sourceConfigStore = SourceConfigStore(context)
     private val mirrorResolver = SourceMirrorResolver(context, sourceConfigStore)
+    // KeiSource rejects concurrent updates for the same manga URL. Use bounded
+    // striped locks so detail and chapter requests cannot collide or leak keys.
+    private val mangaUpdateLocks = Array(32) { Mutex() }
+    private fun updateLock(url: String): Mutex = mangaUpdateLocks[(url.hashCode() and Int.MAX_VALUE) % mangaUpdateLocks.size]
 
     // ── Lazy Fallback Engine'ler ───────────────────────────────────────────────
 
@@ -82,10 +88,10 @@ class MihonSourceWrapper(
         }
     }
 
-    private suspend fun <T> withRecovery(block: suspend () -> T): T {
+    private suspend fun <T> withRecovery(block: suspend () -> T): T = try {
         applyRuntimeSourceConfig()
         maybeSlowdown()
-        return try {
+        try {
             block()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -95,6 +101,10 @@ class MihonSourceWrapper(
             maybeSlowdown()
             block()
         }
+    } catch (e: LinkageError) {
+        // Third-party DEX ABI failures are errors rather than Exceptions. Surface
+        // them as source failures instead of killing the search coroutine/process.
+        throw java.io.IOException("Eklenti çalışma zamanı uyumsuzluğu: ${e.javaClass.simpleName}: ${e.message.orEmpty()}", e)
     }
 
     // ── Popüler Manga ────────────────────────────────────────────────────────
@@ -163,6 +173,15 @@ class MihonSourceWrapper(
         }
     }
 
+    override fun selectFilters(): List<MangaSelectFilter> = mihonSource.getFilterList().selectFilterDescriptions()
+
+    override suspend fun fetchFilteredManga(page: Int, selections: Map<Int, Int>): MangaSourceResult = withRecovery {
+        val filters = mihonSource.getFilterList()
+        filters.applySelectFilterPositions(selections)
+        val result = mihonSource.getSearchManga(page, "", filters)
+        MangaSourceResult(result.mangas.map { it.toMangaDetails() }, result.hasNextPage)
+    }
+
     // ── Manga Detayları ───────────────────────────────────────────────────────
 
     override suspend fun fetchMangaDetails(mangaUrl: String): MangaDetails {
@@ -172,13 +191,15 @@ class MihonSourceWrapper(
             withRecovery {
                 // extensionLib 1.6+: getMangaUpdate (suspend API) — KeiSource/Madara/Themesia'nın tek desteklediği yol.
                 // extensionLib 1.4: getMangaUpdate'in CatalogueSource varsayılan impl'i fetchMangaDetails().awaitSingle()'a köprüler.
-                val update = kotlinx.coroutines.withTimeout(20_000L) {
-                    mihonSource.getMangaUpdate(
-                        manga        = stub,
-                        chapters     = emptyList(),
-                        fetchDetails = true,
-                        fetchChapters = false
-                    )
+                val update = updateLock(mangaUrl).withLock {
+                    kotlinx.coroutines.withTimeout(20_000L) {
+                        mihonSource.getMangaUpdate(
+                            manga        = stub,
+                            chapters     = emptyList(),
+                            fetchDetails = true,
+                            fetchChapters = false
+                        )
+                    }
                 }
                 val details = update.manga.toMangaDetails()
                 MangaLogger.logMangaDetails(context, mihonSource.name, mangaUrl, success = true)
@@ -219,20 +240,22 @@ class MihonSourceWrapper(
 
                 // extensionLib 1.6+: getMangaUpdate ile hem detay hem bölüm tek seferde.
                 // fetchDetails=true alarak mangaTitle'ı da çekiyoruz (ChapterRecognition için).
-                val update = kotlinx.coroutines.withTimeout(45_000L) {
-                    mihonSource.getMangaUpdate(
-                        manga         = stub,
-                        chapters      = emptyList(),
-                        fetchDetails  = true,
-                        fetchChapters = true
-                    )
+                val update = updateLock(mangaUrl).withLock {
+                    kotlinx.coroutines.withTimeout(180_000L) {
+                        mihonSource.getMangaUpdate(
+                            manga         = stub,
+                            chapters      = emptyList(),
+                            fetchDetails  = true,
+                            fetchChapters = true
+                        )
+                    }
                 }
 
                 val mangaTitle = update.manga.title.takeIf { it.isNotBlank() && !it.startsWith("/") } ?: ""
                 val rawChapters = update.chapters
 
                 Log.d(TAG, "${mihonSource.name}: ${rawChapters.size} bölüm alındı — $mangaUrl")
-                val mapped = rawChapters.map { it.toMangaChapter(mangaUrl, mangaTitle) }
+                val mapped = rawChapters.distinctBy { it.url }.map { it.toMangaChapter(mangaUrl, mangaTitle) }
                     .sortedWith(
                         compareByDescending<MangaChapter> {
                             if (it.chapterNumber >= 0f) it.chapterNumber else Float.NEGATIVE_INFINITY
@@ -273,6 +296,7 @@ class MihonSourceWrapper(
             url = chapter.url
             name = chapter.name
             chapter_number = chapter.chapterNumber
+            scanlator = chapter.scanlator
         }
         val t0 = System.currentTimeMillis()
         return try {
@@ -291,6 +315,7 @@ class MihonSourceWrapper(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             val msg = e.message?.lowercase() ?: ""
+            if (isMangaTrLoginRequired(pkgName, e.message)) throw e
             val isCaptcha = msg.contains("captcha") || msg.contains("webview") ||
                 msg.contains("doğrula") || msg.contains("verify") || msg.contains("challenge")
             if (isCaptcha) {
@@ -356,7 +381,9 @@ class MihonSourceWrapper(
         title = title,
         author = author,
         artist = artist,
-        description = description?.let { org.jsoup.Jsoup.parse(it).text() },
+        description = description?.let { text ->
+            if (text.contains(Regex("<[^>]+>"))) org.jsoup.Jsoup.parse(text).wholeText().trim() else text
+        },
         genre = getGenres() ?: emptyList(),
         thumbnailUrl = thumbnail_url,
         status = when (status) {

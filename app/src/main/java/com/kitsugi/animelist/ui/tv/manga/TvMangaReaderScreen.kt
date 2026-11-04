@@ -85,7 +85,21 @@ fun TvMangaReaderScreen(
         )
     )
 
+    var showMangaTrLogin by remember { mutableStateOf(false) }
+    if (showMangaTrLogin) {
+        com.kitsugi.animelist.ui.screens.manga.MangaTrLoginDialog(onDismiss = {
+            showMangaTrLogin = false
+            viewModel.retryLoadPages()
+        })
+    }
     val uiState by viewModel.uiState.collectAsState()
+    var promptedLoginForChapter by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(uiState.loginRequired, uiState.currentChapter.url) {
+        if (uiState.loginRequired && promptedLoginForChapter != uiState.currentChapter.url) {
+            promptedLoginForChapter = uiState.currentChapter.url
+            showMangaTrLogin = true
+        }
+    }
     val pages by viewModel.pages.collectAsState()
 
     val currentChapter = uiState.currentChapter
@@ -106,26 +120,27 @@ fun TvMangaReaderScreen(
     val screenFocusRequester = remember { FocusRequester() }
     val backButtonFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(currentChapter.url) {
+    LaunchedEffect(currentChapter.url, readingMode) {
         hasRestoredProgress = false
     }
 
-    LaunchedEffect(pages, currentPage) {
-        if (pages.isNotEmpty() && !hasRestoredProgress) {
-            hasRestoredProgress = true
+    LaunchedEffect(currentChapter.url, pages, currentPage, readingMode, uiState.isLoadingPages) {
+        if (!uiState.isLoadingPages && pages.isNotEmpty() && !hasRestoredProgress) {
             val targetPage = currentPage.coerceIn(0, pages.size - 1)
             if (readingMode == ReadingMode.Webtoon) {
                 listState.scrollToItem(targetPage)
             } else {
                 pagerState.scrollToPage(targetPage)
             }
+            hasRestoredProgress = true
         }
     }
 
     // Pager sayfa değişimi progress kaydetme
-    LaunchedEffect(pagerState.currentPage) {
-        if (hasRestoredProgress && pages.isNotEmpty()) {
+    LaunchedEffect(currentChapter.url, pagerState.currentPage, readingMode, hasRestoredProgress, uiState.isLoadingPages) {
+        if (readingMode != ReadingMode.Webtoon && !uiState.isLoadingPages && hasRestoredProgress && pages.isNotEmpty()) {
             viewModel.onPageChanged(currentChapter.url, pagerState.currentPage, pages.size)
+            loader.onPageChanged(pagerState.currentPage)
         }
     }
 
@@ -168,6 +183,10 @@ fun TvMangaReaderScreen(
                                     listState.scrollBy(400f)
                                 }
                                 true
+                            } else if (readingMode == ReadingMode.Vertical && !hudVisible) {
+                                if (pagerState.currentPage < pages.size - 1) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                else viewModel.goToNextChapter()
+                                true
                             } else false
                         }
                         KeyEvent.KEYCODE_DPAD_UP -> {
@@ -175,6 +194,10 @@ fun TvMangaReaderScreen(
                                 scope.launch {
                                     listState.scrollBy(-400f)
                                 }
+                                true
+                            } else if (readingMode == ReadingMode.Vertical && !hudVisible) {
+                                if (pagerState.currentPage > 0) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                else viewModel.goToPreviousChapter()
                                 true
                             } else false
                         }
@@ -255,6 +278,12 @@ fun TvMangaReaderScreen(
                         color = Color.White.copy(0.7f),
                         fontSize = 14.sp
                     )
+                    if (uiState.loginRequired) {
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { showMangaTrLogin = true }) {
+                            Text("Üye girişi yap", color = Color.White)
+                        }
+                    }
                     Spacer(Modifier.height(24.dp))
                     Button(
                         onClick = { viewModel.retryLoadPages() },
@@ -288,8 +317,9 @@ fun TvMangaReaderScreen(
                         }
                     },
                     onPageChanged = { idx ->
-                        if (hasRestoredProgress) {
+                        if (!uiState.isLoadingPages && hasRestoredProgress && idx in pages.indices) {
                             viewModel.onPageChanged(currentChapter.url, idx, pages.size)
+                            loader.onPageChanged(idx)
                         }
                     },
                     onNextPage = {

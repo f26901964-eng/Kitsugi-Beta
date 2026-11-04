@@ -61,6 +61,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.theme.gradient.Button
+import com.kitsugi.animelist.data.manga.stableSourceKey
+import com.kitsugi.animelist.ui.screens.manga.SourceSelectFiltersDialog
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
@@ -102,6 +105,7 @@ fun TvMangaBrowseScreen(
     val gridFocusRequester    = remember { FocusRequester() }
 
     var searchFocused by remember { mutableStateOf(false) }
+    var showSourceFilters by remember { mutableStateOf(false) }
 
     BackHandler(enabled = true) { onBack() }
 
@@ -240,6 +244,18 @@ fun TvMangaBrowseScreen(
                     .onFocusChanged { searchFocused = it.isFocused }
             )
 
+            if (query.isBlank() && selFilter is com.kitsugi.animelist.data.manga.MihonSourceWrapper) {
+                val filters = remember(selFilter) { runCatching { selFilter.selectFilters() }.getOrDefault(emptyList()) }
+                if (filters.isNotEmpty()) {
+                    Button(onClick = { showSourceFilters = true }) { Text("Kaynak filtreleri") }
+                    if (showSourceFilters) {
+                        SourceSelectFiltersDialog(filters, ui.sourceFilterSelections, onDismiss = { showSourceFilters = false }, onApply = {
+                            showSourceFilters = false
+                            vm.applySourceFilters(it)
+                        })
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
 
             // ── Kaynak chip satırı ────────────────────────────────────────────
@@ -327,16 +343,38 @@ fun TvMangaBrowseScreen(
                                     modifier = Modifier.size(56.dp)
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Text(
-                                    stringResource(R.string.inline_no_manga_found_1c8e980),
-                                    color = KitsugiColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    stringResource(R.string.ayarlardan_manga_eklentisi_ekle),
-                                    color = KitsugiColors.TextMuted,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                                val failures = states.filter { it.error != null && (selFilter == null || it.source.stableSourceKey() == selFilter.stableSourceKey()) }
+                                if (query.isNotBlank() && failures.isNotEmpty()) {
+                                    Text("Arama tamamlanamadı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyLarge)
+                                    failures.take(3).forEach { failure ->
+                                        Text(
+                                            "${failure.source.name}${failure.errorCode?.let { " ($it)" } ?: ""}: ${failure.error.orEmpty().take(240)}",
+                                            color = KitsugiColors.TextSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Button(onClick = { vm.retrySearch() }) { Text("Tekrar dene") }
+                                } else if (query.isNotBlank() && states.isEmpty() && ui.sources.isNotEmpty()) {
+                                    Text("Kaynaklar şu anda aramaya alınmadı; elle tekrar deneyebilirsiniz.", color = KitsugiColors.TextSecondary)
+                                    Button(onClick = { vm.retrySearch() }) { Text("Tekrar dene") }
+                                } else {
+                                    Text(
+                                        ui.popularError ?: stringResource(R.string.inline_no_manga_found_1c8e980),
+                                        color = KitsugiColors.TextSecondary,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                                if (query.isBlank() && (ui.popularError != null || ui.hasNextPage)) {
+                                    Button(onClick = { if (ui.popularError != null) vm.retryBrowsePage() else vm.loadNextPage() }) {
+                                        Text(if (ui.popularError != null) "Tekrar dene" else "Devamını Göster")
+                                    }
+                                }
+                                if (query.isBlank() && ui.sources.isEmpty()) {
+                                    Text(
+                                        stringResource(R.string.ayarlardan_manga_eklentisi_ekle),
+                                        color = KitsugiColors.TextMuted,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
                             }
                         }
                     }
@@ -366,12 +404,15 @@ fun TvMangaBrowseScreen(
                                 )
                             }
 
-                            // Sonraki sayfa yükleme trigger
-                            if (ui.hasNextPage && !isLoading) {
+                            val hasNext = if (query.isBlank()) ui.hasNextPage else
+                                selFilter != null && states.firstOrNull { it.source.stableSourceKey() == selFilter.stableSourceKey() }?.hasNextPage == true
+                            if (hasNext || (query.isBlank() && ui.popularError != null)) {
                                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(5) }) {
-                                    LaunchedEffect(mergedMangas.size) { vm.loadNextPage() }
                                     Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
-                                        KitsugiPlasmaLoader(size = 32.dp)
+                                        if (isLoading) KitsugiPlasmaLoader(size = 32.dp)
+                                        else Button(onClick = {
+                                            if (query.isBlank() && ui.popularError != null) vm.retryBrowsePage() else vm.loadNextPage()
+                                        }) { Text(if (query.isBlank() && ui.popularError != null) "Tekrar dene" else "Devamını Göster") }
                                     }
                                 }
                             }
