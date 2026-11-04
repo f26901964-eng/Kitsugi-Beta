@@ -85,6 +85,34 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           # The action runs scripts via /bin/sh; dash does not support pipefail.
           script: bash -o pipefail -c './gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -PmangaEmulatorX86_64=true -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest 2>&1 | tee /tmp/mangatr-instrumentation.log'
+      - name: Publish instrumentation test results
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYEOF' > /tmp/mangatr-results.txt
+          import glob, xml.etree.ElementTree as ET
+          paths = glob.glob('app/build/outputs/androidTest-results/**/*.xml', recursive=True)
+          count = 0
+          for path in paths:
+              try:
+                  root = ET.parse(path).getroot()
+              except (ET.ParseError, OSError):
+                  continue
+              for test in root.iter('testcase'):
+                  count += 1
+                  issue = test.find('failure')
+                  if issue is None:
+                      issue = test.find('error')
+                  status = 'FAIL' if issue is not None else ('SKIP' if test.find('skipped') is not None else 'PASS')
+                  message = (issue.get('message', '') if issue is not None else '').replace('\n', ' ')
+                  print(f"{status} {test.get('classname', '')}.{test.get('name', '')}: {message[:500]}")
+          if count == 0:
+              print('No Android instrumentation results were produced.')
+          PYEOF
+          SUMMARY=$(head -c 50000 /tmp/mangatr-results.txt)
+          jq -n --arg sha "$GITHUB_SHA" --arg summary "$SUMMARY" '{name:"mangatr-instrumentation-results",head_sha:$sha,status:"completed",conclusion:"neutral",output:{title:"Manga-TR instrumentation results",summary:$summary}}' > /tmp/mangatr-results.json
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/check-runs" --input /tmp/mangatr-results.json
       - name: Publish failure summary
         if: failure()
         env:

@@ -53,6 +53,18 @@ class MangaTrPublishedApkTest {
         val png = ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
         bitmap.recycle()
         val seen = mutableListOf<String>()
+        val pageKey = "0123456789abcdef0123456789abcdef"
+        val gateKey = "fixture-token"
+        fun encrypt(text: String, key: String): String {
+            val encoded = text.toByteArray(Charsets.UTF_8).mapIndexed { index, byte ->
+                (byte.toInt() xor key[index % key.length].code).toByte()
+            }.toByteArray()
+            return android.util.Base64.encodeToString(encoded, android.util.Base64.NO_WRAP)
+        }
+        val config = """{"data":{"parts":"data-parts","order":"data-order","pageIndex":"data-page"}}"""
+        val encryptedConfig = encrypt(encrypt(config, "boot|$pageKey|reader"), "gate|$gateKey|reader")
+        val encryptedParts = encrypt("""["https://image.mngtr.site/page.png"]""", "attr|$pageKey|reader")
+        val encryptedOrder = encrypt("[1,0]", "order|$pageKey|reader")
         val fixtureClient = originalClient.newBuilder().addInterceptor { chain ->
             val request = chain.request()
             synchronized(seen) { seen.add(request.url.encodedPath) }
@@ -60,9 +72,15 @@ class MangaTrPublishedApkTest {
             val body = when {
                 path == "/arama.html" -> """<div class="arama-card"><a class="arama-card__title" href="/manga-chainsaw-man.html">Chainsaw Man</a></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
                 path == "/manga-list-sayfala.html" -> """<div class="media-card"><a class="media-card__title" href="/manga-chainsaw-man.html">Chainsaw Man</a></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
-                path == "/manga-chainsaw-man.html" -> """<h1 class="bento-hero-title">Chainsaw Man</h1><div id="results" data-manga="chainsaw-man"></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
-                path == "/cek/fetch_pages_manga.php" -> """<article class="bento-ep-card"><a class="bento-ep-title-link" href="/id-1">1. Bölüm</a><a class="fansub-group-item" href="/id-2">Diğer Fansub</a></article>""".toResponseBody("text/html; charset=utf-8".toMediaType())
-                path == "/id-1" || path == "/id-2" -> """<div class="reader"><img src="https://image.mngtr.site/page.png"></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
+                path == "/manga-chainsaw-man.html" -> """<h1 class="bento-hero-title">Chainsaw Man</h1><div id="results" data-manga="chainsaw-man"></div><script>var cfg={listKey:'fixture1234567890'}</script>""".toResponseBody("text/html; charset=utf-8".toMediaType())
+                path == "/cek/fetch_pages_manga.php" -> {
+                    val form = request.body as? okhttp3.FormBody
+                    val offset = form?.let { f -> (0 until f.size).firstOrNull { f.name(it) == "offset" } }
+                    val html = if (offset != null) "" else """<article class="bento-ep-card"><a class="bento-ep-title-link" href="/id-1"><span class="bento-ep-chapter-num">1.</span> Bölüm</a></article><article class="bento-ep-card"><a class="bento-ep-title-link" href="/id-2"><span class="bento-ep-chapter-num">1.</span> Bölüm</a></article>"""
+                    html.toResponseBody("text/html; charset=utf-8".toMediaType())
+                }
+                path == "/id-1" || path == "/id-2" -> """<script type="application/json" id="rdm-fixture" data-key="$pageKey">$encryptedConfig</script><script>_fpx = "cek/gate.php"</script><div data-parts="$encryptedParts" data-order="$encryptedOrder" data-page="0"></div>""".toResponseBody("text/html; charset=utf-8".toMediaType())
+                path == "/cek/gate.php" -> """{"k":"$gateKey"}""".toResponseBody("application/json; charset=utf-8".toMediaType())
                 path == "/page.png" -> png.toResponseBody("image/png".toMediaType())
                 else -> error("Unexpected fixture request: $path")
             }
@@ -97,10 +115,10 @@ class MangaTrPublishedApkTest {
         val chapters = source.fetchChapterList("/manga-chainsaw-man.html")
         assertEquals(setOf("/id-1", "/id-2"), chapters.map { it.url }.toSet())
         val pages = source.fetchPageList(chapters.first())
-        assertEquals("https://image.mngtr.site/page.png", pages.single().imageUrl)
-        assertArrayEquals(png, source.getImage(pages.single()).use { it.readBytes() })
-        val scrambled = MangaPage(1, "", "https://image.mngtr.site/page.png#1,0")
-        val processedBytes = source.getImage(scrambled).use { it.readBytes() }
+        assertEquals("https://image.mngtr.site/page.png#1,0", pages.single().imageUrl)
+        val plain = MangaPage(1, "", "https://image.mngtr.site/page.png")
+        assertArrayEquals(png, source.getImage(plain).use { it.readBytes() })
+        val processedBytes = source.getImage(pages.single()).use { it.readBytes() }
         val processed = requireNotNull(BitmapFactory.decodeByteArray(processedBytes, 0, processedBytes.size))
         try {
             val top = processed.getPixel(8, 4)
