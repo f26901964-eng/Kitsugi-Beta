@@ -162,7 +162,10 @@ fun KitsugiMediaEntryCard(
         }
 
         if (additionalSources.isNotEmpty()) {
-            if (layoutId == "grid_2col") Spacer(Modifier.weight(1f))
+            // Izgara kartları artık kendi içeriğiyle ölçülüyor (bkz. MyListGridContent);
+            // rozetleri alta itmek için kullanılan weight(1f) sınırsız yükseklikte
+            // anlamsızdır. Küçük sabit boşluk yeterli.
+            if (layoutId == "grid_2col") Spacer(Modifier.height(4.dp))
             LibrarySourceBadgeStrip(sources = additionalSources)
         }
     }
