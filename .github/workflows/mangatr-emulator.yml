@@ -18,7 +18,6 @@ concurrency:
 
 permissions:
   contents: read
-  actions: read
   checks: write
 
 jobs:
@@ -45,15 +44,6 @@ jobs:
             'https://api.github.com/repos/f26901964-eng/Kitsugi-Manga-Plugins/contents/apk/tachiyomi-tr.mangatr-v1.6.26.apk?ref=bca61cbff15930394f3c87fac9ce556b041c7bac' \
             -o app/src/androidTest/assets/mangatr-v26.apk
           echo '17694bbcbb7ade8e9a03fcd60c3ce4fb24633b0312a5e82a5ddee9bfc83360f9  app/src/androidTest/assets/mangatr-v26.apk' | sha256sum -c -
-      - name: Inspect previous emulator setup
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/126814490760/logs" > /tmp/previous-emulator.log 2>&1 || true
-          SUMMARY=$(grep -iE 'emulator|sdkmanager|error|failed|exception|warning|not found' /tmp/previous-emulator.log | tail -n 35 | cut -c1-500 | tr '\n' '|' || true)
-          [ -n "$SUMMARY" ] || SUMMARY="No previous failure details"
-          jq -n --arg sha "$GITHUB_SHA" --arg summary "$SUMMARY" '{name:"mangatr-emulator-setup-detail",head_sha:$sha,status:"completed",conclusion:"neutral",output:{title:"Emulator setup diagnostic",summary:$summary}}' > /tmp/emulator-detail.json
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/check-runs" --input /tmp/emulator-detail.json
       # ubuntu-latest may have the SDK platforms but no sdkmanager on PATH.
       # The emulator action also needs the command-line tools to install its image.
       - uses: android-actions/setup-android@v3
@@ -83,9 +73,8 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            set -o pipefail
-            ./gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -PmangaEmulatorX86_64=true -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest 2>&1 | tee /tmp/mangatr-instrumentation.log
+          # The action runs scripts via /bin/sh; dash does not support pipefail.
+          script: bash -o pipefail -c './gradlew :app:connectedFossDebugAndroidTest --stacktrace --console=plain -PmangaEmulatorX86_64=true -Pandroid.testInstrumentationRunnerArguments.class=com.kitsugi.animelist.data.manga.MihonMangaIntegrationTest,com.kitsugi.animelist.data.manga.MangaTrPublishedApkTest 2>&1 | tee /tmp/mangatr-instrumentation.log'
       - name: Publish failure summary
         if: failure()
         env:
