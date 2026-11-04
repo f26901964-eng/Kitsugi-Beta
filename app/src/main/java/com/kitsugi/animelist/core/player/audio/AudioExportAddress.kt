@@ -6,9 +6,16 @@ import java.util.Locale
 /** URL resolution and forwarding policy shared by playlist, key and byte-range requests. */
 internal object AudioExportAddress {
     fun resolve(base: String, relative: String): String {
-        // URI.resolve("") drops the last path component on Java. DASH SegmentList
-        // mediaRange and progressive Representation/BaseURL refer to the base FILE itself.
-        val uri = relative.trim().let { if (it.isEmpty()) URI(base) else URI(base).resolve(it) }
+        // Java URI.resolve("") AND URI.resolve("?newQuery") drop the last path
+        // component. DASH mediaRange and HLS query-only segment URIs refer to the
+        // same base FILE, not its parent directory.
+        val uri = relative.trim().let { reference ->
+            when {
+                reference.isEmpty() -> URI(base)
+                reference.startsWith('?') -> URI(base.substringBefore('#').substringBefore('?') + reference)
+                else -> URI(base).resolve(reference)
+            }
+        }
         require(uri.scheme?.lowercase(Locale.ROOT) in setOf("http", "https") && !uri.host.isNullOrBlank() &&
             uri.rawUserInfo == null && uri.fragment == null) { "Medya adresi geçersiz" }
         // A remote playlist may not redirect into a device's loopback service.

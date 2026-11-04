@@ -72,6 +72,8 @@ class AudioExportSpecTest {
     @Test fun `DASH empty relative URL keeps the base file`() {
         assertEquals("https://cdn.example/voice.mp4",
             AudioExportAddress.resolve("https://cdn.example/voice.mp4", ""))
+        assertEquals("https://cdn.example/voice.mp4?next=1",
+            AudioExportAddress.resolve("https://cdn.example/voice.mp4?old=1", "?next=1"))
         assertThrows(IllegalArgumentException::class.java) {
             AudioExportAddress.resolve("https://cdn.example/master.m3u8", "http://localhost/internal")
         }

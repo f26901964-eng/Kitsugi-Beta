@@ -80,6 +80,12 @@ class HlsAudioExportTest {
         }
     }
 
+    @Test fun `query-only HLS segment retains the playlist file path`() {
+        val playlist = "#EXTM3U\n#EXTINF:1,\n?chunk=0\n#EXT-X-ENDLIST"
+        val parts = HlsAudioExport.plan(playlist, "https://media.example/path/voice.ts?token=old", true).parts
+        assertEquals("https://media.example/path/voice.ts?chunk=0", parts.single().url)
+    }
+
     @Test fun `finite byte ranges resolve relative to current URL and next offset`() {
         val content = """
             #EXTM3U
