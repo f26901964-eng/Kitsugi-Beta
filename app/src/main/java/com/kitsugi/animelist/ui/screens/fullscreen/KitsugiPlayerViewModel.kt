@@ -2448,6 +2448,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             require(!video.isNullOrBlank() && track.audioMediaUrl == video &&
                 tracks.all { it.audioMediaUrl == video }) { "Ses listesi eski kaynağa ait; yeniden açın" }
             val separate = _playbackSource.value?.audioUrl ?: _currentAudioUrl.value
+            // Media3's MergingMediaSource can present an external track and an embedded
+            // track identically. A sole UI row is not evidence that it came from audioUrl.
+            require(separate.isNullOrBlank() || track.audioOriginKnown) {
+                "Ayrı sesin kaynağı bu oynatıcıda ayırt edilemiyor; mpv veya eklenti ses satırını kullanın"
+            }
+            require(!track.audioIsExternal || !track.audioSource.isNullOrBlank()) {
+                "Seçilen harici sesin URL'si belirlenemedi"
+            }
             val identities = tracks.map { option ->
                 com.kitsugi.animelist.core.player.audio.AudioTrackIdentity(
                     option.audioLanguage, option.audioName,
@@ -2458,7 +2466,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 track.audioLanguage, track.audioName,
                 track.audioSource?.takeIf { track.audioIsExternal && it.isNotBlank() }
             )
-            val source = com.kitsugi.animelist.core.player.audio.AudioExportSpec.source(video, separate, selected, identities)
+            val source = com.kitsugi.animelist.core.player.audio.AudioExportSpec.source(video, selected)
             val allowed = source.startsWith("https://", true) || source.startsWith("http://", true) ||
                 source.startsWith("content://", true) || source.startsWith("file://", true) || source.startsWith('/')
             require(allowed) { "Bu kaynak türü ses dosyasına dönüştürülemiyor" }
@@ -2467,7 +2475,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             val rawTitle = animeTitle.ifBlank { _animeTitleFlow.value.ifBlank { _currentTitle.value } }
             com.kitsugi.animelist.core.player.audio.AudioExportWorker.enqueue(
                 context, source, headers, selected, identities,
-                independent = selected.externalUrl != null || (!separate.isNullOrBlank() && source == separate),
+                independent = selected.externalUrl != null,
                 title = rawTitle.ifBlank { "Video" }, episode = _currentEpisode.value,
                 movie = _isMovie.value || _currentEpisode.value <= 0, bitrate = track.audioBitrate,
                 transport = if (source == video) active?.mediaTransport else null

@@ -1073,6 +1073,7 @@ class MpvPlayerEngine(
                 audioBitrate = track.bitrate,
                 audioSource = track.externalFilename,
                 audioIsExternal = track.isExternal,
+                audioOriginKnown = true,
                 audioMediaUrl = videoUrl
             )
         }

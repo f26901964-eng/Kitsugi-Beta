@@ -22,6 +22,8 @@ internal object AudioExportHttp {
     private val client by lazy {
         KitsugiHttpClient.client.newBuilder()
             .followRedirects(false).followSslRedirects(false)
+            // A signed one-shot media URL must not be retried invisibly after a failed read.
+            .retryOnConnectionFailure(false)
             .readTimeout(35, TimeUnit.SECONDS)
             .apply { interceptors().removeAll { it is RetryInterceptor } }
             .apply {

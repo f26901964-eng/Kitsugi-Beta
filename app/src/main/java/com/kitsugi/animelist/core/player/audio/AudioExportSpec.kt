@@ -25,20 +25,11 @@ internal object AudioExportSpec {
         }
     }
 
-    /** Prefer an explicit player filename; otherwise a sole track may use the stream's separate audio URL. */
-    fun source(videoUrl: String?, separateAudioUrl: String?, selected: AudioTrackIdentity,
-               playerTracks: List<AudioTrackIdentity>): String {
-        val external = selected.externalUrl?.takeIf { it.isNotBlank() }
-        if (external != null) return external
-        if (!separateAudioUrl.isNullOrBlank()) {
-            require(playerTracks.size == 1) {
-                "Ayrı ses ile gömülü sesler arasında seçilen parça ayırt edilemiyor"
-            }
-            return separateAudioUrl
-        }
-        return videoUrl?.takeIf { it.isNotBlank() }
+    /** A separate URL is never the selected row merely because only one row is visible. */
+    fun source(videoUrl: String?, selected: AudioTrackIdentity): String =
+        selected.externalUrl?.takeIf { it.isNotBlank() }
+            ?: videoUrl?.takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("Ses kaynağı bulunamadı")
-    }
 
     /** A name can distinguish equal-language HLS/DASH renditions, but not progressive demux tracks. */
     fun needsManifestName(selected: AudioTrackIdentity, playerTracks: List<AudioTrackIdentity>): Boolean {

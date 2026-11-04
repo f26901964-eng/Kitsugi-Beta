@@ -14,17 +14,14 @@ class AudioExportSpecTest {
         assertEquals("Hello_World", AudioExportSpec.filenamePart("  Hello/World  ", "untitled"))
     }
 
-    @Test fun `source preserves explicit external filename and rejects mixed unknown provenance`() {
+    @Test fun `source uses only the row's proven external URL or its video URL`() {
         val video = "https://video.example/movie.mp4"
         val audio = "https://audio.example/voice.m4a"
         val selected = AudioTrackIdentity("tr", "Dub", audio)
-        assertEquals(audio, AudioExportSpec.source(video, "https://audio.example/other.mp3", selected,
-            listOf(selected, AudioTrackIdentity("en", null))))
-        assertEquals(audio, AudioExportSpec.source(video, audio, AudioTrackIdentity("tr", null),
-            listOf(AudioTrackIdentity("tr", null))))
+        assertEquals(audio, AudioExportSpec.source(video, selected))
+        assertEquals(video, AudioExportSpec.source(video, AudioTrackIdentity("tr", null)))
         assertThrows(IllegalArgumentException::class.java) {
-            AudioExportSpec.source(video, audio, AudioTrackIdentity("tr", null),
-                listOf(AudioTrackIdentity("tr", null), AudioTrackIdentity("en", null)))
+            AudioExportSpec.source(null, AudioTrackIdentity("tr", null))
         }
     }
 
