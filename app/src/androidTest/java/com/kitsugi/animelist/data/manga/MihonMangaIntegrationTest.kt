@@ -83,6 +83,38 @@ class MihonMangaIntegrationTest {
         }
     }
 
+    @Test fun cookieJarHonorsCookieDomainAndPathInsteadOfResponseOrigin() {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val isolatedCache = java.io.File(base.cacheDir, "cookie-test-${System.nanoTime()}").apply { mkdirs() }
+        val context = object : android.content.ContextWrapper(base) {
+            override fun getCacheDir(): java.io.File = isolatedCache
+        }
+        try {
+            val jar = eu.kanade.tachiyomi.network.WebViewCookieJar(context)
+            val forum = okhttp3.HttpUrl.Builder().scheme("https").host("forum.example.test").build()
+            val main = okhttp3.HttpUrl.Builder().scheme("https").host("example.test").build()
+            val chapter = main.newBuilder().addPathSegment("reader").build()
+            val shared = okhttp3.Cookie.Builder().name("session").value("first").domain("example.test").path("/").build()
+            val forumOnly = okhttp3.Cookie.Builder().name("private").value("forum").hostOnlyDomain("forum.example.test").path("/").build()
+            jar.saveFromResponse(forum, listOf(shared, forumOnly))
+            assertEquals(listOf("session"), jar.loadForRequest(main).map { it.name })
+            assertEquals(setOf("session", "private"), jar.loadForRequest(forum).map { it.name }.toSet())
+            val replacement = okhttp3.Cookie.Builder().name("session").value("second").domain("example.test").path("/").build()
+            val reader = okhttp3.Cookie.Builder().name("session").value("reader").domain("example.test").path("/reader").build()
+            jar.saveFromResponse(main, listOf(replacement, reader))
+            assertEquals(listOf("reader", "second"), jar.loadForRequest(chapter).map { it.value })
+            assertEquals("second", jar.loadForRequest(forum).single { it.name == "session" }.value)
+            val unrelated = okhttp3.HttpUrl.Builder().scheme("https").host("example.test.attacker.test").build()
+            assertTrue(jar.loadForRequest(unrelated).isEmpty())
+            val deleted = okhttp3.Cookie.Builder().name("session").value("").domain("example.test").path("/").expiresAt(0).build()
+            jar.saveFromResponse(forum, listOf(deleted))
+            assertTrue(jar.loadForRequest(main).isEmpty())
+            assertEquals("reader", eu.kanade.tachiyomi.network.WebViewCookieJar(context).loadForRequest(chapter).single().value)
+        } finally {
+            isolatedCache.deleteRecursively()
+        }
+    }
+
     @Test fun hostInterceptorNamesMatchKeiSourceRuntimeChecks() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val names = NetworkHelper(context).client.interceptors.map { it.javaClass.simpleName }
