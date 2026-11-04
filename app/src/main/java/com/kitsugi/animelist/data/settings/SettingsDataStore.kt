@@ -320,6 +320,14 @@ class SettingsDataStore(
         val DefaultPlayerOrientation = stringPreferencesKey("pref_default_player_orientation")
         val PipEpisodeToasts = booleanPreferencesKey("pref_pip_episode_toasts")
         val PipOnExit = booleanPreferencesKey("pref_pip_on_exit")
+        // ─── Otomatik liste takibi (oynatıcı → liste) ────────────────────────────
+        val AutoTrackEnabled = booleanPreferencesKey("pref_auto_track_enabled")
+        val AutoTrackAddNew = booleanPreferencesKey("pref_auto_track_add_new")
+        val AutoTrackRespectDropped = booleanPreferencesKey("pref_auto_track_respect_dropped")
+        val QuickRateEnabled = booleanPreferencesKey("pref_quick_rate_enabled")
+        val QuickRateSeconds = intPreferencesKey("pref_quick_rate_seconds")
+        val AutoTrackSyncSources = booleanPreferencesKey("pref_auto_track_sync_sources")
+        val AutoTrackMinSeconds = intPreferencesKey("pref_auto_track_min_seconds")
         // ─── Advanced mpv conf/input (Aniyomi AdvancedPlayerPreferences paritesi) ──
         val MpvConf = stringPreferencesKey("pref_mpv_conf")
         val MpvInput = stringPreferencesKey("pref_mpv_input")
@@ -565,7 +573,14 @@ class SettingsDataStore(
                     preserveWatchingPosition = preferences[Keys.PreserveWatchingPosition] ?: true,
                     defaultPlayerOrientation = preferences[Keys.DefaultPlayerOrientation] ?: "SENSOR_LANDSCAPE",
                     pipEpisodeToasts = preferences[Keys.PipEpisodeToasts] ?: true,
-                    pipOnExit = preferences[Keys.PipOnExit] ?: true
+                    pipOnExit = preferences[Keys.PipOnExit] ?: true,
+                    autoTrackEnabled = preferences[Keys.AutoTrackEnabled] ?: true,
+                    autoTrackAddNew = preferences[Keys.AutoTrackAddNew] ?: true,
+                    autoTrackRespectDropped = preferences[Keys.AutoTrackRespectDropped] ?: true,
+                    quickRateEnabled = preferences[Keys.QuickRateEnabled] ?: true,
+                    quickRateSeconds = (preferences[Keys.QuickRateSeconds] ?: 20).coerceIn(5, 60),
+                    autoTrackSyncSources = preferences[Keys.AutoTrackSyncSources] ?: true,
+                    autoTrackMinSeconds = (preferences[Keys.AutoTrackMinSeconds] ?: 60).coerceIn(15, 600)
                 ),
                 mpvSubtitle = MpvAndSubtitleSettings(
                     defaultSubtitleSize = preferences[Keys.DefaultSubtitleSize] ?: 16,
@@ -1914,6 +1929,36 @@ class SettingsDataStore(
 
     suspend fun setScrobbleThreshold(value: Float) {
         context.settingsDataStore.edit { it[Keys.ScrobbleThreshold] = value.coerceIn(0.1f, 1.0f) }
+    }
+
+    // ─── Otomatik liste takibi ───────────────────────────────────────────────────
+
+    suspend fun setAutoTrackEnabled(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.AutoTrackEnabled] = value }
+    }
+
+    suspend fun setAutoTrackAddNew(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.AutoTrackAddNew] = value }
+    }
+
+    suspend fun setAutoTrackRespectDropped(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.AutoTrackRespectDropped] = value }
+    }
+
+    suspend fun setQuickRateEnabled(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.QuickRateEnabled] = value }
+    }
+
+    suspend fun setQuickRateSeconds(value: Int) {
+        context.settingsDataStore.edit { it[Keys.QuickRateSeconds] = value.coerceIn(5, 60) }
+    }
+
+    suspend fun setAutoTrackSyncSources(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.AutoTrackSyncSources] = value }
+    }
+
+    suspend fun setAutoTrackMinSeconds(value: Int) {
+        context.settingsDataStore.edit { it[Keys.AutoTrackMinSeconds] = value.coerceIn(15, 600) }
     }
 
     suspend fun setShowLoadingCircle(value: Boolean) {

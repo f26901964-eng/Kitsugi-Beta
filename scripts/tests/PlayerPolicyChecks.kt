@@ -130,6 +130,45 @@ fun main() {
         check(!AniSkipPolicy.shouldDisableOnChapters(hasChapters = false, disableOnChaptersSetting = true))
         check(!AniSkipPolicy.shouldDisableOnChapters(hasChapters = true, disableOnChaptersSetting = false))
     }
+    test("AutoTrackPolicy marks watching, advances episode and completes final episode") {
+        val dur = 24 * 60 * 1000L
+        fun snap(pos: Long, ep: Int, total: Int?, hasNext: Boolean = true, end: Boolean = false, movie: Boolean = false) =
+            AutoTrackPolicy.Snapshot(positionMs = pos, durationMs = dur, episode = ep, totalEpisodes = total,
+                kind = if (movie) AutoTrackPolicy.Kind.MOVIE else AutoTrackPolicy.Kind.EPISODE,
+                hasNextEpisode = hasNext, endReached = end)
+        val start = AutoTrackPolicy.evaluate(snap(90_000, 1, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 12))
+        check(start.action == AutoTrackPolicy.Action.START_WATCHING)
+        val advance = AutoTrackPolicy.evaluate(snap(22 * 60 * 1000L, 4, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 3, 12))
+        check(advance.action == AutoTrackPolicy.Action.ADVANCE_EPISODE && advance.progress == 4)
+        val done = AutoTrackPolicy.evaluate(snap(23 * 60 * 1000L, 12, 12, hasNext = false), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 11, 12))
+        check(done.action == AutoTrackPolicy.Action.COMPLETE && done.progress == 12)
+        val movie = AutoTrackPolicy.evaluate(snap(100 * 60 * 1000L, 1, 1, hasNext = false, movie = true), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 1))
+        check(movie.action == AutoTrackPolicy.Action.COMPLETE)
+        // Fragman ve çok kısa klipler asla takip edilmez.
+        val trailer = AutoTrackPolicy.evaluate(AutoTrackPolicy.Snapshot(300_000, 300_000, endReached = true, isTrailer = true), current = null)
+        check(trailer.action == AutoTrackPolicy.Action.NONE)
+        val clip = AutoTrackPolicy.evaluate(AutoTrackPolicy.Snapshot(30_000, 45_000, endReached = true, kind = AutoTrackPolicy.Kind.MOVIE), current = null)
+        check(clip.action == AutoTrackPolicy.Action.NONE)
+        // Jeneriği geçmek tamamlanmadır; ilerleme asla azalmaz.
+        val outro = AutoTrackPolicy.evaluate(snap(22 * 60 * 1000L, 2, 12).copy(outroStartMs = 21 * 60 * 1000L), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 1, 12))
+        check(outro.action == AutoTrackPolicy.Action.ADVANCE_EPISODE && outro.progress == 2)
+        val completed = AutoTrackPolicy.evaluate(snap(23 * 60 * 1000L, 2, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.COMPLETED, 12, 12))
+        check(completed.action == AutoTrackPolicy.Action.NONE && completed.progress == 12 && completed.showQuickRate)
+        check(AutoTrackPolicy.evaluate(snap(23 * 60 * 1000L, 5, 12), AutoTrackPolicy.Settings(enabled = false),
+            AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 4, 12)).action == AutoTrackPolicy.Action.NONE)
+        check(AutoTrackPolicy.normalizeScore(0) == null && AutoTrackPolicy.normalizeScore(7) == 7)
+        check(AutoTrackPolicy.progressAfterScore(AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 1),
+            AutoTrackPolicy.Status.COMPLETED, AutoTrackPolicy.Kind.MOVIE) == 1)
+    }
+    test("closing credits are recognised for every provider naming scheme") {
+        for (type in listOf("ed", "mixed-ed", "ending", "mixed-ending", "outro", "ED")) check(AniSkipPolicy.isOutroType(type))
+        for (type in listOf("op", "mixed-op", "opening", "recap", "")) check(!AniSkipPolicy.isOutroType(type))
+        data class Seg(val type: String, val start: Double)
+        val segs = listOf(Seg("op", 15.0), Seg("ed", 1320.0), Seg("mixed-ed", 1180.0))
+        check(AniSkipPolicy.outroStartSec(segs, { it.type }, { it.start }) == 1180.0)
+        check(AniSkipPolicy.outroStartSec(listOf(Seg("ed", 0.0)), { it.type }, { it.start }) == null)
+        check(AniSkipPolicy.outroStartSec(emptyList<Seg>(), { it.type }, { it.start }) == null)
+    }
     test("OSD timeout, panel opacity, and Netflix-style skip countdown policy") {
         check(PlayerUiPolicy.clampOsdHideDelayMs(500) == 1000L)
         check(PlayerUiPolicy.clampOsdHideDelayMs(5000) == 5000L)

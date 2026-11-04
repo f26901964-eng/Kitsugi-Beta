@@ -107,6 +107,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             appSettings.collect { settings ->
                 _playbackSpeed.value = transientPlaybackSpeed ?: settings.playerSpeed
                 orchestrator.scrobble.threshold = settings.scrobbleThreshold
+                // Otomatik takip oturumu ayar değişimini beklemeden taze değerleri görsün.
+                orchestrator.autoTrack.updateMinDurationSeconds(settings.autoTrackMinSeconds)
                 if (!initialPlayerPrefsRestored) {
                     initialPlayerPrefsRestored = true
                     _audioChannels.value = settings.audioChannels
@@ -747,6 +749,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private var titleNative: String? = null
     private var synonyms: List<String> = emptyList()
     private var startYear: Int? = null
+    // YouTube video kimliği: dolu ise oynatma bir TANITIM/JENERİK'tir → liste takibi yapılmaz.
+    private var videoIdValue: String? = null
+    // Liste takibi için poster (yeni satır oluşturulursa görsel olarak kullanılır).
+    private var posterUrlValue: String? = null
     // CS3 kökenli içerikler için kaynak bilgisi (binge-watch + geçmişten devam)
     private var cs3Url: String? = null
     private var cs3ApiName: String? = null
@@ -779,7 +785,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         activity: android.app.Activity? = null,
         cs3Url: String? = null,
         cs3ApiName: String? = null,
-        synonyms: List<String> = emptyList()
+        synonyms: List<String> = emptyList(),
+        posterUrl: String? = null
     ) {
         val initKey = "${videoId ?: ""}_${videoUrl ?: ""}_${episode}_${aniListId ?: 0}_${malId ?: 0}_${tmdbId ?: 0}_${isMovie}_${synonyms.hashCode()}"
         if (_isInitialized.value && lastInitializedKey == initKey) return
@@ -789,6 +796,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         this.malId = malId
         this.aniListId = aniListId
         this.tmdbId = tmdbId
+        this.videoIdValue = videoId
+        this.posterUrlValue = posterUrl
         this.seasonNum = season
         _isMovie.value = isMovie || (season == 0 && episode <= 1)
         this.animeTitle = animeTitle
@@ -1176,6 +1185,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }
 
                 if (resolvedUrl != null) {
+                    // Yeni bölüm: liste takibi oturumu yeniden bağlanacak (kimlik/outro tazelenir).
+                    orchestrator.autoTrack.clear()
+                    scrobbleSessionKey = null
                     _currentEpisode.value = targetEp
                     _currentVideoUrl.value = resolvedUrl
                     _currentAudioUrl.value = targetStream.externalAudioUrl
@@ -1445,6 +1457,21 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private val _bingeCountdownSec = MutableStateFlow(10)
     val bingeCountdownSec: StateFlow<Int> = _bingeCountdownSec.asStateFlow()
 
+    // ─── Otomatik liste takibi (oynatıcı → liste) ────────────────────────────────
+    /** Bitişte çıkan küçük "hızlı puanla" çubuğunun modeli (null = gizli). */
+    val quickRatePrompt: StateFlow<com.kitsugi.animelist.ui.screens.fullscreen.runtime.PlayerAutoTrackController.QuickRatePrompt?>
+        get() = orchestrator.autoTrack.quickRate
+
+    /** Oynatıcıdan hızlı puanlama (0 = puanı temizle). */
+    fun rateCurrentMedia(score: Int) {
+        orchestrator.autoTrack.rate(score)
+    }
+
+    /** Kullanıcı çubuğu kapattı. */
+    fun dismissQuickRate() {
+        orchestrator.autoTrack.hideQuickRate()
+    }
+
     /**
      * Scrobble oturumu bölüm başına BİR kez başlatılır.
      *
@@ -1479,6 +1506,66 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             )
             orchestrator.scrobble.onEpisodeStarted(mediaEntry, episode, engine?.duration ?: 0L)
         }
+        bindAutoTrackSession(engine)
+    }
+
+    /**
+     * Otomatik liste takibi oturumunu bağlar.
+     *
+     * Oynatıcı **hangi kaynaktan** açılırsa açılsın (AniList/MAL/Kitsu/Shikimori/Bangumi/
+     * Simkl/TMDB veya yalnızca bir Cloudstream eklentisi) aynı kimlik sözlüğü kullanılır;
+     * eşleştirme ve altı kaynağa yayma [com.kitsugi.animelist.data.repository.PlaybackListWriter]
+     * içinde yapılır. Fragman/jenerik oynatmaları (YouTube kimliği) hiç takip edilmez.
+     */
+    private fun bindAutoTrackSession(engine: com.kitsugi.animelist.core.player.engine.PlayerEngine?) {
+        val episode = _currentEpisode.value
+        val hasNext = !_isMovie.value && (
+            _episodesList.value.any { it.episodeNumber == episode + 1 } ||
+                episode < (_episodesList.value.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+            )
+        // Jenerik türleri sağlayıcıya göre değişir (`ed`, `mixed-ed`, `ending`…); tek
+        // kaynak `AniSkipPolicy` — bkz. "outro" türünün hiç üretilmediği hata.
+        val outroSec = com.kitsugi.animelist.core.player.AniSkipPolicy.outroStartSec(
+            intervals = orchestrator.skip.skipIntervals.value,
+            typeOf = { it.type },
+            startOf = { it.startTime }
+        )?.toLong()
+        val isTrailer = videoIdValue != null
+        val identity = com.kitsugi.animelist.data.repository.PlaybackListWriter.PlaybackIdentity(
+            title = animeTitle.ifBlank { titleEnglish ?: titleRomaji ?: titleNative ?: _currentTitle.value },
+            titleEnglish = titleEnglish,
+            titleRomaji = titleRomaji,
+            titleNative = titleNative,
+            synonyms = synonyms,
+            malId = malId,
+            aniListId = aniListId,
+            tmdbId = tmdbId,
+            year = startYear,
+            posterUrl = posterUrlValue,
+            // Tür tahmini: kaynak hangi katalogda tutuyorsa oraya yazılır. Anime kimliği
+            // (MAL/AniList) varsa Anime; yalnızca TMDB varsa film/dizi.
+            mediaType = when {
+                _isMovie.value -> com.kitsugi.animelist.model.MediaType.Movie
+                malId != null || aniListId != null -> com.kitsugi.animelist.model.MediaType.Anime
+                tmdbId != null -> com.kitsugi.animelist.model.MediaType.TvShow
+                else -> null
+            },
+            isMovie = _isMovie.value,
+            season = seasonNum,
+            sourceHint = _currentAddonName.value
+        )
+        orchestrator.autoTrack.bind(
+            identity = identity,
+            episode = episode,
+            totalEpisodes = _episodesList.value.lastOrNull()?.episodeNumber
+                ?: if (_isMovie.value) 1 else null,
+            hasNextEpisode = hasNext,
+            kind = if (_isMovie.value) com.kitsugi.animelist.core.player.AutoTrackPolicy.Kind.MOVIE
+            else com.kitsugi.animelist.core.player.AutoTrackPolicy.Kind.EPISODE,
+            isTrailer = isTrailer,
+            outroStartSec = outroSec,
+            minDurationSec = appSettings.value.autoTrackMinSeconds
+        )
     }
 
     fun setActiveEngine(engine: com.kitsugi.animelist.core.player.engine.PlayerEngine?) {
@@ -1596,6 +1683,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         _duration.value = durationMs
         updateChapter(_chapters.value.lastOrNull { it.start <= positionMs / 1000f } ?: _chapters.value.firstOrNull())
         orchestrator.scrobble.onPositionUpdate(positionMs, durationMs)
+        orchestrator.autoTrack.onTick(positionMs, durationMs, isPlaying)
         orchestrator.stillWatching.onPlaybackTick(positionMs, isPlaying)
     }
 
@@ -1648,11 +1736,22 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun onEpisodeEnded(durationMs: Long, positionMs: Long) {
+        // Bölüm bitti: liste takibi konum/süre ne olursa olsun tamamlanma kararını verir
+        // (fragman/jenerik oynatmaları controller içinde zaten atlanır).
+        orchestrator.autoTrack.onEnded(positionMs = positionMs, durationMs = durationMs)
         viewModelScope.launch {
             try {
-                historyRepository.deleteProgress(getResolveMediaId(), _currentEpisode.value)
+                // Satır SİLİNMEZ: konum sıfırlanır ve "izlendi" bayrağı yazılır. Silmek,
+                // otomatik takibin az önce yazdığı bayrağı (ve geçmişten geri doldurmanın
+                // dayanağını) yok ediyordu; "devam et" aynı bölümü tekrar öneriyordu.
+                historyRepository.resetAfterFinish(
+                    mediaId = getResolveMediaId(),
+                    episode = _currentEpisode.value,
+                    durationMs = durationMs,
+                    addonName = _currentAddonName.value
+                )
             } catch (e: Exception) {
-                Log.e("KitsugiPlayerViewModel", "Error deleting progress on episode ended", e)
+                Log.e("KitsugiPlayerViewModel", "Error resetting progress on episode ended", e)
             }
 
             val settings = SettingsDataStore(context).settingsFlow.first()
@@ -1660,8 +1759,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 _episodesList.value.any { it.episodeNumber == _currentEpisode.value + 1 } ||
                     _currentEpisode.value < (_episodesList.value.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
                 )
-            val hasOutro = skipIntervals.value.any { it.type == "outro" }
-            val outroStart = skipIntervals.value.find { it.type == "outro" }?.startTime?.toLong()
+            val outroStartSec = com.kitsugi.animelist.core.player.AniSkipPolicy.outroStartSec(
+                intervals = skipIntervals.value,
+                typeOf = { it.type },
+                startOf = { it.startTime }
+            )
+            val hasOutro = outroStartSec != null
+            val outroStart = outroStartSec?.toLong()
 
             orchestrator.autoplay.onEpisodeEnded(
                 postPlayMode = PostPlayMode.fromString(settings.postPlayMode),
@@ -1682,6 +1786,19 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 getActiveEngine = { activeEngine },
                 liveHelperEnabled = settings.liveHelperEnabled
             )
+        }
+        // AniSkip verisi oturum bağlandıktan SONRA gelebilir (ağ/önbellek). Jenerik aralığı
+        // öğrenildiği anda otomatik takibe verilir; aksi hâlde "jeneriği atlayınca bölüm
+        // bitti sayılsın" kuralı yalnızca aralık önceden yüklüyse çalışırdı.
+        viewModelScope.launch {
+            orchestrator.skip.skipIntervals.collect { intervals ->
+                val outro = com.kitsugi.animelist.core.player.AniSkipPolicy.outroStartSec(
+                    intervals = intervals,
+                    typeOf = { it.type },
+                    startOf = { it.startTime }
+                )?.toLong()
+                orchestrator.autoTrack.updateOutroStart(outro)
+            }
         }
     }
 
@@ -1978,9 +2095,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         episode: Int,
         lastPositionMs: Long,
         durationMs: Long,
-        addonName: String? = null
+        addonName: String? = null,
+        positionOnly: Boolean = false
     ) {
-        if (!appSettings.value.preserveWatchingPosition) return
+        // `positionOnly` = "devam et" konumu için yazım. Kullanıcı konum hatırlamayı
+        // KAPATMIŞ olsa bile yazılır: oynatıcıdan çıkışta otomatik takip bu konumu okuyup
+        // bölümü izlenmiş sayabilir. Bu satır liste ilerlemesini değiştirmez — yalnızca
+        // bölümün neresinde kalındığını sıfırlar (bölüm bitince `resetAfterFinish`).
+        if (!appSettings.value.preserveWatchingPosition && !positionOnly) return
         if (lastPositionMs <= 0L || durationMs <= 0L) return
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
@@ -1995,6 +2117,19 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 Log.e("KitsugiPlayerViewModel", "Error saving progress to DB", e)
             }
         }
+    }
+
+    /**
+     * Oynatıcı ekranından çıkılırken son bir takip kararı.
+     *
+     * Oynatma sırasında gelen tikler 15 saniyede bir yazıldığı için son saniyelerdeki
+     * ilerleme (ör. %86 → %88) kaybolabiliyordu. Çıkışta karar bir kez daha üretilir;
+     * `endReached=false` olduğundan yalnızca **eşiği geçmiş** bölümler ilerletilir.
+     * Fragman/jenerik oynatmaları controller içinde atlanır.
+     */
+    fun onPlayerLeaving(positionMs: Long, durationMs: Long) {
+        if (positionMs <= 0L || durationMs <= 0L) return
+        orchestrator.autoTrack.onLeaving(positionMs, durationMs)
     }
 
     /**
@@ -2022,6 +2157,9 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     durationMs = effectiveDuration
                 )
                 orchestrator.scrobble.onPositionUpdate(positionMs, effectiveDuration)
+                // Harici oynatıcı (VLC/MX/Just Player) da aynı otomatik takip hattından geçer:
+                // kullanıcı uygulamadan çıkmış olsa bile dönüşte bölüm izlenmiş sayılır.
+                orchestrator.autoTrack.onTick(positionMs, effectiveDuration, isPlaying = true)
             }
         }
         if (!endedByUser && effectiveDuration > 0L) {

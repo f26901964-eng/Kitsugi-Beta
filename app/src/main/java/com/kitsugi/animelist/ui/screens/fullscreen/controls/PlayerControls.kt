@@ -186,10 +186,11 @@ fun PlayerControls(
 
     val skipIntroText = remember(activeSkipInterval, netflixSkipCountdownSec) {
         activeSkipInterval?.let { interval ->
-            val baseLabel = when (interval.type) {
-                "intro" -> "Giriş'i Atla"
-                "outro" -> "Bitişi Atla"
-                "recap" -> "Özeti Atla"
+            // Sağlayıcı türleri `op`/`ed`/`mixed-ed`… — tek kaynak: AniSkipPolicy.
+            val baseLabel = when {
+                com.kitsugi.animelist.core.player.AniSkipPolicy.isIntroType(interval.type) -> "Giriş'i Atla"
+                com.kitsugi.animelist.core.player.AniSkipPolicy.isOutroType(interval.type) -> "Bitişi Atla"
+                interval.type.equals("recap", ignoreCase = true) -> "Özeti Atla"
                 else    -> "Atla"
             }
             val countdown = netflixSkipCountdownSec

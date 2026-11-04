@@ -140,7 +140,23 @@ data class PlayerOverlaySettings(
     val preserveWatchingPosition: Boolean = true,
     val defaultPlayerOrientation: String = "SENSOR_LANDSCAPE",
     val pipEpisodeToasts: Boolean = true,
-    val pipOnExit: Boolean = true
+    val pipOnExit: Boolean = true,
+
+    // ─── Otomatik liste takibi (oynatıcı → liste) ─────────────────────────────
+    /** Oynatma başladığında içerik otomatik olarak "İzleniyor"a çekilsin mi? */
+    val autoTrackEnabled: Boolean = true,
+    /** Listede olmayan içerik oynatılınca otomatik eklensin mi? */
+    val autoTrackAddNew: Boolean = true,
+    /** "Bırakıldı" işaretli kayıtlar otomatik takiple ezilmesin. */
+    val autoTrackRespectDropped: Boolean = true,
+    /** Bitişte küçük "hızlı puanla" çubuğu çıksın mı? */
+    val quickRateEnabled: Boolean = true,
+    /** Çubuğun ekranda kalma süresi (saniye). */
+    val quickRateSeconds: Int = 20,
+    /** Otomatik değişiklikler bağlı tüm platformlara yayılsın mı? */
+    val autoTrackSyncSources: Boolean = true,
+    /** Otomatik takip için en kısa video süresi (saniye) — klipler/fragmanlar hariç. */
+    val autoTrackMinSeconds: Int = 60
 )
 
 data class MpvAndSubtitleSettings(
@@ -494,6 +510,15 @@ data class AppSettings(
     val playerStatisticsPage: Int get() = playerUi.playerStatisticsPage
     val playerSpeed: Float get() = playerUi.playerSpeed
     val scrobbleThreshold: Float get() = playerUi.scrobbleThreshold
+
+    // ─── Otomatik liste takibi ────────────────────────────────────────────────
+    val autoTrackEnabled: Boolean get() = playerUi.autoTrackEnabled
+    val autoTrackAddNew: Boolean get() = playerUi.autoTrackAddNew
+    val autoTrackRespectDropped: Boolean get() = playerUi.autoTrackRespectDropped
+    val quickRateEnabled: Boolean get() = playerUi.quickRateEnabled
+    val quickRateSeconds: Int get() = playerUi.quickRateSeconds
+    val autoTrackSyncSources: Boolean get() = playerUi.autoTrackSyncSources
+    val autoTrackMinSeconds: Int get() = playerUi.autoTrackMinSeconds
     val showLoadingCircle: Boolean get() = playerUi.showLoadingCircle
     val showCurrentChapter: Boolean get() = playerUi.showCurrentChapter
     val playerTimeToDisappearMs: Int get() = playerUi.playerTimeToDisappearMs

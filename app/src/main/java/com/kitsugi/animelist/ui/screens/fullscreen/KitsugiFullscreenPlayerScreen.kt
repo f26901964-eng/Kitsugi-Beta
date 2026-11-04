@@ -61,6 +61,7 @@ import com.kitsugi.animelist.ui.screens.fullscreen.components.StreamInfoData
 import com.kitsugi.animelist.ui.screens.fullscreen.components.MetaCastMember
 import com.kitsugi.animelist.ui.screens.fullscreen.components.TorrentOverlay
 import com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption
+import com.kitsugi.animelist.ui.screens.fullscreen.components.QuickRateBar
 import com.kitsugi.animelist.core.p2p.P2pStreamingEngine
 import com.kitsugi.animelist.core.p2p.P2pSettingsRepository
 import com.kitsugi.animelist.core.p2p.P2pStreamingState
@@ -269,7 +270,8 @@ fun KitsugiFullscreenPlayerScreen(
             isMovie = isMovie,
             activity = activity,
             cs3Url = cs3Url,
-            cs3ApiName = cs3ApiName
+            cs3ApiName = cs3ApiName,
+            posterUrl = posterUrl
         )
     }
 
@@ -337,6 +339,7 @@ fun KitsugiFullscreenPlayerScreen(
     val audioChannels by viewModel.audioChannels.collectAsState()
 
     val bingeCountdownSec by viewModel.bingeCountdownSec.collectAsState()
+    val quickRatePrompt by viewModel.quickRatePrompt.collectAsState()
 
     // Track selections
     var textTrackOptions by remember { mutableStateOf<List<TrackOption>>(emptyList()) }
@@ -913,13 +916,18 @@ fun KitsugiFullscreenPlayerScreen(
                         viewModel.setActiveEngine(null)
                         val finalPos = playerEngine.currentPosition
                         if (finalPos > 0L) {
+                            // Çıkışta konum yazılır ama liste takibi de haberdar edilir: kayıt
+                            // yalnızca konum-hatırlama açıkken yazılıyordu; o ayar kapalıyken
+                            // %85'i geçmiş bölüm "izlenmedi" sayılıyordu (bkz. positionOnly).
                             viewModel.saveProgress(
                                 mediaId = mediaIdForHistory,
                                 episode = currentEpisode,
                                 lastPositionMs = finalPos,
                                 durationMs = duration,
-                                addonName = currentAddonName
+                                addonName = currentAddonName,
+                                positionOnly = true
                             )
+                            viewModel.onPlayerLeaving(finalPos, duration)
                             com.kitsugi.animelist.data.local.WatchHistoryManager.updateProgress(
                                 animeId = mediaIdForHistory.toString(),
                                 episode = currentEpisode,
@@ -1351,6 +1359,22 @@ fun KitsugiFullscreenPlayerScreen(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(top = 70.dp, start = 24.dp)
+                    )
+
+                    // ── Hızlı puanlama çubuğu (bölüm/film bittiğinde) ──────────────────
+                    // Kullanıcı isteği: bitişte TAM EKRAN pencere DEĞİL, oynatıcının altında
+                    // küçük bir bildirim bandı çıkar ve kısayoldan puan verilir.
+                    // Kaynak (AniList/MAL/Kitsu/Shikimori/Bangumi/Simkl/TMDB) fark etmeksizin
+                    // aynı çubuk kullanılır; yazma PlaybackListWriter üzerinden altı kaynağa
+                    // yayılır.
+                    QuickRateBar(
+                        prompt = quickRatePrompt,
+                        onRate = { score -> viewModel.rateCurrentMedia(score) },
+                        onDismiss = { viewModel.dismissQuickRate() },
+                        visible = !isInPipMode && !areControlsLocked,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(start = 16.dp, end = 16.dp, bottom = 82.dp)
                     )
 
                     // Search/Fetch loading overlay for next episode

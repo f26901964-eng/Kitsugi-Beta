@@ -9,6 +9,7 @@ bash "$KOTLINC" \
  app/src/main/java/com/kitsugi/animelist/core/player/PlayerChapter.kt \
  app/src/main/java/com/kitsugi/animelist/core/player/ScrobblePolicy.kt \
  app/src/main/java/com/kitsugi/animelist/core/player/AniSkipPolicy.kt \
+ app/src/main/java/com/kitsugi/animelist/core/player/AutoTrackPolicy.kt \
  app/src/main/java/com/kitsugi/animelist/core/player/PlayerGesturePolicy.kt \
  app/src/main/java/com/kitsugi/animelist/core/player/engine/MpvPlaybackPolicy.kt \
  app/src/main/java/com/kitsugi/animelist/core/player/engine/MpvTlsPolicy.kt \

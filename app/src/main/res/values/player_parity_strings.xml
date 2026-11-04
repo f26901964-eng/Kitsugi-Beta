@@ -53,4 +53,22 @@
     <string name="player_advanced_tap_center">Orta bölge</string>
     <string name="player_advanced_tap_right">Sağ bölge</string>
     <string name="player_advanced_not_set">Belirtilmedi</string>
+
+    <!-- v2.4.341 — Oynatıcıdan otomatik liste takibi -->
+    <string name="player_advanced_autotrack">Otomatik liste takibi</string>
+    <string name="auto_track_enabled">Oynatınca listeye işle</string>
+    <string name="auto_track_add_new">Listede yoksa otomatik ekle</string>
+    <string name="auto_track_respect_dropped">Bıraktığım yapımlara dokunma</string>
+    <string name="auto_track_sync_sources">Değişiklikleri tüm bağlı kaynaklara yaz</string>
+    <string name="auto_track_min_seconds">En kısa takip süresi: %1$d sn</string>
+    <string name="quick_rate_enabled">Bitişte hızlı puanlama çubuğu</string>
+    <string name="quick_rate_seconds">Çubuk ekranda kalsın: %1$d sn</string>
+    <string name="quick_rate_hint">Bitti! Kısayoldan puan ver</string>
+    <string name="quick_rate_dismiss">Kapat</string>
+    <string name="quick_rate_score">%1$d puan ver</string>
+    <string name="quick_rate_existing">Mevcut puanın: %1$d</string>
+    <string name="auto_track_synced_all">Tüm bağlı kaynaklara yazıldı</string>
+    <string name="auto_track_synced_local">Yerel listeye yazıldı</string>
+    <string name="quick_rate_episode">Bölüm %1$d</string>
+    <string name="quick_rate_saved">Puanın kaydedildi: %1$d</string>
 </resources>
