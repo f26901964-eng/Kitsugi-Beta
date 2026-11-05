@@ -17805,4 +17805,8 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="history_remove_read_entry">Okuma geçmişinden kaldır</string>
     <string name="history_section_watched">İzlenen</string>
     <string name="history_section_read">Okunan</string>
+    <string name="settings_manga_keep_screen_on">Okuma sırasında ekranı açık tut</string>
+    <string name="settings_manga_keep_screen_on_desc">Bölüm okurken ekranın kendiliğinden kapanmasını engeller</string>
+    <string name="manga_keep_screen_on_on">Ekran açık tutma: Açık</string>
+    <string name="manga_keep_screen_on_off">Ekran açık tutma: Kapalı</string>
 </resources>

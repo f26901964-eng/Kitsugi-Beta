@@ -109,10 +109,12 @@ internal fun SettingsContext.buildSettingsParams() =
             mangaColorFilter = appSettings.mangaColorFilter,
             mangaFitMode = appSettings.mangaFitMode,
             mangaBrightness = appSettings.mangaBrightness,
+            mangaKeepScreenOn = appSettings.mangaKeepScreenOn,
             onMangaReadingModeSelected = { onMangaReadingModeSelected(it) },
             onMangaColorFilterSelected = { onMangaColorFilterSelected(it) },
             onMangaFitModeSelected = { onMangaFitModeSelected(it) },
             onMangaBrightnessChanged = { onMangaBrightnessChanged(it) },
+            onMangaKeepScreenOnChanged = { onMangaKeepScreenOnChanged(it) },
             autoUpdateCheckEnabled = appSettings.autoUpdateCheckEnabled,
             onAutoUpdateCheckEnabledChanged = { onAutoUpdateCheckEnabledChanged(it) },
             onCheckForUpdatesClick = { onCheckForUpdatesClick() },
@@ -1140,6 +1142,16 @@ internal fun SettingsContext.onMangaFitModeSelected(fitMode: String) {
     coroutineScope.launch {
         settingsDataStore.setMangaFitMode(fitMode)
         appViewModel.showSnackbarMessage(KitsugiStrings.get(R.string.sigdirma_modu_x, fitMode))
+    }
+}
+
+internal fun SettingsContext.onMangaKeepScreenOnChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setMangaKeepScreenOn(enabled)
+        appViewModel.showSnackbarMessage(
+            if (enabled) KitsugiStrings.get(R.string.manga_keep_screen_on_on)
+            else KitsugiStrings.get(R.string.manga_keep_screen_on_off)
+        )
     }
 }
 

@@ -70,6 +70,8 @@ fun MangaPageItem(
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
+    /** Sayfaya uzun basınca (kullanıcı isteği: "resimler tıklanabilir olsun") galeri açılır. */
+    onLongPress: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Sayfa nesnesi ilk kez görüldüğünde yüklemeyi başlat.
@@ -83,8 +85,10 @@ fun MangaPageItem(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(readingMode) {
-                detectTapGestures { offset ->
+            .pointerInput(readingMode, onLongPress) {
+                detectTapGestures(
+                    onLongPress = onLongPress?.let { cb -> { cb(page.index) } }
+                ) { offset ->
                     val width = size.width.toFloat()
                     val leftEdge = width * 0.33f
                     val rightEdge = width * 0.66f

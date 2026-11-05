@@ -120,10 +120,12 @@ data class GeneralSettings(
     val mangaColorFilter: String = "Normal",
     val mangaFitMode: String = "FitScreen",
     val mangaBrightness: Float = 1.0f,
+    val mangaKeepScreenOn: Boolean = true,
     val onMangaReadingModeSelected: (String) -> Unit = {},
     val onMangaColorFilterSelected: (String) -> Unit = {},
     val onMangaFitModeSelected: (String) -> Unit = {},
     val onMangaBrightnessChanged: (Float) -> Unit = {},
+    val onMangaKeepScreenOnChanged: (Boolean) -> Unit = {},
     // ─── Otomatik & Manuel Güncelleme Kontrolü ─────────────────────────
     val autoUpdateCheckEnabled: Boolean = true,
     val onAutoUpdateCheckEnabledChanged: (Boolean) -> Unit = {},

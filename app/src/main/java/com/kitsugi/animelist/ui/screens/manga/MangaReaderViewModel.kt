@@ -55,6 +55,61 @@ class MangaReaderViewModel(
     // F5: Debounce için Job referansı — hızlı swipe'ta Room IO flood önler
     private var progressSaveJob: kotlinx.coroutines.Job? = null
 
+    /** Debounce bekleyen son ilerleme; ekran kapanırken/arkaya geçerken anında yazılır. */
+    private var pendingProgress: PendingProgress? = null
+
+    private data class PendingProgress(
+        val chapter: MangaChapter,
+        val pageIndex: Int,
+        val totalPages: Int
+    )
+
+    /**
+     * Okuyucudan çıkarken / uygulama arkaya geçerken çağrılır.
+     *
+     * Debounce (500 ms) bekleyen ilerleme varsa **hemen** yazılır; aksi hâlde kullanıcı son
+     * sayfadan çıkıp geri döndüğünde "son okunan sayfa" bir önceki sayfada kalıyordu.
+     */
+    fun flushProgress() {
+        val pending = pendingProgress ?: return
+        pendingProgress = null
+        progressSaveJob?.cancel()
+        progressSaveJob = null
+        viewModelScope.launch { saveProgressNow(pending) }
+    }
+
+    /**
+     * İlerlemeyi tek noktadan yazar: bölüm ilerlemesi (Room) + okuma geçmişi (geçmiş sayfası).
+     * Hata olsa bile okuma akışı kesilmez.
+     */
+    private suspend fun saveProgressNow(pending: PendingProgress) {
+        val isCompleted = pending.totalPages > 0 && pending.pageIndex >= pending.totalPages - 1
+        runCatching {
+            dao.upsert(
+                MangaChapterProgressEntity(
+                    chapterUrl    = pending.chapter.url,
+                    mangaUrl      = mangaDetails.url,
+                    chapterName   = pending.chapter.name,
+                    lastPageIndex = pending.pageIndex,
+                    totalPages    = pending.totalPages,
+                    isCompleted   = isCompleted,
+                    updatedAt     = System.currentTimeMillis()
+                )
+            )
+            com.kitsugi.animelist.data.local.MangaReadHistoryManager.record(
+                sourceName = source.name,
+                mangaUrl = mangaDetails.url,
+                mangaTitle = mangaDetails.title,
+                thumbnailUrl = mangaDetails.thumbnailUrl,
+                chapterUrl = pending.chapter.url,
+                chapterName = pending.chapter.name,
+                lastPageIndex = pending.pageIndex,
+                totalPages = pending.totalPages,
+                isCompleted = isCompleted
+            )
+        }
+    }
+
     // ─── UI Durumu ────────────────────────────────────────────────────────────
 
     data class UiState(
@@ -70,7 +125,9 @@ class MangaReaderViewModel(
         val isLoadingPages: Boolean = false,
         val pagesError: String? = null,
         /** Sayfa yükleme hatasının manga kaynak kodu (KTS-SRC-...). */
-        val pagesErrorCode: String? = null
+        val pagesErrorCode: String? = null,
+        /** Okurken ekran kapanmasın (Ayarlar > Okuyucu). */
+        val keepScreenOn: Boolean = true
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -113,7 +170,8 @@ class MangaReaderViewModel(
                         readingMode = mode,
                         colorFilterType = filter,
                         fitMode = fit,
-                        customBrightness = settings.mangaBrightness
+                        customBrightness = settings.mangaBrightness,
+                        keepScreenOn = settings.mangaKeepScreenOn
                     )
                 }
             }
@@ -159,35 +217,14 @@ class MangaReaderViewModel(
     // F5: Progress debounce — 500ms bekle, hızlı swipe'ta tekrar tetiklenirse iptal et
     fun onPageChanged(chapterUrl: String, pageIndex: Int, totalPages: Int) {
         _uiState.update { it.copy(currentPageIndex = pageIndex) }
+        val chapter = _uiState.value.currentChapter
+        pendingProgress = PendingProgress(chapter, pageIndex, totalPages)
         progressSaveJob?.cancel()
         progressSaveJob = viewModelScope.launch {
             kotlinx.coroutines.delay(500L)
-            val isCompleted = totalPages > 0 && pageIndex >= totalPages - 1
-            val chapterName = _uiState.value.currentChapter.name
-            dao.upsert(
-                MangaChapterProgressEntity(
-                    chapterUrl    = chapterUrl,
-                    mangaUrl      = mangaDetails.url,
-                    chapterName   = chapterName,
-                    lastPageIndex = pageIndex,
-                    totalPages    = totalPages,
-                    isCompleted   = isCompleted,
-                    updatedAt     = System.currentTimeMillis()
-                )
-            )
-            // 📖 Geçmiş sayfasındaki "Okunan" sekmesini besle: bölüm, sayfa ilerlemesi ve
-            // kaynak/kapak bilgisiyle kronolojik geçmişe yazılır (izleme geçmişiyle aynı mantık).
-            com.kitsugi.animelist.data.local.MangaReadHistoryManager.record(
-                sourceName = source.name,
-                mangaUrl = mangaDetails.url,
-                mangaTitle = mangaDetails.title,
-                thumbnailUrl = mangaDetails.thumbnailUrl,
-                chapterUrl = chapterUrl,
-                chapterName = chapterName,
-                lastPageIndex = pageIndex,
-                totalPages = totalPages,
-                isCompleted = isCompleted
-            )
+            val pending = pendingProgress ?: return@launch
+            pendingProgress = null
+            saveProgressNow(pending)
         }
     }
 

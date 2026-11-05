@@ -58,6 +58,8 @@ fun MangaWebtoonReader(
     hasNextChapter: Boolean = false,
     nextChapterName: String? = null,
     onGoToNextChapter: () -> Unit = {},
+    /** Uzun basınca galeriyi aç (sayfa indeksi ile). */
+    onLongPressPage: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Görünen ilk öğeyi takip et ve üst katmana bildir
@@ -92,6 +94,7 @@ fun MangaWebtoonReader(
                 onCenterTap = onCenterTap,
                 onNextPage   = onNextPage,
                 onPrevPage   = onPrevPage,
+                onLongPress  = onLongPressPage,
                 modifier    = Modifier.fillMaxWidth()
             )
 

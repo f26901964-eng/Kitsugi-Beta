@@ -893,6 +893,7 @@ private fun SettingsPreferencesContent(
         integrations.translateSourceLanguage, integrations.translateTargetLanguage, general.appLanguage, general.fixedNavBar,
         general.airingNotificationsEnabled, general.splashAnimationEnabled, general.splashSoundEnabled,
         general.mangaReadingMode, general.mangaColorFilter, general.mangaFitMode, general.mangaBrightness,
+        general.mangaKeepScreenOn,
         general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled,
         general.kitsuNotificationsEnabled, general.shikimoriNotificationsEnabled, general.notificationInterval,
         general.staffNameLanguage, general.scoreStep, general.separatedListStyle, general.showLowPriority,
@@ -954,7 +955,8 @@ private fun SettingsPreferencesContent(
                 mangaReadingMode = general.mangaReadingMode,
                 mangaColorFilter = general.mangaColorFilter,
                 mangaFitMode = general.mangaFitMode,
-                mangaBrightness = general.mangaBrightness
+                mangaBrightness = general.mangaBrightness,
+                mangaKeepScreenOn = general.mangaKeepScreenOn
             )
         )
     }
@@ -1016,6 +1018,7 @@ private fun SettingsPreferencesContent(
         onMangaColorFilterSelected = general.onMangaColorFilterSelected,
         onMangaFitModeSelected = general.onMangaFitModeSelected,
         onMangaBrightnessChanged = general.onMangaBrightnessChanged,
+        onMangaKeepScreenOnChanged = general.onMangaKeepScreenOnChanged,
         onDismiss = {}  // Sub-sayfada dismiss = no-op; geri butonu ile çıkılır
     )
 

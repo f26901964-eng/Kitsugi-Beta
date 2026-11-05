@@ -260,6 +260,8 @@ data class DownloadAndMangaSettings(
     val mangaColorFilter: String = "Normal",
     val mangaFitMode: String = "FitScreen",
     val mangaBrightness: Float = 1.0f,
+    /** Okurken ekranın kapanmasını engelle (webtoon okurken çok işe yarar). */
+    val mangaKeepScreenOn: Boolean = true,
     val customImageDownloadUri: String = "",
     val videoDownloadUri: String = "",
     val downloaderPreference: String = "INTERNAL",
@@ -354,6 +356,7 @@ data class AppSettings(
     val mangaColorFilter: String get() = downloads.mangaColorFilter
     val mangaFitMode: String get() = downloads.mangaFitMode
     val mangaBrightness: Float get() = downloads.mangaBrightness
+    val mangaKeepScreenOn: Boolean get() = downloads.mangaKeepScreenOn
     val dnsChoice: Int get() = integrations.dnsChoice
     val useGithubProxy: Boolean get() = integrations.useGithubProxy
     val tmdbEnabled: Boolean get() = integrations.tmdbEnabled

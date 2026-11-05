@@ -17800,4 +17800,8 @@
     <string name="history_remove_read_entry">Remove from reading history</string>
     <string name="history_section_watched">Watched</string>
     <string name="history_section_read">Read</string>
+    <string name="settings_manga_keep_screen_on">Keep screen on while reading</string>
+    <string name="settings_manga_keep_screen_on_desc">Prevents the screen from turning off while reading a chapter</string>
+    <string name="manga_keep_screen_on_on">Keep screen on: Enabled</string>
+    <string name="manga_keep_screen_on_off">Keep screen on: Disabled</string>
 </resources>

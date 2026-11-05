@@ -131,6 +131,7 @@ class SettingsDataStore(
         val MangaColorFilter = stringPreferencesKey("manga_color_filter")
         val MangaFitMode = stringPreferencesKey("manga_fit_mode")
         val MangaBrightness = floatPreferencesKey("manga_brightness")
+        val MangaKeepScreenOn = booleanPreferencesKey("manga_keep_screen_on")
         val DnsChoice = intPreferencesKey("dns_choice")
         // ─── GitHub Vekil Sunucu ───────────────────────────────────────────────
         val UseGithubProxy = booleanPreferencesKey("use_github_proxy")
@@ -683,6 +684,7 @@ class SettingsDataStore(
                     mangaColorFilter = preferences[Keys.MangaColorFilter] ?: "Normal",
                     mangaFitMode = preferences[Keys.MangaFitMode] ?: "FitScreen",
                     mangaBrightness = preferences[Keys.MangaBrightness] ?: 1.0f,
+                    mangaKeepScreenOn = preferences[Keys.MangaKeepScreenOn] ?: true,
                     customImageDownloadUri = preferences[Keys.CustomImageDownloadUri] ?: "",
                     videoDownloadUri = preferences[Keys.VideoDownloadUri] ?: "",
                     downloaderPreference = preferences[Keys.DownloaderPreference] ?: "INTERNAL",
@@ -1129,6 +1131,12 @@ class SettingsDataStore(
     suspend fun setMangaFitMode(fitMode: String) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.MangaFitMode] = fitMode
+        }
+    }
+
+    suspend fun setMangaKeepScreenOn(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.MangaKeepScreenOn] = enabled
         }
     }
 

@@ -179,18 +179,21 @@ fun MangaBrowseScreen(
                 Icon(Icons.Rounded.TravelExplore, null, tint = accentColor, modifier = Modifier.padding(end = 8.dp).size(22.dp))
             }
 
-            // ── Info card (CS3 portrait style) ──
+            // ── Info şeridi ──
+            // Önceden 76dp yüksekliğinde büyük bir kart vardı; arama alanını ekranın
+            // altına itiyordu. Artık tek satırlık kompakt şerit: küçük kapak + başlık
+            // + "N sonuç · M kaynak" bilgisi (istediğin sayı/kaynak satırı korunuyor).
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .background(KitsugiColors.Surface.copy(0.4f), RoundedCornerShape(12.dp))
-                    .padding(12.dp),
+                    .background(KitsugiColors.Surface.copy(0.35f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // mini poster
                 Box(
-                    Modifier.size(width = 52.dp, height = 76.dp)
+                    Modifier.size(width = 40.dp, height = 58.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(KitsugiColors.SurfaceStrong)
                 ) {
@@ -206,7 +209,7 @@ fun MangaBrowseScreen(
                         }
                     }
                 }
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         if (query.isNotBlank()) "Arama: \"$query\"" else selFilter?.name ?: stringResource(R.string.inline_discover_manga_eb24f62),
@@ -228,7 +231,7 @@ fun MangaBrowseScreen(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
 
             // ── Search bar ──
             OutlinedTextField(
@@ -250,7 +253,7 @@ fun MangaBrowseScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             )
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
             // ── Source chips — ALWAYS premium capsule style ──
             // Sadece kaynaklar gerçekten boşsa VE arama yüklenip bitmişse göster.

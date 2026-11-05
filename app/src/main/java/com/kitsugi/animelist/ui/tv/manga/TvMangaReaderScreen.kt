@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.kitsugi.animelist.ui.theme.gradient.background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
@@ -136,6 +137,24 @@ fun TvMangaReaderScreen(
     // kaynaklanıyorsa daha kolay tespit edilir.
     LaunchedEffect(Unit) {
         screenFocusRequester.requestFocusAfterFrames(frames = 2)
+    }
+
+    // ─── Ekran açık kalsın + uygulama arka plana inince okuma ilerlemesini kaydet ───
+    val localView = androidx.compose.ui.platform.LocalView.current
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    LaunchedEffect(uiState.keepScreenOn) {
+        localView.keepScreenOn = uiState.keepScreenOn
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) viewModel.flushProgress()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.flushProgress()
+            localView.keepScreenOn = false
+        }
     }
 
     Box(
@@ -483,6 +502,23 @@ fun TvMangaReaderScreen(
                                 color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.bodySmall
                             )
+                            // Bölüm içi konum: tek satırlık ince ilerleme çubuğu (3dp)
+                            Spacer(Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(180.dp)
+                                    .height(3.dp)
+                                    .background(Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(
+                                            ((currentPage + 1).toFloat() / pages.size.toFloat()).coerceIn(0f, 1f)
+                                        )
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
+                                )
+                            }
                         }
 
                         var isNextFocused by remember { mutableStateOf(false) }

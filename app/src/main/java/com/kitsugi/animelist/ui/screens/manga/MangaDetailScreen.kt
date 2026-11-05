@@ -244,14 +244,38 @@ fun MangaDetailScreen(
             }
 
             // ─── Açıklama ──────────────────────────────────────────────────────
+            // Uzun özetler (bazı kaynaklar 2000+ karakter veriyor) bölüm listesini
+            // ekranın çok altına itiyordu: artık 4 satırla sınırlı ve
+            // "Devamını göster / Daralt" ile açılıyor.
             if (!details.description.isNullOrBlank()) {
                 item(key = "description") {
-                    Text(
-                        text = details.description!!,
-                        color = KitsugiColors.TextSecondary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
+                    var descriptionExpanded by rememberSaveable { mutableStateOf(false) }
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                        Text(
+                            text = details.description!!,
+                            color = KitsugiColors.TextSecondary,
+                            fontSize = 13.sp,
+                            maxLines = if (descriptionExpanded) Int.MAX_VALUE else 4,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (descriptionExpanded) {
+                                stringResource(R.string.daha_az)
+                            } else {
+                                stringResource(R.string.profile_show_more)
+                            },
+                            color = accent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .tvClickable(shape = RoundedCornerShape(6.dp)) {
+                                    descriptionExpanded = !descriptionExpanded
+                                }
+                                .padding(vertical = 2.dp)
+                        )
+                    }
                 }
             }
 
@@ -469,10 +493,20 @@ fun MangaDetailScreen(
 private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
     // +18 türü/source → bulanıklık her koşulda uygulanır
     val isAdultContent = details.isAdultContent
+    // Hero yüksekliği ekrana göre: küçük telefonlarda bölüm listesine yer kalsın,
+    // tablet/yatayda kapak büyüsün. Sabit 300dp küçük ekranlarda listenin yarısını yiyordu.
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val heroHeight = when {
+        configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE -> 200.dp
+        configuration.screenHeightDp < 700 -> 260.dp
+        else -> 292.dp
+    }
+    val coverWidth = if (configuration.screenHeightDp < 700) 104.dp else 116.dp
+    val coverHeight = coverWidth * 1.42f
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
+            .height(heroHeight)
     ) {
         // Bulanık arkaplan kapak
         if (!details.thumbnailUrl.isNullOrBlank()) {
@@ -518,8 +552,8 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
                 isAdult = isAdultContent,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .width(120.dp)
-                    .height(170.dp)
+                    .width(coverWidth)
+                    .height(coverHeight)
                     .clip(RoundedCornerShape(10.dp))
                     .background(KitsugiColors.SurfaceSoft)
             )

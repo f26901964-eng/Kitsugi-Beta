@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -69,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.R
@@ -170,6 +172,31 @@ fun MangaReaderScreen(
         }
     }
 
+    // ── Ekranı açık tut ──────────────────────────────────────────────────────
+    // Okuyucuda sistem uykuya geçerse uzun bölüm okurken sayfa birden kapanıyordu.
+    val localView = LocalView.current
+    LaunchedEffect(uiState.keepScreenOn) {
+        localView.keepScreenOn = uiState.keepScreenOn
+    }
+
+    // ── İlerlemeyi kaybetme ──────────────────────────────────────────────────
+    // Sayfa kaydı 500 ms debounce'lu; kullanıcı hemen çıkarsa son sayfa kaybolmasın diye
+    // arkaya geçişte ve ekran kapanırken bekleyen kayıt anında yazılır.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) viewModel.flushProgress()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            viewModel.flushProgress()
+            localView.keepScreenOn = false
+        }
+    }
+
     /** Herhangi bir sayfaya (moddan bağımsız) animasyonlu geçiş. */
     fun goToPage(index: Int) {
         val target = index.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
@@ -257,6 +284,11 @@ fun MangaReaderScreen(
                             viewModel.onPageChanged(currentChapter.url, index, pages.size)
                         }
                     },
+                    // Kullanıcı isteği: sayfaya uzun basmak sayfa galerisini açar.
+                    onLongPressPage = { pageIndex ->
+                        galleryInitialIndex = pageIndex
+                        showGallery = true
+                    },
                     onNextPage = {
                         val current = listState.firstVisibleItemIndex
                         if (current < pages.size - 1) {
@@ -283,6 +315,10 @@ fun MangaReaderScreen(
                     colorFilterType = uiState.colorFilterType,
                     fitMode = uiState.fitMode,
                     onCenterTap = { menuVisible = !menuVisible },
+                    onLongPressPage = { pageIndex ->
+                        galleryInitialIndex = pageIndex
+                        showGallery = true
+                    },
                     onNextPage = {
                         if (pagerState.currentPage < pages.size - 1) {
                             scope.launch {
@@ -329,9 +365,10 @@ fun MangaReaderScreen(
                     android.content.res.Configuration.ORIENTATION_LANDSCAPE,
                 bottomBarScrollState = null,
                 fallbackBottomBarVisible = menuVisible,
-                // Alt barda sayfa şeridi + gezinme satırı + araç satırı var; düğme
-                // bunların üstünde durmalı (varsayılan 88dp yetersiz kalıyordu).
-                bottomBarHeight = 168.dp,
+                // Alt bar 3 satırdan oluşuyor: gezinme sürgüsü (≈48dp), ince sayfa
+                // şeridi (26dp + boşluk) ve araç satırı (48dp) + 22dp dikey dolgu.
+                // Düğme bu yüksekliğin üstünde durmalı (varsayılan 88dp yetersiz).
+                bottomBarHeight = 160.dp,
                 onClick = {
                     scope.launch { listState.animateScrollToItem(0) }
                     viewModel.onPageChanged(currentChapter.url, 0, pages.size)
@@ -384,7 +421,10 @@ fun MangaReaderScreen(
                     }
                     if (pages.isNotEmpty()) {
                         // Sayfa galerisi kısayolu — üst bardan da erişilebilir.
-                        IconButton(onClick = { showGallery = true }) {
+                        IconButton(onClick = {
+                            galleryInitialIndex = currentPage
+                            showGallery = true
+                        }) {
                             Icon(
                                 Icons.Rounded.GridView,
                                 contentDescription = stringResource(R.string.manga_reader_open_gallery),
@@ -419,19 +459,6 @@ fun MangaReaderScreen(
                     .padding(top = 10.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 0. Sayfa Galerisi Şeridi — dokununca o sayfaya atlar.
-                MangaPageStrip(
-                    pages = pages,
-                    currentIndex = currentPage,
-                    loader = loader,
-                    accentColor = Color(0xFF7C4DFF),
-                    onPageClick = { index ->
-                        galleryInitialIndex = index
-                        showGallery = true
-                    },
-                    onOpenGallery = { showGallery = true }
-                )
-
                 // 1. ChapterNavigator (Aniyomi Style)
                 Row(
                     modifier = Modifier
@@ -516,6 +543,21 @@ fun MangaReaderScreen(
                             tint = if (viewModel.hasNextChapter) Color.White else Color.White.copy(0.3f)
                         )
                     }
+                }
+
+                // 1b. Kompakt sayfa şeridi — tüm bölümü tek satırda temsil eder, dokununca
+                // galeri o noktada açılır. (Tam galeri: üst bardaki ▦ düğmesi.)
+                if (pages.size > 1) {
+                    MangaPageProgressRail(
+                        totalPages = pages.size,
+                        currentIndex = currentPage,
+                        accentColor = Color(0xFF7C4DFF),
+                        onPagePick = { index ->
+                            galleryInitialIndex = index
+                            showGallery = true
+                        },
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
                 }
 
                 // 2. BottomReaderBar (Aniyomi Style)
@@ -786,107 +828,64 @@ fun MangaReaderScreen(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sayfa şeridi (alt barın üstünde)
+// Kompakt sayfa şeridi (alt barda tek satır)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Alt barın üstündeki yatay sayfa şeridi.
+ * Tüm bölümü **tek satırda** temsil eden ince sayfa şeridi (26dp).
  *
- * Küçük resimler `MangaPageLoaderV2`'nin disk önbelleğini kullandığı için ek indirme
- * yapmaz; henüz hazır olmayan sayfalar yer tutucu kutu olarak çizilir. Geçerli sayfa
- * vurgulanır ve şerit açıldığında o sayfaya kaydırılır.
+ * Önceki sürümde alt barda 60dp'lik küçük resim şeridi vardı; 100+ sayfalık bir bölümde
+ * okuma alanını gereksiz yere daraltıyordu. Bu sürüm aynı işi çok daha az yerle yapıyor:
+ * her sayfa bir dilim, geçerli sayfa accent renkli çubukla işaretli. Şeride dokunmak
+ * **tam sayfa galerisini** dokunulan sayfada açar — küçük resim yerine gerçek ızgara.
  */
 @Composable
-private fun MangaPageStrip(
-    pages: List<com.kitsugi.animelist.data.manga.MangaPage>,
+private fun MangaPageProgressRail(
+    totalPages: Int,
     currentIndex: Int,
-    loader: com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2,
     accentColor: Color,
-    onPageClick: (Int) -> Unit,
-    onOpenGallery: () -> Unit
+    onPagePick: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val stripState = rememberLazyListState(initialFirstVisibleItemIndex = (currentIndex - 2).coerceAtLeast(0))
-    LaunchedEffect(currentIndex) {
-        if (pages.isNotEmpty()) {
-            stripState.animateScrollToItem((currentIndex - 2).coerceAtLeast(0))
-        }
-    }
-    Row(
-        modifier = Modifier
+    if (totalPages <= 0) return
+    val railHeight = 26.dp
+    val railShape = RoundedCornerShape(8.dp)
+    androidx.compose.foundation.Canvas(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        LazyRow(
-            state = stripState,
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            itemsIndexed(pages, key = { _, page -> page.index }) { index, page ->
-                val selected = index == currentIndex
-                val url = page.imageUrl ?: page.url
-                Box(
-                    modifier = Modifier
-                        .width(46.dp)
-                        .aspectRatio(0.7f)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (selected) accentColor.copy(alpha = 0.25f) else Color(0xFF26263B))
-                        .androidxClickable { onPageClick(index) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (page.status == MangaPageStatus.Ready) {
-                        // Önbellek yolu sayfa başına bir kez hesaplanır (getImageFile LRU için
-                        // dosya zaman damgasına dokunur; her karede çağrılmamalı).
-                        val cachedModel = remember(page.index, page.status, url) {
-                            runCatching {
-                                val file = loader.cache.getImageFile(url)
-                                if (file.exists()) file else url
-                            }.getOrDefault(url)
-                        }
-                        AsyncImage(
-                            model = cachedModel,
-                            contentDescription = stringResource(R.string.manga_reader_page_number, index + 1),
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Text(
-                            text = "${index + 1}",
-                            color = Color.White.copy(0.45f),
-                            fontSize = 10.sp
-                        )
-                    }
-                    if (selected) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(accentColor.copy(alpha = 0.18f))
-                        )
-                    }
-                    Text(
-                        text = "${index + 1}",
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(2.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .padding(horizontal = 3.dp)
-                    )
+            .height(railHeight)
+            .clip(railShape)
+            .background(Color(0xFF26263B))
+            .pointerInput(totalPages) {
+                androidx.compose.foundation.gestures.detectTapGestures { offset ->
+                    val fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                    val index = kotlin.math.round(fraction * (totalPages - 1)).toInt()
+                        .coerceIn(0, totalPages - 1)
+                    onPagePick(index)
                 }
             }
-        }
-        Spacer(Modifier.width(6.dp))
-        IconButton(onClick = onOpenGallery, modifier = Modifier.size(38.dp)) {
-            Icon(
-                Icons.Rounded.GridView,
-                contentDescription = stringResource(R.string.manga_reader_open_gallery),
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
+    ) {
+        val radius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx())
+        // Okunan kısım: geçerli sayfaya kadar dolgu
+        val progressWidth = size.width *
+            ((currentIndex + 1).toFloat() / totalPages.toFloat()).coerceIn(0f, 1f)
+        if (progressWidth > 0f) {
+            drawRoundRect(
+                color = accentColor.copy(alpha = 0.32f),
+                size = androidx.compose.ui.geometry.Size(progressWidth, size.height),
+                cornerRadius = radius
             )
         }
+        // Geçerli sayfa işareti
+        val markerWidth = (size.width / totalPages).coerceAtLeast(3.dp.toPx())
+        val markerX = (size.width * (currentIndex.toFloat() / totalPages.toFloat()))
+            .coerceIn(0f, size.width - markerWidth)
+        drawRoundRect(
+            color = accentColor,
+            topLeft = androidx.compose.ui.geometry.Offset(markerX, 0f),
+            size = androidx.compose.ui.geometry.Size(markerWidth, size.height),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+        )
     }
 }
 
@@ -913,18 +912,24 @@ private fun MangaPageGallerySheet(
 ) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        // Tam ekran: sistem çubuklarını da kapsar, tek elle kullanım için üstten kapatma
+        // düğmesi ve alt boşluk navigation bar'a göre hesaplanır.
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.96f))
+                .background(Color.Black.copy(alpha = 0.97f))
         ) {
-            Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .statusBarsPadding()
+                        .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
@@ -951,13 +956,25 @@ private fun MangaPageGallerySheet(
                     }
                 }
 
+                // Galeri, o an okunan sayfada açılır; kullanıcı hedefi aramak zorunda kalmaz.
                 val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState(
                     initialFirstVisibleItemIndex = (initialFocusIndex - 2).coerceAtLeast(0)
                 )
+                androidx.compose.runtime.LaunchedEffect(initialFocusIndex) {
+                    if (initialFocusIndex > 0) {
+                        runCatching { gridState.scrollToItem(initialFocusIndex) }
+                    }
+                }
                 androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
                     state = gridState,
                     columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(minSize = 96.dp),
-                    contentPadding = PaddingValues(12.dp),
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 4.dp,
+                        bottom = 24.dp + androidx.compose.foundation.layout.WindowInsets.navigationBars
+                            .asPaddingValues().calculateBottomPadding()
+                    ),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxSize()

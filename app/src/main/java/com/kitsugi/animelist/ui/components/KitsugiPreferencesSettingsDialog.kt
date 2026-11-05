@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.ScreenLockPortrait
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.People
@@ -128,6 +129,7 @@ fun KitsugiPreferencesSettingsDialog(
     onMangaColorFilterSelected: (String) -> Unit = {},
     onMangaFitModeSelected: (String) -> Unit = {},
     onMangaBrightnessChanged: (Float) -> Unit = {},
+    onMangaKeepScreenOnChanged: (Boolean) -> Unit = {},
     embeddedMode: Boolean = false,
     initialPage: Int = 0
 ) {
@@ -267,6 +269,7 @@ fun KitsugiPreferencesSettingsDialog(
                         onMangaColorFilterSelected = onMangaColorFilterSelected,
                         onMangaFitModeSelected = onMangaFitModeSelected,
                         onMangaBrightnessChanged = onMangaBrightnessChanged,
+                        onMangaKeepScreenOnChanged = onMangaKeepScreenOnChanged,
                         accentColor = accentColor,
                         scrollState = mangaReaderScrollState
                     )
@@ -1897,6 +1900,7 @@ private fun MangaReaderTab(
     onMangaColorFilterSelected: (String) -> Unit,
     onMangaFitModeSelected: (String) -> Unit,
     onMangaBrightnessChanged: (Float) -> Unit,
+    onMangaKeepScreenOnChanged: (Boolean) -> Unit,
     accentColor: Color,
     scrollState: ScrollState = rememberScrollState()
 ) {
@@ -2048,6 +2052,17 @@ private fun MangaReaderTab(
                     steps = 8
                 )
             }
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = stringResource(R.string.settings_manga_keep_screen_on),
+                description = stringResource(R.string.settings_manga_keep_screen_on_desc),
+                icon = Icons.Rounded.ScreenLockPortrait,
+                iconColor = accentColor,
+                checked = appSettings.mangaKeepScreenOn,
+                onCheckedChange = onMangaKeepScreenOnChanged
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
