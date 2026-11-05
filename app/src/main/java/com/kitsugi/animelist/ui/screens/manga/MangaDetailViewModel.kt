@@ -10,6 +10,7 @@ import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaChapterGroup
 import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaDetails
+import com.kitsugi.animelist.data.local.MangaChapterProgressEntity
 import com.kitsugi.animelist.data.manga.MangaScanlatorPreferences
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
@@ -66,7 +67,23 @@ class MangaDetailViewModel(
         val variants: List<ChapterRow>,
         val isCompleted: Boolean = false,
         val isInProgress: Boolean = false
-    )
+    ) {
+        /**
+         * Bölüm araması eşleşmesi: ad parçası **veya** numara.
+         * "42" araması 42, 42.0 ve 42.5 bölümlerini de bulur.
+         */
+        fun matchesQuery(query: String): Boolean {
+            val q = query.trim()
+            if (q.isEmpty()) return true
+            if (group.displayName.contains(q, ignoreCase = true)) return true
+            if (variants.any { it.chapter.name.contains(q, ignoreCase = true) }) return true
+            val parsed = q.replace(',', '.').toFloatOrNull() ?: return false
+            return variants.any { row ->
+                val number = MangaChapterGrouping.chapterNumberOf(row.chapter)
+                number > 0f && (number == parsed || number.toInt() == parsed.toInt())
+            }
+        }
+    }
 
     data class UiState(
         val details: MangaDetails,
@@ -91,10 +108,14 @@ class MangaDetailViewModel(
         /** Bölüm listesinde geçen tüm çevirmenler (filtre çipleri için). */
         val scanlators: List<String> = emptyList(),
         /** Seçili çevirmen filtresi (null = tümü). */
-        val scanlatorFilter: String? = null
+        val scanlatorFilter: String? = null,
+        /** Bölüm listesi içinde arama (numara veya ad parçası). */
+        val chapterQuery: String = "",
+        /** Yalnızca okunmamış bölümleri göster. */
+        val onlyUnread: Boolean = false
     ) {
-        /** Filtre uygulanmış gruplar. */
-        val visibleGroups: List<ChapterGroupRow>
+        /** Çevirmen filtresi uygulanmış gruplar. */
+        private val scanlatorFilteredGroups: List<ChapterGroupRow>
             get() {
                 val filter = scanlatorFilter?.trim()?.lowercase()
                 if (filter.isNullOrEmpty()) return groups
@@ -104,7 +125,44 @@ class MangaDetailViewModel(
                     }
                 }
             }
+
+        /**
+         * Ekranın gösterdiği gruplar: çevirmen filtresi + bölüm araması +
+         * "yalnızca okunmamış" filtresi birlikte uygulanır.
+         */
+        val visibleGroups: List<ChapterGroupRow>
+            get() {
+                var result = scanlatorFilteredGroups
+                val query = chapterQuery.trim()
+                if (query.isNotEmpty()) {
+                    result = result.filter { it.matchesQuery(query) }
+                }
+                if (onlyUnread) {
+                    result = result.filter { !it.isCompleted }
+                }
+                return result
+            }
+
+        /** Ayrık (merge kapalı) görünüm için aynı filtreler. */
+        val visibleChapters: List<ChapterRow>
+            get() {
+                val filter = scanlatorFilter?.trim()?.lowercase()
+                val query = chapterQuery.trim()
+                return chapters.filter { row ->
+                    val scanlatorOk = filter.isNullOrEmpty() ||
+                        row.chapter.scanlator?.trim()?.lowercase() == filter
+                    val queryOk = query.isEmpty() ||
+                        row.chapter.name.contains(query, ignoreCase = true)
+                    val unreadOk = !onlyUnread || !row.isCompleted
+                    scanlatorOk && queryOk && unreadOk
+                }
+            }
+
+        /** Filtrelerden herhangi biri etkin mi? (boş durum metnini seçmek için) */
+        val hasActiveChapterFilter: Boolean
+            get() = chapterQuery.isNotBlank() || onlyUnread || !scanlatorFilter.isNullOrBlank()
     }
+
 
     private val _uiState = MutableStateFlow(UiState(details = initialDetails))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -264,6 +322,110 @@ class MangaDetailViewModel(
     }
 
     // ─── Çevirmen (scanlator) yönetimi ───────────────────────────────────────
+
+    // ─── Okundu / okunmadı işaretleme ────────────────────────────────────────
+
+    /**
+     * Bir bölüm sürümünü okundu/okunmadı olarak işaretler.
+     *
+     * Başka bir uygulamada okunmuş bölümler için "okundu" işaretlemek, ilerleme
+     * yeniden yazılmadan listede doğru durumu görmeyi sağlar. Grup içindeki tek
+     * bir çevirmen sürümü de işaretlenebilir.
+     */
+    fun toggleChapterCompleted(chapter: MangaChapter) {
+        viewModelScope.launch {
+            val existing = runCatching { progressDao.getProgress(chapter.url) }.getOrNull()
+            val nowCompleted = !(existing?.isCompleted ?: false)
+            val totalPages = existing?.totalPages ?: 0
+            val newLastPage = if (nowCompleted) (totalPages - 1).coerceAtLeast(0) else 0
+
+            runCatching {
+                progressDao.upsert(
+                    MangaChapterProgressEntity(
+                        chapterUrl = chapter.url,
+                        mangaUrl = mangaUrl,
+                        chapterName = chapter.name,
+                        lastPageIndex = newLastPage,
+                        totalPages = totalPages,
+                        isCompleted = nowCompleted,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+
+            applyCompletion(chapter.url, nowCompleted, totalPages, newLastPage)
+        }
+    }
+
+    /** Tüm görünür bölümleri (filtre uygulanmışsa yalnız onları) okundu işaretler. */
+    fun markVisibleAsCompleted() {
+        val targets = _uiState.value.visibleGroups
+            .filter { !it.isCompleted }
+            .map { it.primary.chapter }
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            targets.forEach { chapter ->
+                runCatching {
+                    val existing = progressDao.getProgress(chapter.url)
+                    progressDao.upsert(
+                        MangaChapterProgressEntity(
+                            chapterUrl = chapter.url,
+                            mangaUrl = mangaUrl,
+                            chapterName = chapter.name,
+                            lastPageIndex = ((existing?.totalPages ?: 0) - 1).coerceAtLeast(0),
+                            totalPages = existing?.totalPages ?: 0,
+                            isCompleted = true,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+            targets.forEach { chapter -> applyCompletion(chapter.url, true, 0, 0) }
+        }
+    }
+
+    /** DB'ye yazdıktan sonra listeyi ağa çıkmadan günceller. */
+    private fun applyCompletion(url: String, completed: Boolean, totalPages: Int, lastPageIndex: Int) {
+        _uiState.update { state ->
+            fun ChapterRow.patched(): ChapterRow {
+                if (chapter.url != url) return this
+                return copy(
+                    isCompleted = completed,
+                    isInProgress = !completed && lastPageIndex > 0,
+                    lastPageIndex = lastPageIndex,
+                    totalPages = if (totalPages > 0) totalPages else this.totalPages
+                )
+            }
+
+            val chapters = state.chapters.map { it.patched() }
+            val rowsByUrl = chapters.associateBy { it.chapter.url }
+            val groups = state.groups.map { groupRow ->
+                val variants = groupRow.variants.map { it.patched() }
+                groupRow.copy(
+                    variants = variants,
+                    primary = rowsByUrl[groupRow.primary.chapter.url] ?: groupRow.primary,
+                    isCompleted = variants.any { it.isCompleted },
+                    isInProgress = variants.any { it.isInProgress }
+                )
+            }
+            state.copy(chapters = chapters, groups = groups)
+        }
+    }
+
+    /** Bölüm araması: numara ("42") veya ad parçası. */
+    fun setChapterQuery(query: String) {
+        _uiState.update { it.copy(chapterQuery = query) }
+    }
+
+    /** "Yalnızca okunmamış" filtresini aç/kapa. */
+    fun toggleOnlyUnread() {
+        _uiState.update { it.copy(onlyUnread = !it.onlyUnread) }
+    }
+
+    /** Tüm bölüm filtrelerini sıfırla. */
+    fun clearChapterFilters() {
+        _uiState.update { it.copy(chapterQuery = "", onlyUnread = false, scanlatorFilter = null) }
+    }
 
     /** Çevirmen filtresi: null → tümü. */
     fun setScanlatorFilter(scanlator: String?) {

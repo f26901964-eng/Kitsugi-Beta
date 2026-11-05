@@ -1,4 +1,4 @@
-# Kitsugi Beta — Manga: Aynı Bölümün Çok Çevirmenli (Scanlator) Sürümleri
+# Kitsugi Beta — Manga: Çevirmen Gruplama + Arama/Listeleme İyileştirmeleri
 
 **Tarih:** 5 Kasım 2026
 **Kapsam:** Manga detay ekranı (bölüm listesi) + manga okuyucu (bölüm geçişi)
@@ -125,3 +125,38 @@ Bu ortamda **Android SDK / JDK / Gradle yok**, derleme yapılamıyor. Yapılan s
 - **Grup bazında toplu ilerleme göstergesi** (ör. "3 sürümden 1'i okundu") satır altında tek satır özet olarak yok; rozet + sürüm satırlarındaki işaretlerle veriliyor.
 - **Tarih biçimi** cihaz yereline göre (`d MMM yyyy`); kaynak saniye/milisaniye karışık gönderirse ikisi de tolere ediliyor.
 - **Çevirmen tercihi manga bazında**, global "hep aynı çevirmen" ayarı yok (istenirse `MangaScanlatorPreferences` içine global anahtar eklenebilir).
+
+---
+
+## 9. Ek paket: arama / bulma / listeleme tarafları (aynı turda)
+
+Kullanıcı "manga arama, listeleme alanları da tamam mı?" diye sorduğu için aynı
+turda **keşfet/arama** ve **bölüm listesi** taraflarına da dokunuldu. Hepsi
+mevcut akışları bozmadan eklenen, bağımsız çalışan özellikler:
+
+### 9.1 Keşfet / Arama ekranı (`MangaBrowseScreen`)
+
+| Özellik | Ne yapıyor |
+|---|---|
+| **Son aramalar** | `MangaSearchHistory` (SharedPreferences). Arama sonuçlandığında sorgu geçmişe yazılır (en yeni başta, en fazla 12, büyük/küçük harf duyarsız tekilleştirme). Arama kutusu boşken çip olarak listelenir; dokun → aramayı tekrar çalıştır, çipteki **X** → geçmişten sil, **Temizle** → tümü. |
+| **Aramayı temizle** | Arama kutusunun sağındaki **X** ikonu; klavye "ara" tuşu (`ImeAction.Search`) odağı kapatır. |
+| **Sıralama** | `İlgi` (başlık benzerlik skoru — mevcut davranış) / **A-Z** (harf sırası, `CASE_INSENSITIVE_ORDER`). Yalnızca sonuç varken görünür. |
+| **Boş sonuç önerileri** | "Sonuç bulunamadı" ekranında: kaç kaynağın yanıt vermediği, son aramalardan hızlı tekrar deneme çipleri ve doğrudan **Kaynak ekle** (eklenti ayarları) düğmesi. |
+
+### 9.2 Bölüm listesi (`MangaDetailScreen` + `MangaDetailViewModel`)
+
+| Özellik | Ne yapıyor |
+|---|---|
+| **Bölüm arama** | 5'ten fazla bölümü olan mangalarda listenin üstünde kompakt arama alanı. `"42"` yazınca 42, 42.0, 42.5 numaralı bölümler de bulunur; metin araması ad içinde geçer. |
+| **Yalnızca okunmamış** | Tek dokunuşla bitirilmiş bölümler gizlenir; çevirmen filtresi + arama ile birlikte çalışır. |
+| **Okundu/okunmadı işaretleme** | Her bölüm (ve açılan listede her çevirmen sürümü) için küçük onay ikonu: başka uygulamada okunan bölümler işaretlenir, yanlışsa geri alınır. Room'a `chapterUrl` bazında yazılır. |
+| **Görünenleri okundu işaretle** | Başlıktaki `DoneAll` düğmesi; **onay penceresi** kaç bölümün işaretleneceğini söyler. Filtre aktifse yalnızca görünen bölümler işaretlenir. |
+| **Filtre temizleme** | Filtreler sonucu boşaltırsa "Eşleşen bölüm yok" + **Filtreleri temizle**. |
+
+> Bu iki dosya dışında hiçbir ekran/akış değişmedi: okuyarak ilerleme kaydı,
+> kaynak sağlık ekranı, eklenti yönetimi ve TV ekranları aynı kaldı.
+
+### 9.3 Bilinçli olarak dokunulmayanlar
+
+- **TV keşfet/arama ekranı** (`TvMangaBrowseScreen`) ve **TV bölüm listesi**: arama geçmişi/sıralama orada D-pad odak akışına göre yeniden tasarlanmalı; bu turda değiştirilmedi.
+- **Çevrimdışı indirme kuyruğu / toplu indirme**: büyük bir özellik, ayrı tur.

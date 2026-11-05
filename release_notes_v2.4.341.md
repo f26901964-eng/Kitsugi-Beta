@@ -35,6 +35,16 @@
 - **Okuyucuda ayrıntılı geçiş penceresi:** Sonraki/önceki bölüme geçerken hedef bölümün birden çok çevirmeni varsa, her çevirmenin adı, bölüm adı, yükleme tarihi ve **kaldığın sayfa** ile birlikte seçim penceresi açılır. "Bu çevirmeni hatırla" ve "Bir daha sorma" anahtarları var.
 - **Ekstralar:** Bölüm seçicide gruplu liste + "Önerilen" işareti, üst barda çevirmen rozeti, webtoon bölüm sonu kartında "%d çevirmen" ipucu, TV'de odak bozulmasın diye ön seçili sürümün sessiz onayı.
 
+### 🔎 Arama ve Bölüm Listesi Kolaylıkları
+- **Son aramalar:** Keşfet ekranındaki arama geçmişi çipleri — tek dokunuşla tekrar ara, X ile tek tek veya toplu temizle.
+- **Arama kutusu:** Sağdaki X ile temizleme, klavye "ara" tuşu.
+- **Sıralama:** Sonuçları İlgi sırası veya A-Z olarak sırala.
+- **Boş sonuç ekranı:** Hangi kaynakların yanıt vermediğini gösterir, son aramaları önerir, "Kaynak ekle" düğmesi sunar.
+- **Bölüm arama:** Uzun bölüm listelerinde numara/ad ile arama ("42" → 42, 42.0, 42.5).
+- **Yalnızca okunmamış** filtresi ve **filtreleri temizle**.
+- **Okundu/okunmadı işaretleme:** Bölüm veya tek bir çevirmen sürümü için onay ikonu; "görünenleri okundu işaretle" (onaylı).
+
+
 ---
 
 ## 🇬🇧 English
@@ -73,3 +83,13 @@
 - **Extras:** Grouped in-reader chapter picker with a "Suggested" marker, scanlator badge in the top bar, "%d scanlators" hint on the webtoon end card, and a silent pre-selected pick on TV so focus handling stays intact.
 
 ---
+
+### 🔎 Search and Chapter List Comfort
+- **Recent searches:** history chips on Discover — one tap to re-run, X to delete one, Clear to wipe all.
+- **Search field:** X to clear, keyboard "search" action.
+- **Sorting:** results by Relevance or A-Z.
+- **Empty results:** shows which sources failed, suggests recent searches, and offers "Add source".
+- **Chapter search:** find chapters by number or name in long lists ("42" also matches 42.0 and 42.5).
+- **Unread-only** filter plus **clear filters**.
+- **Mark read/unread:** one tap per chapter (or per scanlator version) and a confirmed "mark visible as read".
+

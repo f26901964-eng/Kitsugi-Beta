@@ -17819,4 +17819,21 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_scanlator_all">Tümü</string>
     <string name="manga_scanlator_filter_empty">Bu çevirmende bölüm bulunamadı.</string>
     <string name="manga_choice_page_progress">Sayfa %1$d/%2$d</string>
+    <string name="manga_search_clear">Aramayı temizle</string>
+    <string name="manga_search_history_title">Son aramalar</string>
+    <string name="manga_search_clear_history">Temizle</string>
+    <string name="manga_search_remove">Aramayı sil</string>
+    <string name="manga_sort_label">Sırala:</string>
+    <string name="manga_sort_relevance">İlgi</string>
+    <string name="manga_sort_title">A-Z</string>
+    <string name="manga_search_sources_failed">%1$d kaynak yanıt vermedi</string>
+    <string name="manga_empty_add_source">Kaynak ekle</string>
+    <string name="manga_chapter_search_hint">Bölüm ara (ör. 42)</string>
+    <string name="manga_chapter_only_unread">Okunmamış</string>
+    <string name="manga_chapter_no_match">Eşleşen bölüm yok</string>
+    <string name="manga_chapter_clear_filters">Filtreleri temizle</string>
+    <string name="manga_mark_read">Okundu olarak işaretle</string>
+    <string name="manga_mark_unread">Okunmadı olarak işaretle</string>
+    <string name="manga_mark_all_read">Görünenleri okundu işaretle</string>
+    <string name="manga_mark_all_read_desc">%1$d bölüm okundu olarak işaretlenecek. Emin misin?</string>
 </resources>
