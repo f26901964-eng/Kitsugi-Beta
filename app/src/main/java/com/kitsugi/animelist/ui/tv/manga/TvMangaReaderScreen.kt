@@ -295,6 +295,7 @@ fun TvMangaReaderScreen(
                     loader = loader,
                     colorFilterType = uiState.colorFilterType,
                     fitMode = uiState.fitMode,
+                    cropBorders = uiState.cropBorders,
                     hasNextChapter = viewModel.hasNextChapter,
                     nextChapterName = viewModel.nextChapterName,
                     onGoToNextChapter = { viewModel.goToNextChapter() },
@@ -335,6 +336,7 @@ fun TvMangaReaderScreen(
                     readingMode = readingMode,
                     colorFilterType = uiState.colorFilterType,
                     fitMode = uiState.fitMode,
+                    cropBorders = uiState.cropBorders,
                     onCenterTap = {
                         hudVisible = !hudVisible
                         if (hudVisible) {
