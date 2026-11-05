@@ -126,6 +126,15 @@ data class GeneralSettings(
     val onMangaFitModeSelected: (String) -> Unit = {},
     val onMangaBrightnessChanged: (Float) -> Unit = {},
     val onMangaKeepScreenOnChanged: (Boolean) -> Unit = {},
+    // Bölüm sıralaması / görünümü — liste 1'den başlasın diye kalıcı tercih.
+    val mangaChapterSort: String = "OldestFirst",
+    val mangaChapterDisplayMode: String = "Number",
+    val mangaSkipReadChapters: Boolean = false,
+    val mangaAutoAdvanceChapter: Boolean = false,
+    val onMangaChapterSortSelected: (String) -> Unit = {},
+    val onMangaChapterDisplayModeSelected: (String) -> Unit = {},
+    val onMangaSkipReadChaptersChanged: (Boolean) -> Unit = {},
+    val onMangaAutoAdvanceChapterChanged: (Boolean) -> Unit = {},
     // ─── Otomatik & Manuel Güncelleme Kontrolü ─────────────────────────
     val autoUpdateCheckEnabled: Boolean = true,
     val onAutoUpdateCheckEnabledChanged: (Boolean) -> Unit = {},

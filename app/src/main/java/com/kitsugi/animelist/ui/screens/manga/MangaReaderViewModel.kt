@@ -84,6 +84,12 @@ class MangaReaderViewModel(
      */
     private suspend fun saveProgressNow(pending: PendingProgress) {
         val isCompleted = pending.totalPages > 0 && pending.pageIndex >= pending.totalPages - 1
+        if (isCompleted) {
+            // Sonraki bölüme geçerken bu bölümün "okundu" sayılması için anında ekle.
+            _uiState.update {
+                it.copy(readChapterUrls = it.readChapterUrls + pending.chapter.url)
+            }
+        }
         runCatching {
             dao.upsert(
                 MangaChapterProgressEntity(
@@ -127,7 +133,13 @@ class MangaReaderViewModel(
         /** Sayfa yükleme hatasının manga kaynak kodu (KTS-SRC-...). */
         val pagesErrorCode: String? = null,
         /** Okurken ekran kapanmasın (Ayarlar > Okuyucu). */
-        val keepScreenOn: Boolean = true
+        val keepScreenOn: Boolean = true,
+        /** Bölüm geçişinde okunmuş bölümleri atla (Ayarlar > Okuyucu). */
+        val skipReadChapters: Boolean = false,
+        /** Bölüm bitince otomatik sonraki bölüme geç (Ayarlar > Okuyucu). */
+        val autoAdvanceChapter: Boolean = false,
+        /** Okundu olarak işaretlenmiş bölüm URL'leri — atlama için. */
+        val readChapterUrls: Set<String> = emptySet()
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -171,7 +183,9 @@ class MangaReaderViewModel(
                         colorFilterType = filter,
                         fitMode = fit,
                         customBrightness = settings.mangaBrightness,
-                        keepScreenOn = settings.mangaKeepScreenOn
+                        keepScreenOn = settings.mangaKeepScreenOn,
+                        skipReadChapters = settings.mangaSkipReadChapters,
+                        autoAdvanceChapter = settings.mangaAutoAdvanceChapter
                     )
                 }
             }
@@ -193,7 +207,20 @@ class MangaReaderViewModel(
                     operation = "chapters",
                     elapsedMs = System.currentTimeMillis() - startedAt,
                 )
-                _uiState.update { it.copy(chapterList = chapters, isLoadingChapters = false) }
+                // Okunan bölümler "skip read" için tek seferde çekilir (Room).
+                val readUrls = runCatching {
+                    dao.getAllForManga(mangaDetails.url)
+                        .filter { it.isCompleted }
+                        .map { it.chapterUrl }
+                        .toSet()
+                }.getOrDefault(emptySet())
+                _uiState.update {
+                    it.copy(
+                        chapterList = chapters,
+                        isLoadingChapters = false,
+                        readChapterUrls = readUrls
+                    )
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 sourceStateStore.recordOperationFailure(
@@ -254,6 +281,16 @@ class MangaReaderViewModel(
         }
     }
 
+    /** Okunmuş bölümleri atla tercihi — kalıcı (Ayarlar > Okuyucu ile aynı anahtar). */
+    fun setSkipReadChapters(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setMangaSkipReadChapters(enabled) }
+    }
+
+    /** Bölüm bitince otomatik geçiş tercihi — kalıcı. */
+    fun setAutoAdvanceChapter(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setMangaAutoAdvanceChapter(enabled) }
+    }
+
     // ─── Bölüm gezinme ───────────────────────────────────────────────────────
 
     // F6: Bölüm değişiminde eski queue'yu temizle — yanlış sayfa yükleme önler
@@ -263,41 +300,74 @@ class MangaReaderViewModel(
         restoreProgress(chapter)
     }
 
+    /**
+     * Bölüm listesi **okuma sırasına göre artan** (1 → N) tutulur.
+     *
+     * Önceden liste eklentiden geldiği gibi (yeniden eskiye) kullanılıyor ve "sonraki bölüm"
+     * `idx - 1` ile bulunuyordu. Bu, hem sıralama tercihini yok sayıyordu hem de kullanıcı
+     * "1 → N" istediğinde sonraki/önceki bölüm düğmelerini ters çeviriyordu. Artık liste
+     * her zaman [ChapterSortMode.OldestFirst] sırasına normalize edilir ve geçişler +1 yönünde
+     * yapılır; sıralama tercihi yalnızca **görüntülemeyi** etkiler.
+     *
+     * Ayrıca istenirse okunmuş bölümler atlanır ([skipReadChapters]).
+     */
     fun goToNextChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx > 0) goToChapter(list[idx - 1])   // Listede yeniden eskiye doğru
+        val target = nextChapter() ?: return
+        goToChapter(target)
     }
 
     fun goToPreviousChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx >= 0 && idx < list.size - 1) goToChapter(list[idx + 1])
+        val target = previousChapter() ?: return
+        goToChapter(target)
+    }
+
+    /** Sıradaki bölüm — okunanları atlama tercihi uygulanmış hâlde. */
+    private fun nextChapter(): MangaChapter? {
+        val list = orderedChapters()
+        val idx = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
+        if (idx < 0) return null
+        val candidates = list.drop(idx + 1)
+        if (!_uiState.value.skipReadChapters) return candidates.firstOrNull()
+        val read = _uiState.value.readChapterUrls
+        return candidates.firstOrNull { it.url !in read } ?: candidates.firstOrNull()
+    }
+
+    private fun previousChapter(): MangaChapter? {
+        val list = orderedChapters()
+        val idx = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
+        if (idx <= 0) return null
+        // Geriye doğru da okunanları atla (Mihon "skip read chapters" davranışı).
+        val candidates = list.take(idx).reversed()
+        if (!_uiState.value.skipReadChapters) return candidates.firstOrNull()
+        val read = _uiState.value.readChapterUrls
+        return candidates.firstOrNull { it.url !in read } ?: candidates.firstOrNull()
+    }
+
+    /**
+     * Bölüm listesini okuma sırasına (1 → N) normalize eder.
+     *
+     * Numara bilinmeyen (-1) kayıtlar kaynak sırasını korur ve sona düşer; böylece
+     * numarasız "özel bölüm" kayıtları yüzünden sıra bozulmaz.
+     */
+    private fun orderedChapters(): List<MangaChapter> {
+        val list = _uiState.value.chapterList
+        val numbered = list.filter { it.chapterNumber >= 0f }.sortedBy { it.chapterNumber }
+        val unnumbered = list.filter { it.chapterNumber < 0f }
+        return numbered + unnumbered
     }
 
     val hasNextChapter: Boolean
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx > 0
-        }
+        get() = nextChapter() != null
 
     /** Sonraki bölümün adı (bölüm sonu geçiş kartında göstermek için); yoksa null. */
     val nextChapterName: String?
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return if (idx > 0) list[idx - 1].name else null
-        }
+        get() = nextChapter()?.name
 
     val hasPreviousChapter: Boolean
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx >= 0 && idx < list.size - 1
-        }
+        get() = previousChapter() != null
+
+    val previousChapterName: String?
+        get() = previousChapter()?.name
 
     private var pageListJob: kotlinx.coroutines.Job? = null
 

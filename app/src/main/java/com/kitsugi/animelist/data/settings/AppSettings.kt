@@ -262,6 +262,21 @@ data class DownloadAndMangaSettings(
     val mangaBrightness: Float = 1.0f,
     /** Okurken ekranın kapanmasını engelle (webtoon okurken çok işe yarar). */
     val mangaKeepScreenOn: Boolean = true,
+    /**
+     * Bölüm listesi sıralaması — `ChapterSortMode` adı.
+     *
+     * Varsayılan `"OldestFirst"`: liste **1'den** başlar ve numara büyüyerek gider.
+     * Kullanıcı isterse "Yeni → Eski" seçebilir; tercih kalıcıdır.
+     */
+    val mangaChapterSort: String = "OldestFirst",
+    /** Bölüm satırı etiket biçimi: `"Number"` (Bölüm 42) veya `"Title"`. */
+    val mangaChapterDisplayMode: String = "Number",
+    /** Bölüm sonuna gelince okunmuş bölümleri atlayıp sonrakine geç. */
+    val mangaSkipReadChapters: Boolean = false,
+    /** Bölüm bitince otomatik olarak sonraki bölüme geç. */
+    val mangaAutoAdvanceChapter: Boolean = false,
+    /** Yer imli (★) bölümlerin URL listesi — virgülle ayrılmış. */
+    val mangaBookmarkedChapters: String = "",
     val customImageDownloadUri: String = "",
     val videoDownloadUri: String = "",
     val downloaderPreference: String = "INTERNAL",

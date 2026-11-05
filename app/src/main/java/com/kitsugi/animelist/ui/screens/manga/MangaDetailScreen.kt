@@ -3,6 +3,10 @@ package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.fandom.FandomMediaQueries
 import com.kitsugi.animelist.data.manga.ChapterSortMode
+import com.kitsugi.animelist.data.manga.ChapterDisplayMode
+import com.kitsugi.animelist.data.manga.displayLabel
+import com.kitsugi.animelist.data.manga.missingChapterNumbers
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
@@ -16,6 +20,7 @@ import com.kitsugi.animelist.ui.components.safeBlur
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
 import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
 import com.kitsugi.animelist.ui.screens.manga.components.MangaChapterSearchRow
+import com.kitsugi.animelist.ui.screens.manga.components.MangaChapterProgressSummary
 import com.kitsugi.animelist.ui.screens.manga.components.MangaChaptersHeader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaDetailTopBar
 import com.kitsugi.animelist.ui.screens.manga.components.MangaDetailTopBarHeight
@@ -46,6 +51,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayArrow
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
@@ -139,11 +146,14 @@ fun MangaDetailScreen(
     // Sticky başlığa gömülü hızlı arama alanı (uzun listelerde erişim için).
     var headerSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var selectedScanlator by rememberSaveable { mutableStateOf<String?>(null) }
+    // Yer imli (★) bölümlere hızlı filtre — Mihon'daki "bookmarked" filtresi.
+    var bookmarkedOnly by rememberSaveable { mutableStateOf(false) }
     var statusFilterName by rememberSaveable { mutableStateOf(ChapterStatusFilter.All.name) }
-    var sortModeName by rememberSaveable { mutableStateOf(ChapterSortMode.NewestFirst.name) }
-
-    val sortMode = runCatching { ChapterSortMode.valueOf(sortModeName) }
-        .getOrDefault(ChapterSortMode.NewestFirst)
+    // ⚠️ Sıralama artık `rememberSaveable` DEĞİL: ViewModel + DataStore üzerinden gelir.
+    // Ekran her açıldığında "en yeni" ile başlamak, bölüm listesini 386 → 381 diye
+    // gösteren hatanın kaynağıydı. Kalıcı tercih varsayılan olarak 1 → N (artan).
+    val sortMode = uiState.sortMode
+    val displayMode = uiState.displayMode
     val activeStatusFilter = runCatching { ChapterStatusFilter.valueOf(statusFilterName) }
         .getOrDefault(ChapterStatusFilter.All)
 
@@ -182,11 +192,14 @@ fun MangaDetailScreen(
         selectedScanlator,
         activeStatusFilter,
         sortMode,
+        bookmarkedOnly,
+        uiState.bookmarked,
         source.name
     ) {
         val needle = query.trim().lowercase()
         uiState.chapters
             .asSequence()
+            .filter { row -> !bookmarkedOnly || row.chapter.url in uiState.bookmarked }
             .filter { row ->
                 selectedScanlator == null ||
                     row.chapter.scanlatorLabel(source.name) == selectedScanlator
@@ -209,6 +222,11 @@ fun MangaDetailScreen(
     }
 
     val readFilterActive = activeStatusFilter == ChapterStatusFilter.Read
+    val unreadCount = remember(uiState.chapters) { uiState.chapters.count { !it.isCompleted } }
+    val readCount = uiState.chapters.size - unreadCount
+    val missingNumbers = remember(uiState.chapters) {
+        uiState.chapters.map { it.chapter.chapterNumber }.missingChapterNumbers()
+    }
 
     Box(
         modifier = Modifier
@@ -313,17 +331,19 @@ fun MangaDetailScreen(
                     if (topBarVisible) Spacer(Modifier.height(MangaDetailTopBarHeight))
                     val headerTitle = stringResource(R.string.bolumler)
                     val headerCount = visibleChapters.size
-                    val onCycleSort: () -> Unit = {
-                        sortModeName = sortMode.next().name
-                        // Yeni sıralamada liste baştan gösterilir: kullanıcı sıralamanın
-                        // etkisini hemen görsün. Sabit indeks yerine görünür öğe anahtarı
-                        // kullanılır (koşullu öğeler indeksi kaydırabiliyor).
+                    // Sıralama değişince liste başına dön: kullanıcı yeni sıranın ilk
+                    // bölümünü (özellikle "1 → N" seçildiğinde Bölüm 1'i) hemen görsün.
+                    val scrollToFirstChapter: () -> Unit = {
                         val headerIdx = listState.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.key == "chapters_header" }
                             ?.index
                         if (headerIdx != null) {
                             scope.launch { listState.animateScrollToItem(headerIdx + 1) }
                         }
+                    }
+                    val onCycleSort: () -> Unit = {
+                        viewModel.setSortMode(sortMode.next())
+                        scrollToFirstChapter()
                     }
                     val onToggleReadFilter: () -> Unit = {
                         statusFilterName = if (readFilterActive) {
@@ -345,6 +365,35 @@ fun MangaDetailScreen(
                         onRefresh = onRefreshChapters,
                         onToggleSearch = { headerSearchExpanded = !headerSearchExpanded },
                         searchExpanded = headerSearchExpanded,
+                        // Sıralama menüsü: 1 → N / N → 1 / Son güncellenen tek dokunuşta.
+                        // Sabit "NewestFirst" varsayılanı kaldırıldı; tercih kalıcı.
+                        sortMode = sortMode,
+                        onSelectSort = { mode ->
+                            viewModel.setSortMode(mode)
+                            scrollToFirstChapter()
+                        },
+                        displayMode = displayMode,
+                        onSelectDisplayMode = { viewModel.setDisplayMode(it) },
+                        bookmarkedOnly = bookmarkedOnly,
+                        bookmarkedCount = uiState.bookmarked.size,
+                        onToggleBookmarked = { bookmarkedOnly = !bookmarkedOnly },
+                        unreadCount = unreadCount,
+                        onJumpToCurrent = {
+                            // "Kaldığım yere git": devam edilen bölümü bul ve listeyi oraya
+                            // kaydır. Mihon issue #1698'deki talebin karşılığı — jest yerine
+                            // açık bir düğme.
+                            val target = uiState.resumeChapter ?: visibleChapters.firstOrNull()
+                            val targetUrl = target?.url
+                            if (targetUrl != null) {
+                                val idx = visibleChapters.indexOfFirst { it.url == targetUrl }
+                                if (idx >= 0) {
+                                    val headerIdx = listState.layoutInfo.visibleItemsInfo
+                                        .firstOrNull { it.key == "chapters_header" }
+                                        ?.index ?: 0
+                                    scope.launch { listState.animateScrollToItem(headerIdx + 1 + idx) }
+                                }
+                            }
+                        },
                         // Görünen bölümlerin tamamı okunduysa düğme "geri al" olur.
                         onToggleAllRead = {
                             if (visibleChapters.isNotEmpty()) {
@@ -377,6 +426,18 @@ fun MangaDetailScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // ─── Okuma ilerlemesi + eksik bölüm uyarısı ───────────────────────
+            if (uiState.chapters.isNotEmpty()) {
+                item(key = "chapters_progress") {
+                    MangaChapterProgressSummary(
+                        readCount = readCount,
+                        totalCount = uiState.chapters.size,
+                        missingNumbers = missingNumbers,
+                        accentColor = accent
+                    )
                 }
             }
 
@@ -426,7 +487,8 @@ fun MangaDetailScreen(
                                     query = ""
                                     selectedScanlator = null
                                     statusFilterName = ChapterStatusFilter.All.name
-                                    sortModeName = ChapterSortMode.NewestFirst.name
+                                    bookmarkedOnly = false
+                                    viewModel.setSortMode(ChapterSortMode.DEFAULT)
                                 }
                             ) {
                                 Text(stringResource(R.string.manga_clear_filters), fontSize = 12.sp)
@@ -485,7 +547,10 @@ fun MangaDetailScreen(
                             row = row,
                             accent = accent,
                             onClick = { onOpenChapter(row.chapter) },
-                            onToggleRead = { viewModel.setChapterRead(row.chapter, !row.isCompleted) }
+                            onToggleRead = { viewModel.setChapterRead(row.chapter, !row.isCompleted) },
+                            displayMode = displayMode,
+                            isBookmarked = row.chapter.url in uiState.bookmarked,
+                            onToggleBookmark = { viewModel.toggleBookmark(row.chapter) }
                         )
                     }
                 }
@@ -670,8 +735,14 @@ private fun ChapterListItem(
     row: MangaDetailViewModel.ChapterRow,
     accent: Color,
     onClick: () -> Unit,
-    onToggleRead: () -> Unit
+    onToggleRead: () -> Unit,
+    /** Bölüm satırı etiket biçimi (numara / başlık). */
+    displayMode: ChapterDisplayMode = ChapterDisplayMode.DEFAULT,
+    /** Bu bölüm yer iminde mi (★). */
+    isBookmarked: Boolean = false,
+    onToggleBookmark: () -> Unit = {}
 ) {
+    val numberPrefix = stringResource(R.string.manga_chapter_number_prefix)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -681,7 +752,7 @@ private fun ChapterListItem(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = row.chapter.name,
+                text = row.chapter.displayLabel(displayMode, numberPrefix),
                 color = if (row.isCompleted) KitsugiColors.TextMuted else KitsugiColors.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = if (row.isInProgress) FontWeight.SemiBold else FontWeight.Normal,
@@ -721,6 +792,26 @@ private fun ChapterListItem(
                 )
             }
         }
+        // Yer imi (★) — Mihon'daki bölüm yer imiyle aynı davranış: satırı okumadan
+        // işaretle, sonra yalnızca yer imlileri filtreleyerek bul.
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .tvClickable(shape = CircleShape, onClick = onToggleBookmark),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (isBookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                contentDescription = if (isBookmarked) {
+                    stringResource(R.string.manga_unbookmark_chapter)
+                } else {
+                    stringResource(R.string.manga_bookmark_chapter)
+                },
+                tint = if (isBookmarked) accent else KitsugiColors.TextMuted.copy(alpha = 0.35f),
+                modifier = Modifier.size(17.dp)
+            )
+        }
         Box(
             modifier = Modifier
                 .size(36.dp)
@@ -742,10 +833,16 @@ private fun ChapterListItem(
     }
 }
 
+/**
+ * Başlık altındaki sıralama etiketi.
+ *
+ * Varsayılan mod (1 → N) açıkça "1 → N" yazar: kullanıcı listenin neden bu sırada
+ * olduğunu ve nasıl değiştireceğini ilk bakışta anlar.
+ */
 private fun ChapterSortMode.label(): String = when (this) {
-    ChapterSortMode.NewestFirst -> "Sıralama: Yeni → Eski"
-    ChapterSortMode.OldestFirst -> "Sıralama: Eski → Yeni"
-    ChapterSortMode.RecentlyUpdated -> "Sıralama: Son güncellenen"
+    ChapterSortMode.OldestFirst -> KitsugiStrings.get(R.string.manga_sort_label_oldest)
+    ChapterSortMode.NewestFirst -> KitsugiStrings.get(R.string.manga_sort_label_newest)
+    ChapterSortMode.RecentlyUpdated -> KitsugiStrings.get(R.string.manga_sort_label_recent)
 }
 
 private fun MangaStatus.label(): String = when (this) {

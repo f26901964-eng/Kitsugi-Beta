@@ -10,10 +10,14 @@ import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
+import com.kitsugi.animelist.data.manga.withResolvedNumbers
+import com.kitsugi.animelist.data.manga.ChapterSortMode
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,6 +40,7 @@ class MangaDetailViewModel(
 
     private val db = KitsugiDatabase.getDatabase(context)
     private val progressDao = db.mangaChapterProgressDao()
+    private val settings = SettingsDataStore(context)
 
     /**
      * Okuyucudan dönüldüğünde çağrılır: yalnızca Room'daki okuma ilerlemesini tazeler.
@@ -86,15 +91,111 @@ class MangaDetailViewModel(
         /** Hatanın manga kaynak kodu (KTS-SRC-...). */
         val errorCode: String? = null,
         /** "Devam Et" için hedef bölüm; yoksa null (baştan okunur). */
-        val resumeChapter: MangaChapter? = null
+        val resumeChapter: MangaChapter? = null,
+        /**
+         * Bu manga için geçerli bölüm sıralaması.
+         *
+         * Kaynağı: manga bazlı ezme varsa o, yoksa Ayarlar > Manga Okuyucu'daki genel tercih.
+         * Varsayılan [ChapterSortMode.OldestFirst] — liste **1'den** başlar.
+         */
+        val sortMode: ChapterSortMode = ChapterSortMode.DEFAULT,
+        /** Bölüm satırı etiket biçimi (numara / başlık). */
+        val displayMode: com.kitsugi.animelist.data.manga.ChapterDisplayMode =
+            com.kitsugi.animelist.data.manga.ChapterDisplayMode.DEFAULT,
+        /** Yer imli (★) bölüm URL'leri. */
+        val bookmarked: Set<String> = emptySet()
     )
 
     private val _uiState = MutableStateFlow(UiState(details = initialDetails))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     init {
+        loadListPreferences()
         refreshDetails()
         loadChapters()
+    }
+
+    /**
+     * Bölüm listesi tercihlerini (sıralama / görünüm / yer imleri) yükler.
+     *
+     * Sıralama artık `rememberSaveable` değil **kalıcı** bir tercihtir: ekran yeniden
+     * açıldığında, uygulama yeniden başlatıldığında ve okuyucudan dönüldüğünde aynı kalır.
+     * Bu, "liste neden 386'dan başlıyor" şikâyetinin kalıcı çözümüdür.
+     */
+    private fun loadListPreferences() {
+        viewModelScope.launch {
+            val mangaUrl = _uiState.value.details.url
+            val sort = ChapterSortMode.fromName(settings.getMangaChapterSort(mangaUrl))
+            val prefs = settings.settingsFlow.first()
+            val display = com.kitsugi.animelist.data.manga.ChapterDisplayMode.fromName(
+                prefs.mangaChapterDisplayMode
+            )
+            val bookmarks = prefs.mangaBookmarkedChapters
+                .split('|')
+                .filter { it.isNotBlank() }
+                .toSet()
+            _uiState.update {
+                it.copy(sortMode = sort, displayMode = display, bookmarked = bookmarks)
+            }
+        }
+    }
+
+    /**
+     * Bölüm sıralamasını değiştirir ve **kalıcı** olarak kaydeder.
+     *
+     * @param onlyForThisSeries true ise yalnızca bu manga için ezme yazılır; false ise tüm
+     *   mangalar için geçerli varsayılan tercih güncellenir.
+     */
+    fun setSortMode(mode: ChapterSortMode, onlyForThisSeries: Boolean = false) {
+        _uiState.update { it.copy(sortMode = mode) }
+        viewModelScope.launch {
+            if (onlyForThisSeries) {
+                settings.setMangaChapterSortOverride(_uiState.value.details.url, mode.name)
+            } else {
+                settings.setMangaChapterSort(mode.name)
+                // Seriye özel eski bir ezme varsa kaldır: kullanıcı "tümü" dedi.
+                settings.setMangaChapterSortOverride(_uiState.value.details.url, null)
+            }
+        }
+    }
+
+    fun setDisplayMode(mode: com.kitsugi.animelist.data.manga.ChapterDisplayMode) {
+        _uiState.update { it.copy(displayMode = mode) }
+        viewModelScope.launch { settings.setMangaChapterDisplayMode(mode.name) }
+    }
+
+    /** Bölümü yer imine ekler / çıkarır ve kalıcı olarak saklar (Mihon ★ davranışı). */
+    fun toggleBookmark(chapter: MangaChapter) {
+        val next = _uiState.value.bookmarked.toMutableSet()
+        if (!next.add(chapter.url)) next.remove(chapter.url)
+        _uiState.update { it.copy(bookmarked = next) }
+        viewModelScope.launch { settings.setMangaBookmarkedChapters(next) }
+    }
+
+    /**
+     * Verilen bölümden **önceki** tüm bölümleri okundu işaretler.
+     *
+     * Mihon'da "mark previous as read": 200. bölümden başlayan kullanıcı tek dokunuşla
+     * 1–199 aralığını okundu yapar; tek tek tik atmak zorunda kalmaz. Sıralama ne olursa
+     * olsun doğru çalışması için numaraya göre karşılaştırma yapılır.
+     */
+    fun markPreviousRead(chapter: MangaChapter) {
+        val state = _uiState.value
+        val target = chapter.chapterNumber
+        val previous = state.chapters
+            .filter { row -> row.chapter.url != chapter.url }
+            .filter { row ->
+                if (target >= 0f && row.chapter.chapterNumber >= 0f) {
+                    row.chapter.chapterNumber < target
+                } else {
+                    // Numara yoksa kaynak sırasına düş (liste zaten kaynak sırasını korur).
+                    val idx = state.chapters.indexOfFirst { it.chapter.url == chapter.url }
+                    state.chapters.indexOfFirst { it.chapter.url == row.chapter.url } in 0 until idx
+                }
+            }
+            .filterNot { it.isCompleted }
+            .map { it.chapter }
+        markAllRead(previous, true)
     }
 
     /** Kapak/açıklama gibi alanları tazelemek için detayları yeniden çeker (best-effort). */
@@ -148,12 +249,15 @@ class MangaDetailViewModel(
                             source.fetchChapterList(mangaUrl)
                         }
                     }
+                    // Bölüm numarası eksik gelen kayıtlar başlıktan çözümlenir: aksi hâlde
+                    // "1, 10, 100, 11" gibi okunamaz bir sıralama oluşuyordu.
+                    val normalized = chapters.withResolvedNumbers(_uiState.value.details.title)
                     val progressList = withContext(Dispatchers.IO) {
                         progressDao.getAllForManga(mangaUrl)
                     }
                     val progressByUrl = progressList.associateBy { it.chapterUrl }
 
-                    val rows = chapters.map { ch ->
+                    val rows = normalized.map { ch ->
                         val p = progressByUrl[ch.url]
                         ChapterRow(
                             chapter = ch,
@@ -168,7 +272,7 @@ class MangaDetailViewModel(
                     val resume = progressList
                         .filter { !it.isCompleted }
                         .maxByOrNull { it.updatedAt }
-                        ?.let { prog -> chapters.firstOrNull { it.url == prog.chapterUrl } }
+                        ?.let { prog -> normalized.firstOrNull { it.url == prog.chapterUrl } }
 
                     _uiState.update {
                         it.copy(
@@ -337,9 +441,19 @@ class MangaDetailViewModel(
     fun chapterToOpen(): MangaChapter? {
         val state = _uiState.value
         state.resumeChapter?.let { return it }
-        // Bölüm listesi en yeniden eskiye sıralı geldiği için "baştan oku" = son eleman.
-        return state.chapters.lastOrNull()?.chapter
+        // "Baştan oku" = en küçük bölüm numarası. Kaynağın dizi sırasına güvenilmez
+        // (bazı kaynaklar yeniden eskiye, bazıları karışık döndürür): numaraya göre seçilir,
+        // numara yoksa kaynak sırasının ilk elemanı kullanılır.
+        val numbered = state.chapters.filter { it.chapter.chapterNumber >= 0f }
+        return if (numbered.isNotEmpty()) {
+            numbered.minByOrNull { it.chapter.chapterNumber }?.chapter
+        } else {
+            state.chapters.firstOrNull()?.chapter
+        }
     }
+
+    /** Doğrudan bölüm 1'e (en küçük numaralı bölüme) gitmek için. */
+    fun firstChapter(): MangaChapter? = chapterToOpen()
 
     class Factory(
         private val context: Context,

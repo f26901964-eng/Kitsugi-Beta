@@ -35,7 +35,10 @@ class SettingsDataStore(
         "show_anime_logos", "player_preference", "is_autoplay_enabled", "skip_intro_duration_sec",
         "default_subtitle_size", "default_subtitle_color", "subtitle_bold", "subtitle_outline_enabled",
         "manga_reading_mode", "manga_color_filter", "manga_fit_mode", "search_history_enabled",
-        "tmdb_language"
+        "tmdb_language",
+        // Bölüm sıralaması tercihi cihazlar arası taşınır: kullanıcı bir kez "1 → N" seçip
+        // yeni cihazda "386 → 381" görmemeli.
+        "manga_chapter_sort", "manga_chapter_display_mode"
     )
 
     val cloudSettingsFlow: Flow<Map<String, Any>> = context.settingsDataStore.data.map { prefs ->
@@ -132,6 +135,15 @@ class SettingsDataStore(
         val MangaFitMode = stringPreferencesKey("manga_fit_mode")
         val MangaBrightness = floatPreferencesKey("manga_brightness")
         val MangaKeepScreenOn = booleanPreferencesKey("manga_keep_screen_on")
+        // Bölüm listesi sıralaması: "OldestFirst" (varsayılan, 1 → N), "NewestFirst",
+        // "RecentlyUpdated". Ayrıca manga bazında ezme: MangaSortOverride_<mangaUrl>
+        val MangaChapterSort = stringPreferencesKey("manga_chapter_sort")
+        val MangaChapterDisplayMode = stringPreferencesKey("manga_chapter_display_mode")
+        // Okuyucu ekstra: bölüm sonunda otomatik sonraki bölüme geçiş, okunanı atla.
+        val MangaSkipReadChapters = booleanPreferencesKey("manga_skip_read_chapters")
+        val MangaAutoAdvanceChapter = booleanPreferencesKey("manga_auto_advance_chapter")
+        // Bölüm yer imleri (bookmark) — Mihon'daki ★ davranışı.
+        val MangaBookmarkedChapters = stringPreferencesKey("manga_bookmarked_chapters")
         val DnsChoice = intPreferencesKey("dns_choice")
         // ─── GitHub Vekil Sunucu ───────────────────────────────────────────────
         val UseGithubProxy = booleanPreferencesKey("use_github_proxy")
@@ -685,6 +697,11 @@ class SettingsDataStore(
                     mangaFitMode = preferences[Keys.MangaFitMode] ?: "FitScreen",
                     mangaBrightness = preferences[Keys.MangaBrightness] ?: 1.0f,
                     mangaKeepScreenOn = preferences[Keys.MangaKeepScreenOn] ?: true,
+                    mangaChapterSort = preferences[Keys.MangaChapterSort] ?: "OldestFirst",
+                    mangaChapterDisplayMode = preferences[Keys.MangaChapterDisplayMode] ?: "Number",
+                    mangaSkipReadChapters = preferences[Keys.MangaSkipReadChapters] ?: false,
+                    mangaAutoAdvanceChapter = preferences[Keys.MangaAutoAdvanceChapter] ?: false,
+                    mangaBookmarkedChapters = preferences[Keys.MangaBookmarkedChapters] ?: "",
                     customImageDownloadUri = preferences[Keys.CustomImageDownloadUri] ?: "",
                     videoDownloadUri = preferences[Keys.VideoDownloadUri] ?: "",
                     downloaderPreference = preferences[Keys.DownloaderPreference] ?: "INTERNAL",
@@ -1135,9 +1152,70 @@ class SettingsDataStore(
     }
 
     suspend fun setMangaKeepScreenOn(enabled: Boolean) {
-        context.dataStore.edit { preferences ->
+        context.settingsDataStore.edit { preferences ->
             preferences[Keys.MangaKeepScreenOn] = enabled
         }
+    }
+
+    /** Bölüm listesi varsayılan sıralaması (tüm mangalar için). */
+    suspend fun setMangaChapterSort(sortName: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaChapterSort] = sortName
+        }
+    }
+
+    /** Bölüm satırı etiket biçimi: Number / Title. */
+    suspend fun setMangaChapterDisplayMode(modeName: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaChapterDisplayMode] = modeName
+        }
+    }
+
+    suspend fun setMangaSkipReadChapters(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaSkipReadChapters] = enabled
+        }
+    }
+
+    suspend fun setMangaAutoAdvanceChapter(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaAutoAdvanceChapter] = enabled
+        }
+    }
+
+    /**
+     * Yer imli bölüm listesini kaydeder (Mihon'daki ★ davranışı).
+     *
+     * Kalıcılık için tek bir string anahtar kullanılır: yüzlerce bölümde her biri için ayrı
+     * anahtar açmak DataStore'u şişirirdi. URL'ler `|` ile ayrılır (URL içinde geçmez).
+     */
+    suspend fun setMangaBookmarkedChapters(urls: Set<String>) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaBookmarkedChapters] = urls.joinToString("|")
+        }
+    }
+
+    /**
+     * Tek bir manga için sıralama ezmesi yazar; `null` verilirse ezme kaldırılır ve manga
+     * genel varsayılana döner.
+     *
+     * Anahtar adı manga URL'sinden türetilir; URL'ler çok uzun olabildiği için
+     * anahtar adı `hashCode` ile sabitlenir (DataStore anahtar adı uzunluğu sorun değil ama
+     * dosya boyutu ve okunabilirlik için kısa tutuluyor).
+     */
+    suspend fun setMangaChapterSortOverride(mangaUrl: String, sortName: String?) {
+        if (mangaUrl.isBlank()) return
+        val key = stringPreferencesKey(sortOverrideKey(mangaUrl))
+        context.settingsDataStore.edit { preferences ->
+            if (sortName == null) preferences.remove(key) else preferences[key] = sortName
+        }
+    }
+
+    /** Tek manga için geçerli sıralama: ezme varsa o, yoksa genel tercih. */
+    suspend fun getMangaChapterSort(mangaUrl: String): String {
+        val prefs = context.settingsDataStore.data.first()
+        val override = prefs[stringPreferencesKey(sortOverrideKey(mangaUrl))]
+        return override ?: prefs[Keys.MangaChapterSort] ?: "OldestFirst"
     }
 
     suspend fun setMangaBrightness(brightness: Float) {
@@ -2050,5 +2128,19 @@ class SettingsDataStore(
 
     suspend fun setDefaultIntroLength(value: Int) {
         context.settingsDataStore.edit { it[Keys.DefaultIntroLength] = value.coerceIn(5, 300) }
+    }
+
+    companion object {
+        /**
+         * Manga bazlı sıralama ezmesi anahtar öneki.
+         *
+         * Anahtar adı `manga_sort_override_<hash>` biçimindedir; karma (hash) değeri
+         * URL'nin kendisi yerine kullanılır çünkü DataStore anahtar adları dosyada
+         * metin olarak durur ve uzun URL'ler dosyayı gereksiz büyütür.
+         */
+        const val SORT_OVERRIDE_PREFIX = "manga_sort_override_"
+
+        fun sortOverrideKey(mangaUrl: String): String =
+            SORT_OVERRIDE_PREFIX + mangaUrl.hashCode().toUInt().toString(16)
     }
 }

@@ -24,6 +24,10 @@ import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.ScreenLockPortrait
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.FormatListNumbered
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.People
@@ -130,6 +134,14 @@ fun KitsugiPreferencesSettingsDialog(
     onMangaFitModeSelected: (String) -> Unit = {},
     onMangaBrightnessChanged: (Float) -> Unit = {},
     onMangaKeepScreenOnChanged: (Boolean) -> Unit = {},
+    mangaChapterSort: String = "OldestFirst",
+    mangaChapterDisplayMode: String = "Number",
+    mangaSkipReadChapters: Boolean = false,
+    mangaAutoAdvanceChapter: Boolean = false,
+    onMangaChapterSortSelected: (String) -> Unit = {},
+    onMangaChapterDisplayModeSelected: (String) -> Unit = {},
+    onMangaSkipReadChaptersChanged: (Boolean) -> Unit = {},
+    onMangaAutoAdvanceChapterChanged: (Boolean) -> Unit = {},
     embeddedMode: Boolean = false,
     initialPage: Int = 0
 ) {
@@ -270,6 +282,10 @@ fun KitsugiPreferencesSettingsDialog(
                         onMangaFitModeSelected = onMangaFitModeSelected,
                         onMangaBrightnessChanged = onMangaBrightnessChanged,
                         onMangaKeepScreenOnChanged = onMangaKeepScreenOnChanged,
+                        onMangaChapterSortSelected = onMangaChapterSortSelected,
+                        onMangaChapterDisplayModeSelected = onMangaChapterDisplayModeSelected,
+                        onMangaSkipReadChaptersChanged = onMangaSkipReadChaptersChanged,
+                        onMangaAutoAdvanceChapterChanged = onMangaAutoAdvanceChapterChanged,
                         accentColor = accentColor,
                         scrollState = mangaReaderScrollState
                     )
@@ -1901,6 +1917,10 @@ private fun MangaReaderTab(
     onMangaFitModeSelected: (String) -> Unit,
     onMangaBrightnessChanged: (Float) -> Unit,
     onMangaKeepScreenOnChanged: (Boolean) -> Unit,
+    onMangaChapterSortSelected: (String) -> Unit = {},
+    onMangaChapterDisplayModeSelected: (String) -> Unit = {},
+    onMangaSkipReadChaptersChanged: (Boolean) -> Unit = {},
+    onMangaAutoAdvanceChapterChanged: (Boolean) -> Unit = {},
     accentColor: Color,
     scrollState: ScrollState = rememberScrollState()
 ) {
@@ -1927,9 +1947,22 @@ private fun MangaReaderTab(
         KitsugiChoiceOption(id = "FitHeight", title = stringResource(R.string.manga_fit_height), description = "")
     )
 
+    val sortOptions = listOf(
+        KitsugiChoiceOption(id = "OldestFirst",     title = stringResource(R.string.manga_sort_oldest_first),     description = stringResource(R.string.manga_sort_oldest_first_desc)),
+        KitsugiChoiceOption(id = "NewestFirst",     title = stringResource(R.string.manga_sort_newest_first),     description = stringResource(R.string.manga_sort_newest_first_desc)),
+        KitsugiChoiceOption(id = "RecentlyUpdated", title = stringResource(R.string.manga_sort_recently_updated), description = stringResource(R.string.manga_sort_recently_updated_desc))
+    )
+
+    val displayOptions = listOf(
+        KitsugiChoiceOption(id = "Number", title = stringResource(R.string.manga_display_number),     description = ""),
+        KitsugiChoiceOption(id = "Title",  title = stringResource(R.string.manga_display_title_mode), description = "")
+    )
+
     var showReadingModeMenu by remember { mutableStateOf(false) }
     var showColorFilterMenu by remember { mutableStateOf(false) }
     var showFitModeMenu by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showDisplayMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -2062,6 +2095,90 @@ private fun MangaReaderTab(
                 iconColor = accentColor,
                 checked = appSettings.mangaKeepScreenOn,
                 onCheckedChange = onMangaKeepScreenOnChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            // ── Bölüm sıralaması ─────────────────────────────────────────────
+            // Liste 1'den başlasın diye VARSAYILAN "Eski → Yeni (1 → N)". Kullanıcı
+            // isterse "Yeni → Eski"ye çevirir; tercih cihazda kalıcı ve buluta taşınır.
+            Box {
+                KitsugiSettingsListItem(
+                    title = stringResource(R.string.manga_sort_title),
+                    description = stringResource(R.string.manga_sort_title_desc),
+                    value = sortOptions.find { it.id == appSettings.mangaChapterSort }?.title ?: "",
+                    icon = Icons.Rounded.SwapVert,
+                    iconColor = accentColor,
+                    onClick = { showSortMenu = true }
+                )
+                KitsugiDropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false },
+                    dialogTitle = stringResource(R.string.manga_sort_title)
+                ) {
+                    sortOptions.forEach { opt ->
+                        KitsugiDropdownItem(
+                            text = opt.title,
+                            selected = opt.id == appSettings.mangaChapterSort,
+                            onClick = {
+                                onMangaChapterSortSelected(opt.id)
+                                showSortMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            KitsugiSettingsDivider()
+
+            // ── Bölüm görünümü (numara / başlık) ─────────────────────────────
+            Box {
+                KitsugiSettingsListItem(
+                    title = stringResource(R.string.manga_display_title),
+                    description = stringResource(R.string.manga_display_title_desc),
+                    value = displayOptions.find { it.id == appSettings.mangaChapterDisplayMode }?.title ?: "",
+                    icon = Icons.Rounded.FormatListNumbered,
+                    iconColor = accentColor,
+                    onClick = { showDisplayMenu = true }
+                )
+                KitsugiDropdownMenu(
+                    expanded = showDisplayMenu,
+                    onDismissRequest = { showDisplayMenu = false },
+                    dialogTitle = stringResource(R.string.manga_display_title)
+                ) {
+                    displayOptions.forEach { opt ->
+                        KitsugiDropdownItem(
+                            text = opt.title,
+                            selected = opt.id == appSettings.mangaChapterDisplayMode,
+                            onClick = {
+                                onMangaChapterDisplayModeSelected(opt.id)
+                                showDisplayMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = stringResource(R.string.manga_skip_read_chapters),
+                description = stringResource(R.string.manga_skip_read_chapters_desc),
+                icon = Icons.Rounded.SkipNext,
+                iconColor = accentColor,
+                checked = appSettings.mangaSkipReadChapters,
+                onCheckedChange = onMangaSkipReadChaptersChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = stringResource(R.string.manga_auto_advance_chapter),
+                description = stringResource(R.string.manga_auto_advance_chapter_desc),
+                icon = Icons.Rounded.FastForward,
+                iconColor = accentColor,
+                checked = appSettings.mangaAutoAdvanceChapter,
+                onCheckedChange = onMangaAutoAdvanceChapterChanged
             )
         }
 

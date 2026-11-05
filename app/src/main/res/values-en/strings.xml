@@ -17805,4 +17805,47 @@
     <string name="manga_keep_screen_on_on">Keep screen on: Enabled</string>
     <string name="manga_keep_screen_on_off">Keep screen on: Disabled</string>
     <string name="manga_mark_all_read">Mark visible as read</string>
+
+    <!-- ── Chapter sorting (default 1 → N) + Mihon-style chapter tools ── -->
+    <string name="manga_sort_title">Chapter sorting</string>
+    <string name="manga_sort_title_desc">Choose the order chapters are listed in</string>
+    <string name="manga_sort_oldest_first">Oldest → Newest (1 → N)</string>
+    <string name="manga_sort_oldest_first_desc">Chapter 1 first, new chapters at the end. Default.</string>
+    <string name="manga_sort_newest_first">Newest → Oldest (N → 1)</string>
+    <string name="manga_sort_newest_first_desc">Most recently uploaded chapter first</string>
+    <string name="manga_sort_recently_updated">Recently updated</string>
+    <string name="manga_sort_recently_updated_desc">By upload date, newest first</string>
+    <string name="manga_sort_label_oldest">Sort: 1 → N</string>
+    <string name="manga_sort_label_newest">Sort: N → 1</string>
+    <string name="manga_sort_label_recent">Sort: Recently updated</string>
+    <string name="manga_sort_reset">Reset to default</string>
+    <string name="manga_sort_this_series">Only for this series</string>
+    <string name="manga_sort_this_series_desc">The chosen order applies to this manga only</string>
+    <string name="manga_display_title">Chapter display</string>
+    <string name="manga_display_title_desc">Show the chapter number or the source title in each row</string>
+    <string name="manga_display_number">Number (Chapter 42)</string>
+    <string name="manga_display_title_mode">Title (as named by source)</string>
+    <string name="manga_chapter_number_prefix">Chapter</string>
+    <string name="manga_bookmark_chapter">Bookmark chapter</string>
+    <string name="manga_unbookmark_chapter">Remove bookmark</string>
+    <string name="manga_filter_bookmarked">Bookmarked</string>
+    <string name="manga_bookmarked_count">%1$d bookmarked</string>
+    <string name="manga_jump_to_current">Jump to last read</string>
+    <string name="manga_jump_to_first">Jump to chapter 1</string>
+    <string name="manga_unread_count">%1$d unread</string>
+    <string name="manga_progress_summary">%1$d/%2$d chapters read</string>
+    <string name="manga_mark_previous_read">Mark previous as read</string>
+    <string name="manga_skip_read_chapters">Skip read chapters</string>
+    <string name="manga_skip_read_chapters_desc">Skips already read chapters when moving to the next one</string>
+    <string name="manga_auto_advance_chapter">Go to next chapter when finished</string>
+    <string name="manga_auto_advance_chapter_desc">Opens the next chapter automatically at the last page</string>
+    <string name="manga_chapter_start_end">%1$s – %2$s</string>
+    <string name="manga_missing_numbers">Missing chapter: %1$s</string>
+    <string name="manga_missing_numbers_desc">These numbers are absent from the source, the list continues past them</string>
+    <string name="manga_duplicate_chapters">Duplicate chapter: %1$s</string>
+    <string name="manga_duplicate_chapters_desc">The same number was published by multiple groups</string>
+    <string name="manga_hide_duplicates">Hide duplicates</string>
+    <string name="manga_sorting_newest_hint">List is sorted newest → oldest. Change the sort to get back to chapter 1.</string>
+    <string name="manga_restore_default_sort">Default sorting (1 → N) restored</string>
+
 </resources>

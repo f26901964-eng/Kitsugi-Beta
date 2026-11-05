@@ -174,6 +174,26 @@ fun MangaReaderScreen(
             viewModel.onPageChanged(currentChapter.url, pagerState.currentPage, pages.size)
             // R2: Sayfa değiştikçe V2 loader'da 3 ileri prefetch'i başlat
             loader.onPageChanged(pagerState.currentPage)
+            // Otomatik bölüm geçişi (Mihon "always show chapter transition" karşılığı):
+            // son sayfada beklemek yerine sıradaki bölüme geçilir.
+            if (uiState.autoAdvanceChapter &&
+                pagerState.currentPage >= pages.size - 1 &&
+                viewModel.hasNextChapter
+            ) {
+                viewModel.goToNextChapter()
+            }
+        }
+    }
+
+    // Webtoon modunda da bölüm sonu otomatik geçişi: son görünür öğe son sayfa ise.
+    LaunchedEffect(listState.firstVisibleItemIndex, readingMode) {
+        if (readingMode != ReadingMode.Webtoon) return@LaunchedEffect
+        if (!hasRestoredProgress || pages.isEmpty()) return@LaunchedEffect
+        if (uiState.autoAdvanceChapter &&
+            listState.firstVisibleItemIndex >= pages.size - 1 &&
+            viewModel.hasNextChapter
+        ) {
+            viewModel.goToNextChapter()
         }
     }
 
@@ -725,7 +745,10 @@ fun MangaReaderScreen(
     // ─── Bölüm seçici (okuyucudan çıkmadan bölüm değiştirme) ────────────────
     if (showChapterPicker) {
         MangaChapterPickerSheet(
-            chapters = uiState.chapterList,
+            // Bölüm seçici de okuma sırasında (1 → N) gösterilir: okuyucudan çıkmadan
+            // bölüm değiştiren kullanıcı ile detay ekranındaki liste aynı sırayı görsün.
+            chapters = uiState.chapterList
+                .sortedWith(compareBy({ it.chapterNumber < 0f }, { it.chapterNumber })),
             currentUrl = currentChapter.url,
             accentColor = Color(0xFF7C4DFF),
             onSelect = { picked ->
@@ -924,9 +947,68 @@ fun MangaReaderScreen(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+                Spacer(Modifier.height(16.dp))
+
+                // ── Bölüm geçişi davranışı (Mihon: "Skip read chapters") ─────────
+                // Okurken sıradaki bölüme geçerken zaten okunmuş bölümlerin atlanması.
+                ReaderSettingChip(
+                    label = stringResource(R.string.manga_skip_read_chapters),
+                    selected = uiState.skipReadChapters,
+                    accent = Color(0xFF7C4DFF),
+                    onClick = { viewModel.setSkipReadChapters(!uiState.skipReadChapters) }
+                )
+                Spacer(Modifier.height(8.dp))
+
+                // ── Bölüm bitince otomatik geçiş (Mihon: chapter transition) ────
+                ReaderSettingChip(
+                    label = stringResource(R.string.manga_auto_advance_chapter),
+                    selected = uiState.autoAdvanceChapter,
+                    accent = Color(0xFF7C4DFF),
+                    onClick = { viewModel.setAutoAdvanceChapter(!uiState.autoAdvanceChapter) }
+                )
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
+}
+
+/**
+ * Okuyucu ayar panelindeki tek satırlık aç/kapa anahtarı.
+ *
+ * Panelde yer kazanmak için Switch yerine çip kullanılıyor: aynı durumu (açık/kapalı)
+ * tek dokunuşla değiştirir ve panelin 0.62f yüksekliğine sığar.
+ */
+@Composable
+private fun ReaderSettingChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) accent.copy(alpha = 0.18f) else Color(0xFF2A2A40))
+            .androidxClickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = if (selected) accent else Color.White.copy(0.85f),
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = if (selected) "AÇIK" else "KAPALI",
+            color = if (selected) accent else Color.White.copy(0.45f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

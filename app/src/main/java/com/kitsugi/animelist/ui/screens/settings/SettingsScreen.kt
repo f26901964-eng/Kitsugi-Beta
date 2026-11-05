@@ -1019,6 +1019,14 @@ private fun SettingsPreferencesContent(
         onMangaFitModeSelected = general.onMangaFitModeSelected,
         onMangaBrightnessChanged = general.onMangaBrightnessChanged,
         onMangaKeepScreenOnChanged = general.onMangaKeepScreenOnChanged,
+        mangaChapterSort = general.mangaChapterSort,
+        mangaChapterDisplayMode = general.mangaChapterDisplayMode,
+        mangaSkipReadChapters = general.mangaSkipReadChapters,
+        mangaAutoAdvanceChapter = general.mangaAutoAdvanceChapter,
+        onMangaChapterSortSelected = general.onMangaChapterSortSelected,
+        onMangaChapterDisplayModeSelected = general.onMangaChapterDisplayModeSelected,
+        onMangaSkipReadChaptersChanged = general.onMangaSkipReadChaptersChanged,
+        onMangaAutoAdvanceChapterChanged = general.onMangaAutoAdvanceChapterChanged,
         onDismiss = {}  // Sub-sayfada dismiss = no-op; geri butonu ile çıkılır
     )
 

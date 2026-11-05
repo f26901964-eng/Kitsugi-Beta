@@ -74,6 +74,7 @@ import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
 import com.kitsugi.animelist.ui.screens.manga.ChapterStatusFilter
 import com.kitsugi.animelist.ui.screens.manga.MangaDetailViewModel
 import com.kitsugi.animelist.data.manga.ChapterSortMode
+import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.data.manga.sortedForMode
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
@@ -124,14 +125,14 @@ fun TvMangaDetailScreen(
     // ── Bölüm sıralaması / okunmamış filtresi (mobil detayla aynı mantık) ──
     // TV'de klavye olmadığı için metin araması yerine kumandayla çevrilebilen iki
     // düğme var: sıralama ve "okunmamış" filtresi.
-    var sortModeName by rememberSaveable { mutableStateOf(ChapterSortMode.NewestFirst.name) }
+    // Sıralama, mobil detay ekranıyla **aynı** kalıcı tercihten gelir: listenin 1'den
+    // başlaması TV'de de geçerli (önceden burada da "NewestFirst" sabitti).
+    val sortMode = uiState.sortMode
     var statusFilterName by rememberSaveable { mutableStateOf(ChapterStatusFilter.All.name) }
-    val sortMode = runCatching { ChapterSortMode.valueOf(sortModeName) }
-        .getOrDefault(ChapterSortMode.NewestFirst)
     val statusFilter = runCatching { ChapterStatusFilter.valueOf(statusFilterName) }
         .getOrDefault(ChapterStatusFilter.All)
     val rowByUrl = remember(uiState.chapters) { uiState.chapters.associateBy { it.chapter.url } }
-    val visibleChapters = remember(uiState.chapters, sortModeName, statusFilterName) {
+    val visibleChapters = remember(uiState.chapters, sortMode, statusFilterName) {
         uiState.chapters
             .filter { row -> statusFilter.matches(row.isCompleted, row.isInProgress) }
             .map { it.chapter }
@@ -374,22 +375,51 @@ fun TvMangaDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
+                                    color = KitsugiColors.TextPrimary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                // Hangi sırada olduğu ve kaç bölüm kaldığı tek bakışta görünür
+                                // (mobil detaydaki alt satırla aynı bilgi).
+                                val unread = uiState.chapters.count { !it.isCompleted }
+                                Text(
+                                    text = buildString {
+                                        append(
+                                            when (sortMode) {
+                                                ChapterSortMode.OldestFirst ->
+                                                    KitsugiStrings.get(R.string.manga_sort_label_oldest)
+                                                ChapterSortMode.NewestFirst ->
+                                                    KitsugiStrings.get(R.string.manga_sort_label_newest)
+                                                ChapterSortMode.RecentlyUpdated ->
+                                                    KitsugiStrings.get(R.string.manga_sort_label_recent)
+                                            }
+                                        )
+                                        if (unread > 0) {
+                                            append(" · ")
+                                            append(KitsugiStrings.get(R.string.manga_unread_count, unread))
+                                        }
+                                    },
+                                    color = KitsugiColors.TextMuted,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 // Sıralama: En yeni → En eski → Son güncellenen
                                 IconButton(
-                                    onClick = { sortModeName = sortMode.next().name },
+                                    // Sıralama döngüsü: 1 → N → N → 1 → Son güncellenen.
+                                    // Tercih kalıcı olarak kaydedilir (ViewModel + DataStore).
+                                    onClick = { viewModel.setSortMode(sortMode.next()) },
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
                                         Icons.Rounded.Sort,
                                         contentDescription = stringResource(R.string.manga_sort_chapters),
-                                        tint = if (sortMode == ChapterSortMode.NewestFirst) {
+                                        // Artık **ters** sıralama vurgulanır: varsayılan
+                                        // (1 → N) sakin, kullanıcı değiştirdiyse renkli.
+                                        tint = if (sortMode == ChapterSortMode.DEFAULT) {
                                             KitsugiColors.TextSecondary
                                         } else {
                                             KitsugiColors.AccentBlue

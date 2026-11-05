@@ -22,8 +22,11 @@ import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -39,6 +42,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.manga.ChapterDisplayMode
+import com.kitsugi.animelist.data.manga.ChapterSortMode
+import com.kitsugi.animelist.ui.components.KitsugiDropdownItem
+import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -208,8 +215,12 @@ private fun ScanlatorChip(
 /**
  * Bölüm listesinin (sticky) başlığı — "Bölümler (232)" + sıralama / okundu filtresi / yenile.
  *
- * Sağdaki üç ikon ekran görüntüsündeki düzenle aynı sıradadır:
- * sıralama (⇅) · okunanları filtrele (✓) · yenile (↻).
+ * Sağdaki ikonlar ekran görüntüsündeki düzenle aynı sıradadır:
+ * arama · sıralama (⇅) · okunanları filtrele (✓) · tümünü okundu · yenile (↻).
+ *
+ * Sıralama düğmesi tek dokunuşla çevirmek yerine **menü** açar: eskiden olduğu gibi
+ * döngüyle "Yeni → Eski → Son güncellenen" arasında dolaşmak, kullanıcı "1'den başlasın"
+ * isterken yanlışlıkla üç kez dokunmayı gerektiriyordu. Menüde hedefler tek dokunuşta.
  */
 @Composable
 fun MangaChaptersHeader(
@@ -237,8 +248,33 @@ fun MangaChaptersHeader(
      */
     onToggleAllRead: (() -> Unit)? = null,
     /** Tümü şu an "okundu" mu (düğme ikonu ve vurgusu). */
-    allReadActive: Boolean = false
+    allReadActive: Boolean = false,
+    /**
+     * Sıralama menüsü: verilirse ⇅ düğmesi tek dokunuşluk döngü yerine açılır menü açar.
+     * Menüde her mod ayrı satır olur; "varsayılana dön" seçeneği de bulunur.
+     */
+    sortMode: ChapterSortMode? = null,
+    onSelectSort: ((ChapterSortMode) -> Unit)? = null,
+    /** Yer imli (★) bölümlere hızlı filtre. */
+    bookmarkedOnly: Boolean = false,
+    onToggleBookmarked: (() -> Unit)? = null,
+    /** Kaç bölüm yer imli — düğme etiketinde gösterilir. */
+    bookmarkedCount: Int = 0,
+    /** Okunmamış bölüm sayısı — başlığın alt satırında özet. */
+    unreadCount: Int = 0,
+    /** "Kaldığım yere git" düğmesi (uzun listede konumu kaydırır). */
+    onJumpToCurrent: (() -> Unit)? = null,
+    /** Bölüm görünümü menüsü (numara / başlık). */
+    displayMode: ChapterDisplayMode? = null,
+    onSelectDisplayMode: ((ChapterDisplayMode) -> Unit)? = null
 ) {
+    val sortMenuExpanded = androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    val displayMenuExpanded = androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -252,13 +288,31 @@ fun MangaChaptersHeader(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+            // İkinci satır: sıralama etiketi + okunmamış özeti. Kullanıcı listenin hangi
+            // sırada olduğunu ve kaç bölüm kaldığını tek bakışta görür.
             Text(
-                text = sortLabel,
+                text = buildString {
+                    append(sortLabel)
+                    if (unreadCount > 0) {
+                        append(" · ")
+                        append(stringResource(R.string.manga_unread_count, unreadCount))
+                    }
+                },
                 color = KitsugiColors.TextMuted,
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        if (onJumpToCurrent != null) {
+            MangaHeaderIconButton(
+                icon = Icons.Rounded.MyLocation,
+                contentDescription = stringResource(R.string.manga_jump_to_current),
+                active = false,
+                accentColor = accentColor,
+                onClick = onJumpToCurrent
+            )
+            Spacer(Modifier.width(2.dp))
         }
         if (onToggleSearch != null) {
             // Uzun bölüm listesinde aşağı kaydıktan sonra da aramaya erişim:
@@ -272,13 +326,58 @@ fun MangaChaptersHeader(
             )
             Spacer(Modifier.width(2.dp))
         }
-        MangaHeaderIconButton(
-            icon = Icons.Rounded.SwapVert,
-            contentDescription = stringResource(R.string.manga_sort_chapters),
-            active = false,
-            accentColor = accentColor,
-            onClick = onCycleSort
-        )
+        Box {
+            MangaHeaderIconButton(
+                icon = Icons.Rounded.SwapVert,
+                contentDescription = stringResource(R.string.manga_sort_chapters),
+                active = sortMode != null && sortMode != ChapterSortMode.DEFAULT,
+                accentColor = accentColor,
+                onClick = {
+                    if (onSelectSort != null) sortMenuExpanded.value = true else onCycleSort()
+                }
+            )
+            if (onSelectSort != null) {
+                KitsugiDropdownMenu(
+                    expanded = sortMenuExpanded.value,
+                    onDismissRequest = { sortMenuExpanded.value = false },
+                    dialogTitle = stringResource(R.string.manga_sort_title)
+                ) {
+                    KitsugiDropdownItem(
+                        text = stringResource(R.string.manga_sort_oldest_first),
+                        selected = sortMode == ChapterSortMode.OldestFirst,
+                        onClick = {
+                            onSelectSort(ChapterSortMode.OldestFirst)
+                            sortMenuExpanded.value = false
+                        }
+                    )
+                    KitsugiDropdownItem(
+                        text = stringResource(R.string.manga_sort_newest_first),
+                        selected = sortMode == ChapterSortMode.NewestFirst,
+                        onClick = {
+                            onSelectSort(ChapterSortMode.NewestFirst)
+                            sortMenuExpanded.value = false
+                        }
+                    )
+                    KitsugiDropdownItem(
+                        text = stringResource(R.string.manga_sort_recently_updated),
+                        selected = sortMode == ChapterSortMode.RecentlyUpdated,
+                        onClick = {
+                            onSelectSort(ChapterSortMode.RecentlyUpdated)
+                            sortMenuExpanded.value = false
+                        }
+                    )
+                    if (displayMode != null && onSelectDisplayMode != null) {
+                        KitsugiDropdownItem(
+                            text = stringResource(R.string.manga_display_title),
+                            onClick = {
+                                sortMenuExpanded.value = false
+                                displayMenuExpanded.value = true
+                            }
+                        )
+                    }
+                }
+            }
+        }
         Spacer(Modifier.width(2.dp))
         MangaHeaderIconButton(
             icon = Icons.Rounded.CheckCircle,
@@ -287,6 +386,20 @@ fun MangaChaptersHeader(
             accentColor = accentColor,
             onClick = onToggleReadFilter
         )
+        if (onToggleBookmarked != null) {
+            Spacer(Modifier.width(2.dp))
+            MangaHeaderIconButton(
+                icon = if (bookmarkedOnly) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                contentDescription = if (bookmarkedCount > 0) {
+                    stringResource(R.string.manga_bookmarked_count, bookmarkedCount)
+                } else {
+                    stringResource(R.string.manga_filter_bookmarked)
+                },
+                active = bookmarkedOnly,
+                accentColor = accentColor,
+                onClick = onToggleBookmarked
+            )
+        }
         Spacer(Modifier.width(2.dp))
         if (onToggleAllRead != null) {
             Spacer(Modifier.width(2.dp))
@@ -306,6 +419,33 @@ fun MangaChaptersHeader(
             onClick = onRefresh
         )
     }
+
+    // Görünüm menüsü — sıralama menüsünden ayrı açılır (iç içe menü Popup'ta açılmaz).
+    if (displayMode != null && onSelectDisplayMode != null) {
+        KitsugiDropdownMenu(
+            expanded = displayMenuExpanded.value,
+            onDismissRequest = { displayMenuExpanded.value = false },
+            dialogTitle = stringResource(R.string.manga_display_title)
+        ) {
+            KitsugiDropdownItem(
+                text = stringResource(R.string.manga_display_number),
+                selected = displayMode == ChapterDisplayMode.Number,
+                onClick = {
+                    onSelectDisplayMode(ChapterDisplayMode.Number)
+                    displayMenuExpanded.value = false
+                }
+            )
+            KitsugiDropdownItem(
+                text = stringResource(R.string.manga_display_title_mode),
+                selected = displayMode == ChapterDisplayMode.Title,
+                onClick = {
+                    onSelectDisplayMode(ChapterDisplayMode.Title)
+                    displayMenuExpanded.value = false
+                }
+            )
+        }
+    }
+
     // Başlığın altındaki ince ayırıcı, sticky başlık kayarken içeriği ayırır.
     Box(
         Modifier
@@ -313,4 +453,78 @@ fun MangaChaptersHeader(
             .height(1.dp)
             .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.35f))
     )
+}
+
+/**
+ * Bölüm listesinin üstündeki ince ilerleme şeridi.
+ *
+ * Mihon/Tachiyomi arayüzünde "kaç bölüm okundu" bilgisi kitaplıkta değil seri detayında
+ * görünür; 386 bölümlük bir seride listenin neresinde olduğunu bilmek için tek bakış
+ * yeterli olur. Ayrıca kaynakta **eksik** bölüm numaraları varsa (ör. 12, 13 yok) tek
+ * satırda bildirilir — kullanıcı "kaynak bölüm atlıyor mu" diye düşünmez.
+ */
+@Composable
+fun MangaChapterProgressSummary(
+    readCount: Int,
+    totalCount: Int,
+    missingNumbers: List<String>,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    if (totalCount <= 0) return
+    val fraction = (readCount.toFloat() / totalCount.toFloat()).coerceIn(0f, 1f)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.manga_progress_summary, readCount, totalCount),
+                color = KitsugiColors.TextMuted,
+                fontSize = 11.sp,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+            if (fraction >= 1f) {
+                Text(
+                    text = stringResource(R.string.history_read_completed),
+                    color = KitsugiColors.AccentGreen,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        // İnce çubuk: M3 LinearProgressIndicator yerine iki Box — mevcut listede de
+        // aynı desen kullanılıyor (animasyon maliyeti ve tema uyumu için).
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(KitsugiColors.SurfaceStrong)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(accentColor)
+            )
+        }
+        if (missingNumbers.isNotEmpty()) {
+            Text(
+                text = stringResource(
+                    R.string.manga_missing_numbers,
+                    missingNumbers.take(8).joinToString(", ") +
+                        if (missingNumbers.size > 8) "…" else ""
+                ),
+                color = KitsugiColors.TextMuted.copy(alpha = 0.8f),
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
 }
