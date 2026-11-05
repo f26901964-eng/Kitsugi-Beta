@@ -520,7 +520,7 @@ fun SettingsScreen(
                     // dinler, böylece ana ayar ağacından bağımsız kalır.
                     val experimentalStore = remember { SettingsDataStore(context) }
                     val experimentalSettings by experimentalStore.settingsFlow
-                        .collectAsState<com.kitsugi.animelist.data.settings.AppSettings?>(initial = null)
+                        .collectAsState(initial = null as com.kitsugi.animelist.data.settings.AppSettings?)
                     ExperimentalSettingsContent(
                         settings = experimentalSettings,
                         store = experimentalStore
