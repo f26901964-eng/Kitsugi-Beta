@@ -129,7 +129,7 @@ sorusu üzerine tüm üç ekran baştan tarandı. Yapılanlar:
 | Değişiklik | Neden |
 |---|---|
 | Hero yüksekliği ekrana göre (200 / 260 / 292dp) + kapak oranı `1.42×` | Sabit 300dp küçük telefonlarda bölüm listesinin yarısını yiyordu. |
-| Açıklama **4 satırla sınırlı** + "Devamını göster / Daha az" (yalnızca gerçekten taşıyorsa, `onTextOverflow` ile ölçülür) | Bazı kaynaklar 2000+ karakterlik özet veriyor; bölüm listesi ekranın çok altına itiliyordu. |
+| Açıklama **4 satırla sınırlı** + "Devamını göster / Daha az" (yalnızca gerçekten taşıyorsa, `onTextLayout.hasVisualOverflow` ile ölçülür) | Bazı kaynaklar 2000+ karakterlik özet veriyor; bölüm listesi ekranın çok altına itiliyordu. |
 | Sticky başlığa **🔍 hızlı arama** (açılır kapanır alan) | 232 bölümlük listede aşağıdayken aramaya erişim yoktu. |
 | Sticky başlığa **✓✓ "görünenleri okundu işaretle"** (`MangaDetailViewModel.markAllRead`) — hepsi okunduysa geri alır | 200+ bölümü tek tek tiklemek gerçekçi değil; filtre + toplu işaretleme birlikte çalışır ve okuma geçmişine de yazılır. |
 | Sıralama değişiminde kaydırma artık görünür öğe anahtarından hesaplanıyor | Sabit indeks (4/5) koşullu öğeler yüzünden yanlış konuma gidebiliyordu. |
