@@ -26,6 +26,9 @@
 - **TV rozetleri genişletildi:** Android TV satırında yalnızca eklenti adı + boyut vardı; artık tüm rozetler görünüyor.
 - **Ölçüm verimliliği:** Boyut bilgisi eksik olan progressive (mp4/mkv) kaynaklarda `HEAD` ölçümü tetiklenir; HLS'te boyut üretilemeyeceği için gereksiz istek yapılmaz. Görüş alanı dışındaki kartlar hâlâ ölçüm yapmaz (kaydırma kasması yok).
 
+**Notlar**
+- **Kalıcılık:** Boyut/seeder bilgisi `StreamSource` üzerinde taşınır. Bu nesne oynatıcıya ve indirme servisine JSON olarak aktarıldığı için yeni alanlar eski kayıtlarda `null`/boş kalır — geriye dönük uyumluluk bozulmaz.
+
 ---
 
 ## 🇬🇧 English
@@ -53,3 +56,6 @@
 - **One Stremio mapping (`toStreamSource`):** the detail page and the watch screen used different mappings, so size/seed information appeared on one and vanished on the other. Both paths now share a single function.
 - **TV badges expanded:** Android TV rows previously showed only the addon name and size; all badges are now visible.
 - **Probe efficiency:** missing-size progressive (mp4/mkv) sources trigger the `HEAD` probe, while HLS avoids pointless requests; off-screen cards still do not probe (no scroll jank).
+
+### Notes
+- **Persistence:** Size/seeder data rides on `StreamSource`; the object is serialised to the player and download service as JSON, so older records simply keep these fields `null`/empty — no backward-compatibility break.
