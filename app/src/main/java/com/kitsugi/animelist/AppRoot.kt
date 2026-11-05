@@ -180,7 +180,7 @@ fun AppRoot(
     val addonViewModel: AddonViewModel = viewModel()
     val mangaViewModel: MangaViewModel = viewModel()
     val mangaBrowseViewModel: MangaBrowseViewModel = viewModel(
-        factory = MangaBrowseViewModel.Factory(mangaViewModel.mangaRepository)
+        factory = MangaBrowseViewModel.Factory(mangaViewModel.mangaRepository, context.applicationContext)
     )
     val updateViewModel: AppUpdateViewModel = viewModel()
     val updateUiState by updateViewModel.uiState.collectAsState()
@@ -1267,10 +1267,18 @@ private fun AppNavigationContent(
                                     )
                                 )
                             } else {
-                                navState.openMangaBrowse(entry.title, entry.id)
+                                navState.openMangaBrowse(
+                                    query = entry.title,
+                                    mediaId = entry.id,
+                                    alternates = listOfNotNull(entry.titleEnglish, entry.titleJapanese),
+                                )
                             }
                         } else {
-                            navState.openMangaBrowse(entry.title, entry.id)
+                            navState.openMangaBrowse(
+                                query = entry.title,
+                                mediaId = entry.id,
+                                alternates = listOfNotNull(entry.titleEnglish, entry.titleJapanese),
+                            )
                         }
                     },
                     triggerSearch = triggerSearch,

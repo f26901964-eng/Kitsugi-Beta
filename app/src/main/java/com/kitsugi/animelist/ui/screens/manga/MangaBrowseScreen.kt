@@ -63,6 +63,8 @@ import com.kitsugi.animelist.R
 fun MangaBrowseScreen(
     repository: MangaSourceRepository,
     initialQuery: String? = null,
+    /** Animeden gelen diğer dillerdeki başlıklar (romaji / İngilizce / Japonca). */
+    initialAlternates: List<String> = emptyList(),
     vm: MangaBrowseViewModel = viewModel(factory = MangaBrowseViewModel.Factory(repository)),
     onMangaClick: (MangaSource, MangaDetails) -> Unit = { _, _ -> },
     onBack: () -> Unit = {}
@@ -110,11 +112,13 @@ fun MangaBrowseScreen(
         }
     }
 
-    LaunchedEffect(initialQuery) {
+    LaunchedEffect(initialQuery, initialAlternates) {
         if (vm.lastInitialQuery != initialQuery) {
             vm.lastInitialQuery = initialQuery
             if (!initialQuery.isNullOrBlank()) {
-                vm.search(initialQuery)
+                // Seçili dil ne olursa olsun eser bulunsun: kaynak hangi dilde
+                // kayıtlıysa o başlıkla da aranır.
+                vm.search(initialQuery, initialAlternates)
             } else {
                 vm.search("")
             }
@@ -141,13 +145,20 @@ fun MangaBrowseScreen(
 
     // Keep the actual source with each result. Display names are not identities:
     // Kotatsu and Mihon can expose the same title/name with different URL contracts.
-    val mergedMangas = remember(states, selFilter, query, popular, sortMode) {
+    val searchTitles = ui.searchTitles
+    val mergedMangas = remember(states, selFilter, query, popular, sortMode, searchTitles) {
         val raw = if (query.isNotBlank()) {
+            // Sıralama, denenen TÜM başlıklara göre yapılır: kaynak eseri kendi
+            // dilindeki adla döndürdüğünde "alakasız" sanılıp sona atılmasın.
+            val matchTitles = searchTitles.ifEmpty { listOf(query) }
             states.filter { selFilter == null || it.source.stableSourceKey() == selFilter.stableSourceKey() }
                 .flatMap { state -> state.mangas.map { state.source to it } }
                 .sortedWith(
-                    compareByDescending<Pair<MangaSource, MangaDetails>> {
-                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, it.second.title)
+                    compareByDescending<Pair<MangaSource, MangaDetails>> { pair ->
+                        matchTitles.maxOf { title ->
+                            com.kitsugi.animelist.data.manga.MangaTitleMatcher
+                                .getSimilarityScore(title, pair.second.title)
+                        }
                     }.thenByDescending { repository.getSourcePriority(it.first) }
                 )
         } else {
@@ -197,7 +208,7 @@ fun MangaBrowseScreen(
                     colors  = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.SurfaceStrong.copy(0.5f)),
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Geri", tint = KitsugiColors.TextPrimary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.geri), tint = KitsugiColors.TextPrimary, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(stringResource(R.string.inline_discover_manga_eb24f62), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -235,7 +246,8 @@ fun MangaBrowseScreen(
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (query.isNotBlank()) "Arama: \"$query\"" else selFilter?.name ?: stringResource(R.string.inline_discover_manga_eb24f62),
+                        if (query.isNotBlank()) stringResource(R.string.manga_search_query_label, query)
+                        else selFilter?.name ?: stringResource(R.string.inline_discover_manga_eb24f62),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
@@ -244,10 +256,26 @@ fun MangaBrowseScreen(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        if (query.isNotBlank())
-                            "${visibleMangas.size} sonuç · ${states.size} kaynak"
-                        else
-                            "${popular.size} manga · ${selFilter?.lang?.uppercase() ?: ""}",
+                        if (query.isNotBlank()) {
+                            val summary = stringResource(
+                                R.string.manga_search_results_summary,
+                                visibleMangas.size,
+                                states.size,
+                            )
+                            // Birden fazla başlık denendiyse (çok dilli arama) kullanıcıya söyle.
+                            if (ui.searchTitles.size > 1) {
+                                summary + " · " + stringResource(
+                                    R.string.manga_search_multilang_hint,
+                                    ui.searchTitles.size,
+                                )
+                            } else summary
+                        } else {
+                            stringResource(
+                                R.string.manga_browse_popular_summary,
+                                popular.size,
+                                selFilter?.lang?.uppercase() ?: "",
+                            )
+                        },
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )

@@ -133,7 +133,7 @@ fun MangaDetailScreen(
                 KitsugiDetailActionButton(
                     text = when {
                         resume != null -> stringResource(R.string.devam_et_x, resume.name)
-                        else -> "Baştan Oku"
+                        else -> stringResource(R.string.ui_manga_resume_from_beginning)
                     },
                     icon = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
                     onClick = {
@@ -641,7 +641,7 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = details.status.label(),
+                            text = stringResource(details.status.labelRes()),
                             color = accent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
@@ -936,12 +936,3 @@ private fun CompletedToggle(
     }
 }
 
-private fun MangaStatus.label(): String = when (this) {
-    MangaStatus.Ongoing -> "Devam Ediyor"
-    MangaStatus.Completed -> "Tamamlandı"
-    MangaStatus.Licensed -> "Lisanslı"
-    MangaStatus.PublicationComplete -> "Yayın Tamamlandı"
-    MangaStatus.Cancelled -> "İptal Edildi"
-    MangaStatus.OnHiatus -> "Ara Verildi"
-    MangaStatus.Unknown -> "Bilinmiyor"
-}

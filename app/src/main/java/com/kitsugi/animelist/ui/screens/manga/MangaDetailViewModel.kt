@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 
+import com.kitsugi.animelist.R
 import android.content.Context
 import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 import androidx.lifecycle.ViewModel
@@ -76,12 +77,7 @@ class MangaDetailViewModel(
             val q = query.trim()
             if (q.isEmpty()) return true
             if (group.displayName.contains(q, ignoreCase = true)) return true
-            if (variants.any { it.chapter.name.contains(q, ignoreCase = true) }) return true
-            val parsed = q.replace(',', '.').toFloatOrNull() ?: return false
-            return variants.any { row ->
-                val number = MangaChapterGrouping.chapterNumberOf(row.chapter)
-                number > 0f && (number == parsed || number.toInt() == parsed.toInt())
-            }
+            return variants.any { chapterRowMatchesQuery(it, q) }
         }
     }
 
@@ -151,8 +147,9 @@ class MangaDetailViewModel(
                 return chapters.filter { row ->
                     val scanlatorOk = filter.isNullOrEmpty() ||
                         row.chapter.scanlator?.trim()?.lowercase() == filter
-                    val queryOk = query.isEmpty() ||
-                        row.chapter.name.contains(query, ignoreCase = true)
+                    // Birleşik/açık görünüm aynı arama kurallarını kullanır:
+                    // "42" araması 42 ve 42.5 bölümlerini bulur (sadece ad değil).
+                    val queryOk = chapterRowMatchesQuery(row, query)
                     val unreadOk = !onlyUnread || !row.isCompleted
                     scanlatorOk && queryOk && unreadOk
                 }
@@ -285,7 +282,7 @@ class MangaDetailViewModel(
                             resumeChapter = resume,
                             preferredScanlator = preferred,
                             autoContinue = scanlatorPrefs.autoContinue(mangaUrl),
-                            error = if (rows.isEmpty()) "Bu manga için bölüm bulunamadı." else null,
+                            error = if (rows.isEmpty()) context.getString(R.string.manga_error_no_chapters) else null,
                             errorCode = null
                         )
                     }
@@ -301,7 +298,8 @@ class MangaDetailViewModel(
             _uiState.update {
                 it.copy(
                     isLoadingChapters = false,
-                    error = lastError?.localizedMessage ?: lastError?.message ?: "Bölümler yüklenemedi. Tekrar deneyin.",
+                    error = lastError?.localizedMessage ?: lastError?.message
+                        ?: context.getString(R.string.manga_error_chapters_load),
                     errorCode = SourceFailureClassifier.classifyCode(lastError)
                 )
             }
@@ -477,3 +475,19 @@ class MangaDetailViewModel(
             MangaDetailViewModel(context, source, details) as T
     }
 }
+
+/**
+ * Tek bir bölüm satırı arama sorgusuyla eşleşiyor mu?
+ *
+ * Ad parçası **veya** numara: "42" araması 42, 42.0 ve 42.5 bölümlerini bulur.
+ * (Birleşik ve açık görünüm aynı kuralı kullansın diye ortak yardımcı.)
+ */
+private fun chapterRowMatchesQuery(row: MangaDetailViewModel.ChapterRow, query: String): Boolean {
+    val q = query.trim()
+    if (q.isEmpty()) return true
+    if (row.chapter.name.contains(q, ignoreCase = true)) return true
+    val parsed = q.replace(',', '.').toFloatOrNull() ?: return false
+    val number = MangaChapterGrouping.chapterNumberOf(row.chapter)
+    return number > 0f && (number == parsed || number.toInt() == parsed.toInt())
+}
+

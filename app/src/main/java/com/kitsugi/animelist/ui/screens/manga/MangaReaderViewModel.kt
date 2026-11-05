@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 
+import com.kitsugi.animelist.R
 import kotlinx.coroutines.ensureActive
 
 import android.content.Context
@@ -429,7 +430,7 @@ class MangaReaderViewModel(
                 _uiState.update { it.copy(currentPageIndex = restoredIndex) }
                 loader.onPageChanged(restoredIndex)
                 if (loader.pages.value.isEmpty()) {
-                    _uiState.update { it.copy(isLoadingPages = false, pagesError = "Sayfalar yüklenemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.") }
+                    _uiState.update { it.copy(isLoadingPages = false, pagesError = context.getString(R.string.manga_reader_error_pages)) }
                 } else {
                     _uiState.update { it.copy(isLoadingPages = false) }
                 }
@@ -438,12 +439,12 @@ class MangaReaderViewModel(
                 _uiState.update {
                     it.copy(
                         isLoadingPages = false,
-                        pagesError = "⚠️ ${e.sourceName}: Bu bölümü açmak için captcha doğrulaması gerekiyor. Tarayıcıda açmayı deneyin."
+                        pagesError = context.getString(R.string.manga_reader_error_captcha, e.sourceName)
                     )
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: "Sayfalar yüklenirken bir hata oluştu.", pagesErrorCode = SourceFailureClassifier.classifyCode(e)) }
+                _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: context.getString(R.string.manga_reader_error_pages_generic), pagesErrorCode = SourceFailureClassifier.classifyCode(e)) }
             }
         }
     }

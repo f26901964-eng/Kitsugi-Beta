@@ -207,3 +207,39 @@ okunmuyor, farklı vurgu renginde de aykırı kalıyordu.
 > Not: Bu ortamda derleyici yok; doğrulama statik (parantez dengesi, string
 > referansları, sembol/import tutarlılığı) ve cihaz testi gerekiyor. Test listesi §7'de,
 > tema/düzen maddeleri §10.4'te.
+
+---
+
+## 11. Uygulama dili = arama dili (dil bağımsız arama)
+
+Kullanıcı isteği: *"Hangi kaynaktan olduğu fark etmeksizin manga / light novel /
+manhwa… benim seçtiğim dile uymalı; manga kısmı, 'Oku' butonu ve detay
+sayfasındaki bölüm kısmı da uygulama içi seçtiğim dille arama yapmalı."*
+
+### 11.1 Kök neden
+
+| Sorun | Neden |
+|---|---|
+| Anime detayındaki **"Oku"** butonu boş/alakasız sonuç gösteriyordu | `openMangaBrowse(entry.title)` yalnızca **tek** başlığı (ekranda görünen başlık) kaynaklara gönderiyordu. Kaynak eseri kendi dilindeki adla listeliyorsa (ör. Manga-TR: "Sınıfın Seçkinleri", AniList: "Youkoso Jitsuryoku…") arama **0 sonuç** dönüyordu. |
+| Farklı dildeki başlıkla bulunan sonuçlar ekranda kayboluyordu | Sonuçlar tekrar `SearchResultScorer` ile **orijinal sorguya** göre puanlanıyordu; çeviri başlıklar benzerlik eşiğinin altında kalıp filtreleniyordu. |
+| Kaynak sırası dilden bağımsızdı | `MangaSearchCoordinator` yalnızca "Türkçe kaynak önce" kuralını biliyordu; uygulama dili İngilizce seçilse de ilk kaynak Türkçe sitede kalıyordu. |
+| Manga arayüzü metinleri sabit Türkçeydi | Detay/okuyucu/kaynak sağlığı/TV ekranlarında `"Baştan Oku"`, `"Tamamlandı"`, hata mesajları… doğrudan Kotlin literal'iydi; dil değişince değişmiyordu. |
+
+### 11.2 Yapılanlar
+
+1. **Çok dilli arama** — yeni `MangaSearchAlternates`: sorgu + diğer başlıklar (romaji / İngilizce / Japonca / yerel) tekilleştirilip sıraya konur.
+   - Navigasyon `openMangaBrowse(query, mediaId, alternates)` ile başlık varyantlarını taşır: `MediaEntry.title + titleEnglish + titleJapanese`, `JikanSearchResult.title + titleRomaji + titleEnglish + titleJapanese`.
+   - `MangaBrowseViewModel.searchSourceWithFallback` sırayla dener: ham sorgu → kanonik çekirdek/ASCII → diğer başlıklar (en fazla 4 başlık). **Sonuç bulan ilk sorgu** kaynağa yazılır (`resolvedQuery`).
+2. **Puanlama/filtre düzeltmesi** — sonuç, hangi sorguyla bulunduysa o sorguya göre puanlanır. Farklı dildeki başlıkla bulunduğunda başlık benzerliği doğal olarak düşük çıktığı için "kaynağa güven" yoluna geçilir (ham sonuç, URL'e göre tekilleştirilmiş).
+3. **Sayfalama** — 2. sayfa artık ham sorguyla değil, **sonuç getiren sorguyla** istenir; aksi hâlde alternatif başlıkla bulunan sonuçların devamı boş dönüyordu.
+4. **Sıralama** — keşfet listesi, denenen **tüm** başlıklara göre en yüksek benzerlik puanıyla sıralanır; sonra kaynak önceliği.
+5. **Dile göre kaynak önceliği** — `LocaleCache.localeTag` (yoksa sistem dili) ile kaynakların `lang` alanı eşleştirilir; eşleşenler **kararlı** biçimde başa alınır (aynı grup içinde mevcut öncelik/sağlık sırası korunur). Popüler listesi ve kaynak çipleri de bu sırayı kullanır.
+6. **Arayüz metinleri** — 46 yeni string (TR + EN). Manga durum etiketleri ortak `MangaStatus.labelRes()` üzerinden; okuyucu/detay hata mesajları `context.getString(...)` ile; kaynak sağlığı ekranındaki İngilizce sabitler ("Healthy", "Success / Failure", "Search"…) ve TV etiketleri de kaynaklara taşındı.
+7. **Bölüm aramasında tutarlılık (mantık hatası)** — "çevirmenleri birleştir" kapatıldığında bölüm araması yalnızca **ada** bakıyordu; `42` yazınca 42.5 bulunmuyordu. Artık iki görünüm de aynı yardımcıyı (`chapterRowMatchesQuery`) kullanıyor.
+
+### 11.3 Doğrulama
+
+- Her iki `strings.xml` **17.657** anahtar, 0 yinelenen, TR/EN anahtar kümeleri **birebir aynı**.
+- Kodda kullanılan tüm yeni `R.string.*` referansları çözümlendi (eksik referans sayısı 199 → 154; kalanlar bu değişiklikten önce de vardı ve bu turda dokunulmayan modüllere ait).
+- Değişen 17 Kotlin dosyasında parantez/süslü dengesi 0; manga literal’i kalmadı (grep: manga ekranlarında yalnızca KDoc yorumları).
+- Cihazda denenecekler: (a) anime detayı → "Oku" → Manga-TR sonucu görünmeli, (b) keşfet → çevrimdışı kaynak → hata metni seçili dilde, (c) Ayarlar → Dil = English → detay/okuyucu/sağlık ekranı İngilizce.

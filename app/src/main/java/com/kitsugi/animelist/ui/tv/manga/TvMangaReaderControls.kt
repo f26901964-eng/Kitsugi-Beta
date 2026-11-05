@@ -79,8 +79,8 @@ fun TvMangaReaderControls(
             // 1. Okuma Yönü
             val readingModes = listOf(
                 ReadingMode.RightToLeft to stringResource(R.string.sagdan_sola_manga),
-                ReadingMode.LeftToRight to "Soldan Sağa",
-                ReadingMode.Vertical to "Dikey",
+                ReadingMode.LeftToRight to stringResource(R.string.manga_direction_ltr),
+                ReadingMode.Vertical to stringResource(R.string.manga_direction_vertical),
                 ReadingMode.Webtoon to "Webtoon"
             )
             val currentModeIdx = readingModes.indexOfFirst { it.first == uiState.readingMode }.coerceAtLeast(0)
@@ -103,8 +103,8 @@ fun TvMangaReaderControls(
             // 2. Görsel Sığdırma Modu
             val fitModes = listOf(
                 MangaFitMode.FitScreen to stringResource(R.string.manga_fit_screen),
-                MangaFitMode.FitWidth to "Genişliğe Sığdır",
-                MangaFitMode.FitHeight to "Yükseğe Sığdır",
+                MangaFitMode.FitWidth to stringResource(R.string.manga_fit_width),
+                MangaFitMode.FitHeight to stringResource(R.string.manga_fit_height),
                 MangaFitMode.Crop to stringResource(R.string.manga_fit_crop),
                 MangaFitMode.Original to stringResource(R.string.manga_fit_original)
             )

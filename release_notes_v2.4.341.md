@@ -59,6 +59,16 @@
 
 ---
 
+### 🌍 Arama Artık Seçtiğin Dilde Çalışıyor
+- **"Oku" butonu boş sonuç veriyordu:** buton, ekranda gördüğün tek başlığı gönderiyordu. Manga-TR aynı eseri Türkçe adla listeliyorsa arama boş dönüyordu. Artık eserin **tüm başlıkları** (romaji / İngilizce / Japonca / yerel) sırayla denenir; hangi kaynak, hangi tür (manga / manhwa / light novel) olursa olsun eser bulunur.
+- **Farklı dilde bulunan sonuçlar kaybolmuyor:** sonuç, bulunduğu başlığa göre puanlanır; çeviri başlıklar benzerlik filtresine takılmaz.
+- **Sayfalama düzeldi:** 2. sayfa, sonuç getiren başlıkla istenir.
+- **Kaynak sırası diline uyar:** uygulama dilinle aynı dildeki kaynaklar listenin başına geçer (dil değişince sıra da değişir).
+
+### 🈯 Manga Arayüzü Artık Seçili Dilde
+- Detay sayfası ("Baştan Oku", durum etiketleri: Devam Ediyor / Tamamlandı / Lisanslı / Yayın Tamamlandı / İptal Edildi / Ara Verildi) okuyucu hata mesajları, kaynak sağlığı ekranı ve TV ekranlarındaki sabit Türkçe/İngilizce metinler **46 yeni çevrilebilir metne** taşındı. Ayarlar → Dil = English seçildiğinde bu ekranlar da İngilizce.
+- **Bölüm araması tutarlı:** "çevirmenleri birleştir" kapalıyken `42` yazınca 42.5 bölümü de bulunur.
+
 ## 🇬🇧 English
 
 ### 🖥️ Fullscreen Is Now Actually Fullscreen
@@ -116,3 +126,12 @@
 - **ZIP/CBZ archive pages actually render now**: the entry stream is written to disk and served from cache.
 - Cache checks no longer hit the disk on every recomposition, and zero-byte files are no longer treated as ready.
 
+### 🌍 Search Now Follows Your App Language
+- **The "Read" button returned nothing:** it sent only the single title shown on screen. If the source lists the same work under a localized title (e.g. Manga-TR), the search came back empty. Now **every known title** (romaji / English / Japanese / native) is tried in order — so the work is found regardless of source or media type (manga / manhwa / light novel).
+- **Results found under a different language no longer disappear:** they are scored against the title that actually matched, so translated titles are not filtered out by similarity.
+- **Pagination fixed:** page 2 is requested with the title that produced results.
+- **Source order follows your language:** sources in your selected app language move to the front (the order changes when you change the language).
+
+### 🈯 Manga UI Follows the Selected Language
+- Detail screen ("Read from beginning", status labels), reader error messages, source health screen and TV screens moved from hardcoded Turkish/English literals to **46 new translatable strings**. Switch Settings → Language to English and these screens follow.
+- **Chapter search is consistent:** with "merge scanlators" off, typing `42` now also finds chapter 42.5.

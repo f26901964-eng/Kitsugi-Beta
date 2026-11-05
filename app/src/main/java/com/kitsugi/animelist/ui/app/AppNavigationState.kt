@@ -35,10 +35,18 @@ class AppNavigationState(
         private set
     var mangaBrowseMediaId by mutableStateOf<Int?>(null)
         private set
+    /** Aynı eserin diğer dillerdeki başlıkları (romaji / İngilizce / Japonca). */
+    var mangaBrowseAlternates by mutableStateOf<List<String>>(emptyList())
+        private set
 
-    fun openMangaBrowse(query: String? = null, mediaId: Int? = null) {
+    fun openMangaBrowse(
+        query: String? = null,
+        mediaId: Int? = null,
+        alternates: List<String> = emptyList(),
+    ) {
         mangaBrowseQuery = query
         mangaBrowseMediaId = mediaId
+        mangaBrowseAlternates = alternates.filter { it.isNotBlank() }.distinct()
         mangaBrowseOpen = true
     }
 
@@ -46,6 +54,7 @@ class AppNavigationState(
         mangaBrowseOpen = false
         mangaBrowseQuery = null
         mangaBrowseMediaId = null
+        mangaBrowseAlternates = emptyList()
     }
 
     var mangaSourceHealthOpen by mutableStateOf(false)

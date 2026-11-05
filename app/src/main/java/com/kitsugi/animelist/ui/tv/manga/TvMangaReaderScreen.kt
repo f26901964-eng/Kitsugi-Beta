@@ -480,9 +480,9 @@ fun TvMangaReaderScreen(
                         // Sayfa İlerleme Metni
                         val currentText = "${currentPage + 1} / ${pages.size}"
                         val readingLabel = when (readingMode) {
-                            ReadingMode.RightToLeft -> "Sağdan Sola"
-                            ReadingMode.LeftToRight -> "Soldan Sağa"
-                            ReadingMode.Vertical -> "Dikey"
+                            ReadingMode.RightToLeft -> stringResource(R.string.manga_direction_rtl)
+                            ReadingMode.LeftToRight -> stringResource(R.string.manga_direction_ltr)
+                            ReadingMode.Vertical -> stringResource(R.string.manga_direction_vertical)
                             ReadingMode.Webtoon -> "Webtoon"
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
