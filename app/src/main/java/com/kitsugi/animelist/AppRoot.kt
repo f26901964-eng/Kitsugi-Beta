@@ -1278,7 +1278,33 @@ private fun AppNavigationContent(
                     triggerSearchByGenre = triggerSearchByGenre,
                     triggerSearchByTag = triggerSearchByTag,
                     triggerDetailSearchFilter = triggerDetailSearchFilter,
-                    onScrollReset = { bottomBarScrollState.show() }
+                    onScrollReset = { bottomBarScrollState.show() },
+                    onOpenMangaReadHistory = { sourceName, mangaUrl, mangaTitle, coverUrl ->
+                        // Geçmiş sayfasından okunan bir bölüme dokunuldu: kaynak eklentisi
+                        // yüklüyse doğrudan manga detay sayfasına git (oradan "Devam Et").
+                        val resolved = mangaViewModel.mangaRepository.getSourceByName(sourceName)
+                        if (resolved != null) {
+                            // Geçmiş ekranı yığından düşürülür: manga detayı açıldığında
+                            // geri tuşu doğrudan bir üst ekrana döner (yığında iki ekran kalmaz).
+                            navState.detailBackStack = navState.detailBackStack
+                                .filterNot { it is DetailScreen.WatchHistory }
+                            navState.mangaDetailNavState = MangaDetailNavState(
+                                source = resolved,
+                                mangaDetails = com.kitsugi.animelist.data.manga.MangaDetails(
+                                    url = mangaUrl,
+                                    title = mangaTitle,
+                                    thumbnailUrl = coverUrl,
+                                    source = sourceName
+                                )
+                            )
+                        } else {
+                            android.widget.Toast.makeText(
+                                context,
+                                "$sourceName kaynağı yüklü değil. Eklentiler sayfasından yükleyebilirsin.",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
                 )
             }
 

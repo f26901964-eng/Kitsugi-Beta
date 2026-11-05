@@ -17757,4 +17757,47 @@
     <string name="inline_video_unsupported_title">This video could not be played inline</string>
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
+    <!-- ── Manga detail / chapter list toolbar ───────────────────────────── -->
+    <string name="manga_read_from_start">Read from start</string>
+    <string name="manga_chapter_search_hint">Search chapters (e.g. 42)</string>
+    <string name="manga_filter_all">All</string>
+    <string name="manga_filter_unread">Unread</string>
+    <string name="manga_sort_chapters">Sort chapters</string>
+    <string name="manga_read_filter">Filter read chapters</string>
+    <string name="manga_no_matching_chapters">No chapters match these filters.</string>
+    <string name="manga_clear_filters">Clear filters</string>
+    <string name="manga_no_chapters_found">No chapters found for this manga.</string>
+    <string name="manga_page_of_total">Page %1$d/%2$d</string>
+    <string name="manga_retry">Retry</string>
+
+    <!-- ── Manga reader: page gallery + end of chapter ───────────────────── -->
+    <string name="manga_reader_gallery_title">Page gallery</string>
+    <string name="manga_reader_gallery_hint">Tap a page to jump to it</string>
+    <string name="manga_reader_open_gallery">Open page gallery</string>
+    <string name="manga_reader_page_number">Page %1$d</string>
+    <string name="manga_reader_next_chapter">Next chapter</string>
+    <string name="manga_reader_prev_chapter">Previous chapter</string>
+
+    <!-- ── History screen: watched / read separation ─────────────────────── -->
+    <string name="history_title">History</string>
+    <string name="history_tab_all">All</string>
+    <string name="history_tab_watched">Watched</string>
+    <string name="history_tab_read">Read</string>
+    <string name="history_empty_title">No history yet</string>
+    <string name="history_empty_body">Episodes you watch and manga chapters you read appear here.</string>
+    <string name="history_empty_watched">You have not watched any episode yet.</string>
+    <string name="history_empty_read">You have not read any manga chapter yet.</string>
+    <string name="history_clear_watched_title">Clear watch history</string>
+    <string name="history_clear_read_title">Clear reading history</string>
+    <string name="history_clear_watched_confirm">Your entire watch history will be deleted. This cannot be undone.</string>
+    <string name="history_clear_read_confirm">Your entire reading history will be deleted. This cannot be undone.</string>
+    <string name="history_clear_all_title">Clear history</string>
+    <string name="history_clear_all_confirm">Both your watch and reading history will be deleted. This cannot be undone.</string>
+    <string name="history_read_chapter_label">Chapter: %1$s</string>
+    <string name="history_read_progress">%1$d/%2$d pages</string>
+    <string name="history_read_completed">Completed</string>
+    <string name="history_read_in_progress">In progress</string>
+    <string name="history_remove_read_entry">Remove from reading history</string>
+    <string name="history_section_watched">Watched</string>
+    <string name="history_section_read">Read</string>
 </resources>

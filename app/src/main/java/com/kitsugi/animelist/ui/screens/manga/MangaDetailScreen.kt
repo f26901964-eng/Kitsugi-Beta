@@ -1,12 +1,36 @@
 package com.kitsugi.animelist.ui.screens.manga
-import com.kitsugi.animelist.ui.components.KitsugiButton
 
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.fandom.FandomMediaQueries
+import com.kitsugi.animelist.data.manga.ChapterSortMode
+import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaDetails
+import com.kitsugi.animelist.data.manga.MangaSource
+import com.kitsugi.animelist.data.manga.MangaStatus
+import com.kitsugi.animelist.data.manga.scanlatorLabel
+import com.kitsugi.animelist.data.manga.sortedForMode
+import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.safeBlur
+import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
+import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
+import com.kitsugi.animelist.ui.screens.manga.components.MangaChapterSearchRow
+import com.kitsugi.animelist.ui.screens.manga.components.MangaChaptersHeader
+import com.kitsugi.animelist.ui.screens.manga.components.MangaDetailTopBar
+import com.kitsugi.animelist.ui.screens.manga.components.MangaDetailTopBarHeight
+import com.kitsugi.animelist.ui.screens.manga.components.MangaEmptyChapters
+import com.kitsugi.animelist.ui.screens.manga.components.MangaFloatingBackButton
+import com.kitsugi.animelist.ui.screens.manga.components.MangaScanlatorChipsRow
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,69 +38,78 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Refresh
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
-import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
-import com.kitsugi.animelist.ui.theme.gradient.Icon
-import androidx.compose.material3.IconButton
-import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kitsugi.animelist.data.manga.MangaChapter
-import com.kitsugi.animelist.data.manga.MangaDetails
-import com.kitsugi.animelist.data.manga.MangaSource
-import com.kitsugi.animelist.data.manga.MangaStatus
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.KitsugiColors
-import androidx.compose.ui.res.stringResource
-import com.kitsugi.animelist.R
-import com.kitsugi.animelist.ui.components.safeBlur
-import androidx.compose.runtime.remember
-import com.kitsugi.animelist.data.fandom.FandomMediaQueries
-import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
-import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
+import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
 
 /**
  * Manga Detay + "Oku" Ekranı.
  *
  * — Üstte bulanık kapak arkaplanı + kapak görseli + başlık/yazar/durum/türler
  * — Büyük "Baştan Oku" / "Devam Et" butonu
- * — Bölüm listesi (okunan bölümler işaretli, devam edilen bölüm vurgulu)
+ * — Fandom Wiki kartı (açılır; içerik kullanıcı açınca yüklenir)
+ * — Bölüm araç çubuğu: sıralama, okunmamış filtresi, yenile, bölüm arama, kaynak/tarayıcı çipleri
+ * — Bölüm listesi (okunan bölümler işaretli, devam edilen bölüm vurgulu, yarım kalan
+ *   bölümlerde sayfa ilerleme çubuğu)
+ *
+ * ## Kaydırmaya duyarlı üst bar
+ * Anime/film detay sayfasıyla aynı mekanik: sayfa tepedeyken yalnızca yüzen geri düğmesi
+ * görünür; hero + aksiyon + açıklama + wiki kartı geçildiğinde üst bar yumuşakça süzülür
+ * ve başlık + bölüm sayısı + yenile düğmesini taşır (bkz. [MangaDetailTopBar]).
  *
  * Bir bölüme (veya Oku butonuna) tıklanınca [onOpenChapter] ile okuyucu açılır.
  */
+/**
+ * Sticky "Bölümler" başlığının LazyColumn'daki indeksi: hero · aksiyon · (açıklama) ·
+ * wiki · başlık. Açıklama boş olduğunda liste bir öğe kısalır; üst bar eşikleri bu yüzden
+ * içerikten bağımsız olarak güvenli aralıkta tutulur (bkz. [rememberDetailStickyHeaderVisible]).
+ */
+private const val CHAPTERS_HEADER_INDEX = 4
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MangaDetailScreen(
     source: MangaSource,
     mangaDetails: MangaDetails,
     onOpenChapter: (MangaChapter) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /**
+     * Okuyucudan dönüşte artan sayaç. Değiştiğinde bölüm listesi yeniden çekilmez;
+     * yalnızca Room'daki okuma ilerlemesi tazelenir (bkz. [MangaDetailViewModel.refreshProgress]).
+     */
+    refreshTick: Int = 0
 ) {
     val context = LocalContext.current
     val accent = LocalKitsugiAccent.current
@@ -86,8 +119,11 @@ fun MangaDetailScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
     val details = uiState.details
+
     // Fandom Wiki: eklenti kaynağında kimlik yoktur; seri başlığıyla (isim yolu) çözülür.
-    val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_manga_${source.name}_${mangaDetails.url}")
+    val wikiViewModel: FandomMediaWikiViewModel = viewModel(
+        key = "fandom_manga_${source.name}_${mangaDetails.url}"
+    )
     val wikiQuery = remember(details.title) {
         FandomMediaQueries.fromMedia(
             source = null,
@@ -98,27 +134,102 @@ fun MangaDetailScreen(
         )
     }
 
+    // ── Bölüm araç çubuğu durumu (döndürülünce/yeniden çizilince korunur) ─────
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedScanlator by rememberSaveable { mutableStateOf<String?>(null) }
+    var statusFilterName by rememberSaveable { mutableStateOf(ChapterStatusFilter.All.name) }
+    var sortModeName by rememberSaveable { mutableStateOf(ChapterSortMode.NewestFirst.name) }
+
+    val sortMode = runCatching { ChapterSortMode.valueOf(sortModeName) }
+        .getOrDefault(ChapterSortMode.NewestFirst)
+    val activeStatusFilter = runCatching { ChapterStatusFilter.valueOf(statusFilterName) }
+        .getOrDefault(ChapterStatusFilter.All)
+
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+
+    // Okuyucudan dönüş: ağ isteği yok, yalnızca okundu/ilerleme durumları tazelenir.
+    LaunchedEffect(refreshTick) {
+        if (refreshTick > 0) viewModel.refreshProgress()
+    }
+
+    // Üst bar: hero + aksiyon + açıklama + wiki kartı geçilince görünür.
+    // Bölüm listesi sanallaştırıldığı için index eşikleri sabittir (bkz. aşağıdaki item'lar).
+    val topBarVisible = rememberDetailStickyHeaderVisible(
+        listState = listState,
+        showAtIndex = 4,
+        hideAtIndex = 2
+    )
+
+    // ── Kaynak (tarayıcı) etiketleri ─────────────────────────────────────────
+    // Aynı bölüm birden çok gruplamada yayınlanabildiği için etiket listesi
+    // eklentiden gelen scanlator alanından olduğu gibi türetilir.
+    val scanlatorLabels = remember(uiState.chapters, source.name) {
+        uiState.chapters
+            .map { it.chapter.scanlatorLabel(source.name) }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    // ── Görünen bölümler ─────────────────────────────────────────────────────
+    val rowByUrl = remember(uiState.chapters) { uiState.chapters.associateBy { it.chapter.url } }
+
+    val visibleChapters = remember(
+        uiState.chapters,
+        query,
+        selectedScanlator,
+        activeStatusFilter,
+        sortMode,
+        source.name
+    ) {
+        val needle = query.trim().lowercase()
+        uiState.chapters
+            .asSequence()
+            .filter { row ->
+                selectedScanlator == null ||
+                    row.chapter.scanlatorLabel(source.name) == selectedScanlator
+            }
+            .filter { row -> activeStatusFilter.matches(row.isCompleted, row.isInProgress) }
+            .filter { row ->
+                if (needle.isEmpty()) return@filter true
+                val number = if (row.chapter.chapterNumber > 0f) {
+                    row.chapter.chapterNumber.toString()
+                } else {
+                    ""
+                }
+                row.chapter.name.lowercase().contains(needle) ||
+                    number.contains(needle) ||
+                    row.chapter.scanlatorLabel(source.name).lowercase().contains(needle)
+            }
+            .map { it.chapter }
+            .toList()
+            .sortedForMode(sortMode)
+    }
+
+    val readFilterActive = activeStatusFilter == ChapterStatusFilter.Read
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(KitsugiColors.Background)
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
             // ─── Hero / Kapak Başlık ───────────────────────────────────────────
-            item {
+            item(key = "hero") {
                 MangaDetailHeader(details = details, accent = accent)
             }
 
             // ─── Oku / Devam Et Butonu ─────────────────────────────────────────
-            item {
+            item(key = "read_action") {
                 val resume = uiState.resumeChapter
                 val canRead = uiState.chapters.isNotEmpty()
                 KitsugiDetailActionButton(
                     text = when {
                         resume != null -> stringResource(R.string.devam_et_x, resume.name)
-                        else -> "Baştan Oku"
+                        else -> stringResource(R.string.manga_read_from_start)
                     },
                     icon = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
                     onClick = {
@@ -134,7 +245,7 @@ fun MangaDetailScreen(
 
             // ─── Açıklama ──────────────────────────────────────────────────────
             if (!details.description.isNullOrBlank()) {
-                item {
+                item(key = "description") {
                     Text(
                         text = details.description!!,
                         color = KitsugiColors.TextSecondary,
@@ -154,35 +265,105 @@ fun MangaDetailScreen(
                 )
             }
 
-            // ─── Bölümler Başlığı ──────────────────────────────────────────────
-            item {
-                Row(
+            // ─── Bölümler Başlığı (sticky) ─────────────────────────────────────
+            stickyHeader(key = "chapters_header") {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .background(KitsugiColors.Background.copy(alpha = 0.97f))
                 ) {
-                    Text(
-                        text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
-                        color = KitsugiColors.TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                    // Üst bar görünürken sticky başlık barın ALTINA düşmeli; aksi hâlde
+                    // bölüm başlığı barın arkasında kalıyor. Bar gizliyken boşluk verilmez.
+                    if (topBarVisible) Spacer(Modifier.height(MangaDetailTopBarHeight))
+                    val headerTitle = stringResource(R.string.bolumler)
+                    val headerCount = visibleChapters.size
+                    val onCycleSort: () -> Unit = {
+                        sortModeName = sortMode.next().name
+                        // Yeni sıralamada liste başından devam et: kullanıcı sıralamanın
+                        // etkisini hemen görsün.
+                        scope.launch { listState.animateScrollToItem(CHAPTERS_HEADER_INDEX) }
+                    }
+                    val onToggleReadFilter: () -> Unit = {
+                        statusFilterName = if (readFilterActive) {
+                            ChapterStatusFilter.All.name
+                        } else {
+                            ChapterStatusFilter.Read.name
+                        }
+                    }
+                    val onRefreshChapters: () -> Unit = { viewModel.loadChapters() }
+                    MangaChaptersHeader(
+                        title = headerTitle,
+                        count = headerCount,
+                        sortLabel = sortMode.label(),
+                        readFilterActive = readFilterActive,
+                        highlightReadFilter = true,
+                        accentColor = accent,
+                        onCycleSort = onCycleSort,
+                        onToggleReadFilter = onToggleReadFilter,
+                        onRefresh = onRefreshChapters
                     )
-                    IconButton(onClick = { viewModel.loadChapters() }) {
-                        Icon(
-                            Icons.Rounded.Refresh,
-                            contentDescription = stringResource(R.string.yenile),
-                            tint = KitsugiColors.TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                }
+            }
+
+            // ─── Bölüm Araçları (arama + durum + kaynak çipleri) ───────────────
+            item(key = "chapter_tools") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MangaChapterSearchRow(
+                        query = query,
+                        onQueryChange = { query = it },
+                        unreadOnly = activeStatusFilter == ChapterStatusFilter.Unread,
+                        onToggleUnreadOnly = {
+                            statusFilterName = if (activeStatusFilter == ChapterStatusFilter.Unread) {
+                                ChapterStatusFilter.All.name
+                            } else {
+                                ChapterStatusFilter.Unread.name
+                            }
+                        },
+                        accentColor = accent
+                    )
+                    MangaScanlatorChipsRow(
+                        labels = scanlatorLabels,
+                        selected = selectedScanlator,
+                        onSelect = { selectedScanlator = it },
+                        accentColor = accent
+                    )
+                    // Filtre sonucu boşsa kullanıcıya neden boş olduğunu söyle ve
+                    // tek dokunuşla filtreleri sıfırlamasına izin ver (sessiz boş liste yok).
+                    if (uiState.chapters.isNotEmpty() && visibleChapters.isEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.manga_no_matching_chapters),
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            KitsugiButton(
+                                onClick = {
+                                    query = ""
+                                    selectedScanlator = null
+                                    statusFilterName = ChapterStatusFilter.All.name
+                                    sortModeName = ChapterSortMode.NewestFirst.name
+                                }
+                            ) {
+                                Text(stringResource(R.string.manga_clear_filters), fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }
 
             // ─── Bölüm Durumları ───────────────────────────────────────────────
             when {
-                uiState.isLoadingChapters -> item {
+                uiState.isLoadingChapters -> item(key = "chapters_loading") {
                     Box(
                         Modifier
                             .fillMaxWidth()
@@ -193,7 +374,7 @@ fun MangaDetailScreen(
                     }
                 }
 
-                uiState.error != null -> item {
+                uiState.error != null -> item(key = "chapters_error") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -205,44 +386,82 @@ fun MangaDetailScreen(
                             color = KitsugiColors.TextSecondary,
                             fontSize = 13.sp
                         )
-                        uiState.errorCode?.let { code -> com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code) }
+                        uiState.errorCode?.let { code ->
+                            com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code)
+                        }
                         Spacer(Modifier.height(12.dp))
-                        KitsugiButton(
-                            onClick = { viewModel.loadChapters() }
-                        ) {
-                            Text("Tekrar Dene", fontWeight = FontWeight.Bold)
+                        KitsugiButton(onClick = { viewModel.loadChapters() }) {
+                            Text(stringResource(R.string.manga_retry), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
+                visibleChapters.isEmpty() -> item(key = "chapters_empty") {
+                    MangaEmptyChapters(message = stringResource(R.string.manga_no_chapters_found))
+                }
+
                 else -> items(
-                    items = uiState.chapters,
-                    key = { it.chapter.url }
-                ) { row ->
-                    ChapterListItem(
-                        row = row,
-                        accent = accent,
-                        onClick = { onOpenChapter(row.chapter) }
-                    )
+                    items = visibleChapters,
+                    key = { it.url }
+                ) { chapter ->
+                    val row = rowByUrl[chapter.url]
+                    if (row != null) {
+                        ChapterListItem(
+                            row = row,
+                            accent = accent,
+                            onClick = { onOpenChapter(row.chapter) },
+                            onToggleRead = { viewModel.setChapterRead(row.chapter, !row.isCompleted) }
+                        )
+                    }
                 }
             }
+
+            item(key = "chapters_bottom_spacer") { Spacer(Modifier.height(24.dp)) }
         }
 
-        // ─── Geri Butonu (üstte sabit) ─────────────────────────────────────────
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier
-                .padding(4.dp)
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(0.35f))
-        ) {
-            Icon(
-                Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = stringResource(R.string.geri),
-                tint = Color.White
-            )
+        // ─── Kaydırmaya duyarlı üst bar ────────────────────────────────────────
+        MangaDetailTopBar(
+            title = details.title,
+            subtitle = buildString {
+                // Yazar/kaynak bilgisi hero'dan üst bara taşındı: kaydırırken hangi seride
+                // ve hangi kaynakta olduğun her zaman görünür.
+                if (!details.author.isNullOrBlank()) append(details.author)
+                if (details.source.isNotBlank()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(details.source)
+                }
+                if (isNotEmpty()) append(" · ")
+                append("${stringResource(R.string.bolumler)} (${uiState.chapters.size})")
+            },
+            visible = topBarVisible,
+            onBack = onBack,
+            onRefresh = { viewModel.loadChapters() },
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        // ─── Hızlı Yukarı Kaydırma (Keşfet ile birebir aynı bileşen) ──────────
+        // 232 bölümlük listede en alta inen kullanıcı tek dokunuşla başa döner.
+        val showScrollToTop by remember {
+            androidx.compose.runtime.derivedStateOf {
+                listState.firstVisibleItemIndex > 2 || listState.firstVisibleItemScrollOffset > 400
+            }
         }
+        com.kitsugi.animelist.ui.components.KitsugiScrollToTopFab(
+            visible = showScrollToTop,
+            isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE,
+            bottomBarScrollState = null,
+            fallbackBottomBarVisible = false,
+            onClick = { scope.launch { listState.animateScrollToItem(0) } },
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+
+        // ─── Sayfa tepesindeki yüzen geri düğmesi ─────────────────────────────
+        MangaFloatingBackButton(
+            visible = !topBarVisible,
+            onBack = onBack,
+            modifier = Modifier.align(Alignment.TopStart)
+        )
     }
 }
 
@@ -311,19 +530,9 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
                     color = KitsugiColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (!details.author.isNullOrBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = details.author!!,
-                        color = KitsugiColors.TextSecondary,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -363,11 +572,20 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
     }
 }
 
+/**
+ * Bölüm satırı.
+ *
+ * — Okunan bölümler soluklaşır ve sağda tik alır.
+ * — Yarım kalan bölümde ince ilerleme çubuğu + "Sayfa 12/40" bilgisi gösterilir.
+ * — Tik'e dokunmak bölümü okundu/okunmadı olarak işaretler (uzun listede tek tek
+ *   okumaya geri dönmeden işaretleme yapılabilir).
+ */
 @Composable
 private fun ChapterListItem(
     row: MangaDetailViewModel.ChapterRow,
     accent: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleRead: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -387,7 +605,7 @@ private fun ChapterListItem(
             )
             val subtitle = buildString {
                 if (row.isInProgress && row.totalPages > 0) {
-                    append("Sayfa ${row.lastPageIndex + 1}/${row.totalPages}")
+                    append(stringResource(R.string.manga_page_of_total, row.lastPageIndex + 1, row.totalPages))
                 } else if (!row.chapter.scanlator.isNullOrBlank()) {
                     append(row.chapter.scanlator)
                 }
@@ -402,16 +620,47 @@ private fun ChapterListItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            // Yarım kalan bölümlerde ilerleme çubuğu — "nerede kaldım" tek bakışta görünür.
+            if (row.isInProgress && row.totalPages > 0) {
+                Spacer(Modifier.height(6.dp))
+                val progress = ((row.lastPageIndex + 1).toFloat() / row.totalPages.toFloat())
+                    .coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(3.dp)
+                        .clip(CircleShape),
+                    color = accent,
+                    trackColor = KitsugiColors.SurfaceStrong
+                )
+            }
         }
-        if (row.isCompleted) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .tvClickable(shape = CircleShape, onClick = onToggleRead),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 Icons.Rounded.CheckCircle,
                 contentDescription = stringResource(R.string.okundu),
-                tint = KitsugiColors.AccentGreen.copy(0.8f),
+                tint = if (row.isCompleted) {
+                    KitsugiColors.AccentGreen.copy(0.85f)
+                } else {
+                    KitsugiColors.TextMuted.copy(alpha = 0.35f)
+                },
                 modifier = Modifier.size(18.dp)
             )
         }
     }
+}
+
+private fun ChapterSortMode.label(): String = when (this) {
+    ChapterSortMode.NewestFirst -> "Sıralama: Yeni → Eski"
+    ChapterSortMode.OldestFirst -> "Sıralama: Eski → Yeni"
+    ChapterSortMode.RecentlyUpdated -> "Sıralama: Son güncellenen"
 }
 
 private fun MangaStatus.label(): String = when (this) {

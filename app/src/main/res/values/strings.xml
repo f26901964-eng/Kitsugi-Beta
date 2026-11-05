@@ -17762,4 +17762,47 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
     <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
     <string name="inline_open_fullscreen">Tam ekranda aç</string>
+    <!-- ── Manga detay / bölüm listesi araç çubuğu ───────────────────────── -->
+    <string name="manga_read_from_start">Baştan Oku</string>
+    <string name="manga_chapter_search_hint">Bölüm ara (ör. 42)</string>
+    <string name="manga_filter_all">Tümü</string>
+    <string name="manga_filter_unread">Okunmamış</string>
+    <string name="manga_sort_chapters">Bölümleri sırala</string>
+    <string name="manga_read_filter">Okunanları filtrele</string>
+    <string name="manga_no_matching_chapters">Bu filtrelere uyan bölüm yok.</string>
+    <string name="manga_clear_filters">Filtreleri temizle</string>
+    <string name="manga_no_chapters_found">Bu manga için bölüm bulunamadı.</string>
+    <string name="manga_page_of_total">Sayfa %1$d/%2$d</string>
+    <string name="manga_retry">Tekrar Dene</string>
+
+    <!-- ── Manga okuyucu: sayfa galerisi + bölüm sonu ────────────────────── -->
+    <string name="manga_reader_gallery_title">Sayfa galerisi</string>
+    <string name="manga_reader_gallery_hint">Bir sayfaya dokunarak o sayfaya atla</string>
+    <string name="manga_reader_open_gallery">Sayfa galerisini aç</string>
+    <string name="manga_reader_page_number">Sayfa %1$d</string>
+    <string name="manga_reader_next_chapter">Sonraki bölüm</string>
+    <string name="manga_reader_prev_chapter">Önceki bölüm</string>
+
+    <!-- ── Geçmiş sayfası: izlenen / okunan ayrımı ───────────────────────── -->
+    <string name="history_title">Geçmiş</string>
+    <string name="history_tab_all">Tümü</string>
+    <string name="history_tab_watched">İzlenen</string>
+    <string name="history_tab_read">Okunan</string>
+    <string name="history_empty_title">Henüz geçmişin yok</string>
+    <string name="history_empty_body">İzlediğin bölümler ve okuduğun manga bölümleri burada listelenir.</string>
+    <string name="history_empty_watched">Henüz izlediğin bir bölüm yok.</string>
+    <string name="history_empty_read">Henüz okuduğun bir manga bölümü yok.</string>
+    <string name="history_clear_watched_title">İzleme geçmişini temizle</string>
+    <string name="history_clear_read_title">Okuma geçmişini temizle</string>
+    <string name="history_clear_watched_confirm">Tüm izleme geçmişin silinecek. Bu işlem geri alınamaz.</string>
+    <string name="history_clear_read_confirm">Tüm okuma geçmişin silinecek. Bu işlem geri alınamaz.</string>
+    <string name="history_clear_all_title">Geçmişi temizle</string>
+    <string name="history_clear_all_confirm">Hem izleme hem okuma geçmişin silinecek. Bu işlem geri alınamaz.</string>
+    <string name="history_read_chapter_label">Bölüm: %1$s</string>
+    <string name="history_read_progress">%1$d/%2$d sayfa</string>
+    <string name="history_read_completed">Tamamlandı</string>
+    <string name="history_read_in_progress">Devam ediyor</string>
+    <string name="history_remove_read_entry">Okuma geçmişinden kaldır</string>
+    <string name="history_section_watched">İzlenen</string>
+    <string name="history_section_read">Okunan</string>
 </resources>

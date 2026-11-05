@@ -60,6 +60,13 @@ class AppNavigationState(
     }
 
     var mangaDetailNavState by mutableStateOf<MangaDetailNavState?>(null)
+
+    /**
+     * Okuyucudan dönüşte artırılır. Manga detay ekranı bu değeri izleyip **bölüm listesini
+     * yeniden çekmeden** yalnızca okuma ilerlemesini Room'dan tazeler; böylece okundu
+     * işaretleri ve "Devam Et" hedefi anında güncellenir.
+     */
+    var mangaDetailRefreshTick by mutableStateOf(0)
     var mangaReaderNavState by mutableStateOf<MangaReaderNavState?>(null)
     var fullScreenGridState by mutableStateOf<FullScreenMediaGridState?>(null)
     var addonFullScreenGridState by mutableStateOf<AddonFullScreenGridState?>(null)

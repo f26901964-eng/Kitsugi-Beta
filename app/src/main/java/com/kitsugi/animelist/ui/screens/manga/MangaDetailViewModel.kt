@@ -37,6 +37,37 @@ class MangaDetailViewModel(
     private val db = KitsugiDatabase.getDatabase(context)
     private val progressDao = db.mangaChapterProgressDao()
 
+    /**
+     * Okuyucudan dönüldüğünde çağrılır: yalnızca Room'daki okuma ilerlemesini tazeler.
+     *
+     * ViewModel, okuyucu açıkken de yaşadığı için (Activity'nin ViewModelStore'unda kalır)
+     * bölüm listesi çekilmeden sadece ilerleme satırları yeniden okunur — ağ trafiği yok,
+     * bölüm listesi yeniden sıralanıp kaydırma konumu bozulmaz.
+     */
+    fun refreshProgress() {
+        val state = _uiState.value
+        if (state.chapters.isEmpty()) return
+        viewModelScope.launch {
+            val mangaUrl = state.details.url
+            val progressList = withContext(Dispatchers.IO) { progressDao.getAllForManga(mangaUrl) }
+            val progressByUrl = progressList.associateBy { it.chapterUrl }
+            val rows = state.chapters.map { row ->
+                val p = progressByUrl[row.chapter.url] ?: return@map row
+                row.copy(
+                    isCompleted = p.isCompleted,
+                    lastPageIndex = p.lastPageIndex,
+                    totalPages = p.totalPages,
+                    isInProgress = !p.isCompleted && p.lastPageIndex > 0
+                )
+            }
+            val resume = progressList
+                .filter { !it.isCompleted }
+                .maxByOrNull { it.updatedAt }
+                ?.let { prog -> rows.firstOrNull { it.chapter.url == prog.chapterUrl }?.chapter }
+            _uiState.update { it.copy(chapters = rows, resumeChapter = resume) }
+        }
+    }
+
     /** Bir bölümün okuma durumunu UI'a taşıyan sarmalayıcı. */
     data class ChapterRow(
         val chapter: MangaChapter,
@@ -162,6 +193,72 @@ class MangaDetailViewModel(
                     isLoadingChapters = false,
                     error = lastError?.localizedMessage ?: lastError?.message ?: "Bölümler yüklenemedi. Tekrar deneyin.",
                     errorCode = SourceFailureClassifier.classifyCode(lastError)
+                )
+            }
+        }
+    }
+
+    /**
+     * Bir bölümü okundu / okunmadı olarak işaretler.
+     *
+     * Bölüm listesindeki tik'e dokunulduğunda çağrılır. Room'daki ilerleme satırı yoksa
+     * oluşturulur, varsa `isCompleted` alanı güncellenir; okuma geçmişi de buna göre
+     * temizlenir/yazılır (geçmiş sayfasındaki "Okunan" sekmesi ile tutarlı kalması için).
+     */
+    fun setChapterRead(chapter: MangaChapter, read: Boolean, totalPages: Int = 0) {
+        viewModelScope.launch {
+            val mangaUrl = _uiState.value.details.url
+            val details = _uiState.value.details
+            val existing = withContext(Dispatchers.IO) { progressDao.getProgress(chapter.url) }
+            val pages = if (totalPages > 0) totalPages else existing?.totalPages ?: 0
+            val now = System.currentTimeMillis()
+            withContext(Dispatchers.IO) {
+                progressDao.upsert(
+                    com.kitsugi.animelist.data.local.MangaChapterProgressEntity(
+                        chapterUrl = chapter.url,
+                        mangaUrl = mangaUrl,
+                        chapterName = chapter.name,
+                        // Okundu işaretlenirse son sayfa = toplam sayfa (kaldığı yer kalmaz).
+                        lastPageIndex = if (read) (pages - 1).coerceAtLeast(0) else 0,
+                        totalPages = pages,
+                        isCompleted = read,
+                        updatedAt = now
+                    )
+                )
+            }
+            if (read) {
+                com.kitsugi.animelist.data.local.MangaReadHistoryManager.record(
+                    sourceName = source.name,
+                    mangaUrl = mangaUrl,
+                    mangaTitle = details.title,
+                    thumbnailUrl = details.thumbnailUrl,
+                    chapterUrl = chapter.url,
+                    chapterName = chapter.name,
+                    lastPageIndex = (pages - 1).coerceAtLeast(0),
+                    totalPages = pages,
+                    isCompleted = true
+                )
+            }
+            _uiState.update { state ->
+                state.copy(
+                    chapters = state.chapters.map { row ->
+                        if (row.chapter.url != chapter.url) {
+                            row
+                        } else {
+                            row.copy(
+                                isCompleted = read,
+                                isInProgress = !read && row.lastPageIndex > 0,
+                                lastPageIndex = if (read) (pages - 1).coerceAtLeast(0) else 0,
+                                totalPages = pages
+                            )
+                        }
+                    },
+                    resumeChapter = if (read) {
+                        // Tamamlanan bölüm "devam et" hedefi olamaz.
+                        if (state.resumeChapter?.url == chapter.url) null else state.resumeChapter
+                    } else {
+                        state.resumeChapter
+                    }
                 )
             }
         }

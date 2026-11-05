@@ -163,16 +163,30 @@ class MangaReaderViewModel(
         progressSaveJob = viewModelScope.launch {
             kotlinx.coroutines.delay(500L)
             val isCompleted = totalPages > 0 && pageIndex >= totalPages - 1
+            val chapterName = _uiState.value.currentChapter.name
             dao.upsert(
                 MangaChapterProgressEntity(
                     chapterUrl    = chapterUrl,
                     mangaUrl      = mangaDetails.url,
-                    chapterName   = _uiState.value.currentChapter.name,
+                    chapterName   = chapterName,
                     lastPageIndex = pageIndex,
                     totalPages    = totalPages,
                     isCompleted   = isCompleted,
                     updatedAt     = System.currentTimeMillis()
                 )
+            )
+            // 📖 Geçmiş sayfasındaki "Okunan" sekmesini besle: bölüm, sayfa ilerlemesi ve
+            // kaynak/kapak bilgisiyle kronolojik geçmişe yazılır (izleme geçmişiyle aynı mantık).
+            com.kitsugi.animelist.data.local.MangaReadHistoryManager.record(
+                sourceName = source.name,
+                mangaUrl = mangaDetails.url,
+                mangaTitle = mangaDetails.title,
+                thumbnailUrl = mangaDetails.thumbnailUrl,
+                chapterUrl = chapterUrl,
+                chapterName = chapterName,
+                lastPageIndex = pageIndex,
+                totalPages = totalPages,
+                isCompleted = isCompleted
             )
         }
     }

@@ -19,6 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MangaChapterProgressEntity::class,  // ✨ Manga okuma ilerlemesi
         MangaSourceStateEntity::class,       // ✨ Manga source sağlık / istatistik
         MangaMappingEntity::class,
+        MangaReadHistoryEntity::class,        // 📖 Okunan manga/novel bölüm geçmişi
         SearchHistoryEntity::class,
         HistoryEntity::class,                 // 🎬 İzleme geçmişi
         VideoEntity::class,                  // 📹 Video cache/çözümleme
@@ -26,7 +27,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PersistentDetailCacheEntity::class,  // 📂 Media details cache
         CustomButton::class
     ],
-    version = 29,
+    version = 30,
     exportSchema = true  // T3-03/TASK-106: KSP → $projectDir/schemas/ konumuna yazar
 )
 abstract class KitsugiDatabase : RoomDatabase() {
@@ -40,6 +41,7 @@ abstract class KitsugiDatabase : RoomDatabase() {
     abstract fun mangaChapterProgressDao(): MangaChapterProgressDao  // ✨ Manga okuma ilerlemesi
     abstract fun mangaSourceStateDao(): MangaSourceStateDao         // ✨ Manga source sağlık / istatistik
     abstract fun mangaMappingDao(): MangaMappingDao
+    abstract fun mangaReadHistoryDao(): MangaReadHistoryDao          // 📖 Okunan bölüm geçmişi
     abstract fun searchHistoryDao(): SearchHistoryDao
     abstract fun historyDao(): HistoryDao                           // 🎬 İzleme geçmişi
     abstract fun videoDao(): VideoDao                               // 📹 Video cache/çözümleme
@@ -403,6 +405,32 @@ abstract class KitsugiDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 📖 Okunan manga/novel bölüm geçmişi — geçmiş sayfasının "okunan" sekmesini besler.
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `manga_read_history` (
+                        `id` TEXT NOT NULL,
+                        `sourceName` TEXT NOT NULL,
+                        `mangaUrl` TEXT NOT NULL,
+                        `mangaTitle` TEXT NOT NULL,
+                        `thumbnailUrl` TEXT,
+                        `chapterUrl` TEXT NOT NULL,
+                        `chapterName` TEXT NOT NULL,
+                        `lastPageIndex` INTEGER NOT NULL,
+                        `totalPages` INTEGER NOT NULL,
+                        `isCompleted` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_read_history_mangaUrl` ON `manga_read_history` (`mangaUrl`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_read_history_updatedAt` ON `manga_read_history` (`updatedAt`)")
+            }
+        }
+
         fun getDatabase(context: Context): KitsugiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
@@ -437,7 +465,8 @@ abstract class KitsugiDatabase : RoomDatabase() {
                         MIGRATION_25_26,
                         MIGRATION_26_27,
                         MIGRATION_27_28,
-                        MIGRATION_28_29
+                        MIGRATION_28_29,
+                        MIGRATION_29_30   // 📖 Okunan bölüm geçmişi
                     )
                 
                 // T3-03: Güvenlik sertleştirmesi — Üretim sürümünde verilerin kazara sıfırlanmasını engeller.

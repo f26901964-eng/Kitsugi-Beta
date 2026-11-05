@@ -71,8 +71,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -80,27 +78,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -108,6 +99,7 @@ import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.repository.StreamProbe
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiCollapsibleTopBar
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -492,78 +484,6 @@ private fun PlayerPickerCard(icon: @Composable () -> Unit, label: String, sub: S
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Üst bar
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Kaydırma ile yumuşakça gizlenen / geri gelen üst bar.
- *
- * NEDEN NESTED SCROLL: Önceki sürümde bar, `firstVisibleItemIndex >= 2` olunca
- * `AnimatedVisibility` ile aniden açılıp kapanıyordu; sticky başlığın yüksekliği bir anda
- * değiştiği için liste zıplıyordu. Burada bar, listenin kaydırma mesafesine **birebir**
- * bağlı olarak yukarı kayar (translationY) — parmakla birlikte akar, animasyon sıçraması
- * olmaz. Liste en başa dönerse bar kendini geri getirir.
- */
-@Composable
-private fun CollapsibleTopBarBox(
-    listState: LazyListState,
-    barHeight: Dp = TOP_BAR_HEIGHT,
-    /**
-     * v2.4.319: Yatay düzende sol kontrol rayı da bar ile birlikte kaymalı; aksi halde bar
-     * gizlendiğinde rayın üstünde boş bir şerit kalıyordu. Aynı ofset paylaşılır.
-     */
-    offsetState: MutableFloatState? = null,
-    bar: @Composable () -> Unit,
-    content: @Composable (topContentPadding: Dp) -> Unit
-) {
-    val density = LocalDensity.current
-    val barPx = with(density) { barHeight.toPx() }
-    val offset = offsetState ?: remember { mutableFloatStateOf(0f) }
-    val connection = remember(barPx, offset, listState) { HideOnScrollConnection(offset, barPx, listState) }
-
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 4 }
-            .collect { atTop -> if (atTop) offset.floatValue = 0f }
-    }
-
-    Box(modifier = Modifier.fillMaxSize().clipToBounds().nestedScroll(connection)) {
-        content(barHeight + 8.dp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(barHeight)
-                .graphicsLayer {
-                    translationY = -offset.floatValue
-                    val progress = (offset.floatValue / barPx).coerceIn(0f, 1f)
-                    alpha = 1f - progress * 0.25f
-                }
-        ) { bar() }
-    }
-}
-
-/** Kaydırma deltasını bar ofsetine çeviren bağlantı. 0 = görünür, maxOffset = tamamen gizli. */
-private class HideOnScrollConnection(
-    private val offset: MutableFloatState,
-    private val maxOffset: Float,
-    private val listState: LazyListState
-) : NestedScrollConnection {
-    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-        val dy = available.y
-        if (dy == 0f || maxOffset <= 0f) return Offset.Zero
-        // Kısa listelerde (kaydırılamayan içerik) aşırı kaydırma barı gizlemesin.
-        // Yalnızca liste gerçekten aşağı kayabiliyorsa gizleme tüketilir;
-        // geri gösterme her durumda çalışır.
-        if (dy < 0f && !listState.canScrollForward) return Offset.Zero
-        val target = (offset.floatValue - dy).coerceIn(0f, maxOffset)
-        val delta = target - offset.floatValue
-        if (delta == 0f) return Offset.Zero
-        offset.floatValue = target
-        // Ofset arttıysa (bar yukarı kaydı) scroll deltasının o kısmını biz tükettik.
-        return Offset(0f, -delta)
-    }
-}
-
 @Composable
 private fun StreamTopBar(
     title: String,
@@ -674,8 +594,9 @@ private fun PortraitLayout(
     val subtitle = mediaSubtitle(isMovie, isDownloadMode, season, episode)
 
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-        CollapsibleTopBarBox(
+        com.kitsugi.animelist.ui.components.KitsugiCollapsibleTopBar(
             listState = listState,
+            barHeight = TOP_BAR_HEIGHT,
             bar = {
                 StreamTopBar(
                     title = title,
@@ -786,8 +707,9 @@ private fun LandscapeLayout(
     val barOffset = remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-        CollapsibleTopBarBox(
+        com.kitsugi.animelist.ui.components.KitsugiCollapsibleTopBar(
             listState = listState,
+            barHeight = TOP_BAR_HEIGHT,
             offsetState = barOffset,
             bar = {
                 StreamTopBar(

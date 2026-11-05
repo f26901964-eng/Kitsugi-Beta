@@ -28,7 +28,14 @@ fun AppRootMangaPages(
                     chapter          = readerState.chapter,
                     mangaDetails     = readerState.mangaDetails,
                     source           = readerState.source,
-                    onBack           = { navState.mangaReaderNavState = null }
+                    onBack           = {
+                        // Okuyucudan dönüşte detay ekranı arkada yaşamaya devam ediyor;
+                        // bu yüzden bölüm listesini yeniden çekmeden (ağ trafiği yok)
+                        // yalnızca okuma ilerlemesi tazelenir. Bunun için detay ekranı
+                        // yeniden kompoze edildiğinde kendi ViewModel'inden refresh ister.
+                        navState.mangaReaderNavState = null
+                        navState.mangaDetailRefreshTick += 1
+                    }
                 )
             }
         }
@@ -46,7 +53,8 @@ fun AppRootMangaPages(
                             chapter      = chapter
                         )
                     },
-                    onBack        = { navState.mangaDetailNavState = null }
+                    onBack        = { navState.mangaDetailNavState = null },
+                    refreshTick   = navState.mangaDetailRefreshTick
                 )
             }
         }
