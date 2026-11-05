@@ -31,7 +31,9 @@ data class AudioStreamSpecs(
             ?: fallbackFormat?.trim()?.uppercase(Locale.ROOT)?.takeIf { it.isNotBlank() }
         if (primary != null) add(primary)
         val containerUpper = container?.trim()?.uppercase(Locale.ROOT)?.takeIf { it.isNotBlank() }
-        if (containerUpper != null && !containerUpper.equals(primary, ignoreCase = true)) {
+        val primaryAlphaNum = primary?.filter(Char::isLetterOrDigit)?.uppercase(Locale.ROOT)
+        val containerAlphaNum = containerUpper?.filter(Char::isLetterOrDigit)?.uppercase(Locale.ROOT)
+        if (containerUpper != null && containerAlphaNum != primaryAlphaNum) {
             add(containerUpper)
         }
         AudioFormatSupport.formatSampleRate(sampleRateHz)?.let { add(it) }
