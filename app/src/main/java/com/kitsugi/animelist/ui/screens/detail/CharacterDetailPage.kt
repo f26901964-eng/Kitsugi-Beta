@@ -58,15 +58,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.rounded.Translate
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import android.content.res.Configuration
@@ -84,7 +77,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.displayPersonName
@@ -103,6 +95,8 @@ import com.kitsugi.animelist.utils.copyOnDoubleTap
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -143,7 +137,7 @@ fun CharacterDetailPage(
     onCharacterClick: (characterId: Int, characterSource: String, name: String?, imageUrl: String?) -> Unit,
     name: String? = null,
     imageUrl: String? = null,
-    titleLanguage: String = "ROMAJI",
+    titleLanguage: String = "ENGLISH",
     staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     preferredTranslator: String = "DEFAULT",
     isRealMediaRole: Boolean = false
@@ -207,7 +201,7 @@ fun CharacterDetailPage(
                             .padding(start = 12.dp, top = 24.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            imageVector = Icons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                             tint = KitsugiColors.TextPrimary
                         )
@@ -263,23 +257,21 @@ fun CharacterDetailPage(
                     )
                 }
                 // Wiki çözümlemesi ham detayla yapılır (yerel ad gösterim tercihinden bağımsız).
+                // PERF: Wiki durum akışları (sections, translations, reader vb.) kök sayfada değil
+                // yalnızca Wiki sekmesi açıkken CharacterWikiTabSlot(viewModel = ...) içinde toplanır;
+                // arka planda Fandom çözümleme/çeviri sürerken diğer sekmeler yeniden compose olmaz.
                 LaunchedEffect(rawDetail, source, characterId) {
                     wikiViewModel.bind(rawDetail, source, characterId)
                 }
-                val wikiState by wikiViewModel.state.collectAsState()
-                val wikiSections by wikiViewModel.sections.collectAsState()
-                val wikiTranslations by wikiViewModel.translations.collectAsState()
-                val wikiTranslating by wikiViewModel.translating.collectAsState()
-                val wikiOriginalKeys by wikiViewModel.originalKeys.collectAsState()
-                val wikiPrefs by wikiViewModel.prefs.collectAsState()
-                val wikiReaderState by wikiViewModel.reader.collectAsState()
-                val wikiReaderBrowser by wikiViewModel.readerBrowser.collectAsState()
-                val wikiRelatedPages by wikiViewModel.relatedPages.collectAsState()
-                val wikiLastRejected by wikiViewModel.lastRejected.collectAsState()
-
-                BackHandler(enabled = wikiReaderState != com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Closed) {
-                    wikiViewModel.readerBack()
+                LaunchedEffect(wikiViewModel) {
+                    wikiViewModel.state
+                        .mapNotNull { (it as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.UiState.Ready)?.page }
+                        .distinctUntilChanged()
+                        .collect { page ->
+                            viewModel.onWikiCharacterPageResolved(page)
+                        }
                 }
+                val wikiPrefs by wikiViewModel.prefs.collectAsState()
                 // Sekme görünürlüğü çözümlemeyi beklemez: kimlik/ad varsa sekme vardır.
                 val wikiTabPossible = wikiPrefs.enabled && remember(rawDetail, source, characterId) {
                     FandomCharacterQueries.from(rawDetail, source, characterId) != null
@@ -302,7 +294,7 @@ fun CharacterDetailPage(
                     val listState = rememberLazyListState()
                 val showFloatingHeader = rememberDetailStickyHeaderVisible(
                     listState = listState,
-                    showAtIndex = 2,
+                    showAtIndex = 1,
                     hideAtIndex = 0
                 )
                 val tabAbout      = stringResource(R.string.character_tab_about)
@@ -312,7 +304,7 @@ fun CharacterDetailPage(
                 val tabKeys = buildList {
                     add(CharacterTabKey.ABOUT)
                     add(CharacterTabKey.APPEARANCES)
-                    if (source.lowercase() != "tmdb") add(CharacterTabKey.VOICE_ACTORS)
+                    if (source.lowercase() != "tmdb" || !isRealMediaRole) add(CharacterTabKey.VOICE_ACTORS)
                     // Wiki sekmesi en sonda ama sayfa açılır açılmaz görünür: çözümleme sürerken
                     // iskelet gösterilir, böylece sekme sonradan belirip sekmeleri kaydırmaz.
                     if (wikiTabPossible) add(CharacterTabKey.WIKI)
@@ -468,6 +460,7 @@ fun CharacterDetailPage(
                                             }
                                             CharacterTabKey.APPEARANCES -> {
                                                 CharacterAppearancesTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     titleLanguage = titleLanguage,
                                                     onMediaClick = onMediaClick
@@ -475,56 +468,18 @@ fun CharacterDetailPage(
                                             }
                                             CharacterTabKey.VOICE_ACTORS -> {
                                                 CharacterVoiceActorsTabContent(
+                                                    pagingActive = page == pagerState.settledPage,
                                                     detail = detail,
                                                     onStaffClick = onStaffClick
                                                 )
                                             }
                                             CharacterTabKey.WIKI -> CharacterWikiTabSlot(
-                                                wikiState = wikiState,
-                                                sections = wikiSections,
-                                                translations = wikiTranslations,
-                                                translatingKeys = wikiTranslating,
-                                                spoilerGuard = wikiPrefs.spoilerGuard,
+                                                viewModel = wikiViewModel,
                                                 accentColor = accentColor,
-                                                onLoadSection = { index -> wikiViewModel.loadSection(index) },
-                                                preferredTranslator = preferredTranslator,
-                                                originalKeys = wikiOriginalKeys,
-                                                onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
-                                                onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
-                                                onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
-                                                onSwitchSource = { wikiViewModel.switchSource(it) },
-                                                relatedPages = wikiRelatedPages,
                                                 onOpenGallery = { items, idx ->
                                                     activeGalleryItems = items
                                                     activeGalleryIndex = idx
-                                                },
-                                                onConfirm = {
-                                                    wikiViewModel.confirmMatch()
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.fandom_confirm_done),
-                                                        android.widget.Toast.LENGTH_SHORT
-                                                    ).show()
-                                                },
-                                                onReportWrong = {
-                                                    wikiViewModel.reportWrongMatch()
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.fandom_report_wrong_done),
-                                                        android.widget.Toast.LENGTH_SHORT
-                                                    ).show()
-                                                },
-                                                onRetry = { wikiViewModel.retry() },
-                                                rejectedName = wikiLastRejected?.pageTitle,
-                                                onUndoReject = {
-                                                    wikiViewModel.undoLastReject()
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.fandom_reject_undo_done),
-                                                        android.widget.Toast.LENGTH_SHORT
-                                                    ).show()
-                                                },
-                                                onDismissRejectedUndo = { wikiViewModel.dismissLastRejected() }
+                                                }
                                             )
 
                                             null -> Unit
@@ -598,25 +553,6 @@ fun CharacterDetailPage(
                             // Tab contents - swipeable HorizontalPager
                             item(key = "content") {
                                 val pageHeights = remember { androidx.compose.runtime.mutableStateMapOf<Int, Int>() }
-                                val density = androidx.compose.ui.platform.LocalDensity.current
-                                val currentPage = pagerState.currentPage
-                                val currentPageOffset = pagerState.currentPageOffsetFraction
-                                val targetPage = if (currentPageOffset > 0f) currentPage + 1 else if (currentPageOffset < 0f) currentPage - 1 else currentPage
-
-                                val currentHeightPx = pageHeights[currentPage] ?: 0
-                                val targetHeightPx = pageHeights[targetPage] ?: currentHeightPx
-
-                                val interpolatedHeightDp = remember(currentHeightPx, targetHeightPx, currentPageOffset) {
-                                    val heightPx = if (currentHeightPx > 0 && targetHeightPx > 0) {
-                                        currentHeightPx + (targetHeightPx - currentHeightPx) * kotlin.math.abs(currentPageOffset)
-                                    } else if (currentHeightPx > 0) {
-                                        currentHeightPx.toFloat()
-                                    } else {
-                                        0f
-                                    }
-                                    if (heightPx > 0f) with(density) { heightPx.toDp() } else null
-                                }
-
                                 val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
 
                                 @OptIn(ExperimentalFoundationApi::class)
@@ -629,14 +565,29 @@ fun CharacterDetailPage(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .layout { measurable, constraints ->
-                                            val minPagerHeightPx = with(density) { (screenHeightDp - 64).dp.roundToPx() }.coerceAtLeast(0)
+                                            val minPagerHeightPx = (screenHeightDp - 64).dp.roundToPx().coerceAtLeast(0)
                                             val placeable = measurable.measure(
                                                 constraints.copy(
                                                     minHeight = minPagerHeightPx,
                                                     maxHeight = androidx.compose.ui.unit.Constraints.Infinity
                                                 )
                                             )
-                                            val height = (interpolatedHeightDp?.roundToPx()?.coerceAtLeast(minPagerHeightPx) ?: placeable.height)
+                                            val cp = pagerState.currentPage
+                                            val offset = pagerState.currentPageOffsetFraction
+                                            val tp = when {
+                                                offset > 0f -> cp + 1
+                                                offset < 0f -> cp - 1
+                                                else -> cp
+                                            }
+                                            val curH = pageHeights[cp] ?: 0
+                                            val tgtH = pageHeights[tp] ?: curH
+                                            val interpPx = when {
+                                                curH > 0 && tgtH > 0 ->
+                                                    (curH + (tgtH - curH) * kotlin.math.abs(offset)).toInt()
+                                                curH > 0 -> curH
+                                                else -> 0
+                                            }
+                                            val height = (if (interpPx > 0) interpPx.coerceAtLeast(minPagerHeightPx) else placeable.height)
                                                 .coerceIn(minPagerHeightPx, 16_000_000)
                                             layout(placeable.width, height) {
                                                 placeable.placeRelative(0, 0)
@@ -677,6 +628,7 @@ fun CharacterDetailPage(
                                                 }
                                                 CharacterTabKey.APPEARANCES -> {
                                                     CharacterAppearancesTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         titleLanguage = titleLanguage,
                                                         onMediaClick = onMediaClick
@@ -684,56 +636,18 @@ fun CharacterDetailPage(
                                                 }
                                                 CharacterTabKey.VOICE_ACTORS -> {
                                                     CharacterVoiceActorsTabContent(
+                                                        pagingActive = page == pagerState.settledPage,
                                                         detail = detail,
                                                         onStaffClick = onStaffClick
                                                     )
                                                 }
                                                 CharacterTabKey.WIKI -> CharacterWikiTabSlot(
-                                                    wikiState = wikiState,
-                                                    sections = wikiSections,
-                                                    translations = wikiTranslations,
-                                                    translatingKeys = wikiTranslating,
-                                                    spoilerGuard = wikiPrefs.spoilerGuard,
+                                                    viewModel = wikiViewModel,
                                                     accentColor = accentColor,
-                                                    onLoadSection = { index -> wikiViewModel.loadSection(index) },
-                                                    preferredTranslator = preferredTranslator,
-                                                    originalKeys = wikiOriginalKeys,
-                                                    onToggleOriginal = { key -> wikiViewModel.toggleOriginal(key) },
-                                                onOpenWikiPage = { title -> wikiViewModel.openReader(title) },
-                                                onOpenWikiLink = { link -> wikiViewModel.openReader(link.pageTitle, wikiIdOverride = link.wikiId) },
-                                                onSwitchSource = { wikiViewModel.switchSource(it) },
-                                                relatedPages = wikiRelatedPages,
                                                     onOpenGallery = { items, idx ->
                                                         activeGalleryItems = items
                                                         activeGalleryIndex = idx
-                                                    },
-                                                    onConfirm = {
-                                                        wikiViewModel.confirmMatch()
-                                                        android.widget.Toast.makeText(
-                                                            context,
-                                                            context.getString(R.string.fandom_confirm_done),
-                                                            android.widget.Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    },
-                                                    onReportWrong = {
-                                                        wikiViewModel.reportWrongMatch()
-                                                        android.widget.Toast.makeText(
-                                                            context,
-                                                            context.getString(R.string.fandom_report_wrong_done),
-                                                            android.widget.Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    },
-                                                    onRetry = { wikiViewModel.retry() },
-                                                    rejectedName = wikiLastRejected?.pageTitle,
-                                                    onUndoReject = {
-                                                        wikiViewModel.undoLastReject()
-                                                        android.widget.Toast.makeText(
-                                                            context,
-                                                            context.getString(R.string.fandom_reject_undo_done),
-                                                            android.widget.Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    },
-                                                    onDismissRejectedUndo = { wikiViewModel.dismissLastRejected() }
+                                                    }
                                                 )
 
                                                 null -> Unit
@@ -752,74 +666,9 @@ fun CharacterDetailPage(
                                 title = detail.name,
                                 onDismiss = { activeGalleryItems = emptyList() }
                             )
-                        }
-
-
-
-
-                    }
+                        }                    }
                 }
                 } // end else (portrait)
-
-                val readerReady = wikiReaderState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Ready
-                val readerFailedTitle = (wikiReaderState as? com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Failed)?.title
-                // Loading/Failed da gösterilir: mavi bağlantı yüklenemezse
-                // sonsuz spinner ya da tepkisiz tıklama olmasın.
-                if (wikiReaderState != com.kitsugi.animelist.ui.screens.detail.wiki.FandomCharacterWikiViewModel.ReaderState.Closed) {
-                    FandomWikiReaderSheet(
-                        state = readerReady?.let { ready ->
-                            FandomReaderRenderState(
-                                wikiId = ready.wikiId,
-                                page = ready.page,
-                                sections = ready.sections,
-                                related = ready.related,
-                                loadingSections = ready.loadingSections,
-                                failedSections = ready.failedSections,
-                                translations = wikiTranslations,
-                                translatingKeys = wikiTranslating,
-                                originalKeys = wikiOriginalKeys,
-                                preferredTranslator = preferredTranslator
-                            )
-                        },
-                        navigation = wikiReaderBrowser,
-                        failedTitle = readerFailedTitle,
-                        onRetryFailed = readerFailedTitle?.let { failed ->
-                            { wikiViewModel.retryReaderPage() }
-                        },
-                        accentColor = accentColor,
-                        onClose = wikiViewModel::closeReader,
-                        onBack = { wikiViewModel.readerBack() },
-                        onForward = { wikiViewModel.readerForward() },
-                        onNewTab = { wikiViewModel.newReaderTab() },
-                        onSwitchTab = wikiViewModel::switchReaderTab,
-                        onCloseTab = wikiViewModel::closeReaderTab,
-                        onCloseOtherTabs = wikiViewModel::closeOtherReaderTabs,
-                        onToggleOriginal = wikiViewModel::toggleOriginal,
-                        onLoadSection = wikiViewModel::loadReaderSection,
-                        onRetrySection = wikiViewModel::retryReaderSection,
-                        onRetryPage = wikiViewModel::retryReaderPage,
-                        onOpenLink = wikiViewModel::openReaderLink,
-                        onOpenLinkInNewTab = wikiViewModel::openReaderWebLink,
-                        // Sayfa geneli Orijinal/Çeviri: tüm yüzeyler tek dokunuşla gidip gelir.
-                        onSetReaderOriginal = wikiViewModel::setReaderOriginal,
-                        onSetWebMode = wikiViewModel::setReaderWebMode,
-                        onWebLocationChanged = wikiViewModel::updateReaderWebLocation,
-                        onOpenInBrowser = {
-                            val location = wikiReaderBrowser.activeTab?.location ?: return@FandomWikiReaderSheet
-                            val openUrl: (String) -> Unit = { url ->
-                                try {
-                                    context.startActivity(
-                                        android.content.Intent(android.content.Intent.ACTION_VIEW,
-                                            android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    )
-                                } catch (_: Exception) {
-                                    android.widget.Toast.makeText(context, context.getString(R.string.fandom_open_failed), android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            openUrl(FandomUrls.pageUrl(location.wikiId, location.title))
-                        }
-                    )
-                }
                 } // end PullToRefreshBox
             }
         }

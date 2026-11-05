@@ -102,6 +102,7 @@ import com.kitsugi.animelist.ui.app.AppViewModel
 import com.kitsugi.animelist.ui.app.AuthViewModel
 import com.kitsugi.animelist.ui.app.PlayerSettingsViewModel
 import com.kitsugi.animelist.ui.app.ProfileViewModel
+import com.kitsugi.animelist.ui.screens.mylist.MyListViewModel
 import com.kitsugi.animelist.ui.app.KitsugiProfileViewModel
 import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.app.MangaViewModel
@@ -176,6 +177,7 @@ fun AppRoot(
     val searchViewModel: SearchViewModel = viewModel()
     val authViewModel: AuthViewModel = viewModel()
     val profileViewModel: ProfileViewModel = viewModel()
+    val myListViewModel: MyListViewModel = viewModel()
     val kitsugiProfileViewModel: KitsugiProfileViewModel = viewModel()
     val playerSettingsViewModel: PlayerSettingsViewModel = viewModel()
     val addonViewModel: AddonViewModel = viewModel()
@@ -217,9 +219,13 @@ fun AppRoot(
         initial = AppSettings()
     )
 
-    val mediaEntries by mediaRepository.entriesFlow.collectAsState(
-        initial = emptyList()
-    )
+    // A null first value means Room has not emitted yet; an empty list is a real result.
+    // Listem uses this same snapshot instead of opening a second full-table observer.
+    val mediaEntriesSnapshot by mediaRepository.entriesFlow.collectAsState(initial = null)
+    val mediaEntries = mediaEntriesSnapshot ?: emptyList()
+    LaunchedEffect(mediaEntriesSnapshot, appSettings.showAdultContent) {
+        mediaEntriesSnapshot?.let { myListViewModel.prepareLibrary(it, appSettings.showAdultContent) }
+    }
 
     val latestMediaEntries by rememberUpdatedState(mediaEntries)
 
@@ -354,6 +360,12 @@ fun AppRoot(
                 }
                 is com.kitsugi.animelist.core.deeplink.TvDeepLink.Manga -> {
                     navState.openMangaBrowse(mediaId = link.mangaId.toIntOrNull())
+                }
+                is com.kitsugi.animelist.core.deeplink.TvDeepLink.Notifications -> {
+                    // Cihaz bildirimine dokunuldu: Bildirimler sayfasını aç ve
+                    // bildirimin geldiği kaynağın sekmesini seç.
+                    com.kitsugi.animelist.ui.screens.notifications.NotifOpenRequest.request(link.source)
+                    navState.navigateToDetail(DetailScreen.Notifications(link.source))
                 }
                 else -> {}
             }
@@ -585,6 +597,7 @@ fun AppRoot(
                             "kitsu"     -> "Kitsu bağlantısı başarılı, liste aktarılıyor..."
                             "shikimori" -> "Shikimori bağlantısı başarılı, liste aktarılıyor..."
                             "bangumi"   -> "Bangumi bağlantısı başarılı, koleksiyon aktarılıyor..."
+                            "tmdb"      -> "TMDB bağlantısı başarılı, Watchlist, favoriler ve puanlar aktarılıyor..."
                             else        -> "MyAnimeList bağlantısı başarılı, liste aktarılıyor..."
                         }
                     )
@@ -595,6 +608,7 @@ fun AppRoot(
                         "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository)
                         "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository)
                         "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository)
+                        "tmdb"      -> authViewModel.importTmdbWatchlist(latestMediaEntries, mediaRepository)
                         else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
                     }
 
@@ -666,6 +680,7 @@ fun AppRoot(
             isMalConnected = authViewModel.isMalConnected,
             isSimklConnected = authViewModel.isSimklConnected,
             isBangumiConnected = authViewModel.isBangumiConnected,
+            isTmdbConnected = authViewModel.isTmdbConnected,
             isKitsuConnected = authViewModel.isKitsuConnected,
             isShikimoriConnected = authViewModel.isShikimoriConnected
         )
@@ -955,6 +970,8 @@ fun AppRoot(
                     currentAppStateKey = currentAppStateKey,
                     navState = navState,
                     mediaEntries = mediaEntries,
+                    mediaEntriesLoaded = mediaEntriesSnapshot != null,
+                    myListViewModel = myListViewModel,
                     appSettings = appSettings,
                     settingsDataStore = settingsDataStore,
                     appViewModel = appViewModel,
@@ -1022,7 +1039,7 @@ fun AppRoot(
                 coroutineScope.launch { mediaRepository.deleteById(entry.id) }
                 isAddingBangumiEntry = false
             },
-            onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores ->
+            onConfirmEdit = { title, subtitle, type, status, isAdult, progress, total, score, isFavorite, startDate, endDate, notes, tags, priority, isRepeating, repeatCount, repeatValue, volumeProgress, isPrivate, isHiddenFromStatusLists, advancedScores, tmdbWatchlist, tmdbRating ->
                 val entry = editingEntry ?: return@AppDialogHost
                 val addBangumiMembership = isAddingBangumiEntry
                 val isBangumiEntry = canonicalMediaSourceId(entry.source) == "bangumi"
@@ -1060,11 +1077,13 @@ fun AppRoot(
                     repeatValue = repeatValue,
                     volumeProgress = volumeProgress,
                     isPrivate = isPrivate,
-                    isHiddenFromStatusLists = isHiddenFromStatusLists
+                    isHiddenFromStatusLists = isHiddenFromStatusLists,
+                    tmdbWatchlist = tmdbWatchlist,
+                    tmdbRating = tmdbRating
                 )
                 if (isBangumiEntry) {
                     // Diğer kaynaklarla AYNI hat: önce yerele yaz, sonra ExternalListSyncManager
-                    // Bangumi dahil altı kaynağa birden yaysın. Eski akış önce Bangumi'ye yazıp
+                    // Bangumi ve TMDB dahil yedi kaynağa birden yaysın. Eski akış önce Bangumi'ye yazıp
                     // başarısızlıkta (token/kapsam/ağ) kaydı yerele bile kaydetmiyordu — kullanıcının
                     // seçtiği durum/puan/tarih/bölüm tümüyle kayboluyor, diğer kaynaklara da
                     // hiç gidilmiyordu. Artık başarısız yazımlar bekleyen senkron kuyruğuna girer.
@@ -1164,6 +1183,8 @@ private fun AppNavigationContent(
     currentAppStateKey: AppStateKey,
     navState: AppNavigationState,
     mediaEntries: List<MediaEntry>,
+    mediaEntriesLoaded: Boolean,
+    myListViewModel: MyListViewModel,
     appSettings: AppSettings,
     settingsDataStore: SettingsDataStore,
     appViewModel: AppViewModel,
@@ -1305,6 +1326,8 @@ private fun AppNavigationContent(
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
+                        showAdultContent = appSettings.showAdultContent,
+                        blurAdultMedia = appSettings.blurAdultMedia,
                         getMediaEntry = getMediaEntry,
                         // Kart kısayolu: listede ise düzenle panelini aç, değilse tekil ekleme akışına
                         // (AppRoot sarmalayıcısı Bangumi diyaloğunu da yönetir).
@@ -1327,6 +1350,7 @@ private fun AppNavigationContent(
                                 isMalConnected = authViewModel.isMalConnected,
                                 isSimklConnected = authViewModel.isSimklConnected,
                                 isBangumiConnected = authViewModel.isBangumiConnected,
+                                isTmdbConnected = authViewModel.isTmdbConnected,
                                 isKitsuConnected = authViewModel.isKitsuConnected,
                                 isShikimoriConnected = authViewModel.isShikimoriConnected
                             )
@@ -1363,7 +1387,12 @@ private fun AppNavigationContent(
                         onBackClick = { navState.popDetailStack() },
                         searchViewModel = searchViewModel,
                         navState = navState,
-                        onOpenApiDetail = onOpenApiDetail
+                        mangaViewModel = mangaViewModel,
+                        onOpenApiDetail = onOpenApiDetail,
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        blurAdultMedia = appSettings.blurAdultMedia
                     )
                 }
             }
@@ -1417,11 +1446,25 @@ private fun AppNavigationContent(
                         onAddSelectionToList = onAddApiSelectionToList,
                         onOpenPluginPicker = { navState.navigateToDetail(DetailScreen.PluginPicker) },
                         onOpenAddonExplore = { apiName -> navState.navigateToDetail(DetailScreen.AddonExplore(apiName)) },
-                        onOpenCharacterDetail = { characterId, name, imageUrl ->
-                            navState.navigateToDetail(DetailScreen.CharacterDetail(characterId, "anilist", name, imageUrl))
+                        onOpenCharacterDetail = { characterId, name, imageUrl, source ->
+                            navState.navigateToDetail(
+                                DetailScreen.CharacterDetail(
+                                    characterId,
+                                    source?.takeIf { it.isNotBlank() } ?: "anilist",
+                                    name,
+                                    imageUrl
+                                )
+                            )
                         },
-                        onOpenStaffDetail = { staffId, name, imageUrl ->
-                            navState.navigateToDetail(DetailScreen.StaffDetail(staffId, "anilist", name, imageUrl))
+                        onOpenStaffDetail = { staffId, name, imageUrl, source ->
+                            navState.navigateToDetail(
+                                DetailScreen.StaffDetail(
+                                    staffId,
+                                    source?.takeIf { it.isNotBlank() } ?: "anilist",
+                                    name,
+                                    imageUrl
+                                )
+                            )
                         },
                         onOpenStudioDetail = { studioId, source, name, imageUrl ->
                             navState.navigateToDetail(DetailScreen.StudioDetail(studioId, source, name, imageUrl))
@@ -1449,6 +1492,8 @@ private fun AppNavigationContent(
                     key = key,
                     ctx = TabPagesContext(
                         mediaEntries = mediaEntries,
+                        mediaEntriesLoaded = mediaEntriesLoaded,
+                        myListViewModel = myListViewModel,
                         appSettings = appSettings,
                         settingsDataStore = settingsDataStore,
                         appViewModel = appViewModel,

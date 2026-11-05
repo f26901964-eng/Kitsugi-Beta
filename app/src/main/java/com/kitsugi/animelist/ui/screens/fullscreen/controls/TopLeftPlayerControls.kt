@@ -4,8 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +24,12 @@ fun TopLeftPlayerControls(
     onTitleClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Harici klavye/kol algılandığında `true`: başlığın altında tek satırlık
+     * "Klavye: ? ile tüm kısayollar" ipucu çizilir. Kısayolların varlığını
+     * keşfettirmek için (aksi hâlde kullanıcı hiç basmaz ve özellik ölü kalır).
+     */
+    showKeyboardHint: Boolean = false,
 ) {
     Row(
         modifier = modifier,
@@ -32,7 +37,7 @@ fun TopLeftPlayerControls(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ControlsButton(
-            icon = Icons.AutoMirrored.Default.ArrowBack,
+            icon = Icons.ArrowBack,
             onClick = onBackClick,
         )
         Column(
@@ -56,6 +61,16 @@ fun TopLeftPlayerControls(
                 style = MaterialTheme.typography.bodyMedium,
                 fontStyle = FontStyle.Italic,
             )
+            if (showKeyboardHint) {
+                Text(
+                    text = "Klavye: ? ile tüm kısayollar",
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = Color.White.copy(alpha = 0.45f),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
     }
 }

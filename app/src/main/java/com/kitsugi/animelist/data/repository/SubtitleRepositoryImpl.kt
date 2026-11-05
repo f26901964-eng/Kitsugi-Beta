@@ -169,7 +169,10 @@ class SubtitleRepositoryImpl(private val context: Context) {
                                 lang = lang,
                                 addonName = addon.name,
                                 addonLogo = addon.icon,
-                                format = guessFormat(url)
+                                // Addon biçimi beyan ettiyse (örn. AniSub'un uzantısız
+                                // URL'leri) tahminden önce o kullanılmalı; aksi halde
+                                // ASS dosyaları SRT sanılıp oyuncuda hiç görünmez.
+                                format = normalizeDeclaredFormat(item.format) ?: guessFormat(url)
                             )
                         }
                     } catch (e: Exception) {
@@ -236,6 +239,18 @@ class SubtitleRepositoryImpl(private val context: Context) {
         } catch (e: Exception) {
             Log.w(TAG, "idPrefixes parse hatası (addon='${addon.name}'): ${e.message}")
             null
+        }
+    }
+
+    /** Addon'un beyan ettiği format adını iç temsile ("ass"/"srt"/"vtt") çevirir. */
+    private fun normalizeDeclaredFormat(raw: String?): String? {
+        val normalized = raw?.trim()?.lowercase()?.trimStart('.').orEmpty()
+        return when (normalized) {
+            "ass", "ssa" -> "ass"
+            "srt", "subrip", "application/x-subrip" -> "srt"
+            "vtt", "webvtt" -> "vtt"
+            "ttml", "dfxp" -> "ttml"
+            else -> null
         }
     }
 

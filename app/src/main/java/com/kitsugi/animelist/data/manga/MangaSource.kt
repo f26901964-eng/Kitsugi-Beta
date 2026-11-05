@@ -57,6 +57,12 @@ interface MangaSource {
      */
     val isArchive: Boolean get() = false
 
+    /** Uygulama içine gömülü (APK silinemeyen) dahili kaynak mı? */
+    val isBuiltIn: Boolean get() = false
+
+    /** Tekil sayfa indirme zaman aşımı (ms). WebView/Turnstile kullanan kaynaklar artırabilir. */
+    val imageFetchTimeoutMs: Long get() = 30_000L
+
     /**
      * Sitedeki en güncel / popüler mangaların listesini döndürür.
      * Sayfalama için [page] parametresi kullanılır (1'den başlar).
@@ -67,6 +73,10 @@ interface MangaSource {
      * Arama terimi veya filtreye göre manga listesi döndürür.
      */
     suspend fun fetchSearchManga(page: Int, query: String): MangaSourceResult
+
+    /** Select-filter indices are interpreted by the extension, never as server values. */
+    fun selectFilters(): List<MangaSelectFilter> = emptyList()
+    suspend fun fetchFilteredManga(page: Int, selections: Map<Int, Int>): MangaSourceResult = fetchPopularManga(page)
 
     /**
      * Verilen [mangaUrl] için detaylı manga bilgilerini çeker.
@@ -122,12 +132,16 @@ interface MangaSource {
     }
 }
 
+data class MangaSelectFilter(val index: Int, val name: String, val values: List<String>, val selected: Int)
+
 /**
  * Bir sorgu veya listeleme işleminin sonucunu taşır.
  */
 data class MangaSourceResult(
     val mangas: List<MangaDetails>,
-    val hasNextPage: Boolean
+    val hasNextPage: Boolean,
+    /** Kaynak hatası (varsa). Boş liste + hata ayırt edilebilsin diye. */
+    val error: String? = null
 )
 
 /**

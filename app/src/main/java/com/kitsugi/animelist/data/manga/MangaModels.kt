@@ -17,7 +17,8 @@ data class MangaDetails(
     val genre: List<String> = emptyList(),
     val thumbnailUrl: String? = null,
     val status: MangaStatus = MangaStatus.Unknown,
-    val source: String = ""
+    val source: String = "",
+    val alternativeTitles: List<String> = emptyList()
 ) {
     /**
      * +18 içerik mi? Manga kaynaklarında net bir API bayrağı olmadığı için
@@ -43,6 +44,14 @@ data class MangaChapter(
     val mangaUrl: String = ""
 )
 
+/** Search the fully loaded extension list without collapsing translations with equal numbers. */
+fun MangaChapter.matchesChapterQuery(query: String): Boolean {
+    val term = query.trim()
+    return term.isEmpty() || name.contains(term, ignoreCase = true) ||
+        scanlator?.contains(term, ignoreCase = true) == true ||
+        (chapterNumber >= 0f && chapterNumber.toString().removeSuffix(".0").contains(term, ignoreCase = true))
+}
+
 /**
  * Bir bölümdeki tek bir sayfayı temsil eder.
  */
@@ -57,8 +66,19 @@ class MangaPage(
     // Compose must observe the status itself, not a shallow copy of that list.
     var status: MangaPageStatus by mutableStateOf(status)
 
+    /** Source-processed image file; the UI must never refetch imageUrl independently. */
+    var localFile: java.io.File? = null
+    var aspectRatio: Float? by mutableStateOf(null)
+
     /** Yerel arşiv dosyası yolu (ZIP/CBZ/RAR içindeki sayfa) — null ise normal HTTP akışı. */
     var archivePath: String? = null
+
+    /**
+     * Ready olduğunda diske yazılmış gerçek görsel dosyası.
+     * `imageUrl` her zaman mevcut olmayabilir (ZIP/CBZ arşivinde sadece entry adı var);
+     * UI bu dosyayı doğrudan kullanmalı, URL'den yeniden türetmemelidir.
+     */
+    var cachedFile: java.io.File? = null
 }
 
 /**

@@ -20,8 +20,12 @@ object SubtitleFileCache {
         return dir
     }
 
-    fun getCachedFile(context: Context, url: String): File? {
-        val hash = md5(url) ?: return null
+    fun getCachedFile(
+        context: Context,
+        url: String,
+        headers: Map<String, String>? = null
+    ): File? {
+        val hash = cacheKey(url, headers) ?: return null
         val dir = getCacheDir(context)
         val file = dir.listFiles()?.find { it.name.startsWith(hash) && it.isFile }
         if (file != null) {
@@ -30,16 +34,35 @@ object SubtitleFileCache {
         return file
     }
 
-    suspend fun cacheSubtitle(context: Context, url: String, headers: Map<String, String>? = null): File? = withContext(Dispatchers.IO) {
+    suspend fun cacheSubtitle(
+        context: Context,
+        url: String,
+        headers: Map<String, String>? = null,
+        clientOverride: OkHttpClient? = null
+    ): File? = withContext(Dispatchers.IO) {
         try {
-            val existing = getCachedFile(context, url)
+            // Yerel Dosya ("file:///..." veya "/data/...") çoktan bu cihazda:
+            // OkHttp bu şemaları indiremez; dosyayı olduğu gibi kabul et.
+            // (AniSub cihazda açılan RAR/ZIP paketleri bu yoldan gelir.)
+            val localFile = resolveLocalSubtitleFile(url)
+            if (localFile != null) {
+                if (localFile.isFile && localFile.length() > 0) {
+                    localFile.setLastModified(System.currentTimeMillis())
+                    Log.d("SubtitleFileCache", "Yerel altyazı kullanılıyor: ${localFile.absolutePath}")
+                    return@withContext localFile
+                }
+                Log.w("SubtitleFileCache", "Yerel altyazı bulunamadı/boş: $url")
+                return@withContext null
+            }
+
+            val existing = getCachedFile(context, url, headers)
             if (existing != null && existing.length() > 0) {
                 Log.d("SubtitleFileCache", "Cache hit: ${existing.name}")
                 return@withContext existing
             }
 
             Log.d("SubtitleFileCache", "Cache miss, downloading subtitle: $url")
-            val client = OkHttpClient.Builder()
+            val client = clientOverride ?: OkHttpClient.Builder()
                 .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
@@ -48,7 +71,9 @@ object SubtitleFileCache {
                 .url(url)
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .apply {
-                    headers?.forEach { (k, v) -> header(k, v) }
+                    headers?.forEach { (k, v) ->
+                        if (k.isNotBlank() && v.isNotBlank()) runCatching { header(k, v) }
+                    }
                 }
                 .get()
                 .build()
@@ -61,7 +86,7 @@ object SubtitleFileCache {
 
                 val bodyBytes = response.body?.bytes() ?: return@withContext null
                 val ext = guessExtension(url, response.header("Content-Type"))
-                val hash = md5(url) ?: return@withContext null
+                val hash = cacheKey(url, headers) ?: return@withContext null
                 val tempFile = File(getCacheDir(context), "${hash}_temp.$ext")
                 tempFile.writeBytes(bodyBytes)
 
@@ -80,6 +105,24 @@ object SubtitleFileCache {
         null
     }
 
+    /**
+     * "file:///..." veya mutlak yol biçimindeki yerel altyazı adresini
+     * [File] olarak çözer; uzak adreslerde null döner.
+     */
+    private fun resolveLocalSubtitleFile(url: String): File? {
+        val trimmed = url.trim()
+        return when {
+            trimmed.startsWith("file://", ignoreCase = true) -> {
+                val path = trimmed.substring("file://".length)
+                if (path.isBlank()) null else File(path)
+            }
+            trimmed.startsWith("file:/", ignoreCase = true) ->
+                File(trimmed.substring("file:".length))
+            trimmed.startsWith("/") -> File(trimmed.substringBefore('?'))
+            else -> null
+        }
+    }
+
     fun guessExtension(url: String, contentType: String? = null): String {
         val path = url.substringBefore('?').substringBefore('#').lowercase()
         val cType = contentType?.lowercase() ?: ""
@@ -96,6 +139,14 @@ object SubtitleFileCache {
             url.contains(".srt", ignoreCase = true) -> "srt"
             else -> "srt"
         }
+    }
+
+    private fun cacheKey(url: String, headers: Map<String, String>?): String? {
+        if (headers.isNullOrEmpty()) return md5(url)
+        val stableHeaders = headers.entries
+            .sortedBy { it.key.lowercase(java.util.Locale.ROOT) }
+            .joinToString("\n") { "${it.key.lowercase(java.util.Locale.ROOT)}:${it.value}" }
+        return md5("$url\n$stableHeaders")
     }
 
     private fun md5(input: String): String? {

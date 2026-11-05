@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.tv.manga
 
 import androidx.activity.compose.BackHandler
+import com.kitsugi.animelist.ui.utils.uniqueItemsIndexed
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -21,12 +22,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Refresh
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import com.kitsugi.animelist.ui.theme.gradient.Button
 import androidx.compose.material3.ButtonDefaults
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
@@ -60,6 +56,8 @@ import androidx.tv.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.matchesChapterQuery
+import androidx.compose.material3.OutlinedTextField
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
@@ -188,7 +186,7 @@ fun TvMangaDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            Icons.ArrowBack,
                             contentDescription = stringResource(R.string.geri),
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
@@ -309,7 +307,7 @@ fun TvMangaDetailScreen(
                         .focusRequester(actionButtonFocusRequester)
                 ) {
                     Icon(
-                        imageVector = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
+                        imageVector = if (resume != null) Icons.PlayArrow else Icons.MenuBook,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -360,7 +358,7 @@ fun TvMangaDetailScreen(
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    Icons.Rounded.Refresh,
+                                    Icons.Refresh,
                                     contentDescription = stringResource(R.string.yenile),
                                     tint = KitsugiColors.TextSecondary,
                                     modifier = Modifier.size(18.dp)
@@ -368,6 +366,18 @@ fun TvMangaDetailScreen(
                             }
                         }
                         Spacer(Modifier.height(6.dp))
+                    }
+                }
+
+                if (uiState.chapters.isNotEmpty()) {
+                    item(key = "chapter_search") {
+                        OutlinedTextField(
+                            value = uiState.chapterQuery,
+                            onValueChange = viewModel::setChapterQuery,
+                            label = { Text("Bölüm ara") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 6.dp)
+                        )
                     }
                 }
 
@@ -400,8 +410,8 @@ fun TvMangaDetailScreen(
                             }
                         }
                     }
-                    else -> itemsIndexed(
-                        items = uiState.chapters,
+                    else -> uniqueItemsIndexed(
+                        items = uiState.chapters.filter { it.chapter.matchesChapterQuery(uiState.chapterQuery) },
                         key = { _, ch -> ch.chapter.url }
                     ) { _, row ->
                         TvChapterListItem(
@@ -470,7 +480,7 @@ private fun TvChapterListItem(
         }
         if (row.isCompleted) {
             Icon(
-                Icons.Rounded.CheckCircle,
+                Icons.CheckCircle,
                 contentDescription = stringResource(R.string.okundu),
                 tint = KitsugiColors.AccentGreen.copy(0.8f),
                 modifier = Modifier.size(16.dp)

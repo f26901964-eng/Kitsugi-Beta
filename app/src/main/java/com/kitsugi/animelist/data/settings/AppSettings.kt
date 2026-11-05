@@ -34,10 +34,10 @@ data class ProfileAndListSettings(
     val bangumiProfileImageUri: String = "",
     val profileImageUri: String = "",
     val bannerImageUri: String = "",
-    val titleLanguage: String = "ROMAJI",
+    val titleLanguage: String = "ENGLISH",
     val scoreFormat: String = "POINT_10",
     val scoreStep: String = "1",
-    val staffNameLanguage: String = "ROMAJI",
+    val staffNameLanguage: String = "ENGLISH",
     val separatedListStyle: Boolean = true,
     val showLowPriority: Boolean = false,
     val priorityColorsJson: String = "",
@@ -49,6 +49,7 @@ data class ProfileAndListSettings(
     val hideScores: Boolean = false,
     val showAnimeLogos: Boolean = false,
     val accountBackupEnabled: Boolean = true,
+    val accountAddonSyncEnabled: Boolean = true,
     val accountSearchSyncEnabled: Boolean = true,
     val accountNotificationSyncEnabled: Boolean = true,
     val syncEnabledAnilist: Boolean = false,
@@ -56,7 +57,8 @@ data class ProfileAndListSettings(
     val syncEnabledSimkl: Boolean = false,
     val syncEnabledKitsu: Boolean = false,
     val syncEnabledShikimori: Boolean = false,
-    val syncEnabledBangumi: Boolean = false
+    val syncEnabledBangumi: Boolean = false,
+    val syncEnabledTmdb: Boolean = false
 )
 
 data class ThemeAndAppUiSettings(
@@ -145,6 +147,7 @@ data class PlayerOverlaySettings(
 
 data class MpvAndSubtitleSettings(
     val defaultSubtitleSize: Int = 16,
+    val subtitleFontSize: Int = 45,
     val defaultSubtitleColor: Int = 0xFFFFFFFF.toInt(),
     val subtitleBold: Boolean = false,
     val subtitleOutlineEnabled: Boolean = true,
@@ -160,6 +163,11 @@ data class MpvAndSubtitleSettings(
     val audioPitchCorrection: Boolean = true,
     val mpvGpuRenderer: String = "gpu",
     val mpvHwdecMode: String = "auto-safe",
+    /**
+     * Dolby Vision içerikte vo/hwdec'i otomatik düzeltir: gpu-next + (P5/bilinmeyen
+     * profilde) yazılım çözme. Kapatılırsa kullanıcının kendi MPV ayarları aynen kalır.
+     */
+    val mpvDolbyVisionAutoFix: Boolean = true,
     val mpvDebandMode: String = "none",
     val mpvForceYuv420p: Boolean = false,
     val mpvDemuxerCacheMb: Int = 64,
@@ -239,8 +247,10 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
-    val wikiPageTheme: String = "SITE",
+    val wikiPageTheme: String = "APP",
     val wikiTextZoom: Int = 100,
+    /** Wiki açılır sayfası son seçilen düzeni hatırlar; varsayılan MOBİL düzendir. */
+    val wikiDesktopLayout: Boolean = false,
     val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
     val autoTranslateEnabled: Boolean = false,
     val preferredTranslator: String = "DEFAULT",
@@ -252,6 +262,13 @@ data class IntegrationsAndNotificationsSettings(
     val simklNotificationsEnabled: Boolean = false,
     val kitsuNotificationsEnabled: Boolean = false,
     val shikimoriNotificationsEnabled: Boolean = false,
+    val tmdbNotificationsEnabled: Boolean = false,
+    /**
+     * Bangumi bildirimleri. Bangumi'nin bildirim ucu yok; kayıtlar "在 看" koleksiyonu
+     * + yayın takvimi eşleşmesinden üretilir. Diğer kaynaklar gibi ayrı anahtar olması
+     * kullanıcının Bangumi'yi tek başına açıp kapatabilmesini sağlar.
+     */
+    val bangumiNotificationsEnabled: Boolean = false,
     val notificationInterval: Int = 180
 )
 
@@ -289,6 +306,46 @@ data class DownloadAndMangaSettings(
     val subtitleDownloadLanguages: String = "tr"
 )
 
+/**
+ * Klavye ve gamepad destekli oynatıcı kısayolları.
+ *
+ * Tek bir grup altında toplanmasının nedeni, `AppSettings` cephesinin Dalvik
+ * 255-yazmaç sınırına dokunmadan genişleyebilmesi (bkz. dosya başındaki mimari not).
+ *
+ * [PlayerShortcutAction] adları `disabledShortcuts` içinde **virgülle ayrılmış**
+ * tutulur; `Set<String>` DataStore'da doğrudan saklanamıyor.
+ * [customBindings] biçimi: `"shift+keycode22=F,keycode66=PLAY_PAUSE"` — küçük ve
+ * insan tarafından okunabilir, bozulursa sessizce yok sayılır.
+ */
+data class PlayerKeyboardSettings(
+    /** Özel klavye kısayolları açık mı? Kapalıyken oynatıcı klavye olaylarını MPV'ye bırakır. */
+    val keyboardEnabled: Boolean = true,
+    /** Harici klavye/gamepad takılıyken kısayollar devreye girsin mi (otomatik algılama). */
+    val autoDetectExternalKeyboard: Boolean = true,
+    /** Tuş basımında aksiyon göstergesi (küçük OSD) çizilsin mi? */
+    val keyboardOsdEnabled: Boolean = true,
+    /** Gösterge süresi çarpanı (0,5× … 2×). Varsayılan 1×. */
+    val keyboardOsdDurationScale: Float = 1f,
+    /** Tam OSD (üst/alt bar) klavyeyle açılsın mı? Varsayılan HAYIR: sadece gösterge. */
+    val keyboardOpensFullOsd: Boolean = false,
+    /** Kısayol yardım ekranı (?) açılabilsin mi? */
+    val keyboardHelpEnabled: Boolean = true,
+    /** Kullanıcının kapattığı eylemler, ör. "EXIT,SCREENSHOT". */
+    val disabledShortcuts: String = "",
+    /** Kullanıcının özel tuş eşlemeleri (boşsa varsayılan tablo geçerlidir). */
+    val customBindings: String = "",
+    /** Gamepad (oyun kolu) kısayolları açık mı? */
+    val gamepadEnabled: Boolean = true,
+    /** Normal arama adımı (sn) — ← / → tuşları. Varsayılan 5 sn. */
+    val keyboardSeekStepSeconds: Int = 5,
+    /** Hassas arama adımı (sn) — Shift + ← / →. Varsayılan 1 sn. */
+    val keyboardPreciseSeekSeconds: Int = 1,
+    /** Uzun arama adımı (sn) — ↑ / ↓. Varsayılan 60 sn. */
+    val keyboardLargeSeekSeconds: Int = 60,
+    /** Tuşa basılı tutulduğunda arama adımının katlanarak hızlanması. */
+    val keyboardHoldToAccelerate: Boolean = true
+)
+
 data class AppSettings(
     val profile: ProfileAndListSettings = ProfileAndListSettings(),
     val themeUi: ThemeAndAppUiSettings = ThemeAndAppUiSettings(),
@@ -297,7 +354,8 @@ data class AppSettings(
     val mpvSubtitle: MpvAndSubtitleSettings = MpvAndSubtitleSettings(),
     val gestures: GestureAndSkipSettings = GestureAndSkipSettings(),
     val integrations: IntegrationsAndNotificationsSettings = IntegrationsAndNotificationsSettings(),
-    val downloads: DownloadAndMangaSettings = DownloadAndMangaSettings()
+    val downloads: DownloadAndMangaSettings = DownloadAndMangaSettings(),
+    val keyboard: PlayerKeyboardSettings = PlayerKeyboardSettings()
 ) {
     val selectedThemeId: String get() = themeUi.selectedThemeId
     val showAdultContent: Boolean get() = themeUi.showAdultContent
@@ -340,6 +398,7 @@ data class AppSettings(
     val isAutoplayEnabled: Boolean get() = playback.isAutoplayEnabled
     val skipIntroDurationSec: Int get() = playback.skipIntroDurationSec
     val defaultSubtitleSize: Int get() = mpvSubtitle.defaultSubtitleSize
+    val subtitleFontSize: Int get() = mpvSubtitle.subtitleFontSize
     val defaultSubtitleColor: Int get() = mpvSubtitle.defaultSubtitleColor
     val subtitleBold: Boolean get() = mpvSubtitle.subtitleBold
     val subtitleOutlineEnabled: Boolean get() = mpvSubtitle.subtitleOutlineEnabled
@@ -389,6 +448,7 @@ data class AppSettings(
     val animeSkipClientId: String get() = gestures.animeSkipClientId
     val wikiPageTheme: String get() = integrations.wikiPageTheme
     val wikiTextZoom: Int get() = integrations.wikiTextZoom
+    val wikiDesktopLayout: Boolean get() = integrations.wikiDesktopLayout
     val wikiAdBlockDisabledHosts: Set<String> get() = integrations.wikiAdBlockDisabledHosts
     val autoTranslateEnabled: Boolean get() = integrations.autoTranslateEnabled
     val preferredTranslator: String get() = integrations.preferredTranslator
@@ -410,6 +470,7 @@ data class AppSettings(
     val lastUsedTab: String get() = themeUi.lastUsedTab
     val appLanguage: String get() = themeUi.appLanguage
     val accountBackupEnabled: Boolean get() = profile.accountBackupEnabled
+    val accountAddonSyncEnabled: Boolean get() = profile.accountAddonSyncEnabled
     val accountSearchSyncEnabled: Boolean get() = profile.accountSearchSyncEnabled
     val accountNotificationSyncEnabled: Boolean get() = profile.accountNotificationSyncEnabled
     val fixedNavBar: Boolean get() = themeUi.fixedNavBar
@@ -436,6 +497,8 @@ data class AppSettings(
     val simklNotificationsEnabled: Boolean get() = integrations.simklNotificationsEnabled
     val kitsuNotificationsEnabled: Boolean get() = integrations.kitsuNotificationsEnabled
     val shikimoriNotificationsEnabled: Boolean get() = integrations.shikimoriNotificationsEnabled
+    val tmdbNotificationsEnabled: Boolean get() = integrations.tmdbNotificationsEnabled
+    val bangumiNotificationsEnabled: Boolean get() = integrations.bangumiNotificationsEnabled
     val notificationInterval: Int get() = integrations.notificationInterval
     val searchHistoryEnabled: Boolean get() = themeUi.searchHistoryEnabled
     val stillWatchingEnabled: Boolean get() = playback.stillWatchingEnabled
@@ -463,6 +526,7 @@ data class AppSettings(
     val syncEnabledKitsu: Boolean get() = profile.syncEnabledKitsu
     val syncEnabledShikimori: Boolean get() = profile.syncEnabledShikimori
     val syncEnabledBangumi: Boolean get() = profile.syncEnabledBangumi
+    val syncEnabledTmdb: Boolean get() = profile.syncEnabledTmdb
     val subtitleSpeed: Float get() = mpvSubtitle.subtitleSpeed
     val videoFiltersJson: String get() = mpvSubtitle.videoFiltersJson
     val speedPresets: String get() = mpvSubtitle.speedPresets
@@ -472,6 +536,7 @@ data class AppSettings(
     val audioPitchCorrection: Boolean get() = mpvSubtitle.audioPitchCorrection
     val mpvGpuRenderer: String get() = mpvSubtitle.mpvGpuRenderer
     val mpvHwdecMode: String get() = mpvSubtitle.mpvHwdecMode
+    val mpvDolbyVisionAutoFix: Boolean get() = mpvSubtitle.mpvDolbyVisionAutoFix
     val mpvDebandMode: String get() = mpvSubtitle.mpvDebandMode
     val mpvForceYuv420p: Boolean get() = mpvSubtitle.mpvForceYuv420p
     val mpvDemuxerCacheMb: Int get() = mpvSubtitle.mpvDemuxerCacheMb
@@ -550,6 +615,21 @@ data class AppSettings(
     val downloadNewUnreadChaptersOnly: Boolean get() = downloads.downloadNewUnreadChaptersOnly
     val downloadNewUnseenEpisodesOnly: Boolean get() = downloads.downloadNewUnseenEpisodesOnly
     val subtitleDownloadLanguages: String get() = downloads.subtitleDownloadLanguages
+
+    // ── Klavye / gamepad kısayolları ─────────────────────────────────────────
+    val keyboardEnabled: Boolean get() = keyboard.keyboardEnabled
+    val autoDetectExternalKeyboard: Boolean get() = keyboard.autoDetectExternalKeyboard
+    val keyboardOsdEnabled: Boolean get() = keyboard.keyboardOsdEnabled
+    val keyboardOsdDurationScale: Float get() = keyboard.keyboardOsdDurationScale
+    val keyboardOpensFullOsd: Boolean get() = keyboard.keyboardOpensFullOsd
+    val keyboardHelpEnabled: Boolean get() = keyboard.keyboardHelpEnabled
+    val disabledShortcuts: String get() = keyboard.disabledShortcuts
+    val customBindings: String get() = keyboard.customBindings
+    val gamepadEnabled: Boolean get() = keyboard.gamepadEnabled
+    val keyboardSeekStepSeconds: Int get() = keyboard.keyboardSeekStepSeconds
+    val keyboardPreciseSeekSeconds: Int get() = keyboard.keyboardPreciseSeekSeconds
+    val keyboardLargeSeekSeconds: Int get() = keyboard.keyboardLargeSeekSeconds
+    val keyboardHoldToAccelerate: Boolean get() = keyboard.keyboardHoldToAccelerate
 }
 
 enum class FrameRateMatchingMode {

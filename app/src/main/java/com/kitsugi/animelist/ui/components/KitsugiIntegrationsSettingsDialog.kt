@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import androidx.compose.ui.res.stringResource
@@ -16,15 +17,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.data.remote.MdbListPlan
+import com.kitsugi.animelist.data.remote.MdbListQuotaCenter
 import kotlinx.coroutines.launch
 
 data class TmdbLanguage(val code: String, val displayName: String)
@@ -168,16 +163,16 @@ fun KitsugiIntegrationsSettingsDialog(
                             fontWeight = FontWeight.Bold
                         )
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close), tint = KitsugiColors.TextSecondary)
+                            Icon(Icons.Close, contentDescription = stringResource(R.string.action_close), tint = KitsugiColors.TextSecondary)
                         }
                     }
                 }
                 KitsugiSettingsSegmentedTabs(
                     tabs = listOf(
-                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_tmdb), Icons.Rounded.Movie),
-                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_mdblist), Icons.Rounded.Star),
-                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_skip), Icons.Rounded.SkipNext),
-                        KitsugiSettingsTabOption("Fanart.tv", Icons.Rounded.Image)
+                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_tmdb), Icons.Movie),
+                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_mdblist), Icons.Star),
+                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_skip), Icons.SkipNext),
+                        KitsugiSettingsTabOption("Fanart.tv", Icons.Image)
                     ),
                     selectedIndex = pagerState.currentPage,
                     accentColor = accentColor,
@@ -345,7 +340,7 @@ private fun TmdbSettingsTab(
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.tmdb_desc),
-                icon = Icons.Rounded.Movie,
+                icon = Icons.Movie,
                 iconColor = accentColor,
                 checked = enabled,
                 onCheckedChange = onEnabledChanged
@@ -375,7 +370,7 @@ private fun TmdbSettingsTab(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = { keyVisible = !keyVisible }) {
                                     Icon(
-                                        imageVector = if (keyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        imageVector = if (keyVisible) Icons.VisibilityOff else Icons.Visibility,
                                         contentDescription = stringResource(
                                             if (keyVisible) R.string.integration_hide_key else R.string.integration_show_key
                                         ),
@@ -392,7 +387,7 @@ private fun TmdbSettingsTab(
                                         enabled = !keyValidating
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.Close,
+                                            imageVector = Icons.Close,
                                             contentDescription = stringResource(R.string.action_clear),
                                             tint = KitsugiColors.TextSecondary
                                         )
@@ -456,7 +451,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_modern_home),
                     description = stringResource(R.string.tmdb_modern_home_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = modernHomeEnabled,
                     onCheckedChange = onModernHomeEnabledChanged
@@ -467,7 +462,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_enrich_continue_watching),
                     description = stringResource(R.string.tmdb_enrich_continue_watching_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = enrichContinueWatching,
                     onCheckedChange = onEnrichContinueWatchingChanged
@@ -480,7 +475,7 @@ private fun TmdbSettingsTab(
                     title = stringResource(R.string.tmdb_language),
                     description = stringResource(R.string.tmdb_language_desc),
                     value = currentLangName,
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     onClick = { showLanguageDialog = true }
                 )
@@ -492,7 +487,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_artwork),
                     description = stringResource(R.string.tmdb_artwork_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useArtwork,
                     onCheckedChange = onUseArtworkChanged
@@ -503,7 +498,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_basic_info),
                     description = stringResource(R.string.tmdb_basic_info_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useBasicInfo,
                     onCheckedChange = onUseBasicInfoChanged
@@ -514,7 +509,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_details),
                     description = stringResource(R.string.tmdb_details_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useDetails,
                     onCheckedChange = onUseDetailsChanged
@@ -525,7 +520,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_release_dates),
                     description = stringResource(R.string.tmdb_release_dates_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useReleaseDates,
                     onCheckedChange = onUseReleaseDatesChanged
@@ -536,7 +531,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_credits),
                     description = stringResource(R.string.tmdb_credits_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useCredits,
                     onCheckedChange = onUseCreditsChanged
@@ -547,7 +542,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_productions),
                     description = stringResource(R.string.tmdb_productions_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useProductions,
                     onCheckedChange = onUseProductionsChanged
@@ -558,7 +553,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_networks),
                     description = stringResource(R.string.tmdb_networks_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useNetworks,
                     onCheckedChange = onUseNetworksChanged
@@ -569,7 +564,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_episodes),
                     description = stringResource(R.string.tmdb_episodes_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useEpisodes,
                     onCheckedChange = onUseEpisodesChanged
@@ -580,7 +575,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_trailers),
                     description = stringResource(R.string.tmdb_trailers_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useTrailers,
                     onCheckedChange = onUseTrailersChanged
@@ -591,7 +586,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_more_like_this),
                     description = stringResource(R.string.tmdb_more_like_this_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useMoreLikeThis,
                     onCheckedChange = onUseMoreLikeThisChanged
@@ -602,7 +597,7 @@ private fun TmdbSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.tmdb_collections),
                     description = stringResource(R.string.tmdb_collections_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = useCollections,
                     onCheckedChange = onUseCollectionsChanged
@@ -658,7 +653,12 @@ private fun LanguageSelectionDialog(
                             fontWeight = if (lang.code == selectedLanguage) FontWeight.Bold else FontWeight.Normal
                         )
                         if (lang.code == selectedLanguage) {
-                            Text("✓", color = LocalKitsugiAccent.current, fontWeight = FontWeight.Bold)
+                            Icon(
+                                    imageVector = Icons.Check,
+                                    contentDescription = null,
+                                    tint = LocalKitsugiAccent.current,
+                                    modifier = Modifier.size(16.dp)
+                                )
                         }
                     }
                 }
@@ -709,7 +709,7 @@ private fun MdbListSettingsTab(
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.mdblist_desc),
-                icon = Icons.Rounded.Movie,
+                icon = Icons.Movie,
                 iconColor = accentColor,
                 checked = enabled,
                 onCheckedChange = onEnabledChanged
@@ -724,7 +724,7 @@ private fun MdbListSettingsTab(
                     title = stringResource(R.string.mdblist_api_key),
                     description = stringResource(R.string.mdblist_api_key_desc),
                     value = maskApiKey(apiKey, stringResource(R.string.value_not_set)),
-                    icon = Icons.Rounded.Key,
+                    icon = Icons.Key,
                     iconColor = accentColor,
                     onClick = { showApiKeyDialog = true }
                 )
@@ -735,6 +735,13 @@ private fun MdbListSettingsTab(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                } else {
+                    // Kota, anahtara özgüdür: anahtar değişince panel kendini yeniden bağlar.
+                    KitsugiSettingsDivider()
+                    MdbListQuotaPanel(
+                        apiKey = apiKey,
+                        accentColor = accentColor
+                    )
                 }
 
                 if (showApiKeyDialog) {
@@ -743,6 +750,13 @@ private fun MdbListSettingsTab(
                         onSave = { key ->
                             onApiKeyChanged(key)
                             showApiKeyDialog = false
+                            // Anahtar değişti: panelin ilk karesinde eski anahtarın kotası
+                            // görünmesin diye merkez hemen yeni anahtara bağlanır.
+                            if (key.isBlank()) {
+                                MdbListQuotaCenter.clear()
+                            } else {
+                                MdbListQuotaCenter.bind(null, key)
+                            }
                         },
                         onDismiss = { showApiKeyDialog = false },
                         accentColor = accentColor
@@ -756,7 +770,7 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_imdb),
                     description = stringResource(R.string.mdblist_imdb_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = showImdb,
                     onCheckedChange = onShowImdbChanged
@@ -767,7 +781,7 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_rotten_tomatoes),
                     description = stringResource(R.string.mdblist_rotten_tomatoes_desc),
-                    icon = Icons.Rounded.Star,
+                    icon = Icons.Star,
                     iconColor = accentColor,
                     checked = showTomatoes,
                     onCheckedChange = onShowTomatoesChanged
@@ -778,7 +792,7 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_audience),
                     description = stringResource(R.string.mdblist_audience_desc),
-                    icon = Icons.Rounded.Star,
+                    icon = Icons.Star,
                     iconColor = accentColor,
                     checked = showAudience,
                     onCheckedChange = onShowAudienceChanged
@@ -789,7 +803,7 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_metacritic),
                     description = stringResource(R.string.mdblist_metacritic_desc),
-                    icon = Icons.Rounded.Star,
+                    icon = Icons.Star,
                     iconColor = accentColor,
                     checked = showMetacritic,
                     onCheckedChange = onShowMetacriticChanged
@@ -800,7 +814,7 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_letterboxd),
                     description = stringResource(R.string.mdblist_letterboxd_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = showLetterboxd,
                     onCheckedChange = onShowLetterboxdChanged
@@ -811,7 +825,7 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_tmdb_score),
                     description = stringResource(R.string.mdblist_tmdb_score_desc),
-                    icon = Icons.Rounded.Movie,
+                    icon = Icons.Movie,
                     iconColor = accentColor,
                     checked = showTmdb,
                     onCheckedChange = onShowTmdbChanged
@@ -822,12 +836,253 @@ private fun MdbListSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.mdblist_trakt),
                     description = stringResource(R.string.mdblist_trakt_desc),
-                    icon = Icons.Rounded.Star,
+                    icon = Icons.Star,
                     iconColor = accentColor,
                     checked = showTrakt,
                     onCheckedChange = onShowTraktChanged
                 )
             }
+        }
+    }
+}
+
+/** Kota sayılarını yerel binlik ayırıcısıyla yazar (kurallı: 1.000 / 25.000). */
+private fun formatQuotaCount(value: Int): String =
+    java.text.NumberFormat.getIntegerInstance().format(value)
+
+/** Sıfırlanma anını (epoch saniye) kullanıcının yerel saat diliminde kısa biçimde yazar. */
+private fun formatQuotaReset(epochSeconds: Long?): String? {
+    val epoch = epochSeconds?.takeIf { it > 0L } ?: return null
+    return runCatching {
+        java.time.Instant.ofEpochSecond(epoch)
+            .atZone(java.time.ZoneId.systemDefault())
+            .format(
+                java.time.format.DateTimeFormatter.ofPattern(
+                    "d MMM HH:mm",
+                    java.util.Locale.getDefault()
+                )
+            )
+    }.getOrNull()
+}
+
+/**
+ * MDBList API anahtarının günlük istek kotasını gösterir.
+ *
+ * Tasarım notları:
+ * - Limit **API'den** okunur; ücretsiz (1.000) ve ücretli (10.000+) hesaplar aynı kodla
+ *   çalışır, hiçbir yerde sabit sayı varsayılmaz.
+ * - Anahtar değişirse panel yeni anahtarın kaydını yükler; eski anahtarın sayısı gösterilmez.
+ * - Kota bitince yüzde çubuğu yerine kırmızı bir uyarı bloğu çizilir ve puanların ne zaman
+ *   yeniden yükleneceği yerel saatle söylenir.
+ */
+@Composable
+private fun MdbListQuotaPanel(
+    apiKey: String,
+    accentColor: Color
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val storedQuota by MdbListQuotaCenter.quota.collectAsState()
+    // Günlük sıfırlanma geçtiyse eski "0" değeri değil, yenilenmiş kota gösterilir.
+    val quota = remember(storedQuota) { storedQuota?.rolledOver() }
+    var refreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(apiKey) {
+        if (apiKey.isBlank()) return@LaunchedEffect
+        MdbListQuotaCenter.bind(context, apiKey)
+        refreshing = true
+        // Tazeleme isteğinin kendisi de kotadan düşer: otomatik doğrulama seyrek tutulur,
+        // kullanıcı isterse yenile düğmesiyle anında günceller.
+        MdbListQuotaCenter.refresh(apiKey, maxAgeMillis = 5L * 60_000L)
+        refreshing = false
+    }
+
+    val exhausted = quota?.isExhausted == true
+    val known = quota?.isKnown == true
+
+    // Kota dolduğu anda tek seferlik uyarı: detay kartı ve bu panel aynı bayrağı paylaştığı
+    // için iki ayrı balon çıkmaz.
+    LaunchedEffect(exhausted, quota?.resetAtEpochSeconds) {
+        if (exhausted && MdbListQuotaCenter.consumeExhaustedNotice()) {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(R.string.mdblist_quota_exhausted_toast),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    val statusColor = when {
+        exhausted -> KitsugiColors.AccentRed
+        quota?.isLow == true -> KitsugiColors.AccentOrange
+        else -> accentColor
+    }
+    val resetLabel = formatQuotaReset(quota?.resetAtEpochSeconds)
+
+    val refreshQuota: () -> Unit = {
+        scope.launch {
+            refreshing = true
+            MdbListQuotaCenter.refresh(apiKey, maxAgeMillis = 0L)
+            refreshing = false
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Speed,
+                contentDescription = null,
+                tint = statusColor,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.mdblist_quota_title),
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.width(8.dp))
+            QuotaPlanBadge(plan = quota?.plan ?: MdbListPlan.UNKNOWN, accentColor = accentColor)
+            Spacer(Modifier.weight(1f))
+            if (refreshing) {
+                KitsugiPlasmaLoader(size = 16.dp)
+            } else {
+                IconButton(
+                    onClick = refreshQuota,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.mdblist_quota_refresh),
+                        tint = KitsugiColors.TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
+        when {
+            exhausted -> MdbListQuotaExhaustedNotice(resetLabel = resetLabel)
+
+            known -> {
+                Text(
+                    text = stringResource(
+                        R.string.mdblist_quota_remaining,
+                        formatQuotaCount(quota?.remaining ?: 0),
+                        formatQuotaCount(quota?.limit ?: 0)
+                    ),
+                    color = statusColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                LinearProgressIndicator(
+                    progress = { quota?.remainingFraction ?: 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = statusColor,
+                    trackColor = KitsugiColors.SurfaceStrong
+                )
+                if (resetLabel != null) {
+                    Text(
+                        text = stringResource(R.string.mdblist_quota_reset, resetLabel),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            refreshing -> Text(
+                text = stringResource(R.string.mdblist_quota_loading),
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.mdblist_quota_unknown),
+                    color = KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = refreshQuota) {
+                    Text(
+                        text = stringResource(R.string.mdblist_quota_refresh),
+                        color = accentColor,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuotaPlanBadge(plan: MdbListPlan, accentColor: Color) {
+    if (plan == MdbListPlan.UNKNOWN) return
+    val label = stringResource(
+        if (plan == MdbListPlan.SUPPORTER) R.string.mdblist_quota_plan_supporter
+        else R.string.mdblist_quota_plan_free
+    )
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(accentColor.copy(alpha = 0.15f))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            color = accentColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+/** Günlük kota bittiğinde gösterilen kırmızı uyarı bloğu. */
+@Composable
+private fun MdbListQuotaExhaustedNotice(resetLabel: String?) {
+    val warningColor = KitsugiColors.AccentRed
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(warningColor.copy(alpha = 0.14f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.WarningAmber,
+            contentDescription = null,
+            tint = warningColor,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.mdblist_quota_exhausted_title),
+                color = warningColor,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (resetLabel != null) {
+                    stringResource(R.string.mdblist_quota_exhausted_desc, resetLabel)
+                } else {
+                    stringResource(R.string.mdblist_quota_exhausted_desc_unknown)
+                },
+                color = KitsugiColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -854,7 +1109,7 @@ private fun AniSkipSettingsTab(
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.aniskip_desc),
-                icon = Icons.Rounded.SkipNext,
+                icon = Icons.SkipNext,
                 iconColor = accentColor,
                 checked = enabled,
                 onCheckedChange = onEnabledChanged
@@ -866,7 +1121,7 @@ private fun AniSkipSettingsTab(
                 KitsugiSettingsSwitchItem(
                     title = stringResource(R.string.aniskip_auto_skip),
                     description = stringResource(R.string.aniskip_auto_skip_desc),
-                    icon = Icons.Rounded.SkipNext,
+                    icon = Icons.SkipNext,
                     iconColor = accentColor,
                     checked = autoSkip,
                     onCheckedChange = onAutoSkipChanged
@@ -888,7 +1143,7 @@ private fun AniSkipSettingsTab(
                     title = stringResource(R.string.animeskip_client_id),
                     description = stringResource(R.string.animeskip_client_id_desc),
                     value = maskApiKey(animeSkipClientId, stringResource(R.string.animeskip_default)),
-                    icon = Icons.Rounded.Key,
+                    icon = Icons.Key,
                     iconColor = accentColor,
                     onClick = { showClientIdDialog = true }
                 )
@@ -972,7 +1227,7 @@ private fun MdbListApiKeyValidationDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { keyVisible = !keyVisible }) {
                                 Icon(
-                                    imageVector = if (keyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    imageVector = if (keyVisible) Icons.VisibilityOff else Icons.Visibility,
                                     contentDescription = stringResource(
                                         if (keyVisible) R.string.integration_hide_key else R.string.integration_show_key
                                     ),
@@ -982,7 +1237,7 @@ private fun MdbListApiKeyValidationDialog(
                             if (value.isNotEmpty()) {
                                 IconButton(onClick = { value = "" }) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Close,
+                                        imageVector = Icons.Close,
                                         contentDescription = stringResource(R.string.action_clear),
                                         tint = KitsugiColors.TextSecondary
                                     )
@@ -1091,7 +1346,7 @@ private fun AnimeSkipClientIdValidationDialog(
                         if (value.isNotEmpty()) {
                             IconButton(onClick = { value = "" }) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Close,
+                                    imageVector = Icons.Close,
                                     contentDescription = stringResource(R.string.action_clear),
                                     tint = KitsugiColors.TextSecondary
                                 )
@@ -1171,7 +1426,7 @@ private fun FanartTvSettingsTab(
             KitsugiSettingsSwitchItem(
                 title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.fanart_settings_desc),
-                icon = Icons.Rounded.Movie,
+                icon = Icons.Movie,
                 iconColor = accentColor,
                 checked = enabled,
                 onCheckedChange = onEnabledChanged
@@ -1211,7 +1466,7 @@ private fun FanartTvSettingsTab(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = { keyVisible = !keyVisible }) {
                                     Icon(
-                                        imageVector = if (keyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        imageVector = if (keyVisible) Icons.VisibilityOff else Icons.Visibility,
                                         contentDescription = stringResource(
                                             if (keyVisible) R.string.integration_hide_key else R.string.integration_show_key
                                         ),
@@ -1228,7 +1483,7 @@ private fun FanartTvSettingsTab(
                                         enabled = !keyValidating
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Rounded.Close,
+                                            imageVector = Icons.Close,
                                             contentDescription = stringResource(R.string.action_clear),
                                             tint = KitsugiColors.TextSecondary
                                         )

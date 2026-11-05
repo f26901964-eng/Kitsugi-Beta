@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.HourglassBottom
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -110,74 +108,77 @@ fun MangaPageItem(
     ) {
         when (page.status) {
             MangaPageStatus.Ready -> {
-                val imageUrl = page.imageUrl ?: page.url
-                val cacheFile = loader.cache.getImageFile(imageUrl)
-                val modelToLoad: Any = if (cacheFile.exists()) cacheFile else imageUrl
-
-                val context = LocalContext.current
-                val imageRequest = remember(modelToLoad) {
-                    ImageRequest.Builder(context)
-                        .data(modelToLoad)
-                        .diskCachePolicy(CachePolicy.DISABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .crossfade(200)
-                        .build()
-                }
-
-                val zoomableState = rememberZoomableState()
-                val imageState    = rememberZoomableImageState(zoomableState)
-
-                val contentScale = when (fitMode) {
-                    MangaFitMode.FitScreen -> ContentScale.Fit
-                    MangaFitMode.FitWidth -> ContentScale.FillWidth
-                    MangaFitMode.FitHeight -> ContentScale.FillHeight
-                }
-
-                val composeColorFilter = when (colorFilterType) {
-                    ColorFilterType.Normal -> null
-                    ColorFilterType.Grayscale -> {
-                        val matrix = ColorMatrix(
-                            floatArrayOf(
-                                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
-                                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
-                                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
-                                0f,      0f,      0f,      1f, 0f
-                            )
-                        )
-                        ColorFilter.colorMatrix(matrix)
+                // Only render the bytes downloaded by the source's own client. Fetching
+                // the URL again via Coil would bypass source headers/interceptors.
+                val modelToLoad = page.localFile?.takeIf { it.isFile }
+                if (modelToLoad == null) {
+                    ErrorPageContent(pageIndex = page.index, onRetry = { loader.retryPage(page) })
+                } else {
+                    val context = LocalContext.current
+                    val imageRequest = remember(modelToLoad) {
+                        ImageRequest.Builder(context)
+                            .data(modelToLoad)
+                            .diskCachePolicy(CachePolicy.DISABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .crossfade(200)
+                            .build()
                     }
-                    ColorFilterType.Sepia -> {
-                        val matrix = ColorMatrix(
-                            floatArrayOf(
-                                0.393f, 0.769f, 0.189f, 0f, 0f,
-                                0.349f, 0.686f, 0.168f, 0f, 0f,
-                                0.272f, 0.534f, 0.131f, 0f, 0f,
-                                0f,     0f,     0f,     1f, 0f
-                            )
-                        )
-                        ColorFilter.colorMatrix(matrix)
-                    }
-                    ColorFilterType.Invert -> {
-                        val matrix = ColorMatrix(
-                            floatArrayOf(
-                                -1f,  0f,  0f, 0f, 1f,
-                                 0f, -1f,  0f, 0f, 1f,
-                                 0f,  0f, -1f, 0f, 1f,
-                                 0f,  0f,  0f, 1f, 0f
-                            )
-                        )
-                        ColorFilter.colorMatrix(matrix)
-                    }
-                }
 
-                ZoomableAsyncImage(
-                    model       = imageRequest,
-                    contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
-                    state       = imageState,
-                    contentScale = contentScale,
-                    colorFilter = composeColorFilter,
-                    modifier    = Modifier.fillMaxSize()
-                )
+                    val zoomableState = rememberZoomableState()
+                    val imageState    = rememberZoomableImageState(zoomableState)
+
+                    val contentScale = when (fitMode) {
+                        MangaFitMode.FitScreen -> ContentScale.Fit
+                        MangaFitMode.FitWidth -> ContentScale.FillWidth
+                        MangaFitMode.FitHeight -> ContentScale.FillHeight
+                    }
+
+                    val composeColorFilter = when (colorFilterType) {
+                        ColorFilterType.Normal -> null
+                        ColorFilterType.Grayscale -> {
+                            val matrix = ColorMatrix(
+                                floatArrayOf(
+                                    0.2126f, 0.7152f, 0.0722f, 0f, 0f,
+                                    0.2126f, 0.7152f, 0.0722f, 0f, 0f,
+                                    0.2126f, 0.7152f, 0.0722f, 0f, 0f,
+                                    0f,      0f,      0f,      1f, 0f
+                                )
+                            )
+                            ColorFilter.colorMatrix(matrix)
+                        }
+                        ColorFilterType.Sepia -> {
+                            val matrix = ColorMatrix(
+                                floatArrayOf(
+                                    0.393f, 0.769f, 0.189f, 0f, 0f,
+                                    0.349f, 0.686f, 0.168f, 0f, 0f,
+                                    0.272f, 0.534f, 0.131f, 0f, 0f,
+                                    0f,     0f,     0f,     1f, 0f
+                                )
+                            )
+                            ColorFilter.colorMatrix(matrix)
+                        }
+                        ColorFilterType.Invert -> {
+                            val matrix = ColorMatrix(
+                                floatArrayOf(
+                                    -1f,  0f,  0f, 0f, 1f,
+                                     0f, -1f,  0f, 0f, 1f,
+                                     0f,  0f, -1f, 0f, 1f,
+                                     0f,  0f,  0f, 1f, 0f
+                                )
+                            )
+                            ColorFilter.colorMatrix(matrix)
+                        }
+                    }
+
+                    ZoomableAsyncImage(
+                        model       = imageRequest,
+                        contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
+                        state       = imageState,
+                        contentScale = contentScale,
+                        colorFilter = composeColorFilter,
+                        modifier    = Modifier.fillMaxSize()
+                    )
+                }
             }
 
             MangaPageStatus.Error -> {
@@ -220,7 +221,7 @@ private fun LoadingPageContent(page: MangaPage) {
             }
             MangaPageStatus.Queue -> {
                 Icon(
-                    imageVector         = Icons.Default.HourglassBottom,
+                    imageVector         = Icons.HourglassBottom,
                     contentDescription  = null,
                     tint                = Color.White.copy(alpha = 0.3f),
                     modifier            = Modifier.size(40.dp)
@@ -244,7 +245,7 @@ private fun ErrorPageContent(pageIndex: Int, onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector        = Icons.Default.BrokenImage,
+                imageVector        = Icons.BrokenImage,
                 contentDescription = null,
                 tint               = Color(0xFFEF5350),
                 modifier           = Modifier.size(52.dp)

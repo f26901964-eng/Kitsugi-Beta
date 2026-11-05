@@ -32,6 +32,14 @@ data class MeasuredStreamInfo(
     val isAdaptive: Boolean = false,
     /** Master playlist içindeki tüm varyant yükseklikleri. */
     val variantHeights: List<Int> = emptyList(),
+    /**
+     * Master playlist'ten çözülen **oynatılabilir** video varyantları (kalite seçimi için).
+     *
+     * rapidrame / closeload gibi kaynaklar tek bir `master.m3u8` verip kaliteyi
+     * bildirmediğinde oynatıcının "Kalite" sayfası bu listeyi gösterir ve seçilen
+     * varyantın URL'si ile oynatmayı sürdürür.
+     */
+    val variants: List<com.kitsugi.animelist.core.player.HlsVariant> = emptyList(),
     /** `#EXT-X-MEDIA:TYPE=AUDIO` ile bildirilen ses dilleri (BCP-47 / ISO kodları). */
     val audioLanguages: List<String> = emptyList(),
     /** `#EXT-X-MEDIA:TYPE=SUBTITLES` ile bildirilen altyazı dilleri. */
@@ -179,7 +187,7 @@ object StreamInfoResolver {
                 label = heightToLabel(providerHeight),
                 height = providerHeight,
                 origin = StreamInfoOrigin.PROVIDER,
-                isAdaptive = false
+                isAdaptive = isAdaptiveStream(stream)
             )
         }
 
@@ -193,7 +201,7 @@ object StreamInfoResolver {
                 label = heightToLabel(fromText),
                 height = fromText,
                 origin = StreamInfoOrigin.FILENAME,
-                isAdaptive = false
+                isAdaptive = isAdaptiveStream(stream)
             )
         }
 
@@ -202,9 +210,17 @@ object StreamInfoResolver {
             label = null,
             height = null,
             origin = StreamInfoOrigin.NONE,
-            isAdaptive = measured?.isAdaptive == true || isAdaptiveUrl(stream.url)
+            isAdaptive = measured?.isAdaptive == true || isAdaptiveStream(stream)
         )
     }
+
+    fun isAdaptiveStream(stream: StreamSource): Boolean =
+        isAdaptiveUrl(stream.url) ||
+            stream.mediaType == com.kitsugi.animelist.core.player.StreamMediaType.HLS ||
+            stream.mediaType == com.kitsugi.animelist.core.player.StreamMediaType.DASH ||
+            stream.streamTypeHint.equals("M3U8", ignoreCase = true) ||
+            stream.streamTypeHint.equals("HLS", ignoreCase = true) ||
+            stream.streamTypeHint.equals("DASH", ignoreCase = true)
 
     fun isAdaptiveUrl(url: String?): Boolean {
         val lower = url?.lowercase(Locale.ROOT) ?: return false
@@ -347,16 +363,39 @@ object StreamInfoResolver {
 
     /** Ölçülen veya kaynağın bildirdiği boyut etiketi; bilinmiyorsa null. */
     fun resolveSizeLabel(stream: StreamSource, measured: MeasuredStreamInfo? = null): String? {
-        val bytes = measured?.sizeBytes
-        if (bytes != null && bytes > 0) return formatBytes(bytes)
+        val measuredBytes = measured?.sizeBytes
+        if (measuredBytes != null && measuredBytes > 0) return formatBytes(measuredBytes)
+        val providerBytes = stream.videoSizeBytes
+        if (providerBytes != null && providerBytes > 0) return formatBytes(providerBytes)
         val match = SIZE_REGEX.find("${stream.title} ${stream.name}") ?: return null
         return match.value.trim().uppercase(Locale.ROOT)
+    }
+
+    /**
+     * Boyut sıralaması için bayt değeri. Önce gerçek ölçüm (`Content-Length`), yoksa
+     * kaynağın bildirdiği `videoSizeBytes`, yoksa dosya/ad başlığındaki AÇIK boyut
+     * etiketi (ör. "1.4 GB", "700MB") okunur. Kanıt yoksa 0 döner — uydurma yapılmaz,
+     * bilinmeyenler sıralamanın sonuna düşer.
+     */
+    fun resolveSizeBytes(stream: StreamSource, measured: MeasuredStreamInfo? = null): Long {
+        val measuredBytes = measured?.sizeBytes
+        if (measuredBytes != null && measuredBytes > 0) return measuredBytes
+        val providerBytes = stream.videoSizeBytes
+        if (providerBytes != null && providerBytes > 0) return providerBytes
+        val match = SIZE_REGEX.find("${stream.title} ${stream.name}") ?: return 0L
+        val value = match.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return 0L
+        return when (match.groupValues[2].lowercase(Locale.ROOT)) {
+            "gb", "gib" -> (value * 1_000_000_000).toLong()
+            "mb", "mib" -> (value * 1_000_000).toLong()
+            else -> 0L
+        }
     }
 
     fun formatBytes(bytes: Long): String {
         val gb = bytes / 1_000_000_000.0
         if (gb >= 1.0) return String.format(Locale.ROOT, "%.2f GB", gb)
-        val mb = bytes / 1_000_000.0
-        return String.format(Locale.ROOT, "%.0f MB", mb)
+        if (bytes < 1_000L) return "$bytes B"
+        if (bytes < 1_000_000L) return String.format(Locale.ROOT, "%.0f KB", bytes / 1_000.0)
+        return String.format(Locale.ROOT, "%.0f MB", bytes / 1_000_000.0)
     }
 }

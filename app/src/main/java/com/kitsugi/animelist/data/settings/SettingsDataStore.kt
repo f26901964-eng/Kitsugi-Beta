@@ -173,6 +173,8 @@ class SettingsDataStore(
         // Açıklama Otomatik Çevirisi
         val WikiPageTheme = stringPreferencesKey("wiki_page_theme")
         val WikiTextZoom = intPreferencesKey("wiki_text_zoom")
+        /** Sayfa görünümü: true = masaüstü düzeni, false = mobil düzen (varsayılan). */
+        val WikiDesktopLayout = booleanPreferencesKey("wiki_desktop_layout")
         val WikiAdBlockDisabledHosts = stringSetPreferencesKey("wiki_adblock_disabled_hosts")
         val AutoTranslateEnabled = booleanPreferencesKey("auto_translate_enabled")
         val PreferredTranslator = stringPreferencesKey("preferred_translator")
@@ -195,6 +197,7 @@ class SettingsDataStore(
         val LastUsedTab = stringPreferencesKey("last_used_tab")
         val AppLanguage = stringPreferencesKey("app_language")
         val AccountBackupEnabled = booleanPreferencesKey("account_backup_enabled")
+        val AccountAddonSyncEnabled = booleanPreferencesKey("account_addon_sync_enabled")
         val AccountSearchSyncEnabled = booleanPreferencesKey("account_search_sync_enabled")
         val AccountNotificationSyncEnabled = booleanPreferencesKey("account_notification_sync_enabled")
         val FixedNavBar = booleanPreferencesKey("fixed_nav_bar")
@@ -225,6 +228,8 @@ class SettingsDataStore(
         val SimklNotificationsEnabled = booleanPreferencesKey("simkl_notifications_enabled")
         val KitsuNotificationsEnabled = booleanPreferencesKey("kitsu_notifications_enabled")
         val ShikimoriNotificationsEnabled = booleanPreferencesKey("shikimori_notifications_enabled")
+        val TmdbNotificationsEnabled = booleanPreferencesKey("tmdb_notifications_enabled")
+        val BangumiNotificationsEnabled = booleanPreferencesKey("bangumi_notifications_enabled")
         val NotificationInterval = intPreferencesKey("notification_interval")
         val SearchHistoryEnabled = booleanPreferencesKey("search_history_enabled")
         // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────
@@ -257,6 +262,7 @@ class SettingsDataStore(
         val SyncEnabledKitsu = booleanPreferencesKey("sync_enabled_kitsu")
         val SyncEnabledShikimori = booleanPreferencesKey("sync_enabled_shikimori")
         val SyncEnabledBangumi = booleanPreferencesKey("sync_enabled_bangumi")
+        val SyncEnabledTmdb = booleanPreferencesKey("sync_enabled_tmdb")
         val KitsuUsername = stringPreferencesKey("kitsu_username")
         val KitsuProfileImageUri = stringPreferencesKey("kitsu_profile_image_uri")
         val ShikimoriUsername = stringPreferencesKey("shikimori_username")
@@ -266,6 +272,7 @@ class SettingsDataStore(
         // ─── MPV Gelişmiş Oynatıcı Ayarları ───────────────────────────────────────
         val MpvGpuRenderer = stringPreferencesKey("mpv_gpu_renderer")
         val MpvHwdecMode = stringPreferencesKey("mpv_hwdec_mode")
+        val MpvDolbyVisionAutoFix = booleanPreferencesKey("mpv_dolby_vision_auto_fix")
         val MpvDebandMode = stringPreferencesKey("mpv_deband_mode")
         val MpvForceYuv420p = booleanPreferencesKey("mpv_force_yuv420p")
         val MpvDemuxerCacheMb = intPreferencesKey("mpv_demuxer_cache_mb")
@@ -279,6 +286,7 @@ class SettingsDataStore(
         val SubtitleShadowOffset = floatPreferencesKey("subtitle_shadow_offset")
         val SubtitleBorderColor = intPreferencesKey("subtitle_border_color")
         val SubtitleBorderSize = floatPreferencesKey("subtitle_border_size")
+        val SubtitleFontSize = intPreferencesKey("subtitle_font_size")
         val SubtitleFont = stringPreferencesKey("subtitle_font")
         val SubtitleBorderStyle = stringPreferencesKey("subtitle_border_style")
         val SubtitleFontScale = floatPreferencesKey("subtitle_font_scale")
@@ -316,6 +324,20 @@ class SettingsDataStore(
         val EnableNetflixStyleIntroSkip = booleanPreferencesKey("pref_enable_netflix_style_intro_skip")
         val WaitingTimeIntroSkip = intPreferencesKey("pref_waiting_time_intro_skip")
         val ScreenshotSubtitles = booleanPreferencesKey("pref_screenshot_subtitles")
+        // ─── Klavye / gamepad oynatıcı kısayolları ───────────────────────────
+        val KeyboardEnabled = booleanPreferencesKey("player_keyboard_enabled")
+        val KeyboardAutoDetect = booleanPreferencesKey("player_keyboard_auto_detect")
+        val KeyboardOsdEnabled = booleanPreferencesKey("player_keyboard_osd_enabled")
+        val KeyboardOsdDurationScale = floatPreferencesKey("player_keyboard_osd_duration_scale")
+        val KeyboardOpensFullOsd = booleanPreferencesKey("player_keyboard_opens_full_osd")
+        val KeyboardHelpEnabled = booleanPreferencesKey("player_keyboard_help_enabled")
+        val KeyboardDisabledShortcuts = stringPreferencesKey("player_keyboard_disabled_shortcuts")
+        val KeyboardCustomBindings = stringPreferencesKey("player_keyboard_custom_bindings")
+        val KeyboardGamepadEnabled = booleanPreferencesKey("player_keyboard_gamepad_enabled")
+        val KeyboardSeekStepSeconds = intPreferencesKey("player_keyboard_seek_step_seconds")
+        val KeyboardPreciseSeekSeconds = intPreferencesKey("player_keyboard_precise_seek_seconds")
+        val KeyboardLargeSeekSeconds = intPreferencesKey("player_keyboard_large_seek_seconds")
+        val KeyboardHoldToAccelerate = booleanPreferencesKey("player_keyboard_hold_to_accelerate")
         val PreserveWatchingPosition = booleanPreferencesKey("pref_preserve_watching_position")
         val DefaultPlayerOrientation = stringPreferencesKey("pref_default_player_orientation")
         val PipEpisodeToasts = booleanPreferencesKey("pref_pip_episode_toasts")
@@ -452,10 +474,10 @@ class SettingsDataStore(
                     bangumiProfileImageUri = preferences[Keys.BangumiProfileImageUri] ?: "",
                     profileImageUri = preferences[Keys.ProfileImageUri] ?: "",
                     bannerImageUri = preferences[Keys.BannerImageUri] ?: "",
-                    titleLanguage = preferences[Keys.TitleLanguage] ?: "ROMAJI",
+                    titleLanguage = (preferences[Keys.TitleLanguage] ?: "ENGLISH").let { if (it == "ROMAJI") "ENGLISH" else it },
                     scoreFormat = preferences[Keys.ScoreFormat] ?: "POINT_10",
                     scoreStep = preferences[Keys.ScoreStep] ?: "1",
-                    staffNameLanguage = preferences[Keys.StaffNameLanguage] ?: "ROMAJI",
+                    staffNameLanguage = (preferences[Keys.StaffNameLanguage] ?: "ENGLISH").let { if (it == "ROMAJI") "ENGLISH" else it },
                     separatedListStyle = preferences[Keys.SeparatedListStyle] ?: true,
                     showLowPriority = preferences[Keys.ShowLowPriority] ?: false,
                     priorityColorsJson = preferences[Keys.PriorityColorsJson] ?: "",
@@ -467,6 +489,7 @@ class SettingsDataStore(
                     hideScores = preferences[Keys.HideScores] ?: false,
                     showAnimeLogos = preferences[Keys.ShowAnimeLogos] ?: false,
                     accountBackupEnabled = preferences[Keys.AccountBackupEnabled] ?: true,
+                    accountAddonSyncEnabled = preferences[Keys.AccountAddonSyncEnabled] ?: true,
                     accountSearchSyncEnabled = preferences[Keys.AccountSearchSyncEnabled] ?: true,
                     accountNotificationSyncEnabled = preferences[Keys.AccountNotificationSyncEnabled] ?: true,
                     syncEnabledAnilist = preferences[Keys.SyncEnabledAnilist] ?: true,
@@ -474,7 +497,8 @@ class SettingsDataStore(
                     syncEnabledSimkl = preferences[Keys.SyncEnabledSimkl] ?: true,
                     syncEnabledKitsu = preferences[Keys.SyncEnabledKitsu] ?: true,
                     syncEnabledShikimori = preferences[Keys.SyncEnabledShikimori] ?: true,
-                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true
+                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true,
+                    syncEnabledTmdb = preferences[Keys.SyncEnabledTmdb] ?: true
                 ),
                 themeUi = ThemeAndAppUiSettings(
                     selectedThemeId = preferences[Keys.SelectedThemeId] ?: "mint",
@@ -569,6 +593,7 @@ class SettingsDataStore(
                 ),
                 mpvSubtitle = MpvAndSubtitleSettings(
                     defaultSubtitleSize = preferences[Keys.DefaultSubtitleSize] ?: 16,
+                    subtitleFontSize = (preferences[Keys.SubtitleFontSize] ?: 45).coerceIn(1, 100),
                     defaultSubtitleColor = preferences[Keys.DefaultSubtitleColor] ?: 0xFFFFFFFF.toInt(),
                     subtitleBold = preferences[Keys.SubtitleBold] ?: false,
                     subtitleOutlineEnabled = preferences[Keys.SubtitleOutlineEnabled] ?: true,
@@ -584,6 +609,7 @@ class SettingsDataStore(
                     audioPitchCorrection = preferences[Keys.AudioPitchCorrection] ?: true,
                     mpvGpuRenderer = preferences[Keys.MpvGpuRenderer] ?: "gpu",
                     mpvHwdecMode = preferences[Keys.MpvHwdecMode] ?: "auto-safe",
+                    mpvDolbyVisionAutoFix = preferences[Keys.MpvDolbyVisionAutoFix] ?: true,
                     mpvDebandMode = preferences[Keys.MpvDebandMode] ?: "none",
                     mpvForceYuv420p = preferences[Keys.MpvForceYuv420p] ?: false,
                     mpvDemuxerCacheMb = preferences[Keys.MpvDemuxerCacheMb] ?: 64,
@@ -661,8 +687,9 @@ class SettingsDataStore(
                     mdbListShowTrakt = preferences[Keys.MdbListShowTrakt] ?: false,
                     fanartTvApiKey = preferences[Keys.FanartTvApiKey] ?: "",
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
-                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "SITE",
+                    wikiPageTheme = preferences[Keys.WikiPageTheme] ?: "APP",
                     wikiTextZoom = preferences[Keys.WikiTextZoom] ?: 100,
+                    wikiDesktopLayout = preferences[Keys.WikiDesktopLayout] ?: false,
                     wikiAdBlockDisabledHosts = preferences[Keys.WikiAdBlockDisabledHosts] ?: emptySet(),
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
@@ -676,6 +703,8 @@ class SettingsDataStore(
                     simklNotificationsEnabled = preferences[Keys.SimklNotificationsEnabled] ?: false,
                     kitsuNotificationsEnabled = preferences[Keys.KitsuNotificationsEnabled] ?: false,
                     shikimoriNotificationsEnabled = preferences[Keys.ShikimoriNotificationsEnabled] ?: false,
+                    tmdbNotificationsEnabled = preferences[Keys.TmdbNotificationsEnabled] ?: false,
+                    bangumiNotificationsEnabled = preferences[Keys.BangumiNotificationsEnabled] ?: false,
                     notificationInterval = preferences[Keys.NotificationInterval] ?: 180
                 ),
                 downloads = DownloadAndMangaSettings(
@@ -710,6 +739,21 @@ class SettingsDataStore(
                     downloadNewUnreadChaptersOnly = preferences[Keys.DownloadNewUnreadChaptersOnly] ?: false,
                     downloadNewUnseenEpisodesOnly = preferences[Keys.DownloadNewUnseenEpisodesOnly] ?: false,
                     subtitleDownloadLanguages = preferences[Keys.SubtitleDownloadLanguages] ?: "tr"
+                ),
+                keyboard = PlayerKeyboardSettings(
+                    keyboardEnabled = preferences[Keys.KeyboardEnabled] ?: true,
+                    autoDetectExternalKeyboard = preferences[Keys.KeyboardAutoDetect] ?: true,
+                    keyboardOsdEnabled = preferences[Keys.KeyboardOsdEnabled] ?: true,
+                    keyboardOsdDurationScale = (preferences[Keys.KeyboardOsdDurationScale] ?: 1f).coerceIn(0.35f, 2.5f),
+                    keyboardOpensFullOsd = preferences[Keys.KeyboardOpensFullOsd] ?: false,
+                    keyboardHelpEnabled = preferences[Keys.KeyboardHelpEnabled] ?: true,
+                    disabledShortcuts = preferences[Keys.KeyboardDisabledShortcuts] ?: "",
+                    customBindings = preferences[Keys.KeyboardCustomBindings] ?: "",
+                    gamepadEnabled = preferences[Keys.KeyboardGamepadEnabled] ?: true,
+                    keyboardSeekStepSeconds = (preferences[Keys.KeyboardSeekStepSeconds] ?: 5).coerceIn(1, 120),
+                    keyboardPreciseSeekSeconds = (preferences[Keys.KeyboardPreciseSeekSeconds] ?: 1).coerceIn(1, 30),
+                    keyboardLargeSeekSeconds = (preferences[Keys.KeyboardLargeSeekSeconds] ?: 60).coerceIn(5, 600),
+                    keyboardHoldToAccelerate = preferences[Keys.KeyboardHoldToAccelerate] ?: true
                 )
             )
             // Çeviri intent'leri (suspend olmayan bağlamlar) ayarlara senkron erişebilsin.
@@ -1290,6 +1334,11 @@ class SettingsDataStore(
         }
     }
 
+    /** Wiki açılır sayfasının görünüm düzeni; seçim sekmeler ve oturumlar arasında korunur. */
+    suspend fun setWikiDesktopLayout(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.WikiDesktopLayout] = enabled }
+    }
+
     /** Local per-wiki exception; never changes filtering in other application WebViews. */
     suspend fun setWikiAdBlockEnabled(host: String, enabled: Boolean) {
         val normalized = host.lowercase(java.util.Locale.ROOT)
@@ -1410,6 +1459,12 @@ class SettingsDataStore(
     suspend fun setAccountBackupEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.AccountBackupEnabled] = enabled
+        }
+    }
+
+    suspend fun setAccountAddonSyncEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.AccountAddonSyncEnabled] = enabled
         }
     }
 
@@ -1536,6 +1591,16 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.ShikimoriNotificationsEnabled] = enabled }
     }
 
+    /** TMDB account polling/dedupe notifications (not a TMDB native notification feed). */
+    suspend fun setTmdbNotificationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.TmdbNotificationsEnabled] = enabled }
+    }
+
+    /** Bangumi bildirimleri (DOING koleksiyonu + yayın takvimi eşleşmesi). */
+    suspend fun setBangumiNotificationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.BangumiNotificationsEnabled] = enabled }
+    }
+
     suspend fun setNotificationInterval(minutes: Int) {
         context.settingsDataStore.edit { it[Keys.NotificationInterval] = minutes }
     }
@@ -1637,6 +1702,10 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.SyncEnabledBangumi] = enabled }
     }
 
+    suspend fun setSyncEnabledTmdb(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledTmdb] = enabled }
+    }
+
     suspend fun saveKitsuProfileInfo(username: String, avatarUrl: String? = null) {
         context.settingsDataStore.edit {
             it[Keys.KitsuUsername] = username
@@ -1689,6 +1758,10 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.MpvHwdecMode] = mode }
     }
 
+    suspend fun setMpvDolbyVisionAutoFix(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MpvDolbyVisionAutoFix] = enabled }
+    }
+
     suspend fun setMpvDebandMode(mode: String) {
         context.settingsDataStore.edit { it[Keys.MpvDebandMode] = mode }
     }
@@ -1735,6 +1808,10 @@ class SettingsDataStore(
 
     suspend fun setSubtitleBorderSize(size: Float) {
         context.settingsDataStore.edit { it[Keys.SubtitleBorderSize] = size.coerceIn(0f, 6f) }
+    }
+
+    suspend fun setSubtitleFontSize(size: Int) {
+        context.settingsDataStore.edit { it[Keys.SubtitleFontSize] = size.coerceIn(1, 100) }
     }
 
     suspend fun setSubtitleFont(font: String) {
@@ -1998,6 +2075,60 @@ class SettingsDataStore(
 
     suspend fun setScreenshotSubtitles(value: Boolean) {
         context.settingsDataStore.edit { it[Keys.ScreenshotSubtitles] = value }
+    }
+
+    // ── Klavye / gamepad kısayolları ─────────────────────────────────────────
+    suspend fun setKeyboardEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardEnabled] = enabled }
+    }
+
+    suspend fun setKeyboardAutoDetect(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardAutoDetect] = enabled }
+    }
+
+    suspend fun setKeyboardOsdEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardOsdEnabled] = enabled }
+    }
+
+    suspend fun setKeyboardOsdDurationScale(scale: Float) {
+        context.settingsDataStore.edit { it[Keys.KeyboardOsdDurationScale] = scale.coerceIn(0.35f, 2.5f) }
+    }
+
+    /** Tam OSD (üst/alt bar) klavye ile açılsın mı? Varsayılan: hayır, yalnızca gösterge. */
+    suspend fun setKeyboardOpensFullOsd(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardOpensFullOsd] = enabled }
+    }
+
+    suspend fun setKeyboardHelpEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardHelpEnabled] = enabled }
+    }
+
+    suspend fun setKeyboardDisabledShortcuts(raw: String) {
+        context.settingsDataStore.edit { it[Keys.KeyboardDisabledShortcuts] = raw }
+    }
+
+    suspend fun setKeyboardCustomBindings(raw: String) {
+        context.settingsDataStore.edit { it[Keys.KeyboardCustomBindings] = raw }
+    }
+
+    suspend fun setGamepadEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardGamepadEnabled] = enabled }
+    }
+
+    suspend fun setKeyboardSeekStepSeconds(seconds: Int) {
+        context.settingsDataStore.edit { it[Keys.KeyboardSeekStepSeconds] = seconds.coerceIn(1, 120) }
+    }
+
+    suspend fun setKeyboardPreciseSeekSeconds(seconds: Int) {
+        context.settingsDataStore.edit { it[Keys.KeyboardPreciseSeekSeconds] = seconds.coerceIn(1, 30) }
+    }
+
+    suspend fun setKeyboardLargeSeekSeconds(seconds: Int) {
+        context.settingsDataStore.edit { it[Keys.KeyboardLargeSeekSeconds] = seconds.coerceIn(5, 600) }
+    }
+
+    suspend fun setKeyboardHoldToAccelerate(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KeyboardHoldToAccelerate] = enabled }
     }
 
     suspend fun setPreserveWatchingPosition(value: Boolean) {
