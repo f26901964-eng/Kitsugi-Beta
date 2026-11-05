@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -150,19 +151,22 @@ fun MangaReaderTopBar(
                     )
                     if (!scanlator.isNullOrBlank()) {
                         Spacer(Modifier.width(6.dp))
+                        // Vurgu rengi kullanıcı temasından geldiği için yazı rengi
+                        // `OnAccent` (vurgu üstünde otomatik kontrast) seçilir.
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(ReaderAccent.copy(alpha = 0.22f))
-                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                                .background(ReaderAccent)
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = scanlator,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = KitsugiColors.OnAccent,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 110.dp),
                             )
                         }
                     }

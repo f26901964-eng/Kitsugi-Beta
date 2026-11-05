@@ -774,17 +774,28 @@ private fun ChapterGroupListItem(
         }
 
         // ─── Açılan çevirmen listesi ───────────────────────────────────────────
+        // Alt liste hafif bir yüzeyle ayrılır: kullanıcı hangi satırların
+        // "aynı bölümün sürümleri" olduğunu bir bakışta görür.
         if (expanded && multiple) {
-            row.variants.forEach { variant ->
-                ChapterVariantRow(
-                    row = variant,
-                    accent = accent,
-                    isSelected = variant.chapter.url == selectedUrl,
-                    onClick = { onOpenChapter(variant.chapter) },
-                    onToggleCompleted = { onToggleCompleted(variant.chapter) }
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 8.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.5f))
+                    .padding(vertical = 2.dp)
+            ) {
+                row.variants.forEach { variant ->
+                    ChapterVariantRow(
+                        row = variant,
+                        accent = accent,
+                        isSelected = variant.chapter.url == selectedUrl,
+                        onClick = { onOpenChapter(variant.chapter) },
+                        onToggleCompleted = { onToggleCompleted(variant.chapter) }
+                    )
+                }
             }
-            Spacer(Modifier.height(4.dp))
         }
     }
 }
@@ -800,7 +811,7 @@ private fun ChapterVariantRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 26.dp, end = 16.dp)
+            .padding(start = 8.dp, end = 6.dp)
             .clip(RoundedCornerShape(8.dp))
             .tvClickable(shape = RoundedCornerShape(8.dp)) { onClick() }
             .padding(horizontal = 10.dp, vertical = 9.dp),
