@@ -358,6 +358,8 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.1")
 
     // Subsampling and zoomable image support for manga pages
+    // Other legacy screens still use Coil 2; keep their former transitive dependency explicit.
+    implementation("io.coil-kt:coil-compose:2.5.0")
     // Reader requests are Coil 3 ImageRequests; the Coil 2 adapter silently treats them as data.
     implementation("me.saket.telephoto:zoomable-image-coil3:0.14.0")
     // Mihon-compatible native fallback for AVIF/HEIF/JXL on older Android.
