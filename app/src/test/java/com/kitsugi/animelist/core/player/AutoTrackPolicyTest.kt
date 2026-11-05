@@ -175,6 +175,19 @@ class AutoTrackPolicyTest {
     }
 
     @Test
+    fun `auto tracking is OFF by default until the user opts in`() {
+        // Deneysel özellik: kullanıcı Ayarlar → Deneysel bölümünden onay vererek açmadıkça
+        // hiçbir karar üretilmemeli.
+        assertFalse(AutoTrackPolicy.Settings().enabled)
+        val decision = AutoTrackPolicy.evaluate(
+            snapshot = snapshot(position = 23 * 60 * 1000L, episode = 3, endReached = true),
+            current = TrackedState(status = Status.WATCHING, progress = 2, total = 12)
+        )
+        assertEquals(Action.NONE, decision.action)
+        assertFalse(decision.showQuickRate)
+    }
+
+    @Test
     fun `auto tracking disabled leaves everything untouched`() {
         val decision = AutoTrackPolicy.evaluate(
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 6, endReached = true),

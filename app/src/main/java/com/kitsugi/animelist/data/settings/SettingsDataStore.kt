@@ -574,7 +574,9 @@ class SettingsDataStore(
                     defaultPlayerOrientation = preferences[Keys.DefaultPlayerOrientation] ?: "SENSOR_LANDSCAPE",
                     pipEpisodeToasts = preferences[Keys.PipEpisodeToasts] ?: true,
                     pipOnExit = preferences[Keys.PipOnExit] ?: true,
-                    autoTrackEnabled = preferences[Keys.AutoTrackEnabled] ?: true,
+                    // Deneysel: kayıt yoksa KAPALI. (Eski sürümden yükselten kullanıcı da
+                    // bilinçli olarak açana kadar takip yapılmaz.)
+                    autoTrackEnabled = preferences[Keys.AutoTrackEnabled] ?: false,
                     autoTrackAddNew = preferences[Keys.AutoTrackAddNew] ?: true,
                     autoTrackRespectDropped = preferences[Keys.AutoTrackRespectDropped] ?: true,
                     quickRateEnabled = preferences[Keys.QuickRateEnabled] ?: true,

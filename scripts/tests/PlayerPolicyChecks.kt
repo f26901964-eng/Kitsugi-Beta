@@ -160,6 +160,11 @@ fun main() {
         check(AutoTrackPolicy.progressAfterScore(AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 1),
             AutoTrackPolicy.Status.COMPLETED, AutoTrackPolicy.Kind.MOVIE) == 1)
     }
+    test("auto tracking is opt-in: default settings are disabled") {
+        check(!AutoTrackPolicy.Settings().enabled)
+        check(AutoTrackPolicy.evaluate(AutoTrackPolicy.Snapshot(23 * 60 * 1000L, 24 * 60 * 1000L, episode = 3, endReached = true),
+            current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 2, 12)).action == AutoTrackPolicy.Action.NONE)
+    }
     test("closing credits are recognised for every provider naming scheme") {
         for (type in listOf("ed", "mixed-ed", "ending", "mixed-ending", "outro", "ED")) check(AniSkipPolicy.isOutroType(type))
         for (type in listOf("op", "mixed-op", "opening", "recap", "")) check(!AniSkipPolicy.isOutroType(type))

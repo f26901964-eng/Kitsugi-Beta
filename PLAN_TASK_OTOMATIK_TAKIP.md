@@ -68,10 +68,14 @@ bir dizi, AniList'te tutulan aynı animeyi bulur. Ağ yoksa ham kimliklerle deva
 5. Fragman (`videoId`) ve `< 60 sn` (ayarlanabilir) klipler → **hiç takip edilmez**.
 6. İlerleme **asla azalmaz**; `Completed` satır yeniden izlenince bozulmaz; `Dropped` saygı görür.
 
-## 5. Ayarlar (Player → Gelişmiş → Otomatik takip)
+## 5. Ayarlar (Ayarlar → Deneysel Özellikler)
 
-`autoTrackEnabled`, `autoTrackAddNew`, `autoTrackRespectDropped`, `autoTrackSyncSources`,
-`autoTrackMinSeconds` (15–300), `quickRateEnabled`, `quickRateSeconds` (5–60).
+**Varsayılan: KAPALI.** Açmak için onay penceresi zorunlu (`ExperimentalSettingsScreen`).
+
+`autoTrackEnabled` (ana anahtar, default `false`), `autoTrackAddNew`, `autoTrackRespectDropped`,
+`autoTrackSyncSources`, `autoTrackMinSeconds` (15–300), `quickRateEnabled`, `quickRateSeconds` (5–60).
+Alt anahtarlar yalnızca ana anahtar açıkken görünür; kapalıyken oynatıcı hiçbir yazım yapmaz
+(controller + policy çift katman kapı).
 
 ## 6. Veritabanı
 

@@ -67,6 +67,24 @@
 | Ekran ile ViewModel geçmiş anahtarı farklıydı (bangumi eksik) | Aynı bölüm için ikinci geçmiş satırı | Ortak anahtar: `malId ?: aniListId ?: bangumiId ?: title.hashCode()` |
 | TMDB film/dizi satırı `simklId` ile eşleşmiyordu | Simkl'de tutulan film tekrar eklenebiliyordu | `PlaybackIdentity.simklId` + ayrı probe, TMDB satırı `tmdb` uzayında |
 
+## 3c. Deneysel konum + onay penceresi + varsayılan KAPALI (3. tur)
+
+Kullanıcı isteği: *"ayarlarda uygun bir konumda deneysel özellik olarak, gerekli uyarı/onay
+penceresiyle; açılıp kapatılabilir; varsayılan olarak kapalı — elle açmadan çalışmasın."*
+
+| Gereksinim | Uygulama |
+|-----------|----------|
+| Deneysel olarak konumlandırma | Yeni **Ayarlar → Deneysel Özellikler** sayfası (`ExperimentalFeatures` route) + ana menüde "Deneysel" bölümü, ayarlar aramasında iki kayıt |
+| Uyarı/onay penceresi | `KitsugiConfirmDialog` — listelerin değişeceğini, ilerlemenin geri alınamayacağını, tüm platformlara yayılacağını söyleyen metin; yalnızca **açarken** çıkar |
+| Açılıp kapatılabilir | Tek anahtar; kapatma anında ve oynatma sırasında bile etkili (`onTick` her tikte ayarı yeniden okur, `bind`/`onLeaving`/`rate` kapılı) |
+| Varsayılan KAPALI | `AppSettings.autoTrackEnabled = false`, `KitsugiContentPrefs.autoTrackEnabled = false`, DataStore parse `?: false`, `AutoTrackPolicy.Settings.enabled = false` |
+| Bağlantılı özellikler de kapalı | Alt anahtarlar (yeni ekleme, kaynaklara yazma, "Bırakıldı"ya saygı, hızlı puanlama) yalnızca ana anahtar açıkken görünür/pasif; kapatınca eski seçimler korunur |
+| Kapalıyken sıfır yazım | `PlayerAutoTrackController.bind` hiç çözümleme yapmaz; `onTick`/`onLeaving`/`rate` kapıda döner; `AutoTrackPolicy.evaluate` `NONE` döner (3 katman savunma) |
+| Oynatıcı ayarlarındaki eski blok | Kaldırıldı (tek yerde yönetim; iki yerden açma riski yok) |
+
+Test: `AutoTrackPolicyTest."auto tracking is OFF by default until the user opts in"` +
+`scripts/tests/PlayerPolicyChecks.kt` aynı kontrolü doğrular.
+
 ## 4. Dosya haritası
 
 ```

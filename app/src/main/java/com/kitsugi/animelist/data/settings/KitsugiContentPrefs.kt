@@ -61,7 +61,7 @@ object KitsugiContentPrefs {
 
     /** Oynatıcıdan otomatik liste takibi açık mı? (Compose dışı hattın hızlı okuması.) */
     @Volatile
-    var autoTrackEnabled: Boolean = true
+    var autoTrackEnabled: Boolean = false
         private set
 
     /** Listede olmayan içerik oynatılınca otomatik eklensin mi? */

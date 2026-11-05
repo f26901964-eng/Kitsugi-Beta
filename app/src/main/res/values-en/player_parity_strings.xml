@@ -74,4 +74,30 @@
     <string name="auto_track_synced_local">Written to the local list</string>
     <string name="quick_rate_episode">Episode %1$d</string>
     <string name="quick_rate_saved">Rating saved: %1$d</string>
+    <string name="settings_experimental_title">Experimental Features</string>
+    <string name="settings_experimental_section_about">Experimental</string>
+    <string name="settings_experimental_desc">Beta-stage features whose behaviour may change. Off by default; they only run after you turn them on.</string>
+    <string name="settings_experimental_section_tracking">Automatic list tracking</string>
+    <string name="experimental_autotrack_title">Track playback in my lists automatically</string>
+    <string name="experimental_autotrack_desc">Whatever the source (AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, Simkl, TMDB or add-ons): the episode/movie you play is written to your list, the watched-episode count advances when it finishes, and the final episode completes the entry.</string>
+    <string name="experimental_autotrack_confirm_title">Enable experimental feature?</string>
+    <string name="experimental_autotrack_confirm_message">Automatic list tracking is in beta and MODIFIES the lists on your connected accounts.
+
+• Titles you play may be added to your list as \"Watching\".
+• When an episode finishes, the watched-episode count is written to your list; this cannot be undone (you must fix it manually).
+• Changes fan out to every connected platform (can be disabled separately).
+• Trailers and clips are never tracked; entries marked \"Dropped\" are preserved.
+
+If you see a wrong match, you can turn the feature off from the same place.</string>
+    <string name="experimental_autotrack_confirm_accept">I understand, enable</string>
+    <string name="experimental_autotrack_on">Automatic tracking enabled</string>
+    <string name="experimental_autotrack_off">Automatic tracking disabled</string>
+    <string name="experimental_autotrack_badge">Experimental</string>
+    <string name="experimental_autotrack_cancel">Cancel</string>
+    <string name="auto_track_add_new_desc">Titles you play that are not in your list are added automatically.</string>
+    <string name="auto_track_sync_sources_desc">Status/progress is not kept on this device only: it is written to every connected platform (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl).</string>
+    <string name="auto_track_respect_dropped_desc">Entries you marked \"Dropped\" stay untouched even if you play them again.</string>
+    <string name="quick_rate_enabled_desc">When an episode/movie ends, a small rating bar appears at the bottom of the player (no full-screen dialog).</string>
+    <string name="experimental_autotrack_off_hint">While off, the player writes no list or history entries; only the \"continue watching\" position is remembered.</string>
+    <string name="settings_experimental_entry_desc">Beta-stage features. Off by default; enabled only after you confirm.</string>
 </resources>

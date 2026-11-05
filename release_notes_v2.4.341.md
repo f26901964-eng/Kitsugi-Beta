@@ -20,6 +20,15 @@
 - Kumanda (D-pad) ile tam uyumlu, PiP'te ve kilitli kontrollerde görünmez, kaynak rozeti gösterir.
 - Aynı yıldıza ikinci dokunuş puanı temizler; mevcut puanınız çubukta görünür.
 
+### 🧪 Deneysel Bölümü ve Onay Penceresi
+- Otomatik takip artık **Ayarlar → Deneysel** sayfasında; **varsayılan olarak KAPALI**.
+  Sen açmadan hiçbir liste/geçmiş kaydı yazılmaz, puanlama çubuğu da çıkmaz.
+- Açmaya çalıştığında **riskleri anlatan bir onay penceresi** çıkar (listelerin değişeceği,
+  ilerlemenin geri alınamayacağı, değişikliklerin tüm platformlara yayılacağı).
+- Anahtar istediğin an kapatılabilir; kapatınca alt anahtarlar gizlenir ama yaptığın
+  seçimler korunur. Alt anahtarlar: yeni ekleme, tüm kaynaklara yazma, "Bırakıldı"ya saygı,
+  hızlı puanlama çubuğu.
+
 ### 🧩 Ek Düzeltmeler
 - **Jenerik türleri düzeltildi:** `ed`/`mixed-ed`/`ending` aralıkları artık tanınıyor — "Bitişi
   Atla" ve bitişte "sonraki bölüm" davranışı ilk kez gerçekten çalışıyor.
@@ -46,6 +55,13 @@
 ### ⭐ Quick Rating Bar at the End
 - No popup window: a slim bar appears at the bottom of the player with 10 stars, writes the score
   immediately and dismisses itself with a countdown. D-pad friendly, hidden in PiP/locked controls.
+
+### 🧪 Experimental Section with a Consent Dialog
+- Automatic tracking now lives in **Settings → Experimental** and is **OFF by default**:
+  nothing is written and no rating bar appears until you enable it.
+- Enabling shows a **consent dialog** explaining that your lists will change, progress cannot
+  be undone, and changes fan out to every connected platform.
+- The switch can be turned off at any time; sub-switches hide while off but keep your choices.
 
 ### 🧩 Additional fixes
 - **Credits segment types fixed:** `ed`/`mixed-ed`/`ending` are now recognised — "Skip ending" and

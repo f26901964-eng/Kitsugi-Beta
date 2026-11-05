@@ -142,9 +142,14 @@ data class PlayerOverlaySettings(
     val pipEpisodeToasts: Boolean = true,
     val pipOnExit: Boolean = true,
 
-    // ─── Otomatik liste takibi (oynatıcı → liste) ─────────────────────────────
-    /** Oynatma başladığında içerik otomatik olarak "İzleniyor"a çekilsin mi? */
-    val autoTrackEnabled: Boolean = true,
+    // ─── Otomatik liste takibi (oynatıcı → liste) — DENEYSEL, VARSAYILAN KAPALI ─
+    /**
+     * Oynatma başladığında içerik otomatik olarak "İzleniyor"a çekilsin mi?
+     *
+     * **Varsayılan `false`.** Deneysel özellik: kullanıcı Ayarlar → Deneysel bölümünden
+     * elle açıp onay penceresini kabul etmedikçe hiçbir liste/geçmiş yazımı yapılmaz.
+     */
+    val autoTrackEnabled: Boolean = false,
     /** Listede olmayan içerik oynatılınca otomatik eklensin mi? */
     val autoTrackAddNew: Boolean = true,
     /** "Bırakıldı" işaretli kayıtlar otomatik takiple ezilmesin. */

@@ -30,6 +30,12 @@ package com.kitsugi.animelist.core.player
  * - `isTrailer` (YouTube video kimliği ile açılan tanıtım/jenerik oynatmaları) ve
  *   `minTrackableDurationMs`'den kısa klipler **asla** takip edilmez.
  *
+ * ## Deneysel ve VARSAYILAN KAPALI
+ * Bu yetenek kullanıcı hesabındaki gerçek listeleri değiştirir. Bu yüzden
+ * `Settings.enabled` varsayılanı `false`'tur ve açma işi yalnızca **Ayarlar → Deneysel**
+ * sayfasındaki onay penceresinden yapılır (`ExperimentalSettingsScreen`). Kapalıyken
+ * `evaluate` her zaman `Action.NONE` döner; yazma katmanı da ayrıca kapıyı kontrol eder.
+ *
  * ## Kullanıcı iradesine saygı
  * - `Dropped` bir kayıt otomatik olarak `Watching`'e çevrilmez (`respectDropped`).
  * - `Completed` kayıt yeniden izlense bile ilerlemesi düşürülmez; yalnızca hızlı puanlama
@@ -71,7 +77,8 @@ object AutoTrackPolicy {
 
     /** Kullanıcı ayarları (Compose dışı katman bunu `AppSettings`'ten doldurur). */
     data class Settings(
-        val enabled: Boolean = true,
+        /** Deneysel özellik — varsayılan KAPALI (bkz. [AutoTrackPolicy] başlığı). */
+        val enabled: Boolean = false,
         /** Listede olmayan içerik otomatik eklensin mi? */
         val addNewEntries: Boolean = true,
         val respectDropped: Boolean = true,

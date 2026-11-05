@@ -37,6 +37,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,6 +99,8 @@ enum class SettingsRoute {
     Feedback,
     PluginDiagnostic,
     PlatformErrorCodes,
+    /** Deneysel özellikler (otomatik liste takibi vb.) — varsayılan kapalı. */
+    ExperimentalFeatures,
 }
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -505,6 +509,23 @@ fun SettingsScreen(
                     PlatformErrorCatalogScreen()
                 }
             }
+
+            SettingsRoute.ExperimentalFeatures -> {
+                SettingsSubPage(
+                    title = stringResource(R.string.settings_experimental_title),
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    // Store burada, sayfa içinde oluşturulur: ayar akışını sayfa kendisi
+                    // dinler, böylece ana ayar ağacından bağımsız kalır.
+                    val experimentalStore = remember { SettingsDataStore(context) }
+                    val experimentalSettings by experimentalStore.settingsFlow
+                        .collectAsState(initial = null)
+                    ExperimentalSettingsContent(
+                        settings = experimentalSettings,
+                        store = experimentalStore
+                    )
+                }
+            }
         }
         }
     }
@@ -786,6 +807,20 @@ private fun SettingsMainPage(
                             icon = Icons.Rounded.BugReport,
                             iconColor = KitsugiColors.AccentOrange,
                             onClick = { onNavigate(SettingsRoute.PlatformErrorCodes) }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    // ── Deneysel ──────────────────────────────────────────────
+                    // Riskli özellikler ana menüde karışmasın diye ayrı ve EN SONDA;
+                    // açıklaması "deneysel" olduğunu açıkça söyler.
+                    SectionHeader(stringResource(R.string.settings_experimental_section_about))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_experimental_title),
+                            description = stringResource(R.string.settings_experimental_entry_desc),
+                            icon = Icons.Rounded.Science,
+                            iconColor = KitsugiColors.AccentOrange,
+                            onClick = { onNavigate(SettingsRoute.ExperimentalFeatures) }
                         )
                     }
                     Spacer(Modifier.height(80.dp))

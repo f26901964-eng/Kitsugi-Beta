@@ -35,7 +35,6 @@ fun LazyListScope.playerParityOptions(settings: AppSettings, store: SettingsData
     item(key = "player_advanced_audio") { AudioOptions(settings, store, scope) }
     item(key = "player_advanced_subtitles") { SubtitlesOptions(settings, store, scope) }
     item(key = "player_advanced_appearance") { AppearanceOptions(settings, store, scope) }
-    item(key = "player_advanced_autotrack") { AutoTrackOptions(settings, store, scope) }
     item(key = "player_advanced_memory") { MemoryOptions(settings, store, scope) }
     item(key = "player_advanced_pip") { PipOptions(settings, store, scope) }
     item(key = "player_advanced_skipping") { SkippingOptions(settings, store, scope) }
@@ -147,57 +146,6 @@ private fun AppearanceOptions(settings: AppSettings, store: SettingsDataStore, s
             steps = 0,
             label = { stringResource(R.string.player_advanced_opacity, it.toInt()) }
         ) { scope.launch { store.setPanelOpacity(it.toInt()) } }
-    }
-}
-
-/**
- * OYNATMA → LİSTE OTOMATİK TAKİBİ.
- *
- * Kullanıcı hangi kaynaktan (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl, TMDB ve
- * Cloudstream eklentileri) izlerse izlesin aynı kuralları uygular; bu bölüm o kuralların
- * anahtarlarını sunar. Yazma hattı: `PlaybackListWriter` → `MediaEntryRepository.update`
- * → `ExternalListSyncManager` (altı kaynak).
- */
-@Composable
-private fun AutoTrackOptions(settings: AppSettings, store: SettingsDataStore, scope: CoroutineScope) {
-    ParitySection(stringResource(R.string.player_advanced_autotrack)) {
-        ParitySwitchRow(
-            stringResource(R.string.auto_track_enabled),
-            settings.autoTrackEnabled
-        ) { scope.launch { store.setAutoTrackEnabled(it) } }
-
-        if (settings.autoTrackEnabled) {
-            ParitySwitchRow(
-                stringResource(R.string.auto_track_add_new),
-                settings.autoTrackAddNew
-            ) { scope.launch { store.setAutoTrackAddNew(it) } }
-            ParitySwitchRow(
-                stringResource(R.string.auto_track_respect_dropped),
-                settings.autoTrackRespectDropped
-            ) { scope.launch { store.setAutoTrackRespectDropped(it) } }
-            ParitySwitchRow(
-                stringResource(R.string.auto_track_sync_sources),
-                settings.autoTrackSyncSources
-            ) { scope.launch { store.setAutoTrackSyncSources(it) } }
-            ParitySliderOption(
-                value = settings.autoTrackMinSeconds.toFloat(),
-                valueRange = 15f..300f,
-                steps = 0,
-                label = { stringResource(R.string.auto_track_min_seconds, it.toInt()) }
-            ) { scope.launch { store.setAutoTrackMinSeconds(it.toInt()) } }
-            ParitySwitchRow(
-                stringResource(R.string.quick_rate_enabled),
-                settings.quickRateEnabled
-            ) { scope.launch { store.setQuickRateEnabled(it) } }
-            if (settings.quickRateEnabled) {
-                ParitySliderOption(
-                    value = settings.quickRateSeconds.toFloat(),
-                    valueRange = 5f..60f,
-                    steps = 0,
-                    label = { stringResource(R.string.quick_rate_seconds, it.toInt()) }
-                ) { scope.launch { store.setQuickRateSeconds(it.toInt()) } }
-            }
-        }
     }
 }
 

@@ -143,6 +143,12 @@ class PlayerAutoTrackController(
             Log.d(TAG, "Fragman/jenerik: otomatik takip devre dışı ($key)")
             return
         }
+        if (!settings().enabled) {
+            // Deneysel özellik VARSAYILAN OLARAK KAPALI: kullanıcı elle açmadıkça hiçbir
+            // liste/geçmiş yazımı yapılmaz, hızlı puanlama çubuğu da çıkmaz.
+            Log.d(TAG, "Otomatik takip kapalı (ayarlardan açılmalı): $key")
+            return
+        }
         scope.launch(Dispatchers.IO) {
             val resolved = runCatching {
                 PlaybackListWriter.resolveEntry(context, identity)
@@ -177,6 +183,8 @@ class PlayerAutoTrackController(
     fun onTick(positionMs: Long, durationMs: Long, isPlaying: Boolean = true, endReached: Boolean = false) {
         val currentIdentity = identity ?: return
         if (isTrailer) return
+        // Ayarlar her tikte yeniden okunur: kullanıcı özelliği oynatma sırasında kapatırsa
+        // bir sonraki tikte takip anında durur.
         val settings = settings()
         if (!settings.enabled) return
         // Duraklatılmışken sadece bitiş bildirimi işlenir: kullanıcı bir süre sonra devam
@@ -231,6 +239,7 @@ class PlayerAutoTrackController(
      */
     fun onLeaving(positionMs: Long, durationMs: Long) {
         if (identity == null || isTrailer) return
+        if (!settings().enabled) return
         if (positionMs <= 0L || durationMs <= 0L) return
         lastWriteAtMs = 0L
         onTick(positionMs = positionMs, durationMs = durationMs, isPlaying = true)
@@ -490,6 +499,8 @@ class PlayerAutoTrackController(
         val currentEntry = entry
         val currentIdentity = identity
         hideQuickRate()
+        // Özellik kapalıyken çubuk hiç çıkmaz; yine de savunma amaçlı yazım engellenir.
+        if (!settings().enabled) return
         if (currentEntry == null) {
             // Kayıt henüz oluşmadıysa (nadiren) puanı kaybetmek yerine listeye ekleyip puanla.
             if (currentIdentity == null || !settings().addNewEntries) return
