@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -718,12 +720,18 @@ fun MangaReaderScreen(
 
     // ─── Okuma Modu Ayarlar Paneli ────────────────────────────────────────────
     if (showSettings) {
+        // Reader-settings paneli kısa bir bottom sheet: varsayılan %90 yükseklik
+        // boş ekran bırakıyordu (ekran görüntüsündeki "çok yer kaplıyor" geri bildirimi).
         KitsugiSheetOrDialog(
-            onDismiss = { showSettings = false }
+            onDismiss = { showSettings = false },
+            heightFraction = 0.62f
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Sheet kısa tutulduğu için içerik kaydırılabilir olmalı;
+                    // aksi hâlde küçük ekranlarda parlaklık sürgüsü kesiliyordu.
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -1077,9 +1085,8 @@ private fun MangaPageGallerySheet(
 /**
  * Ripple'sız dokunma.
  *
- * Galeri küçük resimleri ve sayfa şeridi sürekli yeniden çizildiği için varsayılan
- * ripple göstergesi burada görsel gürültü üretiyordu; dokunma geri bildirimi seçili
- * sayfanın vurgusuyla veriliyor.
+ * Galeri ızgarasında yüzlerce küçük resim aynı anda çizildiği için varsayılan ripple
+ * görsel gürültü üretiyordu; dokunma geri bildirimi seçili sayfanın vurgusuyla veriliyor.
  */
 @Composable
 private fun Modifier.androidxClickable(onClick: () -> Unit): Modifier =
@@ -1090,13 +1097,6 @@ private fun Modifier.androidxClickable(onClick: () -> Unit): Modifier =
             onClick = onClick
         )
     )
-
-private fun ReadingMode.label() = when (this) {
-    ReadingMode.RightToLeft -> "Sağdan Sola"
-    ReadingMode.LeftToRight -> "Soldan Sağa"
-    ReadingMode.Vertical -> "Dikey"
-    ReadingMode.Webtoon -> "Webtoon"
-}
 
 private fun android.content.Context.findActivity(): android.app.Activity? {
     var context = this
