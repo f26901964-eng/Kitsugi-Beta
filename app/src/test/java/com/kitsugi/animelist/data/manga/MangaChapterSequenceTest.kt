@@ -82,4 +82,27 @@ class MangaChapterSequenceTest {
         val chapters = listOf("ch10" to 10f, "ch9.5" to 9.5f, "ch9" to 9f)
         assertEquals(listOf("ch9", "ch9.5", "ch10"), MangaChapterSequence.readingOrder(chapters))
     }
+
+    // ─── Resolver ile birlikte (uçtan uca) ────────────────────────────────────
+
+    @Test
+    fun `turkish chapter names resolve and sort`() {
+        // Kaynakta numara yok; adlar "Bölüm N" biçiminde. Okuyucu bu adları
+        // MangaChapterNumberResolver ile çözer, sonra sıraya dizer.
+        val raw = listOf("bolum12" to "Bölüm 12", "bolum2" to "Bölüm 2", "bolum1" to "Bölüm 1")
+        val withNumbers = raw.map { (url, name) ->
+            url to MangaChapterNumberResolver.resolve(mangaTitle = "Test", chapterName = name, declaredNumber = -1f)
+        }
+        assertEquals(listOf("bolum1", "bolum2", "bolum12"), MangaChapterSequence.readingOrder(withNumbers))
+        assertEquals("bolum2", MangaChapterSequence.nextUrl(withNumbers, "bolum1"))
+    }
+
+    @Test
+    fun `english chapter names resolve and sort`() {
+        val raw = listOf("c10" to "Chapter 10", "c9" to "Chapter 9", "c9_5" to "Bölüm 9.5")
+        val withNumbers = raw.map { (url, name) ->
+            url to MangaChapterNumberResolver.resolve(mangaTitle = "Test", chapterName = name, declaredNumber = -1f)
+        }
+        assertEquals(listOf("c9", "c9_5", "c10"), MangaChapterSequence.readingOrder(withNumbers))
+    }
 }

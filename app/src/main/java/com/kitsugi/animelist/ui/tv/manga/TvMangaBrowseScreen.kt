@@ -116,6 +116,9 @@ fun TvMangaBrowseScreen(
 
     var searchFocused by remember { mutableStateOf(false) }
 
+    // Seçili arama dili: "Oku" akışından geldiyse o değer gösterilir.
+    val activeSearchLanguage = initialSearchLanguage ?: "ROMAJI"
+
     BackHandler(enabled = true) { onBack() }
 
     // Birleştirilmiş manga listesi (mobil mantığıyla aynı)
@@ -231,6 +234,23 @@ fun TvMangaBrowseScreen(
                 animationSpec = tween(200),
                 label = "searchBorderAlpha"
             )
+            // ── Arama dili bilgisi (mobil tarayıcıdaki çiple aynı bilgi) ──────
+            // TV'de metin girişi klavye ile yapıldığı için burada yalnızca
+            // bilgilendirme amaçlı gösterilir; dil Ayarlar'dan değiştirilir.
+            if (query.isNotBlank()) {
+                val languageText = when (activeSearchLanguage.uppercase()) {
+                    "ENGLISH", "EN" -> stringResource(R.string.manga_search_lang_english)
+                    "NATIVE", "ORIGINAL" -> stringResource(R.string.manga_search_lang_native)
+                    "LOCAL", "TURKISH" -> stringResource(R.string.manga_search_lang_local)
+                    else -> stringResource(R.string.manga_search_lang_romaji)
+                }
+                com.kitsugi.animelist.ui.theme.gradient.Text(
+                    text = stringResource(R.string.manga_search_language_chip, languageText),
+                    color = KitsugiColors.AccentBlue,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = { vm.search(it) },
