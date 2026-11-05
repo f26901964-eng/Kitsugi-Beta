@@ -32,6 +32,14 @@ class MangaPageLoaderV2(
     var keepBehind: Int = 1,
     /** Yerel ZIP/CBZ arşiv dosyası — null ise normal HTTP scraping akışı devam eder. */
     val archiveFile: java.io.File? = null,
+    /**
+     * Bölüm bazlı arşiv çözücü.
+     *
+     * [archiveFile] sabit bir dosyaya bağlıyken (yerel kaynak), bu lambda her bölüm için
+     * **indirilmiş CBZ** dosyasını bulur. İndirilmiş bölüm varsa ağ hiç kullanılmaz:
+     * kullanıcı çevrimdışıyken de bölümü açabilir (Mihon "downloaded" davranışı).
+     */
+    private val archiveResolver: ((com.kitsugi.animelist.data.manga.MangaChapter) -> java.io.File?)? = null,
 ) {
     companion object {
         private const val TAG = "MangaPageLoaderV2"
@@ -46,6 +54,13 @@ class MangaPageLoaderV2(
     // pageIndex → aktif prefetch job
     private val prefetchJobs = ConcurrentHashMap<Int, Job>()
 
+    /**
+     * O an yüklü bölümün arşiv dosyası (indirilmiş CBZ ya da yerel kaynak dosyası).
+     * [loadPageList] tarafından set edilir; sayfa okurken ağa düşmemek için kullanılır.
+     */
+    @Volatile
+    private var activeArchive: java.io.File? = null
+
     private val _pages = MutableStateFlow<List<MangaPage>>(emptyList())
     val pages: StateFlow<List<MangaPage>> = _pages.asStateFlow()
 
@@ -58,8 +73,13 @@ class MangaPageLoaderV2(
                 resetQueue()
                 _pages.value = emptyList()
 
-                if (archiveFile != null) {
-                    val archiveLoader = ArchivePageLoader(context, archiveFile)
+                // İndirilmiş bölüm varsa doğrudan arşivden oku (ağ yok, çevrimdışı çalışır).
+                val resolvedArchive = archiveFile
+                    ?: runCatching { archiveResolver?.invoke(chapter) }.getOrNull()
+
+                activeArchive = resolvedArchive
+                if (resolvedArchive != null) {
+                    val archiveLoader = ArchivePageLoader(context, resolvedArchive)
                     val entryNames = archiveLoader.loadPageList()
                     if (entryNames.isEmpty()) throw java.io.IOException("Arşivde sayfa bulunamadı")
                     _pages.value = entryNames.mapIndexed { index, entryName ->
@@ -163,8 +183,9 @@ class MangaPageLoaderV2(
     private suspend fun loadPageInternal(page: MangaPage) {
         if (page.status == MangaPageStatus.Ready) return
 
-        if (page.archivePath != null && archiveFile != null) {
-            val archiveLoader = ArchivePageLoader(context, archiveFile)
+        val archive = activeArchive ?: archiveFile
+        if (page.archivePath != null && archive != null) {
+            val archiveLoader = ArchivePageLoader(context, archive)
             val stream = archiveLoader.loadPage(page.archivePath!!)
             if (stream != null) {
                 page.stream = { stream }

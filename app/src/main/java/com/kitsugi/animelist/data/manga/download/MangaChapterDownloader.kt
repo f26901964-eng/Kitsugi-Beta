@@ -83,15 +83,18 @@ class MangaChapterDownloader(private val context: Context) {
         return cleaned.ifBlank { fallback }
     }
 
+    /** Manga klasör adı — başlık değişse bile aynı seriye düşmek için ayrı yardımcı. */
+    fun mangaSlug(mangaTitle: String, mangaUrl: String): String =
+        safeName(mangaTitle) + "_" + mangaUrl.hashCode().toUInt().toString(16)
+
     private fun mangaDir(source: MangaSource, mangaTitle: String, mangaUrl: String): File {
         // Aynı başlıklı iki seri çakışmasın diye URL'nin kısa karma değeri klasör adına eklenir.
-        val slug = safeName(mangaTitle) + "_" + mangaUrl.hashCode().toUInt().toString(16)
-        return File(File(root, safeName(source.name, "source")), slug).also {
+        return File(File(root, safeName(source.name, "source")), mangaSlug(mangaTitle, mangaUrl)).also {
             if (!it.exists()) it.mkdirs()
         }
     }
 
-    private fun chapterFile(source: MangaSource, mangaTitle: String, mangaUrl: String, chapter: MangaChapter, index: Int): File {
+    fun chapterFile(source: MangaSource, mangaTitle: String, mangaUrl: String, chapter: MangaChapter, index: Int): File {
         val label = chapterLabel(chapter, index)
         return File(mangaDir(source, mangaTitle, mangaUrl), "$label.cbz")
     }

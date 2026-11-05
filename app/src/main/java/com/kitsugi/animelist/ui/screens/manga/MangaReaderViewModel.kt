@@ -49,7 +49,35 @@ class MangaReaderViewModel(
     private val cache = MangaCache(context)
     private val settingsDataStore = SettingsDataStore(context)
     private val sourceStateStore = MangaSourceStateStore(context)
-    val loader = MangaPageLoaderV2(context, source, cache)
+    private val downloader = com.kitsugi.animelist.data.manga.download.MangaChapterDownloader(context)
+
+    // İndirilmiş bölüm varsa ağ yerine yerel CBZ arşivi okunur (çevrimdışı destek).
+    val loader = MangaPageLoaderV2(
+        context,
+        source,
+        cache,
+        archiveResolver = { chapter -> archiveFor(chapter) }
+    )
+
+    /**
+     * Bölümün indirilmiş arşivini bulur.
+     *
+     * Dosya adı numara/sıra tabanlı olduğu için o an bilinen bölüm listesindeki sıra
+     * kullanılır; liste henüz yüklenmemişse 0 ile denenir. Bulunamazsa null döner ve
+     * okuyucu normal akışa (ağ) düşer.
+     */
+    private fun archiveFor(chapter: MangaChapter): java.io.File? = runCatching {
+        val index = _uiState.value.chapterList
+            .sortedWith(compareBy({ it.chapterNumber < 0f }, { it.chapterNumber }))
+            .indexOfFirst { it.url == chapter.url }
+        downloader.existingArchive(
+            source = source,
+            mangaTitle = mangaDetails.title,
+            mangaUrl = mangaDetails.url,
+            chapter = chapter,
+            index = if (index >= 0) index else 0
+        )
+    }.getOrNull()
     val pages: StateFlow<List<MangaPage>> = loader.pages
 
     // F5: Debounce için Job referansı — hızlı swipe'ta Room IO flood önler
