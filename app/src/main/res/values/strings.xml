@@ -17762,4 +17762,37 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="inline_video_unsupported_title">Bu video uygulama içinde oynatılamadı</string>
     <string name="inline_video_unsupported_body">Bu biçim bu cihazda çözülemiyor olabilir. Tam ekran oynatıcı bu dosyayı yazılım çözücüyle açabilir.</string>
     <string name="inline_open_fullscreen">Tam ekranda aç</string>
+
+    <!-- ─── Manga Okuyucu: tam ekran + okuma deneyimi (2026-11-05) ─────────── -->
+    <string name="manga_reader_retry">Tekrar Dene</string>
+    <string name="manga_reader_chapters">Bölümler</string>
+    <string name="manga_reader_no_chapters">Bölüm listesi boş.</string>
+    <string name="manga_reader_fullscreen">Tam ekran</string>
+    <string name="manga_reader_exit_fullscreen">Tam ekrandan çık</string>
+    <string name="manga_reader_reading_mode">Okuma modu: %1$s</string>
+    <string name="manga_reader_fit_mode">Sığdırma: %1$s</string>
+    <string name="manga_reader_next_chapter">Sonraki: %1$s</string>
+    <string name="manga_reader_fullscreen_default">Tam ekranda başlat</string>
+    <string name="manga_reader_fullscreen_default_desc">Okuyucu açılırken sistem çubuklarını gizle</string>
+    <string name="manga_reader_keep_screen_on">Ekranı açık tut</string>
+    <string name="manga_reader_keep_screen_on_desc">Okuma sırasında ekran kapanmasın</string>
+    <string name="manga_reader_tap_zones">Dokunma bölgeleri</string>
+    <string name="manga_reader_tap_zones_desc">Sol/sağ dokunuşla sayfa çevir, ortada menüyü aç</string>
+    <string name="manga_reader_invert_tap_zones">Dokunma bölgelerini ters çevir</string>
+    <string name="manga_reader_invert_tap_zones_desc">İleri/geri dokunma yönünü tersine al</string>
+    <string name="manga_reader_volume_keys">Ses tuşlarıyla sayfa çevir</string>
+    <string name="manga_reader_volume_keys_desc">Ses kısma: sonraki sayfa, ses açma: önceki sayfa</string>
+    <string name="manga_reader_page_number">Sayfa numarası</string>
+    <string name="manga_reader_page_number_desc">Sayfa köşesinde numarayı göster</string>
+    <string name="manga_reader_mirror">Sayfaları aynala</string>
+    <string name="manga_reader_mirror_desc">Aynalanmış (ters) servis edilen sayfaları düzeltir</string>
+    <string name="manga_reader_chapter_transition">Bölüm sonu kartı</string>
+    <string name="manga_reader_chapter_transition_desc">Bölüm bittiğinde sonraki bölüme geçiş kartı göster</string>
+    <string name="manga_reader_mode_vertical">Dikey sayfalama</string>
+    <string name="manga_reader_mode_vertical_desc">Her ekranda bir sayfa, dikey geçiş</string>
+    <string name="manga_reader_mode_webtoon">Webtoon (sürekli)</string>
+    <string name="manga_reader_mode_webtoon_desc">Kesintisiz dikey kaydırma</string>
+    <string name="manga_fit_crop">Doldur (kırp)</string>
+    <string name="manga_fit_original">Orijinal boyut</string>
+    <string name="manga_filter_sepia">Sepya</string>
 </resources>

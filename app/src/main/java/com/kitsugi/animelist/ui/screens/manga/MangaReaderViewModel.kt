@@ -27,6 +27,7 @@ import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.data.manga.MangaSettingIds
 
 /**
  * MangaReaderScreen için ViewModel.
@@ -54,6 +55,18 @@ class MangaReaderViewModel(
 
     // F5: Debounce için Job referansı — hızlı swipe'ta Room IO flood önler
     private var progressSaveJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Henüz diske yazılmamış ilerleme.
+     *
+     * Debounce 500 ms olduğu için kullanıcı son sayfada okuyucudan hızlıca
+     * çıkarsa kayıt kayboluyordu ("son kaldığım sayfayı hatırlamıyor").
+     * [onCleared] bu son değeri ayrı bir IO kapsamında yazar.
+     */
+    private var pendingProgress: MangaChapterProgressEntity? = null
+    private val flushScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+    )
 
     // ─── UI Durumu ────────────────────────────────────────────────────────────
 
@@ -85,36 +98,27 @@ class MangaReaderViewModel(
     private fun observeSettings() {
         viewModelScope.launch {
             settingsDataStore.settingsFlow.collect { settings ->
-                val mode = when (settings.mangaReadingMode) {
-                    "LeftToRight" -> ReadingMode.LeftToRight
-                    "RightToLeft" -> ReadingMode.RightToLeft
-                    "Vertical" -> ReadingMode.Vertical
-                    "Webtoon" -> ReadingMode.Webtoon
-                    else -> ReadingMode.RightToLeft
-                }
-                val filter = when (settings.mangaColorFilter) {
-                    "Normal" -> ColorFilterType.Normal
-                    "Grayscale" -> ColorFilterType.Grayscale
-                    "Sepia" -> ColorFilterType.Sepia
-                    "Invert" -> ColorFilterType.Invert
-                    else -> ColorFilterType.Normal
-                }
-                val fit = when (settings.mangaFitMode) {
-                    "FitScreen" -> MangaFitMode.FitScreen
-                    "FitWidth" -> MangaFitMode.FitWidth
-                    "FitHeight" -> MangaFitMode.FitHeight
-                    else -> MangaFitMode.FitScreen
-                }
+                // Tek doğruluk kaynağı: MangaSettingIds. Eski sürümlerin yazdığı
+                // "GrayScale", "Inverted", "Warm", "Cool", "WebtoonZoom" gibi
+                // değerler burada geriye dönük uyumlu olarak çözülür.
+                val mode = MangaSettingIds.readingMode(settings.mangaReadingMode)
+                val filter = MangaSettingIds.colorFilter(settings.mangaColorFilter)
+                val fit = MangaSettingIds.fitMode(settings.mangaFitMode)
                 // R2: Webtoon modunda 3+1 keep, pager modunda 2+1 keep preload
                 loader.preloadAhead = if (mode == ReadingMode.Webtoon) 3 else 2
                 loader.keepBehind   = 1
-                _uiState.update {
-                    it.copy(
-                        readingMode = mode,
-                        colorFilterType = filter,
-                        fitMode = fit,
-                        customBrightness = settings.mangaBrightness
-                    )
+                // Kullanıcı az önce okuyucudan bir ayar değiştirdiyse, DataStore'dan
+                // gelen (henüz güncellenmemiş) değer ekranı geri sıçratmasın.
+                val keepLocal = System.currentTimeMillis() - lastLocalPrefChangeAt < 800L
+                if (!keepLocal) {
+                    _uiState.update {
+                        it.copy(
+                            readingMode = mode,
+                            colorFilterType = filter,
+                            fitMode = fit,
+                            customBrightness = settings.mangaBrightness
+                        )
+                    }
                 }
             }
         }
@@ -159,46 +163,64 @@ class MangaReaderViewModel(
     // F5: Progress debounce — 500ms bekle, hızlı swipe'ta tekrar tetiklenirse iptal et
     fun onPageChanged(chapterUrl: String, pageIndex: Int, totalPages: Int) {
         _uiState.update { it.copy(currentPageIndex = pageIndex) }
+        val isCompleted = totalPages > 0 && pageIndex >= totalPages - 1
+        val entity = MangaChapterProgressEntity(
+            chapterUrl    = chapterUrl,
+            mangaUrl      = mangaDetails.url,
+            chapterName   = _uiState.value.currentChapter.name,
+            lastPageIndex = pageIndex,
+            totalPages    = totalPages,
+            isCompleted   = isCompleted,
+            updatedAt     = System.currentTimeMillis()
+        )
+        pendingProgress = entity
         progressSaveJob?.cancel()
         progressSaveJob = viewModelScope.launch {
             kotlinx.coroutines.delay(500L)
-            val isCompleted = totalPages > 0 && pageIndex >= totalPages - 1
-            dao.upsert(
-                MangaChapterProgressEntity(
-                    chapterUrl    = chapterUrl,
-                    mangaUrl      = mangaDetails.url,
-                    chapterName   = _uiState.value.currentChapter.name,
-                    lastPageIndex = pageIndex,
-                    totalPages    = totalPages,
-                    isCompleted   = isCompleted,
-                    updatedAt     = System.currentTimeMillis()
-                )
-            )
+            dao.upsert(entity)
+            pendingProgress = null
         }
     }
 
     // ─── Okuma modu değiştirme ────────────────────────────────────────────────
 
     fun setReadingMode(mode: ReadingMode) {
+        lastLocalPrefChangeAt = System.currentTimeMillis()
+        // İyimser (optimistic) güncelleme: DataStore asenkron olduğu için mod
+        // değişimi ~1 kare gecikmeli görünüyordu. Önce ekranı güncelle.
+        _uiState.update { it.copy(readingMode = mode) }
         viewModelScope.launch {
-            settingsDataStore.setMangaReadingMode(mode.name)
+            settingsDataStore.setMangaReadingMode(MangaSettingIds.readingModeId(mode))
         }
     }
 
     fun setColorFilter(filter: ColorFilterType) {
+        lastLocalPrefChangeAt = System.currentTimeMillis()
+        _uiState.update { it.copy(colorFilterType = filter) }
         viewModelScope.launch {
-            settingsDataStore.setMangaColorFilter(filter.name)
+            settingsDataStore.setMangaColorFilter(MangaSettingIds.colorFilterId(filter))
         }
     }
 
     fun setFitMode(fitMode: MangaFitMode) {
+        lastLocalPrefChangeAt = System.currentTimeMillis()
+        _uiState.update { it.copy(fitMode = fitMode) }
         viewModelScope.launch {
-            settingsDataStore.setMangaFitMode(fitMode.name)
+            settingsDataStore.setMangaFitMode(MangaSettingIds.fitModeId(fitMode))
         }
     }
 
+    /**
+     * Parlaklık sürgüsü: ekran ANINDA güncellenir, diske yazma 250 ms
+     * geciktirilir. Önceden her sürgü adımı ayrı bir DataStore yazımı
+     * tetikliyordu (sürgü takılması + gereksiz disk yükü).
+     */
     fun setCustomBrightness(brightness: Float) {
-        viewModelScope.launch {
+        lastLocalPrefChangeAt = System.currentTimeMillis()
+        _uiState.update { it.copy(customBrightness = brightness) }
+        brightnessSaveJob?.cancel()
+        brightnessSaveJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(250L)
             settingsDataStore.setMangaBrightness(brightness)
         }
     }
@@ -249,6 +271,10 @@ class MangaReaderViewModel(
         }
 
     private var pageListJob: kotlinx.coroutines.Job? = null
+    private var brightnessSaveJob: kotlinx.coroutines.Job? = null
+
+    /** Okuyucudan yapılan son yerel ayar değişikliğinin zamanı (ms). */
+    private var lastLocalPrefChangeAt = 0L
 
     private fun restoreProgress(chapter: MangaChapter) {
         pageListJob?.cancel()
@@ -293,6 +319,10 @@ class MangaReaderViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        // Son ilerlemeyi kaçırmamak için bekleyen (debounce edilmiş) kaydı yaz.
+        pendingProgress?.let { entity ->
+            flushScope.launch { runCatching { dao.upsert(entity) } }
+        }
         loader.recycle()
     }
 

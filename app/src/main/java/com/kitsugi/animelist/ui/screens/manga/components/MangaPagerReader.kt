@@ -5,27 +5,33 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import com.kitsugi.animelist.data.manga.MangaPage
-import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.data.manga.MangaPage
+import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
- * Yatay sayfa çevirmeli okuma modu (LTR / RTL / Dikey Pager).
+ * Yatay sayfa çevirmeli okuma modu (LTR / RTL).
  *
  * — LTR (Soldan Sağa): Manhua, Batı çizgi romanları için
- * — RTL (Sağdan Sola): Japonca Manga için
+ * — RTL (Sağdan Sola): Japonca manga için (pager `LayoutDirection.Rtl` ile
+ *   çizilir, böylece sayfa 1 sağda başlar)
  *
- * RTL modu, sayfaları tersine çevirerek HorizontalPager'ı
- * sağdan sola kaydıracak şekilde yapılandırır.
+ * Her sayfa [MangaPageItem] bileşeni ile çizilir:
+ *   • Telephoto ZoomableAsyncImage → pinch-to-zoom, çift dokunma
+ *   • MangaPageLoaderV2 ile çift yönlü prefetch + Coil disk önbelleği
  *
- * Her sayfa MangaPageItem bileşeni ile çizilir:
- *   • Telephoto ZoomableAsyncImage → pinch-to-zoom, double-tap
- *   • MangaPageLoaderV2 ile 3 ileri prefetch + Coil cache
+ * NOT: "Dikey" okuma modu artık burada değil, [MangaVerticalPagerReader]
+ * içinde çizilir (önceden buraya düşüp yatay çalışıyordu).
  */
 @Composable
 fun MangaPagerReader(
@@ -35,33 +41,53 @@ fun MangaPagerReader(
     readingMode: ReadingMode = ReadingMode.RightToLeft,
     colorFilterType: ColorFilterType = ColorFilterType.Normal,
     fitMode: MangaFitMode = MangaFitMode.FitScreen,
+    mirrorPages: Boolean = false,
+    showPageNumber: Boolean = true,
+    tapZonesEnabled: Boolean = true,
+    invertTapZones: Boolean = false,
     onCenterTap: () -> Unit = {},
+    onLongPress: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onPageChanged: (Int) -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
-    val isRtl       = readingMode == ReadingMode.RightToLeft
-    val direction   = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val isRtl = readingMode == ReadingMode.RightToLeft
+    val direction = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val reportPageChanged by rememberUpdatedState(onPageChanged)
+
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .distinctUntilChanged()
+            .collect { index -> reportPageChanged(index) }
+    }
 
     CompositionLocalProvider(LocalLayoutDirection provides direction) {
         HorizontalPager(
-            state    = pagerState,
+            state = pagerState,
             modifier = modifier.fillMaxSize(),
-            key      = { index -> pages.getOrNull(index)?.index ?: index },
-            beyondViewportPageCount = 2   // Yan sayfaları belleğe al
+            key = { index -> pages.getOrNull(index)?.index ?: index },
+            beyondViewportPageCount = 2, // Yan sayfaları belleğe al
         ) { pageIndex ->
             val page = pages.getOrNull(pageIndex) ?: return@HorizontalPager
+            // Sayfa içeriği her zaman LTR çizilir: RTL yalnızca kaydırma yönünü
+            // belirler, görselin kendisini aynalamaz.
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 MangaPageItem(
-                    page        = page,
-                    loader      = loader,
+                    page = page,
+                    loader = loader,
                     readingMode = readingMode,
                     colorFilterType = colorFilterType,
-                    fitMode     = fitMode,
+                    fitMode = fitMode,
+                    mirrorPages = mirrorPages,
+                    showPageNumber = showPageNumber,
+                    tapZonesEnabled = tapZonesEnabled,
+                    invertTapZones = invertTapZones,
                     onCenterTap = onCenterTap,
-                    onNextPage   = onNextPage,
-                    onPrevPage   = onPrevPage,
-                    modifier    = Modifier.fillMaxSize()
+                    onLongPress = onLongPress,
+                    onNextPage = onNextPage,
+                    onPrevPage = onPrevPage,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }

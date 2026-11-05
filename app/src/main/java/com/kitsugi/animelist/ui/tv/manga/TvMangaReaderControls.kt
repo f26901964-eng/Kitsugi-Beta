@@ -104,7 +104,9 @@ fun TvMangaReaderControls(
             val fitModes = listOf(
                 MangaFitMode.FitScreen to stringResource(R.string.manga_fit_screen),
                 MangaFitMode.FitWidth to "Genişliğe Sığdır",
-                MangaFitMode.FitHeight to "Yükseğe Sığdır"
+                MangaFitMode.FitHeight to "Yükseğe Sığdır",
+                MangaFitMode.Crop to stringResource(R.string.manga_fit_crop),
+                MangaFitMode.Original to stringResource(R.string.manga_fit_original)
             )
             val currentFitIdx = fitModes.indexOfFirst { it.first == uiState.fitMode }.coerceAtLeast(0)
             TvControlCycleRow(
@@ -126,6 +128,8 @@ fun TvMangaReaderControls(
             // 3. Renk Filtresi
             val colorFilters = listOf(
                 ColorFilterType.Normal to "Normal",
+                ColorFilterType.Warm to stringResource(R.string.manga_filter_warm),
+                ColorFilterType.Cool to stringResource(R.string.manga_filter_cool),
                 ColorFilterType.Grayscale to "Siyah-Beyaz",
                 ColorFilterType.Sepia to "Sepya",
                 ColorFilterType.Invert to "Ters Negatif"

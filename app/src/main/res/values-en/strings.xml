@@ -17757,4 +17757,37 @@
     <string name="inline_video_unsupported_title">This video could not be played inline</string>
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
+
+    <!-- ─── Manga reader: fullscreen + reading experience (2026-11-05) ─────── -->
+    <string name="manga_reader_retry">Try again</string>
+    <string name="manga_reader_chapters">Chapters</string>
+    <string name="manga_reader_no_chapters">Chapter list is empty.</string>
+    <string name="manga_reader_fullscreen">Fullscreen</string>
+    <string name="manga_reader_exit_fullscreen">Exit fullscreen</string>
+    <string name="manga_reader_reading_mode">Reading mode: %1$s</string>
+    <string name="manga_reader_fit_mode">Fit: %1$s</string>
+    <string name="manga_reader_next_chapter">Next: %1$s</string>
+    <string name="manga_reader_fullscreen_default">Start in fullscreen</string>
+    <string name="manga_reader_fullscreen_default_desc">Hide system bars when the reader opens</string>
+    <string name="manga_reader_keep_screen_on">Keep screen on</string>
+    <string name="manga_reader_keep_screen_on_desc">Prevent the screen from turning off while reading</string>
+    <string name="manga_reader_tap_zones">Tap zones</string>
+    <string name="manga_reader_tap_zones_desc">Tap left/right to turn pages, tap center for the menu</string>
+    <string name="manga_reader_invert_tap_zones">Invert tap zones</string>
+    <string name="manga_reader_invert_tap_zones_desc">Swap the next/previous tap directions</string>
+    <string name="manga_reader_volume_keys">Volume keys turn pages</string>
+    <string name="manga_reader_volume_keys_desc">Volume down: next page, volume up: previous page</string>
+    <string name="manga_reader_page_number">Page number</string>
+    <string name="manga_reader_page_number_desc">Show the page number in the corner</string>
+    <string name="manga_reader_mirror">Mirror pages</string>
+    <string name="manga_reader_mirror_desc">Fixes pages that are served mirrored (flipped)</string>
+    <string name="manga_reader_chapter_transition">Chapter transition card</string>
+    <string name="manga_reader_chapter_transition_desc">Show a card at the end of a chapter to jump to the next one</string>
+    <string name="manga_reader_mode_vertical">Vertical paging</string>
+    <string name="manga_reader_mode_vertical_desc">One page per screen, vertical page turns</string>
+    <string name="manga_reader_mode_webtoon">Webtoon (continuous)</string>
+    <string name="manga_reader_mode_webtoon_desc">Continuous vertical scrolling</string>
+    <string name="manga_fit_crop">Fill (crop)</string>
+    <string name="manga_fit_original">Original size</string>
+    <string name="manga_filter_sepia">Sepia</string>
 </resources>

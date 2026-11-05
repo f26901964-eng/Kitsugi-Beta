@@ -145,7 +145,6 @@ import com.kitsugi.animelist.ui.screens.manga.MangaBrowseScreen
 import com.kitsugi.animelist.ui.screens.manga.MangaBrowseViewModel
 import com.kitsugi.animelist.ui.screens.manga.MangaDetailScreen
 import com.kitsugi.animelist.ui.screens.manga.MangaReaderScreen
-import com.kitsugi.animelist.ui.screens.manga.MangaScreen
 import com.kitsugi.animelist.ui.screens.manga.MangaSourceHealthScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
