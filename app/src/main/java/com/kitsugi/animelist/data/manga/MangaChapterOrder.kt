@@ -137,12 +137,37 @@ object MangaChapterOrdering {
         }
 
         return when (sort) {
-            // Kaynak sırası korunur (en yeni üstte) — en hafif ve en güvenli yol.
-            ChapterSort.NewestFirst -> filtered
+            // Kaynak sırası korunur (en yeni üstte) — ANCAK kaynak listeyi eskiden
+            // yeniye veriyorsa "en yeni üstte" istediği sonuç ters olur. Bu durumu
+            // numaralardan anlar ve düzeltir (bazı HTML/API kaynakları artan sırada
+            // döndürüyor; okuyucuda 1. bölüm en üstte görünüyordu).
+            ChapterSort.NewestFirst -> if (looksAscending(filtered, number)) {
+                sortByNumber(filtered, number, ascending = false)
+            } else {
+                filtered
+            }
             ChapterSort.NumberDesc -> sortByNumber(filtered, number, ascending = false)
             ChapterSort.NumberAsc -> sortByNumber(filtered, number, ascending = true)
             ChapterSort.TitleAsc -> filtered.sortedWith { a, b -> compareTitles(title(a), title(b)) }
         }
+    }
+
+    /**
+     * Liste numaralara göre **eskiden yeniye** mi sıralı?
+     *
+     * Yalnızca en az 3 numaralı satır varsa ve ilk satırlar son satırlardan
+     * küçükse true döner (salt-artan kontrolü). Numarasız bölümler hesaba katılmaz.
+     */
+    private fun <T> looksAscending(rows: List<T>, number: (T) -> Float): Boolean {
+        val numbers = rows.map(number).filter { it >= 0f }
+        if (numbers.size < 3) return false
+        var ascendingPairs = 0
+        var descendingPairs = 0
+        for (i in 0 until numbers.size - 1) {
+            if (numbers[i] < numbers[i + 1]) ascendingPairs++
+            if (numbers[i] > numbers[i + 1]) descendingPairs++
+        }
+        return ascendingPairs > descendingPairs
     }
 
     /**

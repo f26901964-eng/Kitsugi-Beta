@@ -92,4 +92,52 @@ class MangaChapterOrderingTest {
         )
         assertTrue(out.none { it.number < 0f })
     }
+
+    // ─── Kaynak artan sırada verirse "en yeni üstte" düzeltilir ───────────────
+
+    @Test
+    fun newestFirstFixesSourcesThatReturnAscendingOrder() {
+        // Bazı kaynaklar 1 → N sırası veriyor; "en yeni üstte" seçiliyken 1. bölüm
+        // üstte görünüyordu. Artık numara yönü algılanıp düzeltiliyor.
+        val ascending = listOf(
+            Row("Bölüm 1", 1f),
+            Row("Bölüm 2", 2f),
+            Row("Bölüm 3", 3f),
+            Row("Bölüm 4", 4f)
+        )
+        val out = MangaChapterOrdering.apply(
+            ascending, ChapterFilter.All, ChapterSort.NewestFirst, number = number
+        )
+        assertEquals(4f, out.first().number, 0.001f)
+        assertEquals(1f, out.last().number, 0.001f)
+    }
+
+    @Test
+    fun newestFirstKeepsDescendingSourceUntouched() {
+        val descending = listOf(Row("Bölüm 4", 4f), Row("Bölüm 3", 3f), Row("Bölüm 2", 2f))
+        val out = MangaChapterOrdering.apply(
+            descending, ChapterFilter.All, ChapterSort.NewestFirst, number = number
+        )
+        assertEquals(listOf(4f, 3f, 2f), out.map { it.number })
+    }
+
+    @Test
+    fun newestFirstDoesNotGuessWithTooFewNumbers() {
+        // 2 satırdan az/az sayıda numara varsa kaynak sırasına dokunulmaz.
+        val two = listOf(Row("Bölüm 1", 1f), Row("Bölüm 2", 2f))
+        val out = MangaChapterOrdering.apply(two, ChapterFilter.All, ChapterSort.NewestFirst, number = number)
+        assertEquals(listOf(1f, 2f), out.map { it.number })
+    }
+
+    @Test
+    fun newestFirstIgnoresUnnumberedRows() {
+        val mixed = listOf(
+            Row("Bölüm 1", 1f),
+            Row("Bölüm 2", 2f),
+            Row("Duyuru", -1f),
+            Row("Bölüm 3", 3f)
+        )
+        val out = MangaChapterOrdering.apply(mixed, ChapterFilter.All, ChapterSort.NewestFirst, number = number)
+        assertEquals(3f, out.first().number, 0.001f)
+    }
 }

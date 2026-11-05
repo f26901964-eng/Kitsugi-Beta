@@ -13,6 +13,13 @@
 - **Kaynak bazlı yedek arama:** seçili adla hiç sonuç gelmezse kaynak, sıradaki dildeki adla (en fazla 3 yedek) tekrar denenir — boş ekran yerine sonuç gelir.
 
 
+
+### 🗂️ Bölüm Listesi Sırası — Artan Sırada Gelen Kaynaklar
+Bazı kaynaklar bölümleri **1 → N** sırasıyla döndürüyor; "En yeni üstte" seçiliyken 1. bölüm en üstte görünüyordu.
+- `MangaChapterOrdering` artık numaralara bakıp listenin artan mı azalan mı geldiğini anlıyor (en az 3 numaralı bölüm varsa).
+- Artan sırada gelen kaynakta liste otomatik "en yeni üstte" olacak şekilde düzeltiliyor.
+- Numarasız bölümler ("Duyuru") her durumda sonda kalıyor; iki satırlık listelerde tahmin yapılmıyor.
+
 ### 🎛️ Dil Çipi Artık Gerçekten Yeniden Arıyor
 Önceki hâlde çip yalnızca etiketi değiştiriyordu. Artık:
 - "Oku" akışı, serinin **tüm adlarını** (`MangaTitleSet`) tarayıcıya taşır.
@@ -46,6 +53,13 @@ Root cause: the source search query used whatever title happened to be on screen
 - **Visible control in the browser:** a language chip above the search bar (`Search: English title`) — tap to cycle and persist.
 - **Per-source fallback:** if a source returns nothing for the primary title, the next title in the fallback chain is tried (max 3).
 
+
+
+### 🗂️ Chapter List Order — Sources That Return Ascending
+Some sources list chapters 1 → N; with "Newest first" selected, chapter 1 ended up on top.
+- `MangaChapterOrdering` now detects the direction from chapter numbers (needs ≥ 3 numbered rows).
+- Ascending lists are fixed to newest-first automatically.
+- Unnumbered rows ("Announcement") always stay last; no guessing on two-row lists.
 
 ### 🎛️ The Language Chip Now Really Re-Searches
 Previously the chip only changed its label. Now:
