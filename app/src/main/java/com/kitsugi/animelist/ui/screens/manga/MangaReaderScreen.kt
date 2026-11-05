@@ -58,7 +58,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -365,10 +364,9 @@ fun MangaReaderScreen(
                     android.content.res.Configuration.ORIENTATION_LANDSCAPE,
                 bottomBarScrollState = null,
                 fallbackBottomBarVisible = menuVisible,
-                // Alt bar 3 satırdan oluşuyor: gezinme sürgüsü (≈48dp), ince sayfa
-                // şeridi (26dp + boşluk) ve araç satırı (48dp) + 22dp dikey dolgu.
-                // Düğme bu yüksekliğin üstünde durmalı (varsayılan 88dp yetersiz).
-                bottomBarHeight = 160.dp,
+                // Alt bar 2 satır: gezinme sürgüsü (≈48dp) + araç satırı (48dp)
+                // + dikey dolgu. Düğme bu yüksekliğin üstünde durmalı.
+                bottomBarHeight = 128.dp,
                 onClick = {
                     scope.launch { listState.animateScrollToItem(0) }
                     viewModel.onPageChanged(currentChapter.url, 0, pages.size)
@@ -520,8 +518,8 @@ fun MangaReaderScreen(
                     .fillMaxWidth()
                     .background(barBackgroundColor)
                     .navigationBarsPadding()
-                    .padding(top = 10.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(top = 8.dp, bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // 1. ChapterNavigator (Aniyomi Style)
                 Row(
@@ -609,21 +607,6 @@ fun MangaReaderScreen(
                     }
                 }
 
-                // 1b. Kompakt sayfa şeridi — tüm bölümü tek satırda temsil eder, dokununca
-                // galeri o noktada açılır. (Tam galeri: üst bardaki ▦ düğmesi.)
-                if (pages.size > 1) {
-                    MangaPageProgressRail(
-                        totalPages = pages.size,
-                        currentIndex = currentPage,
-                        accentColor = Color(0xFF7C4DFF),
-                        onPagePick = { index ->
-                            galleryInitialIndex = index
-                            showGallery = true
-                        },
-                        modifier = Modifier.padding(horizontal = 20.dp)
-                    )
-                }
-
                 // 2. BottomReaderBar (Aniyomi Style)
                 Row(
                     modifier = Modifier
@@ -686,6 +669,19 @@ fun MangaReaderScreen(
                         Icon(
                             imageVector = Icons.Default.CropFree,
                             contentDescription = stringResource(R.string.sigdirma_modu),
+                            tint = Color.White
+                        )
+                    }
+
+                    // Sayfa galerisi — alt bardan da tek dokunuşla erişilir
+                    // (üst barda ▦, sayfada uzun basış da aynı galeriyi açar).
+                    IconButton(onClick = {
+                        galleryInitialIndex = currentPage
+                        showGallery = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Rounded.GridView,
+                            contentDescription = stringResource(R.string.manga_reader_open_gallery),
                             tint = Color.White
                         )
                     }
@@ -888,68 +884,6 @@ fun MangaReaderScreen(
                 Spacer(Modifier.height(24.dp))
             }
         }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Kompakt sayfa şeridi (alt barda tek satır)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Tüm bölümü **tek satırda** temsil eden ince sayfa şeridi (26dp).
- *
- * Önceki sürümde alt barda 60dp'lik küçük resim şeridi vardı; 100+ sayfalık bir bölümde
- * okuma alanını gereksiz yere daraltıyordu. Bu sürüm aynı işi çok daha az yerle yapıyor:
- * her sayfa bir dilim, geçerli sayfa accent renkli çubukla işaretli. Şeride dokunmak
- * **tam sayfa galerisini** dokunulan sayfada açar — küçük resim yerine gerçek ızgara.
- */
-@Composable
-private fun MangaPageProgressRail(
-    totalPages: Int,
-    currentIndex: Int,
-    accentColor: Color,
-    onPagePick: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    if (totalPages <= 0) return
-    val railHeight = 26.dp
-    val railShape = RoundedCornerShape(8.dp)
-    androidx.compose.foundation.Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(railHeight)
-            .clip(railShape)
-            .background(Color(0xFF26263B))
-            .pointerInput(totalPages) {
-                androidx.compose.foundation.gestures.detectTapGestures { offset ->
-                    val fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
-                    val index = kotlin.math.round(fraction * (totalPages - 1)).toInt()
-                        .coerceIn(0, totalPages - 1)
-                    onPagePick(index)
-                }
-            }
-    ) {
-        val radius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx())
-        // Okunan kısım: geçerli sayfaya kadar dolgu
-        val progressWidth = size.width *
-            ((currentIndex + 1).toFloat() / totalPages.toFloat()).coerceIn(0f, 1f)
-        if (progressWidth > 0f) {
-            drawRoundRect(
-                color = accentColor.copy(alpha = 0.32f),
-                size = androidx.compose.ui.geometry.Size(progressWidth, size.height),
-                cornerRadius = radius
-            )
-        }
-        // Geçerli sayfa işareti
-        val markerWidth = (size.width / totalPages).coerceAtLeast(3.dp.toPx())
-        val markerX = (size.width * (currentIndex.toFloat() / totalPages.toFloat()))
-            .coerceIn(0f, size.width - markerWidth)
-        drawRoundRect(
-            color = accentColor,
-            topLeft = androidx.compose.ui.geometry.Offset(markerX, 0f),
-            size = androidx.compose.ui.geometry.Size(markerWidth, size.height),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
-        )
     }
 }
 
