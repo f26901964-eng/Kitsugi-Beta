@@ -61,6 +61,13 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
     var lastInitialQuery: String? = null
 
     /**
+     * Son "Oku" aramasının yedek ad listesi.
+     * Aynı sorgu ama farklı dil sırası (ör. İngilizce → Orijinal ad) yeni bir
+     * arama sayılır; ekran bu sayede tekrar arar.
+     */
+    var lastSearchFingerprint: List<String> = emptyList()
+
+    /**
      * "Oku" butonundan gelen, dil sırasına göre aday başlıklar.
      * Arama bu sırayla denenir: ilk adla sonuç yoksa sıradaki ad kullanılır.
      */
@@ -68,6 +75,7 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
 
     fun reset() {
         lastInitialQuery = null
+        lastSearchFingerprint = emptyList()
         titleVariants = emptyList()
         paginationJobs.forEach { it.cancel() }
         paginationJobs.clear()

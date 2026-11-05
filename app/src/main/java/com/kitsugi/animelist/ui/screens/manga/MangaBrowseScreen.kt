@@ -146,9 +146,12 @@ fun MangaBrowseScreen(
         }
     }
 
+    // "Oku" ile aynı başlıkla tekrar gelindiğinde (ör. geri dönüp yeniden Oku)
+    // arama yeniden çalışsın: aynı sorgu + farklı dil/yedek listesi de yeni aramadır.
     LaunchedEffect(initialQuery, initialQueryVariants, initialSearchLanguage) {
-        if (vm.lastInitialQuery != initialQuery) {
+        if (vm.lastInitialQuery != initialQuery || vm.lastSearchFingerprint != initialQueryVariants) {
             vm.lastInitialQuery = initialQuery
+            vm.lastSearchFingerprint = initialQueryVariants
             if (!initialQuery.isNullOrBlank()) {
                 // Aday adlar zaten dil sırasına göre gelir (AppRootDetailPages);
                 // ilk sorgu her zaman seçili dildeki addır, kalanlar yedektir.
