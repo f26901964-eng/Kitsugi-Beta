@@ -265,6 +265,71 @@ class MangaDetailViewModel(
     }
 
     /**
+     * Görünen (filtrelenmiş) bölümleri toplu olarak okundu/okunmadı işaretler.
+     *
+     * 200+ bölümlük bir seride tek tek tik atmak gerçekçi değil; bu fonksiyon "Tümünü
+     * okundu işaretle" düğmesini besler. Tek bir Room işlemi yerine satır satır yazar
+     * çünkü mevcut toplam sayfa bilgisi korunmalı; yine de hepsi tek IO bloğunda çalışır.
+     */
+    fun markAllRead(chapters: List<MangaChapter>, read: Boolean) {
+        if (chapters.isEmpty()) return
+        viewModelScope.launch {
+            val mangaUrl = _uiState.value.details.url
+            val details = _uiState.value.details
+            val now = System.currentTimeMillis()
+            withContext(Dispatchers.IO) {
+                chapters.forEach { chapter ->
+                    runCatching {
+                        val existing = progressDao.getProgress(chapter.url)
+                        val pages = existing?.totalPages ?: 0
+                        progressDao.upsert(
+                            com.kitsugi.animelist.data.local.MangaChapterProgressEntity(
+                                chapterUrl = chapter.url,
+                                mangaUrl = mangaUrl,
+                                chapterName = chapter.name,
+                                lastPageIndex = if (read) (pages - 1).coerceAtLeast(0) else 0,
+                                totalPages = pages,
+                                isCompleted = read,
+                                updatedAt = now
+                            )
+                        )
+                        if (read) {
+                            com.kitsugi.animelist.data.local.MangaReadHistoryManager.record(
+                                sourceName = source.name,
+                                mangaUrl = mangaUrl,
+                                mangaTitle = details.title,
+                                thumbnailUrl = details.thumbnailUrl,
+                                chapterUrl = chapter.url,
+                                chapterName = chapter.name,
+                                lastPageIndex = (pages - 1).coerceAtLeast(0),
+                                totalPages = pages,
+                                isCompleted = true
+                            )
+                        }
+                    }
+                }
+            }
+            // UI'ı tek seferde güncelle; hangi bölümlerin etkilendiğini bilmek için
+            // yalnızca işaretlenen URL'lerin satırları değiştirilir.
+            val urls = chapters.mapTo(HashSet()) { it.url }
+            _uiState.update { state ->
+                state.copy(
+                    chapters = state.chapters.map { row ->
+                        if (row.chapter.url in urls) {
+                            row.copy(
+                                isCompleted = read,
+                                isInProgress = false,
+                                lastPageIndex = if (read) (row.totalPages - 1).coerceAtLeast(0) else 0
+                            )
+                        } else row
+                    },
+                    resumeChapter = if (read && state.resumeChapter?.url in urls) null else state.resumeChapter
+                )
+            }
+        }
+    }
+
+    /**
      * "Oku / Devam Et" butonuna basıldığında açılacak bölümü döndürür.
      * - Devam edilecek bölüm varsa onu,
      * - Yoksa listedeki en eski (baştan) bölümü döndürür.

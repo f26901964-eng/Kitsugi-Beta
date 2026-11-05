@@ -344,7 +344,18 @@ fun MangaDetailScreen(
                         onToggleReadFilter = onToggleReadFilter,
                         onRefresh = onRefreshChapters,
                         onToggleSearch = { headerSearchExpanded = !headerSearchExpanded },
-                        searchExpanded = headerSearchExpanded
+                        searchExpanded = headerSearchExpanded,
+                        // Görünen bölümlerin tamamı okunduysa düğme "geri al" olur.
+                        onToggleAllRead = {
+                            if (visibleChapters.isNotEmpty()) {
+                                val allRead = visibleChapters.all { ch ->
+                                    rowByUrl[ch.url]?.isCompleted == true
+                                }
+                                viewModel.markAllRead(visibleChapters, !allRead)
+                            }
+                        },
+                        allReadActive = visibleChapters.isNotEmpty() &&
+                            visibleChapters.all { ch -> rowByUrl[ch.url]?.isCompleted == true }
                     )
                     // Sticky başlığın içinde açılan arama alanı: uzun listede
                     // aşağıdayken de bölüm araması tek dokunuş uzakta.

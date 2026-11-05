@@ -17809,4 +17809,5 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="settings_manga_keep_screen_on_desc">Bölüm okurken ekranın kendiliğinden kapanmasını engeller</string>
     <string name="manga_keep_screen_on_on">Ekran açık tutma: Açık</string>
     <string name="manga_keep_screen_on_off">Ekran açık tutma: Kapalı</string>
+    <string name="manga_mark_all_read">Görünenleri okundu işaretle</string>
 </resources>

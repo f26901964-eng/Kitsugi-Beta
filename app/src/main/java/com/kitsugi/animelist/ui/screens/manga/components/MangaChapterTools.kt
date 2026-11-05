@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -228,7 +230,14 @@ fun MangaChaptersHeader(
      */
     onToggleSearch: (() -> Unit)? = null,
     /** Arama alanı şu an açık mı (düğme vurgusu ve ikon değişimi için). */
-    searchExpanded: Boolean = false
+    searchExpanded: Boolean = false,
+    /**
+     * Görünen bölümleri toplu okundu/okunmadı işaretleme. Uzun serilerde (200+ bölüm)
+     * tek tek tik atmak yerine tek dokunuşla liste temizlenir.
+     */
+    onToggleAllRead: (() -> Unit)? = null,
+    /** Tümü şu an "okundu" mu (düğme ikonu ve vurgusu). */
+    allReadActive: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -279,6 +288,16 @@ fun MangaChaptersHeader(
             onClick = onToggleReadFilter
         )
         Spacer(Modifier.width(2.dp))
+        if (onToggleAllRead != null) {
+            Spacer(Modifier.width(2.dp))
+            MangaHeaderIconButton(
+                icon = if (allReadActive) Icons.Rounded.Undo else Icons.Rounded.DoneAll,
+                contentDescription = stringResource(R.string.manga_mark_all_read),
+                active = allReadActive,
+                accentColor = accentColor,
+                onClick = onToggleAllRead
+            )
+        }
         MangaHeaderIconButton(
             icon = Icons.Rounded.Refresh,
             contentDescription = stringResource(R.string.yenile),
