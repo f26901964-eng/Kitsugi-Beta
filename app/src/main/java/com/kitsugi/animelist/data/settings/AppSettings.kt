@@ -260,6 +260,42 @@ data class DownloadAndMangaSettings(
     val mangaColorFilter: String = "Normal",
     val mangaFitMode: String = "FitScreen",
     val mangaBrightness: Float = 1.0f,
+    // ─── Manga okuyucu: dokunma alanları (PREV / NEXT / MENU / NONE) ─────────
+    val mangaTapLeftAction: String = "PREV",
+    val mangaTapCenterAction: String = "MENU",
+    val mangaTapRightAction: String = "NEXT",
+    /** İki parmakla dikey kaydırma parlaklığı değiştirsin mi. */
+    val mangaBrightnessGesture: Boolean = true,
+    /** Webtoon modunda sayfalar arası boşluk (0–48 dp). */
+    val mangaWebtoonGap: Int = 0,
+    val mangaVolumeKeys: Boolean = false,
+    val mangaVolumeKeysInvert: Boolean = false,
+    val mangaKeepScreenOn: Boolean = true,
+    val mangaFullscreen: Boolean = false,
+    val mangaAutoNextChapter: Boolean = true,
+    /** Bölüm listesi varsayılan sıralaması (ChapterSort adı). */
+    val mangaChapterSort: String = "NewestFirst",
+    /** Bölüm listesi varsayılan filtresi (ChapterFilter adı). */
+    val mangaChapterFilter: String = "All",
+
+    // ─── Görüntü işleme (Mihon "Reading" paritesi) ───────────────────────────
+    val mangaCropBorders: Boolean = false,
+    val mangaSplitWidePages: Boolean = false,
+    val mangaRotateWidePages: Boolean = false,
+    val mangaSidePadding: Int = 0,
+    val mangaAnimatePageTransition: Boolean = true,
+    val mangaEinkFlash: Boolean = false,
+    val mangaShowPageNumber: Boolean = true,
+    val mangaShowTapZonesOverlay: Boolean = true,
+    val mangaSkipReadChapters: Boolean = false,
+
+    // ─── Novel okuyucu (LNReader paritesi) ─────────────────────────────────
+    val novelFontSize: Int = 17,
+    val novelLineHeight: Float = 1.7f,
+    val novelMaxWidth: Int = 720,
+    val novelTheme: String = "Dark",
+    val novelJustified: Boolean = true,
+    val novelRtl: Boolean = false,
     val customImageDownloadUri: String = "",
     val videoDownloadUri: String = "",
     val downloaderPreference: String = "INTERNAL",
@@ -354,6 +390,33 @@ data class AppSettings(
     val mangaColorFilter: String get() = downloads.mangaColorFilter
     val mangaFitMode: String get() = downloads.mangaFitMode
     val mangaBrightness: Float get() = downloads.mangaBrightness
+    val mangaTapLeftAction: String get() = downloads.mangaTapLeftAction
+    val mangaTapCenterAction: String get() = downloads.mangaTapCenterAction
+    val mangaTapRightAction: String get() = downloads.mangaTapRightAction
+    val mangaBrightnessGesture: Boolean get() = downloads.mangaBrightnessGesture
+    val mangaWebtoonGap: Int get() = downloads.mangaWebtoonGap
+    val mangaVolumeKeys: Boolean get() = downloads.mangaVolumeKeys
+    val mangaVolumeKeysInvert: Boolean get() = downloads.mangaVolumeKeysInvert
+    val mangaKeepScreenOn: Boolean get() = downloads.mangaKeepScreenOn
+    val mangaFullscreen: Boolean get() = downloads.mangaFullscreen
+    val mangaAutoNextChapter: Boolean get() = downloads.mangaAutoNextChapter
+    val mangaChapterSort: String get() = downloads.mangaChapterSort
+    val mangaChapterFilter: String get() = downloads.mangaChapterFilter
+    val mangaCropBorders: Boolean get() = downloads.mangaCropBorders
+    val mangaSplitWidePages: Boolean get() = downloads.mangaSplitWidePages
+    val mangaRotateWidePages: Boolean get() = downloads.mangaRotateWidePages
+    val mangaSidePadding: Int get() = downloads.mangaSidePadding
+    val mangaAnimatePageTransition: Boolean get() = downloads.mangaAnimatePageTransition
+    val mangaEinkFlash: Boolean get() = downloads.mangaEinkFlash
+    val mangaShowPageNumber: Boolean get() = downloads.mangaShowPageNumber
+    val mangaShowTapZonesOverlay: Boolean get() = downloads.mangaShowTapZonesOverlay
+    val mangaSkipReadChapters: Boolean get() = downloads.mangaSkipReadChapters
+    val novelFontSize: Int get() = downloads.novelFontSize
+    val novelLineHeight: Float get() = downloads.novelLineHeight
+    val novelMaxWidth: Int get() = downloads.novelMaxWidth
+    val novelTheme: String get() = downloads.novelTheme
+    val novelJustified: Boolean get() = downloads.novelJustified
+    val novelRtl: Boolean get() = downloads.novelRtl
     val dnsChoice: Int get() = integrations.dnsChoice
     val useGithubProxy: Boolean get() = integrations.useGithubProxy
     val tmdbEnabled: Boolean get() = integrations.tmdbEnabled

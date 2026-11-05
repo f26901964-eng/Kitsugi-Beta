@@ -131,6 +131,56 @@ class SettingsDataStore(
         val MangaColorFilter = stringPreferencesKey("manga_color_filter")
         val MangaFitMode = stringPreferencesKey("manga_fit_mode")
         val MangaBrightness = floatPreferencesKey("manga_brightness")
+
+        // ─── Manga Okuyucu: jest & dokunma alanı ayarları (Mihon paritesi) ─────
+        // Okuma yönüne göre otomatik seçilen kenar dokunma davranışları.
+        val MangaTapLeftAction = stringPreferencesKey("manga_tap_left_action")
+        val MangaTapCenterAction = stringPreferencesKey("manga_tap_center_action")
+        val MangaTapRightAction = stringPreferencesKey("manga_tap_right_action")
+        // İki parmakla dikey kaydırma → parlaklık.
+        val MangaBrightnessGesture = booleanPreferencesKey("manga_brightness_gesture")
+        // Webtoon modunda sayfalar arası boşluk (dp).
+        val MangaWebtoonGap = intPreferencesKey("manga_webtoon_gap")
+        // Ses tuşları ile sayfa çevirme.
+        val MangaVolumeKeys = booleanPreferencesKey("manga_volume_keys")
+        val MangaVolumeKeysInvert = booleanPreferencesKey("manga_volume_keys_invert")
+        // Okurken ekranı açık tut.
+        val MangaKeepScreenOn = booleanPreferencesKey("manga_keep_screen_on")
+        // Tam ekran (immersive) mod.
+        val MangaFullscreen = booleanPreferencesKey("manga_fullscreen")
+        // Son sayfada otomatik sonraki bölüme geç.
+        val MangaAutoNextChapter = booleanPreferencesKey("manga_auto_next_chapter")
+        // Bölüm listesi varsayılan sıralaması ve filtresi.
+        val MangaChapterSort = stringPreferencesKey("manga_chapter_sort")
+        val MangaChapterFilter = stringPreferencesKey("manga_chapter_filter")
+
+        // ─── Görüntü işleme (Mihon "Reading" paritesi) ───────────────────────
+        /** Beyaz kenarları otomatik kırp (taranmış manga için). */
+        val MangaCropBorders = booleanPreferencesKey("manga_crop_borders")
+        /** Geniş (çift sayfa) görselleri ikiye böl. */
+        val MangaSplitWidePages = booleanPreferencesKey("manga_split_wide_pages")
+        /** Geniş görselleri ekrana sığdırmak için 90° döndür. */
+        val MangaRotateWidePages = booleanPreferencesKey("manga_rotate_wide_pages")
+        /** Uzun şerit (webtoon) modunda yan boşluk (dp). */
+        val MangaSidePadding = intPreferencesKey("manga_side_padding")
+        /** Okuma sırasında sayfa geçiş animasyonu. */
+        val MangaAnimatePageTransition = booleanPreferencesKey("manga_animate_page_transition")
+        /** E-ink: sayfa değişiminde kısa beyaz flaş. */
+        val MangaEinkFlash = booleanPreferencesKey("manga_eink_flash")
+        /** Sayfa numarası rozetini göster. */
+        val MangaShowPageNumber = booleanPreferencesKey("manga_show_page_number")
+        /** Dokunma alanlarını ilk açılışta bir kez göster. */
+        val MangaShowTapZonesOverlay = booleanPreferencesKey("manga_show_tap_zones_overlay")
+        /** Okunmuş bölümleri okurken atla. */
+        val MangaSkipReadChapters = booleanPreferencesKey("manga_skip_read_chapters")
+
+        // ─── Novel okuyucu (LNReader paritesi) ──────────────────────────────
+        val NovelFontSize = intPreferencesKey("novel_font_size")
+        val NovelLineHeight = floatPreferencesKey("novel_line_height")
+        val NovelMaxWidth = intPreferencesKey("novel_max_width")
+        val NovelTheme = stringPreferencesKey("novel_theme")
+        val NovelJustified = booleanPreferencesKey("novel_justified")
+        val NovelRtl = booleanPreferencesKey("novel_rtl")
         val DnsChoice = intPreferencesKey("dns_choice")
         // ─── GitHub Vekil Sunucu ───────────────────────────────────────────────
         val UseGithubProxy = booleanPreferencesKey("use_github_proxy")
@@ -683,6 +733,33 @@ class SettingsDataStore(
                     mangaColorFilter = preferences[Keys.MangaColorFilter] ?: "Normal",
                     mangaFitMode = preferences[Keys.MangaFitMode] ?: "FitScreen",
                     mangaBrightness = preferences[Keys.MangaBrightness] ?: 1.0f,
+                    mangaTapLeftAction = preferences[Keys.MangaTapLeftAction] ?: "PREV",
+                    mangaTapCenterAction = preferences[Keys.MangaTapCenterAction] ?: "MENU",
+                    mangaTapRightAction = preferences[Keys.MangaTapRightAction] ?: "NEXT",
+                    mangaBrightnessGesture = preferences[Keys.MangaBrightnessGesture] ?: true,
+                    mangaWebtoonGap = preferences[Keys.MangaWebtoonGap] ?: 0,
+                    mangaVolumeKeys = preferences[Keys.MangaVolumeKeys] ?: false,
+                    mangaVolumeKeysInvert = preferences[Keys.MangaVolumeKeysInvert] ?: false,
+                    mangaKeepScreenOn = preferences[Keys.MangaKeepScreenOn] ?: true,
+                    mangaFullscreen = preferences[Keys.MangaFullscreen] ?: false,
+                    mangaAutoNextChapter = preferences[Keys.MangaAutoNextChapter] ?: true,
+                    mangaChapterSort = preferences[Keys.MangaChapterSort] ?: "NewestFirst",
+                    mangaChapterFilter = preferences[Keys.MangaChapterFilter] ?: "All",
+                    mangaCropBorders = preferences[Keys.MangaCropBorders] ?: false,
+                    mangaSplitWidePages = preferences[Keys.MangaSplitWidePages] ?: false,
+                    mangaRotateWidePages = preferences[Keys.MangaRotateWidePages] ?: false,
+                    mangaSidePadding = preferences[Keys.MangaSidePadding] ?: 0,
+                    mangaAnimatePageTransition = preferences[Keys.MangaAnimatePageTransition] ?: true,
+                    mangaEinkFlash = preferences[Keys.MangaEinkFlash] ?: false,
+                    mangaShowPageNumber = preferences[Keys.MangaShowPageNumber] ?: true,
+                    mangaShowTapZonesOverlay = preferences[Keys.MangaShowTapZonesOverlay] ?: true,
+                    mangaSkipReadChapters = preferences[Keys.MangaSkipReadChapters] ?: false,
+                    novelFontSize = preferences[Keys.NovelFontSize] ?: 17,
+                    novelLineHeight = preferences[Keys.NovelLineHeight] ?: 1.7f,
+                    novelMaxWidth = preferences[Keys.NovelMaxWidth] ?: 720,
+                    novelTheme = preferences[Keys.NovelTheme] ?: "Dark",
+                    novelJustified = preferences[Keys.NovelJustified] ?: true,
+                    novelRtl = preferences[Keys.NovelRtl] ?: false,
                     customImageDownloadUri = preferences[Keys.CustomImageDownloadUri] ?: "",
                     videoDownloadUri = preferences[Keys.VideoDownloadUri] ?: "",
                     downloaderPreference = preferences[Keys.DownloaderPreference] ?: "INTERNAL",
@@ -1135,6 +1212,111 @@ class SettingsDataStore(
     suspend fun setMangaBrightness(brightness: Float) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.MangaBrightness] = brightness
+        }
+    }
+
+    // ─── Manga Okuyucu: jest & dokunma alanı ayarları ────────────────────────
+
+    /** Kenar/orta dokunma davranışları: PREV | NEXT | MENU | NONE. */
+    suspend fun setMangaTapActions(left: String, center: String, right: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaTapLeftAction] = left
+            preferences[Keys.MangaTapCenterAction] = center
+            preferences[Keys.MangaTapRightAction] = right
+        }
+    }
+
+    suspend fun setMangaBrightnessGesture(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaBrightnessGesture] = enabled }
+    }
+
+    suspend fun setMangaWebtoonGap(gapDp: Int) {
+        context.settingsDataStore.edit { it[Keys.MangaWebtoonGap] = gapDp.coerceIn(0, 48) }
+    }
+
+    suspend fun setMangaVolumeKeys(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaVolumeKeys] = enabled }
+    }
+
+    suspend fun setMangaVolumeKeysInvert(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaVolumeKeysInvert] = enabled }
+    }
+
+    suspend fun setMangaKeepScreenOn(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaKeepScreenOn] = enabled }
+    }
+
+    suspend fun setMangaFullscreen(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaFullscreen] = enabled }
+    }
+
+    suspend fun setMangaAutoNextChapter(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaAutoNextChapter] = enabled }
+    }
+
+    suspend fun setMangaChapterSort(sort: String) {
+        context.settingsDataStore.edit { it[Keys.MangaChapterSort] = sort }
+    }
+
+    suspend fun setMangaChapterFilter(filter: String) {
+        context.settingsDataStore.edit { it[Keys.MangaChapterFilter] = filter }
+    }
+
+    // ─── Görüntü işleme / okuma deneyimi ────────────────────────────────────
+
+    suspend fun setMangaCropBorders(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaCropBorders] = enabled }
+    }
+
+    suspend fun setMangaSplitWidePages(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaSplitWidePages] = enabled }
+    }
+
+    suspend fun setMangaRotateWidePages(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaRotateWidePages] = enabled }
+    }
+
+    suspend fun setMangaSidePadding(dpValue: Int) {
+        context.settingsDataStore.edit { it[Keys.MangaSidePadding] = dpValue.coerceIn(0, 120) }
+    }
+
+    suspend fun setMangaAnimatePageTransition(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaAnimatePageTransition] = enabled }
+    }
+
+    suspend fun setMangaEinkFlash(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaEinkFlash] = enabled }
+    }
+
+    suspend fun setMangaShowPageNumber(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaShowPageNumber] = enabled }
+    }
+
+    suspend fun setMangaShowTapZonesOverlay(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaShowTapZonesOverlay] = enabled }
+    }
+
+    suspend fun setMangaSkipReadChapters(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaSkipReadChapters] = enabled }
+    }
+
+    // ─── Novel okuyucu ──────────────────────────────────────────────────────
+
+    suspend fun setNovelStyle(
+        fontSizeSp: Int,
+        lineHeight: Float,
+        maxWidthDp: Int,
+        theme: String,
+        justified: Boolean,
+        rtl: Boolean
+    ) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.NovelFontSize] = fontSizeSp.coerceIn(12, 30)
+            prefs[Keys.NovelLineHeight] = lineHeight.coerceIn(1.2f, 2.4f)
+            prefs[Keys.NovelMaxWidth] = maxWidthDp.coerceIn(480, 1200)
+            prefs[Keys.NovelTheme] = theme
+            prefs[Keys.NovelJustified] = justified
+            prefs[Keys.NovelRtl] = rtl
         }
     }
 

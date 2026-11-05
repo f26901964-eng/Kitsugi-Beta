@@ -86,6 +86,37 @@ enum class MangaFitMode {
     FitHeight
 }
 
+/**
+ * Kenar/orta dokunma davranışı (Mihon'daki "tap zones" paritesi).
+ *
+ * Okuma yönüne göre varsayılanlar çevrilir: RTL manga'da sol kenar = SONRAKİ
+ * sayfa, LTR/webtoon'da sol kenar = ÖNCEKİ sayfa.
+ */
+enum class MangaTapAction {
+    Previous,
+    Next,
+    Menu,
+    None;
+
+    companion object {
+        fun fromId(id: String?): MangaTapAction = when (id?.uppercase()) {
+            "PREV", "PREVIOUS" -> Previous
+            "NEXT" -> Next
+            "MENU" -> Menu
+            "NONE" -> None
+            else -> Menu
+        }
+
+        /** Ayarlardaki metin kimliği (PREV / NEXT / MENU / NONE). */
+        fun idOf(action: MangaTapAction): String = when (action) {
+            Previous -> "PREV"
+            Next -> "NEXT"
+            Menu -> "MENU"
+            None -> "NONE"
+        }
+    }
+}
+
 enum class MangaStatus {
     Ongoing,
     Completed,

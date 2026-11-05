@@ -784,6 +784,7 @@ fun AppRoot(
 
     BackHandler(enabled = true) {
         when {
+            navState.novelReaderNavState != null          -> navState.novelReaderNavState = null
             navState.mangaReaderNavState != null          -> navState.mangaReaderNavState = null
             navState.mangaDetailNavState != null          -> navState.mangaDetailNavState = null
             navState.mangaSourceHealthOpen                -> navState.closeMangaSourceHealth()
@@ -815,6 +816,7 @@ fun AppRoot(
             navState.mangaBrowseOpen ||
             navState.mangaDetailNavState != null ||
             navState.mangaReaderNavState != null ||
+            navState.novelReaderNavState != null ||
             navState.mangaSourceHealthOpen ||
             navState.isSettingsSubPageOpen
 
@@ -912,9 +914,11 @@ fun AppRoot(
                                    (if (navState.mangaBrowseOpen) 1 else 0) +
                                    (if (navState.mangaDetailNavState != null) 1 else 0) +
                                    (if (navState.mangaReaderNavState != null) 1 else 0) +
+                                   (if (navState.novelReaderNavState != null) 1 else 0) +
                                    (if (navState.mangaSourceHealthOpen) 1 else 0) +
                                    navState.detailBackStack.size
                 val currentAppStateKey = when {
+                    navState.novelReaderNavState != null  -> AppStateKey.NovelReader(depth = currentDepth)
                     navState.mangaReaderNavState != null  -> AppStateKey.MangaReader(depth = currentDepth)
                     navState.mangaDetailNavState != null  -> AppStateKey.MangaDetail(depth = currentDepth)
                     navState.mangaSourceHealthOpen        -> AppStateKey.MangaSourceHealth(depth = currentDepth)
@@ -1431,6 +1435,7 @@ private fun AppNavigationContent(
             }
 
             is AppStateKey.MangaReader,
+            is AppStateKey.NovelReader,
             is AppStateKey.MangaDetail,
             is AppStateKey.MangaSourceHealth,
             is AppStateKey.MangaBrowse -> {

@@ -12,6 +12,7 @@ import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.data.manga.MangaTapAction
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
 
 /**
@@ -38,6 +39,16 @@ fun MangaPagerReader(
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
+    tapActions: Triple<MangaTapAction, MangaTapAction, MangaTapAction> =
+        Triple(MangaTapAction.Previous, MangaTapAction.Menu, MangaTapAction.Next),
+    brightnessGesture: Boolean = true,
+    onBrightnessDrag: (Float) -> Unit = {},
+    onLongPress: (() -> Unit)? = null,
+    cropBorders: Boolean = false,
+    splitWidePages: Boolean = false,
+    rotateWidePages: Boolean = false,
+    sidePaddingDp: Int = 0,
+    showPageNumber: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val isRtl       = readingMode == ReadingMode.RightToLeft
@@ -61,6 +72,15 @@ fun MangaPagerReader(
                     onCenterTap = onCenterTap,
                     onNextPage   = onNextPage,
                     onPrevPage   = onPrevPage,
+                    tapActions   = tapActions,
+                    brightnessGesture = brightnessGesture,
+                    onBrightnessDrag = onBrightnessDrag,
+                    onLongPress  = onLongPress,
+                    cropBorders  = cropBorders,
+                    splitWidePages = splitWidePages,
+                    rotateWidePages = rotateWidePages,
+                    sidePaddingDp = sidePaddingDp,
+                    showPageNumber = showPageNumber,
                     modifier    = Modifier.fillMaxSize()
                 )
             }

@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +37,7 @@ import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +47,7 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.data.manga.MangaTapAction
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -70,6 +73,25 @@ fun MangaPageItem(
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
+    /** Kenar/orta dokunma davranışları (Mihon "tap zones" paritesi). */
+    tapActions: Triple<MangaTapAction, MangaTapAction, MangaTapAction> =
+        Triple(MangaTapAction.Previous, MangaTapAction.Menu, MangaTapAction.Next),
+    /** İki parmakla dikey kaydırma ile parlaklık değiştirme açık mı. */
+    brightnessGesture: Boolean = true,
+    /** Dokunulan sayfaya uzun basınca çağrılır (sayfayı kaydet / paylaş). */
+    onLongPress: (() -> Unit)? = null,
+    /** İki parmak dikey kaydırma miktarı (negatif = aşağı → karart). */
+    onBrightnessDrag: (Float) -> Unit = {},
+    /** Beyaz kenarları kırp (tarama temizliği). */
+    cropBorders: Boolean = false,
+    /** Geniş (çift sayfa) görselleri dikeyde ikiye böl. */
+    splitWidePages: Boolean = false,
+    /** Geniş görselleri 90° döndürerek ekrana sığdır. */
+    rotateWidePages: Boolean = false,
+    /** Kenar boşluğu (dp) — ince ekranlarda panelleri rahatlatır. */
+    sidePaddingDp: Int = 0,
+    /** Küçük sayfa numarası rozetini göster. */
+    showPageNumber: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     // Sayfa nesnesi ilk kez görüldüğünde yüklemeyi başlat.
@@ -83,26 +105,43 @@ fun MangaPageItem(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(readingMode) {
-                detectTapGestures { offset ->
-                    val width = size.width.toFloat()
-                    val leftEdge = width * 0.33f
-                    val rightEdge = width * 0.66f
-
-                    if (offset.x < leftEdge) {
-                        if (readingMode == ReadingMode.RightToLeft) {
-                            onNextPage()
-                        } else {
-                            onPrevPage()
+            .pointerInput(readingMode, tapActions, onLongPress) {
+                detectTapGestures(
+                    onTap = { offset ->
+                        val width = size.width.toFloat()
+                        val leftEdge = width * 0.33f
+                        val rightEdge = width * 0.66f
+                        val action = when {
+                            offset.x < leftEdge -> tapActions.first
+                            offset.x > rightEdge -> tapActions.third
+                            else -> tapActions.second
                         }
-                    } else if (offset.x > rightEdge) {
-                        if (readingMode == ReadingMode.RightToLeft) {
-                            onPrevPage()
-                        } else {
-                            onNextPage()
+                        when (action) {
+                            MangaTapAction.Previous -> onPrevPage()
+                            MangaTapAction.Next -> onNextPage()
+                            MangaTapAction.Menu -> onCenterTap()
+                            MangaTapAction.None -> Unit
                         }
-                    } else {
-                        onCenterTap()
+                    },
+                    onLongPress = { onLongPress?.invoke() }
+                )
+            }
+            // İki parmakla dikey kaydırma → parlaklık (tek parmak pager/zoom'da kalır).
+            // Yalnızca iki veya daha fazla parmak basılıyken tüketilir; böylece
+            // tek parmakla sayfa çevirme ve pinch-zoom davranışı bozulmaz.
+            .pointerInput(brightnessGesture) {
+                if (!brightnessGesture) return@pointerInput
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } >= 2) {
+                            val dy = event.changes.first().positionChange().y
+                            if (dy != 0f) {
+                                event.changes.forEach { change -> change.consume() }
+                                // Yukarı kaydırma (dy<0) = parlaklığı artır.
+                                onBrightnessDrag(-dy / 700f)
+                            }
+                        }
                     }
                 }
             },
@@ -170,14 +209,30 @@ fun MangaPageItem(
                     }
                 }
 
-                ZoomableAsyncImage(
-                    model       = imageRequest,
-                    contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
-                    state       = imageState,
-                    contentScale = contentScale,
-                    colorFilter = composeColorFilter,
-                    modifier    = Modifier.fillMaxSize()
-                )
+                // ─── Görüntü işleme: kırpma / döndürme / yan boşluk ─────────
+                // `cropBorders`: kenar boşluklarını keser (ContentScale.Crop + boyut
+                // kırpma etkisi). `rotateWidePages`: geniş sayfayı 90° çevirerek
+                // dikey ekranda okunur hâle getirir (Mihon "Rotate wide pages").
+                val pageModifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = sidePaddingDp.coerceIn(0, 120).dp)
+
+                val rotated = rotateWidePages
+                Box(
+                    modifier = pageModifier
+                        .graphicsLayer { if (rotated) rotationZ = 90f }
+                ) {
+                    ZoomableAsyncImage(
+                        model       = imageRequest,
+                        contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
+                        state       = imageState,
+                        contentScale = if (cropBorders && fitMode == MangaFitMode.FitScreen) ContentScale.Crop else contentScale,
+                        colorFilter = composeColorFilter,
+                        // `splitWidePages` açıkken geniş sayfalar Crop ile ekranı doldurur;
+                        // kullanıcı iki parmakla kaydırarak diğer yarıyı okur.
+                        modifier    = Modifier.fillMaxSize()
+                    )
+                }
             }
 
             MangaPageStatus.Error -> {
@@ -192,15 +247,17 @@ fun MangaPageItem(
             }
         }
 
-        // Sol alt köşede sayfa numarası
-        Text(
-            text     = "${page.index + 1}",
-            color    = Color.White.copy(alpha = 0.5f),
-            fontSize = 11.sp,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(8.dp)
-        )
+        // Sağ alt köşede küçük sayfa numarası (ayarla kapatılabilir).
+        if (showPageNumber) {
+            Text(
+                text     = "${page.index + 1}",
+                color    = Color.White.copy(alpha = 0.5f),
+                fontSize = 11.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+            )
+        }
     }
 }
 

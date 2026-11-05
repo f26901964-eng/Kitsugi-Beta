@@ -12,7 +12,9 @@ import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaSource
-import com.kitsugi.animelist.data.manga.MangaSourceStateStore
+import com.kitsugi.animelist.data.manga.MangaTapAction
+import com.kitsugi.animelist.data.manga.MangaSource
+import com.kitsugi.animelist.data.manga.MangaTapActionStateStore
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.model.SourceHealthStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,8 +43,26 @@ class MangaReaderViewModel(
     private val context: Context,
     val source: MangaSource,
     val mangaDetails: MangaDetails,
-    initialChapter: MangaChapter
+    initialChapter: MangaChapter,
+    /**
+     * Seri türüne göre ÖNERİLEN okuma modu (manhwa → webtoon gibi).
+     * Yalnızca kullanıcı bu seri için mod seçmediyse uygulanır.
+     */
+    private val suggestedMode: ReadingMode? = null
 ) : ViewModel() {
+
+    /**
+     * Seriye özel okuma modu deposu. Kotatsu/Mihon'daki "bu seri için görüntüleyici"
+     * davranışının karşılığı: kullanıcı mod değiştirdiğinde yalnızca bu seri etkilenir.
+     */
+    private val perSeriesModeStore = context.getSharedPreferences("manga_reader_modes", Context.MODE_PRIVATE)
+    private val perSeriesKey = "mode_${source.name}_${mangaDetails.url}".hashCode().toString()
+
+    /** Seriye özel kayıtlı mod (yoksa null). */
+    fun perSeriesMode(): ReadingMode? =
+        perSeriesModeStore.getString(perSeriesKey, null)?.let { id ->
+            ReadingMode.entries.firstOrNull { it.name == id }
+        }
 
     private val db  = KitsugiDatabase.getDatabase(context)
     private val dao = db.mangaChapterProgressDao()
@@ -65,6 +85,26 @@ class MangaReaderViewModel(
         val colorFilterType: ColorFilterType = ColorFilterType.Normal,
         val fitMode: MangaFitMode = MangaFitMode.FitScreen,
         val customBrightness: Float = 1.0f,
+        // ─── Jest / dokunma alanı / ekran ayarları (Mihon paritesi) ──────────
+        val tapLeftAction: MangaTapAction = MangaTapAction.Previous,
+        val tapCenterAction: MangaTapAction = MangaTapAction.Menu,
+        val tapRightAction: MangaTapAction = MangaTapAction.Next,
+        val brightnessGestureEnabled: Boolean = true,
+        val webtoonGapDp: Int = 0,
+        val volumeKeysEnabled: Boolean = false,
+        val volumeKeysInvert: Boolean = false,
+        val keepScreenOn: Boolean = true,
+        val fullscreenEnabled: Boolean = false,
+        val autoNextChapter: Boolean = true,
+        // ─── Görüntü işleme / okuma deneyimi (Mihon "Reading" paritesi) ──────
+        val cropBorders: Boolean = false,
+        val splitWidePages: Boolean = false,
+        val rotateWidePages: Boolean = false,
+        val sidePaddingDp: Int = 0,
+        val animatePageTransition: Boolean = true,
+        val einkFlash: Boolean = false,
+        val showPageNumber: Boolean = true,
+        val skipReadChapters: Boolean = false,
         val isLoadingChapters: Boolean = false,
         val error: String? = null,
         val isLoadingPages: Boolean = false,
@@ -105,15 +145,35 @@ class MangaReaderViewModel(
                     "FitHeight" -> MangaFitMode.FitHeight
                     else -> MangaFitMode.FitScreen
                 }
-                // R2: Webtoon modunda 3+1 keep, pager modunda 2+1 keep preload
-                loader.preloadAhead = if (mode == ReadingMode.Webtoon) 3 else 2
+                // Seriye özel mod varsa global varsayılanı ezer; o da yoksa tür
+                // önerisi (manhwa → webtoon) devreye girer.
+                val effectiveMode = perSeriesMode() ?: suggestedMode ?: mode
+                loader.preloadAhead = if (effectiveMode == ReadingMode.Webtoon) 3 else 2
                 loader.keepBehind   = 1
                 _uiState.update {
                     it.copy(
-                        readingMode = mode,
+                        readingMode = effectiveMode,
                         colorFilterType = filter,
                         fitMode = fit,
-                        customBrightness = settings.mangaBrightness
+                        customBrightness = settings.mangaBrightness,
+                        tapLeftAction = MangaTapAction.fromId(settings.mangaTapLeftAction),
+                        tapCenterAction = normalizeTapAction(settings.mangaTapCenterAction, MangaTapAction.Menu),
+                        tapRightAction = normalizeTapAction(settings.mangaTapRightAction, MangaTapAction.Next),
+                        brightnessGestureEnabled = settings.mangaBrightnessGesture,
+                        webtoonGapDp = settings.mangaWebtoonGap,
+                        volumeKeysEnabled = settings.mangaVolumeKeys,
+                        volumeKeysInvert = settings.mangaVolumeKeysInvert,
+                        keepScreenOn = settings.mangaKeepScreenOn,
+                        fullscreenEnabled = settings.mangaFullscreen,
+                        autoNextChapter = settings.mangaAutoNextChapter,
+                        cropBorders = settings.mangaCropBorders,
+                        splitWidePages = settings.mangaSplitWidePages,
+                        rotateWidePages = settings.mangaRotateWidePages,
+                        sidePaddingDp = settings.mangaSidePadding,
+                        animatePageTransition = settings.mangaAnimatePageTransition,
+                        einkFlash = settings.mangaEinkFlash,
+                        showPageNumber = settings.mangaShowPageNumber,
+                        skipReadChapters = settings.mangaSkipReadChapters
                     )
                 }
             }
@@ -180,6 +240,9 @@ class MangaReaderViewModel(
     // ─── Okuma modu değiştirme ────────────────────────────────────────────────
 
     fun setReadingMode(mode: ReadingMode) {
+        // Bu seri için kalıcı: okuyucuyu kapatıp açınca aynı mod korunur.
+        perSeriesModeStore.edit().putString(perSeriesKey, mode.name).apply()
+        _uiState.update { it.copy(readingMode = mode) }
         viewModelScope.launch {
             settingsDataStore.setMangaReadingMode(mode.name)
         }
@@ -202,6 +265,129 @@ class MangaReaderViewModel(
             settingsDataStore.setMangaBrightness(brightness)
         }
     }
+
+    // ─── Kenar dokunma alanları ──────────────────────────────────────────────
+
+    /**
+     * Okuma yönüne göre geçerli dokunma davranışlarını çözer.
+     *
+     * Kullanıcı "varsayılan" bıraktığında (PREV/NEXT) yön otomatik uyarlanır:
+     *  - RTL manga: sol kenar = sonraki sayfa (sayfalar sağdan sola akar)
+     *  - LTR/webtoon: sol kenar = önceki sayfa
+     * Kullanıcı menü/hiçbir şey seçtiyse aynen korunur.
+     */
+    fun resolveTapActions(): Triple<MangaTapAction, MangaTapAction, MangaTapAction> {
+        val state = _uiState.value
+        val rtl = state.readingMode == ReadingMode.RightToLeft
+        fun side(action: MangaTapAction, isLeft: Boolean): MangaTapAction = when (action) {
+            MangaTapAction.Previous -> if (rtl && isLeft) MangaTapAction.Next else MangaTapAction.Previous
+            MangaTapAction.Next -> if (rtl && isLeft) MangaTapAction.Previous else MangaTapAction.Next
+            else -> action
+        }
+        return Triple(
+            side(state.tapLeftAction, isLeft = true),
+            state.tapCenterAction,
+            side(state.tapRightAction, isLeft = false)
+        )
+    }
+
+    /** Jest: iki parmakla kaydırma ile parlaklık (0.1 – 1.0). */
+    fun adjustBrightness(delta: Float) {
+        val next = (_uiState.value.customBrightness + delta).coerceIn(0.1f, 1.0f)
+        _uiState.update { it.copy(customBrightness = next) }
+        viewModelScope.launch { settingsDataStore.setMangaBrightness(next) }
+    }
+
+    fun setBrightnessGestureEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(brightnessGestureEnabled = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaBrightnessGesture(enabled) }
+    }
+
+    fun setWebtoonGap(gapDp: Int) {
+        _uiState.update { it.copy(webtoonGapDp = gapDp.coerceIn(0, 48)) }
+        viewModelScope.launch { settingsDataStore.setMangaWebtoonGap(gapDp) }
+    }
+
+    fun setVolumeKeysEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(volumeKeysEnabled = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaVolumeKeys(enabled) }
+    }
+
+    fun setVolumeKeysInvert(invert: Boolean) {
+        _uiState.update { it.copy(volumeKeysInvert = invert) }
+        viewModelScope.launch { settingsDataStore.setMangaVolumeKeysInvert(invert) }
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        _uiState.update { it.copy(keepScreenOn = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaKeepScreenOn(enabled) }
+    }
+
+    fun setFullscreenEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(fullscreenEnabled = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaFullscreen(enabled) }
+    }
+
+    fun setCropBorders(enabled: Boolean) {
+        _uiState.update { it.copy(cropBorders = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaCropBorders(enabled) }
+    }
+
+    fun setSplitWidePages(enabled: Boolean) {
+        _uiState.update { it.copy(splitWidePages = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaSplitWidePages(enabled) }
+    }
+
+    fun setRotateWidePages(enabled: Boolean) {
+        _uiState.update { it.copy(rotateWidePages = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaRotateWidePages(enabled) }
+    }
+
+    fun setSidePadding(dpValue: Int) {
+        _uiState.update { it.copy(sidePaddingDp = dpValue.coerceIn(0, 120)) }
+        viewModelScope.launch { settingsDataStore.setMangaSidePadding(dpValue) }
+    }
+
+    fun setAnimatePageTransition(enabled: Boolean) {
+        _uiState.update { it.copy(animatePageTransition = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaAnimatePageTransition(enabled) }
+    }
+
+    fun setEinkFlash(enabled: Boolean) {
+        _uiState.update { it.copy(einkFlash = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaEinkFlash(enabled) }
+    }
+
+    fun setShowPageNumber(enabled: Boolean) {
+        _uiState.update { it.copy(showPageNumber = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaShowPageNumber(enabled) }
+    }
+
+    fun setSkipReadChapters(enabled: Boolean) {
+        _uiState.update { it.copy(skipReadChapters = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaSkipReadChapters(enabled) }
+    }
+
+    fun setAutoNextChapter(enabled: Boolean) {
+        _uiState.update { it.copy(autoNextChapter = enabled) }
+        viewModelScope.launch { settingsDataStore.setMangaAutoNextChapter(enabled) }
+    }
+
+    fun setTapActions(left: MangaTapAction, center: MangaTapAction, right: MangaTapAction) {
+        _uiState.update {
+            it.copy(tapLeftAction = left, tapCenterAction = center, tapRightAction = right)
+        }
+        viewModelScope.launch {
+            settingsDataStore.setMangaTapActions(
+                MangaTapAction.idOf(left),
+                MangaTapAction.idOf(center),
+                MangaTapAction.idOf(right)
+            )
+        }
+    }
+
+    private fun normalizeTapAction(raw: String?, fallback: MangaTapAction): MangaTapAction =
+        if (raw.isNullOrBlank()) fallback else MangaTapAction.fromId(raw)
 
     // ─── Bölüm gezinme ───────────────────────────────────────────────────────
 
@@ -283,6 +469,58 @@ class MangaReaderViewModel(
         }
     }
 
+    /**
+     * Geçerli sayfayı JPG olarak Galeri'ye kaydeder (Mihon "save page" paritesi).
+     *
+     * Akış: çözümlenmiş sayfa URL'si → MediaStore görsel kaydı (Pictures/Kitsugi).
+     * İndirme için Coil yerine doğrudan HTTP kullanılır; böylece bellek/kiremit
+     * önbelleğinden bağımsız, tam çözünürlüklü dosya yazılır.
+     *
+     * @return Başarılıysa true.
+     */
+    fun savePageToGallery(page: MangaPage, chapterName: String): Boolean {
+        val imageUrl = page.imageUrl ?: page.url
+        if (imageUrl.isBlank()) return false
+        return try {
+            val safeName = buildString {
+                append(chapterName.take(40).replace(Regex("[^\p{L}\p{N} _-]"), "_").trim())
+                append("_s").append(page.index + 1)
+            }.ifBlank { "kitsugi_page_${page.index + 1}" }
+
+            // 1) Yerel önbellek varsa doğrudan kopyala (en hızlı yol).
+            val cached = loader.cache.getImageFile(imageUrl)
+            val bytes: ByteArray = if (cached.exists()) {
+                cached.readBytes()
+            } else {
+                val conn = java.net.URL(imageUrl).openConnection().apply {
+                    connectTimeout = 20_000
+                    readTimeout = 30_000
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Kitsugi)")
+                }
+                conn.getInputStream().use { it.readBytes() }
+            }
+            if (bytes.isEmpty()) return false
+
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "$safeName.jpg")
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,
+                    android.os.Environment.DIRECTORY_PICTURES + "/Kitsugi")
+                put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: return false
+            resolver.openOutputStream(uri)?.use { it.write(bytes) }
+            values.clear()
+            values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun retryLoadPages() {
         restoreProgress(_uiState.value.currentChapter)
     }
@@ -302,10 +540,11 @@ class MangaReaderViewModel(
         private val context: Context,
         private val source: MangaSource,
         private val mangaDetails: MangaDetails,
-        private val initialChapter: MangaChapter
+        private val initialChapter: MangaChapter,
+        private val suggestedMode: ReadingMode? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            MangaReaderViewModel(context, source, mangaDetails, initialChapter) as T
+            MangaReaderViewModel(context, source, mangaDetails, initialChapter, suggestedMode) as T
     }
 }

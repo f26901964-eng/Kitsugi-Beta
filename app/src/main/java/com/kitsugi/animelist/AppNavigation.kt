@@ -47,6 +47,8 @@ sealed interface AppStateKey {
     data class MangaBrowse(override val depth: Int) : AppStateKey
     data class MangaDetail(override val depth: Int) : AppStateKey
     data class MangaReader(override val depth: Int) : AppStateKey
+    /** Light novel / web novel metin okuyucusu (ayrı ekran). */
+    data class NovelReader(override val depth: Int) : AppStateKey
     data class MangaSourceHealth(override val depth: Int) : AppStateKey
     data class AiringCalendar(override val depth: Int, val preferredSource: String? = null) : AppStateKey
     data class Stats(override val depth: Int) : AppStateKey
@@ -81,6 +83,16 @@ data class MangaDetailNavState(
  * bunun yerine AppRoot'ta ayrı bir remember değişkeninde tutulur.
  */
 data class MangaReaderNavState(
+    val source: MangaSource,
+    val mangaDetails: MangaDetails,
+    val chapter: MangaChapter
+)
+
+/**
+ * Novel okuyucusunu açmak için gereken geçici navigasyon verisi.
+ * Manga okuyucudan ayrı tutulur; böylece ilerleme/sayfa mantığı karışmaz.
+ */
+data class NovelReaderNavState(
     val source: MangaSource,
     val mangaDetails: MangaDetails,
     val chapter: MangaChapter

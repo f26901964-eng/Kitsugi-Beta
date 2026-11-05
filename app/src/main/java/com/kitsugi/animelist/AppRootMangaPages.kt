@@ -5,6 +5,7 @@ import com.kitsugi.animelist.ui.app.AppNavigationState
 import com.kitsugi.animelist.ui.app.MangaViewModel
 import com.kitsugi.animelist.ui.screens.manga.MangaBrowseViewModel
 import com.kitsugi.animelist.ui.screens.manga.MangaReaderScreen
+import com.kitsugi.animelist.ui.screens.manga.novel.NovelReaderScreen
 import com.kitsugi.animelist.ui.screens.manga.MangaDetailScreen
 import com.kitsugi.animelist.ui.screens.manga.MangaSourceHealthScreen
 import com.kitsugi.animelist.ui.screens.manga.MangaBrowseScreen
@@ -33,6 +34,18 @@ fun AppRootMangaPages(
             }
         }
 
+        is AppStateKey.NovelReader -> {
+            val novelState = navState.novelReaderNavState
+            if (novelState != null) {
+                NovelReaderScreen(
+                    source       = novelState.source,
+                    mangaDetails = novelState.mangaDetails,
+                    chapter      = novelState.chapter,
+                    onBack       = { navState.novelReaderNavState = null }
+                )
+            }
+        }
+
         is AppStateKey.MangaDetail -> {
             val detailState = navState.mangaDetailNavState
             if (detailState != null) {
@@ -41,6 +54,14 @@ fun AppRootMangaPages(
                     mangaDetails  = detailState.mangaDetails,
                     onOpenChapter = { chapter ->
                         navState.mangaReaderNavState = MangaReaderNavState(
+                            source       = detailState.source,
+                            mangaDetails = detailState.mangaDetails,
+                            chapter      = chapter
+                        )
+                    },
+                    // Light novel / web novel: metin okuyucuya yönlendir.
+                    onOpenNovel   = { chapter ->
+                        navState.novelReaderNavState = NovelReaderNavState(
                             source       = detailState.source,
                             mangaDetails = detailState.mangaDetails,
                             chapter      = chapter

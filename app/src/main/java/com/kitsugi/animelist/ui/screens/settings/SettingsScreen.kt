@@ -954,7 +954,21 @@ private fun SettingsPreferencesContent(
                 mangaReadingMode = general.mangaReadingMode,
                 mangaColorFilter = general.mangaColorFilter,
                 mangaFitMode = general.mangaFitMode,
-                mangaBrightness = general.mangaBrightness
+                mangaBrightness = general.mangaBrightness,
+                // Okuyucu davranışları varsayılan kalır; bu ekrandaki diyalog yalnızca
+                // görünüm (mod/filtre/sığdırma/parlaklık) satırlarını düzenler.
+                mangaTapLeftAction = general.mangaTapLeftAction,
+                mangaTapCenterAction = general.mangaTapCenterAction,
+                mangaTapRightAction = general.mangaTapRightAction,
+                mangaBrightnessGesture = general.mangaBrightnessGesture,
+                mangaWebtoonGap = general.mangaWebtoonGap,
+                mangaVolumeKeys = general.mangaVolumeKeys,
+                mangaVolumeKeysInvert = general.mangaVolumeKeysInvert,
+                mangaKeepScreenOn = general.mangaKeepScreenOn,
+                mangaFullscreen = general.mangaFullscreen,
+                mangaAutoNextChapter = general.mangaAutoNextChapter,
+                mangaChapterSort = general.mangaChapterSort,
+                mangaChapterFilter = general.mangaChapterFilter
             )
         )
     }

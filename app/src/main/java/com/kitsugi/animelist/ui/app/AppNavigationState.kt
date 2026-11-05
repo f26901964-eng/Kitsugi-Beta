@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import com.kitsugi.animelist.DetailScreen
 import com.kitsugi.animelist.MangaDetailNavState
 import com.kitsugi.animelist.MangaReaderNavState
+import com.kitsugi.animelist.NovelReaderNavState
 
 /** Kept while a source-search page is underneath a pushed detail screen. */
 class SourceSearchOwner : ViewModelStoreOwner {
@@ -61,6 +62,9 @@ class AppNavigationState(
 
     var mangaDetailNavState by mutableStateOf<MangaDetailNavState?>(null)
     var mangaReaderNavState by mutableStateOf<MangaReaderNavState?>(null)
+
+    /** Light novel / web novel okuyucusu (metin tabanlı) gezinme durumu. */
+    var novelReaderNavState by mutableStateOf<NovelReaderNavState?>(null)
     var fullScreenGridState by mutableStateOf<FullScreenMediaGridState?>(null)
     var addonFullScreenGridState by mutableStateOf<AddonFullScreenGridState?>(null)
     /** Eklenti Keşfet dialogunun açık olup olmadığını saklar.
@@ -88,6 +92,7 @@ class AppNavigationState(
                          (if (mangaBrowseOpen) 1 else 0) +
                          (if (mangaDetailNavState != null) 1 else 0) +
                          (if (mangaReaderNavState != null) 1 else 0) +
+                         (if (novelReaderNavState != null) 1 else 0) +
                          (if (mangaSourceHealthOpen) 1 else 0)
 
         poppedWithIndices.forEach { (idx, screen) ->

@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.data.manga.MangaTapAction
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -58,6 +59,16 @@ fun MangaWebtoonReader(
     hasNextChapter: Boolean = false,
     nextChapterName: String? = null,
     onGoToNextChapter: () -> Unit = {},
+    /** Sayfalar arası boşluk (dp) — kullanıcı ayarından gelir. */
+    pageGapDp: Int = 0,
+    tapActions: Triple<MangaTapAction, MangaTapAction, MangaTapAction> =
+        Triple(MangaTapAction.Previous, MangaTapAction.Menu, MangaTapAction.Next),
+    brightnessGesture: Boolean = true,
+    onBrightnessDrag: (Float) -> Unit = {},
+    onLongPress: (() -> Unit)? = null,
+    cropBorders: Boolean = false,
+    sidePaddingDp: Int = 0,
+    showPageNumber: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Görünen ilk öğeyi takip et ve üst katmana bildir
@@ -92,14 +103,22 @@ fun MangaWebtoonReader(
                 onCenterTap = onCenterTap,
                 onNextPage   = onNextPage,
                 onPrevPage   = onPrevPage,
+                tapActions   = tapActions,
+                brightnessGesture = brightnessGesture,
+                onBrightnessDrag = onBrightnessDrag,
+                onLongPress  = onLongPress,
+                cropBorders  = cropBorders,
+                sidePaddingDp = sidePaddingDp,
+                showPageNumber = showPageNumber,
                 modifier    = Modifier.fillMaxWidth()
             )
 
-            // Sayfalar arası ince ayırıcı
+            // Sayfalar arası ayırıcı — kullanıcı ayarı (0 = kesintisiz webtoon).
+            val gap = pageGapDp.coerceIn(0, 48).dp
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
+                    .height(if (pageGapDp <= 0) 0.dp else gap)
                     .background(Color(0xFF1A1A1A))
             )
         }
