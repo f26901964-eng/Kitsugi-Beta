@@ -18778,4 +18778,14 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_source_rate_limited_desc">Kaynak çok fazla istek yapıldığı için geçici olarak engelledi. Birkaç dakika bekleyin.</string>
     <string name="manga_source_disabled_desc">Bu kaynak devre dışı bırakılmış.</string>
     <string name="manga_source_unknown_desc">Sağlık durumu henüz kontrol edilmedi. Hızlı kontrol yapın.</string>
+
+    <!-- v2.4.442: manga eklentilerinde video eklenti paritesi -->
+    <string name="manga_extension_refresh">Yenile</string>
+    <string name="manga_extension_refresh_item">Yenile / Yeniden kur</string>
+    <string name="manga_auto_update_short">Oto</string>
+    <string name="manga_auto_update_global_title">Otomatik güncelleme (tüm eklentiler)</string>
+    <string name="manga_auto_update_global_desc">Kapatırsanız hiçbir manga eklentisi kendiliğinden güncellenmez.</string>
+    <string name="manga_auto_update_global_on">AÇIK</string>
+    <string name="manga_auto_update_global_off">KAPALI</string>
+    <string name="manga_auto_update_all_disabled">Seçili eklentilerde otomatik güncelleme kapalı (%1$d eklenti atlandı)</string>
 </resources>

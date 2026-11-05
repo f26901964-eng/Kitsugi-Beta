@@ -230,6 +230,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             try {
                 val dataStore = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication)
+                // v2.4.442: Dil varsayılanlarını (İngilizce / İngilizce / Türkçe) diske yaz.
+                // v2.4.441'de ROMAJI yalnızca okunurken ENGLISH'e çevriliyordu; kalıcı değildi.
+                dataStore.applyLanguageDefaultsV342IfNeeded()
                 val settings = dataStore.settingsFlow.first()
 
                 // CsStreamRunner adult content filter init

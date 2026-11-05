@@ -18771,4 +18771,14 @@
     <string name="manga_source_rate_limited_desc">The source rate-limited us temporarily. Wait a few minutes.</string>
     <string name="manga_source_disabled_desc">This source has been disabled.</string>
     <string name="manga_source_unknown_desc">Health has not been checked yet. Run a quick check.</string>
+
+    <!-- v2.4.442: manga extension parity with video extensions -->
+    <string name="manga_extension_refresh">Refresh</string>
+    <string name="manga_extension_refresh_item">Refresh / Reinstall</string>
+    <string name="manga_auto_update_short">Auto</string>
+    <string name="manga_auto_update_global_title">Auto-update (all extensions)</string>
+    <string name="manga_auto_update_global_desc">Turn off and no manga extension will update automatically.</string>
+    <string name="manga_auto_update_global_on">ON</string>
+    <string name="manga_auto_update_global_off">OFF</string>
+    <string name="manga_auto_update_all_disabled">Auto-update is off for the selected extensions (%1$d skipped)</string>
 </resources>

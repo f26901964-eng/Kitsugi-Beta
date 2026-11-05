@@ -147,6 +147,8 @@ class SettingsDataStore(
         val TmdbModernHomeEnabled = booleanPreferencesKey("tmdb_modern_home_enabled")
         val TmdbEnrichContinueWatching = booleanPreferencesKey("tmdb_enrich_continue_watching")
         val TmdbLanguage = stringPreferencesKey("tmdb_language")
+        // ─── v2.4.442: tek seferlik dil varsayılanı göçü ───────────────────────
+        val LanguageDefaultsV342Applied = booleanPreferencesKey("language_defaults_v342_applied")
         val TmdbUseArtwork = booleanPreferencesKey("tmdb_use_artwork")
         val TmdbUseBasicInfo = booleanPreferencesKey("tmdb_use_basic_info")
         val TmdbUseDetails = booleanPreferencesKey("tmdb_use_details")
@@ -2249,5 +2251,50 @@ class SettingsDataStore(
 
     suspend fun setDefaultIntroLength(value: Int) {
         context.settingsDataStore.edit { it[Keys.DefaultIntroLength] = value.coerceIn(5, 300) }
+    }
+
+    companion object {
+        /** v2.4.442 dil varsayılanları: Başlık = İngilizce, Personel = İngilizce, TMDB = Türkçe. */
+        const val DEFAULT_TITLE_LANGUAGE = "ENGLISH"
+        const val DEFAULT_STAFF_NAME_LANGUAGE = "ENGLISH"
+        const val DEFAULT_TMDB_LANGUAGE = "tr"
+    }
+
+    /**
+     * v2.4.442 — Dil varsayılanlarını **kalıcı** hale getirir.
+     *
+     * v2.4.441'e kadar ROMAJI değeri yalnızca okunurken ENGLISH'e çevriliyordu
+     * (`preferences[Keys.TitleLanguage].let { if (it == "ROMAJI") "ENGLISH" else it }`),
+     * yani DataStore'da hâlâ "ROMAJI" yazıyordu. Bu yüzden ayarlar ekranı bazı
+     * yollardan ham değeri okuyup kullanıcıya "Romaji" gösterebiliyordu.
+     *
+     * Bu göç bir kez çalışır ve şunları diske yazar:
+     *   başlık dili → ENGLISH, personel adı dili → ENGLISH, TMDB dili → tr
+     *
+     * Kullanıcının sonradan yaptığı seçimler `language_defaults_v342_applied`
+     * bayrağı sayesinde asla ezilmez.
+     */
+    suspend fun applyLanguageDefaultsV342IfNeeded() {
+        runCatching {
+            context.settingsDataStore.edit { preferences ->
+                if (preferences[Keys.LanguageDefaultsV342Applied] == true) return@edit
+
+                fun normalize(value: String?): String? = when (value?.uppercase()) {
+                    null, "", "ROMAJI", "NATIVE" -> null
+                    else -> value.uppercase()
+                }
+
+                val title = normalize(preferences[Keys.TitleLanguage]) ?: DEFAULT_TITLE_LANGUAGE
+                val staff = normalize(preferences[Keys.StaffNameLanguage]) ?: DEFAULT_STAFF_NAME_LANGUAGE
+                val tmdb = preferences[Keys.TmdbLanguage]?.takeIf { it.isNotBlank() } ?: DEFAULT_TMDB_LANGUAGE
+
+                preferences[Keys.TitleLanguage] = title
+                preferences[Keys.StaffNameLanguage] = staff
+                preferences[Keys.TmdbLanguage] = tmdb
+                preferences[Keys.LanguageDefaultsV342Applied] = true
+            }
+        }.onFailure {
+            android.util.Log.w("SettingsDataStore", "Dil varsayılanı göçü uygulanamadı: ${it.message}")
+        }
     }
 }
