@@ -299,6 +299,8 @@ fun WatchHistoryScreen(
                             onOpen = {
                                 val open = onOpenManga
                                 if (open != null) {
+                                    // Kaldığı yeri koru: aynı bölümün ilerlemesi detay
+                                    // sayfasındaki "Devam Et" hedefini belirler.
                                     open(
                                         item.entity.sourceName,
                                         item.entity.mangaUrl,
