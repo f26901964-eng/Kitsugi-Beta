@@ -66,6 +66,8 @@ fun MangaWebtoonReader(
     onPrevPage: () -> Unit = {},
     hasNextChapter: Boolean = false,
     nextChapterName: String? = null,
+    /** Hedef bölümün çevirmen sürümü sayısı (>1 ise rozet gösterilir). */
+    nextChapterVariantCount: Int = 0,
     showChapterTransition: Boolean = true,
     onGoToNextChapter: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -118,6 +120,7 @@ fun MangaWebtoonReader(
             ChapterTransitionFooter(
                 hasNextChapter = hasNextChapter,
                 nextChapterName = nextChapterName,
+                variantCount = nextChapterVariantCount,
                 compact = !showChapterTransition,
                 onGoToNextChapter = onGoToNextChapter,
             )
@@ -129,6 +132,7 @@ fun MangaWebtoonReader(
 private fun ChapterTransitionFooter(
     hasNextChapter: Boolean,
     nextChapterName: String?,
+    variantCount: Int,
     compact: Boolean,
     onGoToNextChapter: () -> Unit,
 ) {
@@ -167,6 +171,14 @@ private fun ChapterTransitionFooter(
                     Text(
                         text = nextChapterName?.let { stringResource(R.string.manga_reader_next_chapter, it) }
                             ?: stringResource(R.string.inline_next_episode_ab03b91)
+                    )
+                }
+                if (variantCount > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.manga_next_chapter_multi, variantCount),
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 11.sp,
                     )
                 }
             } else {

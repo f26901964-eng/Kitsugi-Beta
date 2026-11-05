@@ -56,6 +56,7 @@ import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.ui.components.KitsugiButton
 import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
+import com.kitsugi.animelist.ui.screens.manga.components.MangaChapterChoiceDialog
 import com.kitsugi.animelist.ui.screens.manga.components.MangaChapterPickerSheet
 import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaReaderBottomBar
@@ -306,6 +307,7 @@ fun MangaReaderScreen(
                     onPrevPage = { navigatePrevious() },
                     hasNextChapter = viewModel.hasNextChapter,
                     nextChapterName = viewModel.nextChapterName,
+                    nextChapterVariantCount = viewModel.nextChapterVariantCount,
                     showChapterTransition = readerPrefs.showChapterTransition,
                     onGoToNextChapter = { viewModel.goToNextChapter() },
                 )
@@ -371,6 +373,7 @@ fun MangaReaderScreen(
                 title = mangaDetails.title,
                 chapterName = currentChapter.name,
                 fullscreen = fullscreen,
+                scanlator = currentChapter.scanlator,
                 onBack = onBack,
                 onToggleFullscreen = { toggleFullscreen() },
                 onOpenChapterList = { showChapterPicker = true },
@@ -431,8 +434,9 @@ fun MangaReaderScreen(
     // ── Bölüm listesi ────────────────────────────────────────────────────────
     if (showChapterPicker) {
         MangaChapterPickerSheet(
-            chapters = uiState.chapterList,
+            groups = uiState.chapterGroups,
             currentChapterUrl = currentChapter.url,
+            preferredScanlator = uiState.preferredScanlator,
             isLoading = uiState.isLoadingChapters,
             onSelect = { selected ->
                 showChapterPicker = false
@@ -441,6 +445,21 @@ fun MangaReaderScreen(
                 }
             },
             onDismiss = { showChapterPicker = false },
+        )
+    }
+
+    // ── Çevirmen seçim penceresi (aynı bölümün birden çok çevirmeni) ─────────
+    uiState.pendingChoice?.let { request ->
+        MangaChapterChoiceDialog(
+            request = request,
+            onConfirm = { chapter, remember, autoContinue ->
+                viewModel.confirmChapterChoice(
+                    chapter = chapter,
+                    rememberScanlator = remember,
+                    autoContinue = autoContinue,
+                )
+            },
+            onDismiss = { viewModel.dismissChapterChoice() },
         )
     }
 }

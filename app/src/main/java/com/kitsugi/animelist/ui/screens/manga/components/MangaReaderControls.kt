@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.ScreenRotation
@@ -57,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaChapterGroup
 import com.kitsugi.animelist.data.manga.MangaFitMode
 import com.kitsugi.animelist.data.manga.MangaReaderPrefs
 import com.kitsugi.animelist.data.manga.ReadingMode
@@ -89,6 +93,8 @@ fun MangaReaderTopBar(
     title: String,
     chapterName: String,
     fullscreen: Boolean,
+    /** Açık bölümün çevirmeni — başlıkta küçük rozet olarak gösterilir. */
+    scanlator: String? = null,
     onBack: () -> Unit,
     onToggleFullscreen: () -> Unit,
     onOpenChapterList: () -> Unit,
@@ -123,13 +129,34 @@ fun MangaReaderTopBar(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    chapterName,
-                    color = Color.White.copy(alpha = 0.65f),
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        chapterName,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (!scanlator.isNullOrBlank()) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(AccentPurple.copy(alpha = 0.22f))
+                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = scanlator,
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
             }
             IconButton(onClick = onOpenChapterList) {
                 Icon(
@@ -559,12 +586,15 @@ private fun ReaderToggleRow(
 
 @Composable
 fun MangaChapterPickerSheet(
-    chapters: List<MangaChapter>,
+    groups: List<MangaChapterGroup>,
     currentChapterUrl: String,
+    preferredScanlator: String?,
     isLoading: Boolean,
     onSelect: (MangaChapter) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var expandedKeys by remember { mutableStateOf(emptySet<String>()) }
+
     KitsugiSheetOrDialog(onDismiss = onDismiss) {
         Column(
             modifier = Modifier
@@ -576,11 +606,21 @@ fun MangaChapterPickerSheet(
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp),
             )
+            if (groups.any { it.hasMultipleVariants }) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.manga_picker_grouped_hint),
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            } else {
+                Spacer(Modifier.height(12.dp))
+            }
 
             when {
-                isLoading && chapters.isEmpty() -> {
+                isLoading && groups.isEmpty() -> {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
                         horizontalArrangement = Arrangement.Center,
@@ -600,7 +640,7 @@ fun MangaChapterPickerSheet(
                     }
                 }
 
-                chapters.isEmpty() -> {
+                groups.isEmpty() -> {
                     Text(
                         stringResource(R.string.manga_reader_no_chapters),
                         color = Color.White.copy(alpha = 0.6f),
@@ -611,33 +651,119 @@ fun MangaChapterPickerSheet(
 
                 else -> {
                     LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
-                        items(chapters, key = { it.url }) { chapter ->
-                            val isCurrent = chapter.url == currentChapterUrl
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(
-                                        if (isCurrent) AccentPurple.copy(alpha = 0.18f) else Color.Transparent
+                        items(groups, key = { it.key }) { group ->
+                            val isCurrentGroup = group.containsUrl(currentChapterUrl)
+                            val multiple = group.hasMultipleVariants
+                            val isExpanded = multiple && group.key in expandedKeys
+
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (isCurrentGroup) AccentPurple.copy(alpha = 0.18f) else Color.Transparent
+                                        )
+                                        .clickable {
+                                            if (multiple) {
+                                                expandedKeys = if (isExpanded) {
+                                                    expandedKeys - group.key
+                                                } else {
+                                                    expandedKeys + group.key
+                                                }
+                                            } else {
+                                                onSelect(group.variants.first())
+                                            }
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = group.displayName,
+                                        color = if (isCurrentGroup) AccentPurple else Color.White.copy(alpha = 0.85f),
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isCurrentGroup) FontWeight.SemiBold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
                                     )
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = chapter.name,
-                                    color = if (isCurrent) AccentPurple else Color.White.copy(alpha = 0.85f),
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (isCurrent) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = AccentPurple,
-                                        modifier = Modifier.size(16.dp),
-                                    )
+                                    if (multiple) {
+                                        Text(
+                                            text = stringResource(R.string.manga_chapter_variants, group.variantCount),
+                                            color = if (isCurrentGroup) AccentPurple else Color.White.copy(alpha = 0.45f),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    } else if (isCurrentGroup) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = AccentPurple,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+
+                                if (isExpanded) {
+                                    group.variants.forEach { chapter ->
+                                        val isCurrent = chapter.url == currentChapterUrl
+                                        val isPreferred = !preferredScanlator.isNullOrBlank() &&
+                                            chapter.scanlator?.equals(preferredScanlator, ignoreCase = true) == true
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 12.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(
+                                                    if (isCurrent) AccentPurple.copy(alpha = 0.12f) else Color.Transparent
+                                                )
+                                                .clickable { onSelect(chapter) }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(5.dp)
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (isCurrent) AccentPurple else Color.White.copy(alpha = 0.28f)
+                                                    )
+                                            )
+                                            Spacer(Modifier.width(10.dp))
+                                            Text(
+                                                text = chapter.scanlator ?: stringResource(R.string.manga_choice_unknown_scanlator),
+                                                color = if (isCurrent) AccentPurple else Color.White.copy(alpha = 0.8f),
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            if (isPreferred) {
+                                                Text(
+                                                    text = stringResource(R.string.manga_choice_preferred),
+                                                    color = AccentPurple.copy(alpha = 0.9f),
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                            } else if (isCurrent) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = AccentPurple,
+                                                    modifier = Modifier.size(14.dp),
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
                                 }
                             }
                             Box(

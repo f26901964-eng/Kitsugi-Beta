@@ -17,13 +17,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.CallMerge
+import androidx.compose.material.icons.rounded.CallSplit
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
@@ -154,7 +160,7 @@ fun MangaDetailScreen(
                 )
             }
 
-            // ─── Bölümler Başlığı ──────────────────────────────────────────────
+            // ─── Bölümler Başlığı + Çevirmen Birleştirme ──────────────────────
             item {
                 Row(
                     modifier = Modifier
@@ -163,12 +169,40 @@ fun MangaDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
-                        color = KitsugiColors.TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.bolumler) +
+                                if (uiState.groups.isNotEmpty()) " (${uiState.visibleGroups.size})" else "",
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        // Aynı bölümün kaç farklı çevirmeni var? (birleşik görünümde özet)
+                        if (uiState.mergedScanlators && uiState.chapters.size > uiState.groups.size) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(
+                                    R.string.manga_chapter_summary,
+                                    uiState.groups.size,
+                                    uiState.chapters.size
+                                ),
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                    IconButton(onClick = { viewModel.toggleMergedScanlators() }) {
+                        Icon(
+                            imageVector = if (uiState.mergedScanlators) Icons.Rounded.CallMerge else Icons.Rounded.CallSplit,
+                            contentDescription = if (uiState.mergedScanlators) {
+                                stringResource(R.string.manga_merge_on)
+                            } else {
+                                stringResource(R.string.manga_merge_off)
+                            },
+                            tint = if (uiState.mergedScanlators) accent else KitsugiColors.TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     IconButton(onClick = { viewModel.loadChapters() }) {
                         Icon(
                             Icons.Rounded.Refresh,
@@ -177,6 +211,82 @@ fun MangaDetailScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                }
+            }
+
+            // ─── Hatırlanan çevirmen tercihi ───────────────────────────────────
+            if (uiState.preferredScanlator != null) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(accent.copy(alpha = 0.12f))
+                                .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.manga_scanlator_preference,
+                                        uiState.preferredScanlator ?: ""
+                                    ),
+                                    color = accent,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                IconButton(
+                                    onClick = { viewModel.clearPreferredScanlator() },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription = stringResource(R.string.manga_scanlator_clear),
+                                        tint = accent,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ─── Çevirmen filtresi ─────────────────────────────────────────────
+            if (uiState.scanlators.size > 1) {
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item(key = "scanlator_all") {
+                            ScanlatorChip(
+                                label = stringResource(R.string.manga_scanlator_all),
+                                selected = uiState.scanlatorFilter == null,
+                                accent = accent,
+                                onClick = { viewModel.setScanlatorFilter(null) }
+                            )
+                        }
+                        items(uiState.scanlators, key = { "scanlator:$it" }) { name ->
+                            ScanlatorChip(
+                                label = name,
+                                selected = uiState.scanlatorFilter.equals(name, ignoreCase = true),
+                                accent = accent,
+                                onClick = {
+                                    viewModel.setScanlatorFilter(
+                                        if (uiState.scanlatorFilter.equals(name, ignoreCase = true)) null else name
+                                    )
+                                }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                 }
             }
 
@@ -213,6 +323,31 @@ fun MangaDetailScreen(
                             Text("Tekrar Dene", fontWeight = FontWeight.Bold)
                         }
                     }
+                }
+
+                uiState.mergedScanlators && uiState.groups.isNotEmpty() && uiState.visibleGroups.isEmpty() -> item {
+                    Text(
+                        text = stringResource(R.string.manga_scanlator_filter_empty),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.fillMaxWidth().padding(32.dp)
+                    )
+                }
+
+                uiState.mergedScanlators && uiState.groups.isNotEmpty() -> items(
+                    items = uiState.visibleGroups,
+                    key = { "group:${it.group.key}" }
+                ) { groupRow ->
+                    ChapterGroupListItem(
+                        row = groupRow,
+                        accent = accent,
+                        expanded = groupRow.group.key in uiState.expandedGroupKeys,
+                        onToggle = { viewModel.toggleGroup(groupRow.group.key) },
+                        onOpenChapter = { chapter ->
+                            viewModel.rememberVariant(groupRow.group.key, chapter)
+                            onOpenChapter(chapter)
+                        }
+                    )
                 }
 
                 else -> items(
@@ -361,6 +496,199 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
             }
         }
     }
+}
+
+@Composable
+private fun ScanlatorChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) accent.copy(alpha = 0.22f) else KitsugiColors.SurfaceStrong)
+            .tvClickable(shape = RoundedCornerShape(50)) { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (selected) accent else KitsugiColors.TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun ChapterGroupListItem(
+    row: MangaDetailViewModel.ChapterGroupRow,
+    accent: Color,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onOpenChapter: (MangaChapter) -> Unit
+) {
+    val primary = row.primary
+    val multiple = row.group.hasMultipleVariants
+    val selectedUrl = primary.chapter.url
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tvClickable(shape = RoundedCornerShape(8.dp)) {
+                    if (multiple) onToggle() else onOpenChapter(primary.chapter)
+                }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = row.group.displayName,
+                    color = if (row.isCompleted) KitsugiColors.TextMuted else KitsugiColors.TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = if (row.isInProgress) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                val subtitle = buildString {
+                    append(primary.chapter.scanlator?.takeIf { it.isNotBlank() } ?: "—")
+                    if (primary.isInProgress && primary.totalPages > 0) {
+                        append(" • Sayfa ${primary.lastPageIndex + 1}/${primary.totalPages}")
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    color = if (primary.isInProgress) accent else KitsugiColors.TextMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (multiple) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(accent.copy(alpha = 0.14f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.manga_chapter_variants, row.group.variantCount),
+                        color = accent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    tint = KitsugiColors.TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else if (row.isCompleted) {
+                Icon(
+                    Icons.Rounded.CheckCircle,
+                    contentDescription = stringResource(R.string.okundu),
+                    tint = KitsugiColors.AccentGreen.copy(0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        // ─── Açılan çevirmen listesi ───────────────────────────────────────────
+        if (expanded && multiple) {
+            row.variants.forEach { variant ->
+                ChapterVariantRow(
+                    row = variant,
+                    accent = accent,
+                    isSelected = variant.chapter.url == selectedUrl,
+                    onClick = { onOpenChapter(variant.chapter) }
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+    }
+}
+
+@Composable
+private fun ChapterVariantRow(
+    row: MangaDetailViewModel.ChapterRow,
+    accent: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 26.dp, end = 16.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .tvClickable(shape = RoundedCornerShape(8.dp)) { onClick() }
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) accent else KitsugiColors.TextMuted.copy(alpha = 0.5f))
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = row.chapter.scanlator?.takeIf { it.isNotBlank() } ?: "—",
+                color = if (isSelected) accent else KitsugiColors.TextPrimary.copy(alpha = 0.9f),
+                fontSize = 12.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            val info = buildString {
+                if (row.isInProgress && row.totalPages > 0) {
+                    append("Sayfa ${row.lastPageIndex + 1}/${row.totalPages}")
+                } else if (row.isCompleted) {
+                    append("Okundu")
+                }
+                val date = formatChapterDate(row.chapter.uploadDate)
+                if (date != null) {
+                    if (isNotEmpty()) append(" • ")
+                    append(date)
+                }
+            }
+            if (info.isNotBlank()) {
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = info,
+                    color = if (row.isInProgress) accent.copy(alpha = 0.85f) else KitsugiColors.TextMuted,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (row.isCompleted) {
+            Icon(
+                Icons.Rounded.CheckCircle,
+                contentDescription = stringResource(R.string.okundu),
+                tint = KitsugiColors.AccentGreen.copy(0.8f),
+                modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+private fun formatChapterDate(raw: Long): String? {
+    if (raw <= 0L) return null
+    val millis = if (raw > 10_000_000_000L) raw else raw * 1000L
+    return runCatching {
+        java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault())
+            .format(java.util.Date(millis))
+    }.getOrNull()
 }
 
 @Composable

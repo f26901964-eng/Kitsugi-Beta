@@ -27,6 +27,11 @@ import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.data.manga.ChapterChoiceReason
+import com.kitsugi.animelist.data.manga.ChapterChoiceRequest
+import com.kitsugi.animelist.data.manga.ChapterVariantInfo
+import com.kitsugi.animelist.data.manga.MangaChapterGroup
+import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaSettingIds
 
 /**
@@ -50,6 +55,7 @@ class MangaReaderViewModel(
     private val cache = MangaCache(context)
     private val settingsDataStore = SettingsDataStore(context)
     private val sourceStateStore = MangaSourceStateStore(context)
+    private val scanlatorPrefs = com.kitsugi.animelist.data.manga.MangaScanlatorPreferences.get(context)
     val loader = MangaPageLoaderV2(context, source, cache)
     val pages: StateFlow<List<MangaPage>> = loader.pages
 
@@ -83,7 +89,13 @@ class MangaReaderViewModel(
         val isLoadingPages: Boolean = false,
         val pagesError: String? = null,
         /** Sayfa yükleme hatasının manga kaynak kodu (KTS-SRC-...). */
-        val pagesErrorCode: String? = null
+        val pagesErrorCode: String? = null,
+        /** Bölümlerin çevirmene göre gruplanmış hâli (aynı bölüm = tek satır). */
+        val chapterGroups: List<com.kitsugi.animelist.data.manga.MangaChapterGroup> = emptyList(),
+        /** Bu manga için hatırlanan çevirmen (bölüm geçişinde ön seçim). */
+        val preferredScanlator: String? = null,
+        /** Aynı bölümün birden çok çevirmeni varsa açılacak seçim penceresi. */
+        val pendingChoice: com.kitsugi.animelist.data.manga.ChapterChoiceRequest? = null
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -139,7 +151,15 @@ class MangaReaderViewModel(
                     operation = "chapters",
                     elapsedMs = System.currentTimeMillis() - startedAt,
                 )
-                _uiState.update { it.copy(chapterList = chapters, isLoadingChapters = false) }
+                val groups = com.kitsugi.animelist.data.manga.MangaChapterGrouping.group(chapters)
+                _uiState.update {
+                    it.copy(
+                        chapterList = chapters,
+                        chapterGroups = groups,
+                        isLoadingChapters = false,
+                        preferredScanlator = scanlatorPrefs.preferredScanlator(mangaDetails.url)
+                    )
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 sourceStateStore.recordOperationFailure(
@@ -229,45 +249,164 @@ class MangaReaderViewModel(
 
     // F6: Bölüm değişiminde eski queue'yu temizle — yanlış sayfa yükleme önler
     fun goToChapter(chapter: MangaChapter) {
+        // Kullanıcı bir çevirmen seçtiyse sonraki bölümlerde de o çevirmen önerilir.
+        chapter.scanlator?.takeIf { it.isNotBlank() }?.let { scanlator ->
+            scanlatorPrefs.setPreferredScanlator(mangaDetails.url, scanlator)
+        }
         loader.resetQueue()
-        _uiState.update { it.copy(currentChapter = chapter, currentPageIndex = 0) }
+        _uiState.update {
+            it.copy(
+                currentChapter = chapter,
+                currentPageIndex = 0,
+                pendingChoice = null,
+                preferredScanlator = scanlatorPrefs.preferredScanlator(mangaDetails.url)
+            )
+        }
         restoreProgress(chapter)
     }
 
+    /** Açık bölümün bulunduğu grubun indeksi (yoksa −1). */
+    private fun currentGroupIndex(): Int {
+        val state = _uiState.value
+        val groups = state.chapterGroups
+        if (groups.isEmpty()) return -1
+        val direct = groups.indexOfFirst { it.containsUrl(state.currentChapter.url) }
+        if (direct >= 0) return direct
+        // Navigasyondan gelen bölüm listede birebir yoksa (URL farklı olabilir)
+        // bölüm numarasına göre eşleştir.
+        val key = MangaChapterGrouping.groupKey(state.currentChapter)
+        return groups.indexOfFirst { it.key == key }
+    }
+
     fun goToNextChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx > 0) goToChapter(list[idx - 1])   // Listede yeniden eskiye doğru
+        val groups = _uiState.value.chapterGroups
+        val idx = currentGroupIndex()
+        if (idx > 0) requestGroup(groups[idx - 1], ChapterChoiceReason.Next, isForward = true)
     }
 
     fun goToPreviousChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx >= 0 && idx < list.size - 1) goToChapter(list[idx + 1])
+        val groups = _uiState.value.chapterGroups
+        val idx = currentGroupIndex()
+        if (idx >= 0 && idx < groups.size - 1) {
+            requestGroup(groups[idx + 1], ChapterChoiceReason.Previous, isForward = false)
+        }
+    }
+
+    /**
+     * Hedef gruba geçiş.
+     *
+     * Aynı bölümün birden çok çevirmeni varsa ve kullanıcı "bir daha sorma"
+     * seçeneğini açmadıysa [UiState.pendingChoice] yayınlanır → UI ayrıntılı
+     * seçim penceresini gösterir.
+     */
+    private fun requestGroup(
+        group: MangaChapterGroup,
+        reason: ChapterChoiceReason,
+        isForward: Boolean,
+    ) {
+        if (group.variants.isEmpty()) return
+        if (group.variantCount == 1) {
+            goToChapter(group.variants.first())
+            return
+        }
+
+        val preferred = scanlatorPrefs.preferredScanlator(mangaDetails.url)
+        val remembered = scanlatorPrefs.groupChoice(mangaDetails.url, group.key)
+        val autoContinue = scanlatorPrefs.autoContinue(mangaDetails.url)
+
+        if (autoContinue && preferred != null) {
+            val chosen = MangaChapterGrouping.variantForScanlator(group, preferred)
+            if (chosen != null) {
+                goToChapter(chosen)
+                return
+            }
+        }
+
+        // Hedef bölümün tüm çevirmenleri için okuma ilerlemesini topla: pencere
+        // "hangisinde kaldım?" sorusunu da yanıtlayabilsin.
+        val fromChapterUrl = _uiState.value.currentChapter.url
+        viewModelScope.launch {
+            val progressByUrl = runCatching {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    dao.getAllForManga(mangaDetails.url)
+                }
+            }.getOrDefault(emptyList()).associateBy { it.chapterUrl }
+
+            val variants = group.variants.map { chapter ->
+                val progress = progressByUrl[chapter.url]
+                ChapterVariantInfo(
+                    chapter = chapter,
+                    scanlator = chapter.scanlator,
+                    lastPageIndex = progress?.lastPageIndex ?: 0,
+                    totalPages = progress?.totalPages ?: 0,
+                    isCompleted = progress?.isCompleted == true,
+                    updatedAt = progress?.updatedAt ?: 0L,
+                )
+            }
+
+            // Kullanıcı bu arada başka bir bölüme geçtiyse eski isteği gösterme.
+            if (_uiState.value.currentChapter.url != fromChapterUrl) return@launch
+
+            _uiState.update {
+                it.copy(
+                    pendingChoice = ChapterChoiceRequest(
+                        mangaUrl = mangaDetails.url,
+                        groupKey = group.key,
+                        chapterName = group.displayName,
+                        variants = variants,
+                        preferredScanlator = preferred ?: remembered,
+                        reason = reason,
+                        isForward = isForward,
+                    )
+                )
+            }
+        }
+    }
+
+    /** Seçim penceresinde "Devam et" — seçilen çevirmenle bölüme geçer. */
+    fun confirmChapterChoice(
+        chapter: MangaChapter,
+        rememberScanlator: Boolean,
+        autoContinue: Boolean,
+    ) {
+        val request = _uiState.value.pendingChoice
+        _uiState.update { it.copy(pendingChoice = null) }
+        if (rememberScanlator) {
+            scanlatorPrefs.setPreferredScanlator(mangaDetails.url, chapter.scanlator)
+            request?.let { scanlatorPrefs.setGroupChoice(mangaDetails.url, it.groupKey, chapter.scanlator) }
+        }
+        scanlatorPrefs.setAutoContinue(mangaDetails.url, autoContinue)
+        goToChapter(chapter)
+    }
+
+    /** Seçim penceresini kapatır (bölüm değişmez). */
+    fun dismissChapterChoice() {
+        _uiState.update { it.copy(pendingChoice = null) }
     }
 
     val hasNextChapter: Boolean
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx > 0
-        }
+        get() = currentGroupIndex() > 0
 
     /** Sonraki bölümün adı (bölüm sonu geçiş kartında göstermek için); yoksa null. */
     val nextChapterName: String?
         get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return if (idx > 0) list[idx - 1].name else null
+            val groups = _uiState.value.chapterGroups
+            val idx = currentGroupIndex()
+            return if (idx > 0) groups[idx - 1].displayName else null
+        }
+
+    /** Sonraki bölümün çevirmen sayısı (>1 ise "N çevirmen" rozeti gösterilir). */
+    val nextChapterVariantCount: Int
+        get() {
+            val groups = _uiState.value.chapterGroups
+            val idx = currentGroupIndex()
+            return if (idx > 0) groups[idx - 1].variantCount else 0
         }
 
     val hasPreviousChapter: Boolean
         get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx >= 0 && idx < list.size - 1
+            val idx = currentGroupIndex()
+            return idx >= 0 && idx < _uiState.value.chapterGroups.size - 1
         }
 
     private var pageListJob: kotlinx.coroutines.Job? = null
