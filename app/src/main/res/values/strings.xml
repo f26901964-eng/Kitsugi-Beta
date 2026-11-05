@@ -17862,4 +17862,26 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_download_failed">İndirme başarısız</string>
     <string name="manga_storage_used">%1$s MB kullanılıyor</string>
 
+
+    <!-- ── Manga kitaplığı ───────────────────────────────────────────────── -->
+    <string name="manga_library_title">Manga Kitaplığım</string>
+    <string name="manga_library_summary">%1$d seri · %2$d bölüm indirildi</string>
+    <string name="manga_library_all">Tümü</string>
+    <string name="manga_library_sort">Kitaplığı sırala</string>
+    <string name="manga_library_sort_recent">Son güncellenen</string>
+    <string name="manga_library_sort_title_asc">A → Z</string>
+    <string name="manga_library_sort_title_desc">Z → A</string>
+    <string name="manga_library_sort_unread">En çok okunmamış</string>
+    <string name="manga_library_sort_last_read">Son okunan</string>
+    <string name="manga_library_empty_title">Kitaplığın boş</string>
+    <string name="manga_library_empty_body">Manga detay sayfasındaki kitaplık düğmesiyle seri ekleyebilirsin.</string>
+    <string name="manga_library_add">Kitaplığa ekle</string>
+    <string name="manga_library_added">Kitaplıkta</string>
+    <string name="manga_library_remove">Kitaplıktan çıkar</string>
+    <string name="manga_library_edit">Kategori ve seçenekler</string>
+    <string name="manga_library_category_hint">Kategori, kitaplık ekranındaki çiplerde görünür</string>
+    <string name="manga_library_category_placeholder">ör. Devam Eden</string>
+    <string name="manga_library_source_missing">Kaynak kaldırılmış</string>
+    <string name="manga_library_open">Kitaplığı aç</string>
+
 </resources>

@@ -48,6 +48,17 @@ class AppNavigationState(
         mangaBrowseMediaId = null
     }
 
+    var mangaLibraryOpen by mutableStateOf(false)
+        private set
+
+    fun openMangaLibrary() {
+        mangaLibraryOpen = true
+    }
+
+    fun closeMangaLibrary() {
+        mangaLibraryOpen = false
+    }
+
     var mangaSourceHealthOpen by mutableStateOf(false)
         private set
 
@@ -95,7 +106,8 @@ class AppNavigationState(
                          (if (mangaBrowseOpen) 1 else 0) +
                          (if (mangaDetailNavState != null) 1 else 0) +
                          (if (mangaReaderNavState != null) 1 else 0) +
-                         (if (mangaSourceHealthOpen) 1 else 0)
+                         (if (mangaSourceHealthOpen) 1 else 0) +
+                         (if (mangaLibraryOpen) 1 else 0)
 
         poppedWithIndices.forEach { (idx, screen) ->
             val depth = baseOffset + (idx + 1)

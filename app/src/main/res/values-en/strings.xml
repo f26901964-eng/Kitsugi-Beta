@@ -17857,4 +17857,26 @@
     <string name="manga_download_failed">Download failed</string>
     <string name="manga_storage_used">%1$s MB used</string>
 
+
+    <!-- ── Manga library ─────────────────────────────────────────────────── -->
+    <string name="manga_library_title">My Manga Library</string>
+    <string name="manga_library_summary">%1$d series · %2$d chapters downloaded</string>
+    <string name="manga_library_all">All</string>
+    <string name="manga_library_sort">Sort library</string>
+    <string name="manga_library_sort_recent">Recently updated</string>
+    <string name="manga_library_sort_title_asc">A → Z</string>
+    <string name="manga_library_sort_title_desc">Z → A</string>
+    <string name="manga_library_sort_unread">Most unread</string>
+    <string name="manga_library_sort_last_read">Last read</string>
+    <string name="manga_library_empty_title">Your library is empty</string>
+    <string name="manga_library_empty_body">Add a series with the library button on a manga detail page.</string>
+    <string name="manga_library_add">Add to library</string>
+    <string name="manga_library_added">In library</string>
+    <string name="manga_library_remove">Remove from library</string>
+    <string name="manga_library_edit">Category and options</string>
+    <string name="manga_library_category_hint">The category shows up as a chip in the library screen</string>
+    <string name="manga_library_category_placeholder">e.g. Ongoing</string>
+    <string name="manga_library_source_missing">Source removed</string>
+    <string name="manga_library_open">Open library</string>
+
 </resources>

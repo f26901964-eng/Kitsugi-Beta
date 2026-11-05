@@ -168,6 +168,23 @@ fun MangaDetailScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
+    // ── Kitaplık durumu ──────────────────────────────────────────────────────
+    // Detay ekranı kitaplığa ekleme/çıkarma için ayrı bir ViewModel kullanır: kitaplık
+    // tablosu seri bazlı olduğundan burada yalnızca "bu seri takipte mi" bilgisi gerekir.
+    val libraryViewModel: com.kitsugi.animelist.ui.screens.manga.MangaLibraryViewModel = viewModel(
+        key = "manga_library_detail",
+        factory = com.kitsugi.animelist.ui.screens.manga.MangaLibraryViewModel.Factory(
+            context
+        ) { listOf(source) }
+    )
+    val libraryState by libraryViewModel.uiState.collectAsState()
+    val libraryRow = remember(libraryState.rows, details.url, source.name) {
+        libraryState.rows.firstOrNull {
+            it.entity.url == details.url && it.entity.sourceName == source.name
+        }
+    }
+    LaunchedEffect(details.url, source.name) { libraryViewModel.reload() }
+
     // Okuyucudan dönüş: ağ isteği yok, yalnızca okundu/ilerleme durumları tazelenir.
     LaunchedEffect(refreshTick) {
         if (refreshTick > 0) viewModel.refreshProgress()
@@ -246,6 +263,20 @@ fun MangaDetailScreen(
             .sortedForMode(sortMode)
     }
 
+    // Kitaplık kartındaki ilerleme: bölüm listesi yüklendiğinde bir kez yazılır.
+    LaunchedEffect(uiState.chapters.size, uiState.resumeChapter?.url, libraryRow?.entity?.id) {
+        if (uiState.chapters.isNotEmpty() && libraryRow != null) {
+            libraryViewModel.updateProgress(
+                sourceName = source.name,
+                mangaUrl = details.url,
+                total = uiState.chapters.size,
+                read = uiState.chapters.count { it.isCompleted },
+                lastChapterName = uiState.resumeChapter?.name,
+                lastChapterUrl = uiState.resumeChapter?.url
+            )
+        }
+    }
+
     val readFilterActive = activeStatusFilter == ChapterStatusFilter.Read
     val unreadCount = remember(uiState.chapters) { uiState.chapters.count { !it.isCompleted } }
     val readCount = uiState.chapters.size - unreadCount
@@ -289,6 +320,64 @@ fun MangaDetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 )
+            }
+
+            // ─── Kitaplık düğmesi ─────────────────────────────────────────────
+            // Mihon'da "kütüphaneye ekle" serinin kimliğidir; burada Oku butonunun
+            // hemen altında tek satır: takip et / takipten çıkar.
+            item(key = "library_action") {
+                val inLibrary = libraryRow != null
+                val shape = RoundedCornerShape(999.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clip(shape)
+                        .background(
+                            if (inLibrary) accent.copy(alpha = 0.16f)
+                            else KitsugiColors.SurfaceSoft
+                        )
+                        .tvClickable(shape = shape) {
+                            if (inLibrary) {
+                                libraryRow?.let(libraryViewModel::removeFromLibrary)
+                            } else {
+                                libraryViewModel.addToLibrary(source, details)
+                            }
+                        }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (inLibrary) Icons.Rounded.Bookmark
+                        else Icons.Rounded.BookmarkBorder,
+                        contentDescription = null,
+                        tint = if (inLibrary) accent else KitsugiColors.TextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (inLibrary) {
+                            stringResource(R.string.manga_library_added)
+                        } else {
+                            stringResource(R.string.manga_library_add)
+                        },
+                        color = if (inLibrary) accent else KitsugiColors.TextSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (inLibrary && uiState.chapters.isNotEmpty()) {
+                        Text(
+                            text = stringResource(
+                                R.string.manga_progress_summary,
+                                uiState.chapters.count { it.isCompleted },
+                                uiState.chapters.size
+                            ),
+                            color = KitsugiColors.TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
             }
 
             // ─── Açıklama ──────────────────────────────────────────────────────

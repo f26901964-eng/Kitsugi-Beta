@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.rounded.CollectionsBookmark
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +40,8 @@ fun MangaScreen(
     onSeeAllSection: (title: String, results: List<JikanSearchResult>) -> Unit,
     onOpenApiDetail: (JikanSearchResult) -> Unit,
     onOpenMangaReader: () -> Unit = {},
+    /** Manga kitaplığını açar (takip edilen seriler). */
+    onOpenMangaLibrary: () -> Unit = {},
     viewModel: MangaViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -77,6 +80,24 @@ fun MangaScreen(
                 modifier = Modifier.padding(end = 8.dp)
             )
             Text(KitsugiStrings.get(R.string.inline_read_manga_extension_sources_cf7a30a))
+        }
+
+        // ── Manga Kitaplığı ────────────────────────────────────────────────
+        // Kaynak aramasının hemen altında: kullanıcı "neyi takip ediyorum" sorusunun
+        // cevabını aramaya girmeden bulur (Mihon'da kitaplık ana sekmedir).
+        KitsugiButton(
+            onClick = onOpenMangaLibrary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.CollectionsBookmark,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            Text(KitsugiStrings.get(R.string.manga_library_open))
         }
 
         Spacer(modifier = Modifier.height(8.dp))

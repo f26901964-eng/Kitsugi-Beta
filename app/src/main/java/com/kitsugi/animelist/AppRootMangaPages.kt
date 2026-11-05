@@ -80,6 +80,20 @@ fun AppRootMangaPages(
             )
         }
 
+        is AppStateKey.MangaLibraryState -> {
+            // Manga kitaplığı: takip edilen seriler, kategoriler, indirme/ilerleme özeti.
+            com.kitsugi.animelist.ui.screens.manga.MangaLibraryScreen(
+                availableSources = mangaViewModel.mangaSources,
+                onOpenManga = { source, mangaDetails ->
+                    navState.mangaDetailNavState = MangaDetailNavState(
+                        source       = source,
+                        mangaDetails = mangaDetails
+                    )
+                },
+                onBack = { navState.closeMangaLibrary() }
+            )
+        }
+
         is AppStateKey.MangaBrowse -> {
             MangaBrowseScreen(
                 repository    = mangaViewModel.mangaRepository,

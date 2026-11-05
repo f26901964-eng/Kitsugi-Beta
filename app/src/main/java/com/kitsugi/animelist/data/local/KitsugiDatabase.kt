@@ -25,9 +25,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VideoEntity::class,                  // 📹 Video cache/çözümleme
         ExploreCacheEntity::class,           // 📂 Explore page cache
         PersistentDetailCacheEntity::class,  // 📂 Media details cache
-        CustomButton::class
+        CustomButton::class,
+        MangaLibraryEntity::class              // 📚 Manga kitaplığı (takip edilen seriler)
     ],
-    version = 30,
+    version = 31,
     exportSchema = true  // T3-03/TASK-106: KSP → $projectDir/schemas/ konumuna yazar
 )
 abstract class KitsugiDatabase : RoomDatabase() {
@@ -48,6 +49,7 @@ abstract class KitsugiDatabase : RoomDatabase() {
     abstract fun exploreCacheDao(): ExploreCacheDao
     abstract fun persistentDetailCacheDao(): PersistentDetailCacheDao
     abstract fun customButtonDao(): CustomButtonDao
+    abstract fun mangaLibraryDao(): MangaLibraryDao                  // 📚 Manga kitaplığı
 
 
     companion object {
@@ -431,6 +433,38 @@ abstract class KitsugiDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 30 → 31: manga kitaplığı tablosu.
+         *
+         * Kullanıcı bir seriyi kitaplığa eklediğinde kaynak adı + URL + kategori tutulur.
+         * Mevcut kurulumlarda tablo yoksa oluşturulur; veri kaybı yok.
+         */
+        private val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `manga_library` (
+                        `id` TEXT NOT NULL,
+                        `sourceName` TEXT NOT NULL,
+                        `url` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `thumbnailUrl` TEXT,
+                        `author` TEXT,
+                        `category` TEXT NOT NULL DEFAULT '',
+                        `totalChapters` INTEGER NOT NULL DEFAULT 0,
+                        `readChapters` INTEGER NOT NULL DEFAULT 0,
+                        `lastChapterName` TEXT,
+                        `lastChapterUrl` TEXT,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_manga_library_updatedAt` ON `manga_library` (`updatedAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `idx_manga_library_category` ON `manga_library` (`category`)")
+            }
+        }
+
         fun getDatabase(context: Context): KitsugiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
@@ -466,7 +500,8 @@ abstract class KitsugiDatabase : RoomDatabase() {
                         MIGRATION_26_27,
                         MIGRATION_27_28,
                         MIGRATION_28_29,
-                        MIGRATION_29_30   // 📖 Okunan bölüm geçmişi
+                        MIGRATION_29_30,  // 📖 Okunan bölüm geçmişi
+                        MIGRATION_30_31   // 📚 Manga kitaplığı
                     )
                 
                 // T3-03: Güvenlik sertleştirmesi — Üretim sürümünde verilerin kazara sıfırlanmasını engeller.

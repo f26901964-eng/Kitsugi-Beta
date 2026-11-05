@@ -786,6 +786,7 @@ fun AppRoot(
         when {
             navState.mangaReaderNavState != null          -> navState.mangaReaderNavState = null
             navState.mangaDetailNavState != null          -> navState.mangaDetailNavState = null
+            navState.mangaLibraryOpen                     -> navState.closeMangaLibrary()
             navState.mangaSourceHealthOpen                -> navState.closeMangaSourceHealth()
             navState.mangaBrowseOpen                      -> {
                 mangaBrowseViewModel.reset()
@@ -816,6 +817,7 @@ fun AppRoot(
             navState.mangaDetailNavState != null ||
             navState.mangaReaderNavState != null ||
             navState.mangaSourceHealthOpen ||
+            navState.mangaLibraryOpen ||
             navState.isSettingsSubPageOpen
 
     val configuration = LocalConfiguration.current
@@ -913,10 +915,12 @@ fun AppRoot(
                                    (if (navState.mangaDetailNavState != null) 1 else 0) +
                                    (if (navState.mangaReaderNavState != null) 1 else 0) +
                                    (if (navState.mangaSourceHealthOpen) 1 else 0) +
+                                   (if (navState.mangaLibraryOpen) 1 else 0) +
                                    navState.detailBackStack.size
                 val currentAppStateKey = when {
                     navState.mangaReaderNavState != null  -> AppStateKey.MangaReader(depth = currentDepth)
                     navState.mangaDetailNavState != null  -> AppStateKey.MangaDetail(depth = currentDepth)
+                    navState.mangaLibraryOpen             -> AppStateKey.MangaLibraryState(depth = currentDepth)
                     navState.mangaSourceHealthOpen        -> AppStateKey.MangaSourceHealth(depth = currentDepth)
                     navState.mangaBrowseOpen              -> AppStateKey.MangaBrowse(depth = currentDepth)
                     activeStudio != null         -> AppStateKey.StudioDetail(activeStudio.first, activeStudio.second, depth = currentDepth, name = (activeScreen as? DetailScreen.StudioDetail)?.name, imageUrl = (activeScreen as? DetailScreen.StudioDetail)?.imageUrl)
@@ -990,6 +994,7 @@ fun AppRoot(
                     onOpenApiDetail = ::openApiDetail,
                     onSeeAllSection = ::openFullScreenSection,
                     onOpenMangaReader = { navState.openMangaBrowse() },
+                    onOpenMangaLibrary = { navState.openMangaLibrary() },
                     exportMangaSourceReportFile = ::exportMangaSourceReportFile,
                     triggerSearch = triggerSearch,
                     triggerSearchByGenre = triggerSearchByGenre,
@@ -1459,6 +1464,7 @@ private fun AppNavigationContent(
             is AppStateKey.MangaReader,
             is AppStateKey.MangaDetail,
             is AppStateKey.MangaSourceHealth,
+            is AppStateKey.MangaLibraryState,
             is AppStateKey.MangaBrowse -> {
                 AppRootMangaPages(
                     key = key,
