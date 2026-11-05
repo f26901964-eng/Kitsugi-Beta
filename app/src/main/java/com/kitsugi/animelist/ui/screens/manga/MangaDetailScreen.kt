@@ -532,18 +532,6 @@ fun MangaDetailScreen(
                 }
             }
 
-            // ─── Okuma ilerlemesi + eksik bölüm uyarısı ───────────────────────
-            if (uiState.chapters.isNotEmpty()) {
-                item(key = "chapters_progress") {
-                    MangaChapterProgressSummary(
-                        readCount = readCount,
-                        totalCount = uiState.chapters.size,
-                        missingNumbers = missingNumbers,
-                        accentColor = accent
-                    )
-                }
-            }
-
             // ─── Bölüm Araçları (arama + durum + kaynak çipleri) ───────────────
             item(key = "chapter_tools") {
                 Column(
@@ -552,6 +540,14 @@ fun MangaDetailScreen(
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Okuma ilerlemesi + eksik bölüm uyarısı, araç çubuğunun içinde:
+                    // ayrı bir liste öğesi eklemek sticky başlık eşiklerini kaydırıyordu.
+                    MangaChapterProgressSummary(
+                        readCount = readCount,
+                        totalCount = uiState.chapters.size,
+                        missingNumbers = missingNumbers,
+                        accentColor = accent
+                    )
                     MangaChapterSearchRow(
                         query = query,
                         onQueryChange = { query = it },
