@@ -488,6 +488,7 @@ class MangaReaderViewModel(
         if (idx >= 0 && idx < ordered.size - 1) goToChapter(ordered[idx + 1])
     }
 
+    /** Önceki bölüme geçer (okuma sırasına göre). İlk bölümde hiçbir şey yapmaz. */
     fun goToPreviousChapter() {
         val ordered = chaptersInReadingOrder()
         val idx = currentReadingIndex(ordered)

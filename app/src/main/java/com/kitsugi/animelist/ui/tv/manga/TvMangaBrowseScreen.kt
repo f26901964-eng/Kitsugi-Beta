@@ -94,11 +94,13 @@ fun TvMangaBrowseScreen(
     initialQuery: String? = null,
     /** Dil sırasına göre yedek adlar. */
     initialQueryVariants: List<String> = emptyList(),
+    /** Seçili arama dili (ENGLISH / ROMAJI / NATIVE / LOCAL) — bilgi amaçlı. */
+    initialSearchLanguage: String? = null,
     onMangaClick: (MangaSource, MangaDetails) -> Unit = { _, _ -> },
     onBack: () -> Unit = {}
 ) {
     // "Oku" ile gelindiyse aramayı kendiliğinden başlat (mobil akışla aynı davranış).
-    LaunchedEffect(initialQuery, initialQueryVariants) {
+    LaunchedEffect(initialQuery, initialQueryVariants, initialSearchLanguage) {
         if (!initialQuery.isNullOrBlank() && vm.lastInitialQuery != initialQuery) {
             vm.lastInitialQuery = initialQuery
             vm.search(initialQuery, initialQueryVariants)
