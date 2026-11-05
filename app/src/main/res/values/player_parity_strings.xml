@@ -95,6 +95,6 @@ Yanlış eşleşme gibi bir sorun görürsen özelliği aynı yerden kapatabilir
     <string name="auto_track_sync_sources_desc">Durum/ilerleme yalnızca bu cihazda kalmaz; bağlı olduğun tüm platformlara (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl) yazılır.</string>
     <string name="auto_track_respect_dropped_desc">\"Bırakıldı\" olarak işaretlediğin yapımlar yeniden oynatılsa bile listede değiştirilmez.</string>
     <string name="quick_rate_enabled_desc">Bölüm/film bittiğinde oynatıcının altında küçük bir puanlama çubuğu çıkar (tam ekran pencere açılmaz).</string>
-    <string name="experimental_autotrack_off_hint">Kapalıyken oynatıcı hiçbir liste veya geçmiş kaydı yazmaz; yalnızca \"devam et\" konumu hatırlanır.</string>
+    <string name="experimental_autotrack_off_hint">Kapalıyken otomatik liste durumu/ilerlemesi yazılmaz ve hızlı puanlama çıkmaz. Oynatımın normal devam etme konumu yine kaydedilir.</string>
     <string name="settings_experimental_entry_desc">Beta aşamasındaki özellikler. Varsayılan olarak kapalıdır; onay verdikten sonra açılır.</string>
 </resources>

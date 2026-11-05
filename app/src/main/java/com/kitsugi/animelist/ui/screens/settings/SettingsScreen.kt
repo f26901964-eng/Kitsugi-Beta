@@ -53,6 +53,7 @@ import com.kitsugi.animelist.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.BuildConfig
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.ui.components.BackupImportMode
 import com.kitsugi.animelist.ui.components.KitsugiAccountConnectionsDialog
 import com.kitsugi.animelist.ui.screens.account.KitsugiAccountContent
@@ -519,7 +520,7 @@ fun SettingsScreen(
                     // dinler, böylece ana ayar ağacından bağımsız kalır.
                     val experimentalStore = remember { SettingsDataStore(context) }
                     val experimentalSettings by experimentalStore.settingsFlow
-                        .collectAsState(initial = null)
+                        .collectAsState<com.kitsugi.animelist.data.settings.AppSettings?>(initial = null)
                     ExperimentalSettingsContent(
                         settings = experimentalSettings,
                         store = experimentalStore

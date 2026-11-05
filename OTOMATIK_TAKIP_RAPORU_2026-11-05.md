@@ -77,9 +77,9 @@ penceresiyle; açılıp kapatılabilir; varsayılan olarak kapalı — elle açm
 | Deneysel olarak konumlandırma | Yeni **Ayarlar → Deneysel Özellikler** sayfası (`ExperimentalFeatures` route) + ana menüde "Deneysel" bölümü, ayarlar aramasında iki kayıt |
 | Uyarı/onay penceresi | `KitsugiConfirmDialog` — listelerin değişeceğini, ilerlemenin geri alınamayacağını, tüm platformlara yayılacağını söyleyen metin; yalnızca **açarken** çıkar |
 | Açılıp kapatılabilir | Tek anahtar; kapatma anında ve oynatma sırasında bile etkili (`onTick` her tikte ayarı yeniden okur, `bind`/`onLeaving`/`rate` kapılı) |
-| Varsayılan KAPALI | `AppSettings.autoTrackEnabled = false`, `KitsugiContentPrefs.autoTrackEnabled = false`, DataStore parse `?: false`, `AutoTrackPolicy.Settings.enabled = false` |
-| Bağlantılı özellikler de kapalı | Alt anahtarlar (yeni ekleme, kaynaklara yazma, "Bırakıldı"ya saygı, hızlı puanlama) yalnızca ana anahtar açıkken görünür/pasif; kapatınca eski seçimler korunur |
-| Kapalıyken sıfır yazım | `PlayerAutoTrackController.bind` hiç çözümleme yapmaz; `onTick`/`onLeaving`/`rate` kapıda döner; `AutoTrackPolicy.evaluate` `NONE` döner (3 katman savunma) |
+| Varsayılan KAPALI (eski kurulumlar dahil) | `AppSettings.autoTrackEnabled = false`, `KitsugiContentPrefs.autoTrackEnabled = false`, `AutoTrackPolicy.Settings.enabled = false`; DataStore artık `pref_auto_track_experimental_consent` onayı da arar. Eski sürümün varsayılan `true` kaydı **tek başına izin sayılmaz**; sadece yeni onay diyaloğundan sonra anahtar `true` olur. |
+| Bağlantılı özellikler de kapalı | Alt anahtarlar (yeni ekleme, kaynaklara yazma, "Bırakıldı"ya saygı, hızlı puanlama, puan çubuğu süresi ve minimum takip süresi) yalnızca ana anahtar açıkken görünür; puan çubuğu süresi de kendi alt anahtarı açıkken görünür. Kapatınca eski seçimler korunur. |
+| Kapalıyken sıfır yazım | `PlayerAutoTrackController.bind` hiç çözümleme yapmaz; `onTick`/`onLeaving`/`rate` kapıda döner; kuyruğa alınmış IO yazımı yazma kilidi içinde yeniden kontrol edilir; `AutoTrackPolicy.evaluate` `NONE` döner. Özellik oynarken açılırsa önce mevcut kayıt salt-okunur çözülür, sonra karar verilir (yanlış yinelenen satırı önler). |
 | Oynatıcı ayarlarındaki eski blok | Kaldırıldı (tek yerde yönetim; iki yerden açma riski yok) |
 
 Test: `AutoTrackPolicyTest."auto tracking is OFF by default until the user opts in"` +

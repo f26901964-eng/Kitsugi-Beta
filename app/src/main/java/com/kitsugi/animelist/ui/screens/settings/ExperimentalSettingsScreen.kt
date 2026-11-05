@@ -18,11 +18,13 @@ import androidx.compose.material.icons.rounded.PlaylistAddCheck
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -168,6 +170,47 @@ fun ExperimentalSettingsContent(
                     iconColor = accent,
                     checked = row.quickRateEnabled,
                     onCheckedChange = { scope.launch { store.setQuickRateEnabled(it) } }
+                )
+                if (row.quickRateEnabled) {
+                    var rateSeconds by remember(row.quickRateSeconds) {
+                        mutableFloatStateOf(row.quickRateSeconds.toFloat())
+                    }
+                    Text(
+                        text = stringResource(R.string.quick_rate_seconds, rateSeconds.toInt()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = KitsugiColors.TextPrimary,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
+                    )
+                    Slider(
+                        value = rateSeconds,
+                        onValueChange = { rateSeconds = it },
+                        valueRange = 5f..60f,
+                        steps = 54,
+                        onValueChangeFinished = {
+                            scope.launch { store.setQuickRateSeconds(rateSeconds.toInt()) }
+                        },
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                var minimumSeconds by remember(row.autoTrackMinSeconds) {
+                    mutableFloatStateOf(row.autoTrackMinSeconds.toFloat())
+                }
+                Text(
+                    text = stringResource(R.string.auto_track_min_seconds, minimumSeconds.toInt()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = KitsugiColors.TextPrimary,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)
+                )
+                Slider(
+                    value = minimumSeconds,
+                    onValueChange = { minimumSeconds = it },
+                    valueRange = 15f..600f,
+                    steps = 0,
+                    onValueChangeFinished = {
+                        scope.launch { store.setAutoTrackMinSeconds(minimumSeconds.toInt()) }
+                    },
+                    modifier = Modifier.padding(horizontal = 20.dp)
                 )
             }
         }

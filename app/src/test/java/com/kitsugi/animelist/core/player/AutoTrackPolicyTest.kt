@@ -50,6 +50,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `starting an episode marks the planned entry as watching without moving progress`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 90_000),
             current = TrackedState(status = Status.PLANNED, progress = 0, total = 12)
         )
@@ -62,6 +63,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `episode that reaches the threshold advances progress to the episode number`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 21 * 60 * 1000L, episode = 4),
             current = TrackedState(status = Status.WATCHING, progress = 3, total = 12)
         )
@@ -73,7 +75,8 @@ class AutoTrackPolicyTest {
 
     @Test
     fun `first watched episode of an untracked entry advances to episode one`() {
-        val decision = AutoTrackPolicy.evaluate(snapshot = snapshot(position = 22 * 60 * 1000L, episode = 1), current = null)
+        val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),snapshot = snapshot(position = 22 * 60 * 1000L, episode = 1), current = null)
         assertEquals(Action.ADVANCE_EPISODE, decision.action)
         assertEquals(1, decision.progress)
     }
@@ -81,6 +84,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `last episode completes the entry and fills progress with total`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 12, total = 12, hasNext = false),
             current = TrackedState(status = Status.WATCHING, progress = 11, total = 12)
         )
@@ -92,6 +96,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `movie completes on first end regardless of episode numbering`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(
                 position = 100 * 60 * 1000L,
                 duration = 110 * 60 * 1000L,
@@ -110,6 +115,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `engine ENDED always completes even without position progress`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 0, endReached = true, episode = 3),
             current = TrackedState(status = Status.WATCHING, progress = 2, total = 12)
         )
@@ -120,6 +126,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `watching beyond an already completed entry never lowers progress`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 2),
             current = TrackedState(status = Status.COMPLETED, progress = 12, total = 12)
         )
@@ -133,6 +140,7 @@ class AutoTrackPolicyTest {
     fun `dropped entry is respected when the setting is on`() {
         val dropped = TrackedState(status = Status.DROPPED, progress = 4, total = 12)
         val respected = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 5),
             current = dropped
         )
@@ -151,12 +159,14 @@ class AutoTrackPolicyTest {
     @Test
     fun `trailers and short clips are never tracked`() {
         val trailer = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 300_000, duration = 300_000, endReached = true, isTrailer = true),
             current = TrackedState(status = Status.PLANNED, progress = 0, total = 1)
         )
         assertEquals(Action.NONE, trailer.action)
 
         val clip = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 30_000, duration = 45_000, endReached = true, kind = Kind.MOVIE),
             current = TrackedState(status = Status.PLANNED, progress = 0, total = 1)
         )
@@ -166,6 +176,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `skipping past the outro counts as finishing the episode`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 21 * 60 * 1000L, episode = 2, outroStartMs = 21 * 60 * 1000L + 5_000L),
             current = TrackedState(status = Status.WATCHING, progress = 1, total = 12)
         )
@@ -202,6 +213,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `progress never exceeds the known total`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             // Kaynak 13. bölümü oynatıyor ama seri 12 bölüm: taşma olmamalı.
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 13, total = 12, hasNext = true),
             current = TrackedState(status = Status.WATCHING, progress = 12, total = 12)
@@ -212,6 +224,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `unknown total advances to the raw episode number`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 7, total = null),
             current = TrackedState(status = Status.WATCHING, progress = 6, total = null)
         )
@@ -258,6 +271,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `paused entry resumes as watching on new playback`() {
         val decision = AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),
             snapshot = snapshot(position = 120_000, episode = 5),
             current = TrackedState(status = Status.PAUSED, progress = 4, total = 12)
         )
@@ -269,6 +283,7 @@ class AutoTrackPolicyTest {
     @Test
     fun `live streams without duration are ignored until playback ends`() {
         val live = snapshot(position = 900_000, duration = 0, episode = 1, total = null, hasNext = false)
-        assertEquals(Action.NONE, AutoTrackPolicy.evaluate(live, current = TrackedState(Status.WATCHING, 0, null)).action)
+        assertEquals(Action.NONE, AutoTrackPolicy.evaluate(
+            settings = AutoTrackPolicy.Settings(enabled = true),snapshot = live, current = TrackedState(Status.WATCHING, 0, null)).action)
     }
 }

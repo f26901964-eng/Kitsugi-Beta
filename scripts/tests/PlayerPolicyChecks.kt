@@ -136,23 +136,23 @@ fun main() {
             AutoTrackPolicy.Snapshot(positionMs = pos, durationMs = dur, episode = ep, totalEpisodes = total,
                 kind = if (movie) AutoTrackPolicy.Kind.MOVIE else AutoTrackPolicy.Kind.EPISODE,
                 hasNextEpisode = hasNext, endReached = end)
-        val start = AutoTrackPolicy.evaluate(snap(90_000, 1, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 12))
+        val start = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = snap(90_000, 1, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 12))
         check(start.action == AutoTrackPolicy.Action.START_WATCHING)
-        val advance = AutoTrackPolicy.evaluate(snap(22 * 60 * 1000L, 4, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 3, 12))
+        val advance = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = snap(22 * 60 * 1000L, 4, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 3, 12))
         check(advance.action == AutoTrackPolicy.Action.ADVANCE_EPISODE && advance.progress == 4)
-        val done = AutoTrackPolicy.evaluate(snap(23 * 60 * 1000L, 12, 12, hasNext = false), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 11, 12))
+        val done = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = snap(23 * 60 * 1000L, 12, 12, hasNext = false), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 11, 12))
         check(done.action == AutoTrackPolicy.Action.COMPLETE && done.progress == 12)
-        val movie = AutoTrackPolicy.evaluate(snap(100 * 60 * 1000L, 1, 1, hasNext = false, movie = true), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 1))
+        val movie = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = snap(100 * 60 * 1000L, 1, 1, hasNext = false, movie = true), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.PLANNED, 0, 1))
         check(movie.action == AutoTrackPolicy.Action.COMPLETE)
         // Fragman ve çok kısa klipler asla takip edilmez.
-        val trailer = AutoTrackPolicy.evaluate(AutoTrackPolicy.Snapshot(300_000, 300_000, endReached = true, isTrailer = true), current = null)
+        val trailer = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = AutoTrackPolicy.Snapshot(300_000, 300_000, endReached = true, isTrailer = true), current = null)
         check(trailer.action == AutoTrackPolicy.Action.NONE)
-        val clip = AutoTrackPolicy.evaluate(AutoTrackPolicy.Snapshot(30_000, 45_000, endReached = true, kind = AutoTrackPolicy.Kind.MOVIE), current = null)
+        val clip = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = AutoTrackPolicy.Snapshot(30_000, 45_000, endReached = true, kind = AutoTrackPolicy.Kind.MOVIE), current = null)
         check(clip.action == AutoTrackPolicy.Action.NONE)
         // Jeneriği geçmek tamamlanmadır; ilerleme asla azalmaz.
-        val outro = AutoTrackPolicy.evaluate(snap(22 * 60 * 1000L, 2, 12).copy(outroStartMs = 21 * 60 * 1000L), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 1, 12))
+        val outro = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = snap(22 * 60 * 1000L, 2, 12).copy(outroStartMs = 21 * 60 * 1000L), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 1, 12))
         check(outro.action == AutoTrackPolicy.Action.ADVANCE_EPISODE && outro.progress == 2)
-        val completed = AutoTrackPolicy.evaluate(snap(23 * 60 * 1000L, 2, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.COMPLETED, 12, 12))
+        val completed = AutoTrackPolicy.evaluate(settings = AutoTrackPolicy.Settings(enabled = true), snapshot = snap(23 * 60 * 1000L, 2, 12), current = AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.COMPLETED, 12, 12))
         check(completed.action == AutoTrackPolicy.Action.NONE && completed.progress == 12 && completed.showQuickRate)
         check(AutoTrackPolicy.evaluate(snap(23 * 60 * 1000L, 5, 12), AutoTrackPolicy.Settings(enabled = false),
             AutoTrackPolicy.TrackedState(AutoTrackPolicy.Status.WATCHING, 4, 12)).action == AutoTrackPolicy.Action.NONE)

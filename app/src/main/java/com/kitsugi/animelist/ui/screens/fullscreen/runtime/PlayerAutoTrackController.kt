@@ -76,6 +76,9 @@ class PlayerAutoTrackController(
     // ── Oturum durumu ───────────────────────────────────────────────────────────
     private var identity: PlaybackListWriter.PlaybackIdentity? = null
     private var entry: MediaEntry? = null
+    /** null entry is valid only after a successful list lookup; distinguish it from pending lookup. */
+    private var entryResolved: Boolean = false
+    private var entryResolutionInFlight: Boolean = false
     private var kind: AutoTrackPolicy.Kind = AutoTrackPolicy.Kind.EPISODE
     private var episode: Int = 1
     private var totalEpisodes: Int? = null
@@ -134,6 +137,8 @@ class PlayerAutoTrackController(
         this.completionHandled = false
         this.startHandled = false
         this.entry = null
+        this.entryResolved = false
+        this.entryResolutionInFlight = false
         this.trackedProgress = 0
         this.trackedStatus = AutoTrackPolicy.Status.PLANNED
         this.lastWriteAtMs = 0L
@@ -149,25 +154,43 @@ class PlayerAutoTrackController(
             Log.d(TAG, "Otomatik takip kapalı (ayarlardan açılmalı): $key")
             return
         }
-        scope.launch(Dispatchers.IO) {
-            val resolved = runCatching {
-                PlaybackListWriter.resolveEntry(context, identity)
-            }.getOrNull()
-            entry = resolved
-            trackedProgress = resolved?.progress ?: 0
-            trackedStatus = resolved?.status?.toTrackStatus() ?: AutoTrackPolicy.Status.PLANNED
-            Log.d(
-                TAG,
-                "bind ep=$episode kind=$kind entry=${resolved?.title ?: "<listede yok>"} " +
-                    "progress=$trackedProgress status=$trackedStatus"
-            )
-        }
+        resolveEntryIfNeeded()
     }
 
     /** Ayar akışından gelen "en kısa takip süresi" güncellemesi (oturum yeniden bağlanmadan). */
     fun updateMinDurationSeconds(seconds: Int) {
         val value = seconds.coerceIn(15, 600) * 1000L
         if (value != minDurationMs) minDurationMs = value
+    }
+
+    /**
+     * Liste sorgusu salt okunur. Disabled durumda bind() bu fonksiyona ulaşmaz; kullanıcı
+     * aynı oturumda etkinleştirirse onTick() lazy olarak başlatır. Hata halinde sonraki tik
+     * yeniden dener, "bulunamadı" ile "henüz çözümlenmedi" birbirine karışmaz.
+     */
+    private fun resolveEntryIfNeeded() {
+        if (entryResolved || entryResolutionInFlight) return
+        val identityAtStart = identity ?: return
+        val keyAtStart = sessionKey
+        entryResolutionInFlight = true
+        scope.launch(Dispatchers.IO) {
+            val result = runCatching { PlaybackListWriter.resolveEntry(context, identityAtStart) }
+            if (sessionKey != keyAtStart) return@launch
+            entryResolutionInFlight = false
+            result.onSuccess { resolved ->
+                entry = resolved
+                trackedProgress = resolved?.progress ?: 0
+                trackedStatus = resolved?.status?.toTrackStatus() ?: AutoTrackPolicy.Status.PLANNED
+                entryResolved = true
+                Log.d(
+                    TAG,
+                    "bind ep=$episode kind=$kind entry=${resolved?.title ?: "<listede yok>"} " +
+                        "progress=$trackedProgress status=$trackedStatus"
+                )
+            }.onFailure { error ->
+                Log.w(TAG, "Liste kaydı çözümlenemedi; sonraki tikte yeniden denenecek", error)
+            }
+        }
     }
 
     /** AniSkip/outro bilgisi bölüm ortasında gelebilir. */
@@ -186,7 +209,18 @@ class PlayerAutoTrackController(
         // Ayarlar her tikte yeniden okunur: kullanıcı özelliği oynatma sırasında kapatırsa
         // bir sonraki tikte takip anında durur.
         val settings = settings()
-        if (!settings.enabled) return
+        if (!settings.enabled) {
+            hideQuickRate()
+            return
+        }
+        if (!settings.quickRateEnabled) hideQuickRate()
+        // Kapalıyken bind() bilinçli olarak listeyi çözümlemez. Etkinleştirme sonrasında
+        // ilk tikte önce mevcut kaydı çözümleyip (salt okunur) ancak sonraki tikte karar ver;
+        // böylece oynatım sürerken açıldığında mevcut kayıt yanlışlıkla yinelenmez.
+        if (!entryResolved) {
+            resolveEntryIfNeeded()
+            return
+        }
         // Duraklatılmışken sadece bitiş bildirimi işlenir: kullanıcı bir süre sonra devam
         // ederse ilerleme yine yazılır, ama gereksiz yazma üretilmez.
         if (!isPlaying && !endReached) return
@@ -227,7 +261,7 @@ class PlayerAutoTrackController(
         // ilerleme yazılamazsa `completionHandled` ilerletilmemeli, aksi hâlde bölüm bir
         // daha asla listede ilerlemezdi.
         if (isCompletion) completionHandled = true
-        applyDecision(decision, settings, positionMs, durationMs)
+        applyDecision(decision, positionMs, durationMs)
     }
 
     /**
@@ -239,7 +273,10 @@ class PlayerAutoTrackController(
      */
     fun onLeaving(positionMs: Long, durationMs: Long) {
         if (identity == null || isTrailer) return
-        if (!settings().enabled) return
+        if (!settings().enabled) {
+            hideQuickRate()
+            return
+        }
         if (positionMs <= 0L || durationMs <= 0L) return
         lastWriteAtMs = 0L
         onTick(positionMs = positionMs, durationMs = durationMs, isPlaying = true)
@@ -265,9 +302,11 @@ class PlayerAutoTrackController(
      * @return ilerleme en az bir yere yazıldıysa `true`
      */
     private suspend fun applyEpisodeProgress(positionMs: Long, durationMs: Long): Boolean {
+        if (!settings().enabled) return false
         if (kind == AutoTrackPolicy.Kind.UNKNOWN) return false
         var wrote = false
         // 1) Yerel geçmiş: satır yoksa oluşturulur, varsa "izlendi" işaretlenir.
+        if (!settings().enabled) return false
         runCatching { markHistoryWatched(positionMs, durationMs) }
             .onSuccess { wrote = true }
             .onFailure { Log.w(TAG, "Geçmiş ilerlemesi yazılamadı: ${it.message}") }
@@ -294,11 +333,13 @@ class PlayerAutoTrackController(
             )
         ).progress
         if (targetProgress <= trackedProgress) return wrote
+        val latestSettings = settings()
+        if (!latestSettings.enabled) return wrote
         val result = PlaybackListWriter.updateEntry(
             context = context,
             entry = current,
             progress = targetProgress,
-            syncExternal = settings().syncSources
+            syncExternal = latestSettings.syncSources
         )
         if (result is PlaybackListWriter.Result.Updated) {
             entry = result.entry
@@ -311,13 +352,18 @@ class PlayerAutoTrackController(
 
     private fun applyDecision(
         decision: AutoTrackPolicy.Decision,
-        settings: AutoTrackPolicy.Settings,
         positionMs: Long,
         durationMs: Long
     ) {
         val currentIdentity = identity ?: return
         scope.launch(Dispatchers.IO) {
             writeMutex.withLock {
+                // Ayar coroutine beklerken kapanmış olabilir. Yazım sınırında tekrar denetle.
+                val currentSettings = settings()
+                if (!currentSettings.enabled) {
+                    hideQuickRate()
+                    return@withLock
+                }
                 // 1) Bölüm ilerlemesi: geçmiş tablosu + liste satırı (durum yazımından bağımsız).
                 if (decision.action == AutoTrackPolicy.Action.ADVANCE_EPISODE ||
                     decision.action == AutoTrackPolicy.Action.COMPLETE
@@ -329,7 +375,7 @@ class PlayerAutoTrackController(
                 }
                 val existing = entry
                 if (existing == null) {
-                    if (!settings.addNewEntries) {
+                    if (!currentSettings.addNewEntries) {
                         Log.d(TAG, "Listede yok ve otomatik ekleme kapalı: ${currentIdentity.title}")
                         return@withLock
                     }
@@ -357,7 +403,7 @@ class PlayerAutoTrackController(
                         entry = existing,
                         status = decision.status.toWatchStatus(),
                         progress = decision.progress,
-                        syncExternal = settings.syncSources
+                        syncExternal = currentSettings.syncSources
                     )
                     if (result is PlaybackListWriter.Result.Updated) {
                         entry = result.entry
@@ -374,10 +420,10 @@ class PlayerAutoTrackController(
                 }
 
                 // Bölüm ilerlemesi `applyEpisodeProgress` içinde yazıldı (tek yazma yolu).
-                if (decision.showQuickRate && settings.quickRateEnabled) {
+                if (decision.showQuickRate && currentSettings.quickRateEnabled) {
                     // StateFlow yazımı iş parçacığından bağımsızdır; Main'e geçmek
                     // IO kilidi tutulurken gereksiz gecikme yaratıyordu.
-                    showQuickRate(settings)
+                    showQuickRate(currentSettings)
                 }
             }
         }
@@ -393,6 +439,7 @@ class PlayerAutoTrackController(
      * bitmedi); yalnızca sayı hizalanır.
      */
     private suspend fun backfillFromWatchHistory() {
+        if (!settings().enabled) return
         if (kind != AutoTrackPolicy.Kind.EPISODE) return
         val currentEntry = entry ?: return
         val currentIdentity = identity ?: return
@@ -404,12 +451,14 @@ class PlayerAutoTrackController(
         if (maxWatched <= currentEntry.progress) return
         val target = currentEntry.total?.let { minOf(maxWatched, it) } ?: maxWatched
         val status = if (currentEntry.status == WatchStatus.Planned) WatchStatus.Watching else currentEntry.status
+        val latestSettings = settings()
+        if (!latestSettings.enabled) return
         val result = PlaybackListWriter.updateEntry(
             context = context,
             entry = currentEntry,
             status = status,
             progress = target,
-            syncExternal = settings().syncSources
+            syncExternal = latestSettings.syncSources
         )
         if (result is PlaybackListWriter.Result.Updated) {
             entry = result.entry
@@ -420,6 +469,7 @@ class PlayerAutoTrackController(
 
     /** Yerel geçmişte de "izlendi" işareti: "devam et" satırı aynı bölümü tekrar önermez. */
     private suspend fun markHistoryWatched(positionMs: Long, durationMs: Long) {
+        if (!settings().enabled) return
         val currentIdentity = identity ?: return
         val mediaId = mediaIdForHistory(currentIdentity)
         HistoryRepository(KitsugiDatabase.getDatabase(context).historyDao())
@@ -499,13 +549,16 @@ class PlayerAutoTrackController(
         val currentEntry = entry
         val currentIdentity = identity
         hideQuickRate()
-        // Özellik kapalıyken çubuk hiç çıkmaz; yine de savunma amaçlı yazım engellenir.
-        if (!settings().enabled) return
+        // Özellik/alt özellik kapalıyken çubuk hiç çıkmaz; yine de yazımı engelle.
+        val currentSettings = settings()
+        if (!currentSettings.enabled || !currentSettings.quickRateEnabled) return
         if (currentEntry == null) {
             // Kayıt henüz oluşmadıysa (nadiren) puanı kaybetmek yerine listeye ekleyip puanla.
-            if (currentIdentity == null || !settings().addNewEntries) return
+            if (currentIdentity == null || !currentSettings.addNewEntries) return
             scope.launch(Dispatchers.IO) {
                 writeMutex.withLock {
+                    val latestSettings = settings()
+                    if (!latestSettings.enabled || !latestSettings.quickRateEnabled || !latestSettings.addNewEntries) return@withLock
                     // Film/tek parça ise puan vermek "izlendi" demektir → doğrudan tamamlanmış
                     // açılır; bölümlü içerikte ilerleme oynatıcının bildirdiği yerde kalır.
                     val createStatus = if (kind == AutoTrackPolicy.Kind.MOVIE) WatchStatus.Completed else WatchStatus.Watching
@@ -520,7 +573,7 @@ class PlayerAutoTrackController(
                     entry = created
                     trackedStatus = if (createStatus == WatchStatus.Completed) AutoTrackPolicy.Status.COMPLETED else AutoTrackPolicy.Status.WATCHING
                     trackedProgress = created.progress
-                    PlaybackListWriter.rateEntry(context, created, score, settings().syncSources)
+                    PlaybackListWriter.rateEntry(context, created, score, latestSettings.syncSources)
                 }
             }
             return
@@ -548,13 +601,15 @@ class PlayerAutoTrackController(
         )
         scope.launch(Dispatchers.IO) {
             writeMutex.withLock {
+                val latestSettings = settings()
+                if (!latestSettings.enabled || !latestSettings.quickRateEnabled) return@withLock
                 val result = PlaybackListWriter.updateEntry(
                     context = context,
                     entry = entry ?: currentEntry,
                     status = nextStatus.toWatchStatus(),
                     progress = nextProgress,
                     score = normalized,
-                    syncExternal = settings().syncSources
+                    syncExternal = latestSettings.syncSources
                 )
                 if (result is PlaybackListWriter.Result.Updated) {
                     entry = result.entry

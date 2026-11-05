@@ -98,6 +98,6 @@ If you see a wrong match, you can turn the feature off from the same place.</str
     <string name="auto_track_sync_sources_desc">Status/progress is not kept on this device only: it is written to every connected platform (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl).</string>
     <string name="auto_track_respect_dropped_desc">Entries you marked \"Dropped\" stay untouched even if you play them again.</string>
     <string name="quick_rate_enabled_desc">When an episode/movie ends, a small rating bar appears at the bottom of the player (no full-screen dialog).</string>
-    <string name="experimental_autotrack_off_hint">While off, the player writes no list or history entries; only the \"continue watching\" position is remembered.</string>
+    <string name="experimental_autotrack_off_hint">While off, automatic list status/progress updates and quick rating are disabled. Normal playback resume position is still saved.</string>
     <string name="settings_experimental_entry_desc">Beta-stage features. Off by default; enabled only after you confirm.</string>
 </resources>

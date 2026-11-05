@@ -322,6 +322,9 @@ class SettingsDataStore(
         val PipOnExit = booleanPreferencesKey("pref_pip_on_exit")
         // ─── Otomatik liste takibi (oynatıcı → liste) ────────────────────────────
         val AutoTrackEnabled = booleanPreferencesKey("pref_auto_track_enabled")
+        // Separate explicit-consent bit is essential for upgrades: old versions persisted
+        // autoTrackEnabled=true by default, and that historical value is not user consent.
+        val AutoTrackExperimentalConsent = booleanPreferencesKey("pref_auto_track_experimental_consent")
         val AutoTrackAddNew = booleanPreferencesKey("pref_auto_track_add_new")
         val AutoTrackRespectDropped = booleanPreferencesKey("pref_auto_track_respect_dropped")
         val QuickRateEnabled = booleanPreferencesKey("pref_quick_rate_enabled")
@@ -576,7 +579,8 @@ class SettingsDataStore(
                     pipOnExit = preferences[Keys.PipOnExit] ?: true,
                     // Deneysel: kayıt yoksa KAPALI. (Eski sürümden yükselten kullanıcı da
                     // bilinçli olarak açana kadar takip yapılmaz.)
-                    autoTrackEnabled = preferences[Keys.AutoTrackEnabled] ?: false,
+                    autoTrackEnabled = preferences[Keys.AutoTrackEnabled] == true &&
+                        preferences[Keys.AutoTrackExperimentalConsent] == true,
                     autoTrackAddNew = preferences[Keys.AutoTrackAddNew] ?: true,
                     autoTrackRespectDropped = preferences[Keys.AutoTrackRespectDropped] ?: true,
                     quickRateEnabled = preferences[Keys.QuickRateEnabled] ?: true,
@@ -1936,7 +1940,11 @@ class SettingsDataStore(
     // ─── Otomatik liste takibi ───────────────────────────────────────────────────
 
     suspend fun setAutoTrackEnabled(value: Boolean) {
-        context.settingsDataStore.edit { it[Keys.AutoTrackEnabled] = value }
+        context.settingsDataStore.edit {
+            it[Keys.AutoTrackEnabled] = value
+            // true değeri yalnızca onay diyaloğu kabul edildikten sonra yazılır.
+            if (value) it[Keys.AutoTrackExperimentalConsent] = true
+        }
     }
 
     suspend fun setAutoTrackAddNew(value: Boolean) {
