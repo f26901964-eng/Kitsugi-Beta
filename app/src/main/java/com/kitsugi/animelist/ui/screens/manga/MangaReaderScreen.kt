@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.ButtonDefaults
@@ -142,6 +144,7 @@ fun MangaReaderScreen(
     var menuVisible by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
+    var showChapterPicker by remember { mutableStateOf(false) }
     var galleryInitialIndex by remember { mutableStateOf(currentPage) }
 
     val pagerState = rememberPagerState(initialPage = currentPage) { pages.size }
@@ -412,13 +415,30 @@ fun MangaReaderScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(
-                            currentChapter.name,
-                            color = Color.White.copy(0.65f),
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        // Bölüm adına dokunmak bölüm listesini açar: okuyucudan çıkmadan
+                        // başka bir bölüme geçmek için geri dönmek gerekmiyor.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.androidxClickable { showChapterPicker = true }
+                        ) {
+                            Text(
+                                currentChapter.name,
+                                color = Color.White.copy(0.7f),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (uiState.chapterList.isNotEmpty()) {
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    Icons.Rounded.ExpandMore,
+                                    contentDescription = stringResource(R.string.bolumler),
+                                    tint = Color.White.copy(0.7f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
                     }
                     if (pages.isNotEmpty()) {
                         // Sayfa galerisi kısayolu — üst bardan da erişilebilir.
@@ -700,6 +720,20 @@ fun MangaReaderScreen(
                 }
             }
         }
+    }
+
+    // ─── Bölüm seçici (okuyucudan çıkmadan bölüm değiştirme) ────────────────
+    if (showChapterPicker) {
+        MangaChapterPickerSheet(
+            chapters = uiState.chapterList,
+            currentUrl = currentChapter.url,
+            accentColor = Color(0xFF7C4DFF),
+            onSelect = { picked ->
+                showChapterPicker = false
+                if (picked.url != currentChapter.url) viewModel.goToChapter(picked)
+            },
+            onDismiss = { showChapterPicker = false }
+        )
     }
 
     // ─── Tam Ekran Sayfa Galerisi ────────────────────────────────────────────
@@ -1074,6 +1108,91 @@ private fun MangaPageGallerySheet(
                                         .background(accentColor.copy(alpha = 0.15f))
                                 )
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Bölüm seçici alt sayfası.
+ *
+ * Okuyucudan çıkmadan bölüm değiştirmek için: liste kaydırılabilir, geçerli bölüm
+ * accent renkle işaretli ve otomatik olarak o bölüme kaydırılır.
+ */
+@Composable
+private fun MangaChapterPickerSheet(
+    chapters: List<MangaChapter>,
+    currentUrl: String,
+    accentColor: Color,
+    onSelect: (MangaChapter) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currentIndex = chapters.indexOfFirst { it.url == currentUrl }.coerceAtLeast(0)
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState(
+        initialFirstVisibleItemIndex = (currentIndex - 3).coerceAtLeast(0)
+    )
+    KitsugiSheetOrDialog(onDismiss = onDismiss, heightFraction = 0.72f) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.bolumler) + " (${chapters.size})",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.kapat),
+                        tint = Color.White.copy(0.8f)
+                    )
+                }
+            }
+            androidx.compose.foundation.lazy.LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                items(
+                    items = chapters,
+                    key = { it.url }
+                ) { item ->
+                    val isCurrent = item.url == currentUrl
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (isCurrent) accentColor.copy(alpha = 0.16f) else Color.Transparent
+                            )
+                            .androidxClickable { onSelect(item) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = item.name,
+                            color = if (isCurrent) accentColor else Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isCurrent) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
