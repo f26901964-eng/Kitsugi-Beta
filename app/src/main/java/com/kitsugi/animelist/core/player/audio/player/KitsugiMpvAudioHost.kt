@@ -8,7 +8,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import com.kitsugi.animelist.core.player.MpvAudioFocusController
 import com.kitsugi.animelist.core.player.MpvTrustStore
-import com.kitsugi.animelist.core.player.applyMpvTlsOptions
+import com.kitsugi.animelist.core.player.engine.applyMpvTlsOptions
 import com.kitsugi.animelist.core.player.engine.MpvPlaybackPolicy
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.MPV
