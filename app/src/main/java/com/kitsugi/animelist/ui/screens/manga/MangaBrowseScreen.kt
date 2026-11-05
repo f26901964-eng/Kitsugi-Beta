@@ -239,6 +239,18 @@ fun MangaBrowseScreen(
                 onValueChange = { vm.search(it) },
                 placeholder   = { Text(stringResource(R.string.manga_ara), color = KitsugiColors.TextMuted) },
                 leadingIcon   = { Icon(Icons.Rounded.Search, null, tint = KitsugiColors.TextMuted) },
+                // Temizle düğmesi: arama metnini silmenin tek yolu klavyeyi açmaktı.
+                trailingIcon  = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { vm.search("") }) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.temizle),
+                                tint = KitsugiColors.TextMuted
+                            )
+                        }
+                    }
+                },
                 singleLine    = true,
                 shape         = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
