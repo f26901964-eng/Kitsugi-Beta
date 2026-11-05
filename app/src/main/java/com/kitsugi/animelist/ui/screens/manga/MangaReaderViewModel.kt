@@ -167,7 +167,9 @@ class MangaReaderViewModel(
         /** Bölüm bitince otomatik sonraki bölüme geç (Ayarlar > Okuyucu). */
         val autoAdvanceChapter: Boolean = false,
         /** Okundu olarak işaretlenmiş bölüm URL'leri — atlama için. */
-        val readChapterUrls: Set<String> = emptySet()
+        val readChapterUrls: Set<String> = emptySet(),
+        /** Sayfa kenarlarını kırp (Mihon "crop borders"). */
+        val cropBorders: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -213,7 +215,8 @@ class MangaReaderViewModel(
                         customBrightness = settings.mangaBrightness,
                         keepScreenOn = settings.mangaKeepScreenOn,
                         skipReadChapters = settings.mangaSkipReadChapters,
-                        autoAdvanceChapter = settings.mangaAutoAdvanceChapter
+                        autoAdvanceChapter = settings.mangaAutoAdvanceChapter,
+                        cropBorders = settings.mangaCropBorders
                     )
                 }
             }
@@ -312,6 +315,11 @@ class MangaReaderViewModel(
     /** Okunmuş bölümleri atla tercihi — kalıcı (Ayarlar > Okuyucu ile aynı anahtar). */
     fun setSkipReadChapters(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setMangaSkipReadChapters(enabled) }
+    }
+
+    /** Kenarlık kırpma tercihi — kalıcı. */
+    fun setCropBorders(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setMangaCropBorders(enabled) }
     }
 
     /** Bölüm bitince otomatik geçiş tercihi — kalıcı. */

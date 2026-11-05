@@ -144,6 +144,8 @@ class SettingsDataStore(
         val MangaAutoAdvanceChapter = booleanPreferencesKey("manga_auto_advance_chapter")
         // Bölüm yer imleri (bookmark) — Mihon'daki ★ davranışı.
         val MangaBookmarkedChapters = stringPreferencesKey("manga_bookmarked_chapters")
+        // Mihon "crop borders": sayfa kenarındaki beyaz/siyah boşluğu kırp.
+        val MangaCropBorders = booleanPreferencesKey("manga_crop_borders")
         val DnsChoice = intPreferencesKey("dns_choice")
         // ─── GitHub Vekil Sunucu ───────────────────────────────────────────────
         val UseGithubProxy = booleanPreferencesKey("use_github_proxy")
@@ -702,6 +704,7 @@ class SettingsDataStore(
                     mangaSkipReadChapters = preferences[Keys.MangaSkipReadChapters] ?: false,
                     mangaAutoAdvanceChapter = preferences[Keys.MangaAutoAdvanceChapter] ?: false,
                     mangaBookmarkedChapters = preferences[Keys.MangaBookmarkedChapters] ?: "",
+                    mangaCropBorders = preferences[Keys.MangaCropBorders] ?: false,
                     customImageDownloadUri = preferences[Keys.CustomImageDownloadUri] ?: "",
                     videoDownloadUri = preferences[Keys.VideoDownloadUri] ?: "",
                     downloaderPreference = preferences[Keys.DownloaderPreference] ?: "INTERNAL",
@@ -1208,6 +1211,13 @@ class SettingsDataStore(
         val key = stringPreferencesKey(sortOverrideKey(mangaUrl))
         context.settingsDataStore.edit { preferences ->
             if (sortName == null) preferences.remove(key) else preferences[key] = sortName
+        }
+    }
+
+    /** Sayfa kenarlarını kırp (Mihon "crop borders"). */
+    suspend fun setMangaCropBorders(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.MangaCropBorders] = enabled
         }
     }
 

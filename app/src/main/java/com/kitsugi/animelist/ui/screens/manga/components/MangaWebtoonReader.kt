@@ -51,6 +51,8 @@ fun MangaWebtoonReader(
     loader: MangaPageLoaderV2,
     colorFilterType: ColorFilterType = ColorFilterType.Normal,
     fitMode: MangaFitMode = MangaFitMode.FitScreen,
+    /** Kenarlık kırpma — webtoonda da geçerli (dikey şeritlerde kenar boşluğu olur). */
+    cropBorders: Boolean = false,
     onCenterTap: () -> Unit = {},
     onPageChanged: (Int) -> Unit = {},
     onNextPage: () -> Unit = {},
@@ -91,6 +93,7 @@ fun MangaWebtoonReader(
                 readingMode = ReadingMode.Webtoon,
                 colorFilterType = colorFilterType,
                 fitMode     = fitMode,
+                cropBorders = cropBorders,
                 onCenterTap = onCenterTap,
                 onNextPage   = onNextPage,
                 onPrevPage   = onPrevPage,

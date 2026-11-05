@@ -17884,4 +17884,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_library_source_missing">Kaynak kaldırılmış</string>
     <string name="manga_library_open">Kitaplığı aç</string>
 
+    <string name="manga_crop_borders">Kenarları kırp</string>
+    <string name="manga_crop_borders_desc">Taranmış sayfalardaki kenar boşluğunu atar, çizimi büyütür</string>
+
 </resources>

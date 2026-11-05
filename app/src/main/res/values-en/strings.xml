@@ -17879,4 +17879,7 @@
     <string name="manga_library_source_missing">Source removed</string>
     <string name="manga_library_open">Open library</string>
 
+    <string name="manga_crop_borders">Crop borders</string>
+    <string name="manga_crop_borders_desc">Trims scanned page margins and enlarges the artwork</string>
+
 </resources>

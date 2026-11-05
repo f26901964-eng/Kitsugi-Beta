@@ -35,6 +35,8 @@ fun MangaPagerReader(
     readingMode: ReadingMode = ReadingMode.RightToLeft,
     colorFilterType: ColorFilterType = ColorFilterType.Normal,
     fitMode: MangaFitMode = MangaFitMode.FitScreen,
+    /** Kenarlık kırpma (Mihon "crop borders") — Ayarlar/okuyucu panelinden gelir. */
+    cropBorders: Boolean = false,
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
@@ -60,6 +62,7 @@ fun MangaPagerReader(
                     readingMode = readingMode,
                     colorFilterType = colorFilterType,
                     fitMode     = fitMode,
+                    cropBorders = cropBorders,
                     onCenterTap = onCenterTap,
                     onNextPage   = onNextPage,
                     onPrevPage   = onPrevPage,

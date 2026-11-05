@@ -36,6 +36,8 @@ import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +69,15 @@ fun MangaPageItem(
     readingMode: ReadingMode = ReadingMode.RightToLeft,
     colorFilterType: ColorFilterType = ColorFilterType.Normal,
     fitMode: MangaFitMode = MangaFitMode.FitScreen,
+    /**
+     * Kenarlık kırpma (Mihon "crop borders").
+     *
+     * ZoomableAsyncImage'ın `contentScale`'i Crop olduğunda görüntü kapsayıcıyı doldurur ve
+     * taşan kısım kırpılır; ancak sayfanın tamamı görünmez. Mihon'daki davranış farklıdır:
+     * yalnızca taranmış kenar boşluğu atılır. Burada içerik %4 oranında büyütülüp
+     * (1.04×) taşan kenarlar kırpılıyor — kenar şeridi gider, çizim alanı korunur.
+     */
+    cropBorders: Boolean = false,
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
@@ -180,7 +191,21 @@ fun MangaPageItem(
                     state       = imageState,
                     contentScale = contentScale,
                     colorFilter = composeColorFilter,
-                    modifier    = Modifier.fillMaxSize()
+                    modifier    = Modifier
+                        .fillMaxSize()
+                        // Kenarlık kırpma: %4 büyütme, taşan kenarları kırpar.
+                        .then(
+                            if (cropBorders) {
+                                Modifier
+                                    .graphicsLayer {
+                                        scaleX = 1.04f
+                                        scaleY = 1.04f
+                                    }
+                                    .clipToBounds()
+                            } else {
+                                Modifier
+                            }
+                        )
                 )
             }
 

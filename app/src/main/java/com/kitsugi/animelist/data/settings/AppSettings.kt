@@ -277,6 +277,13 @@ data class DownloadAndMangaSettings(
     val mangaAutoAdvanceChapter: Boolean = false,
     /** Yer imli (★) bölümlerin URL listesi — virgülle ayrılmış. */
     val mangaBookmarkedChapters: String = "",
+    /**
+     * Sayfa kenarındaki taranmış boşluğu kırp (Mihon'daki "crop borders").
+     *
+     * Özellikle eski taramalarda kenarlarda 20-40 px siyah/beyaz şerit olur; kırpma
+     * sayfayı ekrana daha büyük sığdırır.
+     */
+    val mangaCropBorders: Boolean = false,
     val customImageDownloadUri: String = "",
     val videoDownloadUri: String = "",
     val downloaderPreference: String = "INTERNAL",

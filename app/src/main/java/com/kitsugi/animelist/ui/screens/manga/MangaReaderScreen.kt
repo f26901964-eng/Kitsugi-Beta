@@ -300,6 +300,7 @@ fun MangaReaderScreen(
                     loader = loader,
                     colorFilterType = uiState.colorFilterType,
                     fitMode = uiState.fitMode,
+                    cropBorders = uiState.cropBorders,
                     hasNextChapter = viewModel.hasNextChapter,
                     nextChapterName = viewModel.nextChapterName,
                     onGoToNextChapter = { viewModel.goToNextChapter() },
@@ -339,6 +340,7 @@ fun MangaReaderScreen(
                     readingMode = readingMode,
                     colorFilterType = uiState.colorFilterType,
                     fitMode = uiState.fitMode,
+                    cropBorders = uiState.cropBorders,
                     onCenterTap = { menuVisible = !menuVisible },
                     onLongPressPage = { pageIndex ->
                         galleryInitialIndex = pageIndex
@@ -956,6 +958,15 @@ fun MangaReaderScreen(
                     selected = uiState.skipReadChapters,
                     accent = Color(0xFF7C4DFF),
                     onClick = { viewModel.setSkipReadChapters(!uiState.skipReadChapters) }
+                )
+                Spacer(Modifier.height(8.dp))
+
+                // ── Kenarlık kırpma (Mihon: crop borders) ───────────────────────
+                ReaderSettingChip(
+                    label = stringResource(R.string.manga_crop_borders),
+                    selected = uiState.cropBorders,
+                    accent = Color(0xFF7C4DFF),
+                    onClick = { viewModel.setCropBorders(!uiState.cropBorders) }
                 )
                 Spacer(Modifier.height(8.dp))
 
