@@ -160,3 +160,50 @@ mevcut akışları bozmadan eklenen, bağımsız çalışan özellikler:
 
 - **TV keşfet/arama ekranı** (`TvMangaBrowseScreen`) ve **TV bölüm listesi**: arama geçmişi/sıralama orada D-pad odak akışına göre yeniden tasarlanmalı; bu turda değiştirilmedi.
 - **Çevrimdışı indirme kuyruğu / toplu indirme**: büyük bir özellik, ayrı tur.
+
+---
+
+## 10. Tema uyumu, düzen ve sayfa görüntüleme sağlamlığı
+
+Kullanıcı "hepsi uygulama temamla tam uyumlu ve görsel olsun, sayfa görüntüleme
+sorunsuz çalışsın, düzen kullanıcı dostu olsun" dediği için bu turda üç eksen
+birlikte elden geçirildi.
+
+### 10.1 Tema uyumu (açık / koyu / AMOLED + dinamik vurgu)
+
+Uygulamada üç renk şeması (`KitsugiDarkColors`, `KitsugiLightColors`,
+`KitsugiAmoledColors`) ve kullanıcı seçimli vurgu rengi var. Okuyucu tarafında
+sabit mor (`0xFF7C4DFF`) ve sabit beyaz yazılar kullanılıyordu; açık temada
+okunmuyor, farklı vurgu renginde de aykırı kalıyordu.
+
+| Dosya | Değişiklik |
+|---|---|
+| `MangaReaderControls.kt` | `AccentPurple = Color(0xFF7C4DFF)` → `ReaderAccent` = **tema vurgusu** (`LocalKitsugiAccent`). Ayar paneli + bölüm seçici paneli artık `KitsugiColors.TextPrimary/Secondary/Muted`, `KitsugiColors.SurfaceStrong`, `KitsugiColors.Border` kullanıyor → açık temada da okunaklı. Okuyucunun üst/alt barları (görsel üzerine binen katman) bilinçli olarak koyu/beyaz kaldı: her görselin üstünde okunabilirlik bunu gerektiriyor. |
+| `MangaChapterChoiceDialog.kt` | Tüm renkler tema tabanlı; seçili kart vurgu rengiyle, "Önerilen" rozeti vurguyla, ilerleme satırı `KitsugiColors.AccentGreen` ile. Devam düğmesi `Accent + OnAccent` (açık vurguda siyah yazı). |
+| `MangaReaderScreen.kt`, `MangaPageItem.kt`, `MangaWebtoonReader.kt` | Yükleme göstergesi, "Tekrar dene", hata ikonu ve bölüm sonu düğmesi tema vurgusu + `OnAccent`. |
+| `MangaBrowseScreen.kt` | Nötr çipler `KitsugiColors.SurfaceStrong`, hata renkleri `KitsugiColors.AccentRed` (sabit `Color.White/Red` yok). |
+
+### 10.2 Düzen / alan kullanımı
+
+| Yer | İyileştirme |
+|---|---|
+| Çevirmen penceresi | İçerik **tek `LazyColumn`**: başlık + sürümler + anahtarlar + düğmeler birlikte kayar. Yükseklik `ekran × 0.72` ile sınırlı → yatay telefonda (≈360 dp) taşma yok, küçük ekranda kırpılma yok. |
+| Bölüm seçici paneli | Sabit `460.dp` yerine `ekran × 0.62` → yatayda sığar, büyük ekranda daha çok bölüm görünür. |
+| Detay başlığı | Üç aksiyon düğmesi 36 dp'ye çekildi, başlık `maxLines = 1 + ellipsis` → dar ekranda "Bölümler (312)" satırı kaymıyor. |
+| Keşfet ekranı | Ekran yüksekliği < 620 dp ise üstteki bilgi kartı gizlenir; ızgara alanı korunur (yatay telefon). |
+| Bölüm içi arama | Yalnızca 5'ten fazla bölümde görünür (kısa listelerde gereksiz yer kaplamaz). |
+| Paneller | `KitsugiSheetOrDialog` zaten `max 640.dp` genişlik veriyor → tablette satırlar aşırı uzamıyor. |
+
+### 10.3 Sayfa görüntüleme sağlamlığı
+
+| Sorun | Çözüm |
+|---|---|
+| **Webtoon'da yer tutucu sabit 480 dp** | `MangaPageSizeMemory`: yüklenen son sayfanın en-boy oranı hatırlanır, yer tutucu ve hata kartı `aspectRatio` ile o orana göre çizilir → kaydırma sıçraması azalır, liste yüksekliği kararlı. |
+| **Arşiv (ZIP/CBZ) sayfaları hiç çizilmiyordu** | `MangaPageLoaderV2` arşiv girişini `page.stream`'e koyuyordu; görüntüleyici ise Coil'e dosya/URL veriyor. Artık arşiv sayfası diske yazılıp `archive://…` anahtarıyla önbellekten servis ediliyor (`imageUrl` dolu) → Coil dosyayı okuyabiliyor. |
+| **Her yeniden çizimde disk erişimi** | `cacheFile.exists()` çağrısı `remember(imageUrl, page.status)` içine alındı; ayrıca `length() > 0` kontrolü eklendi (0 baytlık dosya "hazır" sayılmıyordu). |
+| Renk filtresi / ayna / sığdırma | Değişmedi; `ZoomableAsyncImage` + Telephoto alt örnekleme (OOM riski yok), pinch/çift dokunma korunuyor. |
+| Önbellek doğrulama | `MangaCache.isImageInCache` HTML/hata yanıtlarını ayıklayıp siliyor; arşiv anahtarı da aynı doğrulamadan geçiyor. |
+
+> Not: Bu ortamda derleyici yok; doğrulama statik (parantez dengesi, string
+> referansları, sembol/import tutarlılığı) ve cihaz testi gerekiyor. Test listesi §7'de,
+> tema/düzen maddeleri §10.4'te.

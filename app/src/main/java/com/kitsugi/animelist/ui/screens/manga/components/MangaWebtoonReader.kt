@@ -18,6 +18,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -73,6 +75,8 @@ fun MangaWebtoonReader(
     modifier: Modifier = Modifier,
 ) {
     val reportPageChanged by rememberUpdatedState(onPageChanged)
+    // Yer tutucular gerçek sayfa oranına göre çizilsin (sabit yükseklik yerine).
+    val pageSizeMemory = remember { MangaPageSizeMemory() }
 
     // Görünen ilk öğeyi takip et ve üst katmana bildir (ilerleme + prefetch)
     LaunchedEffect(listState) {
@@ -103,6 +107,7 @@ fun MangaWebtoonReader(
                 onLongPress = onLongPress,
                 onNextPage = onNextPage,
                 onPrevPage = onPrevPage,
+                sizeMemory = pageSizeMemory,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -157,14 +162,14 @@ private fun ChapterTransitionFooter(
                 KitsugiButton(
                     onClick = onGoToNextChapter,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF7C4DFF),
-                        contentColor = Color.White,
+                        containerColor = KitsugiColors.Accent,
+                        contentColor = KitsugiColors.OnAccent,
                     ),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = KitsugiColors.OnAccent,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.size(8.dp))

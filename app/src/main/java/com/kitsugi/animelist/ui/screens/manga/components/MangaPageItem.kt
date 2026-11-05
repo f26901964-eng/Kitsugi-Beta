@@ -3,6 +3,7 @@ package com.kitsugi.animelist.ui.screens.manga.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +18,10 @@ import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +35,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -48,6 +53,7 @@ import com.kitsugi.animelist.data.manga.MangaPageStatus
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -85,6 +91,8 @@ fun MangaPageItem(
     onLongPress: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
+    /** Webtoon'da yer tutucu boyutu için paylaşılan oran hafızası. */
+    sizeMemory: MangaPageSizeMemory? = null,
     modifier: Modifier = Modifier,
 ) {
     val isScrollMode = readingMode == ReadingMode.Webtoon
@@ -119,8 +127,12 @@ fun MangaPageItem(
         when (page.status) {
             MangaPageStatus.Ready -> {
                 val imageUrl = page.imageUrl ?: page.url
-                val cacheFile = loader.cache.getImageFile(imageUrl)
-                val modelToLoad: Any = if (cacheFile.exists()) cacheFile else imageUrl
+                // `exists()` disk erişimi: her yeniden çizimde değil, sayfa
+                // hazır olduğunda bir kez kontrol edilir.
+                val modelToLoad: Any = remember(imageUrl, page.status) {
+                    val cacheFile = loader.cache.getImageFile(imageUrl)
+                    if (cacheFile.exists() && cacheFile.length() > 0L) cacheFile else imageUrl
+                }
 
                 val context = LocalContext.current
                 val imageRequest = remember(modelToLoad) {
@@ -136,7 +148,10 @@ fun MangaPageItem(
                 val imageState = rememberZoomableImageState(zoomableState)
 
                 val imageModifier = if (isScrollMode) {
-                    Modifier.fillMaxWidth().wrapContentHeight()
+                    Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .onSizeChanged { size -> sizeMemory?.record(size.width, size.height) }
                 } else {
                     Modifier.fillMaxSize()
                 }.then(
@@ -157,12 +172,17 @@ fun MangaPageItem(
                 ErrorPageContent(
                     pageIndex = page.index,
                     isScrollMode = isScrollMode,
+                    placeholderAspect = sizeMemory?.aspectRatio,
                     onRetry = { loader.retryPage(page) },
                 )
             }
 
             else -> {
-                LoadingPageContent(page = page, isScrollMode = isScrollMode)
+                LoadingPageContent(
+                    page = page,
+                    isScrollMode = isScrollMode,
+                    placeholderAspect = sizeMemory?.aspectRatio,
+                )
             }
         }
 
@@ -272,6 +292,27 @@ private fun Modifier.readerTapZones(
     }
 }
 
+/**
+ * Webtoon modunda yer tutucu boyutu için "son bilinen en-boy oranı" hafızası.
+ *
+ * Webtoon sayfasının yüksekliği görsel inmeden bilinemediği için önceden sabit
+ * 480.dp kullanılıyordu; bu, uzun şerit sayfalarda kaydırma sıçramasına yol
+ * açıyordu. Yüklenen her sayfanın oranı burada hatırlanır ve sonraki yer
+ * tutucular bu orana göre çizilir → liste yüksekliği daha kararlı.
+ */
+class MangaPageSizeMemory {
+    /** Genişlik / yükseklik oranı (varsayılan: dikey manga sayfası ~0.7). */
+    var aspectRatio by mutableStateOf(0.7f)
+        private set
+
+    fun record(widthPx: Int, heightPx: Int) {
+        if (widthPx <= 0 || heightPx <= 0) return
+        val ratio = widthPx.toFloat() / heightPx.toFloat()
+        // Aşırı uç değerleri (bozuk ölçüm / tek piksellik şerit) yok say.
+        if (ratio.isFinite() && ratio > 0.08f && ratio < 4f) aspectRatio = ratio
+    }
+}
+
 // ─── Ölçek / filtre eşlemeleri (tek yerden) ──────────────────────────────────
 
 /** [MangaFitMode] → Compose [ContentScale]. */
@@ -350,12 +391,16 @@ internal fun ColorFilterType.toComposeColorFilter(): ColorFilter? = when (this) 
 // ─── Yükleme / hata yer tutucuları ───────────────────────────────────────────
 
 @Composable
-private fun LoadingPageContent(page: MangaPage, isScrollMode: Boolean) {
+private fun LoadingPageContent(
+    page: MangaPage,
+    isScrollMode: Boolean,
+    placeholderAspect: Float?,
+) {
     Box(
         modifier = if (isScrollMode) {
-            // Webtoon'da sayfa yüklenene kadar boyut bilinmiyor; sabit bir yer
-            // tutucu yükseklik kaydırma sıçramalarını (scroll jump) azaltır.
-            Modifier.fillMaxWidth().height(480.dp)
+            // Webtoon'da sayfa yüklenene kadar boyut bilinmiyor; son bilinen
+            // sayfa oranına göre yer tutulur (sabit 480.dp yerine).
+            Modifier.fillMaxWidth().aspectRatio(placeholderAspect ?: 0.7f)
         } else {
             Modifier.fillMaxSize()
         }.background(Color(0xFF0A0A0A)),
@@ -373,7 +418,7 @@ private fun LoadingPageContent(page: MangaPage, isScrollMode: Boolean) {
             )
 
             else -> CircularProgressIndicator(
-                color = Color(0xFF7C4DFF),
+                color = KitsugiColors.Accent,
                 strokeWidth = 2.dp,
                 modifier = Modifier.size(32.dp),
             )
@@ -382,10 +427,15 @@ private fun LoadingPageContent(page: MangaPage, isScrollMode: Boolean) {
 }
 
 @Composable
-private fun ErrorPageContent(pageIndex: Int, isScrollMode: Boolean, onRetry: () -> Unit) {
+private fun ErrorPageContent(
+    pageIndex: Int,
+    isScrollMode: Boolean,
+    placeholderAspect: Float?,
+    onRetry: () -> Unit,
+) {
     Box(
         modifier = if (isScrollMode) {
-            Modifier.fillMaxWidth().height(360.dp)
+            Modifier.fillMaxWidth().aspectRatio(placeholderAspect ?: 0.7f)
         } else {
             Modifier.fillMaxSize()
         }.background(Color(0xFF120A0A)),
@@ -406,7 +456,7 @@ private fun ErrorPageContent(pageIndex: Int, isScrollMode: Boolean, onRetry: () 
                 modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
             )
             TextButton(onClick = onRetry) {
-                Text(stringResource(R.string.manga_reader_retry), color = Color(0xFF7C4DFF))
+                Text(stringResource(R.string.manga_reader_retry), color = KitsugiColors.Accent)
             }
         }
     }

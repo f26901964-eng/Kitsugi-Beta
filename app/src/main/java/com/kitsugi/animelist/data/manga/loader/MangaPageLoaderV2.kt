@@ -164,17 +164,34 @@ class MangaPageLoaderV2(
         if (page.status == MangaPageStatus.Ready) return
 
         if (page.archivePath != null && archiveFile != null) {
-            val archiveLoader = ArchivePageLoader(context, archiveFile)
-            val stream = archiveLoader.loadPage(page.archivePath!!)
-            if (stream != null) {
-                page.stream = { stream }
-                page.status = MangaPageStatus.Ready
-                Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
+            // Arşiv (ZIP/CBZ) sayfası: giriş akışını diske yazıp normal önbellek
+            // yolundan servis ediyoruz. Önceden yalnızca `page.stream` dolduruluyordu
+            // ama görüntüleyici Coil'e dosya/URL verdiği için arşiv sayfaları hiç
+            // çizilmiyordu.
+            val archiveKey = "archive://${archiveFile.name}/${page.archivePath}"
+            try {
+                if (!cache.isImageInCache(archiveKey)) {
+                    val stream = ArchivePageLoader(context, archiveFile).loadPage(page.archivePath!!)
+                    if (stream != null) {
+                        stream.use { cache.putImageToCache(archiveKey, it) }
+                    }
+                }
+                if (cache.getImageFile(archiveKey).let { it.exists() && it.length() > 0L }) {
+                    page.imageUrl = archiveKey
+                    page.stream = null
+                    page.status = MangaPageStatus.Ready
+                    Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
+                    return
+                }
+                throw java.io.IOException("Arşiv sayfası okunamadı: ${page.archivePath}")
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                page.status = MangaPageStatus.Error
+                MangaLogger.logImageFetch(context, source.name, page.index,
+                    page.archivePath, success = false, error = e)
+                Log.e(TAG, "Archive page error [${page.index}]: ${page.archivePath}", e)
                 return
             }
-            page.status = MangaPageStatus.Error
-            Log.e(TAG, "Archive page error [${page.index}]: ${page.archivePath}")
-            return
         }
 
         semaphore.withPermit {

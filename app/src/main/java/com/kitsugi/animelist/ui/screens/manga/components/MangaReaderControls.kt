@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -65,6 +66,8 @@ import com.kitsugi.animelist.data.manga.MangaFitMode
 import com.kitsugi.animelist.data.manga.MangaReaderPrefs
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -84,7 +87,14 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 
 private val BarBackground = Color(0xFF161622).copy(alpha = 0.95f)
 private val BarPillBackground = Color(0xFF26263B)
-private val AccentPurple = Color(0xFF7C4DFF)
+/**
+ * Okuyucu vurgusu — uygulamanın **tema vurgu rengi** ile birebir aynıdır.
+ * (Önceden sabit mor `0xFF7C4DFF` idi; kullanıcı temasını değiştirdiğinde
+ * okuyucu aykırı kalıyordu.)
+ */
+private val ReaderAccent: Color
+    @Composable
+    get() = LocalKitsugiAccent.current
 
 // ─── Üst bar ─────────────────────────────────────────────────────────────────
 
@@ -143,7 +153,7 @@ fun MangaReaderTopBar(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(AccentPurple.copy(alpha = 0.22f))
+                                .background(ReaderAccent.copy(alpha = 0.22f))
                                 .padding(horizontal = 6.dp, vertical = 1.dp)
                         ) {
                             Text(
@@ -256,9 +266,9 @@ fun MangaReaderBottomBar(
                         },
                         valueRange = 1f..pageCount.toFloat().coerceAtLeast(1f),
                         colors = SliderDefaults.colors(
-                            activeTrackColor = AccentPurple,
+                            activeTrackColor = ReaderAccent,
                             inactiveTrackColor = Color(0xFF3D3D5C),
-                            thumbColor = AccentPurple,
+                            thumbColor = ReaderAccent,
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -366,7 +376,7 @@ fun MangaReaderSettingsSheet(
         ) {
             Text(
                 stringResource(R.string.inline_reader_settings_82b7841),
-                color = Color.White,
+                color = KitsugiColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 14.dp),
@@ -419,7 +429,7 @@ fun MangaReaderSettingsSheet(
                 Icon(
                     imageVector = Icons.Default.BrightnessLow,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.6f),
+                    tint = KitsugiColors.TextMuted,
                     modifier = Modifier.size(18.dp),
                 )
                 Slider(
@@ -427,9 +437,9 @@ fun MangaReaderSettingsSheet(
                     onValueChange = onBrightnessChanged,
                     valueRange = 0.1f..1.0f,
                     colors = SliderDefaults.colors(
-                        activeTrackColor = AccentPurple,
-                        inactiveTrackColor = Color(0xFF2A2A40),
-                        thumbColor = AccentPurple,
+                        activeTrackColor = ReaderAccent,
+                        inactiveTrackColor = KitsugiColors.SurfaceStrong,
+                        thumbColor = ReaderAccent,
                     ),
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 )
@@ -437,14 +447,14 @@ fun MangaReaderSettingsSheet(
                     Icon(
                         imageVector = Icons.Rounded.RestartAlt,
                         contentDescription = stringResource(R.string.slider_reset_to_default),
-                        tint = Color.White.copy(alpha = 0.8f),
+                        tint = KitsugiColors.TextSecondary,
                         modifier = Modifier.size(18.dp),
                     )
                 }
                 Icon(
                     imageVector = Icons.Default.BrightnessHigh,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.6f),
+                    tint = KitsugiColors.TextMuted,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -528,7 +538,7 @@ fun MangaReaderSettingsSheet(
 private fun SectionLabel(text: String) {
     Text(
         text,
-        color = Color.White.copy(alpha = 0.7f),
+        color = KitsugiColors.TextSecondary,
         fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(top = 6.dp, bottom = 6.dp),
@@ -551,10 +561,10 @@ private fun <T> MangaChoiceChips(
                         onClick = { onSelect(value) },
                         label = { Text(label, fontSize = 11.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AccentPurple.copy(alpha = 0.2f),
-                            selectedLabelColor = AccentPurple,
-                            containerColor = Color(0xFF2A2A40),
-                            labelColor = Color.White,
+                            selectedContainerColor = ReaderAccent.copy(alpha = 0.2f),
+                            selectedLabelColor = ReaderAccent,
+                            containerColor = KitsugiColors.SurfaceStrong,
+                            labelColor = KitsugiColors.TextPrimary,
                         ),
                     )
                 }
@@ -575,8 +585,8 @@ private fun ReaderToggleRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            Text(description, color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp)
+            Text(title, color = KitsugiColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(description, color = KitsugiColors.TextMuted, fontSize = 11.sp)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
@@ -594,6 +604,9 @@ fun MangaChapterPickerSheet(
     onDismiss: () -> Unit,
 ) {
     var expandedKeys by remember { mutableStateOf(emptySet<String>()) }
+    // Sabit 460.dp yerine ekranın yüksekliğine göre: yatay telefonda taşmaz,
+    // büyük ekranda daha çok bölüm görünür.
+    val pickerMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.62f
 
     KitsugiSheetOrDialog(onDismiss = onDismiss) {
         Column(
@@ -603,7 +616,7 @@ fun MangaChapterPickerSheet(
         ) {
             Text(
                 stringResource(R.string.manga_reader_chapters),
-                color = Color.White,
+                color = KitsugiColors.TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -611,7 +624,7 @@ fun MangaChapterPickerSheet(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.manga_picker_grouped_hint),
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = KitsugiColors.TextMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
@@ -627,14 +640,14 @@ fun MangaChapterPickerSheet(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CircularProgressIndicator(
-                            color = AccentPurple,
+                            color = ReaderAccent,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(22.dp),
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
                             stringResource(R.string.inline_loading_page_list_31ccd61),
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = KitsugiColors.TextMuted,
                             fontSize = 12.sp,
                         )
                     }
@@ -643,14 +656,14 @@ fun MangaChapterPickerSheet(
                 groups.isEmpty() -> {
                     Text(
                         stringResource(R.string.manga_reader_no_chapters),
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = KitsugiColors.TextMuted,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(vertical = 24.dp),
                     )
                 }
 
                 else -> {
-                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = pickerMaxHeight)) {
                         items(groups, key = { it.key }) { group ->
                             val isCurrentGroup = group.containsUrl(currentChapterUrl)
                             val multiple = group.hasMultipleVariants
@@ -662,7 +675,7 @@ fun MangaChapterPickerSheet(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(
-                                            if (isCurrentGroup) AccentPurple.copy(alpha = 0.18f) else Color.Transparent
+                                            if (isCurrentGroup) ReaderAccent.copy(alpha = 0.18f) else Color.Transparent
                                         )
                                         .clickable {
                                             if (multiple) {
@@ -680,7 +693,7 @@ fun MangaChapterPickerSheet(
                                 ) {
                                     Text(
                                         text = group.displayName,
-                                        color = if (isCurrentGroup) AccentPurple else Color.White.copy(alpha = 0.85f),
+                                        color = if (isCurrentGroup) ReaderAccent else KitsugiColors.TextPrimary,
                                         fontSize = 13.sp,
                                         fontWeight = if (isCurrentGroup) FontWeight.SemiBold else FontWeight.Normal,
                                         maxLines = 1,
@@ -690,7 +703,7 @@ fun MangaChapterPickerSheet(
                                     if (multiple) {
                                         Text(
                                             text = stringResource(R.string.manga_chapter_variants, group.variantCount),
-                                            color = if (isCurrentGroup) AccentPurple else Color.White.copy(alpha = 0.45f),
+                                            color = if (isCurrentGroup) ReaderAccent else KitsugiColors.TextMuted,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.SemiBold,
                                         )
@@ -698,14 +711,14 @@ fun MangaChapterPickerSheet(
                                         Icon(
                                             imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                             contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.5f),
+                                            tint = KitsugiColors.TextMuted,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     } else if (isCurrentGroup) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
-                                            tint = AccentPurple,
+                                            tint = ReaderAccent,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     }
@@ -722,7 +735,7 @@ fun MangaChapterPickerSheet(
                                                 .padding(start = 12.dp)
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .background(
-                                                    if (isCurrent) AccentPurple.copy(alpha = 0.12f) else Color.Transparent
+                                                    if (isCurrent) ReaderAccent.copy(alpha = 0.12f) else Color.Transparent
                                                 )
                                                 .clickable { onSelect(chapter) }
                                                 .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -733,13 +746,13 @@ fun MangaChapterPickerSheet(
                                                     .size(5.dp)
                                                     .clip(RoundedCornerShape(50))
                                                     .background(
-                                                        if (isCurrent) AccentPurple else Color.White.copy(alpha = 0.28f)
+                                                        if (isCurrent) ReaderAccent else KitsugiColors.TextMuted.copy(alpha = 0.6f)
                                                     )
                                             )
                                             Spacer(Modifier.width(10.dp))
                                             Text(
                                                 text = chapter.scanlator ?: stringResource(R.string.manga_choice_unknown_scanlator),
-                                                color = if (isCurrent) AccentPurple else Color.White.copy(alpha = 0.8f),
+                                                color = if (isCurrent) ReaderAccent else KitsugiColors.TextSecondary,
                                                 fontSize = 12.sp,
                                                 fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                                                 maxLines = 1,
@@ -749,7 +762,7 @@ fun MangaChapterPickerSheet(
                                             if (isPreferred) {
                                                 Text(
                                                     text = stringResource(R.string.manga_choice_preferred),
-                                                    color = AccentPurple.copy(alpha = 0.9f),
+                                                    color = ReaderAccent.copy(alpha = 0.9f),
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.SemiBold,
                                                 )
@@ -757,7 +770,7 @@ fun MangaChapterPickerSheet(
                                                 Icon(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = null,
-                                                    tint = AccentPurple,
+                                                    tint = ReaderAccent,
                                                     modifier = Modifier.size(14.dp),
                                                 )
                                             }
@@ -770,7 +783,7 @@ fun MangaChapterPickerSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(1.dp)
-                                    .background(Color.White.copy(alpha = 0.06f))
+                                    .background(KitsugiColors.Border.copy(alpha = 0.6f))
                             )
                         }
                     }

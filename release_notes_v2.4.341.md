@@ -45,6 +45,18 @@
 - **Okundu/okunmadı işaretleme:** Bölüm veya tek bir çevirmen sürümü için onay ikonu; "görünenleri okundu işaretle" (onaylı).
 
 
+### 🎨 Tema Uyumu ve Düzen
+- Okuyucu artık **tema vurgu rengini** kullanıyor: ayar paneli, bölüm seçici, çevirmen penceresi, "tekrar dene" ve bölüm sonu düğmesi sabit mor yerine seçtiğin vurgu rengiyle çiziliyor.
+- Ayar/çevirmen panellerindeki sabit beyaz yazılar tema metin renklerine geçti → **açık, koyu ve AMOLED** temalarda okunaklı.
+- Çevirmen penceresi tek kaydırmalı liste + ekran yüksekliğine göre sınır → küçük/yatay ekranda taşma yok.
+- Bölüm seçici paneli sabit yükseklik yerine ekranın %62'si; detay başlığındaki düğmeler küçültüldü, başlık tek satırda kırpılıyor; yatay telefonda keşfet ekranındaki bilgi kartı gizleniyor.
+
+### 🖼️ Sayfa Görüntüleme Sağlamlığı
+- Webtoon'da yer tutucular artık son yüklenen sayfanın **en-boy oranına** göre çiziliyor (sabit 480 dp kaldırıldı) → kaydırma sıçraması azaldı.
+- **Arşiv (ZIP/CBZ) sayfaları artık gerçekten çiziliyor**: giriş akışı diske yazılıp önbellekten servis ediliyor.
+- Sayfa önbelleği kontrolü yeniden çizimlerde diske gitmiyor; 0 baytlık dosya "hazır" sayılmıyor.
+
+
 ---
 
 ## 🇬🇧 English
@@ -92,4 +104,15 @@
 - **Chapter search:** find chapters by number or name in long lists ("42" also matches 42.0 and 42.5).
 - **Unread-only** filter plus **clear filters**.
 - **Mark read/unread:** one tap per chapter (or per scanlator version) and a confirmed "mark visible as read".
+
+### 🎨 Theme Compatibility and Layout
+- The reader now uses your **theme accent color**: settings panel, chapter picker, scanlator dialog, "retry" and the chapter-end button are tinted with your accent instead of a fixed purple.
+- Hardcoded white text in the panels moved to theme text colors → readable in **light, dark and AMOLED** themes.
+- The scanlator dialog is a single scrollable list capped to the screen height → no overflow on small or landscape screens.
+- The chapter picker is capped to 62% of the screen height; detail header buttons were shrunk and the title truncates; the Discover info card hides on landscape phones.
+
+### 🖼️ Page Rendering Robustness
+- Webtoon placeholders now follow the **aspect ratio** of the last loaded page (no more fixed 480 dp) → fewer scroll jumps.
+- **ZIP/CBZ archive pages actually render now**: the entry stream is written to disk and served from cache.
+- Cache checks no longer hit the disk on every recomposition, and zero-byte files are no longer treated as ready.
 

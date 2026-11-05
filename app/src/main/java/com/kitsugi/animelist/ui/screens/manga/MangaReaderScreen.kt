@@ -62,6 +62,7 @@ import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaReaderBottomBar
 import com.kitsugi.animelist.ui.screens.manga.components.MangaReaderSettingsSheet
 import com.kitsugi.animelist.ui.screens.manga.components.MangaReaderSystemUi
+import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.screens.manga.components.MangaReaderTopBar
 import com.kitsugi.animelist.ui.screens.manga.components.MangaVerticalPagerReader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
@@ -473,7 +474,7 @@ private fun ReaderLoadingState() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            CircularProgressIndicator(color = Color(0xFF7C4DFF), strokeWidth = 3.dp)
+            CircularProgressIndicator(color = KitsugiColors.Accent, strokeWidth = 3.dp)
             Spacer(Modifier.height(16.dp))
             Text(
                 stringResource(R.string.inline_loading_page_list_31ccd61),
@@ -515,9 +516,12 @@ private fun ReaderErrorState(
             Spacer(Modifier.height(24.dp))
             KitsugiButton(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = KitsugiColors.Accent,
+                    contentColor = KitsugiColors.OnAccent,
+                ),
             ) {
-                Text(stringResource(R.string.manga_reader_retry), color = Color.White)
+                Text(stringResource(R.string.manga_reader_retry), color = KitsugiColors.OnAccent)
             }
         }
     }

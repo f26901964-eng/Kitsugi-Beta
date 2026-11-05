@@ -122,6 +122,8 @@ fun MangaBrowseScreen(
     }
     val accentColor = LocalKitsugiAccent.current
     val cols = rememberKitsugiGridColumns()
+    // Kısa ekranlarda (yatay telefon) bilgi kartını gizle: alan ızgaraya kalsın.
+    val compactLayout = LocalConfiguration.current.screenHeightDp < 620
 
     // Snapshot delegated props → allow smart cast
     val query          = ui.searchQuery
@@ -203,8 +205,8 @@ fun MangaBrowseScreen(
                 Icon(Icons.Rounded.TravelExplore, null, tint = accentColor, modifier = Modifier.padding(end = 8.dp).size(22.dp))
             }
 
-            // ── Info card (CS3 portrait style) ──
-            Row(
+            // ── Info card (CS3 portrait style) — kısa ekranda gizlenir ──
+            if (!compactLayout) Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
@@ -492,9 +494,9 @@ fun MangaBrowseScreen(
 
                                     Spacer(Modifier.height(14.dp))
                                     KitsugiButton(onClick = { showSettingsDialog = true }) {
-                                        Icon(Icons.Rounded.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Rounded.Add, null, tint = KitsugiColors.OnAccent, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(8.dp))
-                                        Text(stringResource(R.string.manga_empty_add_source), color = Color.White, fontWeight = FontWeight.SemiBold)
+                                        Text(stringResource(R.string.manga_empty_add_source), color = KitsugiColors.OnAccent, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -672,7 +674,7 @@ private fun MiniSortChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(if (selected) accent.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.06f))
+            .background(if (selected) accent.copy(alpha = 0.22f) else KitsugiColors.SurfaceStrong)
             .tvClickable(shape = RoundedCornerShape(999.dp)) { onClick() }
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
@@ -706,8 +708,8 @@ fun MangaChip(
         isSelected  -> accent.copy(alpha = 0.35f)
         isLoading   -> accent.copy(alpha = pulse * 0.22f)
         count > 0   -> accent.copy(alpha = 0.12f)
-        error != null -> Color.Red.copy(alpha = 0.15f)
-        else        -> Color.White.copy(alpha = 0.07f)
+        error != null -> KitsugiColors.AccentRed.copy(alpha = 0.15f)
+        else        -> KitsugiColors.SurfaceStrong
     }
     Row(
         Modifier.clip(RoundedCornerShape(999.dp)).background(bg).tvClickable(shape = RoundedCornerShape(999.dp)) { onClick() }.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -718,7 +720,7 @@ fun MangaChip(
             isLoading -> CircularProgressIndicator(Modifier.size(10.dp), color = accent, strokeWidth = 1.5.dp)
             isAll     -> Icon(Icons.Rounded.Extension, null, tint = if (isSelected) accent else KitsugiColors.TextSecondary, modifier = Modifier.size(13.dp))
             count > 0 -> Box(Modifier.size(7.dp).clip(CircleShape).background(accent))
-            error != null -> Box(Modifier.size(7.dp).clip(CircleShape).background(Color.Red.copy(0.7f)))
+            error != null -> Box(Modifier.size(7.dp).clip(CircleShape).background(KitsugiColors.AccentRed.copy(0.7f)))
             else      -> Box(Modifier.size(7.dp).clip(CircleShape).background(KitsugiColors.TextMuted.copy(0.5f)))
         }
         Text(
@@ -733,7 +735,7 @@ fun MangaChip(
         if (error != null && errorCode != null) {
             Text(
                 errorCode,
-                color = Color.Red.copy(alpha = 0.8f),
+                color = KitsugiColors.AccentRed.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
             )

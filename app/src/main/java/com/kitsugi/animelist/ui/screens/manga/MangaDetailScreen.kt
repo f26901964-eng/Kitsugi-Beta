@@ -184,7 +184,9 @@ fun MangaDetailScreen(
                                 if (uiState.groups.isNotEmpty()) " (${uiState.visibleGroups.size})" else "",
                             color = KitsugiColors.TextPrimary,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         // Aynı bölümün kaç farklı çevirmeni var? (birleşik görünümde özet)
                         if (uiState.mergedScanlators && uiState.chapters.size > uiState.groups.size) {
@@ -200,7 +202,10 @@ fun MangaDetailScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { viewModel.toggleMergedScanlators() }) {
+                    IconButton(
+                        onClick = { viewModel.toggleMergedScanlators() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = if (uiState.mergedScanlators) Icons.Rounded.CallMerge else Icons.Rounded.CallSplit,
                             contentDescription = if (uiState.mergedScanlators) {
@@ -212,7 +217,10 @@ fun MangaDetailScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { showMarkAllConfirm = true }) {
+                    IconButton(
+                        onClick = { showMarkAllConfirm = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             Icons.Rounded.DoneAll,
                             contentDescription = stringResource(R.string.manga_mark_all_read),
@@ -220,7 +228,10 @@ fun MangaDetailScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { viewModel.loadChapters() }) {
+                    IconButton(
+                        onClick = { viewModel.loadChapters() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             Icons.Rounded.Refresh,
                             contentDescription = stringResource(R.string.yenile),
