@@ -19,6 +19,9 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,7 +34,7 @@ import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaPageStatus
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
-import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
+import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 
@@ -112,20 +115,24 @@ fun MangaPageItem(
             MangaPageStatus.Ready -> {
                 val imageUrl = page.imageUrl ?: page.url
                 val cacheFile = loader.cache.getImageFile(imageUrl)
-                val modelToLoad: Any = if (cacheFile.exists()) cacheFile else imageUrl
+                // Never bypass the extension client for a cache miss (headers/cookies may be required).
+                val modelToLoad: Any = cacheFile
 
                 val context = LocalContext.current
-                val imageRequest = remember(modelToLoad) {
+                val displayError = remember(page, modelToLoad) { mutableStateOf<Throwable?>(null) }
+                val retryGeneration = remember(page, modelToLoad) { mutableIntStateOf(0) }
+                val imageRequest = remember(modelToLoad, retryGeneration.intValue) {
                     ImageRequest.Builder(context)
                         .data(modelToLoad)
                         .diskCachePolicy(CachePolicy.DISABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
                         .crossfade(200)
+                        .listener(
+                            onError = { _, result -> displayError.value = result.throwable },
+                            onSuccess = { _, _ -> displayError.value = null }
+                        )
                         .build()
                 }
-
-                val zoomableState = rememberZoomableState()
-                val imageState    = rememberZoomableImageState(zoomableState)
 
                 val contentScale = when (fitMode) {
                     MangaFitMode.FitScreen -> ContentScale.Fit
@@ -170,14 +177,26 @@ fun MangaPageItem(
                     }
                 }
 
-                ZoomableAsyncImage(
-                    model       = imageRequest,
-                    contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
-                    state       = imageState,
-                    contentScale = contentScale,
-                    colorFilter = composeColorFilter,
-                    modifier    = Modifier.fillMaxSize()
-                )
+                if (displayError.value == null) {
+                    key(retryGeneration.intValue) {
+                        val zoomableState = rememberZoomableState()
+                        val imageState = rememberZoomableImageState(zoomableState)
+                        ZoomableAsyncImage(
+                            model = imageRequest,
+                            contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
+                            state = imageState,
+                            contentScale = contentScale,
+                            colorFilter = composeColorFilter,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                } else {
+                    ErrorPageContent(pageIndex = page.index, onRetry = {
+                        displayError.value = null
+                        retryGeneration.intValue++
+                        loader.retryPage(page, invalidateCache = true)
+                    })
+                }
             }
 
             MangaPageStatus.Error -> {

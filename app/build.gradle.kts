@@ -358,7 +358,10 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.1")
 
     // Subsampling and zoomable image support for manga pages
-    implementation("me.saket.telephoto:zoomable-image-coil:0.8.0")
+    // Reader requests are Coil 3 ImageRequests; the Coil 2 adapter silently treats them as data.
+    implementation("me.saket.telephoto:zoomable-image-coil3:0.14.0")
+    // Mihon-compatible native fallback for AVIF/HEIF/JXL on older Android.
+    implementation("com.github.tachiyomiorg:image-decoder:e08e9be535")
 
     // Kotlinx Serialization is part of the runtime ABI for dynamically loaded CS3 plugins too:
     // their DEX references KSerializer by its original FQCN through the host classloader.

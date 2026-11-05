@@ -506,7 +506,7 @@ class KotatsuMangaSource(
             val response = context.httpClient.newCall(request).execute()
             if (!response.isSuccessful) {
                 response.close()
-                throw java.io.IOException("HTTP error ${response.code} for $imageUrl")
+                throw java.io.IOException("HTTP error ${response.code}")
             }
             val body = response.body ?: throw java.io.IOException("Response body is null")
             object : java.io.FilterInputStream(body.byteStream()) {

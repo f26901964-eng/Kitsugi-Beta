@@ -65,7 +65,16 @@ class MangaCache(private val context: Context) {
     private fun isDecodableImage(file: File): Boolean {
         val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeFile(file.absolutePath, options)
-        return options.outWidth > 0 && options.outHeight > 0
+        return (options.outWidth > 0 && options.outHeight > 0) ||
+            com.kitsugi.animelist.data.manga.image.MangaNativeFormats.hasValidBounds(file)
+    }
+
+    /** Remove a failed decode before asking the source for a fresh copy. */
+    @Synchronized
+    fun removeImage(imageUrl: String) {
+        val file = cacheFile(imageUrl)
+        val size = file.length()
+        if (file.delete()) adjustSize(-size)
     }
 
     // ─── Okuma ───────────────────────────────────────────────────────────────
@@ -106,7 +115,7 @@ class MangaCache(private val context: Context) {
             // ERKEN ÇIKIŞ: sayaç artık bellekte olduğu için bütçe kontrolü bedavadır.
             if (totalBytes() > MAX_BYTES) trimIfNeeded()
         } catch (e: Exception) {
-            Log.e(TAG, "Önbellek yazma hatası [$imageUrl]: ${e.message}")
+            Log.e(TAG, "Önbellek yazma hatası: ${e.javaClass.simpleName}")
             if (temp.exists()) temp.delete()
             throw e
         }

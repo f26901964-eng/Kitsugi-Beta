@@ -148,11 +148,17 @@ class MangaPageLoaderV2(
         }
     }
 
-    fun retryPage(page: MangaPage) {
+    fun retryPage(page: MangaPage, invalidateCache: Boolean = false) {
         val previous = prefetchJobs.remove(page.index)
         previous?.cancel()
+        page.status = MangaPageStatus.Queue
         scope.launch {
             previous?.join()
+            if (invalidateCache) {
+                page.imageUrl?.let { url ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { cache.removeImage(url) }
+                }
+            }
             page.status = MangaPageStatus.Queue
             loadPage(page)
         }
@@ -164,16 +170,23 @@ class MangaPageLoaderV2(
         if (page.status == MangaPageStatus.Ready) return
 
         if (page.archivePath != null && archiveFile != null) {
-            val archiveLoader = ArchivePageLoader(context, archiveFile)
-            val stream = archiveLoader.loadPage(page.archivePath!!)
-            if (stream != null) {
-                page.stream = { stream }
+            try {
+                val entry = page.archivePath!!
+                val cacheKey = "archive:${archiveFile.absolutePath}:${archiveFile.lastModified()}:$entry"
+                page.imageUrl = cacheKey
+                if (!cache.isImageInCache(cacheKey)) {
+                    val stream = ArchivePageLoader(context, archiveFile).loadPage(entry)
+                        ?: throw java.io.IOException("Arşiv sayfası okunamadı")
+                    stream.use { cache.putImageToCache(cacheKey, it) }
+                }
+                page.stream = { cache.getImageFile(cacheKey).inputStream() }
                 page.status = MangaPageStatus.Ready
-                Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
-                return
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                page.status = MangaPageStatus.Error
+                Log.e(TAG, "Arşiv sayfası hatası [${page.index}]: ${e.javaClass.simpleName}")
             }
-            page.status = MangaPageStatus.Error
-            Log.e(TAG, "Archive page error [${page.index}]: ${page.archivePath}")
             return
         }
 
@@ -194,7 +207,7 @@ class MangaPageLoaderV2(
                     if (cache.isImageInCache(imageUrl)) {
                         page.stream = { cache.getImageFile(imageUrl).inputStream() }
                         page.status = MangaPageStatus.Ready
-                        Log.v(TAG, "Cache hit [${page.index}]: $imageUrl")
+                        Log.v(TAG, "Cache hit [${page.index}]")
                         return@withTimeout
                     }
 
@@ -215,9 +228,9 @@ class MangaPageLoaderV2(
 
                         val elapsed = System.currentTimeMillis() - t0
                         sourceStateStore.recordOperationSuccess(source, "image", elapsed)
-                        Log.v(TAG, "Sayfa hazır [${page.index}] (${elapsed}ms): $imageUrl")
+                        Log.v(TAG, "Sayfa hazır [${page.index}] (${elapsed}ms)")
                     } else {
-                        throw java.io.IOException("Cache file not found or empty for $imageUrl")
+                        throw java.io.IOException("Cache file not found or empty")
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
@@ -234,10 +247,10 @@ class MangaPageLoaderV2(
                 val elapsed = System.currentTimeMillis() - t0
                 page.status = MangaPageStatus.Error
                 sourceStateStore.recordOperationFailure(source, "image",
-                    reason = e.message, statusOverride = classifyStatus(e), elapsedMs = elapsed)
+                    reason = e.javaClass.simpleName, statusOverride = classifyStatus(e), elapsedMs = elapsed)
                 MangaLogger.logImageFetch(context, source.name, page.index,
                     page.imageUrl, success = false, elapsedMs = elapsed, error = e)
-                Log.e(TAG, "Sayfa hatası [${page.index}]: ${e.message}")
+                Log.e(TAG, "Sayfa hatası [${page.index}]: ${e.javaClass.simpleName}")
             }
         }
     }
