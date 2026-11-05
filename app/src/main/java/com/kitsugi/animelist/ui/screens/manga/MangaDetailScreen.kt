@@ -301,80 +301,66 @@ fun MangaDetailScreen(
                 MangaDetailHeader(details = details, accent = accent)
             }
 
-            // ─── Oku / Devam Et Butonu ─────────────────────────────────────────
+            // ─── Oku / Devam Et + Kitaplık ─────────────────────────────────────
+            // Kitaplık düğmesi AYRI bir liste öğesi DEĞİL: sticky başlık ve üst bar
+            // eşikleri liste indekslerine bağlı (hero · aksiyon · açıklama · wiki ·
+            // başlık). Yeni öğe eklemek eşikleri kaydırıp üst barın yanlış yerde
+            // görünmesine yol açıyordu. Bu yüzden kitaplık düğmesi "Oku" satırının
+            // sağında kompakt bir kare düğme.
             item(key = "read_action") {
                 val resume = uiState.resumeChapter
                 val canRead = uiState.chapters.isNotEmpty()
-                KitsugiDetailActionButton(
-                    text = when {
-                        resume != null -> stringResource(R.string.devam_et_x, resume.name)
-                        else -> stringResource(R.string.manga_read_from_start)
-                    },
-                    icon = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
-                    onClick = {
-                        viewModel.chapterToOpen()?.let(onOpenChapter)
-                    },
-                    enabled = canRead,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                )
-            }
-
-            // ─── Kitaplık düğmesi ─────────────────────────────────────────────
-            // Mihon'da "kütüphaneye ekle" serinin kimliğidir; burada Oku butonunun
-            // hemen altında tek satır: takip et / takipten çıkar.
-            item(key = "library_action") {
                 val inLibrary = libraryRow != null
-                val shape = RoundedCornerShape(999.dp)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(shape)
-                        .background(
-                            if (inLibrary) accent.copy(alpha = 0.16f)
-                            else KitsugiColors.SurfaceSoft
-                        )
-                        .tvClickable(shape = shape) {
-                            if (inLibrary) {
-                                libraryRow?.let(libraryViewModel::removeFromLibrary)
-                            } else {
-                                libraryViewModel.addToLibrary(source, details)
-                            }
-                        }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        if (inLibrary) Icons.Rounded.Bookmark
-                        else Icons.Rounded.BookmarkBorder,
-                        contentDescription = null,
-                        tint = if (inLibrary) accent else KitsugiColors.TextMuted,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = if (inLibrary) {
-                            stringResource(R.string.manga_library_added)
-                        } else {
-                            stringResource(R.string.manga_library_add)
+                    KitsugiDetailActionButton(
+                        text = when {
+                            resume != null -> stringResource(R.string.devam_et_x, resume.name)
+                            else -> stringResource(R.string.manga_read_from_start)
                         },
-                        color = if (inLibrary) accent else KitsugiColors.TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        icon = if (resume != null) Icons.Rounded.PlayArrow
+                               else Icons.AutoMirrored.Rounded.MenuBook,
+                        onClick = {
+                            viewModel.chapterToOpen()?.let(onOpenChapter)
+                        },
+                        enabled = canRead,
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.weight(1f)
                     )
-                    if (inLibrary && uiState.chapters.isNotEmpty()) {
-                        Text(
-                            text = stringResource(
-                                R.string.manga_progress_summary,
-                                uiState.chapters.count { it.isCompleted },
-                                uiState.chapters.size
-                            ),
-                            color = KitsugiColors.TextMuted,
-                            fontSize = 10.sp
+                    // Takip et / takipten çıkar — tek dokunuş, durum renkle belli.
+                    val libShape = RoundedCornerShape(16.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(libShape)
+                            .background(
+                                if (inLibrary) accent.copy(alpha = 0.18f)
+                                else KitsugiColors.SurfaceSoft
+                            )
+                            .tvClickable(shape = libShape) {
+                                if (inLibrary) {
+                                    libraryRow?.let(libraryViewModel::removeFromLibrary)
+                                } else {
+                                    libraryViewModel.addToLibrary(source, details)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (inLibrary) Icons.Rounded.Bookmark
+                            else Icons.Rounded.BookmarkBorder,
+                            contentDescription = if (inLibrary) {
+                                stringResource(R.string.manga_library_remove)
+                            } else {
+                                stringResource(R.string.manga_library_add)
+                            },
+                            tint = if (inLibrary) accent else KitsugiColors.TextMuted,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
