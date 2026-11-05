@@ -17848,4 +17848,13 @@
     <string name="manga_sorting_newest_hint">List is sorted newest → oldest. Change the sort to get back to chapter 1.</string>
     <string name="manga_restore_default_sort">Default sorting (1 → N) restored</string>
 
+
+    <string name="manga_download_chapter">Download chapter</string>
+    <string name="manga_download_delete">Delete downloaded file</string>
+    <string name="manga_downloaded_count">%1$d chapters downloaded</string>
+    <string name="manga_download_all_visible">Download visible chapters</string>
+    <string name="manga_downloading_progress">Downloading: %1$d%%</string>
+    <string name="manga_download_failed">Download failed</string>
+    <string name="manga_storage_used">%1$s MB used</string>
+
 </resources>

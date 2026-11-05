@@ -5,6 +5,7 @@ import com.kitsugi.animelist.data.fandom.FandomMediaQueries
 import com.kitsugi.animelist.data.manga.ChapterSortMode
 import com.kitsugi.animelist.data.manga.ChapterDisplayMode
 import com.kitsugi.animelist.data.manga.displayLabel
+import com.kitsugi.animelist.data.manga.duplicatedChapterNumbers
 import com.kitsugi.animelist.data.manga.missingChapterNumbers
 import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.data.manga.MangaChapter
@@ -52,6 +53,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -125,6 +128,9 @@ fun MangaDetailScreen(
         factory = MangaDetailViewModel.Factory(context, source, mangaDetails)
     )
     val uiState by viewModel.uiState.collectAsState()
+    // Bölüm indirme: durum haritası + indirilmiş URL'ler.
+    val downloadStates by viewModel.downloadStates.collectAsState()
+    val downloadedUrls by viewModel.downloadedUrls.collectAsState()
     val details = uiState.details
 
     // Fandom Wiki: eklenti kaynağında kimlik yoktur; seri başlığıyla (isim yolu) çözülür.
@@ -148,6 +154,8 @@ fun MangaDetailScreen(
     var selectedScanlator by rememberSaveable { mutableStateOf<String?>(null) }
     // Yer imli (★) bölümlere hızlı filtre — Mihon'daki "bookmarked" filtresi.
     var bookmarkedOnly by rememberSaveable { mutableStateOf(false) }
+    // Yinelenen bölümleri gizle (aynı numara birden fazla grupta yayınlanmışsa).
+    var hideDuplicates by rememberSaveable { mutableStateOf(false) }
     var statusFilterName by rememberSaveable { mutableStateOf(ChapterStatusFilter.All.name) }
     // ⚠️ Sıralama artık `rememberSaveable` DEĞİL: ViewModel + DataStore üzerinden gelir.
     // Ekran her açıldığında "en yeni" ile başlamak, bölüm listesini 386 → 381 diye
@@ -193,13 +201,30 @@ fun MangaDetailScreen(
         activeStatusFilter,
         sortMode,
         bookmarkedOnly,
+        hideDuplicates,
         uiState.bookmarked,
         source.name
     ) {
         val needle = query.trim().lowercase()
+        val duplicateNumbers = if (hideDuplicates) {
+            uiState.chapters.map { it.chapter }.duplicatedChapterNumbers()
+        } else {
+            emptySet()
+        }
         uiState.chapters
             .asSequence()
             .filter { row -> !bookmarkedOnly || row.chapter.url in uiState.bookmarked }
+            .let { seq ->
+                if (!hideDuplicates) seq
+                else {
+                    // Numara başına ilk kayıt tutulur; diğer grupların aynı bölümü gizlenir.
+                    val seen = HashSet<Float>()
+                    seq.filter { row ->
+                        val number = row.chapter.chapterNumber
+                        number !in duplicateNumbers || seen.add(number)
+                    }
+                }
+            }
             .filter { row ->
                 selectedScanlator == null ||
                     row.chapter.scanlatorLabel(source.name) == selectedScanlator
@@ -208,7 +233,7 @@ fun MangaDetailScreen(
             .filter { row ->
                 if (needle.isEmpty()) return@filter true
                 val number = if (row.chapter.chapterNumber > 0f) {
-                    row.chapter.chapterNumber.toString()
+                    com.kitsugi.animelist.data.manga.formatChapterNumber(row.chapter.chapterNumber)
                 } else {
                     ""
                 }
@@ -226,6 +251,9 @@ fun MangaDetailScreen(
     val readCount = uiState.chapters.size - unreadCount
     val missingNumbers = remember(uiState.chapters) {
         uiState.chapters.map { it.chapter.chapterNumber }.missingChapterNumbers()
+    }
+    val duplicateChapterNumbers = remember(uiState.chapters) {
+        uiState.chapters.map { it.chapter }.duplicatedChapterNumbers()
     }
 
     Box(
@@ -466,7 +494,16 @@ fun MangaDetailScreen(
                         labels = scanlatorLabels,
                         selected = selectedScanlator,
                         onSelect = { selectedScanlator = it },
-                        accentColor = accent
+                        accentColor = accent,
+                        // Yinelenen bölüm çipi: aynı numara birden fazla grupta varsa
+                        // tek dokunuşla yalnızca bir tanesi gösterilir.
+                        extraChipLabel = if (duplicateChapterNumbers.isNotEmpty()) {
+                            stringResource(R.string.manga_hide_duplicates)
+                        } else {
+                            null
+                        },
+                        extraChipSelected = hideDuplicates,
+                        onToggleExtraChip = { hideDuplicates = !hideDuplicates }
                     )
                     // Filtre sonucu boşsa kullanıcıya neden boş olduğunu söyle ve
                     // tek dokunuşla filtreleri sıfırlamasına izin ver (sessiz boş liste yok).
@@ -548,9 +585,21 @@ fun MangaDetailScreen(
                             accent = accent,
                             onClick = { onOpenChapter(row.chapter) },
                             onToggleRead = { viewModel.setChapterRead(row.chapter, !row.isCompleted) },
+                            // Uzun basış: bu bölümden öncekileri okundu işaretle
+                            // (Mihon "mark previous as read" davranışı).
+                            onLongPress = { viewModel.markPreviousRead(row.chapter) },
                             displayMode = displayMode,
                             isBookmarked = row.chapter.url in uiState.bookmarked,
-                            onToggleBookmark = { viewModel.toggleBookmark(row.chapter) }
+                            onToggleBookmark = { viewModel.toggleBookmark(row.chapter) },
+                            isDownloaded = row.chapter.url in downloadedUrls,
+                            downloadProgress = downloadStates[row.chapter.url]?.progress,
+                            onDownload = {
+                                if (row.chapter.url in downloadedUrls) {
+                                    viewModel.deleteDownload(row.chapter)
+                                } else {
+                                    viewModel.downloadChapter(row.chapter)
+                                }
+                            }
                         )
                     }
                 }
@@ -740,13 +789,25 @@ private fun ChapterListItem(
     displayMode: ChapterDisplayMode = ChapterDisplayMode.DEFAULT,
     /** Bu bölüm yer iminde mi (★). */
     isBookmarked: Boolean = false,
-    onToggleBookmark: () -> Unit = {}
+    onToggleBookmark: () -> Unit = {},
+    /** Uzun basışta çalışır (öncekileri okundu işaretle). */
+    onLongPress: (() -> Unit)? = null,
+    /** Bölüm çevrimdışı okunabilir mi (CBZ indirilmiş). */
+    isDownloaded: Boolean = false,
+    /** İndirme sürüyorsa 0f..1f ilerleme, aksi hâlde null. */
+    downloadProgress: Float? = null,
+    /** İndir / indirmeyi sil. */
+    onDownload: (() -> Unit)? = null
 ) {
     val numberPrefix = stringResource(R.string.manga_chapter_number_prefix)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .tvClickable(shape = RoundedCornerShape(8.dp)) { onClick() }
+            .tvClickable(
+                shape = RoundedCornerShape(8.dp),
+                onLongClick = onLongPress,
+                onClick = onClick
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -790,6 +851,41 @@ private fun ChapterListItem(
                     color = accent,
                     trackColor = KitsugiColors.SurfaceStrong
                 )
+            }
+        }
+        // ── İndirme göstergesi (Mihon: bölüm indirme rozetleri) ─────────────
+        // İndirilmemiş → soluk ok; indiriliyor → halka; indirildi → dolu ikon.
+        if (onDownload != null) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .tvClickable(shape = CircleShape, onClick = onDownload),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    // Dairesel ilerleme göstergesi: M3 CircularProgressIndicator'ın
+                    // determinate hâli (sayfa yükleniyor göstergesiyle aynı görsel dil).
+                    downloadProgress != null -> androidx.compose.material3.CircularProgressIndicator(
+                        progress = { downloadProgress },
+                        color = accent,
+                        trackColor = KitsugiColors.SurfaceStrong,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    isDownloaded -> Icon(
+                        Icons.Rounded.DownloadDone,
+                        contentDescription = stringResource(R.string.manga_download_delete),
+                        tint = accent,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    else -> Icon(
+                        Icons.Rounded.Download,
+                        contentDescription = stringResource(R.string.manga_download_chapter),
+                        tint = KitsugiColors.TextMuted.copy(alpha = 0.35f),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
             }
         }
         // Yer imi (★) — Mihon'daki bölüm yer imiyle aynı davranış: satırı okumadan

@@ -41,6 +41,76 @@ class MangaDetailViewModel(
     private val db = KitsugiDatabase.getDatabase(context)
     private val progressDao = db.mangaChapterProgressDao()
     private val settings = SettingsDataStore(context)
+    private val downloader = com.kitsugi.animelist.data.manga.download.MangaChapterDownloader(context)
+
+    /** Bölüm indirme durumları (URL → ilerleme). Detay ekranı bunu dinler. */
+    val downloadStates = downloader.states
+
+    /** İndirilmiş bölüm URL'leri — satırlardaki "indirildi" işareti için. */
+    private val _downloadedUrls = MutableStateFlow<Set<String>>(emptySet())
+    val downloadedUrls: StateFlow<Set<String>> = _downloadedUrls.asStateFlow()
+
+    /**
+     * Bir mangadaki indirilmiş bölümleri tarar.
+     *
+     * Dosya sistemi sorgusu IO'da yapılır; liste yüklendikten sonra bir kez çağrılır.
+     */
+    private fun refreshDownloadedFlags() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val urls = withContext(Dispatchers.IO) {
+                state.chapters
+                    .mapIndexedNotNull { index, row ->
+                        if (downloader.isDownloaded(
+                                source = source,
+                                mangaTitle = state.details.title,
+                                mangaUrl = state.details.url,
+                                chapter = row.chapter,
+                                index = index
+                            )
+                        ) row.chapter.url else null
+                    }
+                    .toSet()
+            }
+            _downloadedUrls.value = urls
+        }
+    }
+
+    /** Tek bölümü indirir (CBZ). Zaten indirilmişse yeniden indirmez. */
+    fun downloadChapter(chapter: MangaChapter) {
+        val state = _uiState.value
+        viewModelScope.launch {
+            val index = state.chapters.indexOfFirst { it.chapter.url == chapter.url }
+            val file = downloader.download(
+                source = source,
+                mangaTitle = state.details.title,
+                mangaUrl = state.details.url,
+                chapter = chapter,
+                index = if (index >= 0) index else 0
+            )
+            if (file != null) {
+                _downloadedUrls.value = _downloadedUrls.value + chapter.url
+            }
+        }
+    }
+
+    /** İndirilmiş bölüm dosyasını siler (depolama kazanmak için). */
+    fun deleteDownload(chapter: MangaChapter) {
+        val state = _uiState.value
+        viewModelScope.launch {
+            val index = state.chapters.indexOfFirst { it.chapter.url == chapter.url }
+            withContext(Dispatchers.IO) {
+                downloader.existingArchive(
+                    source = source,
+                    mangaTitle = state.details.title,
+                    mangaUrl = state.details.url,
+                    chapter = chapter,
+                    index = if (index >= 0) index else 0
+                )?.delete()
+            }
+            _downloadedUrls.value = _downloadedUrls.value - chapter.url
+        }
+    }
 
     /**
      * Okuyucudan dönüldüğünde çağrılır: yalnızca Room'daki okuma ilerlemesini tazeler.
@@ -283,6 +353,7 @@ class MangaDetailViewModel(
                             errorCode = null
                         )
                     }
+                    refreshDownloadedFlags()
                     return@launch  // Başarılı — döngüden çık
                 } catch (e: Exception) {
                     lastError = e

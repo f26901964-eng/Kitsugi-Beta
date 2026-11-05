@@ -159,28 +159,48 @@ fun MangaScanlatorChipsRow(
     selected: String?,
     onSelect: (String?) -> Unit,
     accentColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Sağdaki ek çip (ör. "Yinelenenleri gizle"). Etiket null ise çip hiç çizilmez;
+     * böylece yinelenen bölüm yokken gereksiz yer kaplamaz.
+     */
+    extraChipLabel: String? = null,
+    extraChipSelected: Boolean = false,
+    onToggleExtraChip: (() -> Unit)? = null
 ) {
-    if (labels.isEmpty()) return
+    // Yalnızca ek çip varsa ve scanlator etiketi yoksa da satır çizilir.
+    if (labels.isEmpty() && extraChipLabel == null) return
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item(key = "__all__") {
-            ScanlatorChip(
-                text = stringResource(R.string.tumu),
-                selected = selected == null,
-                accentColor = accentColor,
-                onClick = { onSelect(null) }
-            )
+        if (labels.isNotEmpty()) {
+            item(key = "__all__") {
+                ScanlatorChip(
+                    text = stringResource(R.string.tumu),
+                    selected = selected == null,
+                    accentColor = accentColor,
+                    onClick = { onSelect(null) }
+                )
+            }
+            items(labels, key = { it }) { label ->
+                ScanlatorChip(
+                    text = label,
+                    selected = selected == label,
+                    accentColor = accentColor,
+                    onClick = { onSelect(if (selected == label) null else label) }
+                )
+            }
         }
-        items(labels, key = { it }) { label ->
-            ScanlatorChip(
-                text = label,
-                selected = selected == label,
-                accentColor = accentColor,
-                onClick = { onSelect(if (selected == label) null else label) }
-            )
+        if (extraChipLabel != null && onToggleExtraChip != null) {
+            item(key = "__extra__") {
+                ScanlatorChip(
+                    text = extraChipLabel,
+                    selected = extraChipSelected,
+                    accentColor = accentColor,
+                    onClick = onToggleExtraChip
+                )
+            }
         }
     }
 }

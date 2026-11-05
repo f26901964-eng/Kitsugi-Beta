@@ -17853,4 +17853,13 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_sorting_newest_hint">Liste yeni → eski sıralı. Bölüm 1'e dönmek için sıralamayı değiştir.</string>
     <string name="manga_restore_default_sort">Varsayılan sıralama (1 → N) geri yüklendi</string>
 
+
+    <string name="manga_download_chapter">Bölümü indir</string>
+    <string name="manga_download_delete">İndirilen dosyayı sil</string>
+    <string name="manga_downloaded_count">%1$d bölüm indirildi</string>
+    <string name="manga_download_all_visible">Görünenleri indir</string>
+    <string name="manga_downloading_progress">İndiriliyor: %1$d%%</string>
+    <string name="manga_download_failed">İndirme başarısız</string>
+    <string name="manga_storage_used">%1$s MB kullanılıyor</string>
+
 </resources>
