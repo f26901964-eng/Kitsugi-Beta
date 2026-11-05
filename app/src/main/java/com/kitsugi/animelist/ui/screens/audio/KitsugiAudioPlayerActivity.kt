@@ -27,7 +27,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiAnimeListTheme
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
 /**
- * Bildirim çubuğundan veya harici dosya yöneticilerinden (`audio/*`) açılan
+ * Bildirim çubuğundan veya harici dosya yöneticilerinden (ses MIME türleri) açılan
  * tam ekran Kitsugi Ses Oynatıcısı ekranı.
  */
 class KitsugiAudioPlayerActivity : ComponentActivity() {
