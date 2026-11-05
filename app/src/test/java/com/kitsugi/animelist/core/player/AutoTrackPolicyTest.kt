@@ -149,7 +149,7 @@ class AutoTrackPolicyTest {
 
         val overridden = AutoTrackPolicy.evaluate(
             snapshot = snapshot(position = 23 * 60 * 1000L, episode = 5),
-            settings = AutoTrackPolicy.Settings(respectDropped = false),
+            settings = AutoTrackPolicy.Settings(enabled = true, respectDropped = false),
             current = dropped
         )
         assertEquals(Action.ADVANCE_EPISODE, overridden.action)
