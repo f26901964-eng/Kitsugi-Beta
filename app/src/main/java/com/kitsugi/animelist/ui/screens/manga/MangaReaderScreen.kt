@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -920,7 +921,7 @@ private fun MangaPageGallerySheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.97f))
+                .background(Color.Black)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(
@@ -991,7 +992,15 @@ private fun MangaPageGallerySheet(
                                 .aspectRatio(0.7f)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (selected) accentColor.copy(alpha = 0.22f) else Color(0xFF1B1B26))
-                                .androidxClickable { onSelect(index) },
+                                .androidxClickable {
+                                    // Hatalı sayfaya dokunmak onu yeniden dener,
+                                    // sağlıklı sayfaya dokunmak o sayfaya atlar.
+                                    if (page.status == MangaPageStatus.Error) {
+                                        loader.retryPage(page)
+                                    } else {
+                                        onSelect(index)
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             if (page.status == MangaPageStatus.Ready) {
@@ -1013,6 +1022,24 @@ private fun MangaPageGallerySheet(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
+                            } else if (page.status == MangaPageStatus.Error) {
+                                // Hatalı sayfa galeride de görünür: dokununca yeniden dener.
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Refresh,
+                                        contentDescription = stringResource(R.string.manga_retry),
+                                        tint = Color.White.copy(0.6f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.manga_retry),
+                                        color = Color.White.copy(0.6f),
+                                        fontSize = 9.sp
+                                    )
+                                }
                             } else {
                                 CircularProgressIndicator(
                                     color = Color.White.copy(0.25f),
