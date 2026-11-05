@@ -35,6 +35,7 @@ class SettingsDataStore(
         "show_anime_logos", "player_preference", "is_autoplay_enabled", "skip_intro_duration_sec",
         "default_subtitle_size", "default_subtitle_color", "subtitle_bold", "subtitle_outline_enabled",
         "manga_reading_mode", "manga_color_filter", "manga_fit_mode", "search_history_enabled",
+        "manga_dual_page_mode",
         "tmdb_language"
     )
 
@@ -173,6 +174,8 @@ class SettingsDataStore(
         val MangaShowTapZonesOverlay = booleanPreferencesKey("manga_show_tap_zones_overlay")
         /** Okunmuş bölümleri okurken atla. */
         val MangaSkipReadChapters = booleanPreferencesKey("manga_skip_read_chapters")
+        /** Çift sayfa modu: OFF / ON / AUTO. */
+        val MangaDualPageMode = stringPreferencesKey("manga_dual_page_mode")
 
         // ─── Novel okuyucu (LNReader paritesi) ──────────────────────────────
         val NovelFontSize = intPreferencesKey("novel_font_size")
@@ -754,6 +757,7 @@ class SettingsDataStore(
                     mangaShowPageNumber = preferences[Keys.MangaShowPageNumber] ?: true,
                     mangaShowTapZonesOverlay = preferences[Keys.MangaShowTapZonesOverlay] ?: true,
                     mangaSkipReadChapters = preferences[Keys.MangaSkipReadChapters] ?: false,
+                    mangaDualPageMode = preferences[Keys.MangaDualPageMode] ?: "OFF",
                     novelFontSize = preferences[Keys.NovelFontSize] ?: 17,
                     novelLineHeight = preferences[Keys.NovelLineHeight] ?: 1.7f,
                     novelMaxWidth = preferences[Keys.NovelMaxWidth] ?: 720,
@@ -1298,6 +1302,16 @@ class SettingsDataStore(
 
     suspend fun setMangaSkipReadChapters(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.MangaSkipReadChapters] = enabled }
+    }
+
+    /** Çift sayfa modu (OFF / ON / AUTO). Bilinmeyen değerler OFF'a düşer. */
+    suspend fun setMangaDualPageMode(mode: String) {
+        val safe = when (mode.uppercase()) {
+            "ON", "ALWAYS" -> "ON"
+            "AUTO", "WIDEONLY", "WIDE" -> "AUTO"
+            else -> "OFF"
+        }
+        context.settingsDataStore.edit { it[Keys.MangaDualPageMode] = safe }
     }
 
     // ─── Novel okuyucu ──────────────────────────────────────────────────────

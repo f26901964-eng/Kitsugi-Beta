@@ -289,6 +289,10 @@ data class DownloadAndMangaSettings(
     val mangaShowTapZonesOverlay: Boolean = true,
     val mangaSkipReadChapters: Boolean = false,
 
+    // ─── Çift sayfa (2-up / spread) modu ──────────────────────────────────────
+    /** "OFF" | "ON" (her zaman) | "AUTO" (yalnızca geniş ekran/tablet). */
+    val mangaDualPageMode: String = "OFF",
+
     // ─── Novel okuyucu (LNReader paritesi) ─────────────────────────────────
     val novelFontSize: Int = 17,
     val novelLineHeight: Float = 1.7f,
@@ -411,6 +415,7 @@ data class AppSettings(
     val mangaShowPageNumber: Boolean get() = downloads.mangaShowPageNumber
     val mangaShowTapZonesOverlay: Boolean get() = downloads.mangaShowTapZonesOverlay
     val mangaSkipReadChapters: Boolean get() = downloads.mangaSkipReadChapters
+    val mangaDualPageMode: String get() = downloads.mangaDualPageMode
     val novelFontSize: Int get() = downloads.novelFontSize
     val novelLineHeight: Float get() = downloads.novelLineHeight
     val novelMaxWidth: Int get() = downloads.novelMaxWidth

@@ -17807,6 +17807,13 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="reader_skip_read_chapters">Okunmuş bölümleri atla</string>
     <string name="reader_image_processing">Görüntü İşleme</string>
     <string name="reader_crop_borders">Kenar boşluklarını kırp</string>
+    <!-- Çift sayfa (2-up / spread) modu -->
+    <string name="reader_dual_page_title">Çift sayfa</string>
+    <string name="reader_dual_page_off">Kapalı</string>
+    <string name="reader_dual_page_on">Her zaman</string>
+    <string name="reader_dual_page_auto">Geniş ekranda</string>
+    <string name="reader_dual_page_hint">Dikine sayfalar ikişer yan yana gösterilir; geniş (çift sayfa) taramalar tek başına tam genişlikte kalır. &quot;Geniş ekranda&quot; seçeneği tablet ve yatay ekranda devreye girer.</string>
+    <string name="reader_dual_page_toggle">Çift sayfa modu</string>
     <string name="reader_split_wide_pages">Geniş sayfaları böl</string>
     <string name="reader_rotate_wide_pages">Geniş sayfaları döndür</string>
     <string name="reader_show_page_number">Sayfa numarasını göster</string>

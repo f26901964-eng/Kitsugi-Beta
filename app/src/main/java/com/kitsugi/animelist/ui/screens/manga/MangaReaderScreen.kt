@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.SaveAlt
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.FindInPage
+import androidx.compose.material.icons.rounded.ViewWeek
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -86,11 +87,15 @@ import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
 import com.kitsugi.animelist.data.manga.MangaTapAction
+import com.kitsugi.animelist.data.manga.DualPageMode
+import com.kitsugi.animelist.data.manga.MangaPagePairing
+import com.kitsugi.animelist.ui.screens.manga.components.MangaDualPageReader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -164,8 +169,59 @@ fun MangaReaderScreen(
         activity = activity
     )
 
-    val pagerState    = rememberPagerState(initialPage = currentPage) { pages.size }
+    // ─── Çift sayfa (2-up) modu ──────────────────────────────────────────────
+    // Genişlik dp cinsinden: "AUTO" yalnızca tablet / yatay telefonda devreye girer.
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val pageAspects by viewModel.pageAspects.collectAsState()
+    // Sayfa yüklenirken oran bilinmez; oranlar geldikçe eşleştirme güncellenir.
+    // (Geniş sayfalar tek başına kalır, dikine sayfalar ikişer gösterilir.)
+
+    // Webtoon sürekli akışta çift sayfa anlamsızdır → otomatik tek sayfaya döner.
+    val dualPageActive = readingMode != ReadingMode.Webtoon &&
+        MangaPagePairing.shouldShowTwoPages(uiState.dualPageMode, screenWidthDp)
+
+    // Akıllı eşleştirme: dikine sayfalar ikişer, geniş sayfalar tek.
+    val spreads = remember(pages.size, pageAspects, dualPageActive) {
+        if (!dualPageActive) emptyList()
+        else MangaPagePairing.smartSpreads(pages.size, pageAspects)
+    }
+    val spreadCount = if (dualPageActive) spreads.size else pages.size
+    // Pager sayfa sayısı: çift modunda çift sayısı, tek modda sayfa sayısı.
+    val pagerPageCount = if (dualPageActive) spreads.size else pages.size
+    // Mod değişince sayfa sayısı yarıya iner/çıkar. `key` değiştiğinde pager
+    // durumu sıfırdan kurulur ve aşağıdaki LaunchedEffect konumu yeniden eşler;
+    // böylece dolu sayfa listesine dar bir pager ile girip çökmek mümkün değildir.
+    val pagerState = androidx.compose.runtime.key(dualPageActive) {
+        rememberPagerState(initialPage = 0) { pagerPageCount }
+    }
     val listState     = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
+
+    // Çift modunda pager indeksi ↔ gerçek sayfa indeksi dönüşümleri.
+    // (Pager sayfa sayısı = çift sayısı; ilerleme/kayıt her zaman SAYFA indeksiyle.)
+    val pagerToPage: (Int) -> Int = { idx ->
+        if (dualPageActive) (spreads.getOrNull(idx)?.minOrNull() ?: 0) else idx
+    }
+    val pageToPager: (Int) -> Int = { pageIdx ->
+        if (dualPageActive) MangaPagePairing.spreadIndexForPage(spreads, pageIdx) else pageIdx
+    }
+
+    // Çift modu açılıp kapandığında (veya sayfa oranları geldikçe eşleşme
+    // değiştiğinde) pager sayfa sayısı değişir; okunan sayfa KAYBOLMASIN diye
+    // konum yeniden eşlenir.
+    LaunchedEffect(dualPageActive, pages.size, spreads) {
+        if (pages.isEmpty()) return@LaunchedEffect
+        if (dualPageActive) {
+            val currentSpread = spreads.getOrNull(pagerState.currentPage)
+            if (currentSpread == null || visiblePage !in currentSpread) {
+                pagerState.scrollToPage(
+                    MangaPagePairing.spreadIndexForPage(spreads, visiblePage.coerceAtLeast(0))
+                )
+            }
+        } else if (pagerState.currentPage != visiblePage) {
+            pagerState.scrollToPage(visiblePage.coerceIn(0, (pages.size - 1).coerceAtLeast(0)))
+        }
+    }
 
     // ─── Ses tuşları ile sayfa çevirme ───────────────────────────────────────
     // Compose odak yakalama yerine Activity seviyesinde tuş dinleyicisi kurulur:
@@ -179,7 +235,8 @@ fun MangaReaderScreen(
                 if (current < pages.size - 1) scope.launch { listState.animateScrollToItem(current + 1) }
                 else viewModel.goToNextChapter()
             } else {
-                if (pagerState.currentPage < pages.size - 1) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                val lastPagerIndex = (spreadCount - 1).coerceAtLeast(0)
+                if (pagerState.currentPage < lastPagerIndex) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                 else viewModel.goToNextChapter()
             }
         } else {
@@ -230,23 +287,28 @@ fun MangaReaderScreen(
             if (readingMode == ReadingMode.Webtoon) {
                 listState.scrollToItem(targetPage)
             } else {
-                pagerState.scrollToPage(targetPage)
+                // Çift modunda kayıtlı SAYFA indeksi → doğru çift açılır.
+                pagerState.scrollToPage(pageToPager(targetPage))
             }
         }
     }
 
     // Geçerli sayfayı sayaç/atlama için izle (pager + webtoon).
-    LaunchedEffect(pagerState.currentPage) { visiblePage = pagerState.currentPage }
+    LaunchedEffect(pagerState.currentPage, dualPageActive) {
+        visiblePage = if (readingMode == ReadingMode.Webtoon) pagerState.currentPage
+                      else pagerToPage(pagerState.currentPage)
+    }
     LaunchedEffect(listState.firstVisibleItemIndex) {
         if (readingMode == ReadingMode.Webtoon) visiblePage = listState.firstVisibleItemIndex
     }
 
     // Pager'daki sayfa değişimini takip et — V2 prefetch tetikle
-    LaunchedEffect(pagerState.currentPage) {
+    LaunchedEffect(pagerState.currentPage, dualPageActive) {
         if (hasRestoredProgress && pages.isNotEmpty()) {
-            viewModel.onPageChanged(currentChapter.url, pagerState.currentPage, pages.size)
+            val realPage = pagerToPage(pagerState.currentPage)
+            viewModel.onPageChanged(currentChapter.url, realPage, pages.size)
             // R2: Sayfa değiştikçe V2 loader'da 3 ileri prefetch'i başlat
-            loader.onPageChanged(pagerState.currentPage)
+            loader.onPageChanged(realPage)
         }
     }
 
@@ -352,7 +414,39 @@ fun MangaReaderScreen(
                         }
                     }
                 )
-                else -> MangaPagerReader(
+                else -> if (dualPageActive) MangaDualPageReader(
+                    pages        = pages,
+                    spreads      = spreads,
+                    pagerState   = pagerState,
+                    loader       = loader,
+                    readingMode  = readingMode,
+                    colorFilterType = uiState.colorFilterType,
+                    fitMode      = uiState.fitMode,
+                    tapActions   = tapActions,
+                    brightnessGesture = uiState.brightnessGestureEnabled,
+                    onBrightnessDrag = { delta -> viewModel.adjustBrightness(delta) },
+                    onLongPress  = { showPageTools = true },
+                    cropBorders  = uiState.cropBorders,
+                    splitWidePages = uiState.splitWidePages,
+                    rotateWidePages = uiState.rotateWidePages,
+                    sidePaddingDp = uiState.sidePaddingDp,
+                    showPageNumber = uiState.showPageNumber,
+                    onCenterTap  = { menuVisible = !menuVisible },
+                    onNextPage   = {
+                        if (pagerState.currentPage < spreadCount - 1) {
+                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                        } else {
+                            viewModel.goToNextChapter()
+                        }
+                    },
+                    onPrevPage   = {
+                        if (pagerState.currentPage > 0) {
+                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                        } else {
+                            viewModel.goToPreviousChapter()
+                        }
+                    }
+                ) else MangaPagerReader(
                     pages        = pages,
                     pagerState   = pagerState,
                     loader       = loader,
@@ -551,7 +645,8 @@ fun MangaReaderScreen(
                                         if (readingMode == ReadingMode.Webtoon) {
                                             listState.scrollToItem(targetPage.coerceIn(0, pages.size - 1))
                                         } else {
-                                            pagerState.scrollToPage(targetPage.coerceIn(0, pages.size - 1))
+                                            // Çift modunda kaydırıcı SAYFA indeksiyle çalışır.
+                                            pagerState.scrollToPage(pageToPager(targetPage.coerceIn(0, pages.size - 1)))
                                         }
                                     }
                                 },
@@ -615,6 +710,24 @@ fun MangaReaderScreen(
                             imageVector = readingModeIcon,
                             contentDescription = stringResource(R.string.okuma_yonu),
                             tint = Color.White
+                        )
+                    }
+
+                    // Çift sayfa (2-up) aç/kapat — webtoon akışında devre dışı.
+                    val dualAllowed = readingMode != ReadingMode.Webtoon
+                    val dualOn = uiState.dualPageMode != DualPageMode.Off && dualAllowed
+                    IconButton(
+                        onClick = { viewModel.toggleDualPageMode() },
+                        enabled = dualAllowed
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.ViewWeek,
+                            contentDescription = stringResource(R.string.reader_dual_page_toggle),
+                            tint = when {
+                                !dualAllowed -> Color.White.copy(0.25f)
+                                dualOn -> Color(0xFF7C4DFF)
+                                else -> Color.White
+                            }
                         )
                     }
 
@@ -687,7 +800,7 @@ fun MangaReaderScreen(
                     if (readingMode == ReadingMode.Webtoon) {
                         listState.scrollToItem(target.coerceIn(0, pages.size - 1))
                     } else {
-                        pagerState.scrollToPage(target.coerceIn(0, pages.size - 1))
+                        pagerState.scrollToPage(pageToPager(target.coerceIn(0, pages.size - 1)))
                     }
                 }
             }
@@ -770,6 +883,43 @@ fun MangaReaderScreen(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
+
+                // ─── Çift sayfa (2-up / spread) ────────────────────────────
+                Text(
+                    stringResource(R.string.reader_dual_page_title),
+                    color = Color.White.copy(0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        DualPageMode.Off to stringResource(R.string.reader_dual_page_off),
+                        DualPageMode.Always to stringResource(R.string.reader_dual_page_on),
+                        DualPageMode.WideOnly to stringResource(R.string.reader_dual_page_auto)
+                    ).forEach { (mode, label) ->
+                        FilterChip(
+                            selected = uiState.dualPageMode == mode,
+                            onClick  = { viewModel.setDualPageMode(mode) },
+                            label    = { Text(label, fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor   = Color(0xFF7C4DFF).copy(0.2f),
+                                selectedLabelColor       = Color(0xFF7C4DFF),
+                                containerColor           = Color(0xFF2A2A40),
+                                labelColor               = Color.White
+                            )
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.reader_dual_page_hint),
+                    color = Color.White.copy(0.5f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
 
                 // Görsel Sığdırma Modu
                 Text(

@@ -49,6 +49,35 @@ class MangaPageLoaderV2(
     private val _pages = MutableStateFlow<List<MangaPage>>(emptyList())
     val pages: StateFlow<List<MangaPage>> = _pages.asStateFlow()
 
+    // ─── Sayfa en-boy oranları (çift sayfa eşleştirmesi için) ────────────────
+    // Çift sayfa modunda yalnızca DİKİNE (portre) sayfalar yan yana konur;
+    // yatay/geniş sayfalar tek başına tam genişlikte gösterilir. Oran, sayfa
+    // indirildiğinde (ya da önbellekten okunduğunda) bir kez okunur.
+    private val pageAspects = ConcurrentHashMap<Int, Float>()
+    private val _aspects = MutableStateFlow<Map<Int, Float>>(emptyMap())
+    /** pageIndex → (genişlik / yükseklik). Bilinmeyen sayfalar haritada yoktur. */
+    val pageAspectsFlow: StateFlow<Map<Int, Float>> = _aspects.asStateFlow()
+
+    fun aspectOf(pageIndex: Int): Float? = pageAspects[pageIndex]
+
+    private fun rememberAspect(page: MangaPage, file: java.io.File) {
+        if (pageAspects.containsKey(page.index)) return
+        val ratio = readAspectRatio(file) ?: return
+        pageAspects[page.index] = ratio
+        _aspects.value = HashMap(pageAspects)
+    }
+
+    /** Dosya başlığından genişlik/yükseklik okur (tam çözme yapmaz). */
+    private fun readAspectRatio(file: java.io.File): Float? = try {
+        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(file.absolutePath, options)
+        val w = options.outWidth
+        val h = options.outHeight
+        if (w > 0 && h > 0) w.toFloat() / h.toFloat() else null
+    } catch (_: Throwable) {
+        null
+    }
+
     // ─── Sayfa listesi yükleme ────────────────────────────────────────────────
 
     suspend fun loadPageList(chapter: com.kitsugi.animelist.data.manga.MangaChapter) =
@@ -56,6 +85,8 @@ class MangaPageLoaderV2(
             val t0 = System.currentTimeMillis()
             try {
                 resetQueue()
+                pageAspects.clear()
+                _aspects.value = emptyMap()
                 _pages.value = emptyList()
 
                 if (archiveFile != null) {
@@ -192,7 +223,9 @@ class MangaPageLoaderV2(
 
                     // 2. Disk cache'te var mı kontrol et
                     if (cache.isImageInCache(imageUrl)) {
-                        page.stream = { cache.getImageFile(imageUrl).inputStream() }
+                        val cachedFile = cache.getImageFile(imageUrl)
+                        rememberAspect(page, cachedFile)
+                        page.stream = { cachedFile.inputStream() }
                         page.status = MangaPageStatus.Ready
                         Log.v(TAG, "Cache hit [${page.index}]: $imageUrl")
                         return@withTimeout
@@ -210,6 +243,7 @@ class MangaPageLoaderV2(
 
                     val file = cache.getImageFile(imageUrl)
                     if (file.exists() && file.length() > 0L) {
+                        rememberAspect(page, file)
                         page.stream = { file.inputStream() }
                         page.status = MangaPageStatus.Ready
 

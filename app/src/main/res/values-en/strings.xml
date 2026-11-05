@@ -17802,6 +17802,13 @@
     <string name="reader_skip_read_chapters">Skip read chapters</string>
     <string name="reader_image_processing">Image Processing</string>
     <string name="reader_crop_borders">Crop borders</string>
+    <!-- Dual page (2-up / spread) mode -->
+    <string name="reader_dual_page_title">Dual page</string>
+    <string name="reader_dual_page_off">Off</string>
+    <string name="reader_dual_page_on">Always</string>
+    <string name="reader_dual_page_auto">On wide screens</string>
+    <string name="reader_dual_page_hint">Portrait pages are shown two at a time; wide (double-page) scans stay full width on their own. &quot;On wide screens&quot; turns on for tablets and landscape orientation.</string>
+    <string name="reader_dual_page_toggle">Dual page mode</string>
     <string name="reader_split_wide_pages">Split wide pages</string>
     <string name="reader_rotate_wide_pages">Rotate wide pages</string>
     <string name="reader_show_page_number">Show page number</string>

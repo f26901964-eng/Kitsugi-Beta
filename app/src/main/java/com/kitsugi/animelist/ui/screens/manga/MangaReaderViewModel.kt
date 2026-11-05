@@ -28,6 +28,7 @@ import com.kitsugi.animelist.data.manga.SourceFailureClassifier
 
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.manga.ColorFilterType
+import com.kitsugi.animelist.data.manga.DualPageMode
 import com.kitsugi.animelist.data.manga.MangaFitMode
 
 /**
@@ -57,11 +58,19 @@ class MangaReaderViewModel(
      */
     private val perSeriesModeStore = context.getSharedPreferences("manga_reader_modes", Context.MODE_PRIVATE)
     private val perSeriesKey = "mode_${source.name}_${mangaDetails.url}".hashCode().toString()
+    /** Çift sayfa tercihi de seri bazında hatırlanır. */
+    private val perSeriesDualKey = "dual_${source.name}_${mangaDetails.url}".hashCode().toString()
 
     /** Seriye özel kayıtlı mod (yoksa null). */
     fun perSeriesMode(): ReadingMode? =
         perSeriesModeStore.getString(perSeriesKey, null)?.let { id ->
             ReadingMode.entries.firstOrNull { it.name == id }
+        }
+
+    /** Seriye özel kayıtlı çift sayfa tercihi (yoksa null). */
+    fun perSeriesDualMode(): DualPageMode? =
+        perSeriesModeStore.getString(perSeriesDualKey, null)?.let { id ->
+            DualPageMode.entries.firstOrNull { it.name == id }
         }
 
     private val db  = KitsugiDatabase.getDatabase(context)
@@ -71,6 +80,9 @@ class MangaReaderViewModel(
     private val sourceStateStore = MangaSourceStateStore(context)
     val loader = MangaPageLoaderV2(context, source, cache)
     val pages: StateFlow<List<MangaPage>> = loader.pages
+
+    /** Sayfa en-boy oranları — geniş sayfaları çiftlemeden muaf tutmak için. */
+    val pageAspects: StateFlow<Map<Int, Float>> = loader.pageAspectsFlow
 
     // F5: Debounce için Job referansı — hızlı swipe'ta Room IO flood önler
     private var progressSaveJob: kotlinx.coroutines.Job? = null
@@ -104,6 +116,9 @@ class MangaReaderViewModel(
         val animatePageTransition: Boolean = true,
         val einkFlash: Boolean = false,
         val showPageNumber: Boolean = true,
+        // ─── Çift sayfa (2-up / spread) — TachiyomiSY "dual page" paritesi ────
+        /** Kapalı / her zaman / yalnızca geniş ekran. */
+        val dualPageMode: DualPageMode = DualPageMode.Off,
         val skipReadChapters: Boolean = false,
         val isLoadingChapters: Boolean = false,
         val error: String? = null,
@@ -173,7 +188,9 @@ class MangaReaderViewModel(
                         animatePageTransition = settings.mangaAnimatePageTransition,
                         einkFlash = settings.mangaEinkFlash,
                         showPageNumber = settings.mangaShowPageNumber,
-                        skipReadChapters = settings.mangaSkipReadChapters
+                        skipReadChapters = settings.mangaSkipReadChapters,
+                        dualPageMode = (perSeriesDualMode() ?: DualPageMode.fromId(settings.mangaDualPageMode))
+                            .let { if (effectiveMode == ReadingMode.Webtoon) DualPageMode.Off else it }
                     )
                 }
             }
@@ -242,9 +259,43 @@ class MangaReaderViewModel(
     fun setReadingMode(mode: ReadingMode) {
         // Bu seri için kalıcı: okuyucuyu kapatıp açınca aynı mod korunur.
         perSeriesModeStore.edit().putString(perSeriesKey, mode.name).apply()
+        syncDualPageWithMode(mode)
         _uiState.update { it.copy(readingMode = mode) }
         viewModelScope.launch {
             settingsDataStore.setMangaReadingMode(mode.name)
+        }
+    }
+
+    /**
+     * Çift sayfa modunu değiştirir.
+     * Seriye özel tercih SharedPreferences'te, genel varsayılan DataStore'da tutulur
+     * (okuma moduyla aynı desen).
+     */
+    fun setDualPageMode(mode: DualPageMode) {
+        perSeriesModeStore.edit().putString(perSeriesDualKey, mode.name).apply()
+        _uiState.update { it.copy(dualPageMode = mode) }
+        viewModelScope.launch {
+            settingsDataStore.setMangaDualPageMode(DualPageMode.idOf(mode))
+        }
+    }
+
+    /** Tek dokunuşla çift sayfa modunu aç/kapat (geniş ekran moduna geri döner). */
+    fun toggleDualPageMode() {
+        val next = when (_uiState.value.dualPageMode) {
+            DualPageMode.Off -> DualPageMode.Always
+            DualPageMode.Always -> DualPageMode.Off
+            DualPageMode.WideOnly -> DualPageMode.Off
+        }
+        setDualPageMode(next)
+    }
+
+    /**
+     * Çift sayfa modu webtoon akışında anlamsızdır; mod değişince otomatik kapanır.
+     * (Kotatsu/Mihon da sürekli dikey akışta spread göstermez.)
+     */
+    private fun syncDualPageWithMode(mode: ReadingMode) {
+        if (mode == ReadingMode.Webtoon && _uiState.value.dualPageMode != DualPageMode.Off) {
+            _uiState.update { it.copy(dualPageMode = DualPageMode.Off) }
         }
     }
 
