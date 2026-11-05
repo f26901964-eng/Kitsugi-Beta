@@ -195,9 +195,12 @@ fun StreamScreenContent(
                 val langInfo = resolveStreamLangInfo(stream, StreamProbe.cached(stream.url))
                 val langType = langInfo.kind.toLangType()
 
+                val sizeLabel = resolveStreamSizeLabel(stream).orEmpty()
                 val matchesQuery = query.isEmpty() ||
                     stream.name.lowercase().contains(query) ||
                     stream.title.lowercase().contains(query) ||
+                    (stream.fileName?.lowercase()?.contains(query) == true) ||
+                    sizeLabel.lowercase().contains(query) ||
                     stream.addonName.lowercase().contains(query) ||
                     (stream.url != null && stream.url.lowercase().contains(query)) ||
                     qual.lowercase().contains(query) ||
@@ -212,6 +215,8 @@ fun StreamScreenContent(
                     "2160p" -> qualityInfo.height != null && qualityInfo.height >= 2160
                     "720p" -> qualityInfo.height == 720
                     "debrid" -> stream.infoHash != null || stream.url?.contains("magnet") == true
+                    // Gerçek boyutu (kaynağın bildirdiği ya da ölçülen) bilinen akışlar
+                    "boyut" -> resolveStreamSizeLabel(stream) != null
                     else -> true
                 }
 
@@ -226,20 +231,29 @@ fun StreamScreenContent(
         }
     }
 
-    var qualitySort by rememberSaveable { mutableStateOf(false) }
-    val filteredAddonStates = remember(matchingAddonStates, qualitySort) {
-        if (!qualitySort) matchingAddonStates else matchingAddonStates.map { state ->
-            state.copy(streams = state.streams.sortedByDescending {
-                resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1
-            })
-        }
+    // Sıralama modu hatırlanır (varsayılan → kalite → tohum) ve listede kalıcıdır.
+    var sortModeIndex by rememberSaveable { mutableStateOf(0) }
+    val sortMode = StreamSortMode.entries.getOrElse(sortModeIndex) { StreamSortMode.DEFAULT }
+    val filteredAddonStates = remember(matchingAddonStates, sortMode) {
+        applySortingToAddonStates(matchingAddonStates, sortMode)
     }
     val totalFilteredStreamsCount = remember(filteredAddonStates) {
         filteredAddonStates.sumOf { it.streams.size }
     }
+    // Boyutu GERÇEKTEN bilinen kaynak sayısı: kaynak bayt verdiyse ya da başlıkta açık
+    // bir GB/MB yazıyorsa. Kullanıcıya "kaç kaynağın boyutu belli" bilgisi verilir.
+    val totalSizedStreamsCount = remember(filteredAddonStates) {
+        filteredAddonStates.sumOf { state ->
+            state.streams.count { resolveStreamSizeLabel(it) != null }
+        }
+    }
     val hasActiveFilter = searchQuery.isNotBlank() || selectedTagFilter != null || selectedAddonFilter != null
 
-    CompositionLocalProvider(LocalStreamSort provides StreamSortState(qualitySort) { qualitySort = !qualitySort }) {
+    CompositionLocalProvider(
+        LocalStreamSort provides StreamSortState(sortMode, sortModeIndex) {
+            sortModeIndex = (sortModeIndex + 1) % StreamSortMode.entries.size
+        }
+    ) {
         Box(modifier = Modifier.fillMaxSize().background(KitsugiColors.Background)) {
             // Arka plan: medya posteri çok soluk + üstte vurgu rengi ışıması.
             if (!posterUrl.isNullOrBlank()) {
@@ -720,6 +734,7 @@ private fun PortraitLayout(
                     ResultsSummaryRow(
                         videoCount = totalFilteredStreamsCount,
                         sourceCount = filteredAddonStates.count { it.streams.isNotEmpty() },
+                        sizedCount = totalSizedStreamsCount,
                         isLoading = isAnyLoading,
                         accentColor = accentColor,
                         hasActiveFilter = hasActiveFilter,
@@ -834,6 +849,7 @@ private fun LandscapeLayout(
                     ResultsSummaryRow(
                         videoCount = totalFilteredStreamsCount,
                         sourceCount = filteredAddonStates.count { it.streams.isNotEmpty() },
+                        sizedCount = totalSizedStreamsCount,
                         isLoading = isAnyLoading,
                         accentColor = accentColor,
                         hasActiveFilter = hasActiveFilter,
@@ -1018,7 +1034,10 @@ private fun StreamSearchBar(
             "2160p" to "4K",
             "1080p" to "1080p+",
             "720p" to "720p",
-            "debrid" to "⚡ Debrid"
+            "debrid" to "⚡ Debrid",
+            // v2.4.340: yalnızca GERÇEK boyutu bilinen kaynakları göster —
+            // "indirmeden önce kaç GB?" sorusunun filtrelenebilir karşılığı.
+            "boyut" to stringResource(R.string.stream_filter_download_size)
         )
 
         val chipContent: @Composable () -> Unit = {
@@ -1118,8 +1137,22 @@ private fun AddonChipsRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    val knownTotal = remember(allStreams) {
+                        StreamGroupSummary.totalKnownBytesLabel(allStreams)
+                    }
                     Text(
-                        stringResource(R.string.stream_source_summary, readyCount, addonStates.size, allStreams.size),
+                        text = buildString {
+                            append(
+                                stringResource(
+                                    R.string.stream_source_summary,
+                                    readyCount,
+                                    addonStates.size,
+                                    allStreams.size
+                                )
+                            )
+                            // Toplam bilinen boyut: indirme planı için tek bakışta özet.
+                            knownTotal?.let { append(" · ").append(it) }
+                        },
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
@@ -1149,7 +1182,13 @@ private fun AddonChipsRow(
                     Icon(Icons.Rounded.Sort, null, modifier = Modifier.size(15.dp), tint = accentColor)
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        stringResource(if (sort.byQuality) R.string.stream_sort_quality else R.string.stream_sort_default),
+                        stringResource(
+                            when (sort.mode) {
+                                StreamSortMode.DEFAULT -> R.string.stream_sort_default
+                                StreamSortMode.QUALITY -> R.string.stream_sort_quality
+                                StreamSortMode.SEEDERS -> R.string.stream_sort_seeders
+                            }
+                        ),
                         color = accentColor,
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
@@ -1277,6 +1316,8 @@ private fun SourcePickerRow(
 private fun ResultsSummaryRow(
     videoCount: Int,
     sourceCount: Int,
+    /** Gerçek boyutu bilinen kaynak sayısı — "indirmeden önce kaç GB?" sorusunun kapsamı. */
+    sizedCount: Int = 0,
     isLoading: Boolean,
     accentColor: Color,
     hasActiveFilter: Boolean,
@@ -1291,7 +1332,21 @@ private fun ResultsSummaryRow(
             Spacer(Modifier.width(6.dp))
         }
         Text(
-            text = stringResource(R.string.stream_results_summary, videoCount, sourceCount),
+            text = buildString {
+                append(stringResource(R.string.stream_results_summary, videoCount, sourceCount))
+                // Boyutu bilinen/bilinmeyen ayrımı kullanıcıya açıkça söylenir; böylece
+                // "boyut neden boş?" sorusu ekranda yanıtlanır.
+                if (videoCount > 0 && sizedCount < videoCount) {
+                    append(" · ")
+                    append(
+                        stringResource(
+                            R.string.stream_size_coverage,
+                            sizedCount,
+                            videoCount
+                        )
+                    )
+                }
+            },
             color = KitsugiColors.TextSecondary,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
@@ -1385,5 +1440,38 @@ private fun ImdbBadge(imdbId: String) {
     }
 }
 
-private data class StreamSortState(val byQuality: Boolean, val toggle: () -> Unit)
-private val LocalStreamSort = compositionLocalOf { StreamSortState(false) {} }
+private data class StreamSortState(val mode: StreamSortMode, val index: Int, val toggle: () -> Unit)
+private val LocalStreamSort = compositionLocalOf {
+    StreamSortState(StreamSortMode.DEFAULT, 0) {}
+}
+
+/**
+ * Akış sıralama politikası — **tek** yerden yönetilir.
+ *
+ * Mod 1 (varsayılan): kaynak sırası (eklenti bazlı gruplama bozulmaz).
+ * Mod 2: kalite (çözünürlük) yüksekten düşüğe.
+ * Mod 3: tohum (seeder) sayısı çoktan aza — torrent akışlarında "hangi kaynak gerçekten
+ *        iniyor" sorusunun doğrudan yanıtı. Seeder bildirmeyen kaynaklar en sona düşer.
+ */
+enum class StreamSortMode { DEFAULT, QUALITY, SEEDERS }
+
+internal fun sortStreamsByMode(streams: List<StreamSource>, mode: StreamSortMode): List<StreamSource> =
+    when (mode) {
+        StreamSortMode.DEFAULT -> streams
+        StreamSortMode.QUALITY -> streams.sortedByDescending {
+            resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1
+        }
+        StreamSortMode.SEEDERS -> streams.sortedWith(
+            compareByDescending<StreamSource> { it.swarmStats.seeders ?: -1 }
+                .thenByDescending { resolveStreamQuality(it, StreamProbe.cached(it.url)).height ?: -1 }
+        )
+    }
+
+/** Yeni akışlar geldiğinde mevcut sıralamayı KORUR (sıralama her partide sıfırlanmaz). */
+internal fun applySortingToAddonStates(
+    states: List<AddonFetchState>,
+    mode: StreamSortMode
+): List<AddonFetchState> {
+    if (mode == StreamSortMode.DEFAULT) return states
+    return states.map { state -> state.copy(streams = sortStreamsByMode(state.streams, mode)) }
+}

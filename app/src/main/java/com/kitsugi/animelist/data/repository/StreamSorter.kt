@@ -11,7 +11,8 @@ import java.util.Locale
  *   1. Debrid cache state: Cached > P2P/Direct > Not-cached
  *   2. Resolution: 4K > 1080p > 720p > 480p > unknown
  *   3. Source quality: BluRay Remux > BluRay > WEB-DL > WEBRip > HDTV > unknown
- *   4. Size (bytes, descending — bigger usually = better quality)
+ *   4. Seeder sayısı (yalnızca kaynak bildirdiyse; bilinmiyorsa sıralamayı etkilemez)
+ *   5. Size (bytes, descending — bigger usually = better quality)
  */
 object StreamSorter {
 
@@ -20,9 +21,15 @@ object StreamSorter {
             compareByDescending<StreamSource> { cacheScore(it) }
                 .thenByDescending { resolutionScore(it) }
                 .thenByDescending { qualityScore(it) }
+                // v2.4.340: aynı kalitedeki torrent'ler arasında swarm sağlığı belirleyici.
+                // Seeder sayısı bildirilmediyse (-1) sıralama DEĞİŞMEZ, uydurma değer yok.
+                .thenByDescending { seeders(it) }
                 .thenByDescending { sizeBytes(it) }
         )
     }
+
+    /** Kaynağın bildirdiği seeder sayısı; bilinmiyorsa -1 (sıralamada etkisiz). */
+    private fun seeders(stream: StreamSource): Int = stream.swarmStats.seeders ?: -1
 
     // ── Cache state ────────────────────────────────────────────────────────────
 
@@ -97,7 +104,9 @@ object StreamSorter {
     private val sizeRegex = Regex("""(\d+(?:\.\d+)?)\s*(gb|mb|gib|mib)""", RegexOption.IGNORE_CASE)
 
     private fun sizeBytes(stream: StreamSource): Long {
-        val text = "${stream.title} ${stream.name}"
+        // Gerçek bayt bilgisi varsa metin ayrıştırmasına gerek yok.
+        stream.videoSizeBytes?.let { if (it > 0) return it }
+        val text = "${stream.fileName.orEmpty()} ${stream.title} ${stream.name}"
         val match = sizeRegex.find(text) ?: return 0L
         val value = match.groupValues[1].toDoubleOrNull() ?: return 0L
         val unit = match.groupValues[2].lowercase(Locale.ROOT)

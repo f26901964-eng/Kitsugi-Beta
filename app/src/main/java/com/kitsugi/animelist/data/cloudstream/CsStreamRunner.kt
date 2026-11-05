@@ -2578,7 +2578,12 @@ object CsStreamRunner {
                                     subtitles      = emptyList(),
                                     thumbnailUrl   = thumbnailUrl,
                                     isAdultContent = ADULT_PLUGINS.contains(providerName),
-                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
+                                    externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() },
+                                    // Eklentinin bildirdiği AYRI ses parçaları → "Çift dil" rozeti
+                                    // kanıta dayalı basılır (tahmin yok).
+                                    externalAudioTrackCount = link.audioTracks.count { it.url.isNotBlank() },
+                                    // Birden fazla ayrı ses parçası = çift dil (kanıt eklentiden).
+                                    providerAudioKind = if (link.audioTracks.count { it.url.isNotBlank() } >= 2) "dual" else null
                                 )
                             )
                         }
@@ -3139,7 +3144,12 @@ object CsStreamRunner {
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
                                         isAdultContent = ADULT_PLUGINS.contains(api.name),
-                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() }
+                                        externalAudioUrl = link.audioTracks.firstOrNull()?.url?.takeIf { it.isNotBlank() },
+                                        // Eklentinin bildirdiği AYRI ses parçaları → "Çift dil" rozeti
+                                        // kanıta dayalı basılır (tahmin yok).
+                                        externalAudioTrackCount = link.audioTracks.count { it.url.isNotBlank() },
+                                        // Birden fazla ayrı ses parçası = çift dil (kanıt eklentiden).
+                                        providerAudioKind = if (link.audioTracks.count { it.url.isNotBlank() } >= 2) "dual" else null
                                 )
                                 streams.add(newStream)
                                 partialSink?.add(newStream)
@@ -3299,6 +3309,10 @@ object CsStreamRunner {
                     async {
                         gate.withPermit {
                             val url = stream.url.orEmpty()
+                            // HEAD yanıtındaki Content-Length aynı zamanda GERÇEK dosya
+                            // boyutudur: kullanıcı indirme butonuna basmadan önce boyutu
+                            // görebilsin diye yakalanır (ek ağ isteği YAPILMAZ).
+                            var measuredSize: Long? = null
                             // HEAD bazı CDN'lerde desteklenmez (405) veya farklı davranır; bu durumda
                             // GET with Range header ile doğrulama yap (daha güvenilir).
                             val isAlive = withTimeoutOrNull(5_000L) {
@@ -3327,6 +3341,12 @@ object CsStreamRunner {
                                     val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
                                         .newCall(headRequest).execute()
                                     val code = response.code
+                                    if (code in 200..299) {
+                                        // Content-Length: HEAD'de tüm dosya boyutu.
+                                        measuredSize = response.header("Content-Length")
+                                            ?.toLongOrNull()
+                                            ?.takeIf { it > 0 }
+                                    }
                                     response.close()
 
                                     // HTTP koduna göre canlılık kararı:
@@ -3375,7 +3395,12 @@ object CsStreamRunner {
                             }
 
                             if (isAlive) {
-                                verifiedStreams.add(stream)
+                                // Ölçülen boyut kartta "3.3 GB" olarak görünür; kaynak kendi
+                                // boyutunu zaten bildirdiyse ona dokunulmaz.
+                                val sized = if (stream.videoSizeBytes == null && measuredSize != null) {
+                                    stream.copy(videoSizeBytes = measuredSize)
+                                } else stream
+                                verifiedStreams.add(sized)
                             } else {
                                 Log.w(TAG, "[${api.name}] ❌ Dead stream tespit edildi, düşürülüyor: ${url.take(80)}")
                                 deadStreams.add(stream)
@@ -3391,6 +3416,14 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] ${deadStreams.size} dead stream düşürüldü, ${verifiedStreams.size} aktif stream kaldı.")
         }
 
+        // Fallback yolu: doğrulama sırasında elenenlerin orijinal kayıtlarını ölçülen boyutla
+        // eşleştir. "Tümü ölü çıktı → false positive" durumunda orijinal liste döndürülse bile
+        // kullanıcı gerçek boyutu görsün.
+        val measuredSizeByUrl = toCheck.mapNotNull { s ->
+            val u = s.url?.takeIf { it.isNotBlank() }
+            if (u == null || s.videoSizeBytes == null) null else u to s.videoSizeBytes
+        }.toMap()
+
         // Eger tum stream'ler dead ciktiysa: gercekten olu mu false positive mi ayirt et
         val verifiedFinal = if (verifiedStreams.isEmpty() && streams.isNotEmpty()) {
             // toCheck = dogrudan medya (HEAD ile denenenler), passThrough = embed vb. dogrulanmayanlar
@@ -3403,7 +3436,14 @@ object CsStreamRunner {
                 verifiedStreams // bos
             } else {
                 Log.w(TAG, "[${api.name}] Tum streamler dead cikti - false positive olabilir, orijinaller donduruluyor.")
-                streams
+                if (measuredSizeByUrl.isEmpty()) {
+                    streams
+                } else {
+                    streams.map { s ->
+                        val measured = s.url?.let { measuredSizeByUrl[it] }
+                        if (s.videoSizeBytes == null && measured != null) s.copy(videoSizeBytes = measured) else s
+                    }
+                }
             }
         } else {
             // Kalite degerine gore sirala (yuksek kalite once), null qualityValue 0 kabul et
@@ -3426,9 +3466,12 @@ object CsStreamRunner {
                 "${subtitleList.size} altyazı, sağlayıcı ses türü=${providerAudioKind ?: "bilinmiyor"}"
         )
         return finalStreams.map { stream ->
+            // Son şans: sanitize öncesi listede ölçülmüş bir boyut varsa URL ile eşleştir.
+            val measured = stream.url?.let { measuredSizeByUrl[it] }
             stream.copy(
                 subtitles = subtitleList.toList(),
-                providerAudioKind = stream.providerAudioKind ?: providerAudioKind
+                providerAudioKind = stream.providerAudioKind ?: providerAudioKind,
+                videoSizeBytes = stream.videoSizeBytes ?: measured
             )
         }
     }

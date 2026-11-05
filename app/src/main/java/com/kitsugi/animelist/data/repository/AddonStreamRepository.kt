@@ -94,23 +94,7 @@ class AddonStreamRepository(private val context: Context) {
                 Log.d("AddonStreamRepository", "Fetching streams: ${task.addonName} / ${task.requestType} / ${task.videoId}")
                 val streams = addonClient.fetchStreams(task.manifestUrl, task.requestType, task.videoId)
                 streams.map { responseItem ->
-                    val nameText = responseItem.name ?: "Bilinmeyen Akış"
-                    val titleText = responseItem.title ?: "İsimsiz Dosya"
-                    val parsedQuality = StreamSorter.parseQualityFromTitle("$titleText $nameText")
-                    val parsedQualityValue = StreamSorter.parseQualityValue(parsedQuality)
-                    StreamSource(
-                        addonName = task.addonName,
-                        name      = nameText,
-                        title     = titleText,
-                        url       = responseItem.url,
-                        infoHash  = responseItem.infoHash,
-                        fileIndex = responseItem.fileIdx ?: responseItem.fileIndex,
-                        trackers  = responseItem.trackers,
-                        requestHeaders = responseItem.behaviorHints?.proxyHeaders?.request,
-                        quality   = parsedQuality,
-                        qualityValue = parsedQualityValue,
-                        thumbnailUrl = responseItem.thumbnail
-                    )
+                    responseItem.toStreamSource(addonName = task.addonName)
                 }
             }
         }
@@ -252,7 +236,27 @@ data class StreamSource(
      * CS eklentisinin bildirdiği AYRI ses akışı (ExtractorLink.audioTracks). Video ile birlikte
      * oynatıcıda ses parçası olarak eklenir (dublaj / orijinal ses ayrı akışsa). Yoksa null.
      */
-    val externalAudioUrl: String? = null
+    val externalAudioUrl: String? = null,
+    /**
+     * Videoya bağlı AYRI ses parçası sayısı (CloudStream `ExtractorLink.audioTracks`).
+     * 1+ ise video en az iki ses içeriyor demektir → "Çift dil" rozeti kanıta dayalı basılır.
+     */
+    val externalAudioTrackCount: Int = 0,
+    /**
+     * Torrent swarm bilgisi (seeder/leecher). **Yalnızca kaynak sayı verdiyse** doludur;
+     * boşsa arayüzde hiçbir seed/peer rozeti gösterilmez.
+     */
+    val swarmStats: TorrentSwarmStats = TorrentSwarmStats.NONE,
+    /**
+     * Kaynağın GERÇEK dosya boyutu (bayt). Kaynak `behaviorHints.videoSize` verdiyse ya da
+     * HTTP HEAD yanıtındaki `Content-Length` ölçüldüyse dolar. Bilinmiyorsa **null**.
+     */
+    val videoSizeBytes: Long? = null,
+    /**
+     * Kaynağın kendi dosya adı (Stremio `behaviorHints.filename`). Torrentio gibi eklentiler
+     * gerçek dosya adını burada verir; başlık metni kısaltılmış olabilir.
+     */
+    val fileName: String? = null
 ) : java.io.Serializable {
     val isTorrent: Boolean
         get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl()
@@ -263,6 +267,18 @@ data class StreamSource(
                 ?: url.extractBtihInfoHash()
                 ?: url.extractTorrentSchemeInfoHash()
         )
+
+    /**
+     * Dosya adı önceliği: kaynağın verdiği gerçek dosya adı → başlık → isim.
+     * Regex tabanlı bilgi çıkarımı (kalite, boyut, dil, codec) bu metin üzerinden yapılır;
+     * böylece kısaltılmış başlıklarda kaybolan bilgiler kurtarılır.
+     */
+    val metadataText: String
+        get() = listOfNotNull(
+            fileName?.takeIf { it.isNotBlank() },
+            title.takeIf { it.isNotBlank() },
+            name.takeIf { it.isNotBlank() }
+        ).joinToString(" ")
 }
 
 fun String?.isMagnetLink(): Boolean =
@@ -270,6 +286,54 @@ fun String?.isMagnetLink(): Boolean =
 
 fun String?.isTorrentSchemeUrl(): Boolean =
     this?.trimStart()?.startsWith("torrent://", ignoreCase = true) == true
+
+/**
+ * Stremio stream nesnesini Kitsugi'nin tek akış modeline çevirir.
+ *
+ * TEK KAYNAK: Bu dönüşüm hem `AddonStreamRepository` hem de `StreamViewModel` tarafından
+ * kullanılır; böylece "bir yolda boyut/seed bilgisi geliyor, diğerinde gelmiyor" tutarsızlığı
+ * oluşmaz. Kalite, boyut, swarm, dosya adı ve çözünürlük TEK yerden çıkarılır.
+ */
+fun StreamResponseItem.toStreamSource(addonName: String): StreamSource {
+    val nameText = name?.takeIf { it.isNotBlank() } ?: "Bilinmeyen Akış"
+    val titleText = title?.takeIf { it.isNotBlank() } ?: "İsimsiz Dosya"
+    val fileName = behaviorHints?.filename?.takeIf { it.isNotBlank() }
+    // Kalite ve swarm bilgisi; dosya adı ve açıklama da taranır (Torrentio dosya adını
+    // başlıktan ayrı verir; sayılar bazen `description` alanında olur).
+    val metaText = listOfNotNull(
+        titleText,
+        nameText,
+        fileName,
+        description?.takeIf { it.isNotBlank() }
+    ).joinToString(" ")
+    val parsedQuality = StreamSorter.parseQualityFromTitle(metaText)
+    val parsedQualityValue = StreamSorter.parseQualityValue(parsedQuality)
+
+    // Swarm bilgisi: önce JSON alanları, sonra serbest metin.
+    val parsedSwarm = TorrentSwarmStats.parse(metaText)
+    val swarm = TorrentSwarmStats(
+        seeders = seeders ?: parsedSwarm.seeders,
+        leechers = peers ?: leechers ?: parsedSwarm.leechers,
+        providerTag = parsedSwarm.providerTag
+    )
+
+    return StreamSource(
+        addonName = addonName,
+        name = nameText,
+        title = titleText,
+        url = url,
+        infoHash = infoHash,
+        fileIndex = fileIdx ?: fileIndex,
+        trackers = trackers,
+        requestHeaders = behaviorHints?.proxyHeaders?.request,
+        quality = parsedQuality,
+        qualityValue = parsedQualityValue,
+        thumbnailUrl = thumbnail,
+        swarmStats = swarm,
+        videoSizeBytes = behaviorHints?.videoSize?.takeIf { it > 0 },
+        fileName = fileName
+    )
+}
 
 fun String?.extractBtihInfoHash(): String? {
     val raw = this?.trim()?.takeIf { it.startsWith("magnet:", ignoreCase = true) } ?: return null
