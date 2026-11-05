@@ -29,10 +29,12 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.CollectionsBookmark
 import androidx.compose.material.icons.rounded.TravelExplore
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.gradient.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -91,7 +93,9 @@ fun TvMangaBrowseScreen(
     repository: MangaSourceRepository,
     vm: MangaBrowseViewModel = viewModel(factory = MangaBrowseViewModel.Factory(repository)),
     onMangaClick: (MangaSource, MangaDetails) -> Unit = { _, _ -> },
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    /** Manga kitaplığını açar (takip edilen seriler). */
+    onOpenMangaLibrary: () -> Unit = {}
 ) {
     val ui by vm.ui.collectAsState()
     val gridState = rememberLazyGridState()
@@ -202,6 +206,30 @@ fun TvMangaBrowseScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.weight(1f))
+                // Kitaplık kısayolu — kumandayla erişilebilir, odak halkası standart.
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(KitsugiColors.SurfaceStrong.copy(0.5f))
+                        .tvClickable(shape = RoundedCornerShape(8.dp)) { onOpenMangaLibrary() }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.CollectionsBookmark,
+                        contentDescription = null,
+                        tint = KitsugiColors.AccentBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.manga_library_title),
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
                 Icon(
                     Icons.Rounded.TravelExplore,
                     contentDescription = null,
