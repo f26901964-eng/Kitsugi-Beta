@@ -53,6 +53,49 @@ enum class ChapterFilter {
  *
  * @param T bölüm satırı tipi (UI'da ChapterRow, testlerde basit veri sınıfı).
  */
+/**
+ * Bölüm geçişi (ileri/geri) için **okuma sırası** yardımcısı.
+ *
+ * Kaynaklar bölüm listesini kimi zaman yeniden eskiye, kimi zaman eskiden yeniye
+ * döndürür. Okuyucudaki "sonraki bölüm" düğmesi bir ara listeyi hep ters kabul
+ * ediyordu; artan sırada veren kaynaklarda ileri/geri ters çalışıyordu.
+ *
+ * Bu yardımcı sırayı kaynaktan bağımsız kurar:
+ *  1. Numarası çözülebilen bölümler varsa **numaraya göre artan** (1 → N),
+ *  2. Hiç numara yoksa kaynak sırasının tersi (yaygın kaynak davranışı).
+ */
+object MangaChapterSequence {
+
+    /**
+     * @param chapters (url, numara) çiftleri — numara bilinmiyorsa negatif.
+     * @return Okuma sırasına göre URL listesi (1. bölüm başta).
+     */
+    fun readingOrder(chapters: List<Pair<String, Float>>): List<String> {
+        if (chapters.isEmpty()) return emptyList()
+        val numbered = chapters.filter { it.second >= 0f }
+        val unnumbered = chapters.filter { it.second < 0f }
+        return if (numbered.size >= 2) {
+            numbered.sortedBy { it.second }.map { it.first } + unnumbered.map { it.first }
+        } else {
+            chapters.map { it.first }.reversed()
+        }
+    }
+
+    /** Verilen bölümden SONRAKİ bölümün URL'si; yoksa null. */
+    fun nextUrl(chapters: List<Pair<String, Float>>, currentUrl: String): String? {
+        val ordered = readingOrder(chapters)
+        val idx = ordered.indexOf(currentUrl)
+        return if (idx >= 0 && idx < ordered.size - 1) ordered[idx + 1] else null
+    }
+
+    /** Verilen bölümden ÖNCEKİ bölümün URL'si; yoksa null. */
+    fun previousUrl(chapters: List<Pair<String, Float>>, currentUrl: String): String? {
+        val ordered = readingOrder(chapters)
+        val idx = ordered.indexOf(currentUrl)
+        return if (idx > 0) ordered[idx - 1] else null
+    }
+}
+
 object MangaChapterOrdering {
 
     /** Tüm tarama gruplarını (scanlator) listeler — çip filtresi için. */

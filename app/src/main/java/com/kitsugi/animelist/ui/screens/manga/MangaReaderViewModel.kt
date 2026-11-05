@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MangaChapterProgressEntity
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaChapterNumberResolver
+import com.kitsugi.animelist.data.manga.MangaChapterSequence
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaSource
@@ -449,40 +451,69 @@ class MangaReaderViewModel(
         restoreProgress(chapter)
     }
 
+    /**
+     * Bölümleri **okuma sırasına** (1 → N) göre dizer.
+     *
+     * Neden: kaynaklar bölüm listesini kimi zaman yeniden eskiye, kimi zaman eskiden
+     * yeniye döndürür. Eskiden "sonraki bölüm" listeyi hep ters kabul edip `idx - 1`
+     * kullanıyordu; kaynak artan sırada verdiyse ileri/geri düğmeleri ters çalışıyordu.
+     * Artık numara varsa numaraya göre, yoksa kaynak sırasının tersi (yaygın durum)
+     * kullanılır — hangi kaynak olursa olsun yön doğru kalır.
+     */
+    private fun chaptersInReadingOrder(): List<MangaChapter> {
+        val list = _uiState.value.chapterList
+        if (list.isEmpty()) return emptyList()
+        // Numara bilinmiyorsa addan çözülür (Türkçe/İngilizce kalıpları destekler).
+        val withNumbers = list.map { chapter ->
+            val number = if (chapter.chapterNumber >= 0f) chapter.chapterNumber
+            else MangaChapterNumberResolver.resolve(
+                mangaTitle = mangaDetails.title,
+                chapterName = chapter.name,
+                declaredNumber = chapter.chapterNumber
+            )
+            chapter to number
+        }
+        val order = MangaChapterSequence.readingOrder(withNumbers.map { it.first.url to it.second })
+        val byUrl = withNumbers.associate { it.first.url to it.first }
+        return order.mapNotNull { byUrl[it] }
+    }
+
+    /** Okuma sırasına göre geçerli bölümün konumu (-1 = bulunamadı). */
+    private fun currentReadingIndex(ordered: List<MangaChapter> = chaptersInReadingOrder()): Int =
+        ordered.indexOfFirst { it.url == _uiState.value.currentChapter.url }
+
     fun goToNextChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx > 0) goToChapter(list[idx - 1])   // Listede yeniden eskiye doğru
+        val ordered = chaptersInReadingOrder()
+        val idx = currentReadingIndex(ordered)
+        if (idx >= 0 && idx < ordered.size - 1) goToChapter(ordered[idx + 1])
     }
 
     fun goToPreviousChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx >= 0 && idx < list.size - 1) goToChapter(list[idx + 1])
+        val ordered = chaptersInReadingOrder()
+        val idx = currentReadingIndex(ordered)
+        if (idx > 0) goToChapter(ordered[idx - 1])
     }
 
     val hasNextChapter: Boolean
         get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx > 0
+            val ordered = chaptersInReadingOrder()
+            val idx = currentReadingIndex(ordered)
+            return idx >= 0 && idx < ordered.size - 1
         }
 
     /** Sonraki bölümün adı (bölüm sonu geçiş kartında göstermek için); yoksa null. */
     val nextChapterName: String?
         get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return if (idx > 0) list[idx - 1].name else null
+            val ordered = chaptersInReadingOrder()
+            val idx = currentReadingIndex(ordered)
+            return if (idx >= 0 && idx < ordered.size - 1) ordered[idx + 1].name else null
         }
 
     val hasPreviousChapter: Boolean
         get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx >= 0 && idx < list.size - 1
+            val ordered = chaptersInReadingOrder()
+            val idx = currentReadingIndex(ordered)
+            return idx > 0
         }
 
     private var pageListJob: kotlinx.coroutines.Job? = null

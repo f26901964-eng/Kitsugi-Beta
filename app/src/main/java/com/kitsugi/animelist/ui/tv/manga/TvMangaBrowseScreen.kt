@@ -90,9 +90,20 @@ import com.kitsugi.animelist.R
 fun TvMangaBrowseScreen(
     repository: MangaSourceRepository,
     vm: MangaBrowseViewModel = viewModel(factory = MangaBrowseViewModel.Factory(repository)),
+    /** "Oku" akışından gelen ilk arama (null = tarayıcı normal açılır). */
+    initialQuery: String? = null,
+    /** Dil sırasına göre yedek adlar. */
+    initialQueryVariants: List<String> = emptyList(),
     onMangaClick: (MangaSource, MangaDetails) -> Unit = { _, _ -> },
     onBack: () -> Unit = {}
 ) {
+    // "Oku" ile gelindiyse aramayı kendiliğinden başlat (mobil akışla aynı davranış).
+    LaunchedEffect(initialQuery, initialQueryVariants) {
+        if (!initialQuery.isNullOrBlank() && vm.lastInitialQuery != initialQuery) {
+            vm.lastInitialQuery = initialQuery
+            vm.search(initialQuery, initialQueryVariants)
+        }
+    }
     val ui by vm.ui.collectAsState()
     val gridState = rememberLazyGridState()
 

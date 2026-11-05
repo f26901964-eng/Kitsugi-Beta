@@ -293,6 +293,16 @@ data class DownloadAndMangaSettings(
     /** "OFF" | "ON" (her zaman) | "AUTO" (yalnızca geniş ekran/tablet). */
     val mangaDualPageMode: String = "OFF",
 
+    // ─── Kaynak arama dili ────────────────────────────────────────────────────
+    /**
+     * Manga/manhwa/manhua kaynaklarında arama hangi adla yapılsın:
+     * "ENGLISH" | "ROMAJI" | "NATIVE" | "LOCAL".
+     * (Kullanıcı şikâyeti: "Oku" butonu başlık dili ayarına uymuyordu.)
+     */
+    val mangaSearchTitleLanguage: String = "ENGLISH",
+    /** true → arama dili, genel "Başlık Dili" ayarını takip eder. */
+    val mangaSearchFollowTitleLanguage: Boolean = true,
+
     // ─── Novel okuyucu (LNReader paritesi) ─────────────────────────────────
     val novelFontSize: Int = 17,
     val novelLineHeight: Float = 1.7f,
@@ -416,6 +426,8 @@ data class AppSettings(
     val mangaShowTapZonesOverlay: Boolean get() = downloads.mangaShowTapZonesOverlay
     val mangaSkipReadChapters: Boolean get() = downloads.mangaSkipReadChapters
     val mangaDualPageMode: String get() = downloads.mangaDualPageMode
+    val mangaSearchTitleLanguage: String get() = downloads.mangaSearchTitleLanguage
+    val mangaSearchFollowTitleLanguage: Boolean get() = downloads.mangaSearchFollowTitleLanguage
     val novelFontSize: Int get() = downloads.novelFontSize
     val novelLineHeight: Float get() = downloads.novelLineHeight
     val novelMaxWidth: Int get() = downloads.novelMaxWidth

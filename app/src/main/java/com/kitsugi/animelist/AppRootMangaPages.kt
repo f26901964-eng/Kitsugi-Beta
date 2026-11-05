@@ -19,7 +19,9 @@ fun AppRootMangaPages(
     mangaViewModel: MangaViewModel,
     mangaBrowseViewModel: MangaBrowseViewModel,
     coroutineScope: CoroutineScope,
-    onExportMangaSourceReportFile: (String) -> Unit
+    onExportMangaSourceReportFile: (String) -> Unit,
+    /** Arama dili: kaynaklarda hangi adla aranacağını belirler. */
+    appSettings: com.kitsugi.animelist.data.settings.AppSettings? = null
 ) {
     when (key) {
         is AppStateKey.MangaReader -> {
@@ -97,6 +99,12 @@ fun AppRootMangaPages(
             MangaBrowseScreen(
                 repository    = mangaViewModel.mangaRepository,
                 initialQuery  = navState.mangaBrowseQuery,
+                initialQueryVariants = navState.mangaBrowseTitleVariants,
+                initialTitleSet = navState.mangaBrowseTitleSet,
+                initialSearchLanguage = appSettings?.let { settings ->
+                    if (settings.mangaSearchFollowTitleLanguage) settings.titleLanguage
+                    else settings.mangaSearchTitleLanguage
+                },
                 vm            = mangaBrowseViewModel,
                 onMangaClick  = { source, mangaDetails ->
                     val targetMediaId = navState.mangaBrowseMediaId

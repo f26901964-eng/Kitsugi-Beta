@@ -35,7 +35,7 @@ class SettingsDataStore(
         "show_anime_logos", "player_preference", "is_autoplay_enabled", "skip_intro_duration_sec",
         "default_subtitle_size", "default_subtitle_color", "subtitle_bold", "subtitle_outline_enabled",
         "manga_reading_mode", "manga_color_filter", "manga_fit_mode", "search_history_enabled",
-        "manga_dual_page_mode",
+        "manga_dual_page_mode", "manga_search_title_language", "manga_search_follow_title_language",
         "tmdb_language"
     )
 
@@ -52,7 +52,8 @@ class SettingsDataStore(
                     "show_adult_content", "blur_adult_media", "hide_scores", "show_anime_logos",
                     "is_autoplay_enabled", "subtitle_bold", "subtitle_outline_enabled",
                     "search_history_enabled", "separated_list_style", "show_low_priority",
-                    "fuzzy_search_enabled", "separate_novels_manga" -> if (value is Boolean) prefs[booleanPreferencesKey(name)] = value
+                    "fuzzy_search_enabled", "separate_novels_manga",
+                    "manga_search_follow_title_language" -> if (value is Boolean) prefs[booleanPreferencesKey(name)] = value
                     "skip_intro_duration_sec", "default_subtitle_size", "default_subtitle_color" ->
                         if (value is Int) prefs[intPreferencesKey(name)] = value
                     else -> if (value is String) prefs[stringPreferencesKey(name)] = value
@@ -176,6 +177,10 @@ class SettingsDataStore(
         val MangaSkipReadChapters = booleanPreferencesKey("manga_skip_read_chapters")
         /** Çift sayfa modu: OFF / ON / AUTO. */
         val MangaDualPageMode = stringPreferencesKey("manga_dual_page_mode")
+        /** Kaynak arama dili: ENGLISH / ROMAJI / NATIVE / LOCAL. */
+        val MangaSearchTitleLanguage = stringPreferencesKey("manga_search_title_language")
+        /** Arama dili genel başlık dilini takip etsin mi. */
+        val MangaSearchFollowTitleLanguage = booleanPreferencesKey("manga_search_follow_title_language")
 
         // ─── Novel okuyucu (LNReader paritesi) ──────────────────────────────
         val NovelFontSize = intPreferencesKey("novel_font_size")
@@ -758,6 +763,9 @@ class SettingsDataStore(
                     mangaShowTapZonesOverlay = preferences[Keys.MangaShowTapZonesOverlay] ?: true,
                     mangaSkipReadChapters = preferences[Keys.MangaSkipReadChapters] ?: false,
                     mangaDualPageMode = preferences[Keys.MangaDualPageMode] ?: "OFF",
+                    mangaSearchTitleLanguage = preferences[Keys.MangaSearchTitleLanguage] ?: "ENGLISH",
+                    mangaSearchFollowTitleLanguage =
+                        preferences[Keys.MangaSearchFollowTitleLanguage] ?: true,
                     novelFontSize = preferences[Keys.NovelFontSize] ?: 17,
                     novelLineHeight = preferences[Keys.NovelLineHeight] ?: 1.7f,
                     novelMaxWidth = preferences[Keys.NovelMaxWidth] ?: 720,
@@ -1302,6 +1310,22 @@ class SettingsDataStore(
 
     suspend fun setMangaSkipReadChapters(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.MangaSkipReadChapters] = enabled }
+    }
+
+    /** Kaynak arama dili (ENGLISH / ROMAJI / NATIVE / LOCAL). */
+    suspend fun setMangaSearchTitleLanguage(language: String) {
+        val safe = when (language.uppercase()) {
+            "ENGLISH", "EN" -> "ENGLISH"
+            "NATIVE", "ORIGINAL" -> "NATIVE"
+            "LOCAL", "TURKISH" -> "LOCAL"
+            else -> "ROMAJI"
+        }
+        context.settingsDataStore.edit { it[Keys.MangaSearchTitleLanguage] = safe }
+    }
+
+    /** Arama dili genel başlık dili ayarını takip etsin mi. */
+    suspend fun setMangaSearchFollowTitleLanguage(follow: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MangaSearchFollowTitleLanguage] = follow }
     }
 
     /** Çift sayfa modu (OFF / ON / AUTO). Bilinmeyen değerler OFF'a düşer. */

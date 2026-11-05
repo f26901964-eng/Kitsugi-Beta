@@ -67,6 +67,10 @@ fun AppRootDetailPages(
     onScrollReset: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    // ─── "Oku" butonu için dil sırasına göre arama adayları ──────────────────
+    // Başlık dili ayarı İngilizce ise arama İngilizce adla yapılır; romaji/orijinal
+    // adlar yalnızca yedek olarak denenir. (Doğrudan `MangaTitleSet.queries`
+    // kullanılır; ayrı bir yardımcı fonksiyona gerek yok.)
     when (key) {
         is AppStateKey.StudioDetail -> {
             navState.stateHolder.SaveableStateProvider(
@@ -298,8 +302,33 @@ fun AppRootDetailPages(
                     onLoginSimkl = {
                         authViewModel.startExternalAuth("simkl")
                     },
-                    onReadMangaClick = {
-                        navState.openMangaBrowse(key.result.title)
+                    onReadMangaClick = { mediaTitleLanguage, english, romaji, native, synonyms ->
+                        // Arama dili: ayar "sabit dil" ise o dil, değilse ekranın başlık dili.
+                        val effectiveLanguage = if (appSettings.mangaSearchFollowTitleLanguage) {
+                            mediaTitleLanguage
+                        } else {
+                            appSettings.mangaSearchTitleLanguage
+                        }
+                        val titleSet = com.kitsugi.animelist.data.manga.MangaTitleSet(
+                            localTitle = key.result.title,
+                            englishTitle = english ?: key.result.titleEnglish,
+                            romajiTitle = romaji ?: key.result.titleRomaji ?: key.result.title,
+                            nativeTitle = native ?: key.result.titleJapanese,
+                            synonyms = synonyms
+                        )
+                        val variants = titleSet.queries(
+                            titleLanguage = appSettings.titleLanguage,
+                            searchLanguage = com.kitsugi.animelist.data.manga.MangaSearchLanguage.fromId(
+                                effectiveLanguage
+                            ),
+                            // Sabit dil seçiliyse başlık dilini takip etme.
+                            followTitleLanguage = appSettings.mangaSearchFollowTitleLanguage
+                        )
+                        navState.openMangaBrowse(
+                            query = variants.firstOrNull(),
+                            titleVariants = variants,
+                            titleSet = titleSet
+                        )
                     },
                     mdbListShowImdb = appSettings.mdbListShowImdb,
                     mdbListShowTomatoes = appSettings.mdbListShowTomatoes,
@@ -463,6 +492,35 @@ fun AppRootDetailPages(
                         blurAdultMedia = appSettings.blurAdultMedia,
                         onReadMangaClick = { mapping ->
                             onReadMangaClick(entry, mapping)
+                        },
+                        // "Oku" (eşleme yok) → arama. Dil kararı BURADA verilir:
+                        // ayar "sabit arama dili" ise o dil, değilse başlık dili.
+                        onSearchMangaByTitles = { entryVariants ->
+                            if (entry.type == com.kitsugi.animelist.model.MediaType.Manga) {
+                                val titleSet = com.kitsugi.animelist.data.manga.MangaTitleSet(
+                                    localTitle = entry.title,
+                                    englishTitle = entry.titleEnglish,
+                                    romajiTitle = entry.title,
+                                    nativeTitle = entry.titleJapanese
+                                )
+                                val variants = titleSet.queries(
+                                    titleLanguage = appSettings.titleLanguage,
+                                    searchLanguage = com.kitsugi.animelist.data.manga.MangaSearchLanguage.fromId(
+                                        if (appSettings.mangaSearchFollowTitleLanguage) {
+                                            appSettings.titleLanguage
+                                        } else {
+                                            appSettings.mangaSearchTitleLanguage
+                                        }
+                                    ),
+                                    followTitleLanguage = appSettings.mangaSearchFollowTitleLanguage
+                                ).ifEmpty { entryVariants }
+                                navState.openMangaBrowse(
+                                    query = variants.firstOrNull(),
+                                    mediaId = entry.id,
+                                    titleVariants = variants,
+                                    titleSet = titleSet
+                                )
+                            }
                         },
                         preferredTranslator = appSettings.preferredTranslator
                     )

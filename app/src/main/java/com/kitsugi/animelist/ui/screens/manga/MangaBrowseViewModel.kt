@@ -60,8 +60,15 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
 
     var lastInitialQuery: String? = null
 
+    /**
+     * "Oku" butonundan gelen, dil sırasına göre aday başlıklar.
+     * Arama bu sırayla denenir: ilk adla sonuç yoksa sıradaki ad kullanılır.
+     */
+    private var titleVariants: List<String> = emptyList()
+
     fun reset() {
         lastInitialQuery = null
+        titleVariants = emptyList()
         paginationJobs.forEach { it.cancel() }
         paginationJobs.clear()
         searchJob?.cancel()
@@ -117,8 +124,13 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         }
     }
 
-    fun search(query: String) {
+    /**
+     * Kullanıcı araması. [variants] verilirse (ör. "Oku" butonundan gelen dil
+     * sıralı adlar) boş sonuç dönen kaynaklar için sıradaki ad denenir.
+     */
+    fun search(query: String, variants: List<String> = emptyList()) {
         loadJob?.cancel()
+        titleVariants = variants.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         _ui.update { it.copy(searchQuery = query) }
         paginationJobs.forEach { it.cancel() }
         paginationJobs.clear()
@@ -185,7 +197,12 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                                 withContext(Dispatchers.IO) { searchSourceWithFallback(src, query, 1) }
                             } ?: throw java.io.IOException("Kaynak araması zaman aşımına uğradı")
                             repository.recordSearchSuccess(src)
-                            val matched = filterResultsTwoPass(src, query, result.mangas)
+                            var matched = filterResultsTwoPass(src, query, result.mangas)
+                            // Dil sıralı yedekler: seçili adla sonuç yoksa sıradaki ad denenir
+                            // (ör. İngilizce adla bulunamazsa Romaji/orijinal ad).
+                            if (matched.isEmpty()) {
+                                matched = searchWithVariantFallback(src, query)
+                            }
                             patchState(src.stableSourceKey(), false, matched, null, page = 1, hasNext = result.hasNextPage)
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -196,6 +213,32 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                 }
             }
         }
+    }
+
+    /**
+     * Seçili adla sonuç gelmezse dil sıralı diğer adları dener.
+     * En fazla 3 yedek sorgu — kaynakları boşa yormamak için.
+     */
+    private suspend fun searchWithVariantFallback(
+        source: MangaSource,
+        primaryQuery: String
+    ): List<MangaDetails> {
+        val candidates = titleVariants
+            .filterNot { it.equals(primaryQuery, ignoreCase = true) }
+            .take(3)
+        for (candidate in candidates) {
+            val attempt = try {
+                kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+                    withContext(Dispatchers.IO) { searchSourceWithFallback(source, candidate, 1) }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                null
+            } ?: continue
+            val matched = filterResultsTwoPass(source, candidate, attempt.mangas)
+            if (matched.isNotEmpty()) return matched
+        }
+        return emptyList()
     }
 
     private fun patchState(key: String, loading: Boolean, mangas: List<MangaDetails>, error: String?, page: Int = 1, hasNext: Boolean = true) {

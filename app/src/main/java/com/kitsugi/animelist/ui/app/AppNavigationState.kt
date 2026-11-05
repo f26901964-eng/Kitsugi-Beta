@@ -14,6 +14,7 @@ import com.kitsugi.animelist.DetailScreen
 import com.kitsugi.animelist.MangaDetailNavState
 import com.kitsugi.animelist.MangaReaderNavState
 import com.kitsugi.animelist.NovelReaderNavState
+import com.kitsugi.animelist.data.manga.MangaTitleSet
 
 /** Kept while a source-search page is underneath a pushed detail screen. */
 class SourceSearchOwner : ViewModelStoreOwner {
@@ -36,10 +37,33 @@ class AppNavigationState(
         private set
     var mangaBrowseMediaId by mutableStateOf<Int?>(null)
         private set
+    /** "Oku" akışından gelen, dil sırasına göre aday başlıklar. */
+    var mangaBrowseTitleVariants by mutableStateOf<List<String>>(emptyList())
+        private set
+    /**
+     * "Oku" akışından gelen serinin **tüm** adları.
+     * Arama dili ekranda değiştirildiğinde sorgular bu kümeden yeniden üretilir.
+     */
+    var mangaBrowseTitleSet by mutableStateOf<MangaTitleSet?>(null)
+        private set
 
-    fun openMangaBrowse(query: String? = null, mediaId: Int? = null) {
+    /**
+     * Manga aramasını açar.
+     *
+     * [titleVariants] öncelik sırasıyla denenecek adlardır (seçili başlık dili →
+     * İngilizce → romaji → orijinal). Kaynak araması bu sırayla denenir; böylece
+     * "Oku" butonu listede görünen rastgele bir adla arama yapmaz.
+     */
+    fun openMangaBrowse(
+        query: String? = null,
+        mediaId: Int? = null,
+        titleVariants: List<String> = emptyList(),
+        titleSet: MangaTitleSet? = null
+    ) {
         mangaBrowseQuery = query
         mangaBrowseMediaId = mediaId
+        mangaBrowseTitleVariants = titleVariants.filter { it.isNotBlank() }
+        mangaBrowseTitleSet = titleSet
         mangaBrowseOpen = true
     }
 
@@ -47,6 +71,8 @@ class AppNavigationState(
         mangaBrowseOpen = false
         mangaBrowseQuery = null
         mangaBrowseMediaId = null
+        mangaBrowseTitleVariants = emptyList()
+        mangaBrowseTitleSet = null
     }
 
     var mangaSourceHealthOpen by mutableStateOf(false)
