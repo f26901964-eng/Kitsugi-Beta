@@ -471,7 +471,11 @@ fun TvMangaDetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.manga_no_matching_chapters),
+                                text = if (uiState.chapters.isEmpty()) {
+                                    stringResource(R.string.manga_no_chapters_found)
+                                } else {
+                                    stringResource(R.string.manga_no_matching_chapters)
+                                },
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.bodyMedium
                             )

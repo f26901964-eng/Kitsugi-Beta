@@ -49,6 +49,7 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayArrow
 import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -90,10 +91,9 @@ import com.kitsugi.animelist.ui.components.rememberDetailStickyHeaderVisible
  * ve başlık + bölüm sayısı + yenile düğmesini taşır (bkz. [MangaDetailTopBar]).
  *
  * Bir bölüme (veya Oku butonuna) tıklanınca [onOpenChapter] ile okuyucu açılır.
- */
-/**
- * Sticky "Bölümler" başlığının LazyColumn'daki indeksi: hero · aksiyon · (açıklama) ·
- * wiki · başlık. Açıklama boş olduğunda liste bir öğe kısalır; üst bar eşikleri bu yüzden
+ *
+ * Sticky "Bölümler" başlığı listenin 4. öğesidir: hero · aksiyon · (açıklama) · wiki ·
+ * başlık. Açıklama boş olduğunda liste bir öğe kısalır; üst bar eşikleri bu yüzden
  * içerikten bağımsız olarak güvenli aralıkta tutulur (bkz. [rememberDetailStickyHeaderVisible]).
  */
 private const val CHAPTERS_HEADER_INDEX = 4
@@ -136,6 +136,8 @@ fun MangaDetailScreen(
 
     // ── Bölüm araç çubuğu durumu (döndürülünce/yeniden çizilince korunur) ─────
     var query by rememberSaveable { mutableStateOf("") }
+    // Sticky başlığa gömülü hızlı arama alanı (uzun listelerde erişim için).
+    var headerSearchExpanded by rememberSaveable { mutableStateOf(false) }
     var selectedScanlator by rememberSaveable { mutableStateOf<String?>(null) }
     var statusFilterName by rememberSaveable { mutableStateOf(ChapterStatusFilter.All.name) }
     var sortModeName by rememberSaveable { mutableStateOf(ChapterSortMode.NewestFirst.name) }
@@ -313,9 +315,15 @@ fun MangaDetailScreen(
                     val headerCount = visibleChapters.size
                     val onCycleSort: () -> Unit = {
                         sortModeName = sortMode.next().name
-                        // Yeni sıralamada liste başından devam et: kullanıcı sıralamanın
-                        // etkisini hemen görsün.
-                        scope.launch { listState.animateScrollToItem(CHAPTERS_HEADER_INDEX) }
+                        // Yeni sıralamada liste baştan gösterilir: kullanıcı sıralamanın
+                        // etkisini hemen görsün. Sabit indeks yerine görünür öğe anahtarı
+                        // kullanılır (koşullu öğeler indeksi kaydırabiliyor).
+                        val headerIdx = listState.layoutInfo.visibleItemsInfo
+                            .firstOrNull { it.key == "chapters_header" }
+                            ?.index
+                        if (headerIdx != null) {
+                            scope.launch { listState.animateScrollToItem(headerIdx + 1) }
+                        }
                     }
                     val onToggleReadFilter: () -> Unit = {
                         statusFilterName = if (readFilterActive) {
@@ -334,8 +342,30 @@ fun MangaDetailScreen(
                         accentColor = accent,
                         onCycleSort = onCycleSort,
                         onToggleReadFilter = onToggleReadFilter,
-                        onRefresh = onRefreshChapters
+                        onRefresh = onRefreshChapters,
+                        onToggleSearch = { headerSearchExpanded = !headerSearchExpanded },
+                        searchExpanded = headerSearchExpanded
                     )
+                    // Sticky başlığın içinde açılan arama alanı: uzun listede
+                    // aşağıdayken de bölüm araması tek dokunuş uzakta.
+                    AnimatedVisibility(visible = headerSearchExpanded) {
+                        Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                            MangaChapterSearchRow(
+                                query = query,
+                                onQueryChange = { query = it },
+                                unreadOnly = activeStatusFilter == ChapterStatusFilter.Unread,
+                                onToggleUnreadOnly = {
+                                    statusFilterName =
+                                        if (activeStatusFilter == ChapterStatusFilter.Unread) {
+                                            ChapterStatusFilter.All.name
+                                        } else {
+                                            ChapterStatusFilter.Unread.name
+                                        }
+                                },
+                                accentColor = accent
+                            )
+                        }
+                    }
                 }
             }
 

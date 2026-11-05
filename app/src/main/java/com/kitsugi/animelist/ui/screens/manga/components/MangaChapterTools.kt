@@ -220,7 +220,15 @@ fun MangaChaptersHeader(
     onCycleSort: () -> Unit,
     onToggleReadFilter: () -> Unit,
     onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Sticky başlıktaki arama düğmesi: verilirse sticy başlığın içinde kompakt bir
+     * "Bölüm ara" alanı açılır (null ise düğme gizlenir). Uzun bölüm listelerinde
+     * aşağı kaydıktan sonra da aramaya erişim.
+     */
+    onToggleSearch: (() -> Unit)? = null,
+    /** Arama alanı şu an açık mı (düğme vurgusu ve ikon değişimi için). */
+    searchExpanded: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -242,6 +250,18 @@ fun MangaChaptersHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        if (onToggleSearch != null) {
+            // Uzun bölüm listesinde aşağı kaydıktan sonra da aramaya erişim:
+            // başlıktaki bu düğme kompakt arama alanını açar/kapatır.
+            MangaHeaderIconButton(
+                icon = if (searchExpanded) Icons.Rounded.Close else Icons.Rounded.Search,
+                contentDescription = stringResource(R.string.manga_chapter_search_hint),
+                active = searchExpanded,
+                accentColor = accentColor,
+                onClick = onToggleSearch
+            )
+            Spacer(Modifier.width(2.dp))
         }
         MangaHeaderIconButton(
             icon = Icons.Rounded.SwapVert,

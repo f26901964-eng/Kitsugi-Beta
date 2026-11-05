@@ -443,6 +443,70 @@ fun MangaReaderScreen(
             }
         }
 
+        // ─── Bölüm sonu ipucu ────────────────────────────────────────────────
+        // Bölümün son sayfasına gelince menüyü açmadan "Sonraki bölüm" düğmesi çıkar;
+        // 100+ sayfalık bölümü bitirip alt barı aramak zorunda kalmıyorsun.
+        val atLastPage = pages.isNotEmpty() && currentPage >= pages.size - 1
+        if (!menuVisible) {
+            AnimatedVisibility(
+                visible = atLastPage,
+                enter = fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
+                exit = fadeOut() + androidx.compose.animation.slideOutVertically { it / 2 },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 28.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (viewModel.hasPreviousChapter) {
+                        KitsugiButton(
+                            onClick = { viewModel.goToPreviousChapter() },
+                            shape = RoundedCornerShape(999.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF26263B)
+                            )
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.onceki_bolum),
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.onceki_bolum),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    if (viewModel.hasNextChapter) {
+                        KitsugiButton(
+                            onClick = { viewModel.goToNextChapter() },
+                            shape = RoundedCornerShape(999.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
+                        ) {
+                            Text(
+                                text = stringResource(R.string.sonraki_bolum) +
+                                    (viewModel.nextChapterName?.let { " · $it" } ?: ""),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // ─── Alt Bar (Aniyomi Parity) + Sayfa Galerisi Şeridi ────────────────
         AnimatedVisibility(
             visible = menuVisible && pages.isNotEmpty(),
