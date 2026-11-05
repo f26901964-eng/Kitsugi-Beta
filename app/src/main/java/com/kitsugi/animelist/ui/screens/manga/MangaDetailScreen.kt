@@ -250,31 +250,41 @@ fun MangaDetailScreen(
             if (!details.description.isNullOrBlank()) {
                 item(key = "description") {
                     var descriptionExpanded by rememberSaveable { mutableStateOf(false) }
+                    // Kısa özetlerde "Devamını göster" gereksiz: metin gerçekten 4 satırı
+                    // aşıyorsa gösterilir (onTextLayout ile ölçülür).
+                    var descriptionOverflows by remember { mutableStateOf(false) }
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                         Text(
                             text = details.description!!,
                             color = KitsugiColors.TextSecondary,
                             fontSize = 13.sp,
                             maxLines = if (descriptionExpanded) Int.MAX_VALUE else 4,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = if (descriptionExpanded) {
-                                stringResource(R.string.daha_az)
-                            } else {
-                                stringResource(R.string.profile_show_more)
-                            },
-                            color = accent,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier
-                                .padding(top = 6.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .tvClickable(shape = RoundedCornerShape(6.dp)) {
-                                    descriptionExpanded = !descriptionExpanded
+                            overflow = TextOverflow.Ellipsis,
+                            onTextLayout = { result ->
+                                if (!descriptionExpanded) {
+                                    descriptionOverflows = result.hasVisualOverflow
                                 }
-                                .padding(vertical = 2.dp)
+                            }
                         )
+                        if (descriptionOverflows || descriptionExpanded) {
+                            Text(
+                                text = if (descriptionExpanded) {
+                                    stringResource(R.string.daha_az)
+                                } else {
+                                    stringResource(R.string.profile_show_more)
+                                },
+                                color = accent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .padding(top = 6.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .tvClickable(shape = RoundedCornerShape(6.dp)) {
+                                        descriptionExpanded = !descriptionExpanded
+                                    }
+                                    .padding(vertical = 2.dp)
+                            )
+                        }
                     }
                 }
             }

@@ -26,6 +26,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.Refresh
 import com.kitsugi.animelist.ui.theme.gradient.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +40,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -66,7 +71,10 @@ import com.kitsugi.animelist.data.manga.MangaStatus
 import com.kitsugi.animelist.data.fandom.FandomMediaQueries
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
 import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
+import com.kitsugi.animelist.ui.screens.manga.ChapterStatusFilter
 import com.kitsugi.animelist.ui.screens.manga.MangaDetailViewModel
+import com.kitsugi.animelist.data.manga.ChapterSortMode
+import com.kitsugi.animelist.data.manga.sortedForMode
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.dpadRepeatThrottle
@@ -111,6 +119,23 @@ fun TvMangaDetailScreen(
             isMovie = false,
             titles = listOf(details.title)
         )
+    }
+
+    // ── Bölüm sıralaması / okunmamış filtresi (mobil detayla aynı mantık) ──
+    // TV'de klavye olmadığı için metin araması yerine kumandayla çevrilebilen iki
+    // düğme var: sıralama ve "okunmamış" filtresi.
+    var sortModeName by rememberSaveable { mutableStateOf(ChapterSortMode.NewestFirst.name) }
+    var statusFilterName by rememberSaveable { mutableStateOf(ChapterStatusFilter.All.name) }
+    val sortMode = runCatching { ChapterSortMode.valueOf(sortModeName) }
+        .getOrDefault(ChapterSortMode.NewestFirst)
+    val statusFilter = runCatching { ChapterStatusFilter.valueOf(statusFilterName) }
+        .getOrDefault(ChapterStatusFilter.All)
+    val rowByUrl = remember(uiState.chapters) { uiState.chapters.associateBy { it.chapter.url } }
+    val visibleChapters = remember(uiState.chapters, sortModeName, statusFilterName) {
+        uiState.chapters
+            .filter { row -> statusFilter.matches(row.isCompleted, row.isInProgress) }
+            .map { it.chapter }
+            .sortedForMode(sortMode)
     }
 
     val listState = rememberLazyListState()
@@ -355,16 +380,56 @@ fun TvMangaDetailScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            IconButton(
-                                onClick = { viewModel.loadChapters() },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    Icons.Rounded.Refresh,
-                                    contentDescription = stringResource(R.string.yenile),
-                                    tint = KitsugiColors.TextSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Sıralama: En yeni → En eski → Son güncellenen
+                                IconButton(
+                                    onClick = { sortModeName = sortMode.next().name },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Sort,
+                                        contentDescription = stringResource(R.string.manga_sort_chapters),
+                                        tint = if (sortMode == ChapterSortMode.NewestFirst) {
+                                            KitsugiColors.TextSecondary
+                                        } else {
+                                            KitsugiColors.AccentBlue
+                                        },
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                // Okunmamış filtresi (tek dokunuşla aç/kapat)
+                                IconButton(
+                                    onClick = {
+                                        statusFilterName = if (statusFilter == ChapterStatusFilter.Unread) {
+                                            ChapterStatusFilter.All.name
+                                        } else {
+                                            ChapterStatusFilter.Unread.name
+                                        }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Verified,
+                                        contentDescription = stringResource(R.string.manga_filter_unread),
+                                        tint = if (statusFilter == ChapterStatusFilter.Unread) {
+                                            KitsugiColors.AccentBlue
+                                        } else {
+                                            KitsugiColors.TextSecondary
+                                        },
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.loadChapters() },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Refresh,
+                                        contentDescription = stringResource(R.string.yenile),
+                                        tint = KitsugiColors.TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                         Spacer(Modifier.height(6.dp))
@@ -400,10 +465,23 @@ fun TvMangaDetailScreen(
                             }
                         }
                     }
+                    visibleChapters.isEmpty() -> item(key = "chapters_filtered_empty") {
+                        Box(
+                            Modifier.fillMaxWidth().height(120.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.manga_no_matching_chapters),
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                     else -> itemsIndexed(
-                        items = uiState.chapters,
-                        key = { _, ch -> ch.chapter.url }
-                    ) { _, row ->
+                        items = visibleChapters,
+                        key = { _, ch -> ch.url }
+                    ) { _, chapter ->
+                        val row = rowByUrl[chapter.url] ?: return@itemsIndexed
                         TvChapterListItem(
                             row = row,
                             onClick = { onOpenChapter(row.chapter) }
@@ -466,6 +544,26 @@ private fun TvChapterListItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+            // Yarım kalan bölümde ince ilerleme çubuğu — mobil detayla aynı bilgi.
+            if (row.isInProgress && row.totalPages > 0) {
+                Spacer(Modifier.height(5.dp))
+                val progress = ((row.lastPageIndex + 1).toFloat() / row.totalPages.toFloat())
+                    .coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(KitsugiColors.SurfaceStrong)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .background(KitsugiColors.AccentBlue)
+                    )
+                }
             }
         }
         if (row.isCompleted) {
