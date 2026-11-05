@@ -3141,6 +3141,9 @@ object CsStreamRunner {
                                         isCS         = true,
                                         quality      = getQualityString(link.quality),
                                         qualityValue = getQualityValue(link.quality),
+                                        // Eklentinin GERÇEKTEN verdiği altyazı listesi (URL + dil).
+                                        // Boş liste "altyazı yok" değil, "bilinmiyor" demektir; rozet
+                                        // yalnızca gerçek dosya varsa basılır.
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
                                         isAdultContent = ADULT_PLUGINS.contains(api.name),
@@ -3302,6 +3305,11 @@ object CsStreamRunner {
             toCheck.add(stream)
         }
 
+        // Ölçülen gerçek boyutlar (URL → bayt). HEAD yanıtından gelir; aşağıdaki tüm
+        // dönüş yolları (canlı liste, "hepsi ölü çıktı" fallback, sanitize sonrası) bu
+        // haritadan beslenir. Böylece kullanıcı indirme butonuna basmadan boyutu görür.
+        val measuredSizes = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
         if (toCheck.isNotEmpty()) {
             kotlinx.coroutines.coroutineScope {
                 val gate = Semaphore(6)
@@ -3397,8 +3405,10 @@ object CsStreamRunner {
                             if (isAlive) {
                                 // Ölçülen boyut kartta "3.3 GB" olarak görünür; kaynak kendi
                                 // boyutunu zaten bildirdiyse ona dokunulmaz.
-                                val sized = if (stream.videoSizeBytes == null && measuredSize != null) {
-                                    stream.copy(videoSizeBytes = measuredSize)
+                                val known = stream.videoSizeBytes ?: measuredSize
+                                if (known != null) measuredSizes[url] = known
+                                val sized = if (stream.videoSizeBytes == null && known != null) {
+                                    stream.copy(videoSizeBytes = known)
                                 } else stream
                                 verifiedStreams.add(sized)
                             } else {
@@ -3416,14 +3426,6 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] ${deadStreams.size} dead stream düşürüldü, ${verifiedStreams.size} aktif stream kaldı.")
         }
 
-        // Fallback yolu: doğrulama sırasında elenenlerin orijinal kayıtlarını ölçülen boyutla
-        // eşleştir. "Tümü ölü çıktı → false positive" durumunda orijinal liste döndürülse bile
-        // kullanıcı gerçek boyutu görsün.
-        val measuredSizeByUrl = toCheck.mapNotNull { s ->
-            val u = s.url?.takeIf { it.isNotBlank() }
-            if (u == null || s.videoSizeBytes == null) null else u to s.videoSizeBytes
-        }.toMap()
-
         // Eger tum stream'ler dead ciktiysa: gercekten olu mu false positive mi ayirt et
         val verifiedFinal = if (verifiedStreams.isEmpty() && streams.isNotEmpty()) {
             // toCheck = dogrudan medya (HEAD ile denenenler), passThrough = embed vb. dogrulanmayanlar
@@ -3436,11 +3438,11 @@ object CsStreamRunner {
                 verifiedStreams // bos
             } else {
                 Log.w(TAG, "[${api.name}] Tum streamler dead cikti - false positive olabilir, orijinaller donduruluyor.")
-                if (measuredSizeByUrl.isEmpty()) {
+                if (measuredSizes.isEmpty()) {
                     streams
                 } else {
                     streams.map { s ->
-                        val measured = s.url?.let { measuredSizeByUrl[it] }
+                        val measured = s.url?.let { measuredSizes[it] }
                         if (s.videoSizeBytes == null && measured != null) s.copy(videoSizeBytes = measured) else s
                     }
                 }
@@ -3467,7 +3469,7 @@ object CsStreamRunner {
         )
         return finalStreams.map { stream ->
             // Son şans: sanitize öncesi listede ölçülmüş bir boyut varsa URL ile eşleştir.
-            val measured = stream.url?.let { measuredSizeByUrl[it] }
+            val measured = stream.url?.let { measuredSizes[it] }
             stream.copy(
                 subtitles = subtitleList.toList(),
                 providerAudioKind = stream.providerAudioKind ?: providerAudioKind,
