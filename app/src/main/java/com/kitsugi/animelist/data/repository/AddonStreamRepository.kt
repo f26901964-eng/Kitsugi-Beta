@@ -239,7 +239,7 @@ data class StreamSource(
     val externalAudioUrl: String? = null,
     /**
      * Videoya bağlı AYRI ses parçası sayısı (CloudStream `ExtractorLink.audioTracks`).
-     * 1+ ise video en az iki ses içeriyor demektir → "Çift dil" rozeti kanıta dayalı basılır.
+     * 1+ ise video en az iki ses akışı içeriyor demektir → "Çift dil" rozeti kanıta dayalı basılır.
      */
     val externalAudioTrackCount: Int = 0,
     /**

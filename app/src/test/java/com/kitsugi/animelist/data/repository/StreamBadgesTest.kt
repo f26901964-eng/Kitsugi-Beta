@@ -148,9 +148,18 @@ class StreamBadgesTest {
     }
 
     @Test
-    fun `tek ses parcasi cift dil demek degildir`() {
+    fun `tek harici ses parcasi da cift dil kanitidir`() {
+        // Videonun kendi sesi + eklentinin verdiği harici parça = iki ses akışı.
         val info = StreamInfoResolver.resolveLang(source(externalAudioTrackCount = 1))
+        assertEquals(StreamAudioKind.DUAL, info.kind)
+        assertTrue(info.hasAudioTracks)
+    }
+
+    @Test
+    fun `harici ses parcasi yoksa cift dil denmez`() {
+        val info = StreamInfoResolver.resolveLang(source(title = "Bölüm 1"))
         assertTrue(info.kind != StreamAudioKind.DUAL)
+        assertTrue(!info.hasAudioTracks)
     }
 
     @Test
@@ -209,7 +218,9 @@ class StreamSorterSwarmTest {
         val unknown = stream("unknown", null)
         val sorted = StreamSorter.sort(listOf(low, unknown, high))
         assertEquals("high", sorted.first().title)
-        assertEquals("low", sorted.last().title)
+        // Seeder bildirmeyen kaynak "0 seeder" sayılmaz; sıralamada en sona düşer ama elenmez.
+        assertEquals("low", sorted[1].title)
+        assertEquals("unknown", sorted[2].title)
     }
 
     @Test

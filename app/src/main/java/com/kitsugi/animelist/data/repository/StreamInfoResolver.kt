@@ -336,9 +336,10 @@ object StreamInfoResolver {
             )
         }
 
-        // 2b) Eklenti AYRI ses parçaları bildirdi (ExtractorLink.audioTracks ≥ 2)
-        //     → video birden fazla dilde ses içeriyor; kanıt eklentinin kendisinden.
-        if (stream.externalAudioTrackCount >= 2) {
+        // 2b) Eklenti AYRI ses parçası bildirdi (ExtractorLink.audioTracks / audioUrl).
+        //     Oynatıcı bunu videonun üzerine ayrı ses olarak ekliyor → en az iki ses akışı
+        //     (video ile gelen ses + harici parça) = çift dil. Kanıt doğrudan eklentiden.
+        if (stream.externalAudioTrackCount >= 1 || !stream.externalAudioUrl.isNullOrBlank()) {
             return StreamLangInfo(
                 kind = StreamAudioKind.DUAL,
                 origin = StreamInfoOrigin.PROVIDER,

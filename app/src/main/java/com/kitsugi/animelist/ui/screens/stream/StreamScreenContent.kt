@@ -97,6 +97,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -234,7 +235,12 @@ fun StreamScreenContent(
     // Sıralama modu hatırlanır (varsayılan → kalite → tohum) ve listede kalıcıdır.
     var sortModeIndex by rememberSaveable { mutableStateOf(0) }
     val sortMode = StreamSortMode.entries.getOrElse(sortModeIndex) { StreamSortMode.DEFAULT }
-    val filteredAddonStates = remember(matchingAddonStates, sortMode) {
+    // Ölçüm (HEAD/HLS) sonuçları kartlara asenkron düştüğünde liste ESKİ boyut/seeder
+    // bilgisiyle donup kalmamalı. Ölçüm sayacı yalnızca yeni bir ölçüm TAMAMLANDIĞINDA artar;
+    // böylece gereksiz yeniden sıralama (kaydırma kasması) oluşmaz.
+    val probeTick by com.kitsugi.animelist.data.repository.StreamProbe.completions
+        .collectAsStateWithLifecycle()
+    val filteredAddonStates = remember(matchingAddonStates, sortMode, probeTick) {
         applySortingToAddonStates(matchingAddonStates, sortMode)
     }
     val totalFilteredStreamsCount = remember(filteredAddonStates) {
@@ -242,7 +248,8 @@ fun StreamScreenContent(
     }
     // Boyutu GERÇEKTEN bilinen kaynak sayısı: kaynak bayt verdiyse ya da başlıkta açık
     // bir GB/MB yazıyorsa. Kullanıcıya "kaç kaynağın boyutu belli" bilgisi verilir.
-    val totalSizedStreamsCount = remember(filteredAddonStates) {
+    // Ölçüm sonuçları (gerçek bayt) geldikçe sayaç artar → sayaç anahtara dahil.
+    val totalSizedStreamsCount = remember(filteredAddonStates, probeTick) {
         filteredAddonStates.sumOf { state ->
             state.streams.count { resolveStreamSizeLabel(it) != null }
         }

@@ -46,6 +46,16 @@ object StreamProbe {
 
     private val cache = BoundedCache<String, MeasuredStreamInfo>("streamProbe", 200)
 
+    /**
+     * Tamamlanan ölçüm sayacı.
+     *
+     * Listede sıralama/filtreler ölçüm sonucunu (gerçek boyut, ses/altyazı dilleri, codec)
+     * kullanır. Ölçüm sonuçları asenkron geldiği için sayaç artmadıkça liste eski bilgiyle
+     * donup kalıyordu. Sayaç yalnızca GERÇEKTEN yeni bir sonuç üretildiğinde artar.
+     */
+    private val _completions = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val completions: kotlinx.coroutines.flow.StateFlow<Int> = _completions
+
     /** Daha önce ölçülmüş sonuç (anında arayüze verilebilir). */
     fun cached(url: String?): MeasuredStreamInfo? = url?.let { cache[it] }
 
@@ -123,6 +133,7 @@ object StreamProbe {
         }
 
         cache[url] = result
+        _completions.value += 1
         return result
     }
 

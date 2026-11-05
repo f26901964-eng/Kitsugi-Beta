@@ -2583,7 +2583,7 @@ object CsStreamRunner {
                                     // kanıta dayalı basılır (tahmin yok).
                                     externalAudioTrackCount = link.audioTracks.count { it.url.isNotBlank() },
                                     // Birden fazla ayrı ses parçası = çift dil (kanıt eklentiden).
-                                    providerAudioKind = if (link.audioTracks.count { it.url.isNotBlank() } >= 2) "dual" else null
+                                    providerAudioKind = if (link.audioTracks.any { it.url.isNotBlank() }) "dual" else null
                                 )
                             )
                         }
@@ -3149,7 +3149,7 @@ object CsStreamRunner {
                                         // kanıta dayalı basılır (tahmin yok).
                                         externalAudioTrackCount = link.audioTracks.count { it.url.isNotBlank() },
                                         // Birden fazla ayrı ses parçası = çift dil (kanıt eklentiden).
-                                        providerAudioKind = if (link.audioTracks.count { it.url.isNotBlank() } >= 2) "dual" else null
+                                        providerAudioKind = if (link.audioTracks.any { it.url.isNotBlank() }) "dual" else null
                                 )
                                 streams.add(newStream)
                                 partialSink?.add(newStream)

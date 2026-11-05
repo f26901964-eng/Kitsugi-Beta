@@ -18,7 +18,7 @@
 ### 🗣️ Ses & Altyazı Rozetleri Tüm Eklentilerden
 - **Tek rozet bileşeni (`StreamInfoChips.kt`):** Kalite, ses türü (Dublaj/Altyazılı/Çift dil), boyut, seeder/peer, ses dilleri, altyazı dilleri, codec (`HEVC`, `H.264`, `AV1`, `VP9`), HDR (`DV`, `HDR10+`, `HDR10`), kaynak türü (`REMUX`, `BluRay`, `WEB-DL`) ve önbellek/P2P durumu tek yerden üretilir.
 - **Nerede görünür:** İzle sayfası kartları, TV (Android TV) kaynak satırları, detay sayfası kaynak seçici ve **oynatıcı içi "Kalite / Kaynak" sayfası** — hepsi aynı bileşeni kullanır.
-- **Yeni kanıt kaynakları:** CloudStream `ExtractorLink.audioTracks` sayısı kaydediliyor (≥2 ayrı ses parçası = "Çift dil"), HLS master playlist'indeki `#EXT-X-MEDIA:TYPE=AUDIO/SUBTITLES` dilleri ve `CODECS` alanı okunuyor (ek istek yok).
+- **Yeni kanıt kaynakları:** CloudStream `ExtractorLink.audioTracks` sayısı kaydediliyor (eklentinin verdiği ayrı ses parçası + videonun kendi sesi = "Çift dil"), HLS master playlist'indeki `#EXT-X-MEDIA:TYPE=AUDIO/SUBTITLES` dilleri ve `CODECS` alanı okunuyor (ek istek yok).
 - **Kural korunuyor:** Kanıt yoksa rozet basılmaz. "Türkçe eklenti ⇒ altyazılı" gibi eski varsayımlar geri getirilmedi.
 
 ### 🧩 Tutarlılık Düzeltmeleri
@@ -46,7 +46,7 @@
 ### 🗣️ Audio & Subtitle Badges From Every Extension
 - **Single badge component (`StreamInfoChips.kt`):** quality, audio kind (Dubbed/Subbed/Dual), size, seeders/peers, audio languages, subtitle languages, codec (`HEVC`, `H.264`, `AV1`, `VP9`), HDR (`DV`, `HDR10+`, `HDR10`), source type (`REMUX`, `BluRay`, `WEB-DL`) and cache/P2P state come from one place.
 - **Where it shows:** watch page cards, Android TV rows, the detail-page source picker and the **in-player "Quality / Source" sheet** — all share the same component.
-- **New evidence sources:** CloudStream `ExtractorLink.audioTracks` count is stored (≥2 separate audio tracks ⇒ "Dual"), and HLS `#EXT-X-MEDIA:TYPE=AUDIO/SUBTITLES` languages plus `CODECS` are read from the master playlist (no extra requests).
+- **New evidence sources:** CloudStream `ExtractorLink.audioTracks` count is stored (a separate plugin audio track plus the video's own audio ⇒ "Dual"), and HLS `#EXT-X-MEDIA:TYPE=AUDIO/SUBTITLES` languages plus `CODECS` are read from the master playlist (no extra requests).
 - **Rule preserved:** no evidence ⇒ no badge. Legacy guesses like "Turkish addon ⇒ subtitled" were not reintroduced.
 
 ### 🧩 Consistency Fixes
