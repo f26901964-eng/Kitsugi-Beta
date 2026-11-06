@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Key
@@ -123,10 +124,10 @@ fun KitsugiIntegrationsSettingsDialog(
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 3), pageCount = { 4 })
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 4), pageCount = { 5 })
     val scope = rememberCoroutineScope()
     LaunchedEffect(initialPage) {
-        val targetPage = initialPage.coerceIn(0, 3)
+        val targetPage = initialPage.coerceIn(0, 4)
         if (pagerState.currentPage != targetPage) pagerState.animateScrollToPage(targetPage)
     }
 
@@ -134,12 +135,14 @@ fun KitsugiIntegrationsSettingsDialog(
     val mdbListScrollState = rememberScrollState()
     val aniSkipScrollState = rememberScrollState()
     val fanartTvScrollState = rememberScrollState()
+    val musicScrollState = rememberScrollState()
 
     val activeScrollState = when (pagerState.currentPage) {
         0 -> tmdbScrollState
         1 -> mdbListScrollState
         2 -> aniSkipScrollState
-        else -> fanartTvScrollState
+        3 -> fanartTvScrollState
+        else -> musicScrollState
     }
 
     KitsugiSheetOrDialog(
@@ -177,7 +180,8 @@ fun KitsugiIntegrationsSettingsDialog(
                         KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_tmdb), Icons.Rounded.Movie),
                         KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_mdblist), Icons.Rounded.Star),
                         KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_skip), Icons.Rounded.SkipNext),
-                        KitsugiSettingsTabOption("Fanart.tv", Icons.Rounded.Image)
+                        KitsugiSettingsTabOption("Fanart.tv", Icons.Rounded.Image),
+                        KitsugiSettingsTabOption(stringResource(R.string.music_integration_tab), Icons.Rounded.MusicNote)
                     ),
                     selectedIndex = pagerState.currentPage,
                     accentColor = accentColor,
@@ -269,6 +273,10 @@ fun KitsugiIntegrationsSettingsDialog(
                         onApiKeyChanged = onFanartTvApiKeyChanged,
                         accentColor = accentColor,
                         scrollState = fanartTvScrollState
+                    )
+                    4 -> MusicIntegrationTab(
+                        accentColor = accentColor,
+                        scrollState = musicScrollState
                     )
                 }
             }

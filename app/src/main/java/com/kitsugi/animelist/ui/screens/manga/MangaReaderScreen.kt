@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -73,6 +76,11 @@ import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.core.music.MangaMusicCatalog
+import com.kitsugi.animelist.core.music.MangaMusicPlayer
+import com.kitsugi.animelist.core.music.MangaMusicSettingsStore
+import com.kitsugi.animelist.ui.screens.manga.components.MangaMusicPanel
+import com.kitsugi.animelist.ui.screens.manga.components.rememberMangaMusicQuickToggle
 import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import kotlinx.coroutines.launch
@@ -120,6 +128,26 @@ fun MangaReaderScreen(
     val scope      = rememberCoroutineScope()
     var menuVisible     by remember { mutableStateOf(true) }
     var showSettings    by remember { mutableStateOf(false) }
+    val readerSheetScrollState = rememberScrollState()
+
+    // ─── Okuma Müziği ────────────────────────────────────────────────────────
+    // Ayarlar açık + "okuyucu açılınca başlat" işaretliyse son çalınan istasyon
+    // (yoksa etkin ruh hâlinin ilk istasyonu) kendiliğinden başlar. Müzik zaten
+    // çalıyorsa yeniden başlatılmaz — bölüm geçişinde yayın kesilmez.
+    val musicStore = remember(context) { MangaMusicSettingsStore(context.applicationContext) }
+    val musicToggle = rememberMangaMusicQuickToggle()
+    LaunchedEffect(Unit) {
+        if (MangaMusicPlayer.state.value.isPlaying) return@LaunchedEffect
+        val musicSettings = musicStore.current()
+        if (!musicSettings.enabled) return@LaunchedEffect
+        val station = musicSettings.lastStationOrNull()
+            ?: MangaMusicCatalog.builtInFor(musicSettings.mood).firstOrNull()
+            ?: return@LaunchedEffect
+        if (musicSettings.autoplay) {
+            MangaMusicPlayer.setVolume(musicSettings.volume)
+            MangaMusicPlayer.play(context, station, listOf(station))
+        }
+    }
 
     val pagerState    = rememberPagerState(initialPage = currentPage) { pages.size }
     val listState     = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
@@ -321,6 +349,13 @@ fun MangaReaderScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    IconButton(onClick = musicToggle.onToggle) {
+                        Icon(
+                            Icons.Rounded.MusicNote,
+                            contentDescription = stringResource(R.string.music_reading_title),
+                            tint = if (musicToggle.isPlaying) Color(0xFF7C4DFF) else Color.White
+                        )
+                    }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.MenuBook,
@@ -510,11 +545,15 @@ fun MangaReaderScreen(
     // ─── Okuma Modu Ayarlar Paneli ────────────────────────────────────────────
     if (showSettings) {
         KitsugiSheetOrDialog(
-            onDismiss = { showSettings = false }
+            onDismiss = { showSettings = false },
+            // Panel artık kaydırılabilir: içerik ekran yüksekliğini aştığında alttaki
+            // renk filtresi/parlaklık ve müzik bölümü erişilemez kalıyordu.
+            innerColumnScrollState = readerSheetScrollState
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(readerSheetScrollState)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -522,8 +561,19 @@ fun MangaReaderScreen(
                     color     = Color.White,
                     fontSize  = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier  = Modifier.padding(bottom = 16.dp)
+                    modifier  = Modifier.padding(bottom = 12.dp)
                 )
+
+                // ─── Okuma Müziği ─────────────────────────────────────────────
+                MangaMusicPanel(
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF202032))
+                        .padding(12.dp)
+                )
+                Spacer(Modifier.height(16.dp))
 
                 // Okuma Yönü
                 Text(
