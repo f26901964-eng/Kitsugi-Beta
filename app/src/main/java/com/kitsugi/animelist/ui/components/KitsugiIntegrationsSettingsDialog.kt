@@ -23,6 +23,10 @@ import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.*
@@ -118,15 +122,46 @@ fun KitsugiIntegrationsSettingsDialog(
     onFanartTvEnabledChanged: (Boolean) -> Unit,
     fanartTvApiKey: String,
     onFanartTvApiKeyChanged: (String) -> Unit,
+    // ─── Okuyucu Ortam Sesi (Ambient) ───────────────────────────────────────
+    musicEnabled: Boolean = true,
+    onMusicEnabledChanged: (Boolean) -> Unit = {},
+    musicAutoRecommend: Boolean = true,
+    onMusicAutoRecommendChanged: (Boolean) -> Unit = {},
+    musicContinueOnExit: Boolean = false,
+    onMusicContinueOnExitChanged: (Boolean) -> Unit = {},
+    musicMasterVolume: Float = 0.8f,
+    onMusicMasterVolumeChanged: (Float) -> Unit = {},
+    musicChannelVolume: Float = 0.5f,
+    onMusicChannelVolumeChanged: (Float) -> Unit = {},
+    musicAmbientVolume: Float = 0.6f,
+    onMusicAmbientVolumeChanged: (Float) -> Unit = {},
+    musicJamendoEnabled: Boolean = false,
+    onMusicJamendoEnabledChanged: (Boolean) -> Unit = {},
+    musicJamendoClientId: String = "",
+    onMusicJamendoClientIdChanged: (String) -> Unit = {},
+    musicFreesoundEnabled: Boolean = false,
+    onMusicFreesoundEnabledChanged: (Boolean) -> Unit = {},
+    musicFreesoundApiKey: String = "",
+    onMusicFreesoundApiKeyChanged: (String) -> Unit = {},
+    musicOpenverseEnabled: Boolean = true,
+    onMusicOpenverseEnabledChanged: (Boolean) -> Unit = {},
+    musicOpenverseToken: String = "",
+    onMusicOpenverseTokenChanged: (String) -> Unit = {},
+    musicArchiveEnabled: Boolean = true,
+    onMusicArchiveEnabledChanged: (Boolean) -> Unit = {},
+    musicAudiusEnabled: Boolean = false,
+    onMusicAudiusEnabledChanged: (Boolean) -> Unit = {},
+    musicAudiusApiKey: String = "",
+    onMusicAudiusApiKeyChanged: (String) -> Unit = {},
     embeddedMode: Boolean = false,
     initialPage: Int = 0,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 3), pageCount = { 4 })
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 4), pageCount = { 5 })
     val scope = rememberCoroutineScope()
     LaunchedEffect(initialPage) {
-        val targetPage = initialPage.coerceIn(0, 3)
+        val targetPage = initialPage.coerceIn(0, 4)
         if (pagerState.currentPage != targetPage) pagerState.animateScrollToPage(targetPage)
     }
 
@@ -134,12 +169,14 @@ fun KitsugiIntegrationsSettingsDialog(
     val mdbListScrollState = rememberScrollState()
     val aniSkipScrollState = rememberScrollState()
     val fanartTvScrollState = rememberScrollState()
+    val musicScrollState = rememberScrollState()
 
     val activeScrollState = when (pagerState.currentPage) {
         0 -> tmdbScrollState
         1 -> mdbListScrollState
         2 -> aniSkipScrollState
-        else -> fanartTvScrollState
+        3 -> fanartTvScrollState
+        else -> musicScrollState
     }
 
     KitsugiSheetOrDialog(
@@ -177,7 +214,8 @@ fun KitsugiIntegrationsSettingsDialog(
                         KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_tmdb), Icons.Rounded.Movie),
                         KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_mdblist), Icons.Rounded.Star),
                         KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_skip), Icons.Rounded.SkipNext),
-                        KitsugiSettingsTabOption("Fanart.tv", Icons.Rounded.Image)
+                        KitsugiSettingsTabOption("Fanart.tv", Icons.Rounded.Image),
+                        KitsugiSettingsTabOption(stringResource(R.string.integrations_tab_music), Icons.Rounded.MusicNote)
                     ),
                     selectedIndex = pagerState.currentPage,
                     accentColor = accentColor,
@@ -269,6 +307,40 @@ fun KitsugiIntegrationsSettingsDialog(
                         onApiKeyChanged = onFanartTvApiKeyChanged,
                         accentColor = accentColor,
                         scrollState = fanartTvScrollState
+                    )
+                    4 -> MusicSettingsTab(
+                        enabled = musicEnabled,
+                        onEnabledChanged = onMusicEnabledChanged,
+                        autoRecommend = musicAutoRecommend,
+                        onAutoRecommendChanged = onMusicAutoRecommendChanged,
+                        continueOnExit = musicContinueOnExit,
+                        onContinueOnExitChanged = onMusicContinueOnExitChanged,
+                        masterVolume = musicMasterVolume,
+                        onMasterVolumeChanged = onMusicMasterVolumeChanged,
+                        channelVolume = musicChannelVolume,
+                        onChannelVolumeChanged = onMusicChannelVolumeChanged,
+                        ambientVolume = musicAmbientVolume,
+                        onAmbientVolumeChanged = onMusicAmbientVolumeChanged,
+                        jamendoEnabled = musicJamendoEnabled,
+                        onJamendoEnabledChanged = onMusicJamendoEnabledChanged,
+                        jamendoClientId = musicJamendoClientId,
+                        onJamendoClientIdChanged = onMusicJamendoClientIdChanged,
+                        freesoundEnabled = musicFreesoundEnabled,
+                        onFreesoundEnabledChanged = onMusicFreesoundEnabledChanged,
+                        freesoundApiKey = musicFreesoundApiKey,
+                        onFreesoundApiKeyChanged = onMusicFreesoundApiKeyChanged,
+                        openverseEnabled = musicOpenverseEnabled,
+                        onOpenverseEnabledChanged = onMusicOpenverseEnabledChanged,
+                        openverseToken = musicOpenverseToken,
+                        onOpenverseTokenChanged = onMusicOpenverseTokenChanged,
+                        archiveEnabled = musicArchiveEnabled,
+                        onArchiveEnabledChanged = onMusicArchiveEnabledChanged,
+                        audiusEnabled = musicAudiusEnabled,
+                        onAudiusEnabledChanged = onMusicAudiusEnabledChanged,
+                        audiusApiKey = musicAudiusApiKey,
+                        onAudiusApiKeyChanged = onMusicAudiusApiKeyChanged,
+                        accentColor = accentColor,
+                        scrollState = musicScrollState
                     )
                 }
             }
@@ -1285,3 +1357,406 @@ private fun FanartTvSettingsTab(
     }
 }
 
+
+// ═════════════════════════════════════════════════════════════════════════
+//  MÜZİK / ORTAM SESİ AYARLARI
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🎵 Müzik Sekmesi
+ *
+ * İki bölümden oluşur:
+ *  1. **Yerleşik motor** — prosedürel sesler, ayar gerekmez
+ *  2. **Kişisel API anahtarları** — kota/telif kısıtı olan kaynaklar
+ *
+ * Tasarım gerekçesi: kısıtı olan kaynaklar (Jamendo, Freesound, Audius)
+ * uygulamanın ortak anahtarıyla DEĞİL, kullanıcının kendi anahtarıyla
+ * çalışır. Böylece:
+ *  - Uygulama hiçbir lisans sözleşmesini ihlal etmez
+ *  - Hiçbir ortak kotayı tüketmez
+ *  - Kullanıcı her zaman tam limitine sahip olur
+ */
+@Composable
+private fun MusicSettingsTab(
+    enabled: Boolean,
+    onEnabledChanged: (Boolean) -> Unit,
+    autoRecommend: Boolean,
+    onAutoRecommendChanged: (Boolean) -> Unit,
+    continueOnExit: Boolean,
+    onContinueOnExitChanged: (Boolean) -> Unit,
+    masterVolume: Float,
+    onMasterVolumeChanged: (Float) -> Unit,
+    channelVolume: Float,
+    onChannelVolumeChanged: (Float) -> Unit,
+    ambientVolume: Float,
+    onAmbientVolumeChanged: (Float) -> Unit,
+    jamendoEnabled: Boolean,
+    onJamendoEnabledChanged: (Boolean) -> Unit,
+    jamendoClientId: String,
+    onJamendoClientIdChanged: (String) -> Unit,
+    freesoundEnabled: Boolean,
+    onFreesoundEnabledChanged: (Boolean) -> Unit,
+    freesoundApiKey: String,
+    onFreesoundApiKeyChanged: (String) -> Unit,
+    openverseEnabled: Boolean,
+    onOpenverseEnabledChanged: (Boolean) -> Unit,
+    openverseToken: String,
+    onOpenverseTokenChanged: (String) -> Unit,
+    archiveEnabled: Boolean,
+    onArchiveEnabledChanged: (Boolean) -> Unit,
+    audiusEnabled: Boolean,
+    onAudiusEnabledChanged: (Boolean) -> Unit,
+    audiusApiKey: String,
+    onAudiusApiKeyChanged: (String) -> Unit,
+    accentColor: Color,
+    scrollState: ScrollState = rememberScrollState()
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // ── Bölüm 1: Yerleşik motor ─────────────────────────────────────
+        KitsugiSettingsSection(
+            title = stringResource(R.string.music_panel_title),
+            subtitle = stringResource(R.string.music_panel_subtitle)
+        ) {
+            KitsugiSettingsSwitchItem(
+                title = stringResource(R.string.music_settings_enabled),
+                description = stringResource(R.string.music_settings_enabled_desc),
+                icon = Icons.Rounded.MusicNote,
+                iconColor = accentColor,
+                checked = enabled,
+                onCheckedChange = onEnabledChanged
+            )
+
+            if (enabled) {
+                KitsugiSettingsDivider()
+                KitsugiSettingsSwitchItem(
+                    title = stringResource(R.string.music_settings_auto_recommend),
+                    description = stringResource(R.string.music_settings_auto_recommend_desc),
+                    icon = Icons.Rounded.AutoAwesome,
+                    iconColor = KitsugiColors.AccentPurple,
+                    checked = autoRecommend,
+                    onCheckedChange = onAutoRecommendChanged
+                )
+
+                KitsugiSettingsDivider()
+                KitsugiSettingsSwitchItem(
+                    title = stringResource(R.string.music_settings_continue_on_exit),
+                    description = stringResource(R.string.music_settings_continue_on_exit_desc),
+                    icon = Icons.Rounded.PlayCircle,
+                    iconColor = KitsugiColors.AccentTeal,
+                    checked = continueOnExit,
+                    onCheckedChange = onContinueOnExitChanged
+                )
+
+                KitsugiSettingsDivider()
+
+                // Ses seviyeleri
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.music_volume_title),
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    MusicVolumeSlider(
+                        label = stringResource(R.string.music_mixer_master),
+                        value = masterVolume,
+                        onValueChange = onMasterVolumeChanged,
+                        accentColor = accentColor
+                    )
+                    MusicVolumeSlider(
+                        label = stringResource(R.string.music_mixer_music),
+                        value = channelVolume,
+                        onValueChange = onChannelVolumeChanged,
+                        accentColor = accentColor
+                    )
+                    MusicVolumeSlider(
+                        label = stringResource(R.string.music_mixer_ambient),
+                        value = ambientVolume,
+                        onValueChange = onAmbientVolumeChanged,
+                        accentColor = accentColor
+                    )
+                }
+            }
+        }
+
+        // ── Bölüm 2: Kişisel API anahtarları ────────────────────────────
+        if (enabled) {
+            KitsugiSettingsSection(
+                title = stringResource(R.string.music_source_section_keys),
+                subtitle = stringResource(R.string.music_source_desc)
+            ) {
+                // Jamendo
+                MusicSourceKeyItem(
+                    sourceId = com.kitsugi.animelist.data.music.MusicSourceId.JAMENDO,
+                    enabled = jamendoEnabled,
+                    onEnabledChanged = onJamendoEnabledChanged,
+                    currentKey = jamendoClientId,
+                    onKeyChanged = onJamendoClientIdChanged,
+                    accentColor = accentColor
+                )
+                KitsugiSettingsDivider()
+                // Freesound
+                MusicSourceKeyItem(
+                    sourceId = com.kitsugi.animelist.data.music.MusicSourceId.FREESOUND,
+                    enabled = freesoundEnabled,
+                    onEnabledChanged = onFreesoundEnabledChanged,
+                    currentKey = freesoundApiKey,
+                    onKeyChanged = onFreesoundApiKeyChanged,
+                    accentColor = accentColor
+                )
+                KitsugiSettingsDivider()
+                // Openverse (anahtarsız çalışır, token opsiyonel)
+                MusicSourceKeyItem(
+                    sourceId = com.kitsugi.animelist.data.music.MusicSourceId.OPENVERSE,
+                    enabled = openverseEnabled,
+                    onEnabledChanged = onOpenverseEnabledChanged,
+                    currentKey = openverseToken,
+                    onKeyChanged = onOpenverseTokenChanged,
+                    accentColor = accentColor
+                )
+                KitsugiSettingsDivider()
+                // Audius
+                MusicSourceKeyItem(
+                    sourceId = com.kitsugi.animelist.data.music.MusicSourceId.AUDIUS,
+                    enabled = audiusEnabled,
+                    onEnabledChanged = onAudiusEnabledChanged,
+                    currentKey = audiusApiKey,
+                    onKeyChanged = onAudiusApiKeyChanged,
+                    accentColor = accentColor
+                )
+                KitsugiSettingsDivider()
+                // Internet Archive (anahtarsız)
+                MusicKeylessSourceItem(
+                    sourceId = com.kitsugi.animelist.data.music.MusicSourceId.ARCHIVE,
+                    enabled = archiveEnabled,
+                    onEnabledChanged = onArchiveEnabledChanged,
+                    accentColor = accentColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Ses seviyesi kaydırıcısı — etiket + yüzde göstergesi ile.
+ */
+@Composable
+private fun MusicVolumeSlider(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.width(76.dp)
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f),
+            colors = SliderDefaults.colors(
+                thumbColor = accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = KitsugiColors.Border
+            )
+        )
+        Text(
+            text = "${(value * 100).toInt()}%",
+            color = KitsugiColors.TextMuted,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.width(40.dp)
+        )
+    }
+}
+
+/**
+ * Anahtar gerektiren bir kaynak kartı: anahtar alanı + doğrula + lisans notu.
+ */
+@Composable
+private fun MusicSourceKeyItem(
+    sourceId: com.kitsugi.animelist.data.music.MusicSourceId,
+    enabled: Boolean,
+    onEnabledChanged: (Boolean) -> Unit,
+    currentKey: String,
+    onKeyChanged: (String) -> Unit,
+    accentColor: Color
+) {
+    val def = com.kitsugi.animelist.data.music.MusicSources.byId(sourceId) ?: return
+    var tempKey by remember(currentKey) { mutableStateOf(currentKey) }
+    var keyVisible by remember { mutableStateOf(false) }
+    var validating by remember { mutableStateOf(false) }
+    var result by remember(currentKey) { mutableStateOf<Boolean?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        KitsugiSettingsSwitchItem(
+            title = def.displayName,
+            description = if (def.keyless) stringResource(R.string.music_source_keyless_note)
+            else stringResource(R.string.music_source_key_hint) + " " + def.signupUrl,
+            icon = Icons.Rounded.Key,
+            iconColor = accentColor,
+            checked = enabled,
+            onCheckedChange = onEnabledChanged
+        )
+
+        if (enabled) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = tempKey,
+                    onValueChange = {
+                        tempKey = it
+                        result = null
+                    },
+                    label = {
+                        Text(
+                            if (def.requiresClientId) "Client ID" else "API Key"
+                        )
+                    },
+                    placeholder = { Text(def.keyHint) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !validating,
+                    singleLine = true,
+                    visualTransformation = if (keyVisible) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { keyVisible = !keyVisible }) {
+                                Icon(
+                                    imageVector = if (keyVisible) Icons.Rounded.VisibilityOff
+                                    else Icons.Rounded.Visibility,
+                                    contentDescription = stringResource(
+                                        if (keyVisible) R.string.integration_hide_key
+                                        else R.string.integration_show_key
+                                    ),
+                                    tint = KitsugiColors.TextSecondary
+                                )
+                            }
+                            if (tempKey.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        tempKey = ""
+                                        result = null
+                                        onKeyChanged("")
+                                    },
+                                    enabled = !validating
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = stringResource(R.string.music_source_clear),
+                                        tint = KitsugiColors.TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = KitsugiColors.Border,
+                        cursorColor = accentColor,
+                        focusedTextColor = KitsugiColors.TextPrimary,
+                        unfocusedTextColor = KitsugiColors.TextPrimary,
+                        focusedLabelColor = accentColor,
+                        unfocusedLabelColor = KitsugiColors.TextSecondary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedButton(
+                    onClick = {
+                        validating = true
+                        result = null
+                        scope.launch {
+                            val ok = com.kitsugi.animelist.data.music.MusicSourceValidator
+                                .validate(sourceId, tempKey)
+                            if (ok) onKeyChanged(tempKey.trim())
+                            result = ok
+                            validating = false
+                        }
+                    },
+                    enabled = !validating && tempKey.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor)
+                ) {
+                    if (validating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = accentColor,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(stringResource(R.string.music_source_validate))
+                }
+
+                result?.let { ok ->
+                    Text(
+                        text = stringResource(
+                            if (ok) R.string.music_source_validated
+                            else R.string.music_source_failed
+                        ),
+                        color = if (ok) Color(0xFF76D49B) else KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                // Lisans notu — şeffaflık için her zaman gösterilir
+                if (def.notes.isNotBlank()) {
+                    Text(
+                        text = stringResource(R.string.music_source_license_note) + ": " + def.notes,
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Anahtar gerektirmeyen kaynak kartı (Internet Archive).
+ */
+@Composable
+private fun MusicKeylessSourceItem(
+    sourceId: com.kitsugi.animelist.data.music.MusicSourceId,
+    enabled: Boolean,
+    onEnabledChanged: (Boolean) -> Unit,
+    accentColor: Color
+) {
+    val def = com.kitsugi.animelist.data.music.MusicSources.byId(sourceId) ?: return
+    Column(modifier = Modifier.fillMaxWidth()) {
+        KitsugiSettingsSwitchItem(
+            title = def.displayName,
+            description = def.notes,
+            icon = Icons.Rounded.Public,
+            iconColor = accentColor,
+            checked = enabled,
+            onCheckedChange = onEnabledChanged
+        )
+    }
+}

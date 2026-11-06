@@ -73,7 +73,15 @@ import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
+import com.kitsugi.animelist.core.music.AmbientAudioEngine
+import com.kitsugi.animelist.data.music.MusicCatalogRepository
+import com.kitsugi.animelist.data.music.MusicRecommendationEngine
+import com.kitsugi.animelist.data.music.ProceduralSoundCatalog
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.ui.screens.manga.components.MangaAmbientPanel
 import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.runtime.DisposableEffect
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -120,6 +128,51 @@ fun MangaReaderScreen(
     val scope      = rememberCoroutineScope()
     var menuVisible     by remember { mutableStateOf(true) }
     var showSettings    by remember { mutableStateOf(false) }
+    var showMusicPanel  by remember { mutableStateOf(false) }
+
+    // ─── Ortam Sesi (Ambient) motoru ──────────────────────────────────────
+    val musicEngine = remember { AmbientAudioEngine(context.applicationContext) }
+    val readerSettingsStore = remember { SettingsDataStore(context.applicationContext) }
+    val readerAppSettings by readerSettingsStore.settingsFlow.collectAsState(
+        initial = com.kitsugi.animelist.data.settings.AppSettings()
+    )
+    val musicIsPlaying by musicEngine.isPlaying.collectAsState()
+    val musicActiveTitle by musicEngine.activeTitle.collectAsState()
+    val musicActivePreset by musicEngine.activePresetId.collectAsState()
+    val musicMasterVol by musicEngine.masterVolume.collectAsState()
+    val musicChannels by musicEngine.channels.collectAsState()
+
+    // ─── Çevrimiçi katalog deposu ──────────────────────────────────────────
+    val musicCatalog = remember { MusicCatalogRepository() }
+    val readerScope = scope
+    val onlineResults by musicCatalog.results.collectAsState()
+    val onlineSearching by musicCatalog.isSearching.collectAsState()
+    val onlineError by musicCatalog.searchError.collectAsState()
+    val onlineQuery by musicCatalog.query.collectAsState()
+    val onlineSources by musicCatalog.sources.collectAsState()
+
+    // Ayarlar değiştikçe kaynak durumlarını eşitle
+    LaunchedEffect(readerAppSettings) {
+        musicCatalog.syncSettings(readerAppSettings)
+    }
+
+    // Manga türünden öneri üret — yalnızca tür değişince yeniden hesaplanır
+    val musicRecommendations = remember(mangaDetails.genre) {
+        MusicRecommendationEngine.recommend(
+            genres = mangaDetails.genre,
+            pool = ProceduralSoundCatalog.sounds
+        )
+    }
+
+    // Kaydedilmiş ses seviyelerini bir kez uygula
+    LaunchedEffect(readerAppSettings.musicMasterVolume) {
+        musicEngine.setMasterVolume(readerAppSettings.musicMasterVolume)
+    }
+
+    // Ekrandan çıkışta motoru serbest bırak
+    DisposableEffect(Unit) {
+        onDispose { musicEngine.release() }
+    }
 
     val pagerState    = rememberPagerState(initialPage = currentPage) { pages.size }
     val listState     = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
@@ -494,6 +547,15 @@ fun MangaReaderScreen(
                         )
                     }
 
+                    // Ortam Sesi (Müzik) — tür bazlı öneri paneli
+                    if (readerAppSettings.musicEnabled) IconButton(onClick = { showMusicPanel = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.MusicNote,
+                            contentDescription = "Ortam sesi",
+                            tint = if (musicIsPlaying) Color(0xFF9D7CFF) else Color.White
+                        )
+                    }
+
                     // Settings Dialog Trigger
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
@@ -504,6 +566,53 @@ fun MangaReaderScreen(
                     }
                 }
             }
+        }
+    }
+
+    // ─── Ortam Sesi Paneli ────────────────────────────────────────────────────
+    if (showMusicPanel) {
+        KitsugiSheetOrDialog(
+            onDismiss = { showMusicPanel = false }
+        ) {
+            MangaAmbientPanel(
+                recommendations = musicRecommendations,
+                isPlaying = musicIsPlaying,
+                activeTitle = musicActiveTitle,
+                activePresetId = musicActivePreset,
+                masterVolume = musicMasterVol,
+                channels = musicChannels,
+                maxChannels = com.kitsugi.animelist.data.music.MAX_AMBIENT_CHANNELS,
+                onMasterVolumeChanged = { musicEngine.setMasterVolume(it) },
+                onPlayPreset = { preset -> musicEngine.playPreset(preset) },
+                onPlaySound = { sound -> musicEngine.addChannel(sound) },
+                onChannelVolumeChanged = { index, v -> musicEngine.setChannelVolume(index, v) },
+                onChannelMuteToggle = { index -> musicEngine.toggleMute(index) },
+                onChannelRemove = { index -> musicEngine.stopChannel(index) },
+                onTogglePlay = { musicEngine.togglePlayPause() },
+                onStopAll = { musicEngine.stopAllChannels() },
+                onDismiss = { showMusicPanel = false },
+                onlineResults = onlineResults,
+                isSearching = onlineSearching,
+                searchError = onlineError,
+                searchQuery = onlineQuery,
+                sourceStates = onlineSources,
+                onSearchQueryChanged = { musicCatalog.setQuery(it) },
+                onSearch = {
+                    readerScope.launch {
+                        musicCatalog.search(onlineQuery, readerAppSettings)
+                    }
+                },
+                onPlayOnline = { sound ->
+                    readerScope.launch {
+                        // Internet Archive gibi kaynaklarda dosya adı çözülür
+                        val resolved = musicCatalog.resolveUrl(sound)
+                        val playable = if (resolved != null && resolved != sound.streamUrl) {
+                            sound.copy(streamUrl = resolved)
+                        } else sound
+                        musicEngine.addChannel(playable)
+                    }
+                }
+            )
         }
     }
 

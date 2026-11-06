@@ -239,6 +239,23 @@ data class IntegrationsAndNotificationsSettings(
     val mdbListShowTrakt: Boolean = false,
     val fanartTvApiKey: String = "",
     val fanartTvEnabled: Boolean = true,
+    // ─── Okuyucu Ortam Sesi (Ambient) ───────────────────────────────────────
+    val musicEnabled: Boolean = true,
+    val musicAutoRecommend: Boolean = true,
+    val musicMasterVolume: Float = 0.8f,
+    val musicChannelVolume: Float = 0.5f,
+    val musicAmbientVolume: Float = 0.6f,
+    val musicContinueOnExit: Boolean = false,
+    val musicJamendoEnabled: Boolean = false,
+    val musicJamendoClientId: String = "",
+    val musicFreesoundEnabled: Boolean = false,
+    val musicFreesoundApiKey: String = "",
+    val musicOpenverseEnabled: Boolean = true,
+    val musicOpenverseToken: String = "",
+    val musicArchiveEnabled: Boolean = true,
+    val musicAudiusEnabled: Boolean = false,
+    val musicAudiusApiKey: String = "",
+    val musicLastPresetId: String = "",
     val wikiPageTheme: String = "SITE",
     val wikiTextZoom: Int = 100,
     val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
@@ -383,6 +400,23 @@ data class AppSettings(
     val mdbListShowTrakt: Boolean get() = integrations.mdbListShowTrakt
     val fanartTvApiKey: String get() = integrations.fanartTvApiKey
     val fanartTvEnabled: Boolean get() = integrations.fanartTvEnabled
+    // ─── Okuyucu Ortam Sesi (Ambient) ───────────────────────────────────────
+    val musicEnabled: Boolean get() = integrations.musicEnabled
+    val musicAutoRecommend: Boolean get() = integrations.musicAutoRecommend
+    val musicMasterVolume: Float get() = integrations.musicMasterVolume
+    val musicChannelVolume: Float get() = integrations.musicChannelVolume
+    val musicAmbientVolume: Float get() = integrations.musicAmbientVolume
+    val musicContinueOnExit: Boolean get() = integrations.musicContinueOnExit
+    val musicJamendoEnabled: Boolean get() = integrations.musicJamendoEnabled
+    val musicJamendoClientId: String get() = integrations.musicJamendoClientId
+    val musicFreesoundEnabled: Boolean get() = integrations.musicFreesoundEnabled
+    val musicFreesoundApiKey: String get() = integrations.musicFreesoundApiKey
+    val musicOpenverseEnabled: Boolean get() = integrations.musicOpenverseEnabled
+    val musicOpenverseToken: String get() = integrations.musicOpenverseToken
+    val musicArchiveEnabled: Boolean get() = integrations.musicArchiveEnabled
+    val musicAudiusEnabled: Boolean get() = integrations.musicAudiusEnabled
+    val musicAudiusApiKey: String get() = integrations.musicAudiusApiKey
+    val musicLastPresetId: String get() = integrations.musicLastPresetId
     val aniSkipEnabled: Boolean get() = gestures.aniSkipEnabled
     val aniSkipAutoSkip: Boolean get() = gestures.aniSkipAutoSkip
     val aniSkipDisableOnChapters: Boolean get() = gestures.aniSkipDisableOnChapters

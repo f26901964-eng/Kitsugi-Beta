@@ -468,7 +468,37 @@ internal fun SettingsContext.buildSettingsParams() =
             fanartTvEnabled = appSettings.fanartTvEnabled,
             onFanartTvEnabledChanged = { onFanartTvEnabledChanged(it) },
             fanartTvApiKey = appSettings.fanartTvApiKey,
-            onFanartTvApiKeyChanged = { onFanartTvApiKeyChanged(it) }
+            onFanartTvApiKeyChanged = { onFanartTvApiKeyChanged(it) },
+            musicEnabled = appSettings.musicEnabled,
+            onMusicEnabledChanged = { onMusicEnabledChanged(it) },
+            musicAutoRecommend = appSettings.musicAutoRecommend,
+            onMusicAutoRecommendChanged = { onMusicAutoRecommendChanged(it) },
+            musicContinueOnExit = appSettings.musicContinueOnExit,
+            onMusicContinueOnExitChanged = { onMusicContinueOnExitChanged(it) },
+            musicMasterVolume = appSettings.musicMasterVolume,
+            onMusicMasterVolumeChanged = { onMusicMasterVolumeChanged(it) },
+            musicChannelVolume = appSettings.musicChannelVolume,
+            onMusicChannelVolumeChanged = { onMusicChannelVolumeChanged(it) },
+            musicAmbientVolume = appSettings.musicAmbientVolume,
+            onMusicAmbientVolumeChanged = { onMusicAmbientVolumeChanged(it) },
+            musicJamendoEnabled = appSettings.musicJamendoEnabled,
+            onMusicJamendoEnabledChanged = { onMusicJamendoEnabledChanged(it) },
+            musicJamendoClientId = appSettings.musicJamendoClientId,
+            onMusicJamendoClientIdChanged = { onMusicJamendoClientIdChanged(it) },
+            musicFreesoundEnabled = appSettings.musicFreesoundEnabled,
+            onMusicFreesoundEnabledChanged = { onMusicFreesoundEnabledChanged(it) },
+            musicFreesoundApiKey = appSettings.musicFreesoundApiKey,
+            onMusicFreesoundApiKeyChanged = { onMusicFreesoundApiKeyChanged(it) },
+            musicOpenverseEnabled = appSettings.musicOpenverseEnabled,
+            onMusicOpenverseEnabledChanged = { onMusicOpenverseEnabledChanged(it) },
+            musicOpenverseToken = appSettings.musicOpenverseToken,
+            onMusicOpenverseTokenChanged = { onMusicOpenverseTokenChanged(it) },
+            musicArchiveEnabled = appSettings.musicArchiveEnabled,
+            onMusicArchiveEnabledChanged = { onMusicArchiveEnabledChanged(it) },
+            musicAudiusEnabled = appSettings.musicAudiusEnabled,
+            onMusicAudiusEnabledChanged = { onMusicAudiusEnabledChanged(it) },
+            musicAudiusApiKey = appSettings.musicAudiusApiKey,
+            onMusicAudiusApiKeyChanged = { onMusicAudiusApiKeyChanged(it) }
         ),
         download = com.kitsugi.animelist.ui.screens.settings.DownloadSettings(
             customImageDownloadUri = appSettings.customImageDownloadUri,
@@ -1220,6 +1250,68 @@ internal fun SettingsContext.onFanartTvEnabledChanged(enabled: Boolean) {
 
 internal fun SettingsContext.onFanartTvApiKeyChanged(key: String) {
     coroutineScope.launch { settingsDataStore.setFanartTvApiKey(key) }
+}
+
+// ─── Okuyucu Ortam Sesi (Ambient) ────────────────────────────────────────
+
+internal fun SettingsContext.onMusicEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicEnabled(enabled) }
+}
+
+internal fun SettingsContext.onMusicAutoRecommendChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicAutoRecommend(enabled) }
+}
+
+internal fun SettingsContext.onMusicContinueOnExitChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicContinueOnExit(enabled) }
+}
+
+internal fun SettingsContext.onMusicMasterVolumeChanged(value: Float) {
+    coroutineScope.launch { settingsDataStore.setMusicMasterVolume(value) }
+}
+
+internal fun SettingsContext.onMusicChannelVolumeChanged(value: Float) {
+    coroutineScope.launch { settingsDataStore.setMusicChannelVolume(value) }
+}
+
+internal fun SettingsContext.onMusicAmbientVolumeChanged(value: Float) {
+    coroutineScope.launch { settingsDataStore.setMusicAmbientVolume(value) }
+}
+
+internal fun SettingsContext.onMusicJamendoEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicJamendoEnabled(enabled) }
+}
+
+internal fun SettingsContext.onMusicJamendoClientIdChanged(clientId: String) {
+    coroutineScope.launch { settingsDataStore.setMusicJamendoClientId(clientId) }
+}
+
+internal fun SettingsContext.onMusicFreesoundEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicFreesoundEnabled(enabled) }
+}
+
+internal fun SettingsContext.onMusicFreesoundApiKeyChanged(key: String) {
+    coroutineScope.launch { settingsDataStore.setMusicFreesoundApiKey(key) }
+}
+
+internal fun SettingsContext.onMusicOpenverseEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicOpenverseEnabled(enabled) }
+}
+
+internal fun SettingsContext.onMusicOpenverseTokenChanged(token: String) {
+    coroutineScope.launch { settingsDataStore.setMusicOpenverseToken(token) }
+}
+
+internal fun SettingsContext.onMusicArchiveEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicArchiveEnabled(enabled) }
+}
+
+internal fun SettingsContext.onMusicAudiusEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicAudiusEnabled(enabled) }
+}
+
+internal fun SettingsContext.onMusicAudiusApiKeyChanged(key: String) {
+    coroutineScope.launch { settingsDataStore.setMusicAudiusApiKey(key) }
 }
 
 internal fun SettingsContext.onVideoDownloadUriChanged(uri: String) {
