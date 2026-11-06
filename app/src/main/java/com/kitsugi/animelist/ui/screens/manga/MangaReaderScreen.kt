@@ -160,6 +160,17 @@ fun MangaReaderScreen(
     val musicFavorites by musicEngine.favorites.collectAsState()
     val musicRecentIds by musicEngine.recentIds.collectAsState()
 
+    // ─── Çevrimdışı / indirme ────────────────────────────────────────────
+    val ambientDownloads by musicEngine.downloadManager.downloaded.collectAsState()
+    val ambientActive by musicEngine.downloadManager.active.collectAsState()
+
+    val downloadedIds = remember(ambientDownloads) { ambientDownloads.keys }
+    val downloadProgress = remember(ambientActive) {
+        ambientActive
+            .filterValues { it.downloading }
+            .mapValues { it.value.progress }
+    }
+
     // Kalıcı müzik durumu (favoriler, son çalınanlar, profiller)
     val musicStateStore = remember(context.applicationContext) {
         com.kitsugi.animelist.data.music.MusicStateStore(context.applicationContext)
@@ -751,6 +762,33 @@ fun MangaReaderScreen(
                 },
                 autoPlayDelaySeconds = readerAppSettings.musicAutoPlayDelaySeconds,
                 onToggleSource = { sourceId -> musicCatalog.toggleSource(sourceId) },
+                downloadedIds = downloadedIds,
+                downloadProgress = downloadProgress,
+                onDownloadSound = { sound ->
+                    readerScope.launch {
+                        val file = musicEngine.downloadManager.download(
+                            sound = sound,
+                            repository = musicCatalog
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            if (file != null) "${sound.title} indirildi — artık çevrimdışı çalınabilir"
+                            else "İndirilemedi",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                downloadedBytes = remember(ambientDownloads) {
+                    ambientDownloads.values.sumOf { it.length() }
+                },
+                onClearDownloads = {
+                    val count = musicEngine.downloadManager.clearAll()
+                    android.widget.Toast.makeText(
+                        context,
+                        "$count ses indirmesi silindi",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                },
                 onExportProfile = { profile ->
                     // Panoya kopyala — kullanıcı dilediği yere yapıştırır
                     val json = musicEngine.exportProfile(profile)
@@ -765,6 +803,17 @@ fun MangaReaderScreen(
                             context, "Karışım panoya kopyalandı", android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
+                },
+                downloadedBytes = remember(ambientDownloads) {
+                    ambientDownloads.values.sumOf { it.length() }
+                },
+                onClearDownloads = {
+                    val count = musicEngine.downloadManager.clearAll()
+                    android.widget.Toast.makeText(
+                        context,
+                        "$count ses indirmesi silindi",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
                 },
                 onImportProfile = {
                     // Panodan oku

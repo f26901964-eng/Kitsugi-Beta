@@ -37,6 +37,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.Bookmark
@@ -162,7 +164,16 @@ fun MangaAmbientPanel(
     onAutoPlayChanged: (Boolean) -> Unit = {},
     autoPlayDelaySeconds: Int = 3,
     /** Kaynak aç/kapa — kullanıcı hangi kaynakların aranacağını seçer. */
-    onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {}
+    onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {},
+    // ── Çevrimdışı / indirme ───────────────────────────────────────────
+    /** İndirilmiş ses kimlikleri. */
+    downloadedIds: Set<String> = emptySet(),
+    /** Ses kimliği → indirme ilerlemesi (0..1); indirilmiyorsa yok. */
+    downloadProgress: Map<String, Float> = emptyMap(),
+    onDownloadSound: (AmbientSound) -> Unit = {},
+    /** İndirilenlerin toplam boyutu (bayt). */
+    downloadedBytes: Long = 0L,
+    onClearDownloads: () -> Unit = {}
 ) {
     val accent = LocalKitsugiAccent.current
     var selectedTab by remember { mutableStateOf(0) }
@@ -377,7 +388,10 @@ fun MangaAmbientPanel(
                 onQueryChanged = onSearchQueryChanged,
                 onSearch = onSearch,
                 onPlay = onPlayOnline,
-                onToggleSource = onToggleSource
+                onToggleSource = onToggleSource,
+                downloadedIds = downloadedIds,
+                downloadProgress = downloadProgress,
+                onDownload = onDownloadSound
             )
             4 -> MixerTab(
                 modifier = Modifier.weight(1f),
@@ -392,7 +406,10 @@ fun MangaAmbientPanel(
                 accent = accent,
                 sleepTimer = sleepTimer,
                 onStartTimer = onStartTimer,
-                onCancelTimer = onCancelTimer
+                onCancelTimer = onCancelTimer,
+                downloadedCount = downloadedIds.size,
+                downloadedBytes = downloadedBytes,
+                onClearDownloads = onClearDownloads
             )
             5 -> ProfileTab(
                 modifier = Modifier.weight(1f),
@@ -778,7 +795,10 @@ private fun MixerTab(
     sleepTimer: com.kitsugi.animelist.data.music.SleepTimerState =
         com.kitsugi.animelist.data.music.SleepTimerState(),
     onStartTimer: (Int) -> Unit = {},
-    onCancelTimer: () -> Unit = {}
+    onCancelTimer: () -> Unit = {},
+    downloadedCount: Int = 0,
+    downloadedBytes: Long = 0L,
+    onClearDownloads: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -968,7 +988,57 @@ private fun MixerTab(
                 )
             }
         }
+
+        // ── Çevrimdışı depolama ─────────────────────────────────────────
+        if (downloadedCount > 0) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.6f))
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.CloudDone,
+                    contentDescription = null,
+                    tint = Color(0xFF34D399),
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "$downloadedCount ses çevrimdışı",
+                        color = KitsugiColors.TextPrimary,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = formatBytes(downloadedBytes),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 9.sp
+                    )
+                }
+                Text(
+                    text = "Temizle",
+                    color = KitsugiColors.AccentRed,
+                    fontSize = 10.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onClearDownloads)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
     }
+}
+
+/** Bayt → okunabilir boyut. */
+private fun formatBytes(bytes: Long): String = when {
+    bytes <= 0 -> "0 B"
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    else -> String.format("%.1f MB", bytes / 1024.0 / 1024.0)
 }
 
 /**
@@ -1102,9 +1172,14 @@ private fun SoundRow(
     isActive: Boolean,
     accent: Color,
     isFavorite: Boolean = false,
+    /** İndirilmiş mi (çevrimdışı çalınabilir). */
+    isDownloaded: Boolean = false,
+    /** Devam eden indirme ilerlemesi (0..1), null = indirilmiyor. */
+    downloadProgress: Float? = null,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit = {},
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    onDownload: (() -> Unit)? = null
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     Row(
@@ -1160,6 +1235,38 @@ private fun SoundRow(
                 )
             }
         }
+        // ── İndirme / çevrimdışı göstergesi ─────────────────────────────
+        if (onDownload != null) {
+            when {
+                isDownloaded -> Icon(
+                    imageVector = Icons.Rounded.CloudDone,
+                    contentDescription = "İndirildi — çevrimdışı çalınabilir",
+                    tint = Color(0xFF34D399),
+                    modifier = Modifier
+                        .size(17.dp)
+                        .padding(end = 4.dp)
+                )
+                downloadProgress != null -> CircularProgressIndicator(
+                    progress = { downloadProgress },
+                    modifier = Modifier.size(15.dp),
+                    color = accent,
+                    strokeWidth = 1.5.dp,
+                    trackColor = KitsugiColors.Border
+                )
+                else -> IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CloudDownload,
+                        contentDescription = "İndir — çevrimdışı dinle",
+                        tint = KitsugiColors.TextMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
         IconButton(
             onClick = onToggleFavorite,
             modifier = Modifier.size(32.dp)
@@ -1249,7 +1356,10 @@ private fun OnlineTab(
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onPlay: (AmbientSound) -> Unit,
-    onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {}
+    onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {},
+    downloadedIds: Set<String> = emptySet(),
+    downloadProgress: Map<String, Float> = emptyMap(),
+    onDownload: (AmbientSound) -> Unit = {}
 ) {
     val grouped = remember(results) { results.groupBy { it.sourceId } }
 
@@ -1259,6 +1369,25 @@ private fun OnlineTab(
             .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
+        // ── İndirilenler ────────────────────────────────────────────────
+        if (downloadedIds.isNotEmpty()) {
+            Text(
+                text = "İNDİRİLENLER · ${downloadedIds.size} (çevrimdışı çalışır)",
+                color = Color(0xFF34D399),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Uçak modunda, metroda, internetsiz ortamda çalarlar. " +
+                    "Karışım sekmesinden diğer seslerle birlikte kullan.",
+                color = KitsugiColors.TextMuted,
+                fontSize = 9.sp,
+                lineHeight = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
         // ── Arama ───────────────────────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1419,7 +1548,10 @@ private fun OnlineTab(
                             sound = sound,
                             isPlaying = sound.id in playingIds,
                             accent = accent,
-                            onPlay = { onPlay(sound) }
+                            isDownloaded = sound.id in downloadedIds,
+                            downloadProgress = downloadProgress[sound.id],
+                            onPlay = { onPlay(sound) },
+                            onDownload = { onDownloadSound(sound) }
                         )
                         Spacer(Modifier.height(4.dp))
                     }
@@ -1529,7 +1661,10 @@ private fun OnlineSoundRow(
     sound: AmbientSound,
     isPlaying: Boolean,
     accent: Color,
-    onPlay: () -> Unit
+    isDownloaded: Boolean = false,
+    downloadProgress: Float? = null,
+    onPlay: () -> Unit,
+    onDownload: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -1556,6 +1691,37 @@ private fun OnlineSoundRow(
                         fontSize = 10.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            // ── İndirme ─────────────────────────────────────────────────
+            when {
+                isDownloaded -> Icon(
+                    imageVector = Icons.Rounded.CloudDone,
+                    contentDescription = "İndirildi — çevrimdışı çalınabilir",
+                    tint = Color(0xFF34D399),
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(17.dp)
+                )
+                downloadProgress != null -> CircularProgressIndicator(
+                    progress = { downloadProgress },
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(15.dp),
+                    color = accent,
+                    strokeWidth = 1.5.dp,
+                    trackColor = KitsugiColors.Border
+                )
+                else -> IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CloudDownload,
+                        contentDescription = "İndir — çevrimdışı dinle",
+                        tint = KitsugiColors.TextMuted,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }

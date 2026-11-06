@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 🎚️ Kitsugi Birleşik Ortam Sesi Motoru
@@ -103,6 +104,9 @@ class AmbientAudioEngine(
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** Ses indirmeleri — çevrimdışı çalma için. */
+    val downloadManager: AmbientDownloadManager = AmbientDownloadManager.get(context)
 
     // ─────────────────────────────────────────────────────────────────────
     //  Kanal havuzu
@@ -207,6 +211,13 @@ class AmbientAudioEngine(
             return -1
         }
 
+        // ⚠️ StreamVoice.start() akış hazır olana kadar bekler (en çok 4 sn).
+        // Ana thread'de çağrılırsa arayüz donar. Uzak sesler için işi
+        // arka plana atıp hemen yuvayı rezerve ediyoruz.
+        if (sound.origin != AmbientOrigin.PROCEDURAL && sound.streamUrl != null) {
+            return addChannelAsync(sound, slot, volume)
+        }
+
         val voice = createVoice(sound) ?: return -1
         voices[slot] = voice
 
@@ -238,6 +249,75 @@ class AmbientAudioEngine(
 
         // Arka planda çalmaya devam edebilmek için ön plan servisi
         ensureForegroundService()
+
+        return slot
+    }
+
+    /**
+     * Uzak sesi **bloklamadan** ekler.
+     *
+     * Yuva hemen `BUFFERING` durumuyla rezerve edilir — kullanıcı anında
+     * geri bildirim görür ("yükleniyor…"). Arka planda akış hazırlanır;
+     * başarılıysa `PLAYING`, değilse yuva boşaltılıp hata gösterilir.
+     */
+    private fun addChannelAsync(sound: AmbientSound, slot: Int, volume: Float): Int {
+        val safeVolume = volume.coerceIn(0f, 1f)
+
+        val placeholder = ChannelState(
+            index = slot,
+            sound = sound,
+            volume = safeVolume,
+            state = ChannelPlayState.BUFFERING
+        )
+        // Rezervasyon: aynı anda ikinci bir dokunuş aynı yuvayı seçmesin
+        voices[slot] = BufferingVoice
+        _channels.update { it + placeholder }
+        syncActiveFlags()
+
+        scope.launch {
+            val voice = withContext(Dispatchers.IO) { createVoice(sound) }
+            if (voice == null) {
+                voices[slot] = null
+                _channels.update { list ->
+                    list.map {
+                        if (it.index == slot) it.copy(
+                            state = ChannelPlayState.ERROR,
+                            errorMessage = "Ses yüklenemedi — kaynak yanıt vermedi"
+                        ) else it
+                    }
+                }
+                syncActiveFlags()
+                return@launch
+            }
+
+            val started = withContext(Dispatchers.IO) {
+                voice.setVolume(0f)
+                voice.start()
+            }
+
+            if (!started) {
+                voice.release()
+                voices[slot] = null
+                _channels.update { list ->
+                    list.map {
+                        if (it.index == slot) it.copy(
+                            state = ChannelPlayState.ERROR,
+                            errorMessage = "Akış açılamadı — internet veya kaynak sorunu"
+                        ) else it
+                    }
+                }
+                syncActiveFlags()
+                return@launch
+            }
+
+            voices[slot] = voice
+            fadeVoice(slot, 0f, safeVolume * _masterVol.value)
+            updateChannel(slot) { it.copy(state = ChannelPlayState.PLAYING, errorMessage = null) }
+            rememberRecent(sound.id)
+            _activeTitle.value = placeholder.displayLabel
+            _isPlaying.value = true
+            ensureForegroundService()
+        }
 
         return slot
     }
@@ -691,10 +771,19 @@ class AmbientAudioEngine(
      */
     private fun createVoice(sound: AmbientSound): ChannelVoice? = when {
         sound.origin == AmbientOrigin.PROCEDURAL -> ProceduralVoice(context, sound)
-        !sound.streamUrl.isNullOrBlank() -> StreamVoice(context, sound, sound.streamUrl)
         else -> {
-            Log.w(TAG, "Çalınamaz ses (adres yok): ${sound.id}")
-            null
+            // ÇEVRİMDIŞI ÖNCELİĞİ: indirilmiş dosya varsa ağa hiç çıkma.
+            // Bu kontrol olmadan çevrimdışı çalma çalışmazdı — indirilen
+            // ses yine de internetten çalmaya çalışırdı.
+            val downloaded = downloadManager.localFile(sound.id)
+            val url = downloaded?.toURI()?.toString()
+                ?: sound.streamUrl?.takeIf { it.isNotBlank() }
+
+            if (url == null) {
+                Log.w(TAG, "Çalınamaz ses (adres yok): ${sound.id}")
+                return null
+            }
+            StreamVoice(context, sound, url)
         }
     }
 
@@ -736,6 +825,23 @@ internal interface ChannelVoice {
     fun fadeOutAndRelease(durationMs: Long)
     /** Anında serbest bırakma. */
     fun release()
+}
+
+/**
+ * Yuva rezervasyonu için yer tutucu.
+ *
+ * Kanal hazırlanırken `voices[slot]` buraya işaret eder; gerçek ses
+ * gelince üzerine yazılır. Böylece aynı yuvaya iki kanal atanmaz.
+ * Hiçbir metodu gerçek iş yapmaz.
+ */
+private object BufferingVoice : ChannelVoice {
+    override fun start(): Boolean = false
+    override fun pause() = Unit
+    override fun resume() = Unit
+    override fun currentVolume(): Float = 0f
+    override fun setVolume(value: Float) = Unit
+    override fun fadeOutAndRelease(durationMs: Long) = Unit
+    override fun release() = Unit
 }
 
 /**
@@ -819,17 +925,47 @@ internal class StreamVoice(
         })
     }
 
-    override fun start(): Boolean = runCatching {
-        player.setMediaItem(MediaItem.fromUri(url))
-        player.prepare()
-        player.volume = 0f
-        player.playWhenReady = true
-        player.play()
-        playing = true
-        true
-    }.getOrElse {
-        Log.w("StreamVoice", "Başlatılamadı: $url", it)
-        false
+    /**
+     * Akışı hazırlar ve bekler.
+     *
+     * **Neden bekliyoruz:** `prepare()` asenkron. Eskiden hemen `true`
+     * dönüyordu, dolayısıyla HTTP 404 / ağ hatası olsa bile kanal
+     * "çalıyor" görünüyor ve kullanıcı sessiz bir kanal görüyordu.
+     * Artık en fazla 4 saniye hazır olmayı bekliyoruz; olmazsa kanal
+     * oluşturulmuyor ve hata kullanıcıya gösteriliyor.
+     */
+    override fun start(): Boolean {
+        val ok = runCatching {
+            player.setMediaItem(MediaItem.fromUri(url))
+            player.volume = 0f
+            player.prepare()
+            true
+        }.getOrElse {
+            Log.w("StreamVoice", "Hazırlanamadı: $url", it)
+            false
+        }
+        if (!ok) return false
+
+        // Hazır olana kadar bekle (en çok 4 sn)
+        val deadline = System.currentTimeMillis() + 4_000L
+        while (System.currentTimeMillis() < deadline) {
+            val state = player.playbackState
+            if (state == Player.STATE_READY) {
+                player.playWhenReady = true
+                player.play()
+                playing = true
+                return true
+            }
+            if (state == Player.STATE_ENDED || player.playerError != null) {
+                Log.w("StreamVoice", "Akış hatası: $url — ${player.playerError?.errorCodeName}")
+                return false
+            }
+            // Yerel dosyalar neredeyse anında hazır olur; 20 ms yeterli
+            runCatching { Thread.sleep(20L) }
+        }
+
+        Log.w("StreamVoice", "Zaman aşımı: akış 4 sn içinde hazır olmadı — $url")
+        return false
     }
 
     override fun pause() {
@@ -849,10 +985,35 @@ internal class StreamVoice(
         runCatching { player.volume = value }
     }
 
+    /**
+     * Yumuşak kapanış + serbest bırakma.
+     *
+     * **Neden fade şart:** anında `stop()` çağrısı hoparlörde "pat" sesi
+     * üretir. Uyku zamanlayıcısı gece yarısı kanalları kapatırken bu
+     * duyulursa kullanıcıyı uyandırır — özelliğin amacına aykırı.
+     *
+     * Fade adımları ana thread'i bloklamamak için `Thread` üzerinde;
+     * süre genelde 900 ms, en kötü 12 sn (uyku fade'i) olur.
+     */
     override fun fadeOutAndRelease(durationMs: Long) {
-        // Motor fade'i kendisi yapıyor; burada yalnızca kısa bir bekleme
-        // sonrası serbest bırakma yeterli.
-        release()
+        if (durationMs <= 0L) {
+            release()
+            return
+        }
+        val startVolume = volume
+        Thread {
+            runCatching {
+                val steps = (durationMs / 40L).coerceAtLeast(1L)
+                var i = 0L
+                while (i < steps) {
+                    val factor = 1f - (i + 1).toFloat() / steps.toFloat()
+                    player.volume = (startVolume * factor).coerceIn(0f, 1f)
+                    Thread.sleep(40L)
+                    i++
+                }
+            }
+            release()
+        }.start()
     }
 
     override fun release() {
