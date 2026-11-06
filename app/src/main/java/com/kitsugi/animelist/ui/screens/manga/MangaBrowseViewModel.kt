@@ -58,6 +58,7 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
 
     private var loadJob: Job? = null
     private var searchJob: Job? = null
+    private var sourceRetryJob: Job? = null
     private val paginationJobs = mutableListOf<Job>()
 
     var lastInitialQuery: String? = null
@@ -83,7 +84,7 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
 
     init { refreshSources() }
 
-    fun refreshSources() {
+    fun refreshSources(loadPopular: Boolean = true) {
         val available = repository.getAvailableSources()
         _ui.update { state ->
             val selectedSource = state.selectedSourceFilter?.let { current ->
@@ -101,7 +102,22 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                 popularMangas = if (sourceChanged) emptyList() else state.popularMangas,
             )
         }
-        if (_ui.value.searchQuery.isBlank()) fetchPopularMangas(1)
+        if (loadPopular && _ui.value.searchQuery.isBlank()) fetchPopularMangas(1)
+        if (available.isEmpty()) scheduleSourceRetry()
+    }
+
+    private fun scheduleSourceRetry() {
+        if (sourceRetryJob?.isActive == true) return
+        sourceRetryJob = viewModelScope.launch {
+            // Bounded startup race handling: no perpetual polling when no extension is installed.
+            repeat(30) {
+                delay(500L)
+                if (repository.getAvailableSources().isNotEmpty()) {
+                    refreshSources()
+                    return@launch
+                }
+            }
+        }
     }
 
     fun selectSourceFilter(source: MangaSource?) {

@@ -105,6 +105,7 @@ fun TvMangaBrowseScreen(
     var searchFocused by remember { mutableStateOf(false) }
 
     BackHandler(enabled = true) { onBack() }
+    LaunchedEffect(Unit) { vm.refreshSources() }
 
     // Birleştirilmiş manga listesi (mobil mantığıyla aynı)
     val query     = ui.searchQuery

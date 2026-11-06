@@ -25,6 +25,7 @@ import com.kitsugi.animelist.data.manga.model.SourceRuntimeStats
 import com.kitsugi.animelist.data.remote.MangaExtensionInfo
 import com.kitsugi.animelist.data.remote.MangaRepoClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,6 +126,19 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             mangaRepository.observeSourceStateReport().collect { report ->
                 mangaSourceStateReport = report
+            }
+        }
+
+        viewModelScope.launch {
+            // Application pre-loads APK/MEX and Kotatsu asynchronously. Keep the extension portal
+            // in sync without making the user reinstall/toggle a source just to refresh this list.
+            repeat(30) {
+                val sources = withContext(Dispatchers.IO) { mangaRepository.getAvailableSources() }
+                if (sources.isNotEmpty()) {
+                    mangaSources = sources
+                    return@launch
+                }
+                delay(500L)
             }
         }
     }
@@ -447,6 +461,11 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getSourceHealthStatus(source: MangaSource): SourceHealthStatus =
         mangaRepository.getSourceHealthStatus(source)
+
+    /** Re-reads extensions after the application startup loader has finished. */
+    fun refreshSources() {
+        mangaSources = mangaRepository.getAvailableSources()
+    }
 
     fun getSourceRuntimeStats(source: MangaSource): SourceRuntimeStats =
         mangaRepository.getSourceRuntimeStats(source)

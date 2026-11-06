@@ -102,6 +102,9 @@ fun MangaBrowseScreen(
     LaunchedEffect(initialQuery) {
         if (vm.lastInitialQuery != initialQuery) {
             vm.lastInitialQuery = initialQuery
+            // Startup loads APK/MEX/Kotatsu asynchronously; re-read them when the portal opens.
+            mangaViewModel.refreshSources()
+            vm.refreshSources(loadPopular = false)
             if (!initialQuery.isNullOrBlank()) {
                 vm.search(initialQuery)
             } else {

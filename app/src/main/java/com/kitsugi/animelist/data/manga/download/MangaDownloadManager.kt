@@ -286,7 +286,20 @@ object MangaDownloadManager {
         override suspend fun fetchMangaDetails(mangaUrl: String): MangaDetails = detailsOf(record)
 
         override suspend fun fetchChapterList(mangaUrl: String): List<MangaChapter> =
-            listOf(chapterOf(record))
+            _downloads.value
+                .filter { downloaded ->
+                    downloaded.status == MangaDownload.Status.COMPLETED &&
+                        downloaded.sourceKey == record.sourceKey &&
+                        downloaded.mangaUrl == record.mangaUrl &&
+                        contentExists(downloaded)
+                }
+                .sortedWith(
+                    compareByDescending<MangaDownload> {
+                        chapterNumberOf(it) ?: Double.NEGATIVE_INFINITY
+                    }.thenByDescending { it.chapterUploadDate },
+                )
+                .map { chapterOf(it) }
+                .ifEmpty { listOf(chapterOf(record)) }
 
         override suspend fun fetchPageList(chapter: MangaChapter) =
             throw IOException("Çevrimdışı bölüm dosyası bulunamadı.")

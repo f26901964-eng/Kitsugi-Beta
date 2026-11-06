@@ -1,6 +1,7 @@
 package com.kitsugi.animelist
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import com.kitsugi.animelist.ui.screens.settings.SettingsScreen
 import kotlinx.coroutines.launch
 import com.kitsugi.animelist.utils.KitsugiStrings
@@ -12,6 +13,7 @@ import com.kitsugi.animelist.R
  */
 @Composable
 internal fun SettingsScreenExtras(ctx: SettingsContext) {
+    LaunchedEffect(Unit) { ctx.mangaViewModel.refreshSources() }
     SettingsScreen(params = ctx.buildSettingsParams())
 }
 
