@@ -3,11 +3,9 @@ package com.kitsugi.animelist.core.music
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -24,7 +22,7 @@ import androidx.media3.session.MediaSessionService
  * okuyucudan çıkınca ses kesiliyor, bildirim panelinde denetim görünmüyor ve
  * panel donuyordu. Servis + MediaSession bu üç sorunu da kökten çözer.
  */
-@OptIn(UnstableApi::class)
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class MangaMusicService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
