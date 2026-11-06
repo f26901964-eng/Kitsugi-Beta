@@ -43,6 +43,13 @@ object ProceduralSoundCatalog {
         const val CLOCK = "proc_clock"
         const val SINGING_BOWL = "proc_singing_bowl"
         const val WIND_CHIME = "proc_wind_chime"
+
+        // ── Binaural serisi (kulaklık gerekir) ──────────────────────────
+        const val BINAURAL_DELTA = "proc_binaural_delta"
+        const val BINAURAL_THETA = "proc_binaural_theta"
+        const val BINAURAL_ALPHA = "proc_binaural_alpha"
+        const val BINAURAL_BETA = "proc_binaural_beta"
+        const val BINAURAL_GAMMA = "proc_binaural_gamma"
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -258,6 +265,50 @@ object ProceduralSoundCatalog {
             family = SoundFamily.OTHER,
             mood = MoodProfile(0.22f, 0.45f, 0.35f, 0.60f, 0.90f),
             varietyKey = "clock"
+        ),
+
+        // ── Binaural serisi ──────────────────────────────────────────────
+        // İki kulağa farklı frekans → beyin farkı duyar (vuruş).
+        // Kulaklık şart: hoparlörde iki kanal havada karışır, vuruş kaybolur.
+        AmbientSound(
+            id = Ids.BINAURAL_DELTA,
+            title = "Binaural · Delta",
+            subtitle = "2,5 Hz — derin uyku (kulaklık)",
+            family = SoundFamily.OTHER,
+            mood = MoodProfile(0.05f, 0.42f, 0.05f, 0.45f, 0.55f),
+            varietyKey = "binaural"
+        ),
+        AmbientSound(
+            id = Ids.BINAURAL_THETA,
+            title = "Binaural · Theta",
+            subtitle = "6 Hz — uykuya geçiş (kulaklık)",
+            family = SoundFamily.OTHER,
+            mood = MoodProfile(0.10f, 0.50f, 0.10f, 0.50f, 0.65f),
+            varietyKey = "binaural"
+        ),
+        AmbientSound(
+            id = Ids.BINAURAL_ALPHA,
+            title = "Binaural · Alfa",
+            subtitle = "10 Hz — gevşeme (kulaklık)",
+            family = SoundFamily.OTHER,
+            mood = MoodProfile(0.18f, 0.62f, 0.08f, 0.58f, 0.70f),
+            varietyKey = "binaural"
+        ),
+        AmbientSound(
+            id = Ids.BINAURAL_BETA,
+            title = "Binaural · Beta",
+            subtitle = "18 Hz — odak (kulaklık)",
+            family = SoundFamily.OTHER,
+            mood = MoodProfile(0.45f, 0.60f, 0.25f, 0.45f, 0.95f),
+            varietyKey = "binaural"
+        ),
+        AmbientSound(
+            id = Ids.BINAURAL_GAMMA,
+            title = "Binaural · Gama",
+            subtitle = "40 Hz — yoğun dikkat (kulaklık)",
+            family = SoundFamily.OTHER,
+            mood = MoodProfile(0.62f, 0.58f, 0.40f, 0.40f, 0.90f),
+            varietyKey = "binaural"
         )
     )
 

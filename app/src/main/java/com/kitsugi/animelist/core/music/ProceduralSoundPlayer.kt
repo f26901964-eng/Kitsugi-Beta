@@ -46,6 +46,9 @@ class ProceduralSoundPlayer(
 
         private const val CHANNEL_OUT = AudioFormat.CHANNEL_OUT_STEREO
         private const val ENCODING = AudioFormat.ENCODING_PCM_FLOAT
+
+        /** Limiter eşiği — altında hiçbir renklendirme yok. */
+        private const val LIMITER_KNEE = 0.7f
     }
 
     private var audioTrack: AudioTrack? = null
@@ -288,11 +291,29 @@ class ProceduralSoundPlayer(
         }
     }
 
-    private fun clampSample(v: Float): Float = when {
-        v.isNaN() -> 0f
-        v > 1f -> 1f
-        v < -1f -> -1f
-        else -> v
+    /**
+     * 🎚️ Yumuşak limiter (soft-knee).
+     *
+     * Altı kanal aynı anda çalarken toplam genlik 1.0'ı aşabilir. Sert
+     * kırpma (`v.coerceIn(-1f, 1f)`) duyulabilir bozulma ("cızırtı")
+     * üretir. Bunun yerine:
+     *
+     *  - |v| < 0.7  → doğrusal (hiç dokunma, tam sadakat)
+     *  - |v| ≥ 0.7  → hiperbolik yumuşatma, asimptotik olarak 1.0'a yaklaşır
+     *
+     * Sonuç: hiçbir zaman 1.0'ı geçmez, ama tepe noktaları kesilmez —
+     * taşma yerine sıkışır.
+     */
+    private fun clampSample(v: Float): Float {
+        if (v.isNaN()) return 0f
+        val abs = kotlin.math.abs(v)
+        if (abs <= LIMITER_KNEE) return v
+
+        // Knee üstünde: y = knee + (limit - knee) * tanh((abs - knee) / (limit - knee))
+        val over = abs - LIMITER_KNEE
+        val span = 1f - LIMITER_KNEE
+        val compressed = LIMITER_KNEE + span * kotlin.math.tanh(over / span)
+        return if (v < 0f) -compressed else compressed
     }
 }
 
@@ -469,6 +490,17 @@ object SynthFactory {
             HeartbeatSynth()
         com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.CLOCK ->
             ClockSynth()
+        // ── Binaural serisi (kulaklık gerekir) ──────────────────────────
+        com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.BINAURAL_DELTA ->
+            BinauralSynth(beatHz = 2.5f)
+        com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.BINAURAL_THETA ->
+            BinauralSynth(beatHz = 6f)
+        com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.BINAURAL_ALPHA ->
+            BinauralSynth(beatHz = 10f)
+        com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.BINAURAL_BETA ->
+            BinauralSynth(beatHz = 18f)
+        com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.BINAURAL_GAMMA ->
+            BinauralSynth(beatHz = 40f)
         com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.SINGING_BOWL ->
             SingingBowlSynth()
         com.kitsugi.animelist.data.music.ProceduralSoundCatalog.Ids.WIND_CHIME ->

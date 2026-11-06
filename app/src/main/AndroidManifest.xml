@@ -274,6 +274,13 @@
             android:foregroundServiceType="mediaPlayback"
             android:exported="false" />
 
+        <!-- Ortam sesi ön plan servisi (Android 17: arka planda ses için zorunlu) -->
+        <service
+            android:name=".core.music.AmbientPlaybackService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false"
+            android:stopWithTask="false" />
+
         <!-- AnimeDownloadService for background downloading -->
         <service
             android:name=".core.download.AnimeDownloadService"

@@ -19,6 +19,11 @@ import com.kitsugi.animelist.data.music.AtmospherePresets
 import com.kitsugi.animelist.data.music.ChannelPlayState
 import com.kitsugi.animelist.data.music.ChannelState
 import com.kitsugi.animelist.data.music.MAX_AMBIENT_CHANNELS
+import com.kitsugi.animelist.data.music.MixChannel
+import com.kitsugi.animelist.data.music.MixCodecPayload
+import com.kitsugi.animelist.data.music.MixProfile
+import com.kitsugi.animelist.data.music.ProceduralSoundCatalog
+import com.kitsugi.animelist.data.music.SleepTimerState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -71,6 +76,29 @@ class AmbientAudioEngine(
         private const val TAG = "AmbientAudioEngine"
         private const val FADE_MS = 900L
         private const val FADE_STEP_MS = 40L
+
+        /**
+         * Süreç genelinde **tek** motor.
+         *
+         * Neden singleton: okuyucudan çıkınca ses devam etsin, arka plandan
+         * bildirimle kontrol edilebilsin diye tek örnek şart. `remember`
+         * ile ekran başına motor yaratılırsa ekran kapanınca ses kesilir.
+         */
+        @Volatile
+        private var instance: AmbientAudioEngine? = null
+
+        fun get(context: Context): AmbientAudioEngine =
+            instance ?: synchronized(this) {
+                instance ?: AmbientAudioEngine(context.applicationContext).also { instance = it }
+            }
+
+        /** Test veya tam kapanış için. */
+        fun reset() {
+            synchronized(this) {
+                instance?.release()
+                instance = null
+            }
+        }
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -103,10 +131,40 @@ class AmbientAudioEngine(
     private val _activePresetId = MutableStateFlow<String?>(null)
     val activePresetId: StateFlow<String?> = _activePresetId.asStateFlow()
 
-    /** Ekran kapanınca devam etsin mi (foreground service kararı için). */
-    var continueInBackground: Boolean = false
+    /**
+     * Ekran kapanınca devam etsin mi (foreground service kararı için).
+     *
+     * Varsayılan **açık**: kullanıcı okuyucudan çıkınca sesin kesilmesi
+     * beklenmez. Ayarlardan kapatılabilir.
+     */
+    var continueInBackground: Boolean = true
 
     private var presetLayers: MutableList<Pair<Int, Long>> = mutableListOf()
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Uyku zamanlayıcısı
+    // ─────────────────────────────────────────────────────────────────────
+
+    private val _sleepTimer = MutableStateFlow(SleepTimerState())
+    /** Uyku zamanlayıcısı — kalan süre, fade, duraklatma. */
+    val sleepTimer: StateFlow<SleepTimerState> = _sleepTimer.asStateFlow()
+
+    private var sleepJob: Job? = null
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Favoriler / son çalınanlar
+    // ─────────────────────────────────────────────────────────────────────
+
+    private val _favorites = MutableStateFlow<Set<String>>(emptySet())
+    val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+
+    private val _recentIds = MutableStateFlow<List<String>>(emptyList())
+    /** En son çalınan sesler (en yeni başta, en çok 20). */
+    val recentIds: StateFlow<List<String>> = _recentIds.asStateFlow()
+
+    /** Kaydedilmiş karışım profilleri. */
+    private val _profiles = MutableStateFlow<List<MixProfile>>(emptyList())
+    val profiles: StateFlow<List<MixProfile>> = _profiles.asStateFlow()
 
     // ─────────────────────────────────────────────────────────────────────
     //  Kanal ekleme / çalma
@@ -162,8 +220,12 @@ class AmbientAudioEngine(
 
         fadeVoice(slot, 0f, state.effectiveVolume(_masterVol.value))
         updateChannel(slot) { it.copy(state = ChannelPlayState.PLAYING) }
+        rememberRecent(sound.id)
         _activeTitle.value = state.displayLabel
         _isPlaying.value = true
+
+        // Arka planda çalmaya devam edebilmek için ön plan servisi
+        ensureForegroundService()
 
         return slot
     }
@@ -205,6 +267,7 @@ class AmbientAudioEngine(
         _activePresetId.value = null
         _isPlaying.value = false
         presetLayers.clear()
+        runCatching { AmbientPlaybackService.stop(context) }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -295,10 +358,237 @@ class AmbientAudioEngine(
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    //  Uyku zamanlayıcısı (Chiarella / MixNotice / Metiq ortak özelliği)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Zamanlayıcıyı başlatır.
+     *
+     * Süre dolunca **aniden kesmez** — son [fadeSeconds] saniye içinde
+     * ses seviyesini kademeli olarak sıfıra indirir, sonra tüm kanalları
+     * durdurur. Uykuya dalmak üzere olan kullanıcıyı uyandırmamak için.
+     *
+     * @param minutes Süre (dakika). 0 → zamanlayıcıyı iptal eder.
+     */
+    fun startSleepTimer(minutes: Int, fadeSeconds: Int = SleepTimerState.DEFAULT_FADE_SECONDS) {
+        cancelSleepTimer()
+        if (minutes <= 0) return
+
+        val totalMs = minutes * 60_000L
+        val fade = fadeSeconds.coerceIn(0, 60)
+        _sleepTimer.value = SleepTimerState(
+            totalMs = totalMs,
+            remainingMs = totalMs,
+            fadeSeconds = fade,
+            running = true
+        )
+
+        sleepJob = scope.launch {
+            var remaining = totalMs
+            val tick = 1_000L
+            while (remaining > 0) {
+                delay(tick)
+                // Kullanıcı duraklattıysa bekle
+                while (_sleepTimer.value.paused) delay(250L)
+                remaining -= tick
+                _sleepTimer.update { it.copy(remainingMs = remaining.coerceAtLeast(0L)) }
+            }
+            // Fade → durdur
+            if (fade > 0) fadeAllOut(fade * 1000L) else stopAllChannels()
+            _sleepTimer.value = SleepTimerState()
+        }
+    }
+
+    fun pauseSleepTimer() {
+        val cur = _sleepTimer.value
+        if (!cur.running || cur.paused) return
+        _sleepTimer.update { it.copy(paused = true) }
+    }
+
+    fun resumeSleepTimer() {
+        val cur = _sleepTimer.value
+        if (!cur.running || !cur.paused) return
+        _sleepTimer.update { it.copy(paused = false) }
+    }
+
+    fun cancelSleepTimer() {
+        sleepJob?.cancel()
+        sleepJob = null
+        _sleepTimer.value = SleepTimerState()
+    }
+
+    /** Kalan süreyi değiştirir (kullanıcı "+10 dk" derse). */
+    fun extendSleepTimer(extraMinutes: Int) {
+        val cur = _sleepTimer.value
+        if (!cur.running) return
+        val delta = extraMinutes * 60_000L
+        _sleepTimer.update {
+            it.copy(
+                totalMs = (it.totalMs + delta).coerceAtLeast(60_000L),
+                remainingMs = (it.remainingMs + delta).coerceAtLeast(0L)
+            )
+        }
+    }
+
+    /**
+     * Tüm kanalları [durationMs] boyunca kısarak susturur.
+     * Zamanlayıcı dolduğunda kullanılır.
+     */
+    private fun fadeAllOut(durationMs: Long) {
+        val states = _channels.value
+        if (states.isEmpty()) return
+        val steps = (durationMs / FADE_STEP_MS).coerceAtLeast(1).toInt()
+        scope.launch {
+            val starts = states.associate { it.index to (voices.getOrNull(it.index)?.currentVolume() ?: 0f) }
+            repeat(steps) { step ->
+                val factor = 1f - (step + 1).toFloat() / steps.toFloat()
+                starts.forEach { (index, start) ->
+                    voices.getOrNull(index)?.setVolume((start * factor).coerceIn(0f, 1f))
+                }
+                delay(FADE_STEP_MS)
+            }
+            stopAllChannels()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Favoriler / son çalınanlar
+    // ─────────────────────────────────────────────────────────────────────
+
+    fun toggleFavorite(soundId: String) {
+        _favorites.update { set ->
+            if (soundId in set) set - soundId else set + soundId
+        }
+    }
+
+    fun isFavorite(soundId: String): Boolean = soundId in _favorites.value
+
+    fun setFavorites(ids: Set<String>) {
+        _favorites.value = ids
+    }
+
+    private fun rememberRecent(soundId: String) {
+        _recentIds.update { list ->
+            (listOf(soundId) + list.filterNot { it == soundId }).take(20)
+        }
+    }
+
+    /** Son çalınanları [AmbientSound] olarak döner (katalogdan çözülür). */
+    fun recentSounds(): List<AmbientSound> =
+        _recentIds.value.mapNotNull { id -> ProceduralSoundCatalog.byId(id) }
+
+    fun clearRecent() {
+        _recentIds.value = emptyList()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Karışım profilleri
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** Şu anki kanal düzenini profil olarak kaydeder. */
+    fun saveCurrentAsProfile(name: String, genreTag: String = ""): MixProfile? {
+        val states = _channels.value
+        if (states.isEmpty()) return null
+
+        val profile = MixProfile(
+            id = "mix_${System.currentTimeMillis()}",
+            name = name.ifBlank { "Karışım ${_profiles.value.size + 1}" },
+            createdAt = System.currentTimeMillis(),
+            channels = states.map {
+                MixChannel(
+                    soundId = it.sound.id,
+                    title = it.sound.title,
+                    volume = it.volume,
+                    muted = it.muted
+                )
+            },
+            genreTag = genreTag
+        )
+        _profiles.update { list -> list + profile }
+        return profile
+    }
+
+    fun deleteProfile(id: String) {
+        _profiles.update { list -> list.filterNot { it.id == id } }
+    }
+
+    fun renameProfile(id: String, newName: String) {
+        _profiles.update { list ->
+            list.map { if (it.id == id) it.copy(name = newName) else it }
+        }
+    }
+
+    fun setProfiles(list: List<MixProfile>) {
+        _profiles.value = list
+    }
+
+    /**
+     * Profili yükler: tüm kanalları durdurup profildeki düzeni kurar.
+     * Katalogda bulunamayan sesler sessizce atlanır.
+     */
+    fun applyProfile(profile: MixProfile) {
+        stopAllChannels()
+        val master = _masterVol.value
+        profile.channels.forEach { mc ->
+            val sound = ProceduralSoundCatalog.byId(mc.soundId) ?: return@forEach
+            val idx = addChannel(sound, mc.volume)
+            if (idx >= 0 && mc.muted) setChannelMuted(idx, true)
+        }
+        _activeTitle.value = profile.name
+        _isPlaying.value = master > 0f && _channels.value.isNotEmpty()
+    }
+
+    /** Profili dışa aktarma metnine çevirir (paylaşılabilir). */
+    fun exportProfile(profile: MixProfile): String {
+        val payload = MixCodecPayload(
+            name = profile.name,
+            channels = profile.channels
+        )
+        return org.json.JSONObject().apply {
+            put("version", payload.version)
+            put("name", payload.name)
+            put("channels", org.json.JSONArray().apply {
+                payload.channels.forEach { ch ->
+                    put(org.json.JSONObject().apply {
+                        put("id", ch.soundId)
+                        put("title", ch.title)
+                        put("volume", ch.volume.toDouble())
+                        put("muted", ch.muted)
+                    })
+                }
+            })
+        }.toString()
+    }
+
+    /** Dışa aktarılmış metni profle çevirir. Geçersizse `null`. */
+    fun importProfile(json: String): MixProfile? = runCatching {
+        val root = org.json.JSONObject(json)
+        val name = root.optString("name", "İçe aktarılan")
+        val arr = root.optJSONArray("channels") ?: return@runCatching null
+        val channels = (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            MixChannel(
+                soundId = o.optString("id"),
+                title = o.optString("title"),
+                volume = o.optDouble("volume", 0.6).toFloat(),
+                muted = o.optBoolean("muted", false)
+            )
+        }
+        if (channels.isEmpty()) null
+        else MixProfile(
+            id = "mix_${System.currentTimeMillis()}",
+            name = name,
+            createdAt = System.currentTimeMillis(),
+            channels = channels
+        )
+    }.getOrNull()
+
+    // ─────────────────────────────────────────────────────────────────────
     //  Serbest bırakma
     // ─────────────────────────────────────────────────────────────────────
 
     fun release() {
+        cancelSleepTimer()
         voices.forEachIndexed { i, v ->
             v?.release()
             voices[i] = null
@@ -313,6 +603,13 @@ class AmbientAudioEngine(
     // ═════════════════════════════════════════════════════════════════════
     //  DAHİLİ
     // ═════════════════════════════════════════════════════════════════════
+
+    /** Ses çalmaya başlayınca ön plan servisini devreye alır. */
+    private fun ensureForegroundService() {
+        if (!continueInBackground) return
+        runCatching { AmbientPlaybackService.start(context) }
+            .onFailure { Log.w(TAG, "Ön plan servisi başlatılamadı", it) }
+    }
 
     private fun updateChannel(index: Int, transform: (ChannelState) -> ChannelState) {
         _channels.update { list ->

@@ -1189,3 +1189,72 @@ class WindChimeSynth : SoundSynth {
         chimePhases[0] = 0.0
     }
 }
+
+/**
+ * 🧠 Binaural Beats — iki kulağa farklı frekans
+ *
+ * Metiq'te bulunan özellik. Sol kulağa [baseHz], sağ kulağa
+ * `baseHz + beatHz` verilir. Beyin iki tonun **farkını** duyar
+ * (örn. 200 Hz + 210 Hz → 10 Hz "alfa" vuruşu).
+ *
+ * ⚠️ **Kulaklık gerekir.** Hoparlörde iki kanal havada karışır ve
+ * vuruş kaybolur. Panel bunu kullanıcıya söyler.
+ *
+ * Frekans bantları (yaygın kabul):
+ *  - Delta 1–4 Hz: derin uyku
+ *  - Theta 4–8 Hz: uykuya geçiş, yaratıcılık
+ *  - Alpha 8–13 Hz: gevşeme, sakin uyanıklık
+ *  - Beta 13–30 Hz: odaklanma, aktif düşünme
+ *  - Gamma 30–100 Hz: yoğun bilişsel yük
+ *
+ * Ses seviyesi bilinçli olarak düşük tutulur (0.12) — bu bir arka plan
+ * aracıdır, müzik değil.
+ */
+class BinauralSynth(
+    private val baseHz: Float = 200f,
+    private val beatHz: Float = 10f,
+    private val sampleRate: Int = 44_100
+) : SoundSynth {
+
+    private var phaseL = 0.0
+    private var phaseR = 0.0
+    private val stepL = TWO_PI_F * baseHz / sampleRate
+    private val stepR = TWO_PI_F * (baseHz + beatHz) / sampleRate
+
+    /** Yumuşak başlangıç — aniden girmesin. */
+    private var gain = 0f
+    private val gainStep = 1f / (sampleRate * 3f) // 3 saniyede tam seviye
+
+    companion object {
+        /** Bant adı → vuruş frekansı. */
+        val BANDS: List<Pair<String, Float>> = listOf(
+            "Delta · derin uyku" to 2.5f,
+            "Theta · uykuya geçiş" to 6f,
+            "Alfa · gevşeme" to 10f,
+            "Beta · odak" to 18f,
+            "Gama · yoğun dikkat" to 40f
+        )
+    }
+
+    override fun reset() {
+        phaseL = 0.0
+        phaseR = 0.0
+        gain = 0f
+    }
+
+    override fun render(left: FloatArray, right: FloatArray, frames: Int) {
+        for (i in 0 until frames) {
+            if (gain < 0.12f) gain = (gain + gainStep).coerceAtMost(0.12f)
+            left[i] = (kotlin.math.sin(phaseL).toFloat() * gain)
+            right[i] = (kotlin.math.sin(phaseR).toFloat() * gain)
+            phaseL += stepL
+            phaseR += stepR
+            if (phaseL > TWO_PI_D) phaseL -= TWO_PI_D
+            if (phaseR > TWO_PI_D) phaseR -= TWO_PI_D
+        }
+    }
+
+    private companion object Constants {
+        const val TWO_PI_D = 6.283185307179586
+    }
+}

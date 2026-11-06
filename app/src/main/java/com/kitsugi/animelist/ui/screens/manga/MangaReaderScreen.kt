@@ -83,6 +83,8 @@ import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.runtime.DisposableEffect
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
@@ -131,7 +133,7 @@ fun MangaReaderScreen(
     var showMusicPanel  by remember { mutableStateOf(false) }
 
     // ─── Ortam Sesi (Ambient) motoru ──────────────────────────────────────
-    val musicEngine = remember { AmbientAudioEngine(context.applicationContext) }
+    val musicEngine = remember { AmbientAudioEngine.get(context.applicationContext) }
     val readerSettingsStore = remember { SettingsDataStore(context.applicationContext) }
     val readerAppSettings by readerSettingsStore.settingsFlow.collectAsState(
         initial = com.kitsugi.animelist.data.settings.AppSettings()
@@ -151,6 +153,40 @@ fun MangaReaderScreen(
     val onlineQuery by musicCatalog.query.collectAsState()
     val onlineSources by musicCatalog.sources.collectAsState()
 
+    // ─── Zamanlayıcı / profil / favori ───────────────────────────────────────
+    val sleepTimer by musicEngine.sleepTimer.collectAsState()
+    val mixProfiles by musicEngine.profiles.collectAsState()
+    val musicFavorites by musicEngine.favorites.collectAsState()
+    val musicRecentIds by musicEngine.recentIds.collectAsState()
+
+    // Kalıcı müzik durumu (favoriler, son çalınanlar, profiller)
+    val musicStateStore = remember(context.applicationContext) {
+        com.kitsugi.animelist.data.music.MusicStateStore(context.applicationContext)
+    }
+
+    // Depodan yükle (bir kez)
+    LaunchedEffect(musicStateStore) {
+        musicStateStore.favorites.collect { stored ->
+            if (stored != musicEngine.favorites.value) musicEngine.setFavorites(stored)
+        }
+    }
+    LaunchedEffect(musicStateStore) {
+        musicStateStore.profiles.collect { stored ->
+            if (stored.isNotEmpty()) musicEngine.setProfiles(stored)
+        }
+    }
+
+    // Değişimleri depoya yaz
+    LaunchedEffect(Unit) {
+        musicEngine.favorites.drop(1).collect { musicStateStore.saveFavorites(it) }
+    }
+    LaunchedEffect(Unit) {
+        musicEngine.profiles.drop(1).collect { musicStateStore.saveProfiles(it) }
+    }
+    LaunchedEffect(Unit) {
+        musicEngine.recentIds.drop(1).collect { musicStateStore.saveRecent(it) }
+    }
+
     // Ayarlar değiştikçe kaynak durumlarını eşitle
     LaunchedEffect(readerAppSettings) {
         musicCatalog.syncSettings(readerAppSettings)
@@ -169,10 +205,14 @@ fun MangaReaderScreen(
         musicEngine.setMasterVolume(readerAppSettings.musicMasterVolume)
     }
 
-    // Ekrandan çıkışta motoru serbest bırak
-    DisposableEffect(Unit) {
-        onDispose { musicEngine.release() }
+    // Arka planda devam etme tercihi — ön plan servisi buna bakar
+    LaunchedEffect(readerAppSettings.musicContinueOnExit) {
+        musicEngine.continueInBackground = readerAppSettings.musicContinueOnExit
     }
+
+    // ⚠️ Motor BİLEREK serbest bırakılmıyor: süreç genelinde tek örnek
+    // (`AmbientAudioEngine.get`). Okuyucudan çıkınca ses arka planda devam
+    // eder, bildirimden kontrol edilir. Serbest bırakma süreç sonunda olur.
 
     val pagerState    = rememberPagerState(initialPage = currentPage) { pages.size }
     val listState     = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
@@ -610,6 +650,63 @@ fun MangaReaderScreen(
                             sound.copy(streamUrl = resolved)
                         } else sound
                         musicEngine.addChannel(playable)
+                    }
+                },
+                sleepTimer = sleepTimer,
+                onStartTimer = { minutes -> musicEngine.startSleepTimer(minutes) },
+                onCancelTimer = { musicEngine.cancelSleepTimer() },
+                onPauseTimer = { musicEngine.pauseSleepTimer() },
+                onResumeTimer = { musicEngine.resumeSleepTimer() },
+                onExtendTimer = { extra -> musicEngine.extendSleepTimer(extra) },
+                profiles = mixProfiles,
+                favorites = musicFavorites,
+                recentIds = musicRecentIds,
+                onSaveProfile = { name -> musicEngine.saveCurrentAsProfile(name) },
+                onApplyProfile = { profile -> musicEngine.applyProfile(profile) },
+                onDeleteProfile = { id -> musicEngine.deleteProfile(id) },
+                onToggleFavorite = { id -> musicEngine.toggleFavorite(id) },
+                onExportProfile = { profile ->
+                    // Panoya kopyala — kullanıcı dilediği yere yapıştırır
+                    val json = musicEngine.exportProfile(profile)
+                    val clipboard = context.getSystemService(
+                        android.content.Context.CLIPBOARD_SERVICE
+                    ) as? android.content.ClipboardManager
+                    clipboard?.setPrimaryClip(
+                        android.content.ClipData.newPlainText("Kitsugi karışım", json)
+                    )
+                    readerScope.launch {
+                        android.widget.Toast.makeText(
+                            context, "Karışım panoya kopyalandı", android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onImportProfile = {
+                    // Panodan oku
+                    val clipboard = context.getSystemService(
+                        android.content.Context.CLIPBOARD_SERVICE
+                    ) as? android.content.ClipboardManager
+                    val text = clipboard?.primaryClip
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)
+                        ?.coerceToText(context)
+                        ?.toString()
+                        .orEmpty()
+                    val imported = musicEngine.importProfile(text)
+                    if (imported != null) {
+                        musicEngine.setProfiles(musicEngine.profiles.value + imported)
+                        readerScope.launch {
+                            android.widget.Toast.makeText(
+                                context, "Karışım içe aktarıldı: ${imported.name}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    } else {
+                        readerScope.launch {
+                            android.widget.Toast.makeText(
+                                context, "Panoda geçerli bir karışım yok",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     }
                 }
             )

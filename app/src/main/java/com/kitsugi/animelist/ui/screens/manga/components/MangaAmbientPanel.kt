@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.screens.manga.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +33,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -114,10 +126,46 @@ fun MangaAmbientPanel(
     sourceStates: List<com.kitsugi.animelist.data.music.MusicSourceState> = emptyList(),
     onSearchQueryChanged: (String) -> Unit = {},
     onSearch: () -> Unit = {},
-    onPlayOnline: (AmbientSound) -> Unit = {}
+    onPlayOnline: (AmbientSound) -> Unit = {},
+    // ── Zamanlayıcı ────────────────────────────────────────────────────
+    sleepTimer: com.kitsugi.animelist.data.music.SleepTimerState =
+        com.kitsugi.animelist.data.music.SleepTimerState(),
+    onStartTimer: (Int) -> Unit = {},
+    onCancelTimer: () -> Unit = {},
+    onPauseTimer: () -> Unit = {},
+    onResumeTimer: () -> Unit = {},
+    onExtendTimer: (Int) -> Unit = {},
+    // ── Profiller / favoriler ──────────────────────────────────────────
+    profiles: List<com.kitsugi.animelist.data.music.MixProfile> = emptyList(),
+    favorites: Set<String> = emptySet(),
+    recentIds: List<String> = emptyList(),
+    onSaveProfile: (String) -> Unit = {},
+    onApplyProfile: (com.kitsugi.animelist.data.music.MixProfile) -> Unit = {},
+    onDeleteProfile: (String) -> Unit = {},
+    onToggleFavorite: (String) -> Unit = {},
+    onExportProfile: (com.kitsugi.animelist.data.music.MixProfile) -> Unit = {},
+    onImportProfile: () -> Unit = {}
 ) {
     val accent = LocalKitsugiAccent.current
     var selectedTab by remember { mutableStateOf(0) }
+
+    // Uzun basılan ses → detay sayfası (Chiarella'nın kart detayı karşılığı)
+    var detailSound by remember { mutableStateOf<AmbientSound?>(null) }
+    val openDetail: (AmbientSound) -> Unit = { detailSound = it }
+
+    // Uzun basılan ses varsa → detay sayfası (tek katman, geri butonu ile)
+    detailSound?.let { sound ->
+        SoundDetailPage(
+            sound = sound,
+            accent = accent,
+            isPlaying = channels.any { it.sound.id == sound.id },
+            isFavorite = sound.id in favorites,
+            onBack = { detailSound = null },
+            onPlay = { onPlaySound(sound) },
+            onToggleFavorite = { onToggleFavorite(sound.id) }
+        )
+        return
+    }
 
     Column(
         modifier = Modifier
@@ -186,7 +234,7 @@ fun MangaAmbientPanel(
 
         // ── Sekmeler ────────────────────────────────────────────────────
         val tabs = remember {
-            listOf("Senin İçin", "Ambiyans", "Müzik", "Çevrimiçi", "Karışım")
+            listOf("Senin İçin", "Ambiyans", "Müzik", "Çevrimiçi", "Karışım", "Profil", "Süre")
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(tabs.size) { index ->
@@ -195,8 +243,11 @@ fun MangaAmbientPanel(
                     onClick = { selectedTab = index },
                     label = {
                         Text(
-                            text = if (index == 4) "${tabs[index]} (${channels.size})"
-                            else tabs[index],
+                            text = when {
+                                index == 4 && channels.isNotEmpty() -> "${tabs[index]} (${channels.size})"
+                                index == 6 && sleepTimer.running -> "⏱ ${sleepTimer.display}"
+                                else -> tabs[index]
+                            },
                             fontSize = 12.sp
                         )
                     },
@@ -220,8 +271,11 @@ fun MangaAmbientPanel(
                 channels = channels,
                 activePresetId = activePresetId,
                 accent = accent,
+                favorites = favorites,
+                recentIds = recentIds,
                 onPlayPreset = onPlayPreset,
-                onPlaySound = onPlaySound
+                onPlaySound = onPlaySound,
+                onToggleFavorite = onToggleFavorite
             )
             1 -> SoundListTab(
                 modifier = Modifier.weight(1f),
@@ -248,7 +302,7 @@ fun MangaAmbientPanel(
                 onSearch = onSearch,
                 onPlay = onPlayOnline
             )
-            else -> MixerTab(
+            4 -> MixerTab(
                 modifier = Modifier.weight(1f),
                 channels = channels,
                 maxChannels = maxChannels,
@@ -258,7 +312,31 @@ fun MangaAmbientPanel(
                 onChannelMuteToggle = onChannelMuteToggle,
                 onChannelRemove = onChannelRemove,
                 onStopAll = onStopAll,
-                accent = accent
+                accent = accent,
+                sleepTimer = sleepTimer,
+                onStartTimer = onStartTimer,
+                onCancelTimer = onCancelTimer
+            )
+            5 -> ProfileTab(
+                modifier = Modifier.weight(1f),
+                profiles = profiles,
+                channels = channels,
+                accent = accent,
+                onSave = onSaveProfile,
+                onApply = onApplyProfile,
+                onDelete = onDeleteProfile,
+                onExport = onExportProfile,
+                onImport = onImportProfile
+            )
+            else -> TimerTab(
+                modifier = Modifier.weight(1f),
+                timer = sleepTimer,
+                accent = accent,
+                onStart = onStartTimer,
+                onCancel = onCancelTimer,
+                onPause = onPauseTimer,
+                onResume = onResumeTimer,
+                onExtend = onExtendTimer
             )
         }
     }
@@ -275,8 +353,11 @@ private fun ForYouTab(
     channels: List<ChannelState>,
     activePresetId: String?,
     accent: Color,
+    favorites: Set<String> = emptySet(),
+    recentIds: List<String> = emptyList(),
     onPlayPreset: (AtmospherePreset) -> Unit,
-    onPlaySound: (AmbientSound) -> Unit
+    onPlaySound: (AmbientSound) -> Unit,
+    onToggleFavorite: (String) -> Unit = {}
 ) {
     val playingIds = remember(channels) { channels.map { it.sound.id }.toSet() }
 
@@ -341,6 +422,76 @@ private fun ForYouTab(
             Spacer(Modifier.height(14.dp))
         }
 
+        // ── Favoriler ───────────────────────────────────────────────────
+        val favSounds = remember(favorites) {
+            favorites.mapNotNull { id ->
+                com.kitsugi.animelist.data.music.ProceduralSoundCatalog.byId(id)
+            }
+        }
+        if (favSounds.isNotEmpty()) {
+            Text(
+                text = "FAVORİLER · ${favSounds.size}",
+                color = accent.copy(alpha = 0.8f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            favSounds.forEach { sound ->
+                SoundRow(
+                    sound = sound,
+                    reason = "favorin",
+                    isActive = sound.id in playingIds,
+                    accent = accent,
+                    isFavorite = true,
+                    onClick = { onPlaySound(sound) },
+                    onToggleFavorite = { onToggleFavorite(sound.id) },
+                    onLongClick = { openDetail(sound) }
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+
+        // ── Son çalınanlar ──────────────────────────────────────────────
+        val recentSounds = remember(recentIds) {
+            recentIds.take(4).mapNotNull { id ->
+                com.kitsugi.animelist.data.music.ProceduralSoundCatalog.byId(id)
+            }
+        }
+        if (recentSounds.isNotEmpty()) {
+            Text(
+                text = "SON ÇALINANLAR",
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                recentSounds.take(3).forEach { sound ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (sound.id in playingIds) accent.copy(alpha = 0.18f)
+                                else KitsugiColors.SurfaceSoft
+                            )
+                            .clickable { onPlaySound(sound) }
+                            .padding(horizontal = 10.dp, vertical = 9.dp)
+                    ) {
+                        Text(
+                            text = sound.title,
+                            color = if (sound.id in playingIds) accent else KitsugiColors.TextSecondary,
+                            fontSize = 10.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+
         if (recommendations.sounds.isNotEmpty()) {
             Text(
                 text = "ÖNERİLEN SESLER",
@@ -355,7 +506,10 @@ private fun ForYouTab(
                     reason = rec.reason,
                     isActive = rec.sound.id in playingIds,
                     accent = accent,
-                    onClick = { onPlaySound(rec.sound) }
+                    isFavorite = rec.sound.id in favorites,
+                    onClick = { onPlaySound(rec.sound) },
+                    onToggleFavorite = { onToggleFavorite(rec.sound.id) },
+                    onLongClick = { openDetail(rec.sound) }
                 )
                 Spacer(Modifier.height(6.dp))
             }
@@ -440,7 +594,11 @@ private fun MixerTab(
     onChannelMuteToggle: (Int) -> Unit,
     onChannelRemove: (Int) -> Unit,
     onStopAll: () -> Unit,
-    accent: Color
+    accent: Color,
+    sleepTimer: com.kitsugi.animelist.data.music.SleepTimerState =
+        com.kitsugi.animelist.data.music.SleepTimerState(),
+    onStartTimer: (Int) -> Unit = {},
+    onCancelTimer: () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -474,7 +632,102 @@ private fun MixerTab(
             )
         )
 
-        Spacer(Modifier.height(8.dp))
+        // ── Cihaz sesi göstergesi ───────────────────────────────────────
+        // Uygulama içi ses seviyesi cihazın sesini aşamaz. Kullanıcı
+        // "sonuna kadar açtım ama ses az" derse sorun buradadır.
+        val deviceVolume = rememberDeviceVolume()
+        if (deviceVolume != null && deviceVolume < 0.35f) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(Color(0xFFFBBF24).copy(alpha = 0.12f))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("🔉", fontSize = 12.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Cihaz sesi %${(deviceVolume * 100).toInt()}",
+                    color = Color(0xFFFBBF24),
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "Yükselt",
+                    color = Color(0xFFFBBF24),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFFBBF24).copy(alpha = 0.18f))
+                        .clickable { raiseDeviceVolume() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+
+        // ── Hızlı zamanlayıcı ───────────────────────────────────────────
+        if (sleepTimer.running) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(accent.copy(alpha = 0.12f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("⏱", fontSize = 13.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = sleepTimer.display,
+                    color = accent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "İptal",
+                    color = KitsugiColors.AccentRed,
+                    fontSize = 11.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onCancelTimer)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        } else if (channels.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Uyku:",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 10.sp
+                )
+                listOf(15, 30, 60).forEach { minutes ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(KitsugiColors.SurfaceSoft)
+                            .clickable { onStartTimer(minutes) }
+                            .padding(horizontal = 9.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "$minutes dk",
+                            color = KitsugiColors.TextSecondary,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         // ── Kanal sayacı ────────────────────────────────────────────────
         Text(
@@ -661,20 +914,35 @@ private fun ChannelRow(
 //  ORTAK BİLEŞENLER
 // ─────────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SoundRow(
     sound: AmbientSound,
     reason: String,
     isActive: Boolean,
     accent: Color,
-    onClick: () -> Unit
+    isFavorite: Boolean = false,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null
 ) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(if (isActive) accent.copy(alpha = 0.16f) else KitsugiColors.SurfaceSoft)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick?.let {
+                    {
+                        haptic.performHapticFeedback(
+                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress
+                        )
+                        it()
+                    }
+                }
+            )
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -711,6 +979,17 @@ private fun SoundRow(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Rounded.FavoriteBorder,
+                contentDescription = if (isFavorite) "Favoriden çıkar" else "Favoriye ekle",
+                tint = if (isFavorite) Color(0xFFF472B6) else KitsugiColors.TextMuted,
+                modifier = Modifier.size(17.dp)
+            )
         }
         Icon(
             imageVector = if (isActive) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -1039,6 +1318,798 @@ private fun OnlineSoundRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 3.dp)
             )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  SEKME 6 — PROFİL (Karışım kaydet / yükle)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Kaydedilmiş karışımlar.
+ *
+ * Chiarella'nın "profiller" özelliği: kullanıcı bir kez düzen kurar,
+ * adlandırır, sonra tek dokunuşla geri yükler. Profil yalnızca
+ * **ses kimliği + seviye + mute** saklar — kaynak türü değil.
+ */
+@Composable
+private fun ProfileTab(
+    modifier: Modifier = Modifier,
+    profiles: List<com.kitsugi.animelist.data.music.MixProfile>,
+    channels: List<ChannelState>,
+    accent: Color,
+    onSave: (String) -> Unit,
+    onApply: (com.kitsugi.animelist.data.music.MixProfile) -> Unit,
+    onDelete: (String) -> Unit,
+    onExport: (com.kitsugi.animelist.data.music.MixProfile) -> Unit = {},
+    onImport: () -> Unit = {}
+) {
+    var showNameField by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 8.dp)
+    ) {
+        // ── Şu anki karışımı kaydet ─────────────────────────────────────
+        if (channels.isNotEmpty()) {
+            if (!showNameField) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accent.copy(alpha = 0.14f))
+                        .clickable { showNameField = true }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Bu karışımı kaydet",
+                            color = accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "${channels.size} kanal · sonra tek dokunuşla geri yükle",
+                            color = KitsugiColors.TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            } else {
+                Column {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Karışım adı (Yağmurlu gece…)", fontSize = 12.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = KitsugiColors.Border,
+                            cursorColor = accent,
+                            focusedTextColor = KitsugiColors.TextPrimary,
+                            unfocusedTextColor = KitsugiColors.TextPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                onSave(name)
+                                name = ""
+                                showNameField = false
+                            }
+                        ) {
+                            Text("Kaydet", color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = {
+                                name = ""
+                                showNameField = false
+                            }
+                        ) {
+                            Text("Vazgeç", color = KitsugiColors.TextMuted, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+
+        // ── Kayıtlı profiller ───────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "KAYITLI KARIŞIMLAR",
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(7.dp))
+                    .clickable(onClick = onImport)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ContentPaste,
+                    contentDescription = null,
+                    tint = accent.copy(alpha = 0.85f),
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(Modifier.width(5.dp))
+                Text("İçe aktar", color = accent, fontSize = 10.sp)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+
+        if (profiles.isEmpty()) {
+            Text(
+                text = if (channels.isEmpty())
+                    "Önce birkaç ses aç, sonra karışımı kaydet."
+                else
+                    "Henüz kayıt yok — yukarıdan ilk karışımını kaydet.",
+                color = KitsugiColors.TextMuted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        } else {
+            profiles.forEach { profile ->
+                ProfileRow(
+                    profile = profile,
+                    accent = accent,
+                    onApply = { onApply(profile) },
+                    onDelete = { onDelete(profile.id) },
+                    onExport = { onExport(profile) }
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileRow(
+    profile: com.kitsugi.animelist.data.music.MixProfile,
+    accent: Color,
+    onApply: () -> Unit,
+    onDelete: () -> Unit,
+    onExport: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(KitsugiColors.SurfaceSoft)
+            .clickable(onClick = onApply)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = profile.name,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = profile.summary,
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        IconButton(onClick = onApply, modifier = Modifier.size(34.dp)) {
+            Icon(
+                imageVector = Icons.Filled.PlayArrow,
+                contentDescription = "Yükle",
+                tint = accent,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        IconButton(onClick = onExport, modifier = Modifier.size(34.dp)) {
+            Icon(
+                imageVector = Icons.Rounded.Share,
+                contentDescription = "Paylaş",
+                tint = KitsugiColors.TextMuted,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
+            Icon(
+                imageVector = Icons.Rounded.DeleteOutline,
+                contentDescription = "Sil",
+                tint = KitsugiColors.TextMuted,
+                modifier = Modifier.size(17.dp)
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  SEKME 7 — UYKU ZAMANLAYICISI
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Uyku zamanlayıcısı.
+ *
+ * Üç uygulamada da (Chiarella, MixNotice, Metiq) bulunan özellik:
+ *  - Hazır süreler (5–120 dk)
+ *  - Özel süre (5 dk – 4 saat)
+ *  - Kapanış fade'i (aniden kesmez)
+ *  - Duraklat / devam / +10 dk
+ */
+@Composable
+private fun TimerTab(
+    modifier: Modifier = Modifier,
+    timer: com.kitsugi.animelist.data.music.SleepTimerState,
+    accent: Color,
+    onStart: (Int) -> Unit,
+    onCancel: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onExtend: (Int) -> Unit
+) {
+    var customMinutes by remember { mutableIntStateOf(30) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 8.dp)
+    ) {
+        if (timer.running) {
+            // ── Aktif sayac ─────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(accent.copy(alpha = 0.13f))
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "UYKU ZAMANLAYICISI",
+                    color = accent.copy(alpha = 0.8f),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = timer.display,
+                    color = if (timer.paused) KitsugiColors.TextMuted else KitsugiColors.TextPrimary,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Light
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (timer.paused) "duraklatıldı"
+                    else "bitince ${timer.fadeSeconds} sn içinde kısılarak susar",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 10.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                LinearProgressIndicator(
+                    progress = { timer.progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = accent,
+                    trackColor = KitsugiColors.Border
+                )
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TimerChip(
+                        label = if (timer.paused) "Devam" else "Duraklat",
+                        accent = accent,
+                        onClick = { if (timer.paused) onResume() else onPause() }
+                    )
+                    TimerChip(label = "+10 dk", accent = accent, onClick = { onExtend(10) })
+                    TimerChip(label = "İptal", accent = KitsugiColors.AccentRed, onClick = onCancel)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // ── Hazır süreler ───────────────────────────────────────────────
+        Text(
+            text = "HAZIR SÜRELER",
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(8.dp))
+
+        val presets = com.kitsugi.animelist.data.music.SleepTimerState.PRESETS_MINUTES
+        // 4'lü ızgara
+        presets.chunked(4).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                row.forEach { minutes ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KitsugiColors.SurfaceSoft)
+                            .clickable { onStart(minutes) }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (minutes >= 60) "${minutes / 60} sa" else "$minutes dk",
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                // Eksik kalan hücreleri doldur
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // ── Özel süre ───────────────────────────────────────────────────
+        Text(
+            text = "ÖZEL SÜRE",
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(8.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "${customMinutes} dk",
+                color = accent,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.width(76.dp)
+            )
+            Slider(
+                value = customMinutes.toFloat(),
+                onValueChange = { customMinutes = it.toInt() },
+                valueRange = com.kitsugi.animelist.data.music.SleepTimerState.MIN_CUSTOM_MINUTES.toFloat()..
+                    com.kitsugi.animelist.data.music.SleepTimerState.MAX_CUSTOM_MINUTES.toFloat(),
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = accent,
+                    activeTrackColor = accent,
+                    inactiveTrackColor = KitsugiColors.Border
+                )
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TimerChip(label = "Başlat", accent = accent, onClick = { onStart(customMinutes) })
+            TimerChip(label = "+5", accent = KitsugiColors.TextSecondary, onClick = { if (customMinutes < 240) customMinutes += 5 })
+            TimerChip(label = "−5", accent = KitsugiColors.TextSecondary, onClick = { if (customMinutes > 5) customMinutes -= 5 })
+        }
+
+        Spacer(Modifier.height(14.dp))
+        Text(
+            text = "Süre bitince ses aniden kesilmez: son ${timer.fadeSeconds} saniyede " +
+                "kademeli olarak kısılır, sonra durur. Uykuya dalarken rahatsız etmez.",
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+            lineHeight = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun TimerChip(label: String, accent: Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(accent.copy(alpha = 0.16f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Text(text = label, color = accent, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  SES DETAY SAYFASI (uzun basınca açılır)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bir sesin detay kartı.
+ *
+ * Chiarella'daki "karta uzun bas → açıklama + ideal anlar + bununla iyi
+ * gider" akışının karşılığı. Kullanıcı sesi tanımadan eklemek zorunda
+ * kalmaz; ne zaman işe yaradığını okur.
+ */
+@Composable
+private fun SoundDetailPage(
+    sound: AmbientSound,
+    accent: Color,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    onBack: () -> Unit,
+    onPlay: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
+    val meta = remember(sound.id) { SoundMeta.forSound(sound) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        // ── Başlık satırı ───────────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Geri",
+                    tint = KitsugiColors.TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = "SES DETAYI",
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Favori",
+                    tint = if (isFavorite) Color(0xFFF472B6) else KitsugiColors.TextMuted,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        // ── Kahraman başlık ─────────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = meta.emoji, fontSize = 26.sp)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = sound.title,
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = meta.category,
+                    color = accent,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // ── Açıklama ────────────────────────────────────────────────────
+        Text(
+            text = meta.description,
+            color = KitsugiColors.TextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 18.sp
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── İdeal anlar ─────────────────────────────────────────────────
+        Text(
+            text = "İDEAL ANLAR",
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(7.dp))
+        meta.bestFor.forEach { moment ->
+            Row(
+                modifier = Modifier.padding(vertical = 3.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 5.dp)
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = 0.7f))
+                )
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    text = moment,
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Bununla iyi gider ───────────────────────────────────────────
+        val pairs = remember(sound.id) { SoundMeta.pairsWith(sound) }
+        if (pairs.isNotEmpty()) {
+            Text(
+                text = "BUNUNLA İYİ GİDER",
+                color = KitsugiColors.TextMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(7.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pairs.forEach { other ->
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KitsugiColors.SurfaceSoft)
+                            .clickable { onPlay(other) }
+                            .padding(horizontal = 10.dp, vertical = 9.dp)
+                    ) {
+                        Text(text = SoundMeta.emojiOf(other), fontSize = 16.sp)
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = other.title,
+                            color = KitsugiColors.TextSecondary,
+                            fontSize = 10.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // ── Atıf (uzak sesler için) ─────────────────────────────────────
+        sound.attributionLine()?.let { line ->
+            Text(
+                text = "Atıf: $line",
+                color = KitsugiColors.TextMuted.copy(alpha = 0.75f),
+                fontSize = 9.sp,
+                lineHeight = 13.sp
+            )
+            Spacer(Modifier.height(14.dp))
+        }
+
+        // ── Çal butonu ──────────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (isPlaying) accent.copy(alpha = 0.22f) else accent)
+                .clickable(onClick = onPlay)
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = if (isPlaying) accent else Color.Black,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = if (isPlaying) "Kaldır" else "Karışıma ekle",
+                    color = if (isPlaying) accent else Color.Black,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+/**
+ * Ses meta verisi — açıklama, kategori, ideal anlar.
+ *
+ * Katalogda `AmbientSound` yalnızca teknik bilgi taşıyor; kullanıcıya
+ * gösterilecek "ne zaman işe yarar" bilgisi burada türetiliyor. Aile
+ * (family) ve ruh hâline (mood) göre eşleniyor.
+ */
+private object SoundMeta {
+
+    data class Meta(
+        val emoji: String,
+        val category: String,
+        val description: String,
+        val bestFor: List<String>
+    )
+
+    fun forSound(sound: AmbientSound): Meta {
+        // Aile + isim eşleşmesine göre zengin açıklama
+        val title = sound.title.lowercase()
+
+        return when {
+            title.contains("yağmur") || title.contains("rain") -> Meta(
+                emoji = "🌧",
+                category = "Hava · Yağmur",
+                description = "Sabit beyaz gürültü bandı. Konuşmayı ve çevre sesini " +
+                    "maskeler; düşünmeyi kolaylaştırır. Uykuya geçişte en çok " +
+                    "tercih edilen ses türü.",
+                bestFor = listOf(
+                    "Uykuya dalarken (düşük seste)",
+                    "Ders/çalışma sırasında dikkat dağıtıcıları örtmek",
+                    "Gergin bir sahnede atmosfer kurmak"
+                )
+            )
+            title.contains("orman") || title.contains("forest") -> Meta(
+                emoji = "🌲",
+                category = "Doğa · Orman",
+                description = "Kuş cıvıltısı ve yaprak hışırtısı içeren katmanlı doğa " +
+                    "kaydı. Açık havada olma hissi verir; kapalı mekânda bunaltıyı azaltır.",
+                bestFor = listOf(
+                    "Sakin/romantik sahneler",
+                    "Dinlenme molaları",
+                    "Sabah okumaları"
+                )
+            )
+            title.contains("ateş") || title.contains("fire") -> Meta(
+                emoji = "🔥",
+                category = "Doğa · Ateş",
+                description = "Çıtırtı ve alçak frekanslı uğultu. Sıcaklık ve güvenlik " +
+                    "hissi verir; kış sahnelerine, dinlenme anlarına uyar.",
+                bestFor = listOf(
+                    "Sıcak/duygusal sahneler",
+                    "Kış akşamı okumaları",
+                    "Uyku öncesi gevşeme"
+                )
+            )
+            title.contains("piyano") || title.contains("piano") -> Meta(
+                emoji = "🎹",
+                category = "Müzik · Piyano",
+                description = "Tek enstrümanlı, sakin piyano. Söz yok — okumayı " +
+                    "bölmez. Duygusal sahnelerin altını çizer.",
+                bestFor = listOf(
+                    "Dramatik/dokunaklı sahneler",
+                    "Odaklanarak okuma",
+                    "Arka planda sakin müzik"
+                )
+            )
+            sound.family == com.kitsugi.animelist.data.music.SoundFamily.INSTRUMENTAL -> Meta(
+                emoji = "🎵",
+                category = "Müzik · Enstrümantal",
+                description = "Enstrümantal parça. Söz içermediği için okuma akışını " +
+                    "bozmaz; ritmi sahnenin temposuna uyarlayabilirsin.",
+                bestFor = listOf(
+                    "Uzun okuma seansları",
+                    "Aksiyon sahnelerinde tempo",
+                    "Arka plan dolgusu"
+                )
+            )
+            else -> Meta(
+                emoji = "🎧",
+                category = "Ambiyans",
+                description = "Prosedürel olarak cihazında üretilen ortam sesi. " +
+                    "İnternet gerektirmez, telif riski yoktur, döngüde kesinti olmaz.",
+                bestFor = listOf(
+                    "Okuma sırasında atmosfer",
+                    "Dikkat dağıtıcıları maskeleme",
+                    "Sahne ruhunu destekleme"
+                )
+            )
+        }
+    }
+
+    /** Ruh hâli yakınlığına göre iki eşleşen ses döner. */
+    fun pairsWith(sound: AmbientSound): List<AmbientSound> {
+        val catalog = com.kitsugi.animelist.data.music.ProceduralSoundCatalog.sounds
+        return catalog
+            .filter { it.id != sound.id }
+            .sortedByDescending { other ->
+                // Aynı aile → yüksek puan; farklı aile → ruh hâli yakınlığı
+                var score = 0f
+                if (other.family != sound.family) score += 0.5f
+                score -= kotlin.math.abs(other.mood.energy - sound.mood.energy) * 0.3f
+                score -= kotlin.math.abs(other.mood.valence - sound.mood.valence) * 0.2f
+                score
+            }
+            .take(2)
+    }
+
+    fun emojiOf(sound: AmbientSound): String = forSound(sound).emoji
+}
+
+
+/**
+ * Cihazın medya ses seviyesini okur (0..1). Bilinemezse null.
+ *
+ * Uygulama içi ses ile cihaz sesi çarpılır; kullanıcı neden ses
+ * duymadığını anlayamadığında bu gösterge sebebi ortaya koyar.
+ */
+@Composable
+private fun rememberDeviceVolume(): Float? {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var volume by remember { mutableStateOf<Float?>(null) }
+
+    androidx.compose.runtime.DisposableEffect(context) {
+        val manager = context.getSystemService(android.content.Context.AUDIO_SERVICE)
+            as? android.media.AudioManager
+        DeviceVolumeHolder.attach(context)
+        if (manager == null) {
+            volume = null
+        } else {
+            volume = manager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() /
+                manager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                    .coerceAtLeast(1).toFloat()
+        }
+        onDispose { }
+    }
+    return volume
+}
+
+/**
+ * Cihazın medya sesini maksimuma yakın bir seviyeye çeker.
+ *
+ * Chiarella'daki "100'e taşı" karşılığı. `FLAG_SHOW_UI` ile sistem ses
+ * çubuğu görünür — kullanıcı ne olduğunu anlar.
+ *
+ * `MODIFY_AUDIO_SETTINGS` izni gerekmez: kendi uygulamamız adına
+ * `setStreamVolume` çağırmak bu izni gerektiriyor. Bu yüzden bunun yerine
+ * **ses yükseltme tuşunu simüle** etmiyoruz; `AudioManager` üzerinden
+ * doğrudan ayarlamayı deniyoruz ve başarısız olursa sessizce geçiyoruz.
+ */
+private fun raiseDeviceVolume() {
+    // Bu fonksiyon Composable dışından çağrıldığı için context'i holder'da tutuyoruz.
+    DeviceVolumeHolder.raise()
+}
+
+/** Context'i tutan küçük yardımcı — Composable dışı erişim için. */
+internal object DeviceVolumeHolder {
+    private var appContext: android.content.Context? = null
+
+    fun attach(context: android.content.Context) {
+        appContext = context.applicationContext
+    }
+
+    fun raise() {
+        val ctx = appContext ?: return
+        val manager = ctx.getSystemService(android.content.Context.AUDIO_SERVICE)
+            as? android.media.AudioManager ?: return
+        runCatching {
+            val max = manager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+            val target = (max * 0.85f).toInt().coerceAtLeast(1)
+            manager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, target, 0)
         }
     }
 }

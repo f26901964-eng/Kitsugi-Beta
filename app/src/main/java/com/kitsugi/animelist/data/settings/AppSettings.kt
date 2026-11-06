@@ -245,7 +245,8 @@ data class IntegrationsAndNotificationsSettings(
     val musicMasterVolume: Float = 0.8f,
     val musicChannelVolume: Float = 0.5f,
     val musicAmbientVolume: Float = 0.6f,
-    val musicContinueOnExit: Boolean = false,
+    /** Okuyucudan çıkınca ses devam etsin (ön plan servisi). Varsayılan: açık. */
+    val musicContinueOnExit: Boolean = true,
     val musicJamendoEnabled: Boolean = false,
     val musicJamendoClientId: String = "",
     val musicFreesoundEnabled: Boolean = false,
