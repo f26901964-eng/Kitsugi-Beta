@@ -89,7 +89,12 @@ import com.kitsugi.animelist.R
 @Composable
 fun TvMangaBrowseScreen(
     repository: MangaSourceRepository,
-    vm: MangaBrowseViewModel = viewModel(factory = MangaBrowseViewModel.Factory(repository)),
+    vm: MangaBrowseViewModel = viewModel(
+        factory = MangaBrowseViewModel.Factory(
+            repository = repository,
+            appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+        )
+    ),
     onMangaClick: (MangaSource, MangaDetails) -> Unit = { _, _ -> },
     onBack: () -> Unit = {}
 ) {
@@ -131,7 +136,11 @@ fun TvMangaBrowseScreen(
                 .sortedByDescending { it.second }
                 .map { it.first }
             }
-        } else popular
+        } else {
+            // Popüler modda "Tümü" seçiliyken liste boş kalmasın: kaynak yoksa tüm
+            // sonuçlar gösterilir (video keşif ekranıyla aynı davranış).
+            popular
+        }
         raw.distinctBy { "${it.source}_${it.url}" }
     }
 
@@ -280,10 +289,19 @@ fun TvMangaBrowseScreen(
                             )
                         }
                     } else {
+                        item {
+                            TvMangaSourceChip(
+                                label      = stringResource(R.string.tumu),
+                                count      = popular.size,
+                                isLoading  = ui.isLoadingPopular && selFilter == null,
+                                isSelected = selFilter == null,
+                                onClick    = { vm.selectSourceFilter(null) }
+                            )
+                        }
                         items(ui.sources) { src ->
                             TvMangaSourceChip(
                                 label      = "${src.name}  [${src.lang.uppercase()}]",
-                                count      = if (selFilter?.name == src.name) popular.size else 0,
+                                count      = popular.count { it.source.equals(src.name, ignoreCase = true) },
                                 isLoading  = selFilter?.name == src.name && ui.isLoadingPopular,
                                 isSelected = selFilter?.name == src.name,
                                 onClick    = { vm.selectSourceFilter(src) }

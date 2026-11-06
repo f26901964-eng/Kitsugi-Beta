@@ -181,7 +181,10 @@ fun AppRoot(
     val addonViewModel: AddonViewModel = viewModel()
     val mangaViewModel: MangaViewModel = viewModel()
     val mangaBrowseViewModel: MangaBrowseViewModel = viewModel(
-        factory = MangaBrowseViewModel.Factory(mangaViewModel.mangaRepository)
+        factory = MangaBrowseViewModel.Factory(
+            repository = mangaViewModel.mangaRepository,
+            appContext = context.applicationContext
+        )
     )
     val updateViewModel: AppUpdateViewModel = viewModel()
     val updateUiState by updateViewModel.uiState.collectAsState()
