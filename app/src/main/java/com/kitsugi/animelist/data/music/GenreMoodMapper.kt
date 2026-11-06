@@ -72,32 +72,89 @@ object GenreMoodMapper {
         "adventure" to MoodProfile(0.62f, 0.72f, 0.35f, 0.62f, 0.70f),
         "macera" to MoodProfile(0.62f, 0.72f, 0.35f, 0.62f, 0.70f),
         "isekai" to MoodProfile(0.55f, 0.74f, 0.28f, 0.55f, 0.72f),
+        // ── Webnovel / manhwa ekosisteminde ÇOK yaygın olanlar ──────────
+        "reincarnation" to MoodProfile(0.55f, 0.58f, 0.42f, 0.55f, 0.78f),
+        "reankarnasyon" to MoodProfile(0.55f, 0.58f, 0.42f, 0.55f, 0.78f),
+        "regression" to MoodProfile(0.58f, 0.45f, 0.55f, 0.50f, 0.78f),
+        "regresyon" to MoodProfile(0.58f, 0.45f, 0.55f, 0.50f, 0.78f),
+        "leveling" to MoodProfile(0.78f, 0.50f, 0.52f, 0.42f, 0.85f),
+        "seviye atlama" to MoodProfile(0.78f, 0.50f, 0.52f, 0.42f, 0.85f),
+        "cultivation" to MoodProfile(0.62f, 0.58f, 0.42f, 0.50f, 0.85f),
+        "murim" to MoodProfile(0.72f, 0.48f, 0.55f, 0.45f, 0.82f),
+        "gaming" to MoodProfile(0.68f, 0.62f, 0.42f, 0.45f, 0.85f),
+        "oyun dünyası" to MoodProfile(0.68f, 0.62f, 0.42f, 0.45f, 0.85f),
+        "reverse harem" to MoodProfile(0.42f, 0.72f, 0.30f, 0.70f, 0.55f),
+        "harem" to MoodProfile(0.45f, 0.72f, 0.28f, 0.65f, 0.55f),
+        "mecha" to MoodProfile(0.72f, 0.48f, 0.60f, 0.35f, 0.85f),
+        "space" to MoodProfile(0.45f, 0.45f, 0.45f, 0.32f, 0.88f),
+        "uzay" to MoodProfile(0.45f, 0.45f, 0.45f, 0.32f, 0.88f),
+        "sports" to MoodProfile(0.88f, 0.72f, 0.55f, 0.50f, 0.82f),
+        "spor" to MoodProfile(0.88f, 0.72f, 0.55f, 0.50f, 0.82f),
+        "supernatural" to MoodProfile(0.50f, 0.40f, 0.68f, 0.38f, 0.65f),
+        "doğaüstü" to MoodProfile(0.50f, 0.40f, 0.68f, 0.38f, 0.65f),
+        "vampire" to MoodProfile(0.55f, 0.28f, 0.75f, 0.35f, 0.60f),
+        "vampir" to MoodProfile(0.55f, 0.28f, 0.75f, 0.35f, 0.60f),
+        "zombie" to MoodProfile(0.65f, 0.15f, 0.88f, 0.22f, 0.60f),
+        "zombi" to MoodProfile(0.65f, 0.15f, 0.88f, 0.22f, 0.60f),
+        "apocalypse" to MoodProfile(0.60f, 0.18f, 0.85f, 0.22f, 0.60f),
+        "kıyamet" to MoodProfile(0.60f, 0.18f, 0.85f, 0.22f, 0.60f),
+        "reminiscence" to MoodProfile(0.40f, 0.50f, 0.40f, 0.60f, 0.62f),
+        "anılar" to MoodProfile(0.40f, 0.50f, 0.40f, 0.60f, 0.62f),
+        "historical" to MoodProfile(0.48f, 0.58f, 0.45f, 0.65f, 0.65f),
+        "tarihi" to MoodProfile(0.48f, 0.58f, 0.45f, 0.65f, 0.65f),
+        "tarih" to MoodProfile(0.48f, 0.58f, 0.45f, 0.65f, 0.65f),
+        "medical" to MoodProfile(0.60f, 0.55f, 0.55f, 0.55f, 0.80f),
+        "tıp" to MoodProfile(0.60f, 0.55f, 0.55f, 0.55f, 0.80f),
+        "askeri" to MoodProfile(0.82f, 0.30f, 0.80f, 0.35f, 0.72f),
+        "samurai" to MoodProfile(0.68f, 0.48f, 0.60f, 0.48f, 0.78f),
+        "samuray" to MoodProfile(0.68f, 0.48f, 0.60f, 0.48f, 0.78f),
+        "ninja" to MoodProfile(0.78f, 0.52f, 0.55f, 0.40f, 0.80f),
+        "cyberpunk" to MoodProfile(0.68f, 0.42f, 0.68f, 0.30f, 0.85f),
+        "dystopia" to MoodProfile(0.55f, 0.25f, 0.80f, 0.28f, 0.68f),
+        "distopya" to MoodProfile(0.55f, 0.25f, 0.80f, 0.28f, 0.68f),
+        "post-apocalyptic" to MoodProfile(0.58f, 0.22f, 0.82f, 0.25f, 0.62f),
+        "yaşam dilimi" to MoodProfile(0.22f, 0.74f, 0.10f, 0.74f, 0.75f),
+        "philosophical" to MoodProfile(0.35f, 0.40f, 0.50f, 0.45f, 0.75f),
+        "felsefi" to MoodProfile(0.35f, 0.40f, 0.50f, 0.45f, 0.75f),
+        "crime" to MoodProfile(0.55f, 0.25f, 0.80f, 0.35f, 0.68f),
+        "suç" to MoodProfile(0.55f, 0.25f, 0.80f, 0.35f, 0.68f),
+        "detective" to MoodProfile(0.50f, 0.35f, 0.72f, 0.40f, 0.78f),
+        "dedektif" to MoodProfile(0.50f, 0.35f, 0.72f, 0.40f, 0.78f),
+        "cinayet" to MoodProfile(0.50f, 0.20f, 0.85f, 0.30f, 0.65f),
+        "intikam" to MoodProfile(0.70f, 0.22f, 0.82f, 0.30f, 0.65f),
+        "revenge" to MoodProfile(0.70f, 0.22f, 0.82f, 0.30f, 0.65f),
+        "betrayal" to MoodProfile(0.55f, 0.18f, 0.82f, 0.30f, 0.62f),
+        "ihanet" to MoodProfile(0.55f, 0.18f, 0.82f, 0.30f, 0.62f),
+        "delinquents" to MoodProfile(0.65f, 0.50f, 0.55f, 0.45f, 0.62f),
+        "kabadayı" to MoodProfile(0.65f, 0.50f, 0.55f, 0.45f, 0.62f),
+        "gangster" to MoodProfile(0.65f, 0.30f, 0.75f, 0.38f, 0.62f),
+        "mafya" to MoodProfile(0.65f, 0.30f, 0.75f, 0.38f, 0.62f),
+        "yaoi" to MoodProfile(0.35f, 0.72f, 0.28f, 0.75f, 0.55f),
+        "yuri" to MoodProfile(0.35f, 0.72f, 0.28f, 0.75f, 0.55f),
+        "shounen ai" to MoodProfile(0.38f, 0.70f, 0.28f, 0.70f, 0.58f),
+        "shoujo ai" to MoodProfile(0.38f, 0.70f, 0.28f, 0.70f, 0.58f),
+        "girls love" to MoodProfile(0.35f, 0.72f, 0.28f, 0.75f, 0.55f),
+        "boys love" to MoodProfile(0.35f, 0.72f, 0.28f, 0.75f, 0.55f),
+        "ecchi" to MoodProfile(0.55f, 0.72f, 0.28f, 0.60f, 0.45f),
+        "mature" to MoodProfile(0.50f, 0.30f, 0.65f, 0.45f, 0.55f),
+        "olgun" to MoodProfile(0.50f, 0.30f, 0.65f, 0.45f, 0.55f),
+        "adult" to MoodProfile(0.50f, 0.30f, 0.65f, 0.45f, 0.55f),
+        "music" to MoodProfile(0.45f, 0.76f, 0.22f, 0.72f, 0.72f),
+        "müzik" to MoodProfile(0.45f, 0.76f, 0.22f, 0.72f, 0.72f),
+        "school life" to MoodProfile(0.35f, 0.72f, 0.28f, 0.70f, 0.80f),
+        "okul hayatı" to MoodProfile(0.35f, 0.72f, 0.28f, 0.70f, 0.80f),
+        "gore" to MoodProfile(0.55f, 0.10f, 0.90f, 0.25f, 0.55f),
         "magic" to MoodProfile(0.52f, 0.72f, 0.30f, 0.65f, 0.72f),
         "büyü" to MoodProfile(0.52f, 0.72f, 0.30f, 0.65f, 0.72f),
-        "historical" to MoodProfile(0.40f, 0.55f, 0.35f, 0.75f, 0.80f),
-        "tarihi" to MoodProfile(0.40f, 0.55f, 0.35f, 0.75f, 0.80f),
-        "samurai" to MoodProfile(0.60f, 0.45f, 0.55f, 0.62f, 0.72f),
-        "supernatural" to MoodProfile(0.45f, 0.35f, 0.65f, 0.35f, 0.75f),
-        "doğaüstü" to MoodProfile(0.45f, 0.35f, 0.65f, 0.35f, 0.75f),
 
         // ── Bilim Kurgu ───────────────────────────────────────────────────
         "sci-fi" to MoodProfile(0.50f, 0.45f, 0.42f, 0.15f, 0.80f),
         "sci fi" to MoodProfile(0.50f, 0.45f, 0.42f, 0.15f, 0.80f),
         "bilim kurgu" to MoodProfile(0.50f, 0.45f, 0.42f, 0.15f, 0.80f),
-        "mecha" to MoodProfile(0.72f, 0.48f, 0.55f, 0.20f, 0.68f),
-        "cyberpunk" to MoodProfile(0.62f, 0.35f, 0.60f, 0.15f, 0.75f),
-        "space" to MoodProfile(0.35f, 0.45f, 0.35f, 0.10f, 0.90f),
-        "uzay" to MoodProfile(0.35f, 0.45f, 0.35f, 0.10f, 0.90f),
-        "post-apocalyptic" to MoodProfile(0.50f, 0.25f, 0.70f, 0.25f, 0.75f),
 
         // ── Spor ──────────────────────────────────────────────────────────
-        "sports" to MoodProfile(0.95f, 0.72f, 0.58f, 0.40f, 0.60f),
-        "spor" to MoodProfile(0.95f, 0.72f, 0.58f, 0.40f, 0.60f),
 
         // ── Diğer ─────────────────────────────────────────────────────────
-        "ecchi" to MoodProfile(0.50f, 0.78f, 0.25f, 0.80f, 0.75f),
-        "harem" to MoodProfile(0.55f, 0.80f, 0.20f, 0.82f, 0.72f),
-        "mature" to MoodProfile(0.45f, 0.30f, 0.60f, 0.45f, 0.80f),
         "yetiskin" to MoodProfile(0.45f, 0.30f, 0.60f, 0.45f, 0.80f),
         "one shot" to MoodProfile(0.30f, 0.55f, 0.25f, 0.60f, 0.88f),
         "webtoon" to MoodProfile(0.50f, 0.60f, 0.35f, 0.55f, 0.80f),
@@ -162,11 +219,20 @@ object GenreMoodMapper {
     /**
      * Tür adını normalize eder: küçük harf, kırpma, fazla boşluk temizliği.
      */
+    /**
+     * Tür adını eşleştirme için normalize eder.
+     *
+     * **Not:** çağıran taraf (`ContentMoodResolver`) tür adını **önce
+     * İngilizceye çevirir**. Bu yüzden burada Türkçe/Kiril/Arap harf
+     * dönüşümü YAPILMAZ — yapılırsa o dillerdeki etiketler bozulur.
+     * Yalnızca boşluk/ayraç normalizasyonu.
+     */
     fun normalize(raw: String): String = raw
         .trim()
         .lowercase()
         .replace(Regex("\\s+"), " ")
         .replace("_", " ")
+        .replace("-", " ")
 
     /**
      * Tek bir türün profilini döndürür (yoksa null).

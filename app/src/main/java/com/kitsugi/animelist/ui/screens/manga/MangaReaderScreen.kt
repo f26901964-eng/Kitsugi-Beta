@@ -146,7 +146,8 @@ fun MangaReaderScreen(
     val musicChannels by musicEngine.channels.collectAsState()
 
     // ─── Çevrimiçi katalog deposu ──────────────────────────────────────────
-    val musicCatalog = remember { MusicCatalogRepository() }
+    // Singleton: kaynak aç/kapa tercihleri sayfalar arasında korunur
+    val musicCatalog = remember { MusicCatalogRepository.get() }
     val readerScope = scope
     val onlineResults by musicCatalog.results.collectAsState()
     val onlineSearching by musicCatalog.isSearching.collectAsState()
@@ -231,8 +232,19 @@ fun MangaReaderScreen(
     // bir şey çalıyorsa dokunulmaz).
     var autoPlayHandled by remember(mangaDetails.url) { mutableStateOf(false) }
 
+    // Kullanıcı ayarı KAPATIP AÇARSA yeniden denensin
+    LaunchedEffect(readerAppSettings.musicAutoPlay) {
+        if (!readerAppSettings.musicAutoPlay) autoPlayHandled = false
+    }
+
+    // ⚠️ AKIŞ KORUMASI: `currentChapter.url` burada ANAHTAR DEĞİL.
+    //
+    // Bölüm değişince LaunchedEffect yeniden çalışır ve yeni bir `delay`
+    // başlar; kullanıcı hızlıca 3 bölüm geçerse 3 ayrı gecikmeli iş
+    // birikir. AutoPlay zaten bölüm bağımsız (aynı manga okunuyor), bu
+    // yüzden yalnızca manga + ayarlar anahtar:
     LaunchedEffect(
-        currentChapter.url,
+        mangaDetails.url,
         readerAppSettings.musicEnabled,
         readerAppSettings.musicAutoPlay
     ) {
@@ -253,7 +265,9 @@ fun MangaReaderScreen(
 
         val recommendation = MusicRecommendationEngine.recommend(
             genres = mangaDetails.genre,
-            pool = ProceduralSoundCatalog.sounds
+            pool = ProceduralSoundCatalog.sounds,
+            title = mangaDetails.title,
+            description = mangaDetails.description
         )
 
         val targetVolume = readerAppSettings.musicAutoPlayVolume.coerceIn(0.05f, 1f)
@@ -275,10 +289,12 @@ fun MangaReaderScreen(
     }
 
     // Manga türünden öneri üret — yalnızca tür değişince yeniden hesaplanır
-    val musicRecommendations = remember(mangaDetails.genre) {
+    val musicRecommendations = remember(mangaDetails.genre, mangaDetails.description) {
         MusicRecommendationEngine.recommend(
             genres = mangaDetails.genre,
-            pool = ProceduralSoundCatalog.sounds
+            pool = ProceduralSoundCatalog.sounds,
+            title = mangaDetails.title,
+            description = mangaDetails.description
         )
     }
 
@@ -761,7 +777,26 @@ fun MangaReaderScreen(
                     readerScope.launch { readerSettingsStore.setMusicAutoPlay(enabled) }
                 },
                 autoPlayDelaySeconds = readerAppSettings.musicAutoPlayDelaySeconds,
-                onToggleSource = { sourceId -> musicCatalog.toggleSource(sourceId) },
+                onToggleSource = { sourceId ->
+                    musicCatalog.toggleSource(sourceId)
+                    // Kalıcılaştır: uygulama kapanınca tercih korunsun
+                    val nowEnabled = musicCatalog.enabledOverride(sourceId) ?: true
+                    readerScope.launch {
+                        when (sourceId) {
+                            com.kitsugi.animelist.data.music.MusicSourceId.JAMENDO ->
+                                readerSettingsStore.setMusicJamendoEnabled(nowEnabled)
+                            com.kitsugi.animelist.data.music.MusicSourceId.FREESOUND ->
+                                readerSettingsStore.setMusicFreesoundEnabled(nowEnabled)
+                            com.kitsugi.animelist.data.music.MusicSourceId.OPENVERSE ->
+                                readerSettingsStore.setMusicOpenverseEnabled(nowEnabled)
+                            com.kitsugi.animelist.data.music.MusicSourceId.ARCHIVE ->
+                                readerSettingsStore.setMusicArchiveEnabled(nowEnabled)
+                            com.kitsugi.animelist.data.music.MusicSourceId.AUDIUS ->
+                                readerSettingsStore.setMusicAudiusEnabled(nowEnabled)
+                            else -> Unit
+                        }
+                    }
+                },
                 downloadedIds = downloadedIds,
                 downloadProgress = downloadProgress,
                 onDownloadSound = { sound ->

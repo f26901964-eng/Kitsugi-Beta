@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -461,32 +462,54 @@ private fun ForYouTab(
             .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
-        val genreLabel = recommendations.detectedGenres
-            .takeIf { it.isNotEmpty() }
-            ?.joinToString(", ")
-            ?: "Nötr başlangıç"
+        // ── Eşleşme gerekçesi + güven ───────────────────────────────────
+        // Dürüstlük: güven düşükse "tahmin" diyoruz. Sessizce rastgele
+        // öneri yapmak kullanıcının sisteme güvenini bitirir.
+        val conf = recommendations.confidence
+        val confLabel = when (conf) {
+            com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.HIGH -> "türden"
+            com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.MEDIUM -> "etiketten"
+            com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.LOW -> "açıklamadan"
+            com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.NONE -> "tahmin"
+        }
+        val reasonText = recommendations.reason.ifBlank {
+            if (conf == com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.NONE)
+                "İçerik türü tanınmadı — dengeli başlangıç"
+            else "İçeriğe göre"
+        }
+        val reasonColor = if (conf == com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.NONE)
+            Color(0xFFFBBF24) else accent
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
-                .background(accent.copy(alpha = 0.10f))
+                .background(reasonColor.copy(alpha = 0.10f))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Rounded.GraphicEq,
+                imageVector = if (conf == com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.NONE)
+                    Icons.Rounded.HelpOutline else Icons.Rounded.GraphicEq,
                 contentDescription = null,
-                tint = accent,
+                tint = reasonColor,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text(
-                text = "$genreLabel türüne göre önerildi",
-                color = KitsugiColors.TextSecondary,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = reasonText,
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "eşleşme: $confLabel",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 9.sp
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))

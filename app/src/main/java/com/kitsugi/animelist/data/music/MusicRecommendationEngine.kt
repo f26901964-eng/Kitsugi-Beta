@@ -36,25 +36,43 @@ object MusicRecommendationEngine {
      * @param soundLimit Döndürülecek ses önerisi sayısı
      * @param presetLimit Döndürülecek preset önerisi sayısı
      */
+    /**
+     * İçeriğe göre öneri üretir.
+     *
+     * **Üç katmanlı sinyal:** tür → etiket → açıklama. Açıklama ve başlık
+     * parametreleri opsiyoneldir; verilmezse yalnızca türler kullanılır
+     * (eski davranış korunur).
+     *
+     * Hiçbir sinyal eşleşmezse `confidence = NONE` döner ve panel bunu
+     * kullanıcıya söyler — sessizce rastgele öneri yapmaz.
+     */
     fun recommend(
         genres: List<String>,
         pool: List<AmbientSound> = ProceduralSoundCatalog.sounds,
         presetPool: List<AtmospherePreset> = AtmospherePresets.presets,
         soundLimit: Int = 6,
-        presetLimit: Int = 6
+        presetLimit: Int = 6,
+        title: String? = null,
+        description: String? = null
     ): RecommendationResult {
-        val mapping = GenreMoodMapper.map(genres)
-        val mood = mapping.mood
-        val detected = mapping.genres.toSet()
+        val resolved = ContentMoodResolver.resolve(
+            genres = genres,
+            title = title,
+            description = description
+        )
+        val mood = resolved.mood
+        val detected = resolved.matchedGenres.toSet()
 
         val soundRecs = rankSounds(pool, mood, detected, soundLimit)
         val presetRecs = rankPresets(presetPool, mood, detected, presetLimit)
 
         return RecommendationResult(
             mood = mood,
-            detectedGenres = mapping.genres,
+            detectedGenres = resolved.matchedGenres,
             sounds = soundRecs,
-            presets = presetRecs
+            presets = presetRecs,
+            reason = resolved.reason,
+            confidence = resolved.confidence
         )
     }
 

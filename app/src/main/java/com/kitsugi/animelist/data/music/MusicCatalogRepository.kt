@@ -32,6 +32,22 @@ class MusicCatalogRepository(
     companion object {
         private const val TAG = "MusicCatalogRepository"
 
+        /**
+         * Süreç genelinde tek örnek.
+         *
+         * **Neden:** kullanıcının açtığı/kapattığı kaynaklar `remember` ile
+         * ekran başına yaşarsa, başka bir mangaya geçince sıfırlanır —
+         * Freesound'u kapatan kullanıcı yeni mangada açık bulur. Ayrıca
+         * son arama sonuçları da kaybolur.
+         */
+        @Volatile
+        private var instance: MusicCatalogRepository? = null
+
+        fun get(): MusicCatalogRepository =
+            instance ?: synchronized(this) {
+                instance ?: MusicCatalogRepository().also { instance = it }
+            }
+
         /** Günlük istek sayacı — kota takibi için. */
         private const val QUOTA_OPENVERSE = 200
         private const val QUOTA_FREESOUND = 2_000
@@ -71,6 +87,8 @@ class MusicCatalogRepository(
     fun syncSettings(settings: AppSettings) {
         _sources.update { current ->
             current.map { state ->
+                // Kullanıcı bu kaynağı panelden değiştirdiyse ayar onu ezmesin
+                if (state.def.id in overridden) return@map state
                 when (state.def.id) {
                     MusicSourceId.BUILTIN -> state.copy(enabled = true, keyConfigured = true)
                     MusicSourceId.JAMENDO -> state.copy(
@@ -108,9 +126,33 @@ class MusicCatalogRepository(
      */
     fun toggleSource(sourceId: MusicSourceId) {
         if (sourceId == MusicSourceId.BUILTIN) return
+        overridden += sourceId
         _sources.update { list ->
             list.map { if (it.def.id == sourceId) it.copy(enabled = !it.enabled) else it }
         }
+    }
+
+    /**
+     * Kullanıcının **anlık** kaynak tercihini döndürür.
+     *
+     * `null` = bu kaynağın tercihi henüz değiştirilmedi, ayardaki değer
+     * geçerli. UI bunu kalıcılaştırmak için kullanır (DataStore'a yazar).
+     */
+    fun enabledOverride(sourceId: MusicSourceId): Boolean? =
+        _sources.value.firstOrNull { it.def.id == sourceId }?.enabled
+
+    /**
+     * Ayarlardan gelen değeri uygular **ama** kullanıcının oturum içinde
+     * yaptığı değişikliği ezmez.
+     *
+     * Eskiden her `syncSettings` çağrısı kaynak durumlarını ayardan
+     * yeniden yazıyordu; kullanıcı panelde kapattığı kaynağı ayar
+     * akışı yenilendiğinde tekrar açık buluyordu.
+     */
+    private val overridden = mutableSetOf<MusicSourceId>()
+
+    fun markOverridden(sourceId: MusicSourceId) {
+        overridden += sourceId
     }
 
     /** Kullanılabilir (etkin + gerekiyorsa anahtarı var) kaynaklar. */

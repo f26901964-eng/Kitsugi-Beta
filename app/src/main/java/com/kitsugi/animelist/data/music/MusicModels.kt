@@ -366,7 +366,11 @@ data class RecommendationResult(
     val mood: MoodProfile,
     val detectedGenres: List<String>,
     val sounds: List<MusicRecommendation>,
-    val presets: List<MusicRecommendation>
+    val presets: List<MusicRecommendation>,
+    /** Kullanıcıya gösterilen eşleşme gerekçesi ("romance, drama türüne göre"). */
+    val reason: String = "",
+    /** Eşleşme güveni — düşükse öneri "tahmin"dir, bunu gizlemiyoruz. */
+    val confidence: ContentMoodResolver.Confidence = ContentMoodResolver.Confidence.NONE
 ) {
     val isEmpty: Boolean get() = sounds.isEmpty() && presets.isEmpty()
 }
