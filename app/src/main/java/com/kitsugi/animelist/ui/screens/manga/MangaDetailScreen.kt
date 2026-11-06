@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -35,6 +36,8 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -86,6 +89,8 @@ fun MangaDetailScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
     val details = uiState.details
+    /** Birden fazla çevirmeni olan bölüm grubu; doluysa çevirmen seçim penceresi açılır. */
+    var pickerGroup by remember { mutableStateOf<MangaDetailViewModel.ChapterGroup?>(null) }
     // Fandom Wiki: eklenti kaynağında kimlik yoktur; seri başlığıyla (isim yolu) çözülür.
     val wikiViewModel: FandomMediaWikiViewModel = viewModel(key = "fandom_manga_${source.name}_${mangaDetails.url}")
     val wikiQuery = remember(details.title) {
@@ -164,7 +169,7 @@ fun MangaDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
+                        text = stringResource(R.string.bolumler) + if (uiState.groups.isNotEmpty()) " (${uiState.groups.size})" else "",
                         color = KitsugiColors.TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
@@ -216,16 +221,35 @@ fun MangaDetailScreen(
                 }
 
                 else -> items(
-                    items = uiState.chapters,
-                    key = { it.chapter.url }
-                ) { row ->
-                    ChapterListItem(
-                        row = row,
+                    items = uiState.groups,
+                    key = { it.key }
+                ) { group ->
+                    ChapterGroupListItem(
+                        group = group,
                         accent = accent,
-                        onClick = { onOpenChapter(row.chapter) }
+                        onClick = {
+                            if (group.isMultiple) {
+                                pickerGroup = group
+                            } else {
+                                onOpenChapter(group.variants.first().chapter)
+                            }
+                        }
                     )
                 }
             }
+        }
+
+        // ─── Çevirmen Seçim Penceresi ──────────────────────────────────────────
+        pickerGroup?.let { group ->
+            ChapterTranslatorPickerSheet(
+                group = group,
+                accent = accent,
+                onDismiss = { pickerGroup = null },
+                onPick = { row ->
+                    pickerGroup = null
+                    onOpenChapter(row.chapter)
+                }
+            )
         }
 
         // ─── Geri Butonu (üstte sabit) ─────────────────────────────────────────
@@ -359,6 +383,116 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
                     )
                 }
             }
+        }
+    }
+}
+
+/** Aynı bölüm numarasının tüm çevirmenlerini listeler; birini seçince okuyucu açılır. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ChapterTranslatorPickerSheet(
+    group: MangaDetailViewModel.ChapterGroup,
+    accent: Color,
+    onDismiss: () -> Unit,
+    onPick: (MangaDetailViewModel.ChapterRow) -> Unit
+) {
+    KitsugiSheetOrDialog(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = group.title,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "${group.variants.size} çevirmen — okumak istediğini seç",
+                color = KitsugiColors.TextMuted,
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            group.variants.forEach { row ->
+                ChapterListItem(
+                    row = row,
+                    accent = accent,
+                    onClick = { onPick(row) }
+                )
+            }
+        }
+    }
+}
+
+/** Bölüm numarasına göre gruplanmış satır. Birden fazla çevirmen varsa bunu belirtir. */
+@Composable
+private fun ChapterGroupListItem(
+    group: MangaDetailViewModel.ChapterGroup,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    val inProgressRow = group.variants.firstOrNull { it.isInProgress }
+    val translators = group.variants
+        .map { it.chapter.scanlator?.takeIf { s -> s.isNotBlank() } ?: "Bilinmeyen" }
+        .distinct()
+        .joinToString(", ")
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .tvClickable(shape = RoundedCornerShape(8.dp)) { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = group.title,
+                color = if (group.isCompleted) KitsugiColors.TextMuted else KitsugiColors.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = if (inProgressRow != null) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            val subtitle = when {
+                inProgressRow != null && inProgressRow.totalPages > 0 ->
+                    "Sayfa ${inProgressRow.lastPageIndex + 1}/${inProgressRow.totalPages}" +
+                        (inProgressRow.chapter.scanlator?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
+                group.isMultiple -> translators
+                else -> group.variants.first().chapter.scanlator ?: ""
+            }
+            if (subtitle.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    color = if (inProgressRow != null) accent else KitsugiColors.TextMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (group.isMultiple) {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "${group.variants.size} çeviri",
+                color = accent,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        if (group.isCompleted) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Rounded.CheckCircle,
+                contentDescription = stringResource(R.string.okundu),
+                tint = KitsugiColors.AccentGreen.copy(0.8f),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
