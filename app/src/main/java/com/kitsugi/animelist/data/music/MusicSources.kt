@@ -29,7 +29,7 @@ object MusicSources {
             keyless = false,
             nonCommercialOnly = true,
             keyHint = "devportal.jamendo.com → Create App → Client ID",
-            signupUrl = "https://devportal.jamendo.com/",
+            signupUrl = "https://devportal.jamendo.com/signup",
             notes = "Kişisel anahtarınla ayda 35.000 istek. Parçaları yalnızca AKIŞ olarak dinletebilirsin; " +
                 "indirme/önbelleğe alma API şartlarına aykırıdır. Sanatçı ve Jamendo atfı zorunludur."
         ),
@@ -41,7 +41,7 @@ object MusicSources {
             keyless = false,
             nonCommercialOnly = true,
             keyHint = "freesound.org/apiv2/apply → API key",
-            signupUrl = "https://freesound.org/apiv2/apply",
+            signupUrl = "https://freesound.org/apiv2/apply/",
             notes = "Ortam kayıtları ve doğa sesleri. Kişisel anahtarınla dakikada 60, günde 2.000 istek. " +
                 "Her sesin kendi CC lisansı vardır; atıf bilgisi otomatik gösterilir."
         ),
@@ -51,11 +51,12 @@ object MusicSources {
             displayName = "Openverse",
             requiresApiKey = false,
             keyless = true,
+            optionalKey = true,
             nonCommercialOnly = false,
-            keyHint = "Anahtar gerekmez — istersen kayıt olup limiti yükselt",
-            signupUrl = "https://api.openverse.org/v1/#tag/authentication",
+            keyHint = "Anahtar gerekmez — OAuth2 client_id girilirse limit 500 kat artar",
+            signupUrl = "https://api.openverse.org/v1/auth_tokens/register/",
             notes = "CC0 ve CC-BY lisanslı açık ses arşivi. Anahtarsız dakikada 20, günde 200 istek. " +
-                "Kayıt olup kendi token'ını girerek limiti yükseltebilirsin."
+                "OAuth2 uygulaması kaydedip client_id girilirse limit dakikada 100, günde 10.000'e çıkar."
         ),
 
         MusicSourceDef(
@@ -74,10 +75,12 @@ object MusicSources {
             id = MusicSourceId.AUDIUS,
             displayName = "Audius",
             requiresApiKey = true,
-            keyless = false,
+            // Anahtarsız da çalışır (app_name yeterli); anahtar yalnızca limit artırır
+            keyless = true,
+            optionalKey = true,
             nonCommercialOnly = false,
             keyHint = "audius.co/settings → API Keys (anahtarsız da denenebilir)",
-            signupUrl = "https://audius.co/settings",
+            signupUrl = "https://audius.co/settings", // → Developer Apps bölümü
             notes = "Merkeziyetsiz müzik platformu. Anahtar opsiyoneldir; kayıtla daha yüksek limit alırsın. " +
                 "İçerik kullanıcı yüklemesidir, parça bazlı lisans kontrolü önerilir."
         )

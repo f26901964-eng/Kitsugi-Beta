@@ -299,6 +299,15 @@ data class MusicSourceDef(
     val requiresClientId: Boolean = false,
     val requiresApiKey: Boolean = true,
     val keyless: Boolean = false,
+    /**
+     * Anahtar **zorunlu değil, opsiyonel**.
+     *
+     * Openverse ve Audius anahtarsız çalışır; anahtar yalnızca kota/limit
+     * yükseltir. `keyless` ile farkı: `keyless = true` kaynak için anahtar
+     * alanı anlamsızdır (Archive), `optionalKey = true` ise anahtar alanı
+     * gösterilir ve "isteğe bağlı" denir.
+     */
+    val optionalKey: Boolean = false,
     val nonCommercialOnly: Boolean = false,
     val keyHint: String = "",
     val signupUrl: String = "",

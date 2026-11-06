@@ -16,6 +16,8 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Image
@@ -27,6 +29,9 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.*
@@ -1659,15 +1664,20 @@ private fun MusicSourceKeyItem(
     Column(modifier = Modifier.fillMaxWidth()) {
         KitsugiSettingsSwitchItem(
             title = def.displayName,
-            description = if (def.keyless) stringResource(R.string.music_source_keyless_note)
-            else stringResource(R.string.music_source_key_hint) + " " + def.signupUrl,
+            description = when {
+                def.optionalKey -> "İsteğe bağlı — anahtarsız da çalışır, anahtar limiti artırır"
+                def.keyless -> stringResource(R.string.music_source_keyless_note)
+                else -> stringResource(R.string.music_source_key_hint)
+            },
             icon = Icons.Rounded.Key,
             iconColor = accentColor,
             checked = enabled,
             onCheckedChange = onEnabledChanged
         )
 
-        if (enabled) {
+        // Anahtar alanı: zorunlu VEYA opsiyonel kaynaklarda gösterilir.
+        // Yalnızca gerçekten anahtarsız kaynaklarda (Archive) gizlenir.
+        if (enabled && (!def.keyless || def.optionalKey)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1681,7 +1691,11 @@ private fun MusicSourceKeyItem(
                     },
                     label = {
                         Text(
-                            if (def.requiresClientId) "Client ID" else "API Key"
+                            when {
+                                def.requiresClientId -> "Client ID"
+                                def.optionalKey -> "API Key (isteğe bağlı)"
+                                else -> "API Key"
+                            }
                         )
                     },
                     placeholder = { Text(def.keyHint) },
@@ -1732,6 +1746,18 @@ private fun MusicSourceKeyItem(
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                // ── Anahtar edinme yardımı ──────────────────────────────
+                // "API Key nedir, nereden alınır?" sorusunu yanıtlar.
+                // Kullanıcı uygulamadan çıkmadan siteye gider.
+                // Anahtar alanı olan her kaynakta yardım kartı gösterilir
+                if (!def.keyless || def.optionalKey) {
+                    ApiKeyHelpCard(
+                        def = def,
+                        accentColor = accentColor
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
 
                 OutlinedButton(
                     onClick = {
@@ -1809,4 +1835,306 @@ private fun MusicKeylessSourceItem(
             onCheckedChange = onEnabledChanged
         )
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  API ANAHTARI EDİNME YARDIMI
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🔑 "Anahtarım yok, nereden alacağım?"
+ *
+ * Sorun: kullanıcı ekranda "API Key" alanı görüyor ama anahtarı yok.
+ * Önceden yalnızca ham bir URL metni vardı — kopyalamak/taramak
+ * gerekiyordu ve çoğu kişi bu adımda vazgeçiyordu.
+ *
+ * Çözüm: üç katmanlı yardım
+ *  1. **"Anahtar al" butonu** → tarayıcıda doğrudan ilgili sayfa açılır
+ *  2. **Adım adım talimat** → 1-2-3 numaralı, o kaynağa özel
+ *  3. **Nasıl görünür** → anahtarın biçimi (uzunluk/ön ek) ki kullanıcı
+ *     yanlış şeyi kopyalamadığını anlasın
+ *
+ * Ayrıca "anahtar gerekmez" durumu ve süre/limit bilgisi de burada.
+ */
+@Composable
+private fun ApiKeyHelpCard(
+    def: com.kitsugi.animelist.data.music.MusicSourceDef,
+    accentColor: Color
+) {
+    // Kullanıcı adımları isterse açar — varsayılan kapalı, yer kaplamasın
+    var expanded by remember { mutableStateOf(false) }
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val guide = remember(def.id) { ApiKeyGuide.of(def.id) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(accentColor.copy(alpha = 0.08f))
+            .padding(12.dp)
+    ) {
+        // ── Başlık + ana buton ──────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Rounded.Key,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Anahtarın yok mu?",
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = guide.freeNote,
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 9.sp,
+                    lineHeight = 12.sp
+                )
+            }
+        }
+
+        Spacer(Modifier.height(9.dp))
+
+        // ── Butonlar ────────────────────────────────────────────────────
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (def.signupUrl.isNotBlank()) {
+                // ANA BUTON: siteye git
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(accentColor)
+                        .clickable {
+                            runCatching { uriHandler.openUri(def.signupUrl) }
+                                .onFailure {
+                                    // Tarayıcı yoksa panoya kopyala
+                                    val clipboard = context.getSystemService(
+                                        android.content.Context.CLIPBOARD_SERVICE
+                                    ) as? android.content.ClipboardManager
+                                    clipboard?.setPrimaryClip(
+                                        android.content.ClipData.newPlainText(
+                                            "Kitsugi anahtar adresi",
+                                            def.signupUrl
+                                        )
+                                    )
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Adres panoya kopyalandı",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                        }
+                        .padding(vertical = 9.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.OpenInNew,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = guide.actionLabel,
+                        color = Color.Black,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // İkincil: adım adım anlat
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(accentColor.copy(alpha = 0.16f))
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.ExpandLess
+                    else Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = "Nasıl?",
+                    color = accentColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        // ── Adım adım talimat ───────────────────────────────────────────
+        if (expanded) {
+            Spacer(Modifier.height(10.dp))
+            guide.steps.forEachIndexed { index, step ->
+                Row(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 1.dp)
+                            .size(15.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.22f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${index + 1}",
+                            color = accentColor,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = step,
+                        color = KitsugiColors.TextSecondary,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            // Anahtar biçimi — yanlış şeyi kopyalamayı önler
+            Text(
+                text = "Biçim: ${guide.formatHint}",
+                color = KitsugiColors.TextMuted,
+                fontSize = 9.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            // Adresi elle kopyalamak isteyenler için (düşük kontrast, küçük)
+            Text(
+                text = def.signupUrl,
+                color = KitsugiColors.TextMuted.copy(alpha = 0.6f),
+                fontSize = 8.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable {
+                        val clipboard = context.getSystemService(
+                            android.content.Context.CLIPBOARD_SERVICE
+                        ) as? android.content.ClipboardManager
+                        clipboard?.setPrimaryClip(
+                            android.content.ClipData.newPlainText("adres", def.signupUrl)
+                        )
+                        android.widget.Toast.makeText(
+                            context, "Adres kopyalandı", android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    .padding(vertical = 2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Kaynağa özel anahtar edinme rehberi.
+ *
+ * Her kaynağın arayüzü farklı olduğu için talimatlar ayrı yazılmalı.
+ * Genel bir "siteye git, kayıt ol" metni işe yaramaz.
+ */
+private object ApiKeyGuide {
+
+    data class Guide(
+        val actionLabel: String,
+        val freeNote: String,
+        val steps: List<String>,
+        val formatHint: String
+    )
+
+    fun of(sourceId: com.kitsugi.animelist.data.music.MusicSourceId): Guide =
+        when (sourceId) {
+
+            // ── Jamendo ─────────────────────────────────────────────────
+            // Doğrulandı: devportal.jamendo.com/signup → Create App →
+            // "Client ID" (Client Secret DEĞİL — o OAuth2 için)
+            com.kitsugi.animelist.data.music.MusicSourceId.JAMENDO -> Guide(
+                actionLabel = "Jamendo'da anahtar al",
+                freeNote = "Ücretsiz · ayda 35.000 istek · ticari olmayan",
+                steps = listOf(
+                    "Butona dokun → Jamendo geliştirici portalı açılır",
+                    "Hesabınla giriş yap (yoksa 'Sign up')",
+                    "Jamendo API Kullanım Şartları'nı kabul et",
+                    "'Create App' → ad: Kitsugi, açıklama: kişisel kullanım",
+                    "Uygulama sayfasında **Client ID**'yi kopyala",
+                    "Buraya yapıştır → 'Doğrula'"
+                ),
+                formatHint = "32 karakter sayı-harf. Client Secret DEĞİL, Client ID."
+            )
+
+            // ── Freesound ───────────────────────────────────────────────
+            // Doğrulandı: freesound.org/apiv2/apply → form → anahtar
+            // ANINDA görünür, onay beklemesi YOK
+            com.kitsugi.animelist.data.music.MusicSourceId.FREESOUND -> Guide(
+                actionLabel = "Freesound'da anahtar al",
+                freeNote = "Ücretsiz · günde 2.000 istek · anahtar anında verilir",
+                steps = listOf(
+                    "Butona dokun → freesound.org API sayfası açılır",
+                    "Ücretsiz hesap aç veya giriş yap (hesap yoksa önce kayıt)",
+                    "Formu doldur: uygulama adı 'Kitsugi', kısa açıklama",
+                    "Kullanım şartlarını işaretle",
+                    "'Apply for a new credential' düğmesine bas",
+                    "Sayfada tablo çıkar — 'Client secret / API key' sütunundaki değeri kopyala",
+                    "Buraya yapıştır → 'Doğrula'"
+                ),
+                formatHint = "~24 karakter harf-rakam. Onay beklemez, anında oluşur."
+            )
+
+            // ── Audius ──────────────────────────────────────────────────
+            // Doğrulandı: audius.co/settings → Developer Apps
+            // Anahtarsız da çalışır, sadece limit artar
+            com.kitsugi.animelist.data.music.MusicSourceId.AUDIUS -> Guide(
+                actionLabel = "Audius'ta anahtar al",
+                freeNote = "Anahtar OPSİYONEL — anahtarsız da çalışır",
+                steps = listOf(
+                    "⚠️ Anahtar gerekmiyor: Audius anahtarsız çalışır",
+                    "Daha yüksek limit için butona dokun",
+                    "Audius hesabına giriş yap (yoksa kayıt ol)",
+                    "Ayarlar → **Developer Apps** bölümüne in",
+                    "'Create new app' → ad: Kitsugi",
+                    "Oluşan **API Key**'i kopyala (API Secret'ı değil)",
+                    "Buraya yapıştır → 'Doğrula'"
+                ),
+                formatHint = "uzun harf-rakam dizisi. Yalnızca API Key; Secret'ı verme."
+            )
+
+            // ── Openverse ───────────────────────────────────────────────
+            // Doğrulandı: OAuth2 client_id + client_secret → Bearer token
+            // Anahtarsız: 20/dk, 200/gün. Kayıtlı: 100/dk, 10.000/gün
+            com.kitsugi.animelist.data.music.MusicSourceId.OPENVERSE -> Guide(
+                actionLabel = "Openverse'da uygulama kaydet",
+                freeNote = "Anahtarsız çalışır · kayıtla limit 500 kat artar",
+                steps = listOf(
+                    "⚠️ Anahtar gerekmiyor: günde 200 istek ücretsiz",
+                    "Daha yüksek limit (10.000/gün) için butona dokun",
+                    "Formu doldur: ad, açıklama, e-posta",
+                    "Kayıt sonrası **client_id** ve **client_secret** verilir",
+                    "E-postanı doğrula (yoksa anonim limit geçerli kalır)",
+                    "Buraya client_id'yi yapıştır → 'Doğrula'"
+                ),
+                formatHint = "OAuth2 client_id. Token değil — kalıcı kimlik."
+            )
+
+            else -> Guide(
+                actionLabel = "Siteye git",
+                freeNote = "Anahtar gerekmez",
+                steps = listOf("Bu kaynak için anahtar gerekmiyor."),
+                formatHint = "—"
+            )
+        }
 }

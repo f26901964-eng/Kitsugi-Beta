@@ -1491,8 +1491,28 @@ private fun SourceStatusRow(
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(Modifier.width(6.dp))
         }
-        Spacer(Modifier.width(6.dp))
+        // Anahtar gerekiyor ama yok → doğrudan edinme sayfasına git
+        if (state.status == com.kitsugi.animelist.data.music.SourceStatus.NO_KEY &&
+            state.def.signupUrl.isNotBlank()
+        ) {
+            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+            Text(
+                text = "Anahtar al →",
+                color = Color(0xFF60A5FA),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF60A5FA).copy(alpha = 0.15f))
+                    .clickable {
+                        runCatching { uriHandler.openUri(state.def.signupUrl) }
+                    }
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+        }
         KitsugiSwitch(
             checked = state.enabled,
             onCheckedChange = { onToggle() },
