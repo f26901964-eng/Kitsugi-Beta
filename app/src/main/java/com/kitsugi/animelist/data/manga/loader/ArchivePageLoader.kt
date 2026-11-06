@@ -11,7 +11,7 @@ import java.util.zip.ZipFile
  */
 class ArchivePageLoader(private val context: Context, private val archiveFile: File) {
 
-    private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "bmp", "gif")
+    private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "bmp", "gif", "avif", "img")
 
     /** Arşiv içindeki sayfa resimlerinin giriş adlarını (entry name) sıralı olarak döner. */
     fun loadPageList(): List<String> {

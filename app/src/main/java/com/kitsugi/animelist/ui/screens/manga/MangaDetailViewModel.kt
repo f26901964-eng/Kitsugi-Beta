@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
@@ -46,11 +47,25 @@ class MangaDetailViewModel(
         val isInProgress: Boolean = false
     )
 
+    /** One visible chapter row; [variants] contains every translator of the same chapter. */
+    data class ChapterGroupRow(
+        val key: String,
+        val displayName: String,
+        val number: Double?,
+        val uploadDate: Long,
+        val variants: List<ChapterRow>,
+        val primary: ChapterRow,
+    ) {
+        val isCompleted: Boolean get() = variants.any { it.isCompleted }
+        val isInProgress: Boolean get() = variants.any { it.isInProgress }
+    }
+
     data class UiState(
         val details: MangaDetails,
         val isLoadingDetails: Boolean = false,
         val isLoadingChapters: Boolean = true,
         val chapters: List<ChapterRow> = emptyList(),
+        val chapterGroups: List<ChapterGroupRow> = emptyList(),
         val error: String? = null,
         /** Hatanın manga kaynak kodu (KTS-SRC-...). */
         val errorCode: String? = null,
@@ -133,6 +148,23 @@ class MangaDetailViewModel(
                         )
                     }
 
+                    val rowsByUrl = rows.associateBy { it.chapter.url }
+                    val groupedRows = MangaChapterGrouping.group(_uiState.value.details.title, chapters)
+                        .mapNotNull { group ->
+                            val variants = group.chapters.mapNotNull(rowsByUrl::get)
+                            val primary = variants.firstOrNull { it.isInProgress }
+                                ?: variants.firstOrNull()
+                                ?: return@mapNotNull null
+                            ChapterGroupRow(
+                                key = group.key,
+                                displayName = group.displayName,
+                                number = group.number,
+                                uploadDate = group.uploadDate,
+                                variants = variants,
+                                primary = primary,
+                            )
+                        }
+
                     // "Devam Et" hedefi: en son güncellenen, tamamlanmamış bölüm.
                     val resume = progressList
                         .filter { !it.isCompleted }
@@ -143,6 +175,7 @@ class MangaDetailViewModel(
                         it.copy(
                             isLoadingChapters = false,
                             chapters = rows,
+                            chapterGroups = groupedRows,
                             resumeChapter = resume,
                             error = if (rows.isEmpty()) "Bu manga için bölüm bulunamadı." else null,
                             errorCode = null
@@ -175,8 +208,11 @@ class MangaDetailViewModel(
     fun chapterToOpen(): MangaChapter? {
         val state = _uiState.value
         state.resumeChapter?.let { return it }
-        // Bölüm listesi en yeniden eskiye sıralı geldiği için "baştan oku" = son eleman.
-        return state.chapters.lastOrNull()?.chapter
+        // Ham kaynak sırasına güvenme: çevirmen kopyalarını atlayıp gerçek ilk bölümü aç.
+        val firstGroup = state.chapterGroups.minByOrNull { group ->
+            group.number ?: Double.POSITIVE_INFINITY
+        }
+        return firstGroup?.primary?.chapter ?: state.chapters.lastOrNull()?.chapter
     }
 
     class Factory(

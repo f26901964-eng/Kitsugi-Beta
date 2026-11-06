@@ -31,8 +31,17 @@ class MangaPageLoaderV2(
     var preloadAhead: Int = 3,
     var keepBehind: Int = 1,
     /** Yerel ZIP/CBZ arşiv dosyası — null ise normal HTTP scraping akışı devam eder. */
-    val archiveFile: java.io.File? = null,
+    archiveFile: java.io.File? = null,
 ) {
+    private var localArchiveFile: java.io.File? = archiveFile
+    private var localDirectory: java.io.File? = null
+
+    /** Selects persistent download content for the current chapter; null restores online loading. */
+    fun setLocalContent(content: java.io.File?) {
+        resetQueue()
+        localDirectory = content?.takeIf { it.isDirectory }
+        localArchiveFile = content?.takeIf { it.isFile }
+    }
     companion object {
         private const val TAG = "MangaPageLoaderV2"
         private const val PARALLEL_LIMIT = 4
@@ -58,8 +67,29 @@ class MangaPageLoaderV2(
                 resetQueue()
                 _pages.value = emptyList()
 
-                if (archiveFile != null) {
-                    val archiveLoader = ArchivePageLoader(context, archiveFile)
+                val directory = localDirectory
+                if (directory != null) {
+                    val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "bmp", "gif", "avif", "img")
+                    val pageFiles = directory.listFiles()
+                        ?.filter { it.isFile && it.extension.lowercase() in imageExtensions }
+                        ?.sortedBy { it.name }
+                        .orEmpty()
+                    if (pageFiles.isEmpty()) throw java.io.IOException("İndirilen bölümde sayfa bulunamadı")
+                    _pages.value = pageFiles.mapIndexed { index, file ->
+                        com.kitsugi.animelist.data.manga.MangaPage(
+                            index = index,
+                            url = file.absolutePath,
+                        ).apply { archivePath = file.name }
+                    }
+                    val elapsed = System.currentTimeMillis() - t0
+                    sourceStateStore.recordOperationSuccess(source, "pages", elapsed)
+                    Log.d(TAG, "${chapter.name}: ${pageFiles.size} sayfa alındı (${elapsed}ms) [download]")
+                    return@withContext
+                }
+
+                val archive = localArchiveFile
+                if (archive != null) {
+                    val archiveLoader = ArchivePageLoader(context, archive)
                     val entryNames = archiveLoader.loadPageList()
                     if (entryNames.isEmpty()) throw java.io.IOException("Arşivde sayfa bulunamadı")
                     _pages.value = entryNames.mapIndexed { index, entryName ->
@@ -163,11 +193,30 @@ class MangaPageLoaderV2(
     private suspend fun loadPageInternal(page: MangaPage) {
         if (page.status == MangaPageStatus.Ready) return
 
-        if (page.archivePath != null && archiveFile != null) {
-            val archiveLoader = ArchivePageLoader(context, archiveFile)
+        val directory = localDirectory
+        if (page.archivePath != null && directory != null) {
+            val pageFile = java.io.File(directory, page.archivePath!!)
+            if (pageFile.isFile && pageFile.length() > 0L) {
+                page.stream = { pageFile.inputStream() }
+                page.status = MangaPageStatus.Ready
+                Log.v(TAG, "Downloaded page ready [${page.index}]: ${page.archivePath}")
+                return
+            }
+            page.status = MangaPageStatus.Error
+            Log.e(TAG, "Downloaded page error [${page.index}]: ${page.archivePath}")
+            return
+        }
+
+        val archive = localArchiveFile
+        if (page.archivePath != null && archive != null) {
+            val archiveLoader = ArchivePageLoader(context, archive)
             val stream = archiveLoader.loadPage(page.archivePath!!)
             if (stream != null) {
-                page.stream = { stream }
+                stream.close()
+                page.stream = {
+                    archiveLoader.loadPage(page.archivePath!!)
+                        ?: throw java.io.IOException("CBZ sayfası okunamadı: ${page.archivePath}")
+                }
                 page.status = MangaPageStatus.Ready
                 Log.v(TAG, "Archive page ready [${page.index}]: ${page.archivePath}")
                 return

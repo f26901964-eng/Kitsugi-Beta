@@ -25,6 +25,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,6 +48,8 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.core.player.OfflinePlaybackHelper
 import com.kitsugi.animelist.core.storage.DownloadStorage
 import com.kitsugi.animelist.data.local.AnimeDownloadManager
+import com.kitsugi.animelist.data.manga.download.MangaDownload
+import com.kitsugi.animelist.data.manga.download.MangaDownloadManager
 import com.kitsugi.animelist.data.model.AnimeDownload
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
@@ -55,6 +58,7 @@ import com.kitsugi.animelist.ui.components.KitsugiSettingsSegmentedTabs
 import com.kitsugi.animelist.ui.components.KitsugiSettingsTabOption
 import com.kitsugi.animelist.ui.components.KitsugiAnimatedDeleteButton
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
+import com.kitsugi.animelist.ui.screens.manga.MangaReaderScreen
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -138,8 +142,25 @@ fun DownloadsScreen(
     val context = LocalContext.current
     val accentColor = LocalKitsugiAccent.current
     val downloads by AnimeDownloadManager.downloads.collectAsState()
+    val mangaDownloads by MangaDownloadManager.downloads.collectAsState()
+    var readingManga by remember { mutableStateOf<MangaDownload?>(null) }
 
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
+    LaunchedEffect(context) {
+        withContext(Dispatchers.IO) { MangaDownloadManager.initialize(context) }
+    }
+
+    readingManga?.let { selected ->
+        val current = mangaDownloads.firstOrNull { it.id == selected.id } ?: selected
+        MangaReaderScreen(
+            chapter = MangaDownloadManager.chapterOf(current),
+            mangaDetails = MangaDownloadManager.detailsOf(current),
+            source = MangaDownloadManager.offlineSourceOf(current),
+            onBack = { readingManga = null },
+        )
+        return
+    }
+
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
     val scope = rememberCoroutineScope()
     var refreshSubsTrigger by remember { mutableIntStateOf(0) }
     var refreshImagesTrigger by remember { mutableIntStateOf(0) }
@@ -342,9 +363,13 @@ fun DownloadsScreen(
                     val rootDir = when (pagerState.currentPage) {
                         1 -> File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                            "Kitsugi/Subtitles"
+                            "Kitsugi/Manga"
                         ).also { it.mkdirs() }
                         2 -> File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            "Kitsugi/Subtitles"
+                        ).also { it.mkdirs() }
+                        3 -> File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                             "Kitsugi/Images"
                         ).also { it.mkdirs() }
@@ -371,6 +396,10 @@ fun DownloadsScreen(
                 KitsugiSettingsTabOption(
                     title = stringResource(R.string.downloads_videos_count, downloads.size),
                     icon = Icons.Rounded.VideoLibrary
+                ),
+                KitsugiSettingsTabOption(
+                    title = stringResource(R.string.downloads_manga_count, mangaDownloads.size),
+                    icon = Icons.AutoMirrored.Rounded.MenuBook
                 ),
                 KitsugiSettingsTabOption(
                     title = stringResource(R.string.inline_subtitles_1_s_b81ee5c, allSubtitles.size),
@@ -501,6 +530,15 @@ fun DownloadsScreen(
             }
         }
         1 -> {
+            // ── MANGA BÖLÜMLERİ: videolardan ve galeri resimlerinden ayrı ──────
+            MangaDownloadsTab(
+                downloads = mangaDownloads,
+                accentColor = accentColor,
+                onRead = { readingManga = it },
+                onOpenFolder = { openFolderInFileManager(context, it) },
+            )
+        }
+        2 -> {
             // ── ALTYAZILAR TAB ───────────────────────────────────────────
             Column(modifier = Modifier.fillMaxSize()) {
                 if (allSubtitles.isEmpty()) {
@@ -550,7 +588,7 @@ fun DownloadsScreen(
                 }
             }
         }
-        2 -> {
+        3 -> {
             // ── RESİMLER TAB ──────────────────────────────────────────────
                     DownloadedImagesTab(
                         images = allImages,

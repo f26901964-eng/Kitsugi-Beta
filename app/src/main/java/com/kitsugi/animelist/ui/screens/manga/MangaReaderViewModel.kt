@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MangaChapterProgressEntity
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaDetails
+import com.kitsugi.animelist.data.manga.download.MangaDownloadManager
 import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceStateStore
@@ -57,9 +59,15 @@ class MangaReaderViewModel(
 
     // ─── UI Durumu ────────────────────────────────────────────────────────────
 
+    data class ChapterSelection(
+        val displayName: String,
+        val chapters: List<MangaChapter>,
+    )
+
     data class UiState(
         val currentChapter: MangaChapter,
         val chapterList: List<MangaChapter> = emptyList(),
+        val chapterGroups: List<MangaChapterGrouping.Group> = emptyList(),
         val currentPageIndex: Int = 0,
         val readingMode: ReadingMode = ReadingMode.RightToLeft,
         val colorFilterType: ColorFilterType = ColorFilterType.Normal,
@@ -70,7 +78,8 @@ class MangaReaderViewModel(
         val isLoadingPages: Boolean = false,
         val pagesError: String? = null,
         /** Sayfa yükleme hatasının manga kaynak kodu (KTS-SRC-...). */
-        val pagesErrorCode: String? = null
+        val pagesErrorCode: String? = null,
+        val pendingChapterSelection: ChapterSelection? = null,
     )
 
     private val _uiState = MutableStateFlow(UiState(currentChapter = initialChapter))
@@ -127,15 +136,25 @@ class MangaReaderViewModel(
             _uiState.update { it.copy(isLoadingChapters = true, error = null) }
             val startedAt = System.currentTimeMillis()
             try {
-                val chapters = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    source.fetchChapterList(mangaDetails.url)
+                val (chapters, groups) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val fetched = source.fetchChapterList(mangaDetails.url)
+                    val grouped = MangaChapterGrouping.newestFirst(
+                        MangaChapterGrouping.group(mangaDetails.title, fetched),
+                    )
+                    fetched to grouped
                 }
                 sourceStateStore.recordOperationSuccess(
                     source = source,
                     operation = "chapters",
                     elapsedMs = System.currentTimeMillis() - startedAt,
                 )
-                _uiState.update { it.copy(chapterList = chapters, isLoadingChapters = false) }
+                _uiState.update {
+                    it.copy(
+                        chapterList = chapters,
+                        chapterGroups = groups,
+                        isLoadingChapters = false,
+                    )
+                }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 sourceStateStore.recordOperationFailure(
@@ -208,51 +227,78 @@ class MangaReaderViewModel(
     // F6: Bölüm değişiminde eski queue'yu temizle — yanlış sayfa yükleme önler
     fun goToChapter(chapter: MangaChapter) {
         loader.resetQueue()
-        _uiState.update { it.copy(currentChapter = chapter, currentPageIndex = 0) }
+        _uiState.update {
+            it.copy(
+                currentChapter = chapter,
+                currentPageIndex = 0,
+                pendingChapterSelection = null,
+            )
+        }
         restoreProgress(chapter)
     }
 
-    fun goToNextChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx > 0) goToChapter(list[idx - 1])   // Listede yeniden eskiye doğru
+    fun goToNextChapter() = requestAdjacentChapter(next = true)
+
+    fun goToPreviousChapter() = requestAdjacentChapter(next = false)
+
+    private fun requestAdjacentChapter(next: Boolean) {
+        val state = _uiState.value
+        val target = adjacentGroup(next) ?: return
+
+        if (target.chapters.size == 1) {
+            goToChapter(target.chapters.single())
+        } else {
+            // Kullanıcının açık seçimi olmadan çevirmen değiştirme. Aynı çevirmeni listenin
+            // başına almak yalnızca seçimi kolaylaştırır; otomatik geçiş yapmaz.
+            val currentScanlator = state.currentChapter.scanlator?.trim()
+            val choices = target.chapters.sortedByDescending { chapter ->
+                !currentScanlator.isNullOrBlank() &&
+                    chapter.scanlator?.trim().equals(currentScanlator, ignoreCase = true)
+            }
+            _uiState.update {
+                it.copy(
+                    pendingChapterSelection = ChapterSelection(
+                        displayName = target.displayName,
+                        chapters = choices,
+                    ),
+                )
+            }
+        }
     }
 
-    fun goToPreviousChapter() {
-        val list    = _uiState.value.chapterList
-        val current = _uiState.value.currentChapter
-        val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx >= 0 && idx < list.size - 1) goToChapter(list[idx + 1])
+    fun dismissChapterSelection() {
+        _uiState.update { it.copy(pendingChapterSelection = null) }
+    }
+
+    private fun adjacentGroup(next: Boolean): MangaChapterGrouping.Group? {
+        val state = _uiState.value
+        val currentIndex = state.chapterGroups.indexOfFirst { group ->
+            group.chapters.any { it.url == state.currentChapter.url }
+        }
+        if (currentIndex < 0) return null
+        val targetIndex = if (next) currentIndex - 1 else currentIndex + 1
+        return state.chapterGroups.getOrNull(targetIndex)
     }
 
     val hasNextChapter: Boolean
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx > 0
-        }
+        get() = adjacentGroup(next = true) != null
 
     /** Sonraki bölümün adı (bölüm sonu geçiş kartında göstermek için); yoksa null. */
     val nextChapterName: String?
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return if (idx > 0) list[idx - 1].name else null
-        }
+        get() = adjacentGroup(next = true)?.displayName
 
     val hasPreviousChapter: Boolean
-        get() {
-            val list = _uiState.value.chapterList
-            val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx >= 0 && idx < list.size - 1
-        }
+        get() = adjacentGroup(next = false) != null
 
     private var pageListJob: kotlinx.coroutines.Job? = null
 
     private fun restoreProgress(chapter: MangaChapter) {
         pageListJob?.cancel()
         pageListJob = viewModelScope.launch {
+            val downloadedContent = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                MangaDownloadManager.localContent(context, source, chapter)
+            }
+            loader.setLocalContent(downloadedContent)
             _uiState.update { it.copy(isLoadingPages = true, pagesError = null, pagesErrorCode = null) }
             val saved = dao.getProgress(chapter.url)
             val pageIndex = if (saved != null && !saved.isCompleted) saved.lastPageIndex else 0

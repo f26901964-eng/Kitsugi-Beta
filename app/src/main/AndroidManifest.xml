@@ -280,6 +280,12 @@
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 
+        <!-- Manga chapter downloads: persistent queue + separate offline reader -->
+        <service
+            android:name=".core.download.MangaDownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
         <!-- WatchHistoryActivity: Standalone screen for browsing watch history -->
         <activity
             android:name=".ui.screens.stream.WatchHistoryActivity"

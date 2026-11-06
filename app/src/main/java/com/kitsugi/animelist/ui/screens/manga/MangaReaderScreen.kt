@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.manga
+package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.Fullscreen
+import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
@@ -53,12 +55,14 @@ import androidx.compose.material3.ButtonDefaults
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +83,9 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.kitsugi.animelist.R
 
 /**
@@ -120,6 +127,32 @@ fun MangaReaderScreen(
     val scope      = rememberCoroutineScope()
     var menuVisible     by remember { mutableStateOf(true) }
     var showSettings    by remember { mutableStateOf(false) }
+    var immersiveMode   by rememberSaveable { mutableStateOf(true) }
+
+    // Manga okuyucu gerçek tam ekrandır: yalnızca uygulamanın üst/alt kontrollerini değil,
+    // Android status + navigation bar'ı da gizler. Kayan geçici çubuklar sistem davranışıyla korunur.
+    val activity = remember(context) { context.findActivity() }
+    LaunchedEffect(activity, immersiveMode) {
+        val window = activity?.window ?: return@LaunchedEffect
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (immersiveMode) {
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+    DisposableEffect(activity) {
+        onDispose {
+            val window = activity?.window
+            if (window != null) {
+                WindowCompat.getInsetsController(window, window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
 
     val pagerState    = rememberPagerState(initialPage = currentPage) { pages.size }
     val listState     = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
@@ -294,6 +327,7 @@ fun MangaReaderScreen(
                             listOf(Color.Black.copy(0.85f), Color.Transparent)
                         )
                     )
+                    .then(if (!immersiveMode) Modifier.statusBarsPadding() else Modifier)
                     .padding(horizontal = 4.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -321,6 +355,16 @@ fun MangaReaderScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    IconButton(onClick = { immersiveMode = !immersiveMode }) {
+                        Icon(
+                            imageVector = if (immersiveMode) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
+                            contentDescription = stringResource(
+                                if (immersiveMode) R.string.manga_reader_exit_fullscreen
+                                else R.string.manga_reader_fullscreen
+                            ),
+                            tint = Color.White
+                        )
+                    }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.MenuBook,
@@ -344,7 +388,7 @@ fun MangaReaderScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(barBackgroundColor)
-                    .navigationBarsPadding()
+                    .then(if (!immersiveMode) Modifier.navigationBarsPadding() else Modifier)
                     .padding(vertical = 12.dp, horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -505,6 +549,17 @@ fun MangaReaderScreen(
                 }
             }
         }
+    }
+
+    // Aynı sayılı bölümün çevirileri arasında sessizce atlama: kullanıcı açıkça seçer.
+    uiState.pendingChapterSelection?.let { selection ->
+        ChapterVariantSheet(
+            title = selection.displayName,
+            chapters = selection.chapters,
+            message = stringResource(R.string.manga_chapter_continue_message),
+            onOpenChapter = viewModel::goToChapter,
+            onDismiss = viewModel::dismissChapterSelection,
+        )
     }
 
     // ─── Okuma Modu Ayarlar Paneli ────────────────────────────────────────────
