@@ -57,6 +57,23 @@ interface MangaSource {
      */
     val isArchive: Boolean get() = false
 
+    /** Generic site session page used as a fallback when an extension has no dedicated auth API. */
+    val webSessionUrl: String?
+        get() = baseUrl.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+
+    /** Dedicated source-owned login/cookie or credential-preference capabilities, if any. */
+    suspend fun authentication(): MangaSourceAuthentication? = null
+
+    /** Null means the extension cannot report its current authorization state. */
+    suspend fun isAuthenticated(): Boolean? = null
+
+    suspend fun authenticatedUsername(): String? = null
+
+    /** Saves only fields declared by [MangaSourceAuthentication.credentialFields]. */
+    suspend fun saveCredentials(values: Map<String, String>) {
+        throw UnsupportedOperationException("$name hesap tercihlerini desteklemiyor")
+    }
+
     /**
      * Sitedeki en güncel / popüler mangaların listesini döndürür.
      * Sayfalama için [page] parametresi kullanılır (1'den başlar).
@@ -137,6 +154,20 @@ interface MangaSource {
         }
     }
 }
+
+data class MangaSourceCredentialField(
+    val key: String,
+    val title: String,
+    val value: String,
+    val isSecret: Boolean,
+)
+
+data class MangaSourceAuthentication(
+    /** Kotatsu's provider-owned login page. Never guessed by the UI. */
+    val loginUrl: String? = null,
+    /** Real ConfigurableSource credential fields exposed by a Mihon extension. */
+    val credentialFields: List<MangaSourceCredentialField> = emptyList(),
+)
 
 /** Stable ID of a source-owned browse feed; titles are localized by the UI. */
 data class MangaExploreSection(val id: String) {

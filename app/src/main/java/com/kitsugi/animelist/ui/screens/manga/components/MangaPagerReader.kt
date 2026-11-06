@@ -38,6 +38,7 @@ fun MangaPagerReader(
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
+    onSourceLogin: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isRtl       = readingMode == ReadingMode.RightToLeft
@@ -61,6 +62,7 @@ fun MangaPagerReader(
                     onCenterTap = onCenterTap,
                     onNextPage   = onNextPage,
                     onPrevPage   = onPrevPage,
+                    onSourceLogin = onSourceLogin,
                     modifier    = Modifier.fillMaxSize()
                 )
             }

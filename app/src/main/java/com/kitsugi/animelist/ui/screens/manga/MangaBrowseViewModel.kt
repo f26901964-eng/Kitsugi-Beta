@@ -48,6 +48,8 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         val selectedExploreSection: MangaExploreSection? = null,
         val popularMangas: List<MangaDetails> = emptyList(),
         val isLoadingPopular: Boolean = false,
+        val popularError: String? = null,
+        val popularErrorCode: String? = null,
         val hasNextPage: Boolean = false,
         val currentPage: Int = 1,
         val searchQuery: String = ""
@@ -155,20 +157,29 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
             ?: MangaExploreSection(MangaExploreSection.POPULAR)
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            _ui.update { it.copy(isLoadingPopular = true) }
+            _ui.update { it.copy(isLoadingPopular = true, popularError = null, popularErrorCode = null) }
             try {
                 val result = repository.fetchExplore(src, section.id, page)
                 _ui.update { s ->
                     s.copy(
                         popularMangas  = if (page == 1) result.mangas else s.popularMangas + result.mangas,
                         isLoadingPopular = false,
+                        popularError = null,
+                        popularErrorCode = null,
                         hasNextPage    = result.hasNextPage,
                         currentPage    = page
                     )
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                _ui.update { it.copy(isLoadingPopular = false) }
+                _ui.update {
+                    it.copy(
+                        isLoadingPopular = false,
+                        popularError = e.message ?: "Hata",
+                        popularErrorCode = SourceFailureClassifier.classifyCode(e),
+                        hasNextPage = false,
+                    )
+                }
             }
         }
     }
@@ -255,7 +266,10 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                         } catch (e: Exception) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             repository.recordSearchFailure(src, e)
-                            patchState(src.stableSourceKey(), false, emptyList(), e.message ?: "Hata", page = 1, hasNext = false)
+                            patchState(
+                                src.stableSourceKey(), false, emptyList(), e.message ?: "Hata",
+                                errorCode = SourceFailureClassifier.classifyCode(e), page = 1, hasNext = false,
+                            )
                         }
                     }
                 }
@@ -263,9 +277,67 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         }
     }
 
-    private fun patchState(key: String, loading: Boolean, mangas: List<MangaDetails>, error: String?, page: Int = 1, hasNext: Boolean = true) {
+    private fun patchState(
+        key: String,
+        loading: Boolean,
+        mangas: List<MangaDetails>,
+        error: String?,
+        errorCode: String? = null,
+        page: Int = 1,
+        hasNext: Boolean = true,
+    ) {
         _ui.update { s ->
-            s.copy(sourceStates = s.sourceStates.map { if (it.source.stableSourceKey() == key) it.copy(isLoading = loading, mangas = mangas, error = error, errorCode = if (error == null) null else it.errorCode, currentPage = page, hasNextPage = hasNext) else it })
+            s.copy(sourceStates = s.sourceStates.map {
+                if (it.source.stableSourceKey() == key) {
+                    it.copy(
+                        isLoading = loading,
+                        mangas = mangas,
+                        error = error,
+                        errorCode = errorCode,
+                        currentPage = page,
+                        hasNextPage = hasNext,
+                    )
+                } else it
+            })
+        }
+    }
+
+    /** Retries only the source whose session was updated, not every installed extension. */
+    fun retrySource(source: MangaSource) {
+        val query = _ui.value.searchQuery
+        if (query.isBlank()) {
+            selectSourceFilter(source)
+            return
+        }
+        paginationJobs.removeAll { it.isCompleted }
+        paginationJobs += viewModelScope.launch {
+            _ui.update { state ->
+                state.copy(sourceStates = state.sourceStates.map {
+                    if (it.source.stableSourceKey() == source.stableSourceKey()) {
+                        it.copy(isLoading = true, error = null, errorCode = null)
+                    } else it
+                })
+            }
+            searchGate.withPermit {
+                try {
+                    val result = kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                        withContext(Dispatchers.IO) { searchSourceWithFallback(source, query, 1) }
+                    } ?: throw java.io.IOException("Kaynak araması zaman aşımına uğradı")
+                    repository.recordSearchSuccess(source)
+                    val matched = filterResultsTwoPass(source, query, result.mangas)
+                    patchState(
+                        source.stableSourceKey(), false, matched, null,
+                        page = 1, hasNext = result.hasNextPage,
+                    )
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    repository.recordSearchFailure(source, e)
+                    patchState(
+                        source.stableSourceKey(), false, emptyList(), e.message ?: "Hata",
+                        errorCode = SourceFailureClassifier.classifyCode(e), page = 1, hasNext = false,
+                    )
+                }
+            }
         }
     }
 

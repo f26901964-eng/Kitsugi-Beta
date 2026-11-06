@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaPageStatus
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
 import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
@@ -70,6 +71,7 @@ fun MangaPageItem(
     onCenterTap: () -> Unit = {},
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
+    onSourceLogin: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Sayfa nesnesi ilk kez görüldüğünde yüklemeyi başlat.
@@ -183,7 +185,9 @@ fun MangaPageItem(
             MangaPageStatus.Error -> {
                 ErrorPageContent(
                     pageIndex = page.index,
-                    onRetry   = { loader.retryPage(page) }
+                    errorCode = page.errorCode,
+                    onRetry = { loader.retryPage(page) },
+                    onSourceLogin = onSourceLogin,
                 )
             }
 
@@ -232,7 +236,12 @@ private fun LoadingPageContent(page: MangaPage) {
 }
 
 @Composable
-private fun ErrorPageContent(pageIndex: Int, onRetry: () -> Unit) {
+private fun ErrorPageContent(
+    pageIndex: Int,
+    errorCode: String?,
+    onRetry: () -> Unit,
+    onSourceLogin: (() -> Unit)?,
+) {
     Box(
         modifier          = Modifier
             .fillMaxWidth()
@@ -256,6 +265,11 @@ private fun ErrorPageContent(pageIndex: Int, onRetry: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier  = Modifier.padding(top = 8.dp)
             )
+            if (PlatformErrorCode.fromId(errorCode) == PlatformErrorCode.MangaAuth && onSourceLogin != null) {
+                TextButton(onClick = onSourceLogin) {
+                    Text(stringResource(R.string.manga_source_login_action), color = Color(0xFFEF5350))
+                }
+            }
             TextButton(onClick = onRetry) {
                 Text("Tekrar Dene", color = Color(0xFF7C4DFF))
             }

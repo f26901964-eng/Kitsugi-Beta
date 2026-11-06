@@ -40,7 +40,10 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.ui.components.MangaSourceAuthBanner
+import com.kitsugi.animelist.ui.components.MangaSourceLoginDialog
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
@@ -73,6 +76,7 @@ fun MangaBrowseScreen(
 
     val context = LocalContext.current
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var loginSource by remember { mutableStateOf<MangaSource?>(null) }
 
     // ── GitHub Vekil Sunucu ayarı (Manga Kaynakları sekmesindeki diyalog için) ──
     // Diyalog bu iki parametre geçilmediği sürece varsayılan (false / no-op) değerlerle
@@ -123,6 +127,16 @@ fun MangaBrowseScreen(
     val hasNext        = ui.hasNextPage
     val exploreSection = ui.selectedExploreSection
     val exploreSections = selFilter?.exploreSections.orEmpty()
+    val authFailureSource = if (query.isBlank()) {
+        selFilter?.takeIf {
+            PlatformErrorCode.fromId(ui.popularErrorCode) == PlatformErrorCode.MangaAuth
+        }
+    } else {
+        states.firstOrNull { state ->
+            (selFilter == null || state.source.stableSourceKey() == selFilter.stableSourceKey()) &&
+                PlatformErrorCode.fromId(state.errorCode) == PlatformErrorCode.MangaAuth
+        }?.source
+    }
 
     // Keep the actual source with each result. Display names are not identities:
     // Kotatsu and Mihon can expose the same title/name with different URL contracts.
@@ -181,6 +195,15 @@ fun MangaBrowseScreen(
                 Spacer(Modifier.width(12.dp))
                 Text(stringResource(R.string.inline_discover_manga_eb24f62), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
+                if (selFilter != null) {
+                    IconButton(onClick = { loginSource = selFilter }) {
+                        Icon(
+                            Icons.Rounded.AccountCircle,
+                            contentDescription = stringResource(R.string.manga_source_login_action),
+                            tint = accentColor,
+                        )
+                    }
+                }
                 Icon(Icons.Rounded.TravelExplore, null, tint = accentColor, modifier = Modifier.padding(end = 8.dp).size(22.dp))
             }
 
@@ -316,7 +339,8 @@ fun MangaBrowseScreen(
                                 label      = "${src.name}  [${src.lang.uppercase()}]",
                                 count      = if (selFilter?.stableSourceKey() == src.stableSourceKey()) popular.size else 0,
                                 isLoading  = selFilter?.stableSourceKey() == src.stableSourceKey() && ui.isLoadingPopular,
-                                error      = null,
+                                error      = if (selFilter?.stableSourceKey() == src.stableSourceKey()) ui.popularError else null,
+                                errorCode  = if (selFilter?.stableSourceKey() == src.stableSourceKey()) ui.popularErrorCode else null,
                                 isSelected = selFilter?.stableSourceKey() == src.stableSourceKey(),
                                 accent     = accentColor,
                                 isAll      = false,
@@ -347,6 +371,15 @@ fun MangaBrowseScreen(
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(top = 10.dp, bottom = 4.dp), color = KitsugiColors.SurfaceStrong.copy(0.5f))
+
+                authFailureSource?.let { source ->
+                    MangaSourceAuthBanner(
+                        source = source,
+                        onLogin = { loginSource = source },
+                        onRetry = { vm.retrySource(source) },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
+                }
 
                 // ── Grid ──
                 Box(Modifier.weight(1f)) {
@@ -414,6 +447,14 @@ fun MangaBrowseScreen(
                 }
             }
         }
+    }
+
+    loginSource?.let { source ->
+        MangaSourceLoginDialog(
+            source = source,
+            onSessionUpdated = { vm.retrySource(source) },
+            onDismiss = { loginSource = null },
+        )
     }
 
     if (showSettingsDialog) {

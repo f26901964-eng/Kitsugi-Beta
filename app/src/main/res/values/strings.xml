@@ -17824,4 +17824,17 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="manga_download_notification_title">Manga bölümleri indiriliyor</string>
     <string name="manga_download_notification_preparing">İndirme kuyruğu hazırlanıyor…</string>
     <string name="manga_download_notification_channel_description">Manga bölümü indirme ilerlemesini arka planda gösterir.</string>
+    <string name="manga_source_login_title">%1$s oturumu</string>
+    <string name="manga_source_login_description">Bu alan yalnızca seçtiğin manga kaynağına aittir. Bilgiler eklentinin kendi hesap tercihlerine kaydedilir; site oturumundaki çerezler kaynağın ağ istekleriyle paylaşılır.</string>
+    <string name="manga_source_login_status_authorized">Kaynak oturumun açık olduğunu bildiriyor.</string>
+    <string name="manga_source_login_status_user">%1$s olarak oturum açık.</string>
+    <string name="manga_source_login_status_unauthorized">Kaynak oturum açılmasını gerektiriyor.</string>
+    <string name="manga_source_login_status_unknown">Bu kaynak oturum durumunu bildirmiyor.</string>
+    <string name="manga_source_login_credentials_description">Eklentinin tanımladığı hesap veya erişim alanları:</string>
+    <string name="manga_source_login_web_description">Sitede oturum aç veya güvenlik doğrulamasını tamamla. Pencere kapandığında oturum çerezleri eşitlenir ve önceki işlem yeniden denenir.</string>
+    <string name="manga_source_login_open_site">Sitede oturum aç</string>
+    <string name="manga_source_login_save_retry">Kaydet ve yeniden dene</string>
+    <string name="manga_source_login_required_title">Bu kaynak için oturum gerekli</string>
+    <string name="manga_source_login_required_message">%1$s isteği hesap girişi olmadan tamamlayamadı. Kaynağın kendi oturumunu açıp yeniden deneyebilirsin.</string>
+    <string name="manga_source_login_action">Oturum aç</string>
 </resources>

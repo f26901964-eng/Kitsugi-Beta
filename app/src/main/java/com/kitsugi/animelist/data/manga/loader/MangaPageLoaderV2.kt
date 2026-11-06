@@ -193,6 +193,7 @@ class MangaPageLoaderV2(
 
     private suspend fun loadPageInternal(page: MangaPage) {
         if (page.status == MangaPageStatus.Ready) return
+        page.errorCode = null
 
         val directory = localDirectory
         if (page.archivePath != null && directory != null) {
@@ -272,6 +273,7 @@ class MangaPageLoaderV2(
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 page.status = MangaPageStatus.Error
+                page.errorCode = SourceFailureClassifier.classifyCode(e)
                 MangaLogger.logImageFetch(context, source.name, page.index,
                     page.imageUrl, success = false, elapsedMs = IMAGE_TIMEOUT_MS, isTimeout = true)
                 Log.e(TAG, "Timeout [${page.index}] — ${IMAGE_TIMEOUT_MS}ms aşıldı")
@@ -283,6 +285,7 @@ class MangaPageLoaderV2(
             } catch (e: Exception) {
                 val elapsed = System.currentTimeMillis() - t0
                 page.status = MangaPageStatus.Error
+                page.errorCode = SourceFailureClassifier.classifyCode(e)
                 sourceStateStore.recordOperationFailure(source, "image",
                     reason = e.message, statusOverride = classifyStatus(e), elapsedMs = elapsed)
                 MangaLogger.logImageFetch(context, source.name, page.index,

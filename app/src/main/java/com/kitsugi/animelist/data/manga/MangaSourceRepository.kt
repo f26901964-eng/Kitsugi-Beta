@@ -315,7 +315,7 @@ class MangaSourceRepository(private val context: Context) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             recordPopularFailure(source, e, elapsedMs = System.currentTimeMillis() - startedAt)
             Log.e(TAG, "[${source.name}] keşfet listesi hatası ($sectionId): ${e.message}")
-            MangaSourceResult(emptyList(), hasNextPage = false)
+            throw e
         }
     }
 

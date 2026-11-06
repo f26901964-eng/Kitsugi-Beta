@@ -158,6 +158,7 @@ class MangaPageLoader(
     }
 
     private suspend fun internalLoad(page: MangaPage, workerIndex: Int) {
+        page.errorCode = null
         val startedAt = System.currentTimeMillis()
         try {
             kotlinx.coroutines.withTimeout(IMAGE_TIMEOUT_MS) {
@@ -191,6 +192,7 @@ class MangaPageLoader(
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
             page.status = MangaPageStatus.Error
+            page.errorCode = SourceFailureClassifier.classifyCode(e)
             notifyPagesChanged()
             MangaLogger.logImageFetch(context, source.name, page.index,
                 page.imageUrl, success = false,
@@ -198,6 +200,7 @@ class MangaPageLoader(
             Log.e(tag, "Sayfa timeout [${page.index}] (worker=$workerIndex) — ${IMAGE_TIMEOUT_MS}ms aşıldı")
         } catch (e: Exception) {
             page.status = MangaPageStatus.Error
+            page.errorCode = SourceFailureClassifier.classifyCode(e)
             notifyPagesChanged()
             val elapsed = System.currentTimeMillis() - startedAt
             sourceStateStore.recordOperationFailure(

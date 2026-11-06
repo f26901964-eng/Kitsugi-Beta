@@ -57,6 +57,9 @@ class MangaPage(
     // Compose must observe the status itself, not a shallow copy of that list.
     var status: MangaPageStatus by mutableStateOf(status)
 
+    /** Stable source error for page-level actions such as re-authentication. */
+    var errorCode: String? by mutableStateOf(null)
+
     /** Yerel arşiv dosyası yolu (ZIP/CBZ/RAR içindeki sayfa) — null ise normal HTTP akışı. */
     var archivePath: String? = null
 }

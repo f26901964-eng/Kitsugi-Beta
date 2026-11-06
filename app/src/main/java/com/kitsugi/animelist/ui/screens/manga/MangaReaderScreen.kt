@@ -74,6 +74,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaSource
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
+import com.kitsugi.animelist.ui.components.MangaSourceAuthBanner
+import com.kitsugi.animelist.ui.components.MangaSourceLoginDialog
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
@@ -127,6 +130,7 @@ fun MangaReaderScreen(
     val scope      = rememberCoroutineScope()
     var menuVisible     by remember { mutableStateOf(true) }
     var showSettings    by remember { mutableStateOf(false) }
+    var showSourceLogin by remember { mutableStateOf(false) }
     var immersiveMode   by rememberSaveable { mutableStateOf(true) }
 
     // Manga okuyucu gerçek tam ekrandır: yalnızca uygulamanın üst/alt kontrollerini değil,
@@ -222,11 +226,19 @@ fun MangaReaderScreen(
                         com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code)
                     }
                     Spacer(Modifier.height(24.dp))
-                    KitsugiButton(
-                        onClick = { viewModel.retryLoadPages() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
-                    ) {
-                        Text("Tekrar Dene", color = Color.White)
+                    if (PlatformErrorCode.fromId(uiState.pagesErrorCode) == PlatformErrorCode.MangaAuth) {
+                        MangaSourceAuthBanner(
+                            source = source,
+                            onLogin = { showSourceLogin = true },
+                            onRetry = { viewModel.retryLoadPages() },
+                        )
+                    } else {
+                        KitsugiButton(
+                            onClick = { viewModel.retryLoadPages() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
+                        ) {
+                            Text("Tekrar Dene", color = Color.White)
+                        }
                     }
                 }
             }
@@ -246,6 +258,7 @@ fun MangaReaderScreen(
                     nextChapterName = viewModel.nextChapterName,
                     onGoToNextChapter = { viewModel.goToNextChapter() },
                     onCenterTap  = { menuVisible = !menuVisible },
+                    onSourceLogin = { showSourceLogin = true },
                     onPageChanged = { idx ->
                         if (hasRestoredProgress) {
                             viewModel.onPageChanged(currentChapter.url, idx, pages.size)
@@ -282,6 +295,7 @@ fun MangaReaderScreen(
                     colorFilterType = uiState.colorFilterType,
                     fitMode      = uiState.fitMode,
                     onCenterTap  = { menuVisible = !menuVisible },
+                    onSourceLogin = { showSourceLogin = true },
                     onNextPage   = {
                         if (pagerState.currentPage < pages.size - 1) {
                             scope.launch {
@@ -549,6 +563,14 @@ fun MangaReaderScreen(
                 }
             }
         }
+    }
+
+    if (showSourceLogin) {
+        MangaSourceLoginDialog(
+            source = source,
+            onSessionUpdated = { viewModel.retryLoadPages() },
+            onDismiss = { showSourceLogin = false },
+        )
     }
 
     // Aynı sayılı bölümün çevirileri arasında sessizce atlama: kullanıcı açıkça seçer.

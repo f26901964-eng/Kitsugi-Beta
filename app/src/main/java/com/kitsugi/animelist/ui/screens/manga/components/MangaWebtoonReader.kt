@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.manga.components
+package com.kitsugi.animelist.ui.screens.manga.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -53,6 +53,7 @@ fun MangaWebtoonReader(
     fitMode: MangaFitMode = MangaFitMode.FitScreen,
     onCenterTap: () -> Unit = {},
     onPageChanged: (Int) -> Unit = {},
+    onSourceLogin: (() -> Unit)? = null,
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
     hasNextChapter: Boolean = false,
@@ -92,6 +93,7 @@ fun MangaWebtoonReader(
                 onCenterTap = onCenterTap,
                 onNextPage   = onNextPage,
                 onPrevPage   = onPrevPage,
+                onSourceLogin = onSourceLogin,
                 modifier    = Modifier.fillMaxWidth()
             )
 

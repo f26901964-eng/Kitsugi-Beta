@@ -42,10 +42,12 @@ object SourceFailureClassifier {
 
             containsAny(
                 message,
-                "401", "403", "unauthorized", "forbidden", "authentication required", "login required",
-                "giriş gerekli", "giris gerekli", "oturum aç", "oturum ac", "kimlik doğrulama gerekli",
-            ) ->
-                SourceErrorCategory.Auth
+                "401", "403", "unauthorized", "forbidden", "authentication required", "authorization required",
+                "login required", "giriş gerekli", "giris gerekli", "oturum aç", "oturum ac",
+                "kimlik doğrulama gerekli",
+            ) || classes.any {
+                it == "org.koitharu.kotatsu.parsers.exception.AuthRequiredException"
+            } -> SourceErrorCategory.Auth
 
             containsAny(
                 message,

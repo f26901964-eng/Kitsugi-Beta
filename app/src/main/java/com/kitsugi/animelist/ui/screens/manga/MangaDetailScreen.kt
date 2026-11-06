@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.fandom.FandomMediaQueries
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
 import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaDetails
@@ -75,6 +76,8 @@ import com.kitsugi.animelist.ui.components.KitsugiButton
 import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.MangaSourceAuthBanner
+import com.kitsugi.animelist.ui.components.MangaSourceLoginDialog
 import com.kitsugi.animelist.ui.components.safeBlur
 import com.kitsugi.animelist.ui.screens.detail.wiki.FandomMediaWikiViewModel
 import com.kitsugi.animelist.ui.screens.detail.wiki.MediaWikiSectionCard
@@ -118,6 +121,7 @@ fun MangaDetailScreen(
     var readFilter by rememberSaveable { mutableStateOf(ChapterReadFilter.ALL) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     var showSearchSheet by rememberSaveable { mutableStateOf(false) }
+    var showSourceLogin by remember { mutableStateOf(false) }
     var selectedGroup by remember { mutableStateOf<MangaDetailViewModel.ChapterGroupRow?>(null) }
 
     val visibleGroups = remember(
@@ -338,8 +342,16 @@ fun MangaDetailScreen(
                             com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock(code = code)
                         }
                         Spacer(Modifier.height(12.dp))
-                        KitsugiButton(onClick = { viewModel.loadChapters() }) {
-                            Text(stringResource(R.string.yenile), fontWeight = FontWeight.Bold)
+                        if (PlatformErrorCode.fromId(uiState.errorCode) == PlatformErrorCode.MangaAuth) {
+                            MangaSourceAuthBanner(
+                                source = source,
+                                onLogin = { showSourceLogin = true },
+                                onRetry = { viewModel.loadChapters() },
+                            )
+                        } else {
+                            KitsugiButton(onClick = { viewModel.loadChapters() }) {
+                                Text(stringResource(R.string.yenile), fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -406,6 +418,14 @@ fun MangaDetailScreen(
                 tint = Color.White,
             )
         }
+    }
+
+    if (showSourceLogin) {
+        MangaSourceLoginDialog(
+            source = source,
+            onSessionUpdated = { viewModel.loadChapters() },
+            onDismiss = { showSourceLogin = false },
+        )
     }
 
     if (showSortSheet) {
