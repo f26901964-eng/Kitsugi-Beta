@@ -78,6 +78,8 @@ fun MusicIntegrationTab(
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testFailed by remember { mutableStateOf(false) }
+    // Sürükleme sırasında disk yazımı yapılmaz; değer yalnızca bırakılınca kalıcılaşır.
+    var volumePreview by remember(settings.volume) { mutableStateOf(settings.volume) }
 
     Column(
         modifier = Modifier
@@ -187,9 +189,13 @@ fun MusicIntegrationTab(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Slider(
-                    value = settings.volume,
+                    value = volumePreview,
                     onValueChange = { value ->
+                        volumePreview = value
                         MangaMusicPlayer.setVolume(value)
+                    },
+                    onValueChangeFinished = {
+                        val value = volumePreview
                         scope.launch { store.setVolume(value) }
                     },
                     valueRange = 0f..1f,
@@ -203,7 +209,7 @@ fun MusicIntegrationTab(
                         .padding(horizontal = 12.dp)
                 )
                 Text(
-                    text = "${(settings.volume * 100).toInt()}%",
+                    text = "${(volumePreview * 100).toInt()}%",
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelSmall
                 )

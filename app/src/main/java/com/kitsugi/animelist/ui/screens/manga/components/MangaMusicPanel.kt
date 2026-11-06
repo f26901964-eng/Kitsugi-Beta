@@ -94,6 +94,8 @@ fun MangaMusicPanel(
     var usedFallback by remember { mutableStateOf(false) }
     var refreshToken by remember { mutableIntStateOf(0) }
     var autoStartDone by remember { mutableStateOf(false) }
+    // Sürükleme sırasında yalnızca oynatıcı sesi değişir; kalıcı ayar bırakınca yazılır.
+    var volumePreview by remember(settings.volume) { mutableStateOf(settings.volume) }
 
     // İstasyon listesi: ruh hâli / kaynak değişince (veya "Yenile") yeniden yüklenir.
     LaunchedEffect(settings.mood, settings.source, refreshToken) {
@@ -330,9 +332,13 @@ fun MangaMusicPanel(
                 fontSize = 11.sp
             )
             Slider(
-                value = settings.volume,
+                value = volumePreview,
                 onValueChange = { value ->
+                    volumePreview = value
                     MangaMusicPlayer.setVolume(value)
+                },
+                onValueChangeFinished = {
+                    val value = volumePreview
                     scope.launch { store.setVolume(value) }
                 },
                 valueRange = 0f..1f,
@@ -346,7 +352,7 @@ fun MangaMusicPanel(
                     .padding(horizontal = 8.dp)
             )
             Text(
-                text = "${(settings.volume * 100).toInt()}%",
+                text = "${(volumePreview * 100).toInt()}%",
                 color = contentColor.copy(alpha = 0.6f),
                 fontSize = 11.sp
             )
