@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -29,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,8 +67,15 @@ fun MangaDownloadsTab(
 ) {
     val context = LocalContext.current
     var pendingDelete by remember { mutableStateOf<MangaDownload?>(null) }
+    val expandedGroups = remember { mutableStateMapOf<String, Boolean>() }
     val groups = remember(downloads) {
-        downloads.groupBy { "${it.sourceKey}|${it.mangaUrl}" }.values.toList()
+        downloads.groupBy { "${it.sourceKey}|${it.mangaUrl}" }
+            .map { (key, records) -> key to records.sortedWith(mangaDownloadChapterOrder) }
+            .sortedWith(
+                compareBy<Pair<String, List<MangaDownload>>> {
+                    it.second.first().mangaTitle.lowercase(Locale.ROOT)
+                }.thenBy { it.second.first().sourceName.lowercase(Locale.ROOT) },
+            )
     }
 
     if (downloads.isEmpty()) {
@@ -101,12 +111,18 @@ fun MangaDownloadsTab(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            groups.forEach { group ->
+            groups.forEach { (groupKey, group) ->
                 val first = group.first()
-                item(key = "header_${first.sourceKey}_${first.mangaUrl}") {
+                val expanded = expandedGroups[groupKey] ?: true
+                val completedCount = group.count { it.status == MangaDownload.Status.COMPLETED }
+                val totalBytes = group.sumOf { it.totalBytes }
+                val mangaFolder = MangaDownloadManager.mangaFolderOf(first)
+                item(key = "header_$groupKey") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { expandedGroups[groupKey] = !expanded }
                             .padding(top = 8.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -132,35 +148,57 @@ fun MangaDownloadsTab(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                "${first.sourceName} • ${stringResource(R.string.downloads_manga_chapters_count, group.size)}",
+                                stringResource(
+                                    R.string.downloads_manga_group_summary,
+                                    first.sourceName,
+                                    completedCount,
+                                    group.size,
+                                    formatMangaBytes(totalBytes),
+                                ),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 11.sp,
-                                maxLines = 1,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        IconButton(
+                            onClick = { mangaFolder?.let(onOpenFolder) },
+                            enabled = mangaFolder?.exists() == true,
+                        ) {
+                            Icon(
+                                Icons.Rounded.FolderOpen,
+                                contentDescription = stringResource(R.string.downloads_manga_open_manga_folder),
+                                tint = if (mangaFolder?.exists() == true) accentColor else KitsugiColors.TextMuted,
+                            )
+                        }
+                        Icon(
+                            if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                            contentDescription = stringResource(
+                                if (expanded) R.string.downloads_manga_collapse else R.string.downloads_manga_expand,
+                            ),
+                            tint = KitsugiColors.TextMuted,
+                            modifier = Modifier.padding(end = 4.dp),
+                        )
                     }
                 }
-                items(group, key = { it.id }) { download ->
-                    MangaDownloadChapterCard(
-                        download = download,
-                        accentColor = accentColor,
-                        onRead = {
-                            if (download.status == MangaDownload.Status.COMPLETED) onRead(download)
-                        },
-                        onPause = { MangaDownloadManager.pause(context, download.id) },
-                        onResume = { MangaDownloadManager.resume(context, download.id) },
-                        onDelete = { pendingDelete = download },
-                        onOpenFolder = {
-                            val local = download.localPath?.let(::File)
-                            val target = when {
-                                local?.isFile == true -> local.parentFile
-                                local != null -> local
-                                else -> null
-                            }
-                            if (target != null) onOpenFolder(target)
-                        },
-                    )
+                if (expanded) {
+                    items(group, key = { it.id }) { download ->
+                        MangaDownloadChapterCard(
+                            download = download,
+                            accentColor = accentColor,
+                            onRead = {
+                                if (download.status == MangaDownload.Status.COMPLETED) onRead(download)
+                            },
+                            onPause = { MangaDownloadManager.pause(context, download.id) },
+                            onResume = { MangaDownloadManager.resume(context, download.id) },
+                            onDelete = { pendingDelete = download },
+                            onOpenFolder = {
+                                MangaDownloadManager.chapterFolderOf(download)
+                                    ?.takeIf { it.exists() }
+                                    ?.let(onOpenFolder)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -268,7 +306,7 @@ private fun MangaDownloadChapterCard(
                 }
                 MangaDownload.Status.COMPLETED -> IconButton(
                     onClick = onOpenFolder,
-                    enabled = !download.localPath.isNullOrBlank(),
+                    enabled = MangaDownloadManager.chapterFolderOf(download)?.exists() == true,
                 ) {
                     Icon(
                         Icons.Rounded.FolderOpen,
@@ -337,6 +375,13 @@ private fun MangaDownloadChapterCard(
         Spacer(Modifier.height(4.dp))
     }
 }
+
+private val mangaDownloadChapterOrder = compareBy<MangaDownload>(
+    { MangaDownloadManager.chapterNumberOf(it) == null },
+    { MangaDownloadManager.chapterNumberOf(it) ?: Double.MAX_VALUE },
+    { it.chapterName.lowercase(Locale.ROOT) },
+    { it.scanlator.orEmpty().lowercase(Locale.ROOT) },
+)
 
 private fun formatMangaBytes(bytes: Long): String {
     if (bytes <= 0L) return "0 MB"

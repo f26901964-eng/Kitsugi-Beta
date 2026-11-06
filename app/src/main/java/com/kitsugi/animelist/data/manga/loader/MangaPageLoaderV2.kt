@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.manga.loader
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.manga.MangaPage
+import com.kitsugi.animelist.data.manga.MangaPageOrdering
 import com.kitsugi.animelist.data.manga.MangaPageStatus
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceStateStore
@@ -72,7 +73,7 @@ class MangaPageLoaderV2(
                     val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "bmp", "gif", "avif", "img")
                     val pageFiles = directory.listFiles()
                         ?.filter { it.isFile && it.extension.lowercase() in imageExtensions }
-                        ?.sortedBy { it.name }
+                        ?.sortedWith { left, right -> MangaPageOrdering.compare(left.name, right.name) }
                         .orEmpty()
                     if (pageFiles.isEmpty()) throw java.io.IOException("İndirilen bölümde sayfa bulunamadı")
                     _pages.value = pageFiles.mapIndexed { index, file ->

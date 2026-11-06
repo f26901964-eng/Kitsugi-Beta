@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.manga.loader
 
 import android.content.Context
+import com.kitsugi.animelist.data.manga.MangaPageOrdering
 import java.io.File
 import java.util.zip.ZipFile
 
@@ -38,7 +39,7 @@ class ArchivePageLoader(private val context: Context, private val archiveFile: F
                 }
             }
         }
-        return pages.sorted()
+        return pages.sortedWith(MangaPageOrdering.comparator)
     }
 
     /** Belirli bir giriş adının (entry name) resim input stream'ini döner. */

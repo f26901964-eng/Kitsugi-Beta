@@ -151,7 +151,7 @@ class MangaDetailViewModel(
                     val rowsByUrl = rows.associateBy { it.chapter.url }
                     val groupedRows = MangaChapterGrouping.group(_uiState.value.details.title, chapters)
                         .mapNotNull { group ->
-                            val variants = group.chapters.mapNotNull(rowsByUrl::get)
+                            val variants = group.chapters.mapNotNull { chapter -> rowsByUrl[chapter.url] }
                             val primary = variants.firstOrNull { it.isInProgress }
                                 ?: variants.firstOrNull()
                                 ?: return@mapNotNull null

@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.manga.download
 
 import androidx.compose.runtime.Immutable
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.stableSourceKey
@@ -30,6 +31,8 @@ data class MangaDownload(
     val totalBytes: Long = 0L,
     /** Completed page directory or CBZ file. While running, this is the page work directory. */
     val localPath: String? = null,
+    /** Stable manga/source/chapter folder. Kept separately so CBZ and pages never lose their parent. */
+    val chapterPath: String? = null,
     val archivePath: String? = null,
     val error: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
@@ -71,7 +74,8 @@ data class MangaDownload(
                 mangaPosterUrl = details.thumbnailUrl,
                 chapterUrl = chapter.url,
                 chapterName = chapter.name,
-                chapterNumber = chapter.chapterNumber,
+                chapterNumber = MangaChapterGrouping.numberOf(details.title, chapter)?.toFloat()
+                    ?: chapter.chapterNumber,
                 scanlator = chapter.scanlator,
                 chapterUploadDate = chapter.uploadDate,
             )

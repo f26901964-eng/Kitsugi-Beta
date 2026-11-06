@@ -17795,6 +17795,10 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="downloads_manga_empty">Henüz manga bölümü indirilmedi</string>
     <string name="downloads_manga_empty_description">Manga sayfasında bölümün yanındaki indirme düğmesini kullan. Çevirmen ve kaynak bilgileri burada bölüm bölüm listelenir.</string>
     <string name="downloads_manga_chapters_count">%1$d bölüm</string>
+    <string name="downloads_manga_group_summary">%1$s • %2$d/%3$d bölüm hazır • %4$s</string>
+    <string name="downloads_manga_open_manga_folder">Manganın indirme klasörünü aç</string>
+    <string name="downloads_manga_collapse">Bölümleri daralt</string>
+    <string name="downloads_manga_expand">Bölümleri genişlet</string>
     <string name="downloads_manga_resume">Devam ettir</string>
     <string name="downloads_manga_retry">Yeniden dene</string>
     <string name="downloads_manga_pause">Duraklat</string>

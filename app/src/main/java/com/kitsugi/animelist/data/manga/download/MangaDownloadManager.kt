@@ -6,7 +6,9 @@ import android.net.NetworkCapabilities
 import android.os.Environment
 import com.kitsugi.animelist.core.download.MangaDownloadService
 import com.kitsugi.animelist.data.manga.MangaChapter
+import com.kitsugi.animelist.data.manga.MangaChapterGrouping
 import com.kitsugi.animelist.data.manga.MangaDetails
+import com.kitsugi.animelist.data.manga.MangaPageOrdering
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
 import com.kitsugi.animelist.data.manga.MangaSourceResult
@@ -171,8 +173,19 @@ object MangaDownloadManager {
         val job = synchronized(schedulerLock) { jobs[id] }
         job?.cancel()
         if (deleteFiles && record != null) {
-            record.localPath?.let(::deleteFileOrDirectory)
-            record.archivePath?.let(::deleteFileOrDirectory)
+            val chapterDirectory = record.chapterPath?.let(::File)
+            if (chapterDirectory != null) {
+                // New layout owns the whole chapter directory, including pages, CBZ and metadata.
+                deleteFileOrDirectory(chapterDirectory.absolutePath)
+                removeIfEmpty(chapterDirectory.parentFile) // Source
+                removeIfEmpty(chapterDirectory.parentFile?.parentFile) // Manga
+            } else {
+                // Backward compatibility for downloads created before chapterPath existed.
+                val legacyMangaDirectory = mangaFolderOf(record)
+                record.localPath?.let(::deleteFileOrDirectory)
+                record.archivePath?.let(::deleteFileOrDirectory)
+                removeIfEmpty(legacyMangaDirectory)
+            }
         }
         runtimeSources.remove(id)
         runtimeDetails.remove(id)
@@ -208,6 +221,35 @@ object MangaDownloadManager {
         }
     }
 
+    /** The folder presented by the Downloads UI; it contains either pages/ or the chapter CBZ. */
+    fun chapterFolderOf(record: MangaDownload): File? {
+        record.chapterPath?.let { return File(it) }
+        val content = record.localPath?.let(::File)
+            ?: record.archivePath?.let(::File)
+            ?: return null
+        return when {
+            content.name.equals("pages", ignoreCase = true) -> content.parentFile
+            content.extension.equals("cbz", ignoreCase = true) -> content.parentFile
+            else -> content
+        }
+    }
+
+    /** Manga-level folder used to open all downloaded chapters of one title. */
+    fun mangaFolderOf(record: MangaDownload): File? {
+        record.chapterPath?.let(::File)?.let { chapter ->
+            return chapter.parentFile?.parentFile // Chapter -> Source -> Manga
+        }
+        val content = record.localPath?.let(::File)
+            ?: record.archivePath?.let(::File)
+            ?: return null
+        // Legacy CBZ files were stored directly inside the manga directory.
+        return if (content.extension.equals("cbz", ignoreCase = true)) {
+            content.parentFile
+        } else {
+            chapterFolderOf(record)?.parentFile
+        }
+    }
+
     fun chapterOf(record: MangaDownload): MangaChapter = MangaChapter(
         url = record.chapterUrl,
         name = record.chapterName,
@@ -216,6 +258,9 @@ object MangaDownloadManager {
         uploadDate = record.chapterUploadDate,
         mangaUrl = record.mangaUrl,
     )
+
+    fun chapterNumberOf(record: MangaDownload): Double? =
+        MangaChapterGrouping.numberOf(record.mangaTitle, chapterOf(record))
 
     fun detailsOf(record: MangaDownload): MangaDetails = MangaDetails(
         url = record.mangaUrl,
@@ -312,18 +357,36 @@ object MangaDownloadManager {
             currentCoroutineContext().ensureActive()
             if (pages.isEmpty()) throw IOException("Kaynak bu bölüm için sayfa döndürmedi.")
 
-            val workDir = workDirectory(initial)
+            val existingWorkDir = initial.localPath?.let(::File)?.takeIf { it.isDirectory }
+            val chapterDir = initial.chapterPath?.let(::File)
+                ?: existingWorkDir?.let { existing ->
+                    if (existing.name.equals("pages", true)) existing.parentFile else existing
+                }
+                ?: newChapterDirectory(initial)
+            val workDir = existingWorkDir ?: File(chapterDir, "pages")
             if (!workDir.exists() && !workDir.mkdirs()) {
                 throw IOException("Manga indirme klasörü oluşturulamadı: ${workDir.absolutePath}")
             }
+            // Legacy flat chapter folders keep their original layout and remain resumable.
+            val savedChapterPath = if (initial.chapterPath != null || existingWorkDir == null) {
+                chapterDir.absolutePath
+            } else null
             update(id) {
                 it.copy(
                     localPath = workDir.absolutePath,
+                    chapterPath = savedChapterPath,
                     totalPages = pages.size,
                     downloadedPages = 0,
                     progress = 0,
                 )
             }
+            writeChapterMetadata(
+                workDir = workDir,
+                record = get(id) ?: initial,
+                totalPages = pages.size,
+                format = "pages",
+                completed = false,
+            )
 
             val expectedPageNames = pages.indices.map(::pageBaseName).toSet()
             pageFiles(workDir)
@@ -363,13 +426,24 @@ object MangaDownloadManager {
 
             ensureRunning(id)
             val settings = SettingsDataStore(requireContext()).settingsFlow.first().downloads
-            val completedFile = if (settings.saveChaptersAsCBZ) {
-                val archive = createCbz(workDir, details, chapter, source.name)
-                downloadedBytes = archive.length()
-                workDir.deleteRecursively()
-                archive
+            val saveAsCbz = settings.saveChaptersAsCBZ
+            val completedFile = if (saveAsCbz) {
+                createCbz(workDir, details, chapter, source.name).also { archive ->
+                    downloadedBytes = archive.length()
+                }
             } else {
                 workDir
+            }
+            writeChapterMetadata(
+                workDir = workDir,
+                record = get(id) ?: initial,
+                totalPages = pages.size,
+                format = if (saveAsCbz) "cbz" else "pages",
+                completed = true,
+            )
+            if (saveAsCbz) {
+                // In the new layout the CBZ is in chapterDir, so only the temporary pages/ go away.
+                workDir.deleteRecursively()
             }
 
             update(id) {
@@ -496,8 +570,11 @@ object MangaDownloadManager {
         chapter: MangaChapter,
         sourceName: String,
     ): File {
-        val target = File(workDir.parentFile, "${workDir.name}.cbz")
-        val temp = File(workDir.parentFile, ".${workDir.name}.cbz.tmp")
+        val isHierarchical = workDir.name.equals("pages", ignoreCase = true)
+        val chapterDir = if (isHierarchical) workDir.parentFile else workDir
+        val outputDir = if (isHierarchical) chapterDir else workDir.parentFile
+        val target = File(outputDir, "${chapterDir.name}.cbz")
+        val temp = File(outputDir, ".${chapterDir.name}.cbz.tmp")
         if (temp.exists()) temp.delete()
         try {
             ZipOutputStream(BufferedOutputStream(FileOutputStream(temp))).use { zip ->
@@ -528,19 +605,91 @@ object MangaDownloadManager {
         }
     }
 
-    private fun workDirectory(record: MangaDownload): File {
-        record.localPath?.let(::File)?.takeIf { it.isDirectory }?.let { return it }
+    /**
+     * New downloads use Manga/Source/Chapter/pages. The short ID prevents same-name chapters or
+     * translators from overwriting each other while the human-readable names stay recognizable.
+     */
+    private fun newChapterDirectory(record: MangaDownload): File {
         val mangaDirectory = File(storageRoot(), safeName(record.mangaTitle).ifBlank { "Manga" })
-        val variant = buildString {
-            append(safeName(record.chapterName).ifBlank { "Bölüm" })
+        val sourceDirectory = File(
+            mangaDirectory,
+            safeName(record.sourceName).ifBlank { "Kaynak" },
+        )
+        val baseName = buildString {
+            append(chapterFolderBaseName(record))
             record.scanlator?.trim()?.takeIf { it.isNotBlank() }?.let {
                 append(" - ")
                 append(safeName(it))
             }
-            append(" - ")
-            append(record.id.take(8))
         }
-        return File(mangaDirectory, variant)
+        // Keep the identity at the end even when a very long Unicode title has to be shortened.
+        val uniqueSuffix = " - ${record.id.take(8)}"
+        val availableBytes = (180 - uniqueSuffix.toByteArray(Charsets.UTF_8).size).coerceAtLeast(32)
+        val readableName = truncateUtf8(baseName, availableBytes).trim().trim('.', ' ', '-')
+        return File(sourceDirectory, readableName.ifBlank { "Bölüm" } + uniqueSuffix)
+    }
+
+    private fun chapterFolderBaseName(record: MangaDownload): String {
+        val originalName = safeName(record.chapterName).ifBlank { "Bölüm" }
+        val number = chapterNumberOf(record) ?: return originalName
+        val formatted = MangaChapterGrouping.formatNumber(number)
+        val padded = paddedChapterNumber(formatted)
+        val leadingNumber = Regex(
+            "^(?:(?:Bölüm|Bolum|Chapter|Ch|B)\\s*)?0*${Regex.escape(formatted)}(?=\\D|$)",
+            RegexOption.IGNORE_CASE,
+        ).find(originalName)
+        if (leadingNumber == null) return "Bölüm $padded - $originalName"
+        val remainder = originalName.substring(leadingNumber.range.last + 1)
+            .trim()
+            .trimStart('-', ':', '—')
+            .trim()
+        return "Bölüm $padded" + if (remainder.isBlank()) "" else " - $remainder"
+    }
+
+    private fun paddedChapterNumber(formatted: String): String {
+        val decimal = formatted.indexOf('.')
+        val whole = if (decimal >= 0) formatted.substring(0, decimal) else formatted
+        val fraction = if (decimal >= 0) formatted.substring(decimal) else ""
+        return whole.padStart(4, '0') + fraction
+    }
+
+    /** Human-readable sidecar metadata; it is never counted as a manga page. */
+    private fun writeChapterMetadata(
+        workDir: File,
+        record: MangaDownload,
+        totalPages: Int,
+        format: String,
+        completed: Boolean,
+    ) {
+        val chapterDir = if (workDir.name.equals("pages", true)) workDir.parentFile else workDir
+        val target = File(chapterDir, "chapter-info.json")
+        val temp = File(chapterDir, ".chapter-info.json.tmp")
+        val json = JSONObject().apply {
+            put("schemaVersion", 1)
+            put("id", record.id)
+            put("mangaTitle", record.mangaTitle)
+            put("mangaUrl", record.mangaUrl)
+            put("sourceName", record.sourceName)
+            put("sourceKey", record.sourceKey)
+            put("chapterName", record.chapterName)
+            put("chapterNumber", chapterNumberOf(record) ?: JSONObject.NULL)
+            put("chapterUrl", record.chapterUrl)
+            put("scanlator", record.scanlator ?: JSONObject.NULL)
+            put("totalPages", totalPages)
+            put("pageOrder", "0001, 0002, 0003, …")
+            put("format", format)
+            put("completed", completed)
+            put("updatedAt", System.currentTimeMillis())
+        }
+        try {
+            FileOutputStream(temp).bufferedWriter(Charsets.UTF_8).use { it.write(json.toString(2)) }
+            if (target.exists() && !target.delete()) {
+                throw IOException("Bölüm bilgi dosyası güncellenemedi.")
+            }
+            if (!temp.renameTo(target)) throw IOException("Bölüm bilgi dosyası kaydedilemedi.")
+        } finally {
+            if (temp.exists()) temp.delete()
+        }
     }
 
     private fun storageRoot(): File {
@@ -573,7 +722,7 @@ object MangaDownloadManager {
 
     private fun pageFiles(directory: File): List<File> = directory.listFiles()
         ?.filter { it.isFile && it.extension.lowercase(Locale.ROOT) in IMAGE_EXTENSIONS }
-        ?.sortedBy { it.name }
+        ?.sortedWith { left, right -> MangaPageOrdering.compare(left.name, right.name) }
         .orEmpty()
 
     private fun findExistingPage(directory: File, index: Int): File? {
@@ -641,6 +790,7 @@ object MangaDownloadManager {
         put("totalPages", totalPages)
         put("totalBytes", totalBytes)
         put("localPath", localPath)
+        put("chapterPath", chapterPath)
         put("archivePath", archivePath)
         put("error", error)
         put("createdAt", createdAt)
@@ -675,6 +825,7 @@ object MangaDownloadManager {
             totalPages = optInt("totalPages"),
             totalBytes = optLong("totalBytes"),
             localPath = optNullableString("localPath"),
+            chapterPath = optNullableString("chapterPath"),
             archivePath = optNullableString("archivePath"),
             error = optNullableString("error"),
             createdAt = optLong("createdAt", System.currentTimeMillis()),
@@ -691,7 +842,24 @@ object MangaDownloadManager {
         .replace(Regex("[^\\p{L}\\p{N}._ -]+"), "_")
         .trim()
         .take(80)
+        .let { truncateUtf8(it, 120) }
         .trim('.', ' ')
+
+    /** Ext4/Android file names are byte-limited, not just character-limited. */
+    private fun truncateUtf8(value: String, maxBytes: Int): String {
+        if (value.toByteArray(Charsets.UTF_8).size <= maxBytes) return value
+        var end = value.length
+        while (end > 0) {
+            val last = value[end - 1]
+            end -= if (
+                Character.isLowSurrogate(last) && end > 1 &&
+                Character.isHighSurrogate(value[end - 2])
+            ) 2 else 1
+            val candidate = value.substring(0, end)
+            if (candidate.toByteArray(Charsets.UTF_8).size <= maxBytes) return candidate
+        }
+        return ""
+    }
 
     private fun xmlEscape(value: String): String = buildString {
         value.forEach { char ->
@@ -709,6 +877,12 @@ object MangaDownloadManager {
     private fun deleteFileOrDirectory(path: String) {
         val file = File(path)
         if (file.isDirectory) file.deleteRecursively() else file.delete()
+    }
+
+    private fun removeIfEmpty(directory: File?) {
+        if (directory?.isDirectory == true && directory.listFiles()?.isEmpty() == true) {
+            directory.delete()
+        }
     }
 
     private fun requireContext(): Context = appContext
