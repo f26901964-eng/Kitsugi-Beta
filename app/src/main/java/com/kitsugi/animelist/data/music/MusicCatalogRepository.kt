@@ -98,6 +98,21 @@ class MusicCatalogRepository(
         }
     }
 
+    /**
+     * Kaynağı aç/kapa.
+     *
+     * Anahtar gerektiren bir kaynağı açmaya çalışırken anahtar yoksa
+     * yine de `enabled = true` yapılır — panelde 🟡 "anahtar girilmedi"
+     * olarak görünür ve kullanıcı Ayarlar'a yönlendirilir. Sessizce
+     * reddetmek daha kötü olurdu: kullanıcı düğmenin çalışmadığını sanır.
+     */
+    fun toggleSource(sourceId: MusicSourceId) {
+        if (sourceId == MusicSourceId.BUILTIN) return
+        _sources.update { list ->
+            list.map { if (it.def.id == sourceId) it.copy(enabled = !it.enabled) else it }
+        }
+    }
+
     /** Kullanılabilir (etkin + gerekiyorsa anahtarı var) kaynaklar. */
     fun usableSources(): List<MusicSourceState> = _sources.value.filter { state ->
         val def = state.def

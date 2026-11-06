@@ -75,6 +75,7 @@ import com.kitsugi.animelist.data.manga.ColorFilterType
 import com.kitsugi.animelist.data.manga.MangaFitMode
 import com.kitsugi.animelist.core.music.AmbientAudioEngine
 import com.kitsugi.animelist.data.music.MusicCatalogRepository
+import com.kitsugi.animelist.data.music.AtmospherePresets
 import com.kitsugi.animelist.data.music.MusicRecommendationEngine
 import com.kitsugi.animelist.data.music.ProceduralSoundCatalog
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -204,6 +205,62 @@ fun MangaReaderScreen(
     // Ayarlar değiştikçe kaynak durumlarını eşitle
     LaunchedEffect(readerAppSettings) {
         musicCatalog.syncSettings(readerAppSettings)
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  OTOMATİK ÇALMA
+    // ═══════════════════════════════════════════════════════════════════
+    // Kullanıcı "aç/kapa" ile yönetir. Üç koşul birlikte sağlanmalı:
+    //   1. musicEnabled          — ortam sesi sistemi açık
+    //   2. musicAutoPlay         — otomatik başlatma açık
+    //   3. hiç kanal çalmıyor    — kullanıcının kendi seçimini ezmez
+    //
+    // Bölüm başına bir kez: `currentChapter.url` anahtarı sayesinde
+    // sonraki bölüme geçildiğinde yeniden tetiklenmez (kullanıcı zaten
+    // bir şey çalıyorsa dokunulmaz).
+    var autoPlayHandled by remember(mangaDetails.url) { mutableStateOf(false) }
+
+    LaunchedEffect(
+        currentChapter.url,
+        readerAppSettings.musicEnabled,
+        readerAppSettings.musicAutoPlay
+    ) {
+        if (autoPlayHandled) return@LaunchedEffect
+        if (!readerAppSettings.musicEnabled) return@LaunchedEffect
+        if (!readerAppSettings.musicAutoPlay) return@LaunchedEffect
+        if (musicEngine.channels.value.isNotEmpty()) return@LaunchedEffect
+
+        // Kullanıcı bekleme süresi kadar okumaya başlasın, sonra ses gelsin
+        val delaySec = readerAppSettings.musicAutoPlayDelaySeconds.coerceIn(0, 30)
+        if (delaySec > 0) kotlinx.coroutines.delay(delaySec * 1000L)
+
+        // Bu arada bir şey çaldıysa iptal
+        if (musicEngine.channels.value.isNotEmpty()) {
+            autoPlayHandled = true
+            return@LaunchedEffect
+        }
+
+        val recommendation = MusicRecommendationEngine.recommend(
+            genres = mangaDetails.genre,
+            pool = ProceduralSoundCatalog.sounds
+        )
+
+        val targetVolume = readerAppSettings.musicAutoPlayVolume.coerceIn(0.05f, 1f)
+
+        // Önce atmosfer preset'i, yoksa ilk önerilen ses
+        val preset = recommendation.presets.firstOrNull()?.sound?.id
+            ?.let { AtmospherePresets.byId(it) }
+
+        if (preset != null) {
+            musicEngine.playPreset(preset)
+            // Preset katmanları kendi seviyeleriyle eklenir; ana sesi ayarla
+            musicEngine.setMasterVolume(targetVolume)
+        } else {
+            recommendation.sounds.firstOrNull()?.let { rec ->
+                musicEngine.addChannel(rec.sound, targetVolume)
+            }
+        }
+        autoPlayHandled = true
     }
 
     // Manga türünden öneri üret — yalnızca tür değişince yeniden hesaplanır
@@ -683,6 +740,17 @@ fun MangaReaderScreen(
                 onApplyProfile = { profile -> musicEngine.applyProfile(profile) },
                 onDeleteProfile = { id -> musicEngine.deleteProfile(id) },
                 onToggleFavorite = { id -> musicEngine.toggleFavorite(id) },
+                musicEnabled = readerAppSettings.musicEnabled,
+                onMusicEnabledChanged = { enabled ->
+                    readerScope.launch { readerSettingsStore.setMusicEnabled(enabled) }
+                    if (!enabled) musicEngine.stopAllChannels()
+                },
+                autoPlay = readerAppSettings.musicAutoPlay,
+                onAutoPlayChanged = { enabled ->
+                    readerScope.launch { readerSettingsStore.setMusicAutoPlay(enabled) }
+                },
+                autoPlayDelaySeconds = readerAppSettings.musicAutoPlayDelaySeconds,
+                onToggleSource = { sourceId -> musicCatalog.toggleSource(sourceId) },
                 onExportProfile = { profile ->
                     // Panoya kopyala — kullanıcı dilediği yere yapıştırır
                     val json = musicEngine.exportProfile(profile)

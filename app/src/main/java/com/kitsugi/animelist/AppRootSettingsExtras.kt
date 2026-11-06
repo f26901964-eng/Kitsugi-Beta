@@ -473,6 +473,10 @@ internal fun SettingsContext.buildSettingsParams() =
             onMusicEnabledChanged = { onMusicEnabledChanged(it) },
             musicAutoRecommend = appSettings.musicAutoRecommend,
             onMusicAutoRecommendChanged = { onMusicAutoRecommendChanged(it) },
+            musicAutoPlay = appSettings.musicAutoPlay,
+            onMusicAutoPlayChanged = { onMusicAutoPlayChanged(it) },
+            musicAutoPlayDelay = appSettings.musicAutoPlayDelaySeconds,
+            onMusicAutoPlayDelayChanged = { onMusicAutoPlayDelayChanged(it) },
             musicContinueOnExit = appSettings.musicContinueOnExit,
             onMusicContinueOnExitChanged = { onMusicContinueOnExitChanged(it) },
             musicMasterVolume = appSettings.musicMasterVolume,
@@ -1260,6 +1264,14 @@ internal fun SettingsContext.onMusicEnabledChanged(enabled: Boolean) {
 
 internal fun SettingsContext.onMusicAutoRecommendChanged(enabled: Boolean) {
     coroutineScope.launch { settingsDataStore.setMusicAutoRecommend(enabled) }
+}
+
+internal fun SettingsContext.onMusicAutoPlayChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setMusicAutoPlay(enabled) }
+}
+
+internal fun SettingsContext.onMusicAutoPlayDelayChanged(seconds: Int) {
+    coroutineScope.launch { settingsDataStore.setMusicAutoPlayDelay(seconds) }
 }
 
 internal fun SettingsContext.onMusicContinueOnExitChanged(enabled: Boolean) {

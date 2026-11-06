@@ -258,6 +258,21 @@ data class IntegrationsAndNotificationsSettings(
     val musicAudiusEnabled: Boolean = true,
     val musicAudiusApiKey: String = "",
     val musicLastPresetId: String = "",
+
+    // ─── Otomatik çalma davranışı ────────────────────────────────────────
+    /**
+     * Okuyucu açılınca içeriğe uygun ses otomatik başlasın mı.
+     *
+     * `musicEnabled` + `musicAutoRecommend` ile birlikte üçlü bir kapı:
+     *  - musicEnabled = false        → hiçbir şey çalmaz
+     *  - musicAutoRecommend = false  → öneri gösterilir, otomatik çalınmaz
+     *  - musicAutoPlay = true        → okuyucu açılınca kendiliğinden başlar
+     */
+    val musicAutoPlay: Boolean = false,
+    /** Otomatik çalarken hedef ses seviyesi (0..1). */
+    val musicAutoPlayVolume: Float = 0.45f,
+    /** Bekleme süresi (sn): okuyucu açıldıktan sonra bu kadar sonra başlar. */
+    val musicAutoPlayDelaySeconds: Int = 3,
     val wikiPageTheme: String = "SITE",
     val wikiTextZoom: Int = 100,
     val wikiAdBlockDisabledHosts: Set<String> = emptySet(),
@@ -405,6 +420,9 @@ data class AppSettings(
     // ─── Okuyucu Ortam Sesi (Ambient) ───────────────────────────────────────
     val musicEnabled: Boolean get() = integrations.musicEnabled
     val musicAutoRecommend: Boolean get() = integrations.musicAutoRecommend
+    val musicAutoPlay: Boolean get() = integrations.musicAutoPlay
+    val musicAutoPlayVolume: Float get() = integrations.musicAutoPlayVolume
+    val musicAutoPlayDelaySeconds: Int get() = integrations.musicAutoPlayDelaySeconds
     val musicMasterVolume: Float get() = integrations.musicMasterVolume
     val musicChannelVolume: Float get() = integrations.musicChannelVolume
     val musicAmbientVolume: Float get() = integrations.musicAmbientVolume

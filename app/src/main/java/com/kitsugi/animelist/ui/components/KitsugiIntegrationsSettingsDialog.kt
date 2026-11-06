@@ -127,6 +127,10 @@ fun KitsugiIntegrationsSettingsDialog(
     onMusicEnabledChanged: (Boolean) -> Unit = {},
     musicAutoRecommend: Boolean = true,
     onMusicAutoRecommendChanged: (Boolean) -> Unit = {},
+    musicAutoPlay: Boolean = false,
+    onMusicAutoPlayChanged: (Boolean) -> Unit = {},
+    musicAutoPlayDelay: Int = 3,
+    onMusicAutoPlayDelayChanged: (Int) -> Unit = {},
     musicContinueOnExit: Boolean = false,
     onMusicContinueOnExitChanged: (Boolean) -> Unit = {},
     musicMasterVolume: Float = 0.8f,
@@ -313,6 +317,10 @@ fun KitsugiIntegrationsSettingsDialog(
                         onEnabledChanged = onMusicEnabledChanged,
                         autoRecommend = musicAutoRecommend,
                         onAutoRecommendChanged = onMusicAutoRecommendChanged,
+                        autoPlay = musicAutoPlay,
+                        onAutoPlayChanged = onMusicAutoPlayChanged,
+                        autoPlayDelay = musicAutoPlayDelay,
+                        onAutoPlayDelayChanged = onMusicAutoPlayDelayChanged,
                         continueOnExit = musicContinueOnExit,
                         onContinueOnExitChanged = onMusicContinueOnExitChanged,
                         masterVolume = musicMasterVolume,
@@ -1382,6 +1390,10 @@ private fun MusicSettingsTab(
     onEnabledChanged: (Boolean) -> Unit,
     autoRecommend: Boolean,
     onAutoRecommendChanged: (Boolean) -> Unit,
+    autoPlay: Boolean = false,
+    onAutoPlayChanged: (Boolean) -> Unit = {},
+    autoPlayDelay: Int = 3,
+    onAutoPlayDelayChanged: (Int) -> Unit = {},
     continueOnExit: Boolean,
     onContinueOnExitChanged: (Boolean) -> Unit,
     masterVolume: Float,
@@ -1442,6 +1454,44 @@ private fun MusicSettingsTab(
                     checked = autoRecommend,
                     onCheckedChange = onAutoRecommendChanged
                 )
+
+                KitsugiSettingsDivider()
+                KitsugiSettingsSwitchItem(
+                    title = "Otomatik başlat",
+                    description = "Okuyucu açılınca içeriğe uygun ses kendiliğinden " +
+                        "başlasın. Kapalıysa sen dokunana kadar sessiz kalır.",
+                    icon = Icons.Rounded.PlayArrow,
+                    iconColor = KitsugiColors.AccentTeal,
+                    checked = autoPlay,
+                    onCheckedChange = onAutoPlayChanged
+                )
+
+                if (autoPlay) {
+                    KitsugiSettingsDivider()
+                    // Bekleme süresi — 0..30 sn
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(
+                            text = "Başlama gecikmesi: ${autoPlayDelay} sn",
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "Okumaya başladıktan sonra ses bu kadar sonra gelir",
+                            color = KitsugiColors.TextMuted,
+                            fontSize = 11.sp
+                        )
+                        androidx.compose.material3.Slider(
+                            value = autoPlayDelay.toFloat(),
+                            onValueChange = { onAutoPlayDelayChanged(it.toInt()) },
+                            valueRange = 0f..30f,
+                            steps = 29,
+                            colors = androidx.compose.material3.SliderDefaults.colors(
+                                thumbColor = accentColor,
+                                activeTrackColor = accentColor
+                            )
+                        )
+                    }
+                }
 
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(

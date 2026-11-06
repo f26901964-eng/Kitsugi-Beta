@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -36,6 +37,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Share
@@ -149,7 +152,17 @@ fun MangaAmbientPanel(
     onDeleteProfile: (String) -> Unit = {},
     onToggleFavorite: (String) -> Unit = {},
     onExportProfile: (com.kitsugi.animelist.data.music.MixProfile) -> Unit = {},
-    onImportProfile: () -> Unit = {}
+    onImportProfile: () -> Unit = {},
+    // ── Otomatik çalma anahtarı ────────────────────────────────────────
+    /** Ortam sesi sistemi açık mı (ana anahtar). */
+    musicEnabled: Boolean = true,
+    onMusicEnabledChanged: (Boolean) -> Unit = {},
+    /** Otomatik başlatma açık mı. */
+    autoPlay: Boolean = false,
+    onAutoPlayChanged: (Boolean) -> Unit = {},
+    autoPlayDelaySeconds: Int = 3,
+    /** Kaynak aç/kapa — kullanıcı hangi kaynakların aranacağını seçer. */
+    onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {}
 ) {
     val accent = LocalKitsugiAccent.current
     var selectedTab by remember { mutableStateOf(0) }
@@ -242,6 +255,21 @@ fun MangaAmbientPanel(
 
         Spacer(Modifier.height(10.dp))
 
+        // ── Aç / kapa anahtarları ───────────────────────────────────────
+        // Yalnızca "Senin İçin" sekmesinde: diğer sekmelerde zaten
+        // kullanıcı bir şey seçiyor, anahtar gereksiz yer kaplar.
+        if (selectedTab == 0) {
+            AutoPlayCard(
+                accent = accent,
+                musicEnabled = musicEnabled,
+                autoPlay = autoPlay,
+                delaySeconds = autoPlayDelaySeconds,
+                onMusicEnabledChanged = onMusicEnabledChanged,
+                onAutoPlayChanged = onAutoPlayChanged
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
         // ══════════════════════════════════════════════════════════════
         //  KISAYOL ŞERİDİ — sayfayı kaplamadan tek dokunuş
         // ══════════════════════════════════════════════════════════════
@@ -323,13 +351,19 @@ fun MangaAmbientPanel(
                 modifier = Modifier.weight(1f),
                 familyFilter = { it != SoundFamily.INSTRUMENTAL },
                 channels = channels,
-                onPlaySound = onPlaySound
+                favorites = favorites,
+                onPlaySound = onPlaySound,
+                onToggleFavorite = onToggleFavorite,
+                onLongClickSound = openDetail
             )
             2 -> SoundListTab(
                 modifier = Modifier.weight(1f),
                 familyFilter = { it == SoundFamily.INSTRUMENTAL },
                 channels = channels,
-                onPlaySound = onPlaySound
+                favorites = favorites,
+                onPlaySound = onPlaySound,
+                onToggleFavorite = onToggleFavorite,
+                onLongClickSound = openDetail
             )
             3 -> OnlineTab(
                 modifier = Modifier.weight(1f),
@@ -342,7 +376,8 @@ fun MangaAmbientPanel(
                 accent = accent,
                 onQueryChanged = onSearchQueryChanged,
                 onSearch = onSearch,
-                onPlay = onPlayOnline
+                onPlay = onPlayOnline,
+                onToggleSource = onToggleSource
             )
             4 -> MixerTab(
                 modifier = Modifier.weight(1f),
@@ -576,13 +611,31 @@ private fun SoundListTab(
     modifier: Modifier = Modifier,
     familyFilter: (SoundFamily) -> Boolean,
     channels: List<ChannelState>,
-    onPlaySound: (AmbientSound) -> Unit
+    favorites: Set<String> = emptySet(),
+    onPlaySound: (AmbientSound) -> Unit,
+    onToggleFavorite: (String) -> Unit = {},
+    onLongClickSound: (AmbientSound) -> Unit = {}
 ) {
     val accent = LocalKitsugiAccent.current
-    val sounds = remember(familyFilter) {
+    val allSounds = remember(familyFilter) {
         ProceduralSoundCatalog.sounds.filter { familyFilter(it.family) }
     }
     val playingIds = remember(channels) { channels.map { it.sound.id }.toSet() }
+
+    // ── Kategori filtresi ───────────────────────────────────────────────
+    // Aileler yalnızca bu listede geçenlerden türetilir; boş kategori
+    // göstermeyiz ("Müzik" sekmesinde "Ateş" çıkmasın).
+    val families = remember(allSounds) {
+        allSounds.map { it.family }.distinct().sortedBy { it.name }
+    }
+    var selectedFamily by remember(families) { mutableStateOf<SoundFamily?>(null) }
+    var onlyFavorites by remember { mutableStateOf(false) }
+
+    val sounds = remember(allSounds, selectedFamily, onlyFavorites, favorites) {
+        allSounds
+            .filter { selectedFamily == null || it.family == selectedFamily }
+            .filter { !onlyFavorites || it.id in favorites }
+    }
 
     Column(
         modifier = modifier
@@ -590,19 +643,51 @@ private fun SoundListTab(
             .verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp)
     ) {
-        sounds.forEach { sound ->
-            SoundRow(
-                sound = sound,
-                reason = sound.subtitle,
-                isActive = sound.id in playingIds,
-                accent = accent,
-                onClick = { onPlaySound(sound) }
-            )
-            Spacer(Modifier.height(6.dp))
+        // ── Filtre çipleri ──────────────────────────────────────────────
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(horizontal = 0.dp)
+        ) {
+            item {
+                FamilyChip(
+                    label = "Tümü",
+                    selected = selectedFamily == null && !onlyFavorites,
+                    accent = accent,
+                    onClick = {
+                        selectedFamily = null
+                        onlyFavorites = false
+                    }
+                )
+            }
+            if (favorites.isNotEmpty()) {
+                item {
+                    FamilyChip(
+                        label = "❤ ${favorites.size}",
+                        selected = onlyFavorites,
+                        accent = Color(0xFFF472B6),
+                        onClick = { onlyFavorites = !onlyFavorites }
+                    )
+                }
+            }
+            items(families.size) { index ->
+                val family = families[index]
+                FamilyChip(
+                    label = familyLabel(family),
+                    selected = selectedFamily == family,
+                    accent = accent,
+                    onClick = {
+                        selectedFamily = if (selectedFamily == family) null else family
+                    }
+                )
+            }
         }
+
+        Spacer(Modifier.height(10.dp))
+
         if (sounds.isEmpty()) {
             Text(
-                text = "Bu kategoride ses yok",
+                text = if (onlyFavorites) "Henüz favori yok — bir sese uzun bas"
+                else "Bu kategoride ses yok",
                 color = KitsugiColors.TextMuted,
                 fontSize = 12.sp,
                 modifier = Modifier
@@ -611,12 +696,65 @@ private fun SoundListTab(
                 textAlign = TextAlign.Center
             )
         }
+
+        sounds.forEach { sound ->
+            SoundRow(
+                sound = sound,
+                reason = sound.subtitle,
+                isActive = sound.id in playingIds,
+                accent = accent,
+                isFavorite = sound.id in favorites,
+                onClick = { onPlaySound(sound) },
+                onToggleFavorite = { onToggleFavorite(sound.id) },
+                onLongClick = { onLongClickSound(sound) }
+            )
+            Spacer(Modifier.height(6.dp))
+        }
+
         Spacer(Modifier.height(8.dp))
         Text(
             text = "Tümü cihazında üretilir — internet, hesap veya kota gerekmez.",
             color = KitsugiColors.TextMuted,
             fontSize = 10.sp,
             modifier = Modifier.padding(horizontal = 4.dp)
+        )
+    }
+}
+
+/** Ses ailesinin Türkçe adı. */
+private fun familyLabel(family: SoundFamily): String = when (family) {
+    SoundFamily.NOISE -> "Gürültü"
+    SoundFamily.WEATHER -> "Hava"
+    SoundFamily.FIRE -> "Ateş"
+    SoundFamily.WATER -> "Su"
+    SoundFamily.WIND -> "Rüzgâr"
+    SoundFamily.FOREST -> "Orman"
+    SoundFamily.URBAN -> "Şehir"
+    SoundFamily.INSTRUMENTAL -> "Enstrümantal"
+    SoundFamily.VOCAL -> "Vokal"
+    SoundFamily.OTHER -> "Diğer"
+}
+
+/** Filtre çipi — sekme çiplerinden daha küçük. */
+@Composable
+private fun FamilyChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selected) accent.copy(alpha = 0.22f) else KitsugiColors.SurfaceSoft)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (selected) accent else KitsugiColors.TextSecondary,
+            fontSize = 10.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
@@ -1110,7 +1248,8 @@ private fun OnlineTab(
     accent: Color,
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
-    onPlay: (AmbientSound) -> Unit
+    onPlay: (AmbientSound) -> Unit,
+    onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {}
 ) {
     val grouped = remember(results) { results.groupBy { it.sourceId } }
 
@@ -1160,6 +1299,50 @@ private fun OnlineTab(
 
         Spacer(Modifier.height(10.dp))
 
+        // ── Hangi kaynak ne sunuyor ─────────────────────────────────────
+        var showComparison by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(9.dp))
+                .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.6f))
+                .clickable { showComparison = !showComparison }
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("📊", fontSize = 11.sp)
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = "Hangi kaynak ne sunuyor?",
+                color = KitsugiColors.TextSecondary,
+                fontSize = 10.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = if (showComparison) Icons.Rounded.ExpandLess
+                else Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                tint = KitsugiColors.TextMuted,
+                modifier = Modifier.size(15.dp)
+            )
+        }
+
+        if (showComparison) {
+            Spacer(Modifier.height(6.dp))
+            com.kitsugi.animelist.data.music.MusicSourceCapability.ranked.forEach { cap ->
+                SourceCapabilityRow(cap = cap, accent = accent)
+                Spacer(Modifier.height(4.dp))
+            }
+            Text(
+                text = "Puan: çeşitlilik %35 · kalite %30 · erişilebilirlik %35",
+                color = KitsugiColors.TextMuted,
+                fontSize = 8.sp,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
         // ── Kaynak durumları ────────────────────────────────────────────
         Text(
             text = "KAYNAKLAR",
@@ -1171,7 +1354,10 @@ private fun OnlineTab(
 
         sourceStates.filter { it.def.id != com.kitsugi.animelist.data.music.MusicSourceId.BUILTIN }
             .forEach { state ->
-                SourceStatusRow(state = state)
+                SourceStatusRow(
+                    state = state,
+                    onToggle = { onToggleSource(state.def.id) }
+                )
                 Spacer(Modifier.height(4.dp))
             }
 
@@ -1247,7 +1433,10 @@ private fun OnlineTab(
  * Kaynak durumu satırı — renk noktası + ad + kota/anahtar bilgisi.
  */
 @Composable
-private fun SourceStatusRow(state: com.kitsugi.animelist.data.music.MusicSourceState) {
+private fun SourceStatusRow(
+    state: com.kitsugi.animelist.data.music.MusicSourceState,
+    onToggle: () -> Unit = {}
+) {
     val dotColor = when (state.status) {
         com.kitsugi.animelist.data.music.SourceStatus.READY -> Color(0xFF34D399)
         com.kitsugi.animelist.data.music.SourceStatus.UNCHECKED -> Color(0xFF60A5FA)
@@ -1269,6 +1458,7 @@ private fun SourceStatusRow(state: com.kitsugi.animelist.data.music.MusicSourceS
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.6f))
+            .clickable(onClick = onToggle)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1281,7 +1471,7 @@ private fun SourceStatusRow(state: com.kitsugi.animelist.data.music.MusicSourceS
         Spacer(Modifier.width(8.dp))
         Text(
             text = state.def.displayName,
-            color = KitsugiColors.TextPrimary,
+            color = if (state.enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1302,6 +1492,12 @@ private fun SourceStatusRow(state: com.kitsugi.animelist.data.music.MusicSourceS
                 fontWeight = FontWeight.Bold
             )
         }
+        Spacer(Modifier.width(6.dp))
+        KitsugiSwitch(
+            checked = state.enabled,
+            onCheckedChange = { onToggle() },
+            accent = Color(0xFF34D399)
+        )
     }
 }
 
@@ -2359,6 +2555,216 @@ private fun PillAction(
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  AÇ / KAPA + OTOMATİK ÇALMA ANAHTARLARI
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🎛️ İki anahtarlı kontrol kartı
+ *
+ * ```
+ * ┌───────────────────────────────────────────────┐
+ * │ Ortam sesi                        [ ●——— ]    │
+ * │ Okurken içeriğe uygun ses çalsın              │
+ * │ ─────────────────────────────────────────     │
+ * │ Otomatik başlat                   [ ———● ]    │
+ * │ Okuyucu açılınca 3 sn sonra başlar            │
+ * └───────────────────────────────────────────────┘
+ * ```
+ *
+ * **Neden iki anahtar:** Kullanıcı "otomatik çalma"yı kapatıp elle
+ * seçmeye devam edebilmeli. Tek anahtar olsaydı, otomatiği kapatmak
+ * paneli tamamen devre dışı bırakırdı.
+ *
+ * İkinci anahtar, birincisi kapalıyken **devre dışı** görünür — ama
+ * gizlenmez (kullanıcı varlığını bilsin).
+ */
+@Composable
+private fun AutoPlayCard(
+    accent: Color,
+    musicEnabled: Boolean,
+    autoPlay: Boolean,
+    delaySeconds: Int,
+    onMusicEnabledChanged: (Boolean) -> Unit,
+    onAutoPlayChanged: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.85f))
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        // ── Ana anahtar ─────────────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Ortam sesi",
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = if (musicEnabled)
+                        "Okurken içeriğe uygun ses çalınabilir"
+                    else
+                        "Tüm ses özellikleri kapalı",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 10.sp
+                )
+            }
+            KitsugiSwitch(
+                checked = musicEnabled,
+                onCheckedChange = onMusicEnabledChanged,
+                accent = accent
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(KitsugiColors.Border.copy(alpha = 0.5f))
+        )
+        Spacer(Modifier.height(10.dp))
+
+        // ── Otomatik başlatma ───────────────────────────────────────────
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Otomatik başlat",
+                    color = if (musicEnabled) KitsugiColors.TextPrimary
+                    else KitsugiColors.TextMuted,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = when {
+                        !musicEnabled -> "Önce ortam sesini aç"
+                        autoPlay -> "Okuyucu açılınca ${delaySeconds} sn sonra başlar"
+                        else -> "Sen dokunana kadar sessiz kalır"
+                    },
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 10.sp
+                )
+            }
+            KitsugiSwitch(
+                checked = autoPlay && musicEnabled,
+                onCheckedChange = { onAutoPlayChanged(it) },
+                accent = accent,
+                enabled = musicEnabled
+            )
+        }
+    }
+}
+
+/**
+ * Tema uyumlu anahtar.
+ *
+ * Material3 `Switch` kullanmak yerine kendi çizimimiz: `Switch`'in
+ * varsayılan renkleri temamızın `SurfaceSoft`/`Border` paletiyle
+ * uyuşmuyor ve gereğinden büyük duruyor.
+ */
+@Composable
+private fun KitsugiSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    accent: Color,
+    enabled: Boolean = true
+) {
+    val trackWidth = 40.dp
+    val trackHeight = 22.dp
+    val thumbSize = 16.dp
+
+    Box(
+        modifier = Modifier
+            .width(trackWidth)
+            .height(trackHeight)
+            .clip(RoundedCornerShape(trackHeight / 2))
+            .background(
+                when {
+                    !enabled -> KitsugiColors.Border.copy(alpha = 0.35f)
+                    checked -> accent
+                    else -> KitsugiColors.Border
+                }
+            )
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(horizontal = 3.dp),
+        contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .size(thumbSize)
+                .clip(CircleShape)
+                .background(
+                    if (enabled) Color.White
+                    else Color.White.copy(alpha = 0.6f)
+                )
+        )
+    }
+}
+
+/**
+ * 📊 Kaynak kapasite satırı
+ *
+ * "Hangi kaynak bana ne verir" sorusuna dürüst cevap: güçlü yön +
+ * zayıf yön + yıldız puanı. Hiçbir kaynak "en iyi" değil — her birinin
+ * parladığı yer farklı.
+ */
+@Composable
+private fun SourceCapabilityRow(
+    cap: com.kitsugi.animelist.data.music.MusicSourceCapability.Capability,
+    accent: Color
+) {
+    val def = com.kitsugi.animelist.data.music.MusicSources.byId(cap.sourceId)
+    val stars = com.kitsugi.animelist.data.music.MusicSourceCapability.stars(cap)
+    val summary = com.kitsugi.animelist.data.music.MusicSourceCapability.summary(cap)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.5f))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = def?.displayName ?: cap.sourceId.name,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = stars,
+                color = Color(0xFFFBBF24),
+                fontSize = 9.sp
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = cap.catalogSize,
+                color = KitsugiColors.TextMuted,
+                fontSize = 8.sp
+            )
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = summary,
+            color = accent.copy(alpha = 0.9f),
+            fontSize = 9.sp
+        )
+        Spacer(Modifier.height(2.dp))
+        // Zayıf yön — dürüstlük
+        Text(
+            text = "⚠ ${cap.weakness}",
+            color = KitsugiColors.TextMuted,
+            fontSize = 8.sp,
+            lineHeight = 11.sp
         )
     }
 }

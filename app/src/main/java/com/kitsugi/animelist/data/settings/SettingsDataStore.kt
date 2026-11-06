@@ -169,6 +169,9 @@ class SettingsDataStore(
         // Tüm uzak kaynaklar KİŞİSEL anahtarla çalışır; uygulama ortak anahtar taşımaz.
         val MusicEnabled = booleanPreferencesKey("music_enabled")
         val MusicAutoRecommend = booleanPreferencesKey("music_auto_recommend")
+        val MusicAutoPlay = booleanPreferencesKey("music_auto_play")
+        val MusicAutoPlayVolume = floatPreferencesKey("music_auto_play_volume")
+        val MusicAutoPlayDelay = intPreferencesKey("music_auto_play_delay")
         val MusicMasterVolume = floatPreferencesKey("music_master_volume")
         val MusicChannelVolume = floatPreferencesKey("music_channel_volume")
         val MusicAmbientVolume = floatPreferencesKey("music_ambient_volume")
@@ -681,6 +684,9 @@ class SettingsDataStore(
                     fanartTvEnabled = preferences[Keys.FanartTvEnabled] ?: true,
                     musicEnabled = preferences[Keys.MusicEnabled] ?: true,
                     musicAutoRecommend = preferences[Keys.MusicAutoRecommend] ?: true,
+                    musicAutoPlay = preferences[Keys.MusicAutoPlay] ?: false,
+                    musicAutoPlayVolume = preferences[Keys.MusicAutoPlayVolume] ?: 0.45f,
+                    musicAutoPlayDelaySeconds = preferences[Keys.MusicAutoPlayDelay] ?: 3,
                     musicMasterVolume = preferences[Keys.MusicMasterVolume] ?: 0.8f,
                     musicChannelVolume = preferences[Keys.MusicChannelVolume] ?: 0.5f,
                     musicAmbientVolume = preferences[Keys.MusicAmbientVolume] ?: 0.6f,
@@ -1238,6 +1244,18 @@ class SettingsDataStore(
 
     suspend fun setMusicAutoRecommend(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.MusicAutoRecommend] = enabled }
+    }
+
+    suspend fun setMusicAutoPlay(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.MusicAutoPlay] = enabled }
+    }
+
+    suspend fun setMusicAutoPlayVolume(value: Float) {
+        context.settingsDataStore.edit { it[Keys.MusicAutoPlayVolume] = value.coerceIn(0f, 1f) }
+    }
+
+    suspend fun setMusicAutoPlayDelay(seconds: Int) {
+        context.settingsDataStore.edit { it[Keys.MusicAutoPlayDelay] = seconds.coerceIn(0, 30) }
     }
 
     suspend fun setMusicMasterVolume(value: Float) {
