@@ -149,7 +149,102 @@ object ContentMoodResolver {
      * Tablo **küçük ve sabit** tutuldu: her dilde en çok kullanılan 25 tür.
      * Amaç sözlük olmak değil, en sık 10 dili köprülemek.
      */
-    private val multilingualGenres: Map<String, String> = mapOf(
+    /**
+     * [multilingualGenres] tablosunu **tamamlayan** ek eşlemeler.
+     *
+     * Ayrı tutulur ki ana tablo (200 giriş) okunabilir kalsın ve kapsam
+     * testlerinde kaçtığı ölçülen türler tek yerde toplansın.
+     * Anahtar çakışırsa ana tablo kazanır (`+` sağdakinin üzerine yazar —
+     * bu yüzden eklemeler yalnızca ana tabloda OLMAYAN anahtarları içerir).
+     */
+    private val extraGenres: Map<String, String> = mapOf(
+        // Reenkarnasyon / yeniden doğuş varyantları
+        "reincarnation" to "Reincarnation",
+        "reenkarnasyon" to "Reincarnation",
+        "yeniden dogus" to "Reincarnation",
+        "реинкарнация" to "Reincarnation",
+        "reencarnacion" to "Reincarnation",
+        "reencarnacao" to "Reincarnation",
+        "reencarnação" to "Reincarnation",
+        "réincarnation" to "Reincarnation",
+        "reincarnazione" to "Reincarnation",
+        "wiedergeburt" to "Reincarnation",
+        "reinkarnasi" to "Reincarnation",
+        "تناسخ" to "Reincarnation",
+        // Kader
+        "kader" to "Destiny",
+        "destiny" to "Destiny",
+        "fate" to "Destiny",
+        // Harem varyantları
+        "harém" to "Harem",
+        "harem" to "Harem",
+        "حريم" to "Harem",
+        // Alt türler
+        "wuxia" to "Wuxia",
+        "武侠" to "Wuxia",
+        "steampunk" to "Steampunk",
+        "space opera" to "Space Opera",
+        "body horror" to "Body Horror",
+        "cosmic horror" to "Cosmic Horror",
+        "coming of age" to "Coming of Age",
+        "found family" to "Found Family",
+        "time loop" to "Time Loop",
+        "time travel" to "Time Travel",
+        "zaman yolculugu" to "Time Travel",
+        "sanal dunya" to "Virtual World",
+        "oyun dunyasi" to "Game World",
+        // Bangumi sözlüğünde BULUNMAYAN Japonca/Çince/Arapça karşılıklar
+        // (tags.tsv taraması: スリラー ve アドベンチャー hiç yok)
+        "スリラー" to "Thriller",
+        "サスペンス" to "Thriller",
+        "アドベンチャー" to "Adventure",
+        "冒険" to "Adventure",
+        "歴史" to "Historical",
+        "史実" to "Historical",
+        "历史" to "Historical",
+        "アクション" to "Action",
+        "コメディ" to "Comedy",
+        "ギャグ" to "Comedy",
+        "恋愛" to "Romance",
+        "ファンタジー" to "Fantasy",
+        "ミステリー" to "Mystery",
+        "サスペンス" to "Thriller",
+        "ホラー" to "Horror",
+        "日常" to "Slice of Life",
+        "スポーツ" to "Sports",
+        "音楽" to "Music",
+        "학원" to "School",
+        "액션" to "Action",
+        "로맨스" to "Romance",
+        "판타지" to "Fantasy",
+        "공포" to "Horror",
+        "미스터리" to "Mystery",
+        "드라마" to "Drama",
+        "코미디" to "Comedy",
+        "일상" to "Slice of Life",
+        "스릴러" to "Thriller",
+        // Arapça varyantlar (farklı yazım)
+        "خيال علمي" to "Sci-Fi",
+        "خيال علمى" to "Sci-Fi",
+        "شريحة من الحياة" to "Slice of Life",
+        "نفسي" to "Psychological",
+        "علم النفس" to "Psychological",
+        "حريم" to "Harem",
+        "تاريخي" to "Historical",
+        "مغامرة" to "Adventure",
+        "رعب" to "Horror",
+        "كوميدي" to "Comedy",
+        "غموض" to "Mystery",
+        "إثارة" to "Thriller",
+        "رياضة" to "Sports",
+        "موسيقى" to "Music",
+        "مدرسي" to "School",
+        "خارق للطبيعة" to "Supernatural",
+        "فنون قتالية" to "Martial Arts",
+        "عسكري" to "Military"
+    )
+
+    private val multilingualGenres: Map<String, String> = extraGenres + mapOf(
         // ── RUSÇA ────────────────────────────────────────────────────────
         "романтика" to "Romance",
         "боевик" to "Action",
@@ -211,7 +306,6 @@ object ContentMoodResolver {
         "shojo" to "Shoujo",
         "josei" to "Josei",
         "ekusi" to "Ecchi",
-        "harem" to "Harem",
 
         // ── İSPANYOLCA ───────────────────────────────────────────────────
         "romance" to "Romance",
@@ -354,7 +448,6 @@ object ContentMoodResolver {
         "zindan" to "Fantasy",
         "seviye atlama" to "Leveling",
         "reankarnasyon" to "Reincarnation",
-        "yeniden doğuş" to "Reincarnation",
         "regresyon" to "Regression",
         "zamanda geri" to "Regression",
         "gurme" to "Gourmet",
@@ -366,8 +459,10 @@ object ContentMoodResolver {
         "üniversite" to "School",
         "dilim" to "Slice of Life",
         "acı" to "Tragedy",
-        "melankoli" to "Tragedy"
-    )
+
+        "melankoli" to "Tragedy",
+
+    ) + extraGenres
 
     /**
      * Tür adını İngilizce karşılığına çözer.
@@ -377,30 +472,91 @@ object ContentMoodResolver {
      * kaybetmek demek. Kademeler ucuzdan pahalıya sıralı; ilk eşleşen
      * döner.
      */
+    /**
+     * Türkçe büyük `İ` tuzağı: Kotlin `lowercase()` bunu `i` + U+0307
+     * (birleşik nokta) olarak üretir. `"İhanet".lowercase()` = `"i̇hanet"`
+     * (2 kod noktası) ve hiçbir tablo anahtarıyla eşleşmez.
+     *
+     * Çözüm: yalnızca **arama anahtarı** üretilirken ASCII'ye indirgenir.
+     * Görüntülenen değer (matchedGenres) bozulmaz — ham etiket korunur.
+     */
+    private fun foldKey(raw: String): String {
+        val lower = raw.trim().lowercase().replace("\u0307", "")
+        // Latin aksanlarını indir (é→e, ã→a, ñ→n ...). Kiril/Arap dokunulmaz:
+        // NFKD onların harflerini değiştirmez, ayrıştırma yalnızca birleşik
+        // işaretleri ayırır ve sonra süzülür.
+        val decomposed = java.text.Normalizer.normalize(lower, java.text.Normalizer.Form.NFKD)
+        return buildString(decomposed.length) {
+            for (ch in decomposed) {
+                if (ch.code in 0x0300..0x036F) continue   // birleşik işaret
+                append(ch)
+            }
+        }
+            .replace('ı', 'i')
+            .replace('ş', 's')
+            .replace('ğ', 'g')
+            .replace('ü', 'u')
+            .replace('ö', 'o')
+            .replace('ç', 'c')
+    }
+
+    /** [foldKey] uygulanmış halde mi? Boşsa false. */
+    private fun String.hasFoldVariant(): Boolean = isNotBlank()
+
     private fun resolveToEnglish(raw: String): String {
         val cleaned = raw.trim()
         if (cleaned.isEmpty()) return cleaned
 
-        // 1) Bangumi sözlüğü — kanonik anahtar (İngilizce) döner
+        // ── Sıralama ÖNEMLİ ────────────────────────────────────────────────
+        // Bangumi sözlüğü tek başına güvenilir değil: aynı Türkçe etiket
+        // birden fazla İngilizce anahtara bağlanabiliyor. Gerçek örnek:
+        //     betrayal  → İhanet → Betrayal
+        //     infidelity→ İhanet → Infidelity
+        // `byLabel` "son kazanan" olduğu için "İhanet" → "Infidelity"
+        // dönüyordu (aldatma). Yanlış duygu profili = yanlış müzik.
+        //
+        // Bu yüzden sözlük "öneri" olarak kullanılır, "karar" olarak değil:
+        // yalnızca ürettiği İngilizce ad [GenreMoodMapper] tarafından
+        // TANINIYORSA kabul edilir.
+
+        val folded = foldKey(cleaned)
+
+        // 1) Çok dilli tablo — en güvenilir (elle, tek amaçla yazıldı)
+        multilingualGenres[cleaned.lowercase()]?.let { return it }
+        multilingualGenres[folded]?.let { return it }
+
+        // 2) Uygulamanın kendi çeviri altyapısı (TR ↔ EN, elle bakımlı)
+        searchTranslation(cleaned)?.let { return it }
+        if (folded != cleaned.lowercase()) searchTranslation(folded)?.let { return it }
+
+        // 3) Bangumi sözlüğü — yalnızca tanınan bir tür üretiyorsa
         runCatching {
             com.kitsugi.animelist.utils.BangumiTagDictionary.entryFor(cleaned)
         }.getOrNull()?.let { entry ->
-            if (entry.english.isNotBlank()) return entry.english
+            val english = entry.english
+            if (english.isNotBlank() && isKnownGenre(english)) return english
         }
-
-        // 2) Çok dilli tablo
-        multilingualGenres[cleaned.lowercase()]?.let { return it }
-
-        // 3) Uygulamanın kendi çeviri altyapısı (TR ↔ EN)
-        val viaSearch = runCatching {
-            com.kitsugi.animelist.ui.screens.search.SearchTranslation
-                .translateToEnglishForSearch(cleaned)
-        }.getOrDefault(cleaned)
-        if (!viaSearch.equals(cleaned, ignoreCase = true)) return viaSearch
 
         // 4) Dokunma — zaten İngilizce
         return cleaned
     }
+
+    /**
+     * [SearchTranslation]'ı güvenli biçimde çağırır.
+     *
+     * @return Çevrilmiş İngilizce ad; değişmediyse `null`
+     */
+    private fun searchTranslation(label: String): String? = runCatching {
+        com.kitsugi.animelist.ui.screens.search.SearchTranslation
+            .translateToEnglishForSearch(label)
+    }.getOrNull()?.takeIf { !it.equals(label, ignoreCase = true) }
+
+    /**
+     * Üretilen İngilizce adın gerçekten bir duygu profiline çözülüp
+     * çözülmediğini söyler. [GenreMoodMapper] + [GenreFamilyResolver] kapsar.
+     */
+    private fun isKnownGenre(english: String): Boolean =
+        GenreMoodMapper.profileOf(english) != null
 
     /**
      * Format/eşanlam kelimeleri — **duygu katkısı yok**.

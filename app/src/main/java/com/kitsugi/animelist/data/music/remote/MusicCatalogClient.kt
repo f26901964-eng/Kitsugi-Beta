@@ -29,7 +29,12 @@ import java.util.concurrent.TimeUnit
  * deneyimini ASLA bozmaz, yerleşik prosedürel sesler her zaman çalışır.
  */
 class MusicCatalogClient(
-    private val okHttpClient: OkHttpClient = defaultClient()
+    private val okHttpClient: OkHttpClient = defaultClient(),
+    /**
+     * Test/teşhis kancası: verilirse ağ isteği yerine bu fonksiyon
+     * kullanılır. Üretimde `null` — davranış değişmez.
+     */
+    private val httpFetcher: ((Request) -> String?)? = null
 ) {
 
     companion object {
@@ -517,6 +522,7 @@ class MusicCatalogClient(
      * çağıran taraf boş listeye çevirir, çalma deneyimi kesintiye uğramaz.
      */
     private fun execute(request: Request): String? = runCatching {
+        httpFetcher?.let { return@runCatching it(request) }
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 Log.w(TAG, "HTTP ${response.code} — ${request.url.host}")

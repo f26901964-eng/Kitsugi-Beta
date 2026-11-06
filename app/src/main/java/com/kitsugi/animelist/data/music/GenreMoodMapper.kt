@@ -112,7 +112,7 @@ object GenreMoodMapper {
         "cyberpunk" to MoodProfile(0.68f, 0.42f, 0.68f, 0.30f, 0.85f),
         "dystopia" to MoodProfile(0.55f, 0.25f, 0.80f, 0.28f, 0.68f),
         "distopya" to MoodProfile(0.55f, 0.25f, 0.80f, 0.28f, 0.68f),
-        "post-apocalyptic" to MoodProfile(0.58f, 0.22f, 0.82f, 0.25f, 0.62f),
+        "post apocalyptic" to MoodProfile(0.58f, 0.22f, 0.82f, 0.25f, 0.62f),
         "yaşam dilimi" to MoodProfile(0.22f, 0.74f, 0.10f, 0.74f, 0.75f),
         "philosophical" to MoodProfile(0.35f, 0.40f, 0.50f, 0.45f, 0.75f),
         "felsefi" to MoodProfile(0.35f, 0.40f, 0.50f, 0.45f, 0.75f),
@@ -124,6 +124,10 @@ object GenreMoodMapper {
         "intikam" to MoodProfile(0.70f, 0.22f, 0.82f, 0.30f, 0.65f),
         "revenge" to MoodProfile(0.70f, 0.22f, 0.82f, 0.30f, 0.65f),
         "betrayal" to MoodProfile(0.55f, 0.18f, 0.82f, 0.30f, 0.62f),
+        // "Kader" — Bangumi sözlüğü "Destiny" döndürüyor, tabloda yoktu.
+        // Kader/kaçınılmazlık: orta enerji, düşük valence, yüksek gerilim.
+        "destiny" to MoodProfile(0.45f, 0.38f, 0.72f, 0.35f, 0.70f),
+        "fate" to MoodProfile(0.45f, 0.38f, 0.72f, 0.35f, 0.70f),
         "ihanet" to MoodProfile(0.55f, 0.18f, 0.82f, 0.30f, 0.62f),
         "delinquents" to MoodProfile(0.65f, 0.50f, 0.55f, 0.45f, 0.62f),
         "kabadayı" to MoodProfile(0.65f, 0.50f, 0.55f, 0.45f, 0.62f),
@@ -148,7 +152,6 @@ object GenreMoodMapper {
         "büyü" to MoodProfile(0.52f, 0.72f, 0.30f, 0.65f, 0.72f),
 
         // ── Bilim Kurgu ───────────────────────────────────────────────────
-        "sci-fi" to MoodProfile(0.50f, 0.45f, 0.42f, 0.15f, 0.80f),
         "sci fi" to MoodProfile(0.50f, 0.45f, 0.42f, 0.15f, 0.80f),
         "bilim kurgu" to MoodProfile(0.50f, 0.45f, 0.42f, 0.15f, 0.80f),
 
@@ -187,7 +190,9 @@ object GenreMoodMapper {
 
         genres.take(6).forEachIndexed { index, rawGenre ->
             val normalized = normalize(rawGenre)
-            val profile = genreTable[normalized] ?: return@forEachIndexed
+            val profile = genreTable[normalized]
+                ?: GenreFamilyResolver.familyOf(normalized)?.profile
+                ?: return@forEachIndexed
             val weight = when (index) {
                 0 -> 2.0f
                 1 -> 1.5f
@@ -230,17 +235,35 @@ object GenreMoodMapper {
     fun normalize(raw: String): String = raw
         .trim()
         .lowercase()
+        // Türkçe büyük "İ" tuzağı: "İ".lowercase() = "i" + U+0307
+        // (birleşik nokta) üretir. Tek başına silinince "İhanet" → "ihanet"
+        // olur. Kiril/Arap harfleri etkilenmez (onlarda U+0307 yoktur).
+        .replace("\u0307", "")
         .replace(Regex("\\s+"), " ")
         .replace("_", " ")
         .replace("-", " ")
 
     /**
-     * Tek bir türün profilini döndürür (yoksa null).
+     * Tek bir türün profilini döndürür.
+     *
+     * Önce elle ayarlanmış birebir tablo denenir (en isabetli). Bulunamazsa
+     * [GenreFamilyResolver] devreye girer: 266 İngilizce türün 221'i tabloda
+     * yoktu ve sessizce `Neutral`'a düşüyordu. Aile çözümlemesi bu boşluğu
+     * kapatır — tanınmayan bir tür bile ailesinden makul bir profil alır.
+     *
+     * @return Profil; hiçbir aileye de uymuyorsa `null`
      */
-    fun profileOf(genre: String): MoodProfile? = genreTable[normalize(genre)]
+    fun profileOf(genre: String): MoodProfile? {
+        val normalized = normalize(genre)
+        genreTable[normalized]?.let { return it }
+        return GenreFamilyResolver.familyOf(normalized)?.profile
+    }
 
-    /** Eşlenebilen tür sayısı (teşhis/log için). */
+    /** Birebir tablodaki tür sayısı (teşhis/log için). */
     val knownGenreCount: Int get() = genreTable.size
+
+    /** Aile çözümlemesiyle birlikte kapsanan tür ailesi sayısı. */
+    val familyCount: Int get() = GenreFamilyResolver.familyCount
 }
 
 /**

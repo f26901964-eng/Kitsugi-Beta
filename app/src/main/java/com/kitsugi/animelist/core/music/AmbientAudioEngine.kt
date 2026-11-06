@@ -214,7 +214,10 @@ class AmbientAudioEngine(
         // ⚠️ StreamVoice.start() akış hazır olana kadar bekler (en çok 4 sn).
         // Ana thread'de çağrılırsa arayüz donar. Uzak sesler için işi
         // arka plana atıp hemen yuvayı rezerve ediyoruz.
-        if (sound.origin != AmbientOrigin.PROCEDURAL && sound.streamUrl != null) {
+        // Uzak sesler HER ZAMAN arka planda hazırlanır — `streamUrl` null
+        // olsa bile. (Internet Archive'da null olur ve adres çalma anında
+        // çözülür; eskiden bu durumda ana thread'de ağ beklenebiliyordu.)
+        if (sound.origin != AmbientOrigin.PROCEDURAL) {
             return addChannelAsync(sound, slot, volume)
         }
 
@@ -275,7 +278,9 @@ class AmbientAudioEngine(
         syncActiveFlags()
 
         scope.launch {
-            val voice = withContext(Dispatchers.IO) { createVoice(sound) }
+            // Adres yoksa (Internet Archive) çalma anında çöz
+            val resolved = withContext(Dispatchers.IO) { topUpStreamUrl(sound) }
+            val voice = withContext(Dispatchers.IO) { createVoice(resolved) }
             if (voice == null) {
                 voices[slot] = null
                 _channels.update { list ->
@@ -769,6 +774,35 @@ class AmbientAudioEngine(
      * Prosedürel → [ProceduralVoice] (AudioTrack)
      * Uzak        → [StreamVoice] (ExoPlayer)
      */
+    /**
+     * Toplaması gereken akış adresini çözer.
+     *
+     * Internet Archive arama API'si yalnızca öğe kimliği döndürür;
+     * oynatılabilir dosya adı `/metadata/<id>` çağrısından gelir. Bu
+     * yüzden `streamUrl` boşsa [MusicCatalogRepository.resolveUrl] ile
+     * çözülür.
+     *
+     * **Ağ çağrısı yapar — her zaman `Dispatchers.IO` üzerinde çağır.**
+     *
+     * @return Adresi doldurulmuş ses; çözülemezse orijinali
+     */
+    private suspend fun topUpStreamUrl(sound: AmbientSound): AmbientSound {
+        if (!sound.streamUrl.isNullOrBlank()) return sound
+        if (sound.origin == AmbientOrigin.PROCEDURAL) return sound
+        if (downloadManager.localFile(sound.id) != null) return sound
+
+        val resolved = runCatching {
+            com.kitsugi.animelist.data.music.MusicCatalogRepository.get().resolveUrl(sound)
+        }.getOrNull()
+
+        return if (resolved.isNullOrBlank()) {
+            Log.w(TAG, "Akış adresi çözülemedi: ${sound.id}")
+            sound
+        } else {
+            sound.copy(streamUrl = resolved)
+        }
+    }
+
     private fun createVoice(sound: AmbientSound): ChannelVoice? = when {
         sound.origin == AmbientOrigin.PROCEDURAL -> ProceduralVoice(context, sound)
         else -> {
@@ -779,10 +813,9 @@ class AmbientAudioEngine(
             val url = downloaded?.toURI()?.toString()
                 ?: sound.streamUrl?.takeIf { it.isNotBlank() }
 
-            if (url == null) {
-                Log.w(TAG, "Çalınamaz ses (adres yok): ${sound.id}")
-                return null
-            }
+            // `url == null` artık ölümcül DEĞİL: Internet Archive gibi
+            // kaynaklarda adres yalnızca `/metadata/<id>` çağrısıyla
+            // çözülür. [topUpStreamUrl] çözümlemeyi arka planda yapar.
             StreamVoice(context, sound, url)
         }
     }
@@ -893,8 +926,20 @@ internal class ProceduralVoice(
 internal class StreamVoice(
     context: Context,
     private val sound: AmbientSound,
-    private val url: String
+    url: String?
 ) : ChannelVoice {
+
+    /**
+     * Oynatılacak adres.
+     *
+     * `null` olabilir: Internet Archive arama API'si yalnızca öğe kimliği
+     * döndürür, dosya adı `/metadata/<id>` ile çözülür. Adres
+     * [AmbientAudioEngine.topUpStreamUrl] tarafından `prepare()` öncesi
+     * doldurulur.
+     */
+    @Volatile
+    var sourceUrl: String? = url
+        internal set
 
     private val player: ExoPlayer
 
@@ -935,13 +980,18 @@ internal class StreamVoice(
      * oluşturulmuyor ve hata kullanıcıya gösteriliyor.
      */
     override fun start(): Boolean {
+        val target = sourceUrl
+        if (target.isNullOrBlank()) {
+            Log.w("StreamVoice", "Adres çözülemedi: ${sound.id}")
+            return false
+        }
         val ok = runCatching {
-            player.setMediaItem(MediaItem.fromUri(url))
+            player.setMediaItem(MediaItem.fromUri(target))
             player.volume = 0f
             player.prepare()
             true
         }.getOrElse {
-            Log.w("StreamVoice", "Hazırlanamadı: $url", it)
+            Log.w("StreamVoice", "Hazırlanamadı: $target", it)
             false
         }
         if (!ok) return false
@@ -957,14 +1007,14 @@ internal class StreamVoice(
                 return true
             }
             if (state == Player.STATE_ENDED || player.playerError != null) {
-                Log.w("StreamVoice", "Akış hatası: $url — ${player.playerError?.errorCodeName}")
+                Log.w("StreamVoice", "Akış hatası: $target — ${player.playerError?.errorCodeName}")
                 return false
             }
             // Yerel dosyalar neredeyse anında hazır olur; 20 ms yeterli
             runCatching { Thread.sleep(20L) }
         }
 
-        Log.w("StreamVoice", "Zaman aşımı: akış 4 sn içinde hazır olmadı — $url")
+        Log.w("StreamVoice", "Zaman aşımı: akış 4 sn içinde hazır olmadı — $target")
         return false
     }
 

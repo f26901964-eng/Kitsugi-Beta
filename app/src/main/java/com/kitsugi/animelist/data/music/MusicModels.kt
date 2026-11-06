@@ -137,8 +137,27 @@ data class AmbientSound(
     /** Öneri motorunun çeşitlilik filtresi için kullanılan grup anahtarı. */
     val varietyKey: String = family.name
 ) {
+    /**
+     * Ses çalınabilir mi?
+     *
+     * Internet Archive özel durumu: arama API'si yalnızca öğe kimliği
+     * döndürür, oynatılabilir dosya adı `/metadata/<id>` çağrısıyla
+     * çözülür. Bu yüzden `streamUrl` **başlangıçta null** olur —
+     * [com.kitsugi.animelist.data.music.MusicCatalogRepository.resolveUrl]
+     * çalma anında doldurur.
+     *
+     * Önceki hâli yalnızca `streamUrl`'e bakıyordu ve Archive sesleri
+     * `isPlayable = false` olduğu için öneri havuzundan **tamamen**
+     * eleniyordu (6 kaynaktan biri ölüydü).
+     */
     val isPlayable: Boolean
-        get() = origin == AmbientOrigin.PROCEDURAL || !streamUrl.isNullOrBlank()
+        get() = when {
+            origin == AmbientOrigin.PROCEDURAL -> true
+            !streamUrl.isNullOrBlank() -> true
+            // Archive: adres çalma anında çözülür
+            sourceId == MusicSourceId.ARCHIVE -> true
+            else -> false
+        }
 
     /** Atıf metnini tek satırda birleştirir. Boşsa null. */
     fun attributionLine(): String? {
