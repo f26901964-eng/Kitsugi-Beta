@@ -22,6 +22,7 @@ import com.kitsugi.animelist.data.music.MAX_AMBIENT_CHANNELS
 import com.kitsugi.animelist.data.music.MixChannel
 import com.kitsugi.animelist.data.music.MixCodecPayload
 import com.kitsugi.animelist.data.music.MixProfile
+import com.kitsugi.animelist.data.music.MusicSourceId
 import com.kitsugi.animelist.data.music.ProceduralSoundCatalog
 import com.kitsugi.animelist.data.music.SleepTimerState
 import kotlinx.coroutines.CoroutineScope
@@ -139,7 +140,7 @@ class AmbientAudioEngine(
      */
     var continueInBackground: Boolean = true
 
-    private var presetLayers: MutableList<Pair<Int, Long>> = mutableListOf()
+    private val presetJobs = mutableListOf<Job>()
 
     // ─────────────────────────────────────────────────────────────────────
     //  Uyku zamanlayıcısı
@@ -150,6 +151,17 @@ class AmbientAudioEngine(
     val sleepTimer: StateFlow<SleepTimerState> = _sleepTimer.asStateFlow()
 
     private var sleepJob: Job? = null
+
+    /**
+     * Sayaç döngüsünün okuduğu **tek doğruluk kaynağı**.
+     *
+     * `SleepTimerState.remainingMs` UI için; buradaki değer ise uzatma
+     * (`extendSleepTimer`) ve duraklatma ile birlikte yaşayan gerçek
+     * sayaç. İkisini ayrı tutmak, `extendSleepTimer`'ın hiç işe
+     * yaramaması hatasını önler.
+     */
+    @Volatile
+    private var sleepRemainingMs: Long = 0L
 
     // ─────────────────────────────────────────────────────────────────────
     //  Favoriler / son çalınanlar
@@ -266,7 +278,8 @@ class AmbientAudioEngine(
         _activeTitle.value = null
         _activePresetId.value = null
         _isPlaying.value = false
-        presetLayers.clear()
+        presetJobs.forEach { it.cancel() }
+        presetJobs.clear()
         runCatching { AmbientPlaybackService.stop(context) }
     }
 
@@ -353,7 +366,7 @@ class AmbientAudioEngine(
                 if (_activePresetId.value != preset.id) return@launch
                 addChannel(sound, layer.volume)
             }
-            presetLayers += 0 to job.id
+            presetJobs += job
         }
     }
 
@@ -376,6 +389,7 @@ class AmbientAudioEngine(
 
         val totalMs = minutes * 60_000L
         val fade = fadeSeconds.coerceIn(0, 60)
+        sleepRemainingMs = totalMs
         _sleepTimer.value = SleepTimerState(
             totalMs = totalMs,
             remainingMs = totalMs,
@@ -384,16 +398,15 @@ class AmbientAudioEngine(
         )
 
         sleepJob = scope.launch {
-            var remaining = totalMs
             val tick = 1_000L
-            while (remaining > 0) {
+            while (sleepRemainingMs > 0) {
                 delay(tick)
                 // Kullanıcı duraklattıysa bekle
                 while (_sleepTimer.value.paused) delay(250L)
-                remaining -= tick
-                _sleepTimer.update { it.copy(remainingMs = remaining.coerceAtLeast(0L)) }
+                sleepRemainingMs -= tick
+                _sleepTimer.update { it.copy(remainingMs = sleepRemainingMs.coerceAtLeast(0L)) }
             }
-            // Fade → durdur
+            // Süre doldu → kısarak sustur (aniden kesme)
             if (fade > 0) fadeAllOut(fade * 1000L) else stopAllChannels()
             _sleepTimer.value = SleepTimerState()
         }
@@ -414,6 +427,7 @@ class AmbientAudioEngine(
     fun cancelSleepTimer() {
         sleepJob?.cancel()
         sleepJob = null
+        sleepRemainingMs = 0L
         _sleepTimer.value = SleepTimerState()
     }
 
@@ -422,10 +436,12 @@ class AmbientAudioEngine(
         val cur = _sleepTimer.value
         if (!cur.running) return
         val delta = extraMinutes * 60_000L
+        // Gerçek sayacı da güncelle — yoksa döngü eski değeri okumaya devam eder
+        sleepRemainingMs = (sleepRemainingMs + delta).coerceAtLeast(1_000L)
         _sleepTimer.update {
             it.copy(
                 totalMs = (it.totalMs + delta).coerceAtLeast(60_000L),
-                remainingMs = (it.remainingMs + delta).coerceAtLeast(0L)
+                remainingMs = sleepRemainingMs
             )
         }
     }
@@ -481,11 +497,22 @@ class AmbientAudioEngine(
         _recentIds.value = emptyList()
     }
 
+    /** Depodan geri yüklemek için (hidrasyon). */
+    fun setRecentIds(ids: List<String>) {
+        _recentIds.value = ids.take(20)
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     //  Karışım profilleri
     // ─────────────────────────────────────────────────────────────────────
 
-    /** Şu anki kanal düzenini profil olarak kaydeder. */
+    /**
+     * Şu anki kanal düzenini profil olarak kaydeder.
+     *
+     * **Uzak sesler de kaydedilir:** profilde `soundId` yanında `streamUrl`
+     * ve `sourceId` saklanır. Aksi hâlde Jamendo/Audius gibi akışlar
+     * kaydedilir ama geri yüklenemezdi — panel ise kaynağı ayırt etmez.
+     */
     fun saveCurrentAsProfile(name: String, genreTag: String = ""): MixProfile? {
         val states = _channels.value
         if (states.isEmpty()) return null
@@ -499,7 +526,9 @@ class AmbientAudioEngine(
                     soundId = it.sound.id,
                     title = it.sound.title,
                     volume = it.volume,
-                    muted = it.muted
+                    muted = it.muted,
+                    streamUrl = it.sound.streamUrl,
+                    sourceKey = it.sound.sourceId.storageKey
                 )
             },
             genreTag = genreTag
@@ -528,14 +557,43 @@ class AmbientAudioEngine(
      */
     fun applyProfile(profile: MixProfile) {
         stopAllChannels()
-        val master = _masterVol.value
+        var restored = 0
         profile.channels.forEach { mc ->
-            val sound = ProceduralSoundCatalog.byId(mc.soundId) ?: return@forEach
+            val sound = resolveProfileSound(mc) ?: return@forEach
             val idx = addChannel(sound, mc.volume)
-            if (idx >= 0 && mc.muted) setChannelMuted(idx, true)
+            if (idx >= 0) {
+                restored++
+                if (mc.muted) setChannelMuted(idx, true)
+            }
         }
         _activeTitle.value = profile.name
-        _isPlaying.value = master > 0f && _channels.value.isNotEmpty()
+        _isPlaying.value = restored > 0 && _channels.value.isNotEmpty()
+        if (restored == 0) {
+            Log.w(TAG, "Profil geri yüklenemedi (sesler bulunamadı): ${profile.name}")
+        }
+    }
+
+    /**
+     * Profildeki kanalı bir [AmbientSound]'a çözer.
+     *
+     * Sıra: 1) yerleşik katalog, 2) kaydedilmiş akış adresi.
+     * Akış adresi yoksa ve katalogda da yoksa atlanır.
+     */
+    private fun resolveProfileSound(mc: MixChannel): AmbientSound? {
+        ProceduralSoundCatalog.byId(mc.soundId)?.let { return it }
+        val url = mc.streamUrl ?: return null
+        if (url.isBlank()) return null
+
+        val sourceId = MusicSourceId.fromStorageKey(mc.sourceKey) ?: MusicSourceId.BUILTIN
+        return AmbientSound(
+            id = mc.soundId,
+            title = mc.title.ifBlank { "Kayıtlı ses" },
+            subtitle = "Profilden geri yüklendi",
+            origin = AmbientOrigin.REMOTE,
+            streamUrl = url,
+            sourceId = sourceId,
+            varietyKey = "profile_restore"
+        )
     }
 
     /** Profili dışa aktarma metnine çevirir (paylaşılabilir). */
@@ -554,6 +612,8 @@ class AmbientAudioEngine(
                         put("title", ch.title)
                         put("volume", ch.volume.toDouble())
                         put("muted", ch.muted)
+                        ch.streamUrl?.let { put("streamUrl", it) }
+                        if (ch.sourceKey.isNotBlank()) put("sourceKey", ch.sourceKey)
                     })
                 }
             })
@@ -571,7 +631,9 @@ class AmbientAudioEngine(
                 soundId = o.optString("id"),
                 title = o.optString("title"),
                 volume = o.optDouble("volume", 0.6).toFloat(),
-                muted = o.optBoolean("muted", false)
+                muted = o.optBoolean("muted", false),
+                streamUrl = o.optString("streamUrl").takeIf { it.isNotBlank() },
+                sourceKey = o.optString("sourceKey", "")
             )
         }
         if (channels.isEmpty()) null

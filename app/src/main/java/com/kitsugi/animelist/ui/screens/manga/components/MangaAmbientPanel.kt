@@ -1,6 +1,9 @@
 package com.kitsugi.animelist.ui.screens.manga.components
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
@@ -33,6 +36,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -153,6 +158,11 @@ fun MangaAmbientPanel(
     var detailSound by remember { mutableStateOf<AmbientSound?>(null) }
     val openDetail: (AmbientSound) -> Unit = { detailSound = it }
 
+    // Android geri tuşu: detay açıksa onu kapat, paneli kapatma
+    androidx.activity.compose.BackHandler(enabled = detailSound != null) {
+        detailSound = null
+    }
+
     // Uzun basılan ses varsa → detay sayfası (tek katman, geri butonu ile)
     detailSound?.let { sound ->
         SoundDetailPage(
@@ -231,6 +241,38 @@ fun MangaAmbientPanel(
         }
 
         Spacer(Modifier.height(10.dp))
+
+        // ══════════════════════════════════════════════════════════════
+        //  KISAYOL ŞERİDİ — sayfayı kaplamadan tek dokunuş
+        // ══════════════════════════════════════════════════════════════
+        QuickActionBar(
+            accent = accent,
+            isPlaying = isPlaying,
+            hasChannels = channels.isNotEmpty(),
+            isMuted = channels.isNotEmpty() && channels.all { it.muted },
+            timerRunning = sleepTimer.running,
+            timerLabel = sleepTimer.display,
+            favoriteCount = favorites.size,
+            profileCount = profiles.size,
+            onTogglePlay = onTogglePlay,
+            onMuteAll = {
+                // En az bir kanal açıksa hepsini sustur; hepsi zaten
+                // kapalıysa hepsini aç. Böylece düğme gerçek bir toggle.
+                val shouldMute = channels.any { !it.muted }
+                channels.forEach { channel ->
+                    if (channel.muted != shouldMute) {
+                        onChannelMuteToggle(channel.index)
+                    }
+                }
+            },
+            onQuickTimer = { minutes ->
+                if (sleepTimer.running) onCancelTimer() else onStartTimer(minutes)
+            },
+            onStopAll = onStopAll,
+            onJumpTo = { tab -> selectedTab = tab }
+        )
+
+        Spacer(Modifier.height(8.dp))
 
         // ── Sekmeler ────────────────────────────────────────────────────
         val tabs = remember {
@@ -2111,5 +2153,212 @@ internal object DeviceVolumeHolder {
             val target = (max * 0.85f).toInt().coerceAtLeast(1)
             manager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, target, 0)
         }
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+//  KISAYOL ŞERİDİ
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * ⚡ Tek satırlık kısayol şeridi
+ *
+ * **Neden:** 7 sekme + uzun listeler = sayfa çok yer kaplıyor. Kullanıcı
+ * en sık yaptığı 6 işi sekme değiştirmeden yapabilmeli.
+ *
+ * Yerleşim (tek satır, ~52 dp):
+ * ```
+ * [▶/⏸] [🔇] [⏱ 30dk] [⏹] · · · [❤ 3] [💾 2]
+ * ```
+ *
+ * Sağdaki iki sayaç birer **kısayol**tır: dokununca ilgili sekmeye atlar.
+ * Böylece "favorilerim nerede" araması gerekmez.
+ *
+ * Yükseklik sabit ve küçük — 90° döndürülmüş telefonda bile yer kalır.
+ */
+@Composable
+private fun QuickActionBar(
+    accent: Color,
+    isPlaying: Boolean,
+    hasChannels: Boolean,
+    isMuted: Boolean,
+    timerRunning: Boolean,
+    timerLabel: String,
+    favoriteCount: Int,
+    profileCount: Int,
+    onTogglePlay: () -> Unit,
+    onMuteAll: () -> Unit,
+    onQuickTimer: (Int) -> Unit,
+    onStopAll: () -> Unit,
+    onJumpTo: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.75f))
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // ── Oynat / duraklat ────────────────────────────────────────────
+        QuickIcon(
+            icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+            label = if (isPlaying) "Duraklat" else "Çal",
+            enabled = hasChannels,
+            tint = if (hasChannels) accent else KitsugiColors.TextMuted,
+            accent = accent,
+            onClick = onTogglePlay
+        )
+
+        // ── Tümünü sustur ───────────────────────────────────────────────
+        QuickIcon(
+            icon = if (isMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
+            label = if (isMuted) "Aç" else "Sustur",
+            enabled = hasChannels,
+            tint = if (isMuted) Color(0xFFFBBF24) else KitsugiColors.TextSecondary,
+            accent = accent,
+            onClick = onMuteAll
+        )
+
+        // ── Hızlı zamanlayıcı ───────────────────────────────────────────
+        PillAction(
+            text = if (timerRunning) timerLabel else "30 dk",
+            icon = null,
+            active = timerRunning,
+            accent = accent,
+            onClick = {
+                if (timerRunning) onJumpTo(6) else onQuickTimer(30)
+            }
+        )
+
+        // ── Tümünü durdur ───────────────────────────────────────────────
+        QuickIcon(
+            icon = Icons.Rounded.Stop,
+            label = "Durdur",
+            enabled = hasChannels,
+            tint = if (hasChannels) KitsugiColors.AccentRed else KitsugiColors.TextMuted,
+            accent = accent,
+            onClick = onStopAll
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        // ── Favori sayacı → sekme kısayolu ──────────────────────────────
+        if (favoriteCount > 0) {
+            PillAction(
+                text = "$favoriteCount",
+                icon = Icons.Filled.Favorite,
+                active = false,
+                accent = Color(0xFFF472B6),
+                onClick = { onJumpTo(0) }
+            )
+        }
+
+        // ── Profil sayacı → sekme kısayolu ──────────────────────────────
+        if (profileCount > 0) {
+            PillAction(
+                text = "$profileCount",
+                icon = Icons.Rounded.Bookmark,
+                active = false,
+                accent = accent,
+                onClick = { onJumpTo(5) }
+            )
+        }
+    }
+}
+
+/**
+ * Kısayol şeridindeki ikon düğmesi.
+ *
+ * TV'de D-pad ile odaklanabilir: `onFocusChanged` ile kenarlık çizilir.
+ * Dokunmatik cihazlarda bu dal hiç tetiklenmez, görsel değişiklik olmaz.
+ */
+@Composable
+private fun QuickIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    tint: Color,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(
+                when {
+                    focused -> accent.copy(alpha = 0.30f)
+                    enabled -> accent.copy(alpha = 0.13f)
+                    else -> Color.Transparent
+                }
+            )
+            .then(
+                if (focused) Modifier.border(1.5.dp, accent, RoundedCornerShape(9.dp))
+                else Modifier
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+/** Kısayol şeridindeki metin+ikon hapı. */
+@Composable
+private fun PillAction(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    active: Boolean,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(
+                when {
+                    focused -> accent.copy(alpha = 0.30f)
+                    active -> accent.copy(alpha = 0.22f)
+                    else -> accent.copy(alpha = 0.10f)
+                }
+            )
+            .then(
+                if (focused) Modifier.border(1.5.dp, accent, RoundedCornerShape(9.dp))
+                else Modifier
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(13.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(
+            text = text,
+            color = accent,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
     }
 }

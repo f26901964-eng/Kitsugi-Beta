@@ -76,12 +76,21 @@ data class MixProfile(
         else "${channels.size} ses · ${channels.take(2).joinToString(" + ") { it.title }}"
 }
 
-/** Profildeki tek kanal. */
+/**
+ * Profildeki tek kanal.
+ *
+ * [streamUrl] ve [sourceKey] **uzak sesler** için gereklidir: Jamendo veya
+ * Audius'tan gelen bir parça yerleşik katalogda yoktur, bu yüzden profilde
+ * akış adresi saklanmazsa geri yüklenemez. Prosedürel seslerde ikisi de
+ * `null`/boş kalır.
+ */
 data class MixChannel(
     val soundId: String,
     val title: String,
     val volume: Float,
-    val muted: Boolean = false
+    val muted: Boolean = false,
+    val streamUrl: String? = null,
+    val sourceKey: String = ""
 )
 
 /**

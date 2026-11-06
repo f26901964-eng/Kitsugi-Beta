@@ -254,7 +254,8 @@ data class IntegrationsAndNotificationsSettings(
     val musicOpenverseEnabled: Boolean = true,
     val musicOpenverseToken: String = "",
     val musicArchiveEnabled: Boolean = true,
-    val musicAudiusEnabled: Boolean = false,
+    /** Audius anahtarsız da çalışır; anahtar girilirse kota yükselir. */
+    val musicAudiusEnabled: Boolean = true,
     val musicAudiusApiKey: String = "",
     val musicLastPresetId: String = "",
     val wikiPageTheme: String = "SITE",

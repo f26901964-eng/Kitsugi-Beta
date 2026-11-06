@@ -16,6 +16,7 @@ import kotlin.random.Random
 
 private const val SR = 44_100
 private const val TWO_PI_F = 6.2831855f
+private const val TWO_PI_D = 6.283185307179586
 
 // ═════════════════════════════════════════════════════════════════════════
 //  1. GÜRÜLTÜ
@@ -1254,7 +1255,4 @@ class BinauralSynth(
         }
     }
 
-    private companion object Constants {
-        const val TWO_PI_D = 6.283185307179586
-    }
 }

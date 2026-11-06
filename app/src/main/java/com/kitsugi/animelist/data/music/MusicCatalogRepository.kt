@@ -166,7 +166,14 @@ class MusicCatalogRepository(
                             emptyList()
                         }
                     }
-                    MusicSourceId.AUDIUS -> null // v1: arama desteklenmiyor
+                    MusicSourceId.AUDIUS -> async {
+                        runCatching {
+                            client.searchAudius(settings.musicAudiusApiKey, effective)
+                        }.getOrElse { e ->
+                            Log.w(TAG, "Audius araması başarısız", e)
+                            emptyList()
+                        }
+                    }
                 }
             }.map { it.await() }
         }

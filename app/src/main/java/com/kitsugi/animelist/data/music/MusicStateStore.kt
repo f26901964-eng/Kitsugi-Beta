@@ -101,6 +101,8 @@ class MusicStateStore(private val context: Context) {
                             put("title", ch.title)
                             put("volume", ch.volume.toDouble())
                             put("muted", ch.muted)
+                            ch.streamUrl?.let { put("streamUrl", it) }
+                            if (ch.sourceKey.isNotBlank()) put("sourceKey", ch.sourceKey)
                         })
                     }
                 })
@@ -122,7 +124,9 @@ class MusicStateStore(private val context: Context) {
                         soundId = c.optString("id"),
                         title = c.optString("title"),
                         volume = c.optDouble("volume", 0.6).toFloat(),
-                        muted = c.optBoolean("muted", false)
+                        muted = c.optBoolean("muted", false),
+                        streamUrl = c.optString("streamUrl").takeIf { it.isNotBlank() },
+                        sourceKey = c.optString("sourceKey", "")
                     )
                 }
                 MixProfile(

@@ -83,7 +83,7 @@ import com.kitsugi.animelist.ui.screens.manga.components.MangaPagerReader
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.runtime.DisposableEffect
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -164,27 +164,41 @@ fun MangaReaderScreen(
         com.kitsugi.animelist.data.music.MusicStateStore(context.applicationContext)
     }
 
-    // Depodan yükle (bir kez)
+    // ─── Kalıcı müzik durumu ────────────────────────────────────────────
+    // ⚠️ Döngü koruması: depo → motor → depo → ... zinciri kurulmamalı.
+    //
+    // Çözüm: iki yön **aynı** `LaunchedEffect` içinde değil; ayrıca yükleme
+    // bittikten sonra yazma başlar. `hydrated` bayrağı, kullanıcı ilk
+    // değişikliği yapana kadar depoya yazmayı engeller — böylece depodan
+    // gelen veri tekrar depoya yazılıp sonsuz tur oluşturmaz.
+    var musicHydrated by remember { mutableStateOf(false) }
+
     LaunchedEffect(musicStateStore) {
-        musicStateStore.favorites.collect { stored ->
-            if (stored != musicEngine.favorites.value) musicEngine.setFavorites(stored)
-        }
-    }
-    LaunchedEffect(musicStateStore) {
-        musicStateStore.profiles.collect { stored ->
-            if (stored.isNotEmpty()) musicEngine.setProfiles(stored)
-        }
+        // 1) Depodan oku → motora aktar (tek seferlik hidrasyon)
+        val storedFavorites = musicStateStore.favorites.first()
+        if (storedFavorites.isNotEmpty()) musicEngine.setFavorites(storedFavorites)
+
+        val storedProfiles = musicStateStore.profiles.first()
+        if (storedProfiles.isNotEmpty()) musicEngine.setProfiles(storedProfiles)
+
+        val storedRecent = musicStateStore.recent.first()
+        if (storedRecent.isNotEmpty()) musicEngine.setRecentIds(storedRecent)
+
+        musicHydrated = true
     }
 
-    // Değişimleri depoya yaz
-    LaunchedEffect(Unit) {
-        musicEngine.favorites.drop(1).collect { musicStateStore.saveFavorites(it) }
+    // 2) Yalnızca hidrasyon sonrası kullanıcı değişikliklerini yaz
+    LaunchedEffect(musicHydrated) {
+        if (!musicHydrated) return@LaunchedEffect
+        musicEngine.favorites.collect { musicStateStore.saveFavorites(it) }
     }
-    LaunchedEffect(Unit) {
-        musicEngine.profiles.drop(1).collect { musicStateStore.saveProfiles(it) }
+    LaunchedEffect(musicHydrated) {
+        if (!musicHydrated) return@LaunchedEffect
+        musicEngine.profiles.collect { musicStateStore.saveProfiles(it) }
     }
-    LaunchedEffect(Unit) {
-        musicEngine.recentIds.drop(1).collect { musicStateStore.saveRecent(it) }
+    LaunchedEffect(musicHydrated) {
+        if (!musicHydrated) return@LaunchedEffect
+        musicEngine.recentIds.collect { musicStateStore.saveRecent(it) }
     }
 
     // Ayarlar değiştikçe kaynak durumlarını eşitle
@@ -612,7 +626,11 @@ fun MangaReaderScreen(
     // ─── Ortam Sesi Paneli ────────────────────────────────────────────────────
     if (showMusicPanel) {
         KitsugiSheetOrDialog(
-            onDismiss = { showMusicPanel = false }
+            onDismiss = { showMusicPanel = false },
+            // Ekranın ~%78'i: okuyucu arkası görünür kalır, panel yine
+            // rahat kullanılır. İçerik kaydırılabilir olduğu için 7 sekme
+            // sığar.
+            heightFraction = 0.78f
         ) {
             MangaAmbientPanel(
                 recommendations = musicRecommendations,

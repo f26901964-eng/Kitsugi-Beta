@@ -295,6 +295,79 @@ class MusicCatalogClient(
      * Internet Archive'da public domain ortam kaydı arar.
      * Yalnızca `licenseurl` içinde `publicdomain` geçen öğeler listelenir.
      */
+
+    /**
+     * 🔎 Audius araması
+     *
+     * Audius anahtarsız da çalışır (`app_name` yeterli); anahtar verilirse
+     * kota yükselir. Bu yüzden `apiKey` boşken de arama yapılır — kullanıcı
+     * anahtar girmeden de kaynağı kullanabilsin.
+     *
+     * Akış adresi `stream` endpoint'inden gelir; parça kimliği ile
+     * birleştirilir: `https://api.audius.co/v1/tracks/{id}/stream?app_name=`
+     */
+    suspend fun searchAudius(
+        apiKey: String = "",
+        query: String = "ambient",
+        limit: Int = PAGE_SIZE
+    ): List<AmbientSound> = withContext(Dispatchers.IO) {
+        val url = "https://api.audius.co/v1/tracks/search".toHttpUrlOrNull()
+            ?.newBuilder()
+            ?.addQueryParameter("query", query)
+            ?.addQueryParameter("app_name", "Kitsugi")
+            ?.addQueryParameter("limit", limit.coerceIn(1, 30).toString())
+            ?.build() ?: return@withContext emptyList()
+
+        val requestBuilder = Request.Builder().url(url).get()
+        if (apiKey.isNotBlank()) {
+            requestBuilder.header("Authorization", "Bearer $apiKey")
+        }
+
+        val body = execute(requestBuilder.build()) ?: return@withContext emptyList()
+
+        runCatching {
+            val data = JSONObject(body).optJSONArray("data") ?: JSONArray()
+            buildList {
+                for (i in 0 until data.length()) {
+                    val track = data.optJSONObject(i) ?: continue
+                    val id = track.optString("id")
+                    if (id.isBlank()) continue
+
+                    val title = track.optString("title").ifBlank { "Audius parçası" }
+                    val artist = track.optJSONObject("user")?.optString("name").orEmpty()
+                    val genre = track.optString("genre").orEmpty()
+                    val moodTag = track.optString("mood").orEmpty()
+
+                    // Audius akışı yönlendirme yapar; ExoPlayer bunu takip eder
+                    val streamUrl = "https://api.audius.co/v1/tracks/$id/stream" +
+                        "?app_name=Kitsugi"
+
+                    add(
+                        AmbientSound(
+                            id = "audius_$id",
+                            title = title,
+                            subtitle = listOf(artist, genre).filter { it.isNotBlank() }
+                                .joinToString(" · "),
+                            family = familyFromTags(listOf(genre, moodTag)),
+                            origin = AmbientOrigin.REMOTE,
+                            mood = moodFromTags(listOf(genre, moodTag)),
+                            streamUrl = streamUrl,
+                            durationMs = track.optLong("duration", 0L) * 1000L,
+                            attribution = "Audius · $artist",
+                            licenseUrl = "https://audius.co/",
+                            pageUrl = "https://audius.co/tracks/$id",
+                            sourceId = MusicSourceId.AUDIUS,
+                            varietyKey = "audius"
+                        )
+                    )
+                }
+            }
+        }.getOrElse {
+            Log.w(TAG, "Audius yanıtı çözümlenemedi", it)
+            emptyList()
+        }
+    }
+
     suspend fun searchArchive(
         query: String = "rain ambience",
         limit: Int = PAGE_SIZE
