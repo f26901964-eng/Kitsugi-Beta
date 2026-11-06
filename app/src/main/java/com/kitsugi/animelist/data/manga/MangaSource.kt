@@ -64,6 +64,22 @@ interface MangaSource {
     suspend fun fetchPopularManga(page: Int): MangaSourceResult
 
     /**
+     * Source-defined browse feeds. Unlike Cloudstream mainPage shelves, manga extensions expose
+     * capabilities such as popular/latest and (for Kotatsu) supported sort orders. The UI must
+     * only render the feeds declared here instead of showing a broken Latest tab everywhere.
+     */
+    val exploreSections: List<MangaExploreSection>
+        get() = listOf(MangaExploreSection(MangaExploreSection.POPULAR))
+
+    /** Loads one declared [exploreSections] feed with independent pagination. */
+    suspend fun fetchExploreManga(sectionId: String, page: Int): MangaSourceResult {
+        require(sectionId == MangaExploreSection.POPULAR) {
+            "Bu manga kaynağı '$sectionId' keşfet listesini desteklemiyor"
+        }
+        return fetchPopularManga(page)
+    }
+
+    /**
      * Arama terimi veya filtreye göre manga listesi döndürür.
      */
     suspend fun fetchSearchManga(page: Int, query: String): MangaSourceResult
@@ -119,6 +135,23 @@ interface MangaSource {
                 }
             }
         }
+    }
+}
+
+/** Stable ID of a source-owned browse feed; titles are localized by the UI. */
+data class MangaExploreSection(val id: String) {
+    companion object {
+        const val POPULAR = "popular"
+        const val LATEST = "latest"
+        const val NEWEST = "newest"
+        const val RATING = "rating"
+        const val ALPHABETICAL = "alphabetical"
+        const val ADDED = "added"
+        const val TRENDING_HOUR = "trending_hour"
+        const val TRENDING_TODAY = "trending_today"
+        const val TRENDING_WEEK = "trending_week"
+        const val TRENDING_MONTH = "trending_month"
+        const val TRENDING_YEAR = "trending_year"
     }
 }
 

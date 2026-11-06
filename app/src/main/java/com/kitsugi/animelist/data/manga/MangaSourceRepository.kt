@@ -300,6 +300,25 @@ class MangaSourceRepository(private val context: Context) {
             }
         }
 
+    /** Loads a source-owned explore feed without pretending unsupported Latest shelves exist. */
+    suspend fun fetchExplore(
+        source: MangaSource,
+        sectionId: String,
+        page: Int = 1,
+    ): MangaSourceResult = withContext(Dispatchers.IO) {
+        val startedAt = System.currentTimeMillis()
+        try {
+            val result = source.fetchExploreManga(sectionId, page)
+            recordPopularSuccess(source, elapsedMs = System.currentTimeMillis() - startedAt)
+            result.copy(mangas = result.mangas.map { it.copy(source = source.name) })
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            recordPopularFailure(source, e, elapsedMs = System.currentTimeMillis() - startedAt)
+            Log.e(TAG, "[${source.name}] keşfet listesi hatası ($sectionId): ${e.message}")
+            MangaSourceResult(emptyList(), hasNextPage = false)
+        }
+    }
+
     fun getSourceHealthStatus(source: MangaSource): SourceHealthStatus =
         sourceStateStore.getHealthStatus(source)
 

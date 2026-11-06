@@ -130,6 +130,34 @@ class MihonSourceWrapper(
         }
     }
 
+    // ── Kaynağın desteklediği keşfet listeleri ───────────────────────────────
+
+    override val exploreSections: List<MangaExploreSection>
+        get() = buildList {
+            add(MangaExploreSection(MangaExploreSection.POPULAR))
+            if (mihonSource.supportsLatest) {
+                add(MangaExploreSection(MangaExploreSection.LATEST))
+            }
+        }
+
+    override suspend fun fetchExploreManga(sectionId: String, page: Int): MangaSourceResult =
+        when (sectionId) {
+            MangaExploreSection.POPULAR -> fetchPopularManga(page)
+            MangaExploreSection.LATEST -> {
+                if (!mihonSource.supportsLatest) {
+                    throw UnsupportedOperationException("${mihonSource.name} son güncellemeleri desteklemiyor")
+                }
+                withRecovery {
+                    val raw = mihonSource.getLatestUpdates(page)
+                    MangaSourceResult(
+                        mangas = raw.mangas.map { it.toMangaDetails() },
+                        hasNextPage = raw.hasNextPage,
+                    )
+                }
+            }
+            else -> throw IllegalArgumentException("Bilinmeyen manga keşfet listesi: $sectionId")
+        }
+
     // ── Arama ────────────────────────────────────────────────────────────────
 
     override suspend fun fetchSearchManga(page: Int, query: String): MangaSourceResult = withRecovery {

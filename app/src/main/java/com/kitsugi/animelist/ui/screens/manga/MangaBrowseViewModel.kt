@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.manga.stableSourceKey
 import com.kitsugi.animelist.data.manga.CanonicalMangaResolver
 import com.kitsugi.animelist.data.manga.MangaDetails
+import com.kitsugi.animelist.data.manga.MangaExploreSection
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
 import com.kitsugi.animelist.data.manga.MangaSourceResult
@@ -44,6 +45,7 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         val sources: List<MangaSource> = emptyList(),
         val sourceStates: List<MangaSourceFetchState> = emptyList(),
         val selectedSourceFilter: MangaSource? = null,
+        val selectedExploreSection: MangaExploreSection? = null,
         val popularMangas: List<MangaDetails> = emptyList(),
         val isLoadingPopular: Boolean = false,
         val hasNextPage: Boolean = false,
@@ -68,10 +70,12 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         loadJob?.cancel()
         // Kaynakları sıfırla ama listede tut — refreshSources tekrar dolduracak.
         val available = repository.getAvailableSources()
+        val selectedSource = available.firstOrNull()
         _ui.update {
             UiState(
                 sources = available,
-                selectedSourceFilter = available.firstOrNull()
+                selectedSourceFilter = selectedSource,
+                selectedExploreSection = selectedSource?.exploreSections?.firstOrNull(),
             )
         }
         if (available.isNotEmpty()) fetchPopularMangas(1)
@@ -81,27 +85,63 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
 
     fun refreshSources() {
         val available = repository.getAvailableSources()
-        _ui.update { s ->
-            s.copy(sources = available, selectedSourceFilter = s.selectedSourceFilter ?: available.firstOrNull())
+        _ui.update { state ->
+            val selectedSource = state.selectedSourceFilter?.let { current ->
+                available.firstOrNull { it.stableSourceKey() == current.stableSourceKey() }
+            } ?: available.firstOrNull()
+            val sourceChanged = selectedSource?.stableSourceKey() !=
+                state.selectedSourceFilter?.stableSourceKey()
+            val selectedSection = state.selectedExploreSection?.takeIf { section ->
+                selectedSource?.exploreSections?.any { it.id == section.id } == true
+            } ?: selectedSource?.exploreSections?.firstOrNull()
+            state.copy(
+                sources = available,
+                selectedSourceFilter = selectedSource,
+                selectedExploreSection = selectedSection,
+                popularMangas = if (sourceChanged) emptyList() else state.popularMangas,
+            )
         }
         if (_ui.value.searchQuery.isBlank()) fetchPopularMangas(1)
     }
 
     fun selectSourceFilter(source: MangaSource?) {
-        _ui.update { it.copy(selectedSourceFilter = source) }
+        _ui.update {
+            it.copy(
+                selectedSourceFilter = source,
+                selectedExploreSection = source?.exploreSections?.firstOrNull(),
+            )
+        }
         if (_ui.value.searchQuery.isBlank() && source != null) {
-            _ui.update { it.copy(popularMangas = emptyList(), currentPage = 1) }
+            _ui.update { it.copy(popularMangas = emptyList(), currentPage = 1, hasNextPage = true) }
             fetchPopularMangas(1)
         }
     }
 
+    fun selectExploreSection(section: MangaExploreSection) {
+        val state = _ui.value
+        val source = state.selectedSourceFilter ?: return
+        if (state.searchQuery.isNotBlank() || source.exploreSections.none { it.id == section.id }) return
+        _ui.update {
+            it.copy(
+                selectedExploreSection = section,
+                popularMangas = emptyList(),
+                currentPage = 1,
+                hasNextPage = true,
+            )
+        }
+        fetchPopularMangas(1)
+    }
+
     fun fetchPopularMangas(page: Int = 1) {
         val src = _ui.value.selectedSourceFilter ?: _ui.value.sources.firstOrNull() ?: return
+        val section = _ui.value.selectedExploreSection
+            ?: src.exploreSections.firstOrNull()
+            ?: MangaExploreSection(MangaExploreSection.POPULAR)
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _ui.update { it.copy(isLoadingPopular = true) }
             try {
-                val result = repository.fetchPopular(src, page)
+                val result = repository.fetchExplore(src, section.id, page)
                 _ui.update { s ->
                     s.copy(
                         popularMangas  = if (page == 1) result.mangas else s.popularMangas + result.mangas,
@@ -128,7 +168,16 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                 delay(300)
                 parallelSearch(query)
             } else {
-                _ui.update { it.copy(sourceStates = emptyList()) }
+                val selectedSource = _ui.value.selectedSourceFilter ?: _ui.value.sources.firstOrNull()
+                _ui.update {
+                    it.copy(
+                        sourceStates = emptyList(),
+                        selectedSourceFilter = selectedSource,
+                        selectedExploreSection = it.selectedExploreSection?.takeIf { section ->
+                            selectedSource?.exploreSections?.any { item -> item.id == section.id } == true
+                        } ?: selectedSource?.exploreSections?.firstOrNull(),
+                    )
+                }
                 fetchPopularMangas(1)
             }
         }

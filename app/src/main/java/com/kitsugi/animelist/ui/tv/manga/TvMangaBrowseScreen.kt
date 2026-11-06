@@ -66,6 +66,7 @@ import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
 import com.kitsugi.animelist.ui.screens.manga.MangaBrowseViewModel
+import com.kitsugi.animelist.ui.screens.manga.mangaExploreSectionTitle
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.dpadRepeatThrottle
@@ -110,6 +111,8 @@ fun TvMangaBrowseScreen(
     val states    = ui.sourceStates
     val selFilter = ui.selectedSourceFilter
     val popular   = ui.popularMangas
+    val exploreSection = ui.selectedExploreSection
+    val exploreSections = selFilter?.exploreSections.orEmpty()
 
     val mergedMangas = remember(states, selFilter, query, popular) {
         val raw = if (query.isNotBlank()) {
@@ -291,6 +294,24 @@ fun TvMangaBrowseScreen(
                         }
                     }
                 }
+                if (query.isBlank() && exploreSections.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().focusGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                    ) {
+                        items(exploreSections, key = { it.id }) { section ->
+                            val selected = exploreSection?.id == section.id
+                            TvMangaSourceChip(
+                                label = mangaExploreSectionTitle(section.id),
+                                count = if (selected) popular.size else 0,
+                                isLoading = selected && ui.isLoadingPopular,
+                                isSelected = selected,
+                                onClick = { vm.selectExploreSection(section) },
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
             }
 
@@ -369,7 +390,9 @@ fun TvMangaBrowseScreen(
                             // Sonraki sayfa yükleme trigger
                             if (ui.hasNextPage && !isLoading) {
                                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(5) }) {
-                                    LaunchedEffect(mergedMangas.size) { vm.loadNextPage() }
+                                    LaunchedEffect(mergedMangas.size, selFilter?.name, exploreSection?.id) {
+                                        vm.loadNextPage()
+                                    }
                                     Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
                                         KitsugiPlasmaLoader(size = 32.dp)
                                     }

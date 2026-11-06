@@ -118,6 +118,8 @@ fun MangaBrowseScreen(
     val selFilter      = ui.selectedSourceFilter
     val popular        = ui.popularMangas
     val hasNext        = ui.hasNextPage
+    val exploreSection = ui.selectedExploreSection
+    val exploreSections = selFilter?.exploreSections.orEmpty()
 
     // Keep the actual source with each result. Display names are not identities:
     // Kotatsu and Mihon can expose the same title/name with different URL contracts.
@@ -209,7 +211,13 @@ fun MangaBrowseScreen(
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (query.isNotBlank()) "Arama: \"$query\"" else selFilter?.name ?: stringResource(R.string.inline_discover_manga_eb24f62),
+                        if (query.isNotBlank()) {
+                            "Arama: \"$query\""
+                        } else if (selFilter != null) {
+                            "${selFilter.name} • ${mangaExploreSectionTitle(exploreSection?.id)}"
+                        } else {
+                            stringResource(R.string.inline_discover_manga_eb24f62)
+                        },
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
@@ -314,6 +322,27 @@ fun MangaBrowseScreen(
                         }
                     }
                 }
+                if (query.isBlank() && exploreSections.isNotEmpty()) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        items(exploreSections, key = { it.id }) { section ->
+                            val selected = exploreSection?.id == section.id
+                            MangaChip(
+                                label = mangaExploreSectionTitle(section.id),
+                                count = if (selected) popular.size else 0,
+                                isLoading = selected && ui.isLoadingPopular,
+                                error = null,
+                                isSelected = selected,
+                                accent = accentColor,
+                                isAll = false,
+                                onClick = { vm.selectExploreSection(section) },
+                            )
+                        }
+                    }
+                }
                 HorizontalDivider(modifier = Modifier.padding(top = 10.dp, bottom = 4.dp), color = KitsugiColors.SurfaceStrong.copy(0.5f))
 
                 // ── Grid ──
@@ -365,7 +394,11 @@ fun MangaBrowseScreen(
 
                             if (query.isBlank() || selFilter != null) {
                                 item(span = { GridItemSpan(cols) }) {
-                                    LaunchedEffect(mergedMangas.size) { vm.loadNextPage() }
+                                    LaunchedEffect(
+                                        mergedMangas.size,
+                                        selFilter?.stableSourceKey(),
+                                        exploreSection?.id,
+                                    ) { vm.loadNextPage() }
                                     androidx.compose.animation.AnimatedVisibility(visible = hasNextPageToShow) {
                                         Box(Modifier.fillMaxWidth().height(64.dp), Alignment.Center) {
                                             KitsugiPlasmaLoader(size = 32.dp)

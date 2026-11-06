@@ -315,6 +315,20 @@ class KitsugiKotatsuContext(private val context: Context) : MangaLoaderContext()
         throw UnsupportedOperationException("Bu kaynak WebView URL yakalama desteği gerektiriyor")
 }
 
+private val kotatsuExploreOrders = listOf(
+    MangaExploreSection.POPULAR to SortOrder.POPULARITY,
+    MangaExploreSection.LATEST to SortOrder.UPDATED,
+    MangaExploreSection.NEWEST to SortOrder.NEWEST,
+    MangaExploreSection.RATING to SortOrder.RATING,
+    MangaExploreSection.ADDED to SortOrder.ADDED,
+    MangaExploreSection.ALPHABETICAL to SortOrder.ALPHABETICAL,
+    MangaExploreSection.TRENDING_HOUR to SortOrder.POPULARITY_HOUR,
+    MangaExploreSection.TRENDING_TODAY to SortOrder.POPULARITY_TODAY,
+    MangaExploreSection.TRENDING_WEEK to SortOrder.POPULARITY_WEEK,
+    MangaExploreSection.TRENDING_MONTH to SortOrder.POPULARITY_MONTH,
+    MangaExploreSection.TRENDING_YEAR to SortOrder.POPULARITY_YEAR,
+)
+
 // ─── KotatsuMangaSource — Gerçek Parser Wrapper ──────────────────────────────
 class KotatsuMangaSource(
     val parserSource: MangaParserSource,
@@ -359,6 +373,27 @@ class KotatsuMangaSource(
             throw e
         }
     }
+
+    override val exploreSections: List<MangaExploreSection>
+        get() = kotatsuExploreOrders
+            .filter { (_, order) -> order in parser.availableSortOrders }
+            .map { (sectionId, _) -> MangaExploreSection(sectionId) }
+
+    override suspend fun fetchExploreManga(sectionId: String, page: Int): MangaSourceResult =
+        withContext(Dispatchers.IO) {
+            val order = kotatsuExploreOrders.firstOrNull { it.first == sectionId }?.second
+                ?.takeIf { it in parser.availableSortOrders }
+                ?: throw UnsupportedOperationException(
+                    "${parserSource.title} '$sectionId' listeleme türünü desteklemiyor",
+                )
+            val offsetKey = "explore:$sectionId"
+            val list = parser.getList(
+                offset = offset(offsetKey, page),
+                filter = MangaListFilter(query = ""),
+                order = order,
+            )
+            result(offsetKey, page, list)
+        }
 
     override suspend fun fetchSearchManga(page: Int, query: String): MangaSourceResult = withContext(Dispatchers.IO) {
         try {
