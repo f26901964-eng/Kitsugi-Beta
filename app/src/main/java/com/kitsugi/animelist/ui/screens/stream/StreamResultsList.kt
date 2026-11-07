@@ -26,10 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.errors.PlatformErrorExplanationBlock
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Extension
-import androidx.compose.material.icons.rounded.Refresh
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -43,10 +40,10 @@ fun LazyListScope.renderStreamResultsItems(
     accentColor: Color,
     onStreamSelected: (StreamSource) -> Unit,
     onDownloadSelected: (StreamSource) -> Unit,
-    onVerifyPlugin: ((addonName: String) -> Unit)? = null,
+    onVerifyPlugin: ((AddonFetchState) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
     /** v2.4.256: CloudStream eklentisini yalnızca o eklenti için yeniden çalıştırır. */
-    onRetryPlugin: ((addonName: String) -> Unit)? = null,
+    onRetryPlugin: ((AddonFetchState) -> Unit)? = null,
     /** v2.4.319: Eklenti kapağı yoksa kart görseli olarak kullanılacak medya posteri. */
     posterFallbackUrl: String? = null,
     /**
@@ -61,7 +58,7 @@ fun LazyListScope.renderStreamResultsItems(
                 StreamSkeletonCard(addonName = addonState.addonName)
             }
         } else if (addonState.streams.isNotEmpty()) {
-            item(key = "group_${addonState.addonName}") {
+            item(key = "group_${addonIdx}_${addonState.addonName}") {
                 StreamGroupHeader(
                     addonName = addonState.addonName,
                     streamCount = addonState.streams.size,
@@ -100,10 +97,10 @@ fun LazyListScope.renderStreamResultsItems(
                     addonState = addonState,
                     accentColor = accentColor,
                     onVerify = if (addonState.requiresVerification) {
-                        onVerifyPlugin?.let { callback -> { callback(addonState.addonName) } }
+                        onVerifyPlugin?.let { callback -> { callback(addonState) } }
                     } else null,
                     onRetry = if (addonState.addonName.startsWith("⚡ ")) {
-                        onRetryPlugin?.let { callback -> { callback(addonState.addonName) } }
+                        onRetryPlugin?.let { callback -> { callback(addonState) } }
                     } else null
                 )
             }
@@ -126,9 +123,9 @@ fun StreamResultsList(
     accentColor: Color,
     onStreamSelected: (StreamSource) -> Unit,
     onDownloadSelected: (StreamSource) -> Unit,
-    onVerifyPlugin: ((addonName: String) -> Unit)? = null,
+    onVerifyPlugin: ((AddonFetchState) -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
-    onRetryPlugin: ((addonName: String) -> Unit)? = null,
+    onRetryPlugin: ((AddonFetchState) -> Unit)? = null,
     posterFallbackUrl: String? = null
 ) {
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -210,7 +207,7 @@ private fun StreamErrorCard(
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Extension,
+                            imageVector = Icons.Extension,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -233,7 +230,7 @@ private fun StreamErrorCard(
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Refresh,
+                            imageVector = Icons.Refresh,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -333,7 +330,7 @@ fun SettingsShortcutCard(
                 )
             }
             Icon(
-                imageVector = Icons.Rounded.ChevronRight,
+                imageVector = Icons.ChevronRight,
                 contentDescription = null,
                 tint = accentColor,
                 modifier = Modifier.size(24.dp)

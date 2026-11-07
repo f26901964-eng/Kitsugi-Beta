@@ -17,7 +17,8 @@ data class MangaDetails(
     val genre: List<String> = emptyList(),
     val thumbnailUrl: String? = null,
     val status: MangaStatus = MangaStatus.Unknown,
-    val source: String = ""
+    val source: String = "",
+    val alternativeTitles: List<String> = emptyList()
 ) {
     /**
      * +18 içerik mi? Manga kaynaklarında net bir API bayrağı olmadığı için
@@ -41,7 +42,18 @@ data class MangaChapter(
     val scanlator: String? = null,
     val uploadDate: Long = 0L,
     val mangaUrl: String = ""
-)
+) {
+    /** Opaque source metadata (e.g. Mangitto mangaSlug). Not a signed page URL. */
+    var extensionMemo: kotlinx.serialization.json.JsonObject = kotlinx.serialization.json.JsonObject(emptyMap())
+}
+
+/** Search the fully loaded extension list without collapsing translations with equal numbers. */
+fun MangaChapter.matchesChapterQuery(query: String): Boolean {
+    val term = query.trim()
+    return term.isEmpty() || name.contains(term, ignoreCase = true) ||
+        scanlator?.contains(term, ignoreCase = true) == true ||
+        (chapterNumber >= 0f && chapterNumber.toString().removeSuffix(".0").contains(term, ignoreCase = true))
+}
 
 /**
  * Bir bölümdeki tek bir sayfayı temsil eder.
@@ -57,8 +69,33 @@ class MangaPage(
     // Compose must observe the status itself, not a shallow copy of that list.
     var status: MangaPageStatus by mutableStateOf(status)
 
+    /** Stable source error for page-level actions such as re-authentication. */
+    var errorCode: String? by mutableStateOf(null)
+
+    // A URL supplied in the page list cannot necessarily be re-resolved with getImageUrl.
+    val sourceProvidedImageUrl: Boolean = !imageUrl.isNullOrBlank()
+
+    /** Chapter identity isolates source responses that depend on referer or chapter context. */
+    var cacheContext: String = ""
+
+    /** Source-processed image file; the UI must never refetch imageUrl independently. */
+    var localFile: java.io.File? = null
+    var aspectRatio: Float? by mutableStateOf(null)
+    var imageInfo: MangaImageInfo? by mutableStateOf(null)
+    var cachedImageFile: java.io.File? = null
+
     /** Yerel arşiv dosyası yolu (ZIP/CBZ/RAR içindeki sayfa) — null ise normal HTTP akışı. */
     var archivePath: String? = null
+
+    /**
+     * Ready olduğunda diske yazılmış gerçek görsel dosyası.
+     * `imageUrl` her zaman mevcut olmayabilir (ZIP/CBZ arşivinde sadece entry adı var);
+     * UI bu dosyayı doğrudan kullanmalı, URL'den yeniden türetmemelidir.
+     */
+    var cachedFile: java.io.File? = null
+
+    /** Durable downloaded page (content/file URI), outside the evictable reader cache. */
+    var localUri: String? = null
 }
 
 /**
@@ -73,17 +110,35 @@ enum class ReadingMode {
     Webtoon        // Kesintisiz dikey kaydırma (Manhwa)
 }
 
+/**
+ * Sayfaya uygulanan renk filtresi (Mihon/Aniyomi paritesi).
+ *
+ * Not: Bu enum'un metin kimlikleri [MangaSettingIds] üzerinden çözülür; eski
+ * sürümlerde yazılmış "GrayScale", "Inverted", "Warm", "Cool" gibi değerler
+ * geriye dönük uyumlu olarak okunur.
+ */
 enum class ColorFilterType {
     Normal,
+    Warm,
+    Cool,
     Grayscale,
     Sepia,
     Invert
 }
 
+/**
+ * Sayfanın ekrana nasıl oturtulacağı.
+ *
+ * — FitScreen / FitWidth / FitHeight: kırpma yok, oran korunur
+ * — Crop:  ekranı tamamen doldurur, taşan kısım kırpılır (tam ekran hissi)
+ * — Original: hiç ölçeklenmez, sayfa gerçek piksel boyutunda çizilir
+ */
 enum class MangaFitMode {
     FitScreen,
     FitWidth,
-    FitHeight
+    FitHeight,
+    Crop,
+    Original
 }
 
 enum class MangaStatus {
