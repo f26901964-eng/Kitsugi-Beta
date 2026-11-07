@@ -94,6 +94,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Slider
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import android.util.Log
 import com.kitsugi.animelist.core.music.AmbientAudioEngine
+import com.kitsugi.animelist.core.music.AmbientAutoplayStarter
 import com.kitsugi.animelist.core.music.AutoplayGate
 import com.kitsugi.animelist.data.music.AtmospherePresets
 import com.kitsugi.animelist.data.music.MusicCatalogRepository
@@ -109,7 +110,7 @@ import com.kitsugi.animelist.ui.screens.manga.components.readerSpreadForPage
 import com.kitsugi.animelist.ui.screens.manga.components.readerSpreadLast
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
+
 import com.kitsugi.animelist.ui.screens.manga.components.WebtoonAutoScroll
 import com.kitsugi.animelist.ui.screens.manga.components.ReaderVolumeKeys
 import com.kitsugi.animelist.ui.screens.manga.components.readerBackgroundColor
@@ -377,68 +378,22 @@ fun MangaReaderScreen(
 
         // Yerel türler + (varsa) yedi kaynaklı zenginleştirme sonucu.
         val recommendation = musicRecommendations
-        val targetVolume = readerAppSettings.musicAutoPlayVolume.coerceIn(0.05f, 1f)
 
-        // ── 1) Önce **anında** cihaz içi karışım ────────────────────────
-        //
-        // Sıra önemli: kullanıcı okuyucuyu açtığında ses hemen başlamalı.
-        // Eskiden (ve ilk taslakta) çevrimiçi arama önce yapılsaydı, ağ
-        // yavaşken 8 saniyeye kadar sessizlik olurdu. Artık önce prosedürel
-        // karışım başlar; çevrimiçi eşleşme gelirse yumuşak geçişle onun
-        // yerini alır.
-        val preset = recommendation.presets.firstOrNull()?.sound?.id
-            ?.let { AtmospherePresets.byId(it) }
-
-        if (preset != null) {
-            musicEngine.playPreset(preset)
-            musicEngine.setMasterVolume(targetVolume)
-        } else {
-            recommendation.sounds.firstOrNull()?.let { rec ->
-                musicEngine.addChannel(rec.sound, targetVolume)
-            }
-        }
-
-        // ── 2) Çevrimiçi eşleşme (isteğe bağlı, ses kesilmeden) ─────────
-        if (readerAppSettings.musicAutoPlayIncludeOnline) {
-            val online = runCatching {
-                withTimeoutOrNull(AUTO_PLAY_ONLINE_TIMEOUT_MS) {
-                    musicCatalog.searchForMood(
-                        mood = recommendation.mood,
-                        genres = recommendation.detectedGenres.ifEmpty { mangaDetails.genre },
-                        settings = readerAppSettings,
-                        limit = 4
-                    )
-                }
-            }.getOrNull().orEmpty()
-
-            val pick = online.firstOrNull { candidate -> candidate.isPlayable }
-            if (pick != null) {
-                // Archive satırlarında adres arama sırasında bilinmez
-                // (yalnızca öğe kimliği gelir); çalma anında çözülür.
-                val resolved = runCatching { musicCatalog.resolveUrl(pick) }.getOrNull()
-                val playable = if (!resolved.isNullOrBlank() && resolved != pick.streamUrl) {
-                    pick.copy(streamUrl = resolved)
-                } else {
-                    pick
-                }
-                if (playable.isPlayable) {
-                    // Cihaz içi karışımı yumuşakça kapat, gerçek parçayı başlat.
-                    musicEngine.stopAllChannels()
-                    if (musicEngine.addChannel(playable, targetVolume) >= 0) {
-                        musicEngine.setMasterVolume(targetVolume)
-                        musicMatchNote = buildString {
-                            append(
-                                "Çevrimiçi eşleşme: " +
-                                    (com.kitsugi.animelist.data.music.MusicSources
-                                        .byId(pick.sourceId)?.displayName
-                                        ?: pick.sourceId.name)
-                            )
-                            pick.subtitle.takeIf { it.isNotBlank() }?.let { append(" · $it") }
-                        }
-                    }
-                }
-            }
-        }
+        // Tüm başlatma mantığı `AmbientAutoplayStarter` içinde: bu
+        // composable 1700 satır ve Compose tek bir JVM metodu üretiyor;
+        // buraya yığılan mantık derlemeyi bellek tavanına dayıyordu.
+        val outcome = AmbientAutoplayStarter.start(
+            engine = musicEngine,
+            catalog = musicCatalog,
+            settings = readerAppSettings,
+            mood = recommendation.mood,
+            detectedGenres = recommendation.detectedGenres,
+            fallbackGenres = mangaDetails.genre,
+            presetId = recommendation.presets.firstOrNull()?.sound?.id,
+            firstSound = recommendation.sounds.firstOrNull()?.sound,
+            targetVolume = readerAppSettings.musicAutoPlayVolume
+        )
+        outcome.note?.let { musicMatchNote = it }
         autoPlayHandled = true
     }
 
@@ -2186,12 +2141,3 @@ private fun ReaderSwitch(label: String, checked: Boolean, onCheckedChange: (Bool
         com.kitsugi.animelist.ui.theme.gradient.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = Modifier.semantics { contentDescription = label })
     }
 }
-
-/**
- * Otomatik başlatmada çevrimiçi arama için üst sınır.
- *
- * Neden sınır: otomatik başlatma **kullanıcı bir şey yapmadan** çalışır;
- * ağ yavaşsa okuyucunun açılışını bekletmemesi gerekir. Süre aşılırsa
- * cihaz içi karışıma düşülür.
- */
-private const val AUTO_PLAY_ONLINE_TIMEOUT_MS = 8_000L
