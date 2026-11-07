@@ -158,7 +158,8 @@ Başka hiçbir ekran/dosya değişmedi: `MangaDownload` modeli, indirme işçisi
   önbelleği yok, Maven erişimi kapalı). Değişiklikler mevcut dosyanın birebir API'leri
   (`MangaDownload`, `MangaDownloadManager`, `ChapterRecognition`, gradyan `Text`/`Icon`,
   `KitsugiColors`, `LinearProgressIndicator`) üzerine kuruldu.
-- Bu çalışma `feat/golge-bahcesi-integration` (v2.4.460) tabanına oturtuldu; çünkü
+- Bu çalışma `feat/golge-bahcesi-integration` (v2.4.462) tabanına oturtuldu; çünkü
   5 sekmeli yeni İndirmeler ekranı ve manga indirme altyapısı `main`'de henüz yok.
+  `main`'e göre PR açılırsa dal, o entegrasyon dalının tüm commit'lerini de taşır.
 - Kapak görselleri, MediaStore kaydı silinmiş/eski UID'ye aitse yer tutucu ikona düşer;
   bu durumda "klasörü göster" ile dosyalar kontrol edilebilir.
