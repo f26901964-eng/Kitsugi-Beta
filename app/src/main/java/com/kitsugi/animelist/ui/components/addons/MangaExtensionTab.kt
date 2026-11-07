@@ -833,6 +833,17 @@ internal fun MangaExtensionsTab(
                     }
                 }
             }
+            if (onExploreSource != null && sources.isNotEmpty()) {
+                // Keşfet girişinin keşfedilebilir olması için tek satırlık ipucu.
+                item {
+                    Text(
+                        text = KitsugiStrings.get(R.string.manga_source_explore_hint),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
             if (sources.isEmpty()) {
                 // Eklentiler sayfasının ortak boş-durum kartı (bkz. StremioAddonTab.kt).
                 item {

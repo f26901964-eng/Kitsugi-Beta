@@ -69,6 +69,16 @@ Video tarafındaki `AddonExplorePage` sözleşmesinin manga karşılığı:
 - **Bellek:** `BoundedCache` tabanlı LRU (8 kaynak) anlık görüntü önbelleği —
   manga detayına girip dönünce ağa tekrar çıkılmaz; `MemoryGuard` ile budanabilir.
   Durum tutucu `remember(sourceKey)` ile yaşar (ViewModel biriktirmez).
+- **Durum koruma:** anlık görüntü yalnızca rafları değil, açık **"Tümünü Gör" grid'ini**
+  (sayfa/sonraki-sayfa dahil) ve **arama sonuçlarını** da saklar. Mangaya girip geri
+  dönüldüğünde kullanıcı tam olarak bıraktığı yerden devam eder.
+- **Hız sınırı (429) koruması:** "Popüler" ve "Son Güncellemeler" rafları **sırayla**
+  yüklenir (ikinci istek, ilki bitince başlar); bazı kaynaklar eşzamanlı iki liste
+  isteğini rate-limit ile reddediyordu.
+- **Senkron yükleme bayrakları:** bayrak `launch` öncesinde işaretlenir; çift dokunuş
+  veya hızlı yenileme aynı rafı iki kez çekmez.
+- **Arama önceliği:** grid açıkken arama alanına yazılmaya başlanırsa grid kapanır ve
+  arama sonuçları gösterilir (gizli kalan bir arama olmaz).
 
 ### 3.3 Navigasyon
 
@@ -136,7 +146,8 @@ Video tarafındaki `AddonExplorePage` sözleşmesinin manga karşılığı:
    bildirmeyende hiç çizilmemeli.
 5. **Kaynak içi arama:** hızlı yazımda istek selleri olmamalı; sonuç kartı →
    manga detayı + bölüm listesi açılmalı; okuyucuya geçiş çalışmalı.
-6. **Manga detayından geri** → keşfet sayfası önbellekten anında gelmeli (ağ isteği yok).
+6. **Manga detayından geri** → keşfet sayfası önbellekten anında gelmeli (ağ isteği yok)
+   ve bırakılan görünüm (raflar / grid / arama sonuçları) aynen geri gelmeli.
 7. **Hata senaryosu:** ağ kapalıyken raf yerine hata mesajı + `KTS-SRC-*` çipi +
    "Yeniden Dene" görünmeli; kaynak sağlık raporunda ilgili kaynağın hatası artmalı.
 8. **+18 kapalıyken** yetişkin başlıklar listede görünmemeli.

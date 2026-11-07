@@ -117,7 +117,17 @@ private data class MangaExploreSnapshot(
     val popular: List<MangaDetails>,
     val popularHasNext: Boolean,
     val latest: List<MangaDetails>,
-    val latestHasNext: Boolean
+    val latestHasNext: Boolean,
+    /** Kullanıcı "Tümünü Gör" grid'inde miydi? (manga detayından dönüşte korunur) */
+    val gridRailId: String? = null,
+    val gridItems: List<MangaDetails> = emptyList(),
+    val gridPage: Int = 1,
+    val gridHasNext: Boolean = true,
+    /** Mangaya girip dönüldüğünde arama sonuçları kaybolmasın. */
+    val searchQuery: String = "",
+    val searchResults: List<MangaDetails> = emptyList(),
+    val searchPage: Int = 1,
+    val searchHasNext: Boolean = false
 )
 
 private object MangaExploreCache {
@@ -148,7 +158,11 @@ class MangaSourceExploreState(
 ) {
     val sourceKey: String get() = source.stableSourceKey()
 
-    val supportsLatest: Boolean get() = source.supportsLatest
+    /**
+     * Kaynak nesnesinden BİR KEZ okunur (Kotatsu parserinde `availableSortOrders`
+     * her kompozisyonda sorgulanmasın).
+     */
+    val supportsLatest: Boolean = source.supportsLatest
 
     // ── Popüler rafı ──────────────────────────────────────────────────────────
     var popular by mutableStateOf<List<MangaDetails>>(emptyList())
@@ -220,9 +234,40 @@ class MangaSourceExploreState(
             popularHasNext = cached.popularHasNext
             latest = cached.latest
             latestHasNext = cached.latestHasNext
+            // Mangaya girip dönüldüyse aynı "Tümünü Gör" grid'i yerinde açılsın.
+            val restoredRail = cached.gridRailId?.let { id ->
+                MangaExploreRail.values().firstOrNull { it.id == id }
+            }
+            if (restoredRail != null && cached.gridItems.isNotEmpty()) {
+                gridRail = restoredRail
+                gridItems = cached.gridItems
+                gridPage = cached.gridPage
+                gridHasNext = cached.gridHasNext
+            }
+            // Mangaya girip dönüldüyse arama sonuçları da yerinde kalsın.
+            if (cached.searchQuery.isNotBlank()) {
+                searchQuery = cached.searchQuery
+                searchResults = cached.searchResults
+                searchPage = cached.searchPage
+                searchHasNext = cached.searchHasNext
+            }
         }
-        if (popular.isEmpty() && !popularLoading) loadPopular(force = false)
-        if (supportsLatest && latest.isEmpty() && !latestLoading) loadLatest(force = false)
+
+        val needPopular = popular.isEmpty() && !popularLoading
+        val needLatest = supportsLatest && latest.isEmpty() && !latestLoading
+        if (needPopular) {
+            val job = loadPopular(force = false)
+            if (needLatest) {
+                // Raflar SIRAYLA yüklenir: bazı kaynaklarda eşzamanlı iki liste
+                // isteği hız sınırına (HTTP 429) takılıyor.
+                scope.launch {
+                    job?.join()
+                    if (latest.isEmpty() && !latestLoading) loadLatest(force = false)
+                }
+            }
+        } else if (needLatest) {
+            loadLatest(force = false)
+        }
     }
 
     /** Ekranın sağ üstündeki yenile butonu: açık olan görünümü tazeler. */
@@ -232,8 +277,13 @@ class MangaSourceExploreState(
             searchQuery.isNotBlank() -> search(searchQuery)
             else -> {
                 MangaExploreCache.remove(sourceKey)
-                loadPopular(force = true)
-                if (supportsLatest) loadLatest(force = true)
+                val job = loadPopular(force = true)
+                if (supportsLatest) {
+                    scope.launch {
+                        job?.join()
+                        loadLatest(force = true)
+                    }
+                }
             }
         }
     }
@@ -292,21 +342,30 @@ class MangaSourceExploreState(
                 popular = popular,
                 popularHasNext = popularHasNext,
                 latest = latest,
-                latestHasNext = latestHasNext
+                latestHasNext = latestHasNext,
+                gridRailId = gridRail?.id,
+                gridItems = gridItems,
+                gridPage = gridPage,
+                gridHasNext = gridHasNext,
+                searchQuery = searchQuery,
+                searchResults = searchResults,
+                searchPage = searchPage,
+                searchHasNext = searchHasNext
             )
         )
     }
 
     // ── Raflar ────────────────────────────────────────────────────────────────
 
-    fun loadPopular(force: Boolean = false) {
-        if (popularLoading) return
-        if (!force && popular.isNotEmpty()) return
+    fun loadPopular(force: Boolean = false): Job? {
+        if (popularLoading) return null
+        if (!force && popular.isNotEmpty()) return null
         popularJob?.cancel()
-        popularJob = scope.launch {
-            popularLoading = true
-            popularError = null
-            popularErrorCode = null
+        // Bayrak SENKRON olarak işaretlenir: çift dokunuş aynı rafı iki kez çekmesin.
+        popularLoading = true
+        popularError = null
+        popularErrorCode = null
+        val job = scope.launch {
             try {
                 val result = fetchPopularPage(1)
                 popular = result.mangas
@@ -321,16 +380,18 @@ class MangaSourceExploreState(
                 popularLoading = false
             }
         }
+        popularJob = job
+        return job
     }
 
-    fun loadLatest(force: Boolean = false) {
-        if (!supportsLatest || latestLoading) return
-        if (!force && latest.isNotEmpty()) return
+    fun loadLatest(force: Boolean = false): Job? {
+        if (!supportsLatest || latestLoading) return null
+        if (!force && latest.isNotEmpty()) return null
         latestJob?.cancel()
-        latestJob = scope.launch {
-            latestLoading = true
-            latestError = null
-            latestErrorCode = null
+        latestLoading = true
+        latestError = null
+        latestErrorCode = null
+        val job = scope.launch {
             try {
                 val result = fetchLatestPage(1)
                 latest = result.mangas
@@ -345,6 +406,8 @@ class MangaSourceExploreState(
                 latestLoading = false
             }
         }
+        latestJob = job
+        return job
     }
 
     // ── Arama ─────────────────────────────────────────────────────────────────
@@ -363,8 +426,12 @@ class MangaSourceExploreState(
             searchHasNext = false
             searchPage = 1
             searchLoading = false
+            persistSnapshot()
             return
         }
+
+        // Grid açıkken yazmaya başlandıysa grid terk edilir; arama önceliklidir.
+        if (gridRail != null) closeGrid()
 
         searchLoading = true
         searchError = null
@@ -379,6 +446,7 @@ class MangaSourceExploreState(
                 searchResults = result.mangas
                 searchPage = 1
                 searchHasNext = result.hasNextPage
+                persistSnapshot()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 if (token != searchToken) return@launch
@@ -386,6 +454,7 @@ class MangaSourceExploreState(
                 searchHasNext = false
                 searchError = e.message ?: ""
                 searchErrorCode = SourceFailureClassifier.classifyCode(e)
+                persistSnapshot()
             } finally {
                 if (token == searchToken) searchLoading = false
             }
@@ -405,6 +474,7 @@ class MangaSourceExploreState(
                 searchResults = (searchResults + result.mangas).distinctBy { it.url }
                 searchPage = nextPage
                 searchHasNext = result.hasNextPage
+                persistSnapshot()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 if (token != searchToken) return@launch
@@ -432,6 +502,7 @@ class MangaSourceExploreState(
         gridPage = 1
         gridError = null
         gridErrorCode = null
+        persistSnapshot()
         // Önbellekten gelen ilk sayfa varsa hemen ekstra istek atma; boşsa çek.
         if (gridItems.isEmpty()) loadGridFirstPage()
     }
@@ -445,6 +516,7 @@ class MangaSourceExploreState(
         gridLoading = false
         gridPage = 1
         gridHasNext = true
+        persistSnapshot()
     }
 
     fun loadGridFirstPage() {
@@ -476,6 +548,7 @@ class MangaSourceExploreState(
                 gridHasNext = false
                 gridError = e.message ?: ""
                 gridErrorCode = SourceFailureClassifier.classifyCode(e)
+                persistSnapshot()
             } finally {
                 gridLoading = false
             }
@@ -496,6 +569,7 @@ class MangaSourceExploreState(
                 gridItems = (gridItems + result.mangas).distinctBy { it.url }
                 gridPage = nextPage
                 gridHasNext = result.hasNextPage
+                persistSnapshot()
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 gridHasNext = false

@@ -17758,6 +17758,7 @@
     <string name="inline_video_unsupported_body">This format may not be decodable on this device. The fullscreen player can open this file with software decoding.</string>
     <string name="inline_open_fullscreen">Open in fullscreen</string>
     <!-- ── Manga extension Explore page (extension portal → manga source) ── -->
+    <string name="manga_source_explore_hint">Tap a source to open that extension\'s own explore and search page.</string>
     <string name="manga_source_explore">Explore</string>
     <string name="manga_explore_header_subtitle">Explore · %1$s source</string>
     <string name="manga_explore_search_hint">Search in %1$s...</string>
