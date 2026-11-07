@@ -1,64 +1,89 @@
 package com.kitsugi.animelist.ui.screens.manga.components
 
-import com.kitsugi.animelist.ui.theme.gradient.background
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.HourglassBottom
-import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
-import com.kitsugi.animelist.ui.theme.gradient.Icon
-import androidx.compose.material3.MaterialTheme
-import com.kitsugi.animelist.ui.theme.gradient.Text
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.size.Scale
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.diagnostics.PlatformErrorCode
+import com.kitsugi.animelist.data.manga.ColorFilterType
+import com.kitsugi.animelist.data.manga.MangaFitMode
 import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaPageStatus
 import com.kitsugi.animelist.data.manga.ReadingMode
 import com.kitsugi.animelist.data.manga.loader.MangaPageLoaderV2
-import me.saket.telephoto.zoomable.coil.ZoomableAsyncImage
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.icons.KitsugiIcons as Icons
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+import me.saket.telephoto.zoomable.ZoomSpec
+import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.remember
-import coil3.request.ImageRequest
-import coil3.request.CachePolicy
-import coil3.request.crossfade
-import com.kitsugi.animelist.data.manga.ColorFilterType
-import com.kitsugi.animelist.data.manga.MangaFitMode
-import androidx.compose.ui.res.stringResource
-import com.kitsugi.animelist.R
-
 /**
- * Yatay (LTR/RTL) ve dikey pager okuma modları için tek sayfa bileşeni.
+ * Tek bir manga sayfası — hem yatay/dikey sayfalama hem webtoon modunda kullanılır.
  *
- * — Telephoto'nun ZoomableAsyncImage bileşeni ile:
- *     • Çift tıklama ile yakınlaştırma/uzaklaştırma
- *     • Parmakla pinch-to-zoom
- *     • Büyük çözünürlüklü resimlerin kiremit döşemeli (subsampling) çizimi
- *     • OOM (Out of Memory) riskini sıfıra indirme
- *
- * — Sayfa Ready olana kadar yükleme göstergesi gösterilir.
- * — Hata durumunda "Tekrar Dene" butonu görünür.
+ * Özellikler
+ * ----------
+ *  • Telephoto `ZoomableAsyncImage`: pinch-to-zoom, çift dokunma ile yakınlaştırma,
+ *    dev görsellerde kiremit (subsampling) çizim → OOM riski yok.
+ *  • Dokunma bölgeleri (Mihon paritesi): sol/orta/sağ veya 3×3 ızgara.
+ *  • Uzun basma → okuyucu menüsü/ayarları (Mihon "show on long tap").
+ *  • Yatay aynalama (`mirrorPages`): aynalanmış servis edilen sayfaları düzeltir.
+ *  • Sığdırma modları: FitScreen / FitWidth / FitHeight / Crop / Original.
+ *  • Renk filtreleri: Normal / Warm / Cool / Grayscale / Sepia / Invert + Saturation / Contrast / Hue.
+ *  • Otomatik arkaplan rengi ve kenar boşluğu kırpma desteği.
+ *  • Sağ altta sayfa numarası rozeti (kapatılabilir).
  */
 @Composable
 fun MangaPageItem(
@@ -66,199 +91,475 @@ fun MangaPageItem(
     loader: MangaPageLoaderV2,
     readingMode: ReadingMode = ReadingMode.RightToLeft,
     colorFilterType: ColorFilterType = ColorFilterType.Normal,
+    saturation: Int = 100,
+    contrast: Int = 100,
+    hue: Int = 0,
     fitMode: MangaFitMode = MangaFitMode.FitScreen,
+    pageBackground: Color = Color.Black,
+    autoBackground: Boolean = false,
+    cropBorders: Boolean = false,
+    mirrorPages: Boolean = false,
+    showPageNumber: Boolean = true,
+    tapZonesEnabled: Boolean = true,
+    invertTapZones: Boolean = false,
+    tapLayout: String = "Default",
+    tapGrid: String = DEFAULT_READER_TAP_GRID,
+    longTapGrid: String = DEFAULT_READER_LONG_TAP_GRID,
+    tapViewport: ReaderTapViewport? = null,
+    zoomEnabled: Boolean = true,
+    wideRotation: String = "Off",
+    imageOverride: java.io.File? = null,
+    tapsEnabled: Boolean = true,
     onCenterTap: () -> Unit = {},
+    onLongPress: () -> Unit = {},
+    /** Sayfaya uzun basınca galeri açılır. */
+    onLongPressPage: ((Int) -> Unit)? = null,
     onNextPage: () -> Unit = {},
     onPrevPage: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onSourceLogin: (() -> Unit)? = null,
+    /** Webtoon'da yer tutucu boyutu için paylaşılan oran hafızası. */
+    sizeMemory: MangaPageSizeMemory? = null,
+    modifier: Modifier = Modifier,
 ) {
+    val isScrollMode = readingMode == ReadingMode.Webtoon
+    val haptics = LocalHapticFeedback.current
+    val currentCenterTap by rememberUpdatedState(onCenterTap)
+    val currentNextPage by rememberUpdatedState(onNextPage)
+    val currentPrevPage by rememberUpdatedState(onPrevPage)
+    var itemTop by remember(page) { mutableFloatStateOf(0f) }
+    val currentViewport by rememberUpdatedState(tapViewport)
+
     // Sayfa nesnesi ilk kez görüldüğünde yüklemeyi başlat.
-    // Key olarak identityHashCode kullanıyoruz: aynı sayfa nesnesi varsa yeniden tetiklenmez,
-    // ama yeni bir bölüme geçildiğinde (yeni page nesneleri) effect yeniden çalışır.
-    LaunchedEffect(System.identityHashCode(page)) {
-        loader.loadPage(page)
+    LaunchedEffect(page, loader) {
+        val imageUrl = page.imageUrl
+        val missing = page.status == MangaPageStatus.Ready && imageUrl != null &&
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                !loader.cache.getImageFile(loader.cacheKey(page, imageUrl)).isFile
+            }
+        if (missing) loader.retryPage(page) else loader.loadPage(page)
+    }
+
+    val rootModifier = if (isScrollMode) {
+        modifier.fillMaxWidth().wrapContentHeight()
+    } else {
+        modifier.fillMaxSize()
+    }
+
+    val backgroundFile = if (autoBackground && page.status == MangaPageStatus.Ready) {
+        loader.cache.getImageFile(page.imageUrl ?: page.url)
+    } else null
+    val actualBackground = rememberReaderAutoBackground(backgroundFile, autoBackground, pageBackground)
+
+    val tapModifier = if (!tapsEnabled) {
+        Modifier
+    } else if (tapLayout != "Default" && tapLayout.isNotBlank()) {
+        Modifier
+            .then(if (tapViewport != null) Modifier.onGloballyPositioned { itemTop = it.positionInWindow().y } else Modifier)
+            .pointerInput(readingMode, invertTapZones, tapLayout, tapGrid, longTapGrid) {
+                fun dispatch(offset: Offset, grid: String) {
+                    val y = readerTapY(offset.y, itemTop, currentViewport, size.height)
+                    when (readerTapAction(tapLayout, readingMode == ReadingMode.RightToLeft, invertTapZones,
+                        offset.x / size.width.coerceAtLeast(1), y, grid)) {
+                        ReaderTapAction.MENU -> currentCenterTap()
+                        ReaderTapAction.NEXT -> currentNextPage()
+                        ReaderTapAction.PREVIOUS -> currentPrevPage()
+                        ReaderTapAction.NONE -> Unit
+                    }
+                }
+                detectTapGestures(
+                    onTap = { dispatch(it, tapGrid) },
+                    onLongPress = if (tapLayout == "Custom" && longTapGrid.any { it != 'X' }) ({ dispatch(it, longTapGrid) }) else null
+                )
+            }
+    } else {
+        Modifier.readerTapZones(
+            readingMode = readingMode,
+            tapZonesEnabled = tapZonesEnabled,
+            invertTapZones = invertTapZones,
+            haptics = haptics,
+            onCenterTap = onCenterTap,
+            onLongPress = {
+                onLongPress()
+                onLongPressPage?.invoke(page.index)
+            },
+            onNextPage = onNextPage,
+            onPrevPage = onPrevPage,
+        )
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(readingMode) {
-                detectTapGestures { offset ->
-                    val width = size.width.toFloat()
-                    val leftEdge = width * 0.33f
-                    val rightEdge = width * 0.66f
-
-                    if (offset.x < leftEdge) {
-                        if (readingMode == ReadingMode.RightToLeft) {
-                            onNextPage()
-                        } else {
-                            onPrevPage()
-                        }
-                    } else if (offset.x > rightEdge) {
-                        if (readingMode == ReadingMode.RightToLeft) {
-                            onPrevPage()
-                        } else {
-                            onNextPage()
-                        }
-                    } else {
-                        onCenterTap()
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
+        modifier = rootModifier
+            .background(actualBackground)
+            .then(tapModifier),
+        contentAlignment = Alignment.Center,
     ) {
         when (page.status) {
             MangaPageStatus.Ready -> {
                 val imageUrl = page.imageUrl ?: page.url
-                val cacheFile = loader.cache.getImageFile(imageUrl)
-                val modelToLoad: Any = if (cacheFile.exists()) cacheFile else imageUrl
+                val cacheFile = loader.cache.getImageFile(loader.cacheKey(page, imageUrl))
+                val croppedFile = rememberReaderCrop(
+                    source = cacheFile,
+                    enabled = cropBorders && imageOverride == null,
+                    rotation = if (imageOverride == null) wideRotation else "Off"
+                )?.file
+                val modelToLoad: Any = imageOverride
+                    ?: croppedFile
+                    ?: page.localUri?.let(android.net.Uri::parse)
+                    ?: if (cacheFile.exists()) cacheFile else (page.cachedFile ?: imageUrl)
 
                 val context = LocalContext.current
-                val imageRequest = remember(modelToLoad) {
+                val displayError = remember(page, modelToLoad) { mutableStateOf<Throwable?>(null) }
+                val retryGeneration = remember(page, modelToLoad) { mutableIntStateOf(0) }
+                val imageRequest = remember(modelToLoad, retryGeneration.intValue) {
                     ImageRequest.Builder(context)
                         .data(modelToLoad)
+                        .size(2048, 2048)
+                        .scale(Scale.FIT)
                         .diskCachePolicy(CachePolicy.DISABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
                         .crossfade(200)
+                        .listener(
+                            onError = { _, result -> displayError.value = result.throwable },
+                            onSuccess = { _, _ -> displayError.value = null }
+                        )
                         .build()
                 }
 
-                val zoomableState = rememberZoomableState()
-                val imageState    = rememberZoomableImageState(zoomableState)
-
-                val contentScale = when (fitMode) {
-                    MangaFitMode.FitScreen -> ContentScale.Fit
-                    MangaFitMode.FitWidth -> ContentScale.FillWidth
-                    MangaFitMode.FitHeight -> ContentScale.FillHeight
+                val contentScale = fitMode.toContentScale()
+                val composeColorFilter = remember(colorFilterType, saturation, contrast, hue) {
+                    readerColorMatrix(colorFilterType.name, saturation, contrast, hue)?.let {
+                        ColorFilter.colorMatrix(ColorMatrix(it))
+                    } ?: colorFilterType.toComposeColorFilter()
                 }
 
-                val composeColorFilter = when (colorFilterType) {
-                    ColorFilterType.Normal -> null
-                    ColorFilterType.Grayscale -> {
-                        val matrix = ColorMatrix(
-                            floatArrayOf(
-                                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
-                                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
-                                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
-                                0f,      0f,      0f,      1f, 0f
-                            )
+                if (displayError.value == null) {
+                    key(modelToLoad, retryGeneration.intValue, zoomEnabled) {
+                        val zoomableState = rememberZoomableState(
+                            zoomSpec = ZoomSpec(maxZoomFactor = if (zoomEnabled) 2f else 1f)
                         )
-                        ColorFilter.colorMatrix(matrix)
-                    }
-                    ColorFilterType.Sepia -> {
-                        val matrix = ColorMatrix(
-                            floatArrayOf(
-                                0.393f, 0.769f, 0.189f, 0f, 0f,
-                                0.349f, 0.686f, 0.168f, 0f, 0f,
-                                0.272f, 0.534f, 0.131f, 0f, 0f,
-                                0f,     0f,     0f,     1f, 0f
-                            )
-                        )
-                        ColorFilter.colorMatrix(matrix)
-                    }
-                    ColorFilterType.Invert -> {
-                        val matrix = ColorMatrix(
-                            floatArrayOf(
-                                -1f,  0f,  0f, 0f, 1f,
-                                 0f, -1f,  0f, 0f, 1f,
-                                 0f,  0f, -1f, 0f, 1f,
-                                 0f,  0f,  0f, 1f, 0f
-                            )
-                        )
-                        ColorFilter.colorMatrix(matrix)
-                    }
-                }
+                        val imageState = rememberZoomableImageState(zoomableState)
 
-                ZoomableAsyncImage(
-                    model       = imageRequest,
-                    contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
-                    state       = imageState,
-                    contentScale = contentScale,
-                    colorFilter = composeColorFilter,
-                    modifier    = Modifier.fillMaxSize()
-                )
+                        val imageModifier = (if (isScrollMode) {
+                            Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .onSizeChanged { size -> sizeMemory?.record(size.width, size.height) }
+                        } else {
+                            Modifier.fillMaxSize()
+                        }).then(
+                            if (mirrorPages) Modifier.graphicsLayer { scaleX = -1f } else Modifier
+                        ).then(
+                            if (cropBorders && croppedFile == null) {
+                                Modifier
+                                    .graphicsLayer {
+                                        scaleX = 1.04f
+                                        scaleY = 1.04f
+                                    }
+                                    .clipToBounds()
+                            } else {
+                                Modifier
+                            }
+                        )
+
+                        ZoomableAsyncImage(
+                            model = imageRequest,
+                            contentDescription = stringResource(R.string.manga_sayfasi_x, page.index + 1),
+                            state = imageState,
+                            contentScale = contentScale,
+                            colorFilter = composeColorFilter,
+                            modifier = imageModifier,
+                        )
+                    }
+                } else {
+                    ErrorPageContent(
+                        pageIndex = page.index,
+                        isScrollMode = isScrollMode,
+                        placeholderAspect = sizeMemory?.aspectRatio,
+                        errorCode = page.errorCode,
+                        onSourceLogin = onSourceLogin,
+                        onRetry = {
+                            displayError.value = null
+                            retryGeneration.intValue++
+                            loader.retryPage(page, invalidateCache = true)
+                        }
+                    )
+                }
             }
 
             MangaPageStatus.Error -> {
                 ErrorPageContent(
                     pageIndex = page.index,
-                    onRetry   = { loader.retryPage(page) }
+                    isScrollMode = isScrollMode,
+                    placeholderAspect = sizeMemory?.aspectRatio,
+                    errorCode = page.errorCode,
+                    onSourceLogin = onSourceLogin,
+                    onRetry = { loader.retryPage(page, invalidateCache = true) },
                 )
             }
 
             else -> {
-                LoadingPageContent(page = page)
+                LoadingPageContent(
+                    page = page,
+                    isScrollMode = isScrollMode,
+                    placeholderAspect = sizeMemory?.aspectRatio,
+                )
             }
         }
 
-        // Sol alt köşede sayfa numarası
-        Text(
-            text     = "${page.index + 1}",
-            color    = Color.White.copy(alpha = 0.5f),
-            fontSize = 11.sp,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(8.dp)
-        )
+        // Sayfa numarası rozeti (webtoon'da her sayfada göstermek gürültü yapar)
+        if (showPageNumber && !isScrollMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(10.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "${page.index + 1}",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 11.sp,
+                )
+            }
+        }
     }
 }
 
+/**
+ * Dokunma bölgeleri (Mihon "tap zones" paritesi).
+ */
+private fun Modifier.readerTapZones(
+    readingMode: ReadingMode,
+    tapZonesEnabled: Boolean,
+    invertTapZones: Boolean,
+    haptics: HapticFeedback,
+    onCenterTap: () -> Unit,
+    onLongPress: () -> Unit,
+    onNextPage: () -> Unit,
+    onPrevPage: () -> Unit,
+): Modifier = pointerInput(readingMode, tapZonesEnabled, invertTapZones) {
+    awaitPointerEventScope {
+        while (true) {
+            val down = awaitFirstDown(
+                requireUnconsumed = false,
+                pass = PointerEventPass.Initial,
+            )
+            val downPosition: Offset = down.position
+            val downTime = down.uptimeMillis
+            var multiTouch = false
+            var moved = false
+            var longPressFired = false
+            var upPosition: Offset = downPosition
+
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.changes.size > 1) multiTouch = true
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if ((change.position - downPosition).getDistance() > viewConfiguration.touchSlop) {
+                    moved = true
+                }
+                if (!longPressFired && !multiTouch && !moved &&
+                    change.uptimeMillis - downTime >= viewConfiguration.longPressTimeoutMillis
+                ) {
+                    longPressFired = true
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPress()
+                }
+                if (!change.pressed) {
+                    upPosition = change.position
+                    break
+                }
+            }
+
+            if (multiTouch || moved || longPressFired) continue
+
+            val width = size.width.toFloat()
+            if (!tapZonesEnabled || width <= 0f) {
+                onCenterTap()
+                continue
+            }
+
+            val leftEdge = width * 0.33f
+            val rightEdge = width * 0.66f
+            val forwardOnLeft = (readingMode == ReadingMode.RightToLeft) != invertTapZones
+            when {
+                upPosition.x < leftEdge -> if (forwardOnLeft) onNextPage() else onPrevPage()
+                upPosition.x > rightEdge -> if (forwardOnLeft) onPrevPage() else onNextPage()
+                else -> onCenterTap()
+            }
+        }
+    }
+}
+
+/**
+ * Webtoon modunda yer tutucu boyutu için "son bilinen en-boy oranı" hafızası.
+ */
+class MangaPageSizeMemory {
+    var aspectRatio by mutableStateOf(0.7f)
+        private set
+
+    fun record(widthPx: Int, heightPx: Int) {
+        if (widthPx <= 0 || heightPx <= 0) return
+        val ratio = widthPx.toFloat() / heightPx.toFloat()
+        if (ratio.isFinite() && ratio > 0.08f && ratio < 4f) aspectRatio = ratio
+    }
+}
+
+// ─── Ölçek / filtre eşlemeleri (tek yerden) ──────────────────────────────────
+
+/** [MangaFitMode] → Compose [ContentScale]. */
+internal fun MangaFitMode.toContentScale(): ContentScale = when (this) {
+    MangaFitMode.FitScreen -> ContentScale.Fit
+    MangaFitMode.FitWidth -> ContentScale.FillWidth
+    MangaFitMode.FitHeight -> ContentScale.FillHeight
+    MangaFitMode.Crop -> ContentScale.Crop
+    MangaFitMode.Original -> ContentScale.None
+}
+
+/**
+ * [ColorFilterType] → Compose [ColorFilter].
+ */
+internal fun ColorFilterType.toComposeColorFilter(): ColorFilter? = when (this) {
+    ColorFilterType.Normal -> null
+
+    ColorFilterType.Warm -> ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                1.06f, 0.02f, 0.00f, 0f, 6f,
+                0.01f, 1.00f, 0.00f, 0f, 2f,
+                0.00f, 0.00f, 0.90f, 0f, -6f,
+                0f, 0f, 0f, 1f, 0f,
+            )
+        )
+    )
+
+    ColorFilterType.Cool -> ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                0.92f, 0.00f, 0.00f, 0f, -4f,
+                0.00f, 1.00f, 0.02f, 0f, 2f,
+                0.00f, 0.03f, 1.08f, 0f, 8f,
+                0f, 0f, 0f, 1f, 0f,
+            )
+        )
+    )
+
+    ColorFilterType.Grayscale -> ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
+                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
+                0.2126f, 0.7152f, 0.0722f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            )
+        )
+    )
+
+    ColorFilterType.Sepia -> ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                0.393f, 0.769f, 0.189f, 0f, 0f,
+                0.349f, 0.686f, 0.168f, 0f, 0f,
+                0.272f, 0.534f, 0.131f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            )
+        )
+    )
+
+    ColorFilterType.Invert -> ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                -1f, 0f, 0f, 0f, 255f,
+                0f, -1f, 0f, 0f, 255f,
+                0f, 0f, -1f, 0f, 255f,
+                0f, 0f, 0f, 1f, 0f,
+            )
+        )
+    )
+}
+
+// ─── Yükleme / hata yer tutucuları ───────────────────────────────────────────
+
 @Composable
-private fun LoadingPageContent(page: MangaPage) {
+private fun LoadingPageContent(
+    page: MangaPage,
+    isScrollMode: Boolean,
+    placeholderAspect: Float?,
+) {
     Box(
-        modifier          = Modifier
-            .fillMaxWidth()
-            .height(480.dp)
-            .background(Color(0xFF0A0A0A)),
-        contentAlignment  = Alignment.Center
+        modifier = if (isScrollMode) {
+            Modifier.fillMaxWidth().aspectRatio(placeholderAspect ?: 0.7f)
+        } else {
+            Modifier.fillMaxSize()
+        }.background(Color(0xFF0A0A0A)),
+        contentAlignment = Alignment.Center,
     ) {
         when (page.status) {
             MangaPageStatus.DownloadImage,
-            MangaPageStatus.LoadPage -> {
-                KitsugiPlasmaLoader(size = 46.dp)
-            }
-            MangaPageStatus.Queue -> {
-                Icon(
-                    imageVector         = Icons.Default.HourglassBottom,
-                    contentDescription  = null,
-                    tint                = Color.White.copy(alpha = 0.3f),
-                    modifier            = Modifier.size(40.dp)
-                )
-            }
-            else -> {}
+            MangaPageStatus.LoadPage -> KitsugiPlasmaLoader(size = 46.dp)
+
+            MangaPageStatus.Queue -> Icon(
+                imageVector = Icons.HourglassBottom,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(40.dp),
+            )
+
+            else -> CircularProgressIndicator(
+                color = KitsugiColors.Accent,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(32.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun ErrorPageContent(pageIndex: Int, onRetry: () -> Unit) {
+private fun ErrorPageContent(
+    pageIndex: Int,
+    isScrollMode: Boolean,
+    placeholderAspect: Float?,
+    errorCode: String? = null,
+    onSourceLogin: (() -> Unit)? = null,
+    onRetry: () -> Unit,
+) {
     Box(
-        modifier          = Modifier
-            .fillMaxWidth()
-            .height(360.dp)
-            .background(Color(0xFF120A0A)),
-        contentAlignment  = Alignment.Center
+        modifier = if (isScrollMode) {
+            Modifier.fillMaxWidth().aspectRatio(placeholderAspect ?: 0.7f)
+        } else {
+            Modifier.fillMaxSize()
+        }.background(Color(0xFF120A0A)),
+        contentAlignment = Alignment.Center,
     ) {
-        androidx.compose.foundation.layout.Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector        = Icons.Default.BrokenImage,
+                imageVector = Icons.BrokenImage,
                 contentDescription = null,
-                tint               = Color(0xFFEF5350),
-                modifier           = Modifier.size(52.dp)
+                tint = Color(0xFFEF5350),
+                modifier = Modifier.size(52.dp),
             )
             Text(
-                text      = stringResource(R.string.inline_page_1_s_couldn_t_11d924a, pageIndex + 1),
-                color     = Color.White.copy(alpha = 0.7f),
-                fontSize  = 13.sp,
+                text = stringResource(R.string.inline_page_1_s_couldn_t_11d924a, pageIndex + 1),
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp,
                 textAlign = TextAlign.Center,
-                modifier  = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
             )
+            if (PlatformErrorCode.fromId(errorCode) == PlatformErrorCode.MangaAuth && onSourceLogin != null) {
+                TextButton(onClick = onSourceLogin) {
+                    Text(stringResource(R.string.manga_source_login_action), color = Color(0xFFEF5350))
+                }
+            }
             TextButton(onClick = onRetry) {
-                Text("Tekrar Dene", color = Color(0xFF7C4DFF))
+                Text(stringResource(R.string.manga_reader_retry), color = KitsugiColors.Accent)
             }
         }
     }
+}
+
+fun readerBackgroundColor(value: String): Color = when (value) {
+    "White" -> Color.White
+    "DarkGray" -> Color(0xFF303030)
+    else -> Color.Black
 }

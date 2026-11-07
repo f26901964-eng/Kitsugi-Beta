@@ -40,7 +40,6 @@ internal fun ApiDetailOverviewTab(
     detail: KitsugiMediaDetail?,
     displaySynopsis: String?,
     isDetailLoading: Boolean,
-    isTranslating: Boolean,
     onSearchQuery: (String) -> Unit,
     onStudioClick: (id: Int, source: String, name: String?, url: String?) -> Unit,
     /** Manga yazarı çipi → kişi (Staff) detay sayfası. */
@@ -76,7 +75,8 @@ internal fun ApiDetailOverviewTab(
     ) {
         ApiSynopsisCard(
             synopsis = displaySynopsis,
-            isLoading = isDetailLoading || (!isDetailLoading && detail?.synopsis != null && isTranslating),
+            // Çeviri ayrı bir arka plan işidir; mevcut ham/çevrilmiş metni asla iskeletle kapatmaz.
+            isLoading = isDetailLoading,
             onTranslateClick = onTranslateClick,
             onCopyClick = onCopyClick,
             onImageGalleryRequest = onImageGalleryRequest,
@@ -142,10 +142,12 @@ internal fun ApiDetailOverviewTab(
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
-                networks = detail.networks + detail.serializations,
+                networks = detail.networks,
                 onStudioClick = studioChipClick,
                 onProducerClick = studioChipClick,
-                onNetworkClick = studioChipClick
+                onNetworkClick = studioChipClick,
+                serializations = detail.serializations,
+                onSerializationClick = studioChipClick
             )
         }
 
@@ -202,6 +204,7 @@ internal fun ApiDetailEpisodesTab(
     displayTitleRomaji: String?,
     displayTitleNative: String?,
     displaySynonyms: List<String> = emptyList(),
+    imdbId: String? = null,
     displayYear: Int?,
     isMovie: Boolean = false,
     isAdult: Boolean = false,
@@ -240,7 +243,13 @@ internal fun ApiDetailEpisodesTab(
                         videoUrl = "file://${completedDownload.localPath}",
                         title = context.getString(R.string.completeddownload_animetitle_bolum_completed, completedDownload.animeTitle, completedDownload.episode),
                         headers = emptyMap(),
-                        subtitles = emptyList()
+                        subtitles = emptyList(),
+                        malId = streamIds.malId, aniListId = streamIds.aniListId,
+                        tmdbId = streamIds.tmdbId, bangumiId = streamIds.bangumiId, imdbId = imdbId,
+                        season = episode.seasonNumber ?: targetSeason ?: 1, episode = epNum,
+                        animeTitle = displayTitle, titleEnglish = displayTitleEnglish,
+                        titleRomaji = displayTitleRomaji, titleNative = displayTitleNative,
+                        synonyms = displaySynonyms, startYear = displayYear, isMovie = isMovie
                     )
                 } else {
                     KitsugiStreamActivity.start(
@@ -249,6 +258,7 @@ internal fun ApiDetailEpisodesTab(
                         aniListId = streamAniListId,
                         tmdbId = streamIds.tmdbId,
                         bangumiId = streamIds.bangumiId,
+                        imdbId = imdbId,
                         mediaType = mediaType,
                         episode = epNum,
                         season = targetSeason ?: 1,
@@ -275,6 +285,7 @@ internal fun ApiDetailEpisodesTab(
                     aniListId = streamAniListId,
                     tmdbId = streamIds.tmdbId,
                     bangumiId = streamIds.bangumiId,
+                    imdbId = imdbId,
                     mediaType = mediaType,
                     episode = epNum,
                     season = targetSeason ?: 1,
