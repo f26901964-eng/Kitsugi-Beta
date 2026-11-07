@@ -95,6 +95,14 @@ internal fun MangaExtensionsTab(
     onOpenSourceHealthScreen: () -> Unit = {},
     onForceCheckUpdates: (onResult: (String) -> Unit) -> Unit = {},
     onVerifySource: ((String, String) -> Unit)? = null,
+    /**
+     * Kurulu bir manga eklentisinin **kendi Keşfet sayfasını** açar.
+     *
+     * Video sekmesindeki `onExplorePlugin` ile birebir aynı sözleşme:
+     * eklenti portalı → eklenti satırı → Keşfet → kaynağın rafları/araması.
+     * `null` ise satır tıklaması ve Keşfet ikonu hiç gösterilmez.
+     */
+    onExploreSource: ((MangaSource) -> Unit)? = null,
     listState: LazyListState = rememberLazyListState()
 ) {
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -845,6 +853,11 @@ internal fun MangaExtensionsTab(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(KitsugiColors.SurfaceSoft)
+                        .then(
+                            if (onExploreSource != null) {
+                                Modifier.tvClickable(shape = RoundedCornerShape(14.dp)) { onExploreSource?.invoke(source) }
+                            } else Modifier
+                        )
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -874,6 +887,19 @@ internal fun MangaExtensionsTab(
                     Box(
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 6.dp, vertical = 3.dp)
                     ) { Text(source.lang, color = KitsugiColors.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
+                    if (onExploreSource != null) {
+                        IconButton(
+                            onClick = { onExploreSource?.invoke(source) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.TravelExplore,
+                                stringResource(R.string.manga_source_explore),
+                                tint = accentColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = {
                             val url = onGetConfiguredBaseUrl(source).ifBlank { source.baseUrl }

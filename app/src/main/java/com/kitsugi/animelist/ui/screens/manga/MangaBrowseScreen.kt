@@ -60,6 +60,11 @@ fun MangaBrowseScreen(
     initialQuery: String? = null,
     vm: MangaBrowseViewModel = viewModel(factory = MangaBrowseViewModel.Factory(repository)),
     onMangaClick: (MangaSource, MangaDetails) -> Unit = { _, _ -> },
+    /**
+     * Eklentiler diyaloğundaki kurulu manga kaynağından kendi **Keşfet**
+     * sayfasını açar (eklenti portalı ile aynı hedef).
+     */
+    onExploreMangaSource: ((MangaSource) -> Unit)? = null,
     onBack: () -> Unit = {}
 ) {
     val ui by vm.ui.collectAsState()
@@ -417,6 +422,12 @@ fun MangaBrowseScreen(
             useGithubProxy = appSettings.useGithubProxy,
             onUseGithubProxyChanged = { enabled ->
                 settingsScope.launch { settingsDataStore.setUseGithubProxy(enabled) }
+            },
+            onExploreMangaSource = { exploreSource ->
+                // Bu diyalog gerçek bir Dialog katmanı; keşfet sayfası altta kalmasın
+                // diye önce kapatılır, sonra hedef ekran itilir.
+                showSettingsDialog = false
+                onExploreMangaSource?.invoke(exploreSource)
             },
             mangaSources = mangaViewModel.mangaSources,
             onInstallMangaExtension = { mangaViewModel.installMangaExtension(it) },

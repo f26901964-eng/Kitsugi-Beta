@@ -1,0 +1,155 @@
+# RAPOR — Manga Eklentileri İçin "Eklenti Keşfet" Sayfası
+
+Tarih: 2026-11-07
+Sürüm: v2.4.341
+Durum: Kod tamamlandı. Bu ortamda Android SDK/Gradle bulunmadığı için derleme ve
+cihaz testi yapılmadı; statik inceleme + parantez/blok denetimi yapıldı.
+
+---
+
+## 1) İstek
+
+> "Eklenti portalındaki **video** eklentilerinin üstüne tıklayınca açılan *Eklenti Keşfet*
+> sayfası, manga eklentileri için de — manga eklentilerine uygun şekilde — olsun.
+> Manga eklentilerinin de kendine ait **keşfet**, **arama**, **Tümünü Gör** kısımları
+> olsun; içinden **mangaların bölümleri görünen sayfalara** gidilebilsin."
+
+## 2) Mevcut durum (öncesi)
+
+| Katman | Video eklentileri | Manga eklentileri |
+|---|---|---|
+| Liste | `CloudstreamExtensionsTab` → `CsInstalledPluginRow` | `MangaExtensionTab` (yalnızca tanı/şablon/sil ikonları) |
+| Keşfet | Satırdaki "Keşfet" → `DetailScreen.AddonExplore(apiName)` → `AddonExplorePage` | **Yok** |
+| Arama | Eklenti içi arama (`searchWithCfRetry`) | Yalnızca tüm kaynaklarda arama (`MangaBrowseScreen`) |
+| Tümünü Gör | `AddonFullScreenGridPage` | **Yok** |
+| İçerik sayfası | `KitsugiAddonDetailDialog` | `MangaDetailScreen` (bölüm listesi) var ama keşfet akışı yok |
+
+Manga satırında yalnızca **Dünya (doğrula)**, **Tune (yönet)**, **Çöp (sil)** vardı;
+satırın kendisi tıklanabilir değildi.
+
+## 3) Yapılan işler
+
+### 3.1 Veri katmanı — gerçek "son güncellemeler" yeteneği
+
+`data/manga/MangaSource.kt` kontratına **varsayılan uygulamalı** iki üye eklendi
+(böylece mevcut üçüncü parti eklentiler değişmeden derlenir):
+
+```kotlin
+val supportsLatest: Boolean get() = false
+suspend fun fetchLatestManga(page: Int): MangaSourceResult = fetchPopularManga(page)
+```
+
+- `MihonSourceWrapper`: `Source.supportsLatest` bayrağı + `getLatestUpdates(page)`.
+  Latest ucu hata verirse popüler listeye düşer (keşfet boş kalmasın).
+- `KotatsuMangaSource`: `SortOrder.UPDATED in parser.availableSortOrders` +
+  `parser.getList(order = UPDATED)`.
+  **Sayfalama çakışması önlendi:** Kotatsu adaptörü ofsetleri `(sorgu, sayfa)` ile
+  önbelleklediği için latest rafı `LATEST_OFFSET_KEY` (`"\u0000latest"`) adlı ayrı
+  sanal anahtar kullanır; popüler rafın `""` anahtarını kirletmez.
+
+**Uydurma veri yok:** raf yalnızca `supportsLatest == true` iken çizilir.
+
+### 3.2 Yeni ekran — `ui/screens/manga/MangaSourceExploreScreen.kt`
+
+Video tarafındaki `AddonExplorePage` sözleşmesinin manga karşılığı:
+
+- **Üst bar:** geri, kaynak adı, `Keşfet · <DİL>` alt başlığı, yenile.
+- **Kaynak içi arama:** debounce (260 ms), iptal edilebilir iş, sayfalama,
+  sonuç yoksa "Sonuç bulunamadı", hata varsa kod çipi + "Yeniden Dene".
+- **Raflar:** "Son Güncellemeler" (koşullu) ve "Popüler Mangalar" — yatay poster
+  şeritleri, iskelet (shimmer) yükleme durumu, boş raf metni.
+- **Tümünü Gör:** raf başlığının sağında; sayfa içinde tam ekran grid açar
+  (ayrı `LazyVerticalGrid`, geri tuşu rafa döner, sona yaklaşınca sonraki sayfa).
+- **Türler:** raflardaki `MangaDetails.genre` alanından en sık geçen 12 tür çipi;
+  dokununca kaynak içi arama o tür adıyla çalışır.
+- **Manga → bölümler:** karta dokunmak `MangaDetailScreen`'i açar (kaynak detayı +
+  bölüm listesi + okuyucuya geçiş); geri tuşu keşfet sayfasına döner.
+- **+18 sözleşmesi:** `LocalShowAdultContent` kapalıyken yetişkin başlıklar elenir,
+  görseller `KitsugiNsfwImage` üzerinden bulanıklaştırılır.
+- **Bellek:** `BoundedCache` tabanlı LRU (8 kaynak) anlık görüntü önbelleği —
+  manga detayına girip dönünce ağa tekrar çıkılmaz; `MemoryGuard` ile budanabilir.
+  Durum tutucu `remember(sourceKey)` ile yaşar (ViewModel biriktirmez).
+
+### 3.3 Navigasyon
+
+- `DetailScreen.MangaSourceExplore(sourceKey)` + `AppStateKey.MangaSourceExplore(sourceKey, depth)`
+  (`stableSourceKey()` çözümlemesi; kaynak nesnesi AppStateKey'de taşınamıyor).
+- `AppRoot.currentAppStateKey`: `activeScreen is DetailScreen.MangaSourceExplore` eşlemesi.
+- `AppRootMangaPages`: ekran render + kaynak artık kurulu değilse güvenli geri dönüş.
+- `AppNavigationState.clearPreviousScreens`: yeni anahtarım `SaveableStateProvider`
+  kaydı (`manga_source_explore_<depth>_<sourceKey>`) temizleniyor — sızıntı yok.
+
+### 3.4 Giriş noktaları
+
+1. **Eklenti Portalı → Manga sekmesi → kurulu kaynak satırı**
+   - Satırın tamamı tıklanabilir (`tvClickable`), ayrıca **Keşfet** (`TravelExplore`) ikonu.
+   - `MangaExtensionTab(onExploreSource = …)` → `KitsugiAddonsSettingsDialog(onExploreMangaSource = …)`
+     → `SettingsScreen` / `MangaBrowseScreen` → `navState.navigateToDetail(...)`.
+2. **Manga tarama ekranındaki eklentiler diyaloğu** aynı hedefe bağlandı
+   (tarama sayfası önce kapatılır, çünkü açıkken detay ekranını gölgeler).
+
+### 3.5 Metinler
+
+`values/strings.xml` ve `values-en/strings.xml`:
+`manga_source_explore`, `manga_explore_header_subtitle`, `manga_explore_search_hint`,
+`manga_explore_clear_search`, `manga_explore_search_results`, `manga_explore_popular`,
+`manga_explore_latest`, `manga_explore_genres_title`, `manga_explore_count`,
+`manga_explore_rail_empty`, `manga_explore_footer_title`.
+
+---
+
+## 4) Değişen / eklenen dosyalar
+
+**Yeni**
+- `app/src/main/java/com/kitsugi/animelist/ui/screens/manga/MangaSourceExploreScreen.kt`
+- `release_notes_v2.4.341.md`
+- `RAPOR_MANGA_EKLENTI_KESFET_SAYFASI_2026-11-07.md` (bu dosya)
+
+**Değişen**
+- `app/build.gradle.kts` (sürüm 2.4.341)
+- `app/src/main/java/com/kitsugi/animelist/AppNavigation.kt`
+- `app/src/main/java/com/kitsugi/animelist/AppRoot.kt`
+- `app/src/main/java/com/kitsugi/animelist/AppRootMangaPages.kt`
+- `app/src/main/java/com/kitsugi/animelist/AppRootSettingsExtras.kt`
+- `app/src/main/java/com/kitsugi/animelist/data/manga/MangaSource.kt`
+- `app/src/main/java/com/kitsugi/animelist/data/manga/MihonSourceWrapper.kt`
+- `app/src/main/java/com/kitsugi/animelist/data/manga/KotatsuExtensionAdapter.kt`
+- `app/src/main/java/com/kitsugi/animelist/ui/app/AppNavigationState.kt`
+- `app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiAddonsSettingsDialog.kt`
+- `app/src/main/java/com/kitsugi/animelist/ui/components/addons/MangaExtensionTab.kt`
+- `app/src/main/java/com/kitsugi/animelist/ui/screens/manga/MangaBrowseScreen.kt`
+- `app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsScreen.kt`
+- `app/src/main/java/com/kitsugi/animelist/ui/screens/settings/SettingsScreenParameters.kt`
+- `app/src/main/res/values/strings.xml`, `app/src/main/res/values-en/strings.xml`
+
+---
+
+## 5) Cihazda doğrulama senaryoları
+
+1. **Eklenti Portalı → Manga → kurulu kaynak satırı** → keşfet sayfası açılmalı;
+   geri tuşu portala dönmeli.
+2. **Satırdaki Keşfet ikonu** aynı sayfayı açmalı; satırdaki Tune/Dünya/Çöp
+   ikonları eskisi gibi çalışmalı (tıklama çakışması olmamalı).
+3. **Popüler Mangalar** rafı dolmalı; "Tümünü Gör" → grid; aşağı kaydır → sonraki
+   sayfa yüklenmeli; geri → rafa dönmeli.
+4. **Son Güncellemeler** rafı: `supportsLatest` bildiren kaynakta görünmeli,
+   bildirmeyende hiç çizilmemeli.
+5. **Kaynak içi arama:** hızlı yazımda istek selleri olmamalı; sonuç kartı →
+   manga detayı + bölüm listesi açılmalı; okuyucuya geçiş çalışmalı.
+6. **Manga detayından geri** → keşfet sayfası önbellekten anında gelmeli (ağ isteği yok).
+7. **Hata senaryosu:** ağ kapalıyken raf yerine hata mesajı + `KTS-SRC-*` çipi +
+   "Yeniden Dene" görünmeli; kaynak sağlık raporunda ilgili kaynağın hatası artmalı.
+8. **+18 kapalıyken** yetişkin başlıklar listede görünmemeli.
+9. **Manga tarama ekranı → Ayarlar (eklentiler) → manga kaynağı** → keşfet açılmalı,
+   geri dönüşte tarama ekranı değil ayarlar akışı korunmalı.
+
+## 6) Bilinen sınırlar
+
+- "Son Güncellemeler" rafı **kaynağın kendi bildirimine** bağlıdır. Kotatsu
+  parserlerinde `SortOrder.UPDATED` yoksa raf gizlenir (popüler liste latest diye
+  sunulmaz).
+- Tür çipleri, kaynağın kendi tür filtresi yerine **tür adıyla arama** yapar;
+  böylece her eklenti tipinde (Mihon/Kotatsu/yerel) aynı davranış korunur.
+- Manga keşfet sayfası şu an telefon/tablet akışına bağlıdır; TV tarafındaki
+  eklenti portalı bu parametreyi geçmediği için TV'de satır tıklaması eklenmez
+  (video tarafındaki davranışla aynı).
