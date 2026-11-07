@@ -263,6 +263,56 @@ fun MangaReaderScreen(
         musicCatalog.syncSettings(readerAppSettings)
     }
 
+    // ── İçerik → duygu eşlemesi ─────────────────────────────────────────
+    //
+    // 1) Önce yerel türlerle dene (ağ yok, anında).
+    // 2) Tür listesi boşsa / hiçbir tür tanınmıyorsa **yedi kaynaklı**
+    //    zenginleştirme devreye girer (MAL, AniList, Shikimori, Kitsu,
+    //    Bangumi, TMDB, Simkl). Eskiden bu adım yoktu: tür vermeyen
+    //    eklentilerde panel kalıcı olarak "Tür/açıklama tanınmadı"
+    //    diyordu.
+    var musicRecommendations by remember(mangaDetails.genre, mangaDetails.description) {
+        mutableStateOf(
+            MusicRecommendationEngine.recommend(
+                genres = mangaDetails.genre,
+                pool = ProceduralSoundCatalog.sounds,
+                title = mangaDetails.title,
+                description = mangaDetails.description
+            )
+        )
+    }
+    var musicMatchNote by remember(mangaDetails.title) {
+        mutableStateOf<String?>(null)
+    }
+    var musicEnriching by remember(mangaDetails.title) { mutableStateOf(false) }
+
+    LaunchedEffect(mangaDetails.title, mangaDetails.genre) {
+        val local = musicRecommendations
+        // Yerel sinyal yeterince güçlüyse ağa hiç çıkma.
+        if (local.confidence != com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.NONE) {
+            return@LaunchedEffect
+        }
+        musicEnriching = true
+        val enriched = com.kitsugi.animelist.data.music.MangaMoodEnricher.enrich(
+            title = mangaDetails.title,
+            alternativeTitles = mangaDetails.alternativeTitles
+        )
+        musicEnriching = false
+        if (enriched.isEmpty) return@LaunchedEffect
+
+        val merged = (mangaDetails.genre + enriched.genres).distinct()
+        val rec = MusicRecommendationEngine.recommend(
+            genres = merged,
+            pool = ProceduralSoundCatalog.sounds,
+            title = mangaDetails.title,
+            description = mangaDetails.description
+        )
+        // Zenginleştirme bir şey bulduysa sonucu ne olursa olsun uygula:
+        // NONE kalsa bile karışım artık gerçek etiketlere dayanır.
+        musicRecommendations = rec
+        musicMatchNote = "7 kaynak tarandı · ${enriched.genres.size} tür/etiket"
+    }
+
     var autoPlayHandled by remember(mangaDetails.url) { mutableStateOf(false) }
 
     LaunchedEffect(readerAppSettings.musicAutoPlay) {
@@ -272,7 +322,10 @@ fun MangaReaderScreen(
     LaunchedEffect(
         mangaDetails.url,
         readerAppSettings.musicEnabled,
-        readerAppSettings.musicAutoPlay
+        readerAppSettings.musicAutoPlay,
+        // Zenginleştirme sonucu gelirse otomatik başlatma daha isabetli
+        // bir preset seçebilsin.
+        musicRecommendations
     ) {
         if (autoPlayHandled) return@LaunchedEffect
         if (!readerAppSettings.musicEnabled) return@LaunchedEffect
@@ -287,12 +340,8 @@ fun MangaReaderScreen(
             return@LaunchedEffect
         }
 
-        val recommendation = MusicRecommendationEngine.recommend(
-            genres = mangaDetails.genre,
-            pool = ProceduralSoundCatalog.sounds,
-            title = mangaDetails.title,
-            description = mangaDetails.description
-        )
+        // Yerel türler + (varsa) yedi kaynaklı zenginleştirme sonucu.
+        val recommendation = musicRecommendations
 
         val targetVolume = readerAppSettings.musicAutoPlayVolume.coerceIn(0.05f, 1f)
 
@@ -310,14 +359,6 @@ fun MangaReaderScreen(
         autoPlayHandled = true
     }
 
-    val musicRecommendations = remember(mangaDetails.genre, mangaDetails.description) {
-        MusicRecommendationEngine.recommend(
-            genres = mangaDetails.genre,
-            pool = ProceduralSoundCatalog.sounds,
-            title = mangaDetails.title,
-            description = mangaDetails.description
-        )
-    }
 
     LaunchedEffect(readerAppSettings.musicMasterVolume) {
         musicEngine.setMasterVolume(readerAppSettings.musicMasterVolume)
@@ -1508,6 +1549,10 @@ fun MangaReaderScreen(
         ) {
             MangaAmbientPanel(
                 recommendations = musicRecommendations,
+                matchNote = when {
+                    musicEnriching -> "Kaynaklar taranıyor…"
+                    else -> musicMatchNote
+                },
                 isPlaying = musicIsPlaying,
                 activeTitle = musicActiveTitle,
                 activePresetId = musicActivePreset,

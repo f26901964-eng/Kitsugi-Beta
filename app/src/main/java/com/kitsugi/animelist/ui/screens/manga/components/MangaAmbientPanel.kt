@@ -92,6 +92,12 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 @Composable
 fun MangaAmbientPanel(
     recommendations: RecommendationResult,
+    /**
+     * Yedi kaynaklı tür zenginleştirmesinin kısa durum notu
+     * ("7 kaynak tarandı · 18 tür/etiket" / "Kaynaklar taranıyor…").
+     * `null` ise yalnızca yerel türler kullanılıyor demektir.
+     */
+    matchNote: String? = null,
     isPlaying: Boolean,
     activeTitle: String?,
     activePresetId: String?,
@@ -214,11 +220,17 @@ fun MangaAmbientPanel(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
+                // Başlık asla "null" basmaz: aktif başlık yoksa (ör. ön plan
+                // servisinden veya preset geçişinden sonra) kanalların kendi
+                // etiketi kullanılır.
+                val headerTitle = activeTitle?.takeIf { it.isNotBlank() }
+                    ?: channels.firstOrNull()?.displayLabel
                 Text(
                     text = when {
                         channels.isEmpty() -> "Okuduğun içeriğe uygun ses"
-                        channels.size == 1 -> activeTitle ?: channels.first().displayLabel
-                        else -> "${channels.size} ses çalıyor · $activeTitle"
+                        channels.size == 1 -> headerTitle ?: "Ortam sesi çalıyor"
+                        else -> "${channels.size} ses çalıyor · " +
+                            (headerTitle ?: "karışım")
                     },
                     color = KitsugiColors.TextSecondary,
                     fontSize = 12.sp,
@@ -329,6 +341,7 @@ fun MangaAmbientPanel(
             0 -> ForYouTab(
                 modifier = Modifier.weight(1f),
                 recommendations = recommendations,
+                matchNote = matchNote,
                 channels = channels,
                 activePresetId = activePresetId,
                 accent = accent,
@@ -425,6 +438,7 @@ fun MangaAmbientPanel(
 private fun ForYouTab(
     modifier: Modifier = Modifier,
     recommendations: RecommendationResult,
+    matchNote: String? = null,
     channels: List<ChannelState>,
     activePresetId: String?,
     accent: Color,
@@ -486,9 +500,18 @@ private fun ForYouTab(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "eşleşme: $confLabel",
+                    text = buildString {
+                        append("eşleşme: ")
+                        append(confLabel)
+                        if (!matchNote.isNullOrBlank()) {
+                            append(" · ")
+                            append(matchNote)
+                        }
+                    },
                     color = KitsugiColors.TextMuted,
-                    fontSize = 9.sp
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
