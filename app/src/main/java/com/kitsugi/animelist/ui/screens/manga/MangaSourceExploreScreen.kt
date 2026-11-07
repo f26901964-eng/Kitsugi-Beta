@@ -253,6 +253,12 @@ class MangaSourceExploreState(
             }
         }
 
+        // Yarıda kalmış (sonuçsuz) bir arama geri yüklendiyse tekrar çalıştır;
+        // kullanıcıya boş "sonuç bulunamadı" ekranı gösterme.
+        if (gridRail == null && searchQuery.isNotBlank() && searchResults.isEmpty() && !searchLoading) {
+            search(searchQuery)
+        }
+
         val needPopular = popular.isEmpty() && !popularLoading
         val needLatest = supportsLatest && latest.isEmpty() && !latestLoading
         if (needPopular) {
@@ -619,7 +625,9 @@ fun MangaSourceExploreScreen(
     }
     LaunchedEffect(state) { state.start() }
 
-    BackHandler {
+    // Sistem geri tuşu ve üst bar oku AYNI hiyerarşiyi izler:
+    // grid → arama → sayfadan çık.
+    val goBack: () -> Unit = {
         when {
             state.gridRail != null -> state.closeGrid()
             state.searchQuery.isNotBlank() -> {
@@ -629,6 +637,8 @@ fun MangaSourceExploreScreen(
             else -> onBack()
         }
     }
+
+    BackHandler { goBack() }
 
     val popularVisible = remember(state.popular, showAdultContent) {
         if (showAdultContent) state.popular else state.popular.filterNot { it.isAdultContent }
@@ -656,7 +666,7 @@ fun MangaSourceExploreScreen(
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
+                IconButton(onClick = goBack, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = stringResource(R.string.geri),
