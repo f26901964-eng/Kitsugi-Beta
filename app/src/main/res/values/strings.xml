@@ -2482,6 +2482,22 @@
     <string name="ui2_manga_builtin_sources">1300+ yerleşik kaynak</string>
     <string name="ui2_manga_installed_sources_count"> · %1$d yüklendi</string>
     <string name="ui2_manga_source_sha"> · SHA: %1$s</string>
+    <!-- Manga Keşfet — yapışkan kaynak çubuğu / kaynak seçici (v2.4.340) -->
+    <string name="manga_browse_manage_sources">Kaynakları yönet</string>
+    <string name="manga_browse_search_name">Arama: %1$s</string>
+    <string name="manga_browse_change_search_name">Arama adını değiştir</string>
+    <string name="manga_browse_sort_label">Sırala:</string>
+    <string name="manga_browse_sort_relevance">İlgi</string>
+    <string name="manga_browse_sort_az">A-Z</string>
+    <string name="manga_browse_searched_name">Aranan: %1$s</string>
+    <string name="manga_browse_back_to_search">Aramaya dön</string>
+    <string name="manga_browse_show_all_sources">Tüm kaynakları göster</string>
+    <string name="manga_browse_sources_title">Kaynaklar</string>
+    <string name="manga_browse_search_sources">Kaynak ara</string>
+    <string name="manga_browse_no_source_match">Eşleşen kaynak bulunamadı.</string>
+    <string name="manga_browse_source_error">Hata</string>
+    <string name="manga_browse_result_count">%1$d sonuç</string>
+
     <string name="ui2_plugin_query_no_match">"%1$s" ile eşleşen eklenti bulunamadı.</string>
     <string name="ui2_plugin_picker_empty_settings">Aktif eklenti bulunamadı.
 Ayarlar -&gt; Eklentilerim bölümünden eklenti etkinleştirin.</string>

@@ -2482,6 +2482,22 @@
     <string name="ui2_manga_builtin_sources">1300+ built-in sources</string>
     <string name="ui2_manga_installed_sources_count"> · %1$d installed</string>
     <string name="ui2_manga_source_sha"> · SHA: %1$s</string>
+    <!-- Manga Keşfet — yapışkan kaynak çubuğu / kaynak seçici (v2.4.340) -->
+    <string name="manga_browse_manage_sources">Manage sources</string>
+    <string name="manga_browse_search_name">Search: %1$s</string>
+    <string name="manga_browse_change_search_name">Change search name</string>
+    <string name="manga_browse_sort_label">Sort:</string>
+    <string name="manga_browse_sort_relevance">Relevance</string>
+    <string name="manga_browse_sort_az">A-Z</string>
+    <string name="manga_browse_searched_name">Searched: %1$s</string>
+    <string name="manga_browse_back_to_search">Back to search</string>
+    <string name="manga_browse_show_all_sources">Show all sources</string>
+    <string name="manga_browse_sources_title">Sources</string>
+    <string name="manga_browse_search_sources">Search sources</string>
+    <string name="manga_browse_no_source_match">No matching sources.</string>
+    <string name="manga_browse_source_error">Error</string>
+    <string name="manga_browse_result_count">%1$d results</string>
+
     <string name="ui2_plugin_query_no_match">No plugins match "%1$s".</string>
     <string name="ui2_plugin_picker_empty_settings">No active plugins found. Enable a plugin in Settings -&gt; My Plugins.</string>
     <string name="ui2_plugin_picker_empty_addons">No active plugins found. Enable a plugin on the Add-ons screen.</string>
