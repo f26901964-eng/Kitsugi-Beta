@@ -57,23 +57,30 @@ object AutoplayGate {
      * televizyon ve dock çıkışları sayılmaz.
      */
     fun hasPrivateOutput(audioManager: AudioManager): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
         val devices = runCatching {
             audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
         }.getOrDefault(emptyArray())
 
-        return devices.any { device ->
-            when (device.type) {
-                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-                AudioDeviceInfo.TYPE_USB_HEADSET,
-                AudioDeviceInfo.TYPE_HEARING_AID -> true
-                AudioDeviceInfo.TYPE_BLE_HEADSET,
-                AudioDeviceInfo.TYPE_BLE_SPEAKER -> true
-                else -> false
-            }
-        }
+        return devices.any { device -> isPrivateOutput(device.type) }
     }
+
+    /**
+     * Çıkış türü "yalnızca kullanıcının duyacağı" bir çıkış mı?
+     *
+     * `TYPE_BLE_*` sabitleri API 31'de geldiği için ayrı ve sürüm korumalı
+     * bir yardımcıya alındı (minSdk 26).
+     */
+    private fun isPrivateOutput(type: Int): Boolean = when (type) {
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_USB_HEADSET,
+        AudioDeviceInfo.TYPE_HEARING_AID -> true
+        else -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && isBleOutput(type)
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.S)
+    private fun isBleOutput(type: Int): Boolean =
+        type == AudioDeviceInfo.TYPE_BLE_HEADSET || type == AudioDeviceInfo.TYPE_BLE_SPEAKER
 }

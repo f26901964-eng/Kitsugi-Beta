@@ -427,7 +427,12 @@ fun MangaReaderScreen(
                     if (musicEngine.addChannel(playable, targetVolume) >= 0) {
                         musicEngine.setMasterVolume(targetVolume)
                         musicMatchNote = buildString {
-                            append("Çevrimiçi eşleşme: ${pick.sourceId.displayName}")
+                            append(
+                                "Çevrimiçi eşleşme: " +
+                                    (com.kitsugi.animelist.data.music.MusicSources
+                                        .byId(pick.sourceId)?.displayName
+                                        ?: pick.sourceId.name)
+                            )
                             pick.subtitle.takeIf { it.isNotBlank() }?.let { append(" · $it") }
                         }
                     }

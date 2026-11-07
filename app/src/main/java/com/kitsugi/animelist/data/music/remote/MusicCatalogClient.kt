@@ -473,7 +473,7 @@ class MusicCatalogClient(
         val body = execute(Request.Builder().url(url).get().build())
             ?: return emptyList()
 
-        runCatching {
+        return runCatching {
             val root = JSONObject(body)
             val docs = root.optJSONObject("response")?.optJSONArray("docs") ?: JSONArray()
             buildList {
