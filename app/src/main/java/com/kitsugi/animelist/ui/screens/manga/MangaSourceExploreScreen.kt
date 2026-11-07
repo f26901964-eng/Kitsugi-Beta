@@ -694,7 +694,7 @@ fun MangaSourceExploreScreen(
                 IconButton(onClick = { state.refresh() }, modifier = Modifier.size(40.dp)) {
                     Icon(
                         Icons.Rounded.Refresh,
-                        contentDescription = stringResource(R.string.yeniden_dene),
+                        contentDescription = stringResource(R.string.yenile),
                         tint = accentColor,
                         modifier = Modifier.size(20.dp)
                     )
