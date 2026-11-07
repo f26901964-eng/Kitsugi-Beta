@@ -13,7 +13,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.kitsugi.animelist.data.music.AmbientOrigin
@@ -23,6 +24,7 @@ import com.kitsugi.animelist.data.music.AtmospherePresets
 import com.kitsugi.animelist.data.music.ChannelPlayState
 import com.kitsugi.animelist.data.music.ChannelState
 import com.kitsugi.animelist.data.music.MAX_AMBIENT_CHANNELS
+import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.music.MixChannel
 import com.kitsugi.animelist.data.music.MixCodecPayload
 import com.kitsugi.animelist.data.music.MixProfile
@@ -87,6 +89,16 @@ class AmbientAudioEngine(
         private const val FADE_STEP_MS = 40L
 
         /**
+         * Aynı anda çalabilecek **çevrimiçi** kanal sayısı.
+         *
+         * Prosedürel sesler cihazda üretildiği için sınır yoktur (yuva
+         * sayısına kadar); ağ tabanlı akışlar ise bant genişliği ve
+         * çözücü kaynağı tüketir. 6 uzak akış aynı anda açıldığında zayıf
+         * cihazlarda ses kesiliyor ve arayüz donuyordu.
+         */
+        const val MAX_REMOTE_CHANNELS = 3
+
+        /**
          * Süreç genelinde **tek** motor.
          *
          * Neden singleton: okuyucudan çıkınca ses devam etsin, arka plandan
@@ -137,6 +149,19 @@ class AmbientAudioEngine(
      * çalar derhal serbest bırakılır.
      */
     private val slotGeneration = IntArray(MAX_AMBIENT_CHANNELS)
+
+    /**
+     * Kanal eklenemediğinde panelin göstereceği mesaj.
+     *
+     * Sessiz `-1` dönüşü kullanıcıya "dokundum ama hiçbir şey olmadı"
+     * hissi veriyordu. Panel bu akışı dinleyip snackbar gösterir.
+     */
+    private val _lastRejection = MutableStateFlow<String?>(null)
+    val lastRejection: StateFlow<String?> = _lastRejection.asStateFlow()
+
+    fun clearRejection() {
+        _lastRejection.value = null
+    }
 
     /** Yuva → süren fade işi. Aynı kanala yeni fade başlarken eskisi iptal edilir. */
     private val fadeJobs = arrayOfNulls<Job>(MAX_AMBIENT_CHANNELS)
@@ -305,9 +330,28 @@ class AmbientAudioEngine(
             return existing.index
         }
 
+        // 🌐 Uzak akış sınırı: 6 kanalın hepsi çevrimiçi parça olursa
+        // cihazda 6 ExoPlayer + 6 HTTP bağlantısı aynı anda çalışır. Zayıf
+        // cihazlarda ve yavaş ağda bu, sesin kesilmesine (underrun) ve
+        // arayüzde donmaya yol açıyordu. En fazla MAX_REMOTE_CHANNELS
+        // çevrimiçi kanal; kalanlar prosedürel (cihaz içi, sıfır ağ).
+        if (sound.origin == AmbientOrigin.REMOTE) {
+            val remoteCount = _channels.value.count {
+                it.sound.origin == AmbientOrigin.REMOTE && it.state != ChannelPlayState.ERROR
+            }
+            if (remoteCount >= MAX_REMOTE_CHANNELS) {
+                _lastRejection.value =
+                    "Aynı anda en fazla $MAX_REMOTE_CHANNELS çevrimiçi ses çalabilir. " +
+                        "Önce birini kaldır ya da cihaz içi ses ekle."
+                Log.w(TAG, "Uzak kanal sınırı dolu ($MAX_REMOTE_CHANNELS)")
+                return -1
+            }
+        }
+
         // Boş yuva bul
         val slot = voices.indexOfFirst { it == null }
         if (slot < 0) {
+            _lastRejection.value = "En fazla $MAX_AMBIENT_CHANNELS ses aynı anda çalabilir."
             Log.w(TAG, "Kanal sınırı dolu ($MAX_AMBIENT_CHANNELS)")
             return -1
         }
@@ -378,8 +422,13 @@ class AmbientAudioEngine(
         }
 
         if (!started) {
+            val hint = runCatching { voice.errorHint() }.getOrNull()
             runCatching { voice.release() }
-            failSlot(slot, generation, "Akış açılamadı — internet veya kaynak sorunu")
+            failSlot(
+                slot,
+                generation,
+                hint ?: "Akış açılamadı — internet veya kaynak sorunu"
+            )
             return
         }
 
@@ -444,6 +493,24 @@ class AmbientAudioEngine(
         } else {
             _activeTitle.value = _channels.value.firstOrNull()?.displayLabel
         }
+    }
+
+    /**
+     * `ERROR` durumundaki bir kanalı **aynı seste** yeniden dener.
+     *
+     * Kanal kaldırılmaz: yuva korunur, dolayısıyla karışımdaki yer ve ses
+     * seviyesi değişmez. Yalnızca hazırlık yeniden başlatılır.
+     */
+    fun retryChannel(index: Int) {
+        if (index !in 0 until MAX_AMBIENT_CHANNELS) return
+        val channel = _channels.value.firstOrNull { it.index == index } ?: return
+        if (channel.state != ChannelPlayState.ERROR) return
+
+        Log.i(TAG, "Kanal yeniden deneniyor: ${channel.sound.title}")
+        slotGeneration[index]++
+        voices[index] = null
+        _lastRejection.value = null
+        reserveChannel(channel.sound, index, channel.volume)
     }
 
     /**
@@ -1097,6 +1164,15 @@ internal interface ChannelVoice {
     fun fadeOutAndRelease(durationMs: Long)
     /** Anında serbest bırakma. */
     fun release()
+
+    /**
+     * Başarısız başlatmada kullanıcıya gösterilecek **somut** neden.
+     *
+     * Eskiden her hata "Akış açılamadı — internet veya kaynak sorunu"
+     * olarak gösteriliyordu; kullanıcı parçanın mı, kaynağın mı yoksa
+     * bağlantının mı bozuk olduğunu ayırt edemiyordu.
+     */
+    fun errorHint(): String? = null
 }
 
 /**
@@ -1202,8 +1278,14 @@ internal class StreamVoice(
         /** Hazır olma beklemesi — ağ yavaşsa kanal hata olarak işaretlenir. */
         private const val READY_TIMEOUT_MS = 10_000L
 
-        private const val CONNECT_TIMEOUT_MS = 15_000
-        private const val READ_TIMEOUT_MS = 20_000
+        /** Toplam deneme sayısı (ilk deneme dahil). */
+        private const val MAX_ATTEMPTS = 3
+
+        /** Denemeler arası bekleme (her denemede artar: 400ms → 800ms). */
+        private const val RETRY_DELAY_MS = 400L
+
+        /** Bazı CDN'ler boş UA'yı engelliyor. */
+        private const val USER_AGENT = "Kitsugi/AmbientStream"
     }
 
     /**
@@ -1264,11 +1346,37 @@ internal class StreamVoice(
             raw
         }
 
+        // 🔁 Yeniden deneme: ağ hatası / zaman aşımı / 5xx geçici olabilir.
+        // Eskiden tek denemeydi; yavaş bir bağlantıda ilk paket geciktiğinde
+        // kanal kalıcı olarak "hata" durumunda kalıyordu.
+        var lastFailure: String? = null
+        for (attempt in 1..MAX_ATTEMPTS) {
+            val outcome = startOnce(target)
+            if (outcome == null) {
+                playing = true
+                return true
+            }
+            lastFailure = outcome
+            releasePlayer()
+            if (!isRetryable(outcome) || attempt == MAX_ATTEMPTS) break
+            Log.i(TAG, "Yeniden denenecek (${attempt + 1}/$MAX_ATTEMPTS): $target — $outcome")
+            delay(RETRY_DELAY_MS * attempt)
+        }
+
+        Log.w(TAG, "Akış başlatılamadı: $target — ${lastFailure ?: "bilinmeyen hata"}")
+        return false
+    }
+
+    /**
+     * Tek bir oynatma denemesi.
+     *
+     * @return `null` başarı, aksi hâlde hata kodu adı
+     */
+    private suspend fun startOnce(target: String): String? {
         val exo = runCatching { buildPlayer(target) }.getOrElse { error ->
             Log.w(TAG, "Çalar kurulamadı: $target", error)
             null
-        } ?: return false
-        player = exo
+        } ?: return "PlayerError"
 
         val prepared = runCatching {
             exo.setMediaItem(MediaItem.fromUri(target))
@@ -1280,7 +1388,12 @@ internal class StreamVoice(
             Log.w(TAG, "Hazırlanamadı: $target", it)
             false
         }
-        if (!prepared) return false
+        if (!prepared) {
+            runCatching { exo.release() }
+            return "PlayerError"
+        }
+        // Çaları sahaya al: `releasePlayer()` ve `release()` bunu kapatır.
+        player = exo
 
         val ready = withTimeoutOrNull(READY_TIMEOUT_MS) {
             awaitReadyOrError(exo)
@@ -1292,12 +1405,45 @@ internal class StreamVoice(
                 "Akış hazır olmadı (${READY_TIMEOUT_MS}ms): $target" +
                     (lastErrorName?.let { " — $it" } ?: "")
             )
-            return false
+            return lastErrorName ?: "Timeout"
         }
 
         runCatching { exo.play() }
-        playing = true
-        return true
+        return null
+    }
+
+    /** Bu hata yeniden denemeye değer mi? */
+    private fun isRetryable(error: String): Boolean = error in setOf(
+        "Timeout",
+        "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED",
+        "ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT",
+        "ERROR_CODE_IO_UNSPECIFIED",
+        "ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE",
+        "ERROR_CODE_UNSPECIFIED",
+        "PlayerError"
+    )
+
+    private fun releasePlayer() {
+        val exo = player
+        player = null
+        runCatching { exo?.release() }
+    }
+
+    override fun errorHint(): String? = when (lastErrorName) {
+        null -> null
+        "Timeout" -> "Kaynak zamanında yanıt vermedi — bağlantı yavaş olabilir."
+        "ERROR_CODE_IO_BAD_HTTP_STATUS" ->
+            "Kaynak dosyayı vermedi (404/403) — parça kaldırılmış olabilir."
+        "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED",
+        "ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT" ->
+            "Ağa ulaşılamadı — internet bağlantısını kontrol et."
+        "ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED",
+        "ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED",
+        "ERROR_CODE_PARSING_CONTAINER_MALFORMED" ->
+            "Ses biçimi çözülemedi — farklı bir parça dene."
+        "ERROR_CODE_DECODING_FORMAT_UNSUPPORTED" ->
+            "Bu ses kodeği cihazda desteklenmiyor."
+        else -> "Akış açılamadı — kaynak sorunu ($lastErrorName)."
     }
 
     /**
@@ -1309,13 +1455,27 @@ internal class StreamVoice(
      */
     private fun buildPlayer(target: String): ExoPlayer {
         val dataSourceFactory: DataSource.Factory = if (target.startsWith("http", ignoreCase = true)) {
-            // CC arşivleri sık sık http→https yönlendirmesi yapıyor; izin
-            // verilmezse akış hiç hazır olmuyor ("müzik çalmıyor").
-            DefaultHttpDataSource.Factory()
-                .setConnectTimeoutMs(CONNECT_TIMEOUT_MS)
-                .setReadTimeoutMs(READ_TIMEOUT_MS)
-                .setAllowCrossProtocolRedirects(true)
-                .setUserAgent("Kitsugi/AmbientStream")
+            // 🌐 Uygulamanın **paylaşılan** OkHttp istemcisi kullanılır:
+            //  - IPv4-öncelikli DNS (bazı sağlayıcılarda IPv6 AAAA kaydı
+            //    dönüyor ama yol yok → akış hiç başlamıyordu)
+            //  - bağlantı havuzu + HTTP/2 (6 kanal 6 TLS el sıkışması yapmaz)
+            //  - yeniden deneme ve ağ günlüğü tek yerden
+            //  - `usesCleartextTraffic=false` olduğu için http→https
+            //    yönlendirmesi serbest bırakılır (Archive/Openverse CC
+            //    adresleri sık sık http döner)
+            //
+            // `DefaultDataSource` sarmalayıcısı şart: HLS manifestosu,
+            // `file:`/`content:` yönlendirmeleri ve indirilmiş dosyalar aynı
+            // fabrikadan geçsin diye.
+            val httpFactory = OkHttpDataSource.Factory(KitsugiHttpClient.streamClient)
+                .setUserAgent(USER_AGENT)
+                .setDefaultRequestProperties(
+                    mapOf(
+                        "Accept" to "*/*",
+                        "Accept-Encoding" to "identity"
+                    )
+                )
+            DefaultDataSource.Factory(context, httpFactory)
         } else {
             // İndirilmiş dosya (file:) veya content: URI'leri.
             DefaultDataSource.Factory(context)
@@ -1331,6 +1491,23 @@ internal class StreamVoice(
             .setAudioAttributes(audioAttributes, false)
             // Kulaklık çıkarılınca yalnızca bu kanal duraklar.
             .setHandleAudioBecomingNoisy(true)
+            // 📶 Tampon ayarları: varsayılan `bufferForPlayback` 2,5 sn;
+            // yavaş ağda ilk saniyelerde sürekli "buffering" olup ses
+            // kesiliyordu. 4 sn ön tampon + 12 sn yeniden-tampon + 120 sn
+            // ileri tampon, dalgalanmaları yutuyor.
+            .setLoadControl(
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        /* minBufferMs = */ 30_000,
+                        /* maxBufferMs = */ 120_000,
+                        /* bufferForPlaybackMs = */ 4_000,
+                        /* bufferForPlaybackAfterRebufferMs = */ 12_000
+                    )
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .build()
+            )
+            // Ekran kapanınca ağ akışı devam etsin (kısmi uyandırma kilidi).
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
             .also { exo ->
                 exo.repeatMode = Player.REPEAT_MODE_ONE

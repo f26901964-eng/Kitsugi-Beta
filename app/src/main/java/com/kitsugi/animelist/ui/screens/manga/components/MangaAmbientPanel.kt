@@ -110,6 +110,8 @@ fun MangaAmbientPanel(
     onChannelVolumeChanged: (Int, Float) -> Unit,
     onChannelMuteToggle: (Int) -> Unit,
     onChannelRemove: (Int) -> Unit,
+    /** Hatalı kanalı aynı yuva ve sesle yeniden dener. */
+    onRetryChannel: (Int) -> Unit = {},
     onTogglePlay: () -> Unit,
     onStopAll: () -> Unit,
     onDismiss: () -> Unit,
@@ -148,6 +150,15 @@ fun MangaAmbientPanel(
     autoPlay: Boolean = false,
     onAutoPlayChanged: (Boolean) -> Unit = {},
     autoPlayDelaySeconds: Int = 3,
+    /** Otomatik başlatma yalnızca kulaklık takılıyken çalışsın. */
+    autoPlayHeadphonesOnly: Boolean = false,
+    onAutoPlayHeadphonesOnlyChanged: (Boolean) -> Unit = {},
+    /** Cihaz sessiz/titreşim modundayken otomatik başlatma yapılmasın. */
+    autoPlayMuteOnSilent: Boolean = false,
+    onAutoPlayMuteOnSilentChanged: (Boolean) -> Unit = {},
+    /** Otomatik başlatmada çevrimiçi kaynaklar da kullanılsın. */
+    autoPlayIncludeOnline: Boolean = false,
+    onAutoPlayIncludeOnlineChanged: (Boolean) -> Unit = {},
     /** Kaynak aç/kapa — kullanıcı hangi kaynakların aranacağını seçer. */
     onToggleSource: (com.kitsugi.animelist.data.music.MusicSourceId) -> Unit = {},
     // ── Çevrimdışı / indirme ───────────────────────────────────────────
@@ -268,7 +279,13 @@ fun MangaAmbientPanel(
                 autoPlay = autoPlay,
                 delaySeconds = autoPlayDelaySeconds,
                 onMusicEnabledChanged = onMusicEnabledChanged,
-                onAutoPlayChanged = onAutoPlayChanged
+                onAutoPlayChanged = onAutoPlayChanged,
+                headphonesOnly = autoPlayHeadphonesOnly,
+                onHeadphonesOnlyChanged = onAutoPlayHeadphonesOnlyChanged,
+                muteOnSilent = autoPlayMuteOnSilent,
+                onMuteOnSilentChanged = onAutoPlayMuteOnSilentChanged,
+                includeOnline = autoPlayIncludeOnline,
+                onIncludeOnlineChanged = onAutoPlayIncludeOnlineChanged
             )
             Spacer(Modifier.height(8.dp))
         }
@@ -396,6 +413,7 @@ fun MangaAmbientPanel(
                 onChannelVolumeChanged = onChannelVolumeChanged,
                 onChannelMuteToggle = onChannelMuteToggle,
                 onChannelRemove = onChannelRemove,
+                onRetryChannel = onRetryChannel,
                 onStopAll = onStopAll,
                 accent = accent,
                 sleepTimer = sleepTimer,
@@ -817,6 +835,7 @@ private fun MixerTab(
     onChannelVolumeChanged: (Int, Float) -> Unit,
     onChannelMuteToggle: (Int) -> Unit,
     onChannelRemove: (Int) -> Unit,
+    onRetryChannel: (Int) -> Unit = {},
     onStopAll: () -> Unit,
     accent: Color,
     sleepTimer: com.kitsugi.animelist.data.music.SleepTimerState =
@@ -988,7 +1007,8 @@ private fun MixerTab(
                     accent = accent,
                     onVolumeChanged = { onChannelVolumeChanged(channel.index, it) },
                     onMuteToggle = { onChannelMuteToggle(channel.index) },
-                    onRemove = { onChannelRemove(channel.index) }
+                    onRemove = { onChannelRemove(channel.index) },
+                    onRetry = { onRetryChannel(channel.index) }
                 )
                 Spacer(Modifier.height(6.dp))
             }
@@ -1079,7 +1099,8 @@ private fun ChannelRow(
     accent: Color,
     onVolumeChanged: (Float) -> Unit,
     onMuteToggle: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onRetry: (() -> Unit)? = null
 ) {
     val stateColor = when (channel.state) {
         ChannelPlayState.PLAYING -> Color(0xFF34D399)
@@ -1174,15 +1195,34 @@ private fun ChannelRow(
             )
         }
 
-        // Hata mesajı
+        // Hata mesajı + yeniden deneme
+        //
+        // Eskiden hatalı kanal yalnızca kırmızı nokta gösteriyordu;
+        // kullanıcının tek çıkışı kanalı kaldırıp yeniden eklemekti.
         channel.errorMessage?.let { msg ->
-            Text(
-                text = msg,
-                color = KitsugiColors.AccentRed,
-                fontSize = 9.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = msg,
+                    color = KitsugiColors.AccentRed,
+                    fontSize = 9.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (channel.state == ChannelPlayState.ERROR && onRetry != null) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Yeniden dene",
+                        color = accent,
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onRetry() }
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -2804,7 +2844,13 @@ private fun AutoPlayCard(
     autoPlay: Boolean,
     delaySeconds: Int,
     onMusicEnabledChanged: (Boolean) -> Unit,
-    onAutoPlayChanged: (Boolean) -> Unit
+    onAutoPlayChanged: (Boolean) -> Unit,
+    headphonesOnly: Boolean = false,
+    onHeadphonesOnlyChanged: (Boolean) -> Unit = {},
+    muteOnSilent: Boolean = false,
+    onMuteOnSilentChanged: (Boolean) -> Unit = {},
+    includeOnline: Boolean = false,
+    onIncludeOnlineChanged: (Boolean) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -2874,6 +2920,85 @@ private fun AutoPlayCard(
                 enabled = musicEnabled
             )
         }
+
+        // ── Otomatik başlatma ayrıntıları ───────────────────────────────
+        //
+        // Bu üç anahtar **daha önce yoktu**: ilk ikisi `AppSettings`
+        // içinde tanımlıydı ama hiçbir ekrandan değiştirilemiyor ve
+        // hiçbir yerde okunmuyordu (ölü ayar). Üçüncüsü ise otomatik
+        // başlatmanın çevrimiçi kaynakları hiç kullanmaması sorununu
+        // çözüyor.
+        val detailsEnabled = musicEnabled && autoPlay
+        androidx.compose.animation.AnimatedVisibility(visible = detailsEnabled) {
+            Column(modifier = Modifier.padding(top = 6.dp)) {
+                AutoPlayDetailRow(
+                    title = "Sadece kulaklıkta",
+                    subtitle = "Kulaklık takılı değilse otomatik başlamaz",
+                    checked = headphonesOnly,
+                    accent = accent,
+                    onCheckedChange = onHeadphonesOnlyChanged
+                )
+                AutoPlayDetailRow(
+                    title = "Sessiz modda çalma",
+                    subtitle = "Cihaz sessiz/titreşimdeyken bekle",
+                    checked = muteOnSilent,
+                    accent = accent,
+                    onCheckedChange = onMuteOnSilentChanged
+                )
+                AutoPlayDetailRow(
+                    title = "Çevrimiçi kaynakları kullan",
+                    subtitle = if (includeOnline)
+                        "İçeriğe uygun gerçek parça aranır (veri kullanır)"
+                    else
+                        "Yalnızca cihaz içi sesler — anında ve çevrimdışı",
+                    checked = includeOnline,
+                    accent = accent,
+                    onCheckedChange = onIncludeOnlineChanged
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Otomatik başlatma ayrıntı satırı — başlık + kısa açıklama + anahtar.
+ *
+ * `AutoPlayCard` içindeki ana satırlardan daha küçük (11sp) çünkü bunlar
+ * ikincil ayarlar.
+ */
+@Composable
+private fun AutoPlayDetailRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    accent: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = subtitle,
+                color = KitsugiColors.TextMuted,
+                fontSize = 9.5.sp
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        KitsugiSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            accent = accent
+        )
     }
 }
 

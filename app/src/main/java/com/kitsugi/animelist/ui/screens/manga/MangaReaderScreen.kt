@@ -92,7 +92,9 @@ import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Slider
 import com.kitsugi.animelist.ui.theme.gradient.Text
+import android.util.Log
 import com.kitsugi.animelist.core.music.AmbientAudioEngine
+import com.kitsugi.animelist.core.music.AutoplayGate
 import com.kitsugi.animelist.data.music.AtmospherePresets
 import com.kitsugi.animelist.data.music.MusicCatalogRepository
 import com.kitsugi.animelist.data.music.MusicRecommendationEngine
@@ -107,6 +109,7 @@ import com.kitsugi.animelist.ui.screens.manga.components.readerSpreadForPage
 import com.kitsugi.animelist.ui.screens.manga.components.readerSpreadLast
 import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import com.kitsugi.animelist.ui.screens.manga.components.WebtoonAutoScroll
 import com.kitsugi.animelist.ui.screens.manga.components.ReaderVolumeKeys
 import com.kitsugi.animelist.ui.screens.manga.components.readerBackgroundColor
@@ -271,14 +274,28 @@ fun MangaReaderScreen(
     //    Bangumi, TMDB, Simkl). Eskiden bu adım yoktu: tür vermeyen
     //    eklentilerde panel kalıcı olarak "Tür/açıklama tanınmadı"
     //    diyordu.
-    var musicRecommendations by remember(mangaDetails.genre, mangaDetails.description) {
+    var musicRecommendations by remember(
+        mangaDetails.genre,
+        mangaDetails.description,
+        readerAppSettings.musicAutoRecommend
+    ) {
         mutableStateOf(
-            MusicRecommendationEngine.recommend(
-                genres = mangaDetails.genre,
-                pool = ProceduralSoundCatalog.sounds,
-                title = mangaDetails.title,
-                description = mangaDetails.description
-            )
+            // `musicAutoRecommend` kapalıyken içerik analizi **yapılmaz**:
+            // nötr/dengeli karışım sunulur. Ayar daha önce hiçbir yerde
+            // okunmuyordu (panelde anahtar vardı, davranış değişmiyordu).
+            if (!readerAppSettings.musicAutoRecommend) {
+                MusicRecommendationEngine.recommend(
+                    genres = emptyList(),
+                    pool = ProceduralSoundCatalog.sounds
+                )
+            } else {
+                MusicRecommendationEngine.recommend(
+                    genres = mangaDetails.genre,
+                    pool = ProceduralSoundCatalog.sounds,
+                    title = mangaDetails.title,
+                    description = mangaDetails.description
+                )
+            }
         )
     }
     var musicMatchNote by remember(mangaDetails.title) {
@@ -286,7 +303,9 @@ fun MangaReaderScreen(
     }
     var musicEnriching by remember(mangaDetails.title) { mutableStateOf(false) }
 
-    LaunchedEffect(mangaDetails.title, mangaDetails.genre) {
+    LaunchedEffect(mangaDetails.title, mangaDetails.genre, readerAppSettings.musicAutoRecommend) {
+        // Öneri motoru kapalıysa 7 kaynaklı zenginleştirme de gereksiz.
+        if (!readerAppSettings.musicAutoRecommend) return@LaunchedEffect
         val local = musicRecommendations
         // Yerel sinyal yeterince güçlüyse ağa hiç çıkma.
         if (local.confidence != com.kitsugi.animelist.data.music.ContentMoodResolver.Confidence.NONE) {
@@ -323,14 +342,30 @@ fun MangaReaderScreen(
         mangaDetails.url,
         readerAppSettings.musicEnabled,
         readerAppSettings.musicAutoPlay,
+        readerAppSettings.musicAutoPlayIncludeOnline,
+        readerAppSettings.musicAutoPlayHeadphonesOnly,
+        readerAppSettings.musicAutoPlayMuteOnSilentDevice,
         // Zenginleştirme sonucu gelirse otomatik başlatma daha isabetli
-        // bir preset seçebilsin.
+        // bir parça seçebilsin.
         musicRecommendations
     ) {
         if (autoPlayHandled) return@LaunchedEffect
         if (!readerAppSettings.musicEnabled) return@LaunchedEffect
         if (!readerAppSettings.musicAutoPlay) return@LaunchedEffect
         if (musicEngine.channels.value.isNotEmpty()) return@LaunchedEffect
+
+        // 🚦 Kullanıcının koyduğu kapılar.
+        // Eskiden bu iki ayar yalnızca `AppSettings` içinde tanımlıydı;
+        // hiçbir yerde okunmadığı için kullanıcı kapıyı açsa da kapatasa da
+        // davranış değişmiyordu.
+        if (!AutoplayGate.canAutoplay(context, readerAppSettings)) {
+            Log.i(
+                "MangaReader",
+                "Otomatik başlatma atlandı — kulaklık yok veya cihaz sessiz modda"
+            )
+            autoPlayHandled = true
+            return@LaunchedEffect
+        }
 
         val delaySec = readerAppSettings.musicAutoPlayDelaySeconds.coerceIn(0, 30)
         if (delaySec > 0) kotlinx.coroutines.delay(delaySec * 1000L)
@@ -342,9 +377,15 @@ fun MangaReaderScreen(
 
         // Yerel türler + (varsa) yedi kaynaklı zenginleştirme sonucu.
         val recommendation = musicRecommendations
-
         val targetVolume = readerAppSettings.musicAutoPlayVolume.coerceIn(0.05f, 1f)
 
+        // ── 1) Önce **anında** cihaz içi karışım ────────────────────────
+        //
+        // Sıra önemli: kullanıcı okuyucuyu açtığında ses hemen başlamalı.
+        // Eskiden (ve ilk taslakta) çevrimiçi arama önce yapılsaydı, ağ
+        // yavaşken 8 saniyeye kadar sessizlik olurdu. Artık önce prosedürel
+        // karışım başlar; çevrimiçi eşleşme gelirse yumuşak geçişle onun
+        // yerini alır.
         val preset = recommendation.presets.firstOrNull()?.sound?.id
             ?.let { AtmospherePresets.byId(it) }
 
@@ -356,9 +397,57 @@ fun MangaReaderScreen(
                 musicEngine.addChannel(rec.sound, targetVolume)
             }
         }
+
+        // ── 2) Çevrimiçi eşleşme (isteğe bağlı, ses kesilmeden) ─────────
+        if (readerAppSettings.musicAutoPlayIncludeOnline) {
+            val online = runCatching {
+                withTimeoutOrNull(AUTO_PLAY_ONLINE_TIMEOUT_MS) {
+                    musicCatalog.searchForMood(
+                        mood = recommendation.mood,
+                        genres = recommendation.detectedGenres.ifEmpty { mangaDetails.genre },
+                        settings = readerAppSettings,
+                        limit = 4
+                    )
+                }
+            }.getOrNull().orEmpty()
+
+            val pick = online.firstOrNull { candidate -> candidate.isPlayable }
+            if (pick != null) {
+                // Archive satırlarında adres arama sırasında bilinmez
+                // (yalnızca öğe kimliği gelir); çalma anında çözülür.
+                val resolved = runCatching { musicCatalog.resolveUrl(pick) }.getOrNull()
+                val playable = if (!resolved.isNullOrBlank() && resolved != pick.streamUrl) {
+                    pick.copy(streamUrl = resolved)
+                } else {
+                    pick
+                }
+                if (playable.isPlayable) {
+                    // Cihaz içi karışımı yumuşakça kapat, gerçek parçayı başlat.
+                    musicEngine.stopAllChannels()
+                    if (musicEngine.addChannel(playable, targetVolume) >= 0) {
+                        musicEngine.setMasterVolume(targetVolume)
+                        musicMatchNote = buildString {
+                            append("Çevrimiçi eşleşme: ${pick.sourceId.displayName}")
+                            pick.subtitle.takeIf { it.isNotBlank() }?.let { append(" · $it") }
+                        }
+                    }
+                }
+            }
+        }
         autoPlayHandled = true
     }
 
+
+    // 🔔 Kanal eklenemediğinde sessiz kalmayalım: motor `lastRejection`
+    // yayınlar (yuva dolu / uzak kanal sınırı). Eskiden `addChannel` -1
+    // dönüyor, kullanıcı "dokundum ama hiçbir şey olmadı" görüyordu.
+    LaunchedEffect(musicEngine) {
+        musicEngine.lastRejection.collect { message ->
+            if (message.isNullOrBlank()) return@collect
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+            musicEngine.clearRejection()
+        }
+    }
 
     LaunchedEffect(readerAppSettings.musicMasterVolume) {
         musicEngine.setMasterVolume(readerAppSettings.musicMasterVolume)
@@ -1561,10 +1650,25 @@ fun MangaReaderScreen(
                 maxChannels = com.kitsugi.animelist.data.music.MAX_AMBIENT_CHANNELS,
                 onMasterVolumeChanged = { musicEngine.setMasterVolume(it) },
                 onPlayPreset = { preset -> musicEngine.playPreset(preset) },
-                onPlaySound = { sound -> musicEngine.addChannel(sound) },
+                onPlaySound = { sound ->
+                    // Ayarlardaki "kanal" ve "ortam" seviyeleri burada
+                    // gerçekten uygulanır: prosedürel sesler ortam, uzak
+                    // akışlar kanal seviyesini kullanır. Eskiden ikisi de
+                    // yalnızca ayar ekranında görünüyor, çalmayı
+                    // etkilemiyordu.
+                    val level = if (sound.origin ==
+                        com.kitsugi.animelist.data.music.AmbientOrigin.PROCEDURAL
+                    ) {
+                        readerAppSettings.musicAmbientVolume
+                    } else {
+                        readerAppSettings.musicChannelVolume
+                    }
+                    musicEngine.addChannel(sound, level.coerceIn(0.05f, 1f))
+                },
                 onChannelVolumeChanged = { index, v -> musicEngine.setChannelVolume(index, v) },
                 onChannelMuteToggle = { index -> musicEngine.toggleMute(index) },
                 onChannelRemove = { index -> musicEngine.stopChannel(index) },
+                onRetryChannel = { index -> musicEngine.retryChannel(index) },
                 onTogglePlay = { musicEngine.togglePlayPause() },
                 onStopAll = { musicEngine.stopAllChannels() },
                 onDismiss = { showMusicPanel = false },
@@ -1575,8 +1679,14 @@ fun MangaReaderScreen(
                 sourceStates = onlineSources,
                 onSearchQueryChanged = { musicCatalog.setQuery(it) },
                 onSearch = {
-                    readerScope.launch {
-                        musicCatalog.search(onlineQuery, readerAppSettings)
+                    // Aynı anda tek arama: eskiden butona üst üste basmak
+                    // her basışta yeni bir ağ turu başlatıyor, sonuçlar
+                    // birbirinin üstüne yazılıyor ve panel donuyor gibi
+                    // görünüyordu.
+                    if (!onlineSearching) {
+                        readerScope.launch {
+                            musicCatalog.search(onlineQuery, readerAppSettings)
+                        }
                     }
                 },
                 onPlayOnline = { sound ->
@@ -1611,6 +1721,24 @@ fun MangaReaderScreen(
                     readerScope.launch { readerSettingsStore.setMusicAutoPlay(enabled) }
                 },
                 autoPlayDelaySeconds = readerAppSettings.musicAutoPlayDelaySeconds,
+                autoPlayHeadphonesOnly = readerAppSettings.musicAutoPlayHeadphonesOnly,
+                onAutoPlayHeadphonesOnlyChanged = { enabled ->
+                    readerScope.launch {
+                        readerSettingsStore.setMusicAutoPlayHeadphonesOnly(enabled)
+                    }
+                },
+                autoPlayMuteOnSilent = readerAppSettings.musicAutoPlayMuteOnSilentDevice,
+                onAutoPlayMuteOnSilentChanged = { enabled ->
+                    readerScope.launch {
+                        readerSettingsStore.setMusicAutoPlayMuteOnSilent(enabled)
+                    }
+                },
+                autoPlayIncludeOnline = readerAppSettings.musicAutoPlayIncludeOnline,
+                onAutoPlayIncludeOnlineChanged = { enabled ->
+                    readerScope.launch {
+                        readerSettingsStore.setMusicAutoPlayIncludeOnline(enabled)
+                    }
+                },
                 onToggleSource = { sourceId ->
                     musicCatalog.toggleSource(sourceId)
                     val nowEnabled = musicCatalog.enabledOverride(sourceId) ?: true
@@ -2053,3 +2181,12 @@ private fun ReaderSwitch(label: String, checked: Boolean, onCheckedChange: (Bool
         com.kitsugi.animelist.ui.theme.gradient.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = Modifier.semantics { contentDescription = label })
     }
 }
+
+/**
+ * Otomatik başlatmada çevrimiçi arama için üst sınır.
+ *
+ * Neden sınır: otomatik başlatma **kullanıcı bir şey yapmadan** çalışır;
+ * ağ yavaşsa okuyucunun açılışını bekletmemesi gerekir. Süre aşılırsa
+ * cihaz içi karışıma düşülür.
+ */
+private const val AUTO_PLAY_ONLINE_TIMEOUT_MS = 8_000L
